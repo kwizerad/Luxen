@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
-import { SiteHeader } from "@/components/site-header";
 import { LanguageProvider } from "@/lib/language-context";
 import Script from "next/script";
 import "./globals.css";
@@ -12,8 +11,8 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Your App",
-  description: "Your application description",
+  title: "Navo",
+  description: "Navo - Your modern learning platform",
 };
 
 const inter = Inter({
@@ -58,10 +57,7 @@ export default function RootLayout({
           storageKey="navo-theme"
         >
           <LanguageProvider>
-            <div className="flex min-h-screen flex-col">
-              <SiteHeader />
-              <main className="flex-1">{children}</main>
-            </div>
+            {children}
           </LanguageProvider>
         </ThemeProvider>
       </body>

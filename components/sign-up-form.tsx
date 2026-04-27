@@ -40,10 +40,15 @@ const FacebookIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+interface SignUpFormProps extends React.ComponentPropsWithoutRef<"div"> {
+  onSuccess?: () => void;
+}
+
 export function SignUpForm({
   className,
+  onSuccess,
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: SignUpFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +70,8 @@ export function SignUpForm({
         },
       });
       if (error) throw error;
+      // Call onSuccess callback if provided
+      if (onSuccess) onSuccess();
       router.push("/auth/sign-up-success");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
@@ -177,7 +184,7 @@ export function SignUpForm({
 
             <div className="text-center text-sm">
               Already have an account?{" "}
-              <Link href="/auth/login" className="underline underline-offset-4">
+              <Link href="/" className="underline underline-offset-4">
                 Login
               </Link>
             </div>

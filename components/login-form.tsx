@@ -16,10 +16,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+interface LoginFormProps extends React.ComponentPropsWithoutRef<"div"> {
+  onSuccess?: () => void;
+}
+
 export function LoginForm({
   className,
+  onSuccess,
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +44,10 @@ export function LoginForm({
       });
       if (error) throw error;
       console.log("Login successful:", data);
-      // Redirect to home page after successful login
-      router.push("/");
+      // Call onSuccess callback if provided
+      if (onSuccess) onSuccess();
+      // Redirect to dashboard after successful login
+      router.push("/dashboard");
     } catch (error: unknown) {
       console.error("Login error:", error);
       const errorMessage = error instanceof Error ? error.message : "An error occurred";

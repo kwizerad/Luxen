@@ -15,7 +15,7 @@ export function SiteFooter() {
             Home
           </Link>
           <Link
-            href="/auth/login"
+            href="/"
             className="hover:text-foreground transition-colors"
           >
             Login

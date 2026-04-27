@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function ForgotPasswordForm({
   className,
@@ -23,6 +24,7 @@ export function ForgotPasswordForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,11 +54,18 @@ export function ForgotPasswordForm({
             <CardTitle className="text-2xl">Check Your Email</CardTitle>
             <CardDescription>Password reset instructions sent</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
               If you registered using your email and password, you will receive
               a password reset email.
             </p>
+            <Button
+              onClick={() => router.push("/")}
+              variant="ghost"
+              className="w-full"
+            >
+              Cancel
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -87,14 +96,24 @@ export function ForgotPasswordForm({
                   {isLoading ? "Sending..." : "Send reset email"}
                 </Button>
               </div>
-              <div className="mt-4 text-center text-sm">
-                Already have an account?{" "}
-                <Link
-                  href="/auth/login"
-                  className="underline underline-offset-4"
+              <div className="mt-4 flex flex-col gap-2">
+                <div className="text-center text-sm">
+                  Already have an account?{" "}
+                  <Link
+                    href="/"
+                    className="underline underline-offset-4"
+                  >
+                    Login
+                  </Link>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => router.push("/")}
+                  variant="ghost"
+                  className="w-full"
                 >
-                  Login
-                </Link>
+                  Cancel
+                </Button>
               </div>
             </form>
           </CardContent>

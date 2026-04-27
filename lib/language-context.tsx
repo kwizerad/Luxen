@@ -94,7 +94,7 @@ const translations: Record<Language, Record<string, string>> = {
 };
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>("Kinyarwanda");
+  const [language, setLanguage] = useState<Language>("English");
 
   const t = (key: string): string => {
     return translations[language][key] || key;
