@@ -52,7 +52,6 @@ export function SignUpForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [gender, setGender] = useState("");
-  const [role, setRole] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -71,7 +70,6 @@ export function SignUpForm({
           emailRedirectTo: `${window.location.origin}/protected`,
           data: {
             gender: gender,
-            role: role,
           },
         },
       });
@@ -156,21 +154,6 @@ export function SignUpForm({
 
             <form onSubmit={handleSignUp}>
               <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="role">Role</Label>
-                <select
-                  id="role"
-                  required
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="">Select role</option>
-                  <option value="Student">Student</option>
-                  <option value="Driver">Driver</option>
-                  <option value="LandLord">LandLord</option>
-                </select>
-              </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input

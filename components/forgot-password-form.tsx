@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export function ForgotPasswordForm({
@@ -24,7 +24,40 @@ export function ForgotPasswordForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(60);
+  const [canResend, setCanResend] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (success && resendCooldown > 0) {
+      const timer = setInterval(() => {
+        setResendCooldown((prev) => prev - 1);
+      }, 1000);
+      return () => clearInterval(timer);
+    } else if (resendCooldown === 0) {
+      setCanResend(true);
+    }
+  }, [success, resendCooldown]);
+
+  const handleResend = async () => {
+    if (!canResend) return;
+    const supabase = createClient();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/update-password`,
+      });
+      if (error) throw error;
+      setResendCooldown(60);
+      setCanResend(false);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +92,19 @@ export function ForgotPasswordForm({
               If you registered using your email and password, you will receive
               a password reset email.
             </p>
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            <Button
+              onClick={handleResend}
+              variant="outline"
+              className="w-full"
+              disabled={!canResend || isLoading}
+            >
+              {isLoading
+                ? "Sending..."
+                : canResend
+                  ? "Resend email"
+                  : `Resend in ${resendCooldown}s`}
+            </Button>
             <Button
               onClick={() => router.push("/")}
               variant="ghost"
