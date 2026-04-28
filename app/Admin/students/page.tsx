@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -21,32 +20,23 @@ interface Student {
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const loadStudents = async () => {
-      const supabase = createClient();
-      
       try {
-        // Get all users from Supabase Auth
-        const { data, error } = await supabase.auth.admin.listUsers();
+        const response = await fetch("/api/users");
+        const data = await response.json();
         
-        if (error) {
-          console.error("Error fetching users:", error);
+        if (!data.success) {
+          setError(data.error || "Failed to load students");
           return;
         }
 
-        // Filter users with role "Student" or no role (regular users)
-        const allUsers = data.users || [];
-        const studentUsers = allUsers.filter((user: any) => 
-          user.user_metadata?.role === "Student" || 
-          !user.user_metadata?.role ||
-          user.user_metadata?.role === ""
-        );
-        
-        setStudents(studentUsers as Student[]);
-      } catch (error) {
-        console.error("Error loading students:", error);
+        setStudents(data.users || []);
+      } catch (err: any) {
+        setError(err.message || "Failed to load students");
       } finally {
         setLoading(false);
       }
@@ -64,6 +54,17 @@ export default function StudentsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Students</h1>
+        <div className="bg-red-100 text-red-800 p-4 rounded-md">
+          Error: {error}
+        </div>
       </div>
     );
   }
