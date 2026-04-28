@@ -46,8 +46,13 @@ export function LoginForm({
       console.log("Login successful:", data);
       // Call onSuccess callback if provided
       if (onSuccess) onSuccess();
-      // Redirect to dashboard after successful login
-      router.push("/dashboard");
+      // Redirect based on role - admins go to /Admin, others to /dashboard
+      const role = data.user?.user_metadata?.role;
+      if (role === "Admin") {
+        router.push("/Admin");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error: unknown) {
       console.error("Login error:", error);
       const errorMessage = error instanceof Error ? error.message : "An error occurred";
