@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { SettingsDropdown } from "@/components/settings-dropdown";
+import { SettingsModal } from "@/components/settings-modal";
 import { AuthButton } from "@/components/auth-button";
 import { useLanguage } from "@/lib/language-context";
 
@@ -20,7 +20,7 @@ export function SiteHeader() {
           </Link>
         </div>
         <div className="flex items-center gap-4">
-          <SettingsDropdown />
+          <SettingsModal />
           <AuthButton />
         </div>
       </div>
