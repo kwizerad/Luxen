@@ -25,20 +25,35 @@ export default function RegisterAdminPage() {
   const router = useRouter();
 
   useEffect(() => {
+    let mounted = true;
+    
     const checkAuth = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      
-      // Only the primary admin can access this page
-      if (user?.email === PRIMARY_ADMIN_EMAIL) {
-        setIsAuthorized(true);
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!mounted) return;
+        
+        setUser(user);
+        
+        // Only the primary admin can access this page
+        if (user?.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase()) {
+          setIsAuthorized(true);
+        }
+      } catch (error) {
+        console.error("Auth check error:", error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
-      
-      setLoading(false);
     };
     
     checkAuth();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleRegisterAdmin = async (e: React.FormEvent) => {
@@ -98,13 +113,13 @@ export default function RegisterAdminPage() {
           </p>
         </div>
         
-        <Card className="border-red-200">
+        <Card className="border-destructive/20 hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--destructive)/0.3)] hover:-translate-y-1 hover:border-destructive transition-all duration-300">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
-              <AlertTriangle className="h-6 w-6 text-red-500 mt-0.5" />
+              <AlertTriangle className="h-6 w-6 text-destructive mt-0.5" />
               <div>
-                <h3 className="font-semibold text-red-800">Unauthorized</h3>
-                <p className="text-red-600 mt-1">
+                <h3 className="font-semibold text-destructive">Unauthorized</h3>
+                <p className="text-destructive/80 mt-1">
                   Only the primary administrator (<strong>{PRIMARY_ADMIN_EMAIL}</strong>) can register new admin accounts.
                 </p>
               </div>
@@ -119,7 +134,7 @@ export default function RegisterAdminPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold flex items-center gap-2">
-          <UserPlus className="h-8 w-8" />
+          <UserPlus className="h-8 w-8 text-primary" />
           Register New Admin
         </h1>
         <p className="text-muted-foreground mt-1">
@@ -127,19 +142,19 @@ export default function RegisterAdminPage() {
         </p>
       </div>
 
-      <Card className="border-purple-200">
-        <CardHeader className="bg-purple-50">
+      <Card className="border-primary/30 hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
+        <CardHeader className="bg-primary/5">
           <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-purple-600" />
-            <CardTitle className="text-purple-800">Privileged Access</CardTitle>
+            <Shield className="h-5 w-5 text-accent" />
+            <CardTitle className="text-accent">Privileged Access</CardTitle>
           </div>
-          <CardDescription className="text-purple-600">
+          <CardDescription className="text-accent/80">
             You are authorized to create new admin accounts as the primary administrator.
           </CardDescription>
         </CardHeader>
       </Card>
 
-      <Card>
+      <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
         <CardHeader>
           <CardTitle>New Admin Details</CardTitle>
           <CardDescription>
@@ -190,8 +205,8 @@ export default function RegisterAdminPage() {
             {message && (
               <div className={`p-3 rounded-md text-sm ${
                 message.type === "success" 
-                  ? "bg-green-100 text-green-800" 
-                  : "bg-red-100 text-red-800"
+                  ? "bg-primary/10 text-primary border border-primary/20" 
+                  : "bg-destructive/10 text-destructive border border-destructive/20"
               }`}>
                 {message.text}
               </div>

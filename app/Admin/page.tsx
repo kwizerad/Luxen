@@ -57,7 +57,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
         <p className="text-muted-foreground mt-1">
           Welcome back! Manage your platform from here.
         </p>
@@ -68,7 +68,7 @@ export default function AdminDashboard() {
           const Icon = stat.icon;
           return (
             <Link key={stat.title} href={stat.href}>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300 cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
                     {stat.title}
@@ -84,7 +84,7 @@ export default function AdminDashboard() {
         })}
       </div>
 
-      <Card>
+      <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
           <CardDescription>Common administrative tasks</CardDescription>
@@ -92,10 +92,10 @@ export default function AdminDashboard() {
         <CardContent className="space-y-2">
           <Link 
             href="/Admin/students" 
-            className="block p-3 rounded-lg hover:bg-muted transition-colors"
+            className="block p-3 rounded-lg hover:bg-secondary transition-colors"
           >
             <div className="flex items-center gap-3">
-              <Users className="h-5 w-5" />
+              <Users className="h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">View All Students</p>
                 <p className="text-sm text-muted-foreground">See and manage student accounts</p>
@@ -105,10 +105,10 @@ export default function AdminDashboard() {
           
           <Link 
             href="/Admin/settings" 
-            className="block p-3 rounded-lg hover:bg-muted transition-colors"
+            className="block p-3 rounded-lg hover:bg-secondary transition-colors"
           >
             <div className="flex items-center gap-3">
-              <Settings className="h-5 w-5" />
+              <Settings className="h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">Update Credentials</p>
                 <p className="text-sm text-muted-foreground">Change your admin password</p>
@@ -119,10 +119,10 @@ export default function AdminDashboard() {
           {isPrimaryAdmin && (
             <Link 
               href="/Admin/register" 
-              className="block p-3 rounded-lg hover:bg-muted transition-colors"
+              className="block p-3 rounded-lg hover:bg-secondary transition-colors"
             >
               <div className="flex items-center gap-3">
-                <UserPlus className="h-5 w-5" />
+                <UserPlus className="h-5 w-5 text-primary" />
                 <div>
                   <p className="font-medium">Register New Admin</p>
                   <p className="text-sm text-muted-foreground">Create additional admin accounts</p>

@@ -62,7 +62,7 @@ export default function StudentsPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Students</h1>
-        <div className="bg-red-100 text-red-800 p-4 rounded-md">
+        <div className="bg-destructive/10 text-destructive p-4 rounded-md border border-destructive/20">
           Error: {error}
         </div>
       </div>
@@ -71,20 +71,20 @@ export default function StudentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Students</h1>
           <p className="text-muted-foreground mt-1">
             View and manage all student accounts
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-muted px-4 py-2 rounded-lg">
-          <GraduationCap className="h-5 w-5" />
+        <div className="flex items-center gap-2 bg-card border border-border px-4 py-2 rounded-lg w-fit">
+          <GraduationCap className="h-5 w-5 text-primary" />
           <span className="font-medium">{students.length} Students</span>
         </div>
       </div>
 
-      <Card>
+      <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
         <CardHeader>
           <CardTitle>All Students</CardTitle>
           <CardDescription>
@@ -109,34 +109,36 @@ export default function StudentsPage() {
               {searchQuery ? "No students found matching your search" : "No students registered yet"}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Gender</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Joined</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStudents.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-medium">{student.email}</TableCell>
-                    <TableCell>{student.user_metadata?.username || "-"}</TableCell>
-                    <TableCell className="capitalize">{student.user_metadata?.gender || "-"}</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {student.user_metadata?.role || "Student"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(student.created_at).toLocaleDateString()}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Username</TableHead>
+                    <TableHead>Gender</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Joined</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredStudents.map((student) => (
+                    <TableRow key={student.id} className="hover:bg-secondary/50 transition-colors">
+                      <TableCell className="font-medium">{student.email}</TableCell>
+                      <TableCell>{student.user_metadata?.username || "-"}</TableCell>
+                      <TableCell className="capitalize">{student.user_metadata?.gender || "-"}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                          {student.user_metadata?.role || "Student"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(student.created_at).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
