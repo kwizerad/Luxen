@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { isPrimaryAdmin, DEFAULT_PERMISSIONS } from "@/lib/permissions";
 
 const PRIMARY_ADMIN_EMAIL = "Navo@admin.jn";
 
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     const serverSupabase = await createClient();
     const { data: { user } } = await serverSupabase.auth.getUser();
     
-    if (!user || user.email !== PRIMARY_ADMIN_EMAIL) {
+    if (!user || !isPrimaryAdmin(user)) {
       return NextResponse.json({
         success: false,
         error: "Unauthorized - Only primary admin can create new admins"
@@ -18,7 +19,14 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { email, password, username } = body;
+    const { 
+      email, 
+      password, 
+      username, 
+      gender, 
+      require_password_change,
+      permissions 
+    } = body;
 
     if (!email || !password || !username) {
       return NextResponse.json({
@@ -40,7 +48,7 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Create new admin user
+    // Create new admin user with permissions
     const { data, error } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -48,6 +56,9 @@ export async function POST(request: Request) {
       user_metadata: {
         role: "Admin",
         username: username,
+        gender: gender || "male",
+        require_password_change: require_password_change || false,
+        permissions: permissions || DEFAULT_PERMISSIONS,
       }
     });
 
@@ -64,7 +75,10 @@ export async function POST(request: Request) {
       user: {
         email,
         role: "Admin",
-        username
+        username,
+        gender: gender || "male",
+        require_password_change: require_password_change || false,
+        permissions: permissions || DEFAULT_PERMISSIONS,
       }
     });
 

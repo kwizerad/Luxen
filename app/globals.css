@@ -19,7 +19,7 @@
     --muted-foreground: 218 11% 50%; /* #6B7280 */
     --accent: 142 76% 36%; /* #16A34A */
     --accent-foreground: 0 0% 100%; /* #FFFFFF */
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 317 88% 59%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 9% 89%; /* #E5E7EB */
     --input: 220 9% 89%; /* #E5E7EB */
@@ -43,26 +43,26 @@
     --card-foreground: 140 9% 98%; /* #F8FAF9 */
     --popover: 215 25% 14%; /* #1F2937 */
     --popover-foreground: 140 9% 98%; /* #F8FAF9 */
-    --primary: 142 71% 50%; /* Brighter green for dark mode */
-    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    /* Note: --primary, --primary-foreground, --ring, --accent, --accent-foreground, 
+       and chart colors are set by JavaScript via ThemeConfigProvider to allow admin customization.
+       They are not hardcoded here so customizations work in both light and dark modes. */
     --secondary: 215 25% 18%;
     --secondary-foreground: 140 9% 98%;
     --muted: 215 25% 18%;
     --muted-foreground: 218 11% 65%;
-    --accent: 142 76% 42%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 317 88% 59%;
     --destructive-foreground: 0 0% 98%;
     --border: 215 25% 22%;
     --input: 215 25% 22%;
-    --ring: 142 71% 50%;
-    --chart-1: 142 71% 50%;
-    --chart-2: 142 76% 42%;
-    --chart-3: 160 60% 50%;
-    --chart-4: 120 50% 55%;
-    --chart-5: 100 40% 45%;
+    /* Note: --ring is set by JavaScript via ThemeConfigProvider */
+    /* Note: chart colors are set by JavaScript via ThemeConfigProvider */
   }
 }
+
+/* Dynamic theme overrides - Apply when custom theme is set via inline styles */
+/* Note: JavaScript sets --primary, --primary-foreground, --ring, --accent, 
+   --hover-border-color, and --glow-intensity as inline styles on <html> element.
+   These override the default :root values due to higher specificity. */
 
 @layer base {
   * {

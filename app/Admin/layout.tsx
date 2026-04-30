@@ -2,13 +2,24 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
   Users, Settings, UserPlus, LogOut, LayoutDashboard, 
-  ChevronLeft, ChevronRight, Menu, X 
+  ChevronLeft, ChevronRight, Menu, X, FileText, Lock, MoreVertical
 } from "lucide-react";
+import { toast } from "sonner";
+import { canViewStudents, canAddQuestions, canViewQuestions } from "@/lib/permissions";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const ADMIN_EMAIL = "Navo@admin.jn";
 
@@ -21,6 +32,10 @@ export default function AdminLayout({
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -40,6 +55,12 @@ export default function AdminLayout({
       }
       
       setUser(user);
+      
+      // Check if password change is required
+      if (user?.user_metadata?.require_password_change && !isPrimaryAdmin) {
+        setShowPasswordChange(true);
+      }
+      
       setLoading(false);
     };
     
@@ -58,6 +79,63 @@ export default function AdminLayout({
   };
 
   const isPrimaryAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const canViewStudentsTab = canViewStudents(user);
+  const canAddQuestionsTab = canAddQuestions(user);
+  const canViewQuestionsTab = canViewQuestions(user);
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    
+    setChangingPassword(true);
+    
+    try {
+      const supabase = createClient();
+      
+      // Update password
+      const { error: passwordError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      
+      if (passwordError) {
+        toast.error(passwordError.message);
+        return;
+      }
+      
+      // Update user metadata to remove require_password_change flag
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { 
+          require_password_change: false,
+          role: "Admin",
+          username: user?.user_metadata?.username,
+          gender: user?.user_metadata?.gender,
+        }
+      });
+      
+      if (metadataError) {
+        toast.error(metadataError.message);
+        return;
+      }
+      
+      toast.success("Password changed successfully!");
+      setShowPasswordChange(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to change password");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -69,9 +147,9 @@ export default function AdminLayout({
 
   const navItems = [
     { href: "/Admin", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/Admin/students", icon: Users, label: "Students" },
-    { href: "/Admin/settings", icon: Settings, label: "Settings" },
-    ...(isPrimaryAdmin ? [{ href: "/Admin/register", icon: UserPlus, label: "Register Admin" }] : []),
+    ...(canViewStudentsTab ? [{ href: "/Admin/users", icon: Users, label: "Users" }] : []),
+    ...(canAddQuestionsTab ? [{ href: "/Admin/exams", icon: FileText, label: "Exams" }] : []),
+    ...(canViewQuestionsTab ? [{ href: "/Admin/questions", icon: FileText, label: "Questions" }] : []),
   ];
 
   const SidebarContent = () => (
@@ -127,20 +205,6 @@ export default function AdminLayout({
           );
         })}
       </nav>
-      
-      <div className="p-4 border-t border-border">
-        <Button 
-          variant="outline" 
-          className={`w-full justify-start gap-3 border-border text-foreground hover:bg-secondary hover:text-foreground ${!sidebarOpen && !mobileMenuOpen ? "lg:justify-center lg:px-2" : ""}`}
-          onClick={handleLogout}
-          title={!sidebarOpen && !mobileMenuOpen ? "Logout" : undefined}
-        >
-          <LogOut className="h-5 w-5 flex-shrink-0" />
-          <span className={sidebarOpen || mobileMenuOpen ? "block" : "hidden lg:hidden"}>
-            Logout
-          </span>
-        </Button>
-      </div>
     </>
   );
 
@@ -183,10 +247,104 @@ export default function AdminLayout({
         )}
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 lg:p-8 bg-background">
-          {children}
+        <main className="flex-1 overflow-auto bg-background">
+          {/* Desktop Header */}
+          <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-border bg-card sticky top-0 z-30">
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Admin Panel</h1>
+              <p className="text-sm text-muted-foreground">{user?.email}</p>
+            </div>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link href="/Admin/settings" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </header>
+
+          <div className="p-4 lg:p-8">
+            {children}
+          </div>
         </main>
       </div>
+      
+      {/* Password Change Modal */}
+      {showPasswordChange && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-lg max-w-md w-full p-6 shadow-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-amber-100 rounded-full">
+                <Lock className="h-5 w-5 text-amber-600" />
+              </div>
+              <h2 className="text-xl font-bold">Change Password Required</h2>
+            </div>
+            
+            <p className="text-muted-foreground mb-6">
+              For security reasons, you must change your default password (admin1234) before continuing.
+            </p>
+            
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  required
+                  minLength={6}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  required
+                />
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={changingPassword}
+              >
+                {changingPassword ? (
+                  <>
+                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Changing Password...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="h-4 w-4 mr-2" />
+                    Change Password
+                  </>
+                )}
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, User, Palette } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Mail, User, Palette, UserPlus } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { UserSettings } from "@/components/user-settings";
 import { ThemeCustomizer } from "@/components/theme-customizer";
 import { Loader2 } from "lucide-react";
 import { ADMIN_CREDENTIALS } from "@/lib/admin-config";
+import Link from "next/link";
 
 export default function AdminSettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -45,53 +47,69 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your admin account settings
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Settings</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage your admin account settings
+          </p>
+        </div>
+        {user?.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() && (
+          <Button asChild>
+            <Link href="/Admin/register">
+              <UserPlus className="mr-2 h-4 w-4" />
+              Register Admin
+            </Link>
+          </Button>
+        )}
       </div>
 
-      {/* Account Info */}
-      <Card className="hover:shadow-lg hover:-translate-y-1 hover:border-primary transition-all duration-300">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
-            Account Information
-          </CardTitle>
-          <CardDescription>
-            Your current account details
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
-            <Label className="text-muted-foreground">Email</Label>
-            <div className="flex items-center gap-2 p-3 bg-secondary border border-border rounded-md">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{user?.email}</span>
+      {/* All Cards in Horizontal Row - Same Size */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Account Info */}
+        <Card className="hover:shadow-lg hover:-translate-y-1 hover:border-primary transition-all duration-300 h-full flex flex-col">
+          <CardHeader className="flex-1">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <User className="h-5 w-5 text-primary" />
+              Account Information
+            </CardTitle>
+            <CardDescription className="text-sm">
+              Your current account details
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2">
+              <Label className="text-sm text-muted-foreground">Email</Label>
+              <div className="flex items-center gap-2 p-3 bg-secondary border border-border rounded-md">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">{user?.email}</span>
+              </div>
             </div>
-          </div>
-          <div className="grid gap-2">
-            <Label className="text-muted-foreground">Role</Label>
-            <div className="p-3 bg-secondary border border-border rounded-md">
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                {user?.user_metadata?.role || "Admin"}
-              </span>
+            <div className="grid gap-2">
+              <Label className="text-sm text-muted-foreground">Role</Label>
+              <div className="p-3 bg-secondary border border-border rounded-md">
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary">
+                  {user?.user_metadata?.role || "Admin"}
+                </span>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Theme Customization - Only for Primary Admin */}
+        {/* User Settings Component (Appearance, Language, Password) */}
+        <UserSettings showPasswordChange={true} />
+      </div>
+
+      {/* Theme Customization - Only for Primary Admin (Other Settings) */}
       {user?.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() && (
         <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300 border-primary/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Palette className="h-5 w-5 text-primary" />
-              Theme Customization
+              Other Settings
             </CardTitle>
             <CardDescription>
-              Customize the platform colors and effects (Primary Admin Only)
+              Theme customization (Primary Admin Only)
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -99,9 +117,6 @@ export default function AdminSettingsPage() {
           </CardContent>
         </Card>
       )}
-
-      {/* User Settings Component */}
-      <UserSettings showPasswordChange={true} />
     </div>
   );
 }

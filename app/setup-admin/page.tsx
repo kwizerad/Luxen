@@ -55,7 +55,7 @@ export default function SetupAdminPage() {
           </Button>
           
           {result && (
-            <div className={`p-3 rounded-md text-sm ${result.success ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+            <div className={`p-3 rounded-md text-sm ${result.success ? "bg-[rgb(0_101_35/28%)] text-green-800" : "bg-red-100 text-red-800"}`}>
               {result.message || result.error}
             </div>
           )}

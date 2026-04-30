@@ -7,9 +7,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
-import { Lock, Loader2, Globe, Moon, Sun, Monitor, Type, User } from "lucide-react";
+import { Lock, Loader2, Globe, Moon, Sun, Monitor, Type, User, Camera, Upload, X, RefreshCw, MoreVertical, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type TextSize = "small" | "medium" | "large";
 
@@ -34,6 +59,20 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
   // Username change state
   const [username, setUsername] = useState(user?.user_metadata?.username || "");
   const [updatingUsername, setUpdatingUsername] = useState(false);
+  
+  // Profile picture state
+  const [avatarUrl, setAvatarUrl] = useState(user?.user_metadata?.avatar_url || "");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [googleAvatarUrl, setGoogleAvatarUrl] = useState(user?.user_metadata?.google_avatar_url || "");
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  
+  // Profile information state
+  const [firstName, setFirstName] = useState(user?.user_metadata?.first_name || "");
+  const [lastName, setLastName] = useState(user?.user_metadata?.last_name || "");
+  const [gender, setGender] = useState(user?.user_metadata?.gender || "");
+  const [updatingProfile, setUpdatingProfile] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -131,6 +170,140 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
     }
   };
 
+  const handleAvatarUpload = async (imageUrl: string | undefined) => {
+    if (!imageUrl) {
+      setAvatarUrl("");
+      return;
+    }
+    
+    setUploadingAvatar(true);
+    
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.updateUser({
+        data: { avatar_url: imageUrl },
+      });
+      
+      if (error) throw error;
+      
+      setAvatarUrl(imageUrl);
+      toast.success("Profile picture updated successfully");
+      
+      // Notify parent component of user update
+      if (onUserUpdate && data?.user) {
+        onUserUpdate(data.user);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update profile picture");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setUploadingAvatar(true);
+    setShowRemoveDialog(false);
+    
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.updateUser({
+        data: { avatar_url: null },
+      });
+      
+      if (error) throw error;
+      
+      setAvatarUrl("");
+      toast.success("Profile picture removed successfully");
+      
+      // Notify parent component of user update
+      if (onUserUpdate && data?.user) {
+        onUserUpdate(data.user);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to remove profile picture");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleRestoreGoogleAvatar = async () => {
+    if (!googleAvatarUrl) {
+      toast.error("No Google profile picture available to restore");
+      return;
+    }
+    
+    setUploadingAvatar(true);
+    
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.updateUser({
+        data: { avatar_url: googleAvatarUrl },
+      });
+      
+      if (error) throw error;
+      
+      setAvatarUrl(googleAvatarUrl);
+      toast.success("Google profile picture restored successfully");
+      
+      // Notify parent component of user update
+      if (onUserUpdate && data?.user) {
+        onUserUpdate(data.user);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to restore Google profile picture");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    setUpdatingProfile(true);
+    
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          gender: gender,
+        },
+      });
+      
+      if (error) throw error;
+      
+      toast.success("Profile information updated successfully");
+      
+      // Notify parent component of user update
+      if (onUserUpdate && data?.user) {
+        onUserUpdate(data.user);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update profile");
+    } finally {
+      setUpdatingProfile(false);
+    }
+  };
+
+  const getDisplayName = () => {
+    if (firstName && lastName) {
+      return `${firstName} ${lastName}`;
+    }
+    return user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || "User";
+  };
+
+  const getInitials = () => {
+    const name = getDisplayName();
+    return name
+      .split(' ')
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   if (!mounted) {
     return null;
   }
@@ -151,22 +324,281 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
   const cardHoverClass = "hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300";
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr">
-      {/* Appearance Settings */}
-      <Card className={cardHoverClass}>
+    <>
+      {/* Profile Settings Card - Profile Picture, Profile Information, Username */}
+      <Card className={`${cardHoverClass}`}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Moon className="h-5 w-5 text-primary" />
-            Appearance
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <User className="h-5 w-5 text-primary" />
+            Profile Settings
           </CardTitle>
-          <CardDescription>
-            Customize how the app looks
+          <CardDescription className="text-sm">
+            Manage your profile picture, name, and username
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Profile Picture Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-center gap-4">
+              <div className="relative">
+                <Avatar className="h-24 w-24 border-4 border-primary/20">
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
+                  <AvatarFallback className="text-2xl font-semibold">{getInitials()}</AvatarFallback>
+                </Avatar>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {avatarUrl && (
+                    <>
+                      <DropdownMenuItem onClick={() => setShowViewDialog(true)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  <DropdownMenuItem onClick={() => setShowUploadDialog(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Change
+                  </DropdownMenuItem>
+                  {googleAvatarUrl && avatarUrl !== googleAvatarUrl && (
+                    <DropdownMenuItem onClick={handleRestoreGoogleAvatar}>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Restore Google
+                    </DropdownMenuItem>
+                  )}
+                  {avatarUrl && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setShowRemoveDialog(true)} className="text-red-600">
+                        <X className="mr-2 h-4 w-4" />
+                        Remove
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          <div className="border-t" />
+
+          {/* Profile Information Form - Combined with Username */}
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            setUpdatingProfile(true);
+            
+            try {
+              const supabase = createClient();
+              const updateData: any = {
+                first_name: firstName.trim(),
+                last_name: lastName.trim(),
+                full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+                gender: gender,
+              };
+              
+              if (showUsernameChange && username) {
+                updateData.username = username.trim();
+              }
+              
+              const { data, error } = await supabase.auth.updateUser({
+                data: updateData,
+              });
+              
+              if (error) throw error;
+              
+              toast.success("Profile updated successfully");
+              
+              // Notify parent component of user update
+              if (onUserUpdate && data?.user) {
+                onUserUpdate(data.user);
+              }
+            } catch (error: any) {
+              toast.error(error.message || "Failed to update profile");
+            } finally {
+              setUpdatingProfile(false);
+            }
+          }} className="space-y-4">
+            <div className="grid gap-2">
+              <Label htmlFor="firstName" className="text-sm">First Name</Label>
+              <Input
+                id="firstName"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Enter first name"
+                className="h-10"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="lastName" className="text-sm">Last Name</Label>
+              <Input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Enter last name"
+                className="h-10"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="gender" className="text-sm">Gender</Label>
+              <select
+                id="gender"
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring h-10"
+              >
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+                <option value="prefer-not-to-say">Prefer not to say</option>
+              </select>
+            </div>
+            {showUsernameChange && (
+              <div className="grid gap-2">
+                <Label htmlFor="username" className="text-sm">Username</Label>
+                <Input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter username"
+                  required
+                  className="h-10"
+                />
+              </div>
+            )}
+            <Button type="submit" disabled={updatingProfile} className="w-full">
+              {updatingProfile ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Profile"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Remove Profile Picture Confirmation Dialog */}
+      <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Profile Picture?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove your current profile picture. You can upload a new one or restore your Google profile picture later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemoveAvatar}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Upload Profile Picture Dialog */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Profile Picture</DialogTitle>
+            <DialogDescription>
+              Upload a new profile picture from your device
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  if (!file.type.startsWith("image/")) {
+                    toast.error("Please select an image file");
+                    return;
+                  }
+                  if (file.size > 5 * 1024 * 1024) {
+                    toast.error("File size must be less than 5MB");
+                    return;
+                  }
+                  
+                  setUploadingAvatar(true);
+                  try {
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    formData.append("folder", "profile-pictures");
+
+                    const res = await fetch("/api/profile-picture", {
+                      method: "POST",
+                      body: formData,
+                    });
+
+                    const data = await res.json();
+
+                    if (data.url) {
+                      await handleAvatarUpload(data.url);
+                      setShowUploadDialog(false);
+                    } else {
+                      toast.error(data.error || "Failed to upload image");
+                    }
+                  } catch (error) {
+                    toast.error("Failed to upload image");
+                  } finally {
+                    setUploadingAvatar(false);
+                  }
+                }
+              }}
+              disabled={uploadingAvatar}
+              className="w-full"
+            />
+            {uploadingAvatar && (
+              <div className="flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Profile Picture Dialog */}
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Profile Picture</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center">
+            <img
+              src={avatarUrl}
+              alt="Profile"
+              className="max-w-full max-h-96 rounded-lg"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Appearance & Language Card */}
+      <Card className={`${cardHoverClass}`}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Moon className="h-5 w-5 text-primary" />
+            Appearance & Language
+          </CardTitle>
+          <CardDescription className="text-sm">
+            Customize theme, text size, and language
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Theme */}
           <div className="space-y-3">
-            <Label className="flex items-center gap-2">
+            <Label className="flex items-center gap-2 text-sm">
               <Sun className="h-4 w-4" />
               {t("theme")}
             </Label>
@@ -192,7 +624,7 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
 
           {/* Text Size */}
           <div className="space-y-3">
-            <Label className="flex items-center gap-2">
+            <Label className="flex items-center gap-2 text-sm">
               <Type className="h-4 w-4" />
               {t("textSize")}
             </Label>
@@ -209,95 +641,47 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
               ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Username Change */}
-      {showUsernameChange && (
-        <Card className={cardHoverClass}>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <User className="h-4 w-4 text-primary" />
-              Change Username
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Update your display name
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleUpdateUsername} className="space-y-3">
-              <div className="grid gap-2">
-                <Label htmlFor="username" className="text-xs">Username</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter username"
-                  required
-                  className="h-9"
-                />
-              </div>
-              
-              
-              <Button type="submit" disabled={updatingUsername} size="sm" className="w-full">
-                {updatingUsername ? (
-                  <>
-                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  "Update Username"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+          <div className="border-t" />
 
-      {/* Language Settings */}
-      <Card className={cardHoverClass}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-primary" />
-            {t("language")}
-          </CardTitle>
-          <CardDescription>
-            Choose your preferred language
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2 flex-wrap">
-            {languages.map(({ value, label }) => (
-              <Button
-                key={value}
-                variant={language === value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setLanguage(value as any)}
-              >
-                {label}
-              </Button>
-            ))}
+          {/* Language */}
+          <div className="space-y-3">
+            <Label className="flex items-center gap-2 text-sm">
+              <Globe className="h-4 w-4" />
+              {t("language")}
+            </Label>
+            <div className="flex gap-2 flex-wrap">
+              {languages.map(({ value, label }) => (
+                <Button
+                  key={value}
+                  variant={language === value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setLanguage(value as any)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Password Change */}
       {showPasswordChange && (
-        <Card className={cardHoverClass}>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Lock className="h-4 w-4 text-primary" />
+        <Card className={`${cardHoverClass}`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Lock className="h-5 w-5 text-primary" />
               Change Password
             </CardTitle>
-            <CardDescription className="text-xs">
+            <CardDescription className="text-sm">
               Update your account password
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleUpdatePassword} className="space-y-3">
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="newPassword" className="text-xs">New Password</Label>
+                <Label htmlFor="newPassword" className="text-sm">New Password</Label>
                 <Input
                   id="newPassword"
                   type="password"
@@ -305,12 +689,12 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter new password"
                   required
-                  className="h-9"
+                  className="h-10"
                 />
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="confirmPassword" className="text-xs">Confirm Password</Label>
+                <Label htmlFor="confirmPassword" className="text-sm">Confirm Password</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
@@ -318,15 +702,14 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm password"
                   required
-                  className="h-9"
+                  className="h-10"
                 />
               </div>
               
-              
-              <Button type="submit" disabled={updating} size="sm" className="w-full">
+              <Button type="submit" disabled={updating} className="w-full">
                 {updating ? (
                   <>
-                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Updating...
                   </>
                 ) : (
@@ -337,6 +720,6 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
           </CardContent>
         </Card>
       )}
-    </div>
+    </>
   );
 }

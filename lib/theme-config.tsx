@@ -3,22 +3,37 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
 interface ThemeConfig {
-  primaryColor: string;
-  hoverBorderColor: string;
+  light: {
+    primaryColor: string;
+    hoverBorderColor: string;
+  };
+  dark: {
+    primaryColor: string;
+    hoverBorderColor: string;
+  };
   glowIntensity: number;
 }
 
 interface ThemeConfigContextType {
   config: ThemeConfig;
-  setPrimaryColor: (color: string) => void;
-  setHoverBorderColor: (color: string) => void;
+  setLightPrimaryColor: (color: string) => void;
+  setLightHoverBorderColor: (color: string) => void;
+  setDarkPrimaryColor: (color: string) => void;
+  setDarkHoverBorderColor: (color: string) => void;
   setGlowIntensity: (intensity: number) => void;
+  saveConfig: (newConfig: ThemeConfig) => void;
   resetToDefault: () => void;
 }
 
 const defaultConfig: ThemeConfig = {
-  primaryColor: "#22C55E", // Default green
-  hoverBorderColor: "#22C55E", // Default green
+  light: {
+    primaryColor: "#22C55E", // Default green
+    hoverBorderColor: "#22C55E", // Default green
+  },
+  dark: {
+    primaryColor: "#22C55E", // Default green
+    hoverBorderColor: "#22C55E", // Default green
+  },
   glowIntensity: 30, // Default 30px glow
 };
 
@@ -29,34 +44,92 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    // Load saved config from localStorage
+    // Load saved config from localStorage and apply immediately
     const saved = localStorage.getItem("navo-theme-config");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setConfig(parsed);
-        applyThemeConfig(parsed);
-      } catch {
+        
+        // Migrate old format to new format if needed
+        let configToUse = parsed;
+        if (parsed.primaryColor && !parsed.light) {
+          // Old format detected - migrate to new format
+          configToUse = {
+            light: {
+              primaryColor: parsed.primaryColor,
+              hoverBorderColor: parsed.hoverBorderColor || parsed.primaryColor,
+            },
+            dark: {
+              primaryColor: parsed.primaryColor,
+              hoverBorderColor: parsed.hoverBorderColor || parsed.primaryColor,
+            },
+            glowIntensity: parsed.glowIntensity || 30,
+          };
+          // Save migrated config
+          localStorage.setItem("navo-theme-config", JSON.stringify(configToUse));
+          console.log("Migrated old theme config to new format:", configToUse);
+        }
+        
+        setConfig(configToUse);
+        applyThemeConfig(configToUse);
+        console.log("Theme config loaded and applied:", configToUse);
+      } catch (e) {
+        console.error("Failed to parse theme config:", e);
         applyThemeConfig(defaultConfig);
       }
     } else {
+      console.log("No saved theme config, using default");
       applyThemeConfig(defaultConfig);
     }
+    setMounted(true);
+
+    // Listen for theme changes and re-apply colors
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          // Re-apply theme colors when theme changes
+          const currentConfig = JSON.parse(localStorage.getItem("navo-theme-config") || JSON.stringify(defaultConfig));
+          applyThemeConfig(currentConfig);
+        }
+      });
+    });
+    observer.observe(document.documentElement, { attributes: true });
+
+    return () => observer.disconnect();
   }, []);
 
   const applyThemeConfig = (themeConfig: ThemeConfig) => {
     const root = document.documentElement;
+    const isDark = root.classList.contains('dark');
+    
+    // Get the appropriate theme colors based on current mode
+    const themeColors = isDark ? themeConfig.dark : themeConfig.light;
     
     // Convert hex to HSL for primary color
-    const hsl = hexToHSL(themeConfig.primaryColor);
+    const hsl = hexToHSL(themeColors.primaryColor);
     if (hsl) {
+      // Set primary and related colors
       root.style.setProperty("--primary", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
       root.style.setProperty("--primary-foreground", hsl.l > 50 ? "0 0% 0%" : "0 0% 100%");
+      
+      // Set ring to match primary
+      root.style.setProperty("--ring", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
+      
+      // Set accent (slightly darker version of primary)
+      const accentL = Math.max(0, hsl.l - 10);
+      root.style.setProperty("--accent", `${hsl.h} ${hsl.s}% ${accentL}%`);
+      root.style.setProperty("--accent-foreground", accentL > 50 ? "0 0% 0%" : "0 0% 100%");
+      
+      // Set chart colors (variations of primary)
+      root.style.setProperty("--chart-1", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
+      root.style.setProperty("--chart-2", `${hsl.h} ${hsl.s}% ${Math.max(0, hsl.l - 5)}%`);
+      root.style.setProperty("--chart-3", `${(hsl.h + 10) % 360} ${Math.max(0, hsl.s - 10)}% ${hsl.l}%`);
+      root.style.setProperty("--chart-4", `${(hsl.h - 10 + 360) % 360} ${Math.max(0, hsl.s - 10)}% ${hsl.l}%`);
+      root.style.setProperty("--chart-5", `${(hsl.h + 20) % 360} ${Math.max(0, hsl.s - 15)}% ${hsl.l}%`);
     }
     
     // Apply hover border color
-    root.style.setProperty("--hover-border-color", themeConfig.hoverBorderColor);
+    root.style.setProperty("--hover-border-color", themeColors.hoverBorderColor);
     
     // Apply glow intensity as CSS variable
     root.style.setProperty("--glow-intensity", `${themeConfig.glowIntensity}px`);
@@ -89,15 +162,29 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
     return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
   };
 
-  const setPrimaryColor = (color: string) => {
-    const newConfig = { ...config, primaryColor: color };
+  const setLightPrimaryColor = (color: string) => {
+    const newConfig = { ...config, light: { ...config.light, primaryColor: color } };
     setConfig(newConfig);
     localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
     applyThemeConfig(newConfig);
   };
 
-  const setHoverBorderColor = (color: string) => {
-    const newConfig = { ...config, hoverBorderColor: color };
+  const setLightHoverBorderColor = (color: string) => {
+    const newConfig = { ...config, light: { ...config.light, hoverBorderColor: color } };
+    setConfig(newConfig);
+    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    applyThemeConfig(newConfig);
+  };
+
+  const setDarkPrimaryColor = (color: string) => {
+    const newConfig = { ...config, dark: { ...config.dark, primaryColor: color } };
+    setConfig(newConfig);
+    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    applyThemeConfig(newConfig);
+  };
+
+  const setDarkHoverBorderColor = (color: string) => {
+    const newConfig = { ...config, dark: { ...config.dark, hoverBorderColor: color } };
     setConfig(newConfig);
     localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
     applyThemeConfig(newConfig);
@@ -105,6 +192,12 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
 
   const setGlowIntensity = (intensity: number) => {
     const newConfig = { ...config, glowIntensity: intensity };
+    setConfig(newConfig);
+    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    applyThemeConfig(newConfig);
+  };
+
+  const saveConfig = (newConfig: ThemeConfig) => {
     setConfig(newConfig);
     localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
     applyThemeConfig(newConfig);
@@ -124,9 +217,12 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
     <ThemeConfigContext.Provider
       value={{
         config,
-        setPrimaryColor,
-        setHoverBorderColor,
+        setLightPrimaryColor,
+        setLightHoverBorderColor,
+        setDarkPrimaryColor,
+        setDarkHoverBorderColor,
         setGlowIntensity,
+        saveConfig,
         resetToDefault,
       }}
     >

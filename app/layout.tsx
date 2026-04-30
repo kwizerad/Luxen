@@ -48,13 +48,28 @@ export default function RootLayout({
                 const theme = getTheme();
                 document.documentElement.classList.add(theme);
                 
-                // Apply custom theme config
+                // Apply custom theme config immediately
                 const themeConfig = localStorage.getItem('navo-theme-config');
                 if (themeConfig) {
                   try {
-                    const config = JSON.parse(themeConfig);
+                    let config = JSON.parse(themeConfig);
                     
-                    // Hex to HSL conversion
+                    // Migrate old format to new format if needed
+                    if (config.primaryColor && !config.light) {
+                      config = {
+                        light: {
+                          primaryColor: config.primaryColor,
+                          hoverBorderColor: config.hoverBorderColor || config.primaryColor,
+                        },
+                        dark: {
+                          primaryColor: config.primaryColor,
+                          hoverBorderColor: config.hoverBorderColor || config.primaryColor,
+                        },
+                        glowIntensity: config.glowIntensity || 30,
+                      };
+                      localStorage.setItem('navo-theme-config', JSON.stringify(config));
+                    }
+                    
                     function hexToHSL(hex) {
                       const result = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);
                       if (!result) return null;
@@ -76,14 +91,48 @@ export default function RootLayout({
                       return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
                     }
                     
-                    const hsl = hexToHSL(config.primaryColor);
-                    if (hsl) {
-                      document.documentElement.style.setProperty('--primary', hsl.h + ' ' + hsl.s + '% ' + hsl.l + '%');
-                      document.documentElement.style.setProperty('--primary-foreground', hsl.l > 50 ? '0 0% 0%' : '0 0% 100%');
+                    function applyThemeColors(config) {
+                      const isDark = document.documentElement.classList.contains('dark');
+                      const themeColors = isDark ? config.dark : config.light;
+                      
+                      const hsl = hexToHSL(themeColors.primaryColor);
+                      if (hsl) {
+                        document.documentElement.style.setProperty('--primary', hsl.h + ' ' + hsl.s + '% ' + hsl.l + '%');
+                        document.documentElement.style.setProperty('--primary-foreground', hsl.l > 50 ? '0 0% 0%' : '0 0% 100%');
+                        document.documentElement.style.setProperty('--ring', hsl.h + ' ' + hsl.s + '% ' + hsl.l + '%');
+                        var accentL = Math.max(0, hsl.l - 10);
+                        document.documentElement.style.setProperty('--accent', hsl.h + ' ' + hsl.s + '% ' + accentL + '%');
+                        document.documentElement.style.setProperty('--accent-foreground', accentL > 50 ? '0 0% 0%' : '0 0% 100%');
+                        document.documentElement.style.setProperty('--chart-1', hsl.h + ' ' + hsl.s + '% ' + hsl.l + '%');
+                        document.documentElement.style.setProperty('--chart-2', hsl.h + ' ' + hsl.s + '% ' + Math.max(0, hsl.l - 5) + '%');
+                        document.documentElement.style.setProperty('--chart-3', ((hsl.h + 10) % 360) + ' ' + Math.max(0, hsl.s - 10) + '% ' + hsl.l + '%');
+                        document.documentElement.style.setProperty('--chart-4', ((hsl.h - 10 + 360) % 360) + ' ' + Math.max(0, hsl.s - 10) + '% ' + hsl.l + '%');
+                        document.documentElement.style.setProperty('--chart-5', ((hsl.h + 20) % 360) + ' ' + Math.max(0, hsl.s - 15) + '% ' + hsl.l + '%');
+                      }
+                      document.documentElement.style.setProperty('--hover-border-color', themeColors.hoverBorderColor);
+                      document.documentElement.style.setProperty('--glow-intensity', config.glowIntensity + 'px');
                     }
-                    document.documentElement.style.setProperty('--hover-border-color', config.hoverBorderColor);
-                    document.documentElement.style.setProperty('--glow-intensity', config.glowIntensity + 'px');
-                  } catch (e) {}
+                    
+                    applyThemeColors(config);
+                    
+                    // Re-apply colors when theme changes
+                    const observer = new MutationObserver(function(mutations) {
+                      mutations.forEach(function(mutation) {
+                        if (mutation.attributeName === 'class') {
+                          const savedConfig = localStorage.getItem('navo-theme-config');
+                          if (savedConfig) {
+                            try {
+                              const config = JSON.parse(savedConfig);
+                              applyThemeColors(config);
+                            } catch (e) {}
+                          }
+                        }
+                      });
+                    });
+                    observer.observe(document.documentElement, { attributes: true });
+                  } catch (e) {
+                    console.error('Failed to apply theme config:', e);
+                  }
                 }
               })();
             `,

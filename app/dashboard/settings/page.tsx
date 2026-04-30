@@ -18,11 +18,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function StudentSettingsPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  const getDisplayName = () => {
+    if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
+      return `${user.user_metadata.first_name} ${user.user_metadata.last_name}`;
+    }
+    return user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || "User";
+  };
+
+  const getInitials = () => {
+    const name = getDisplayName();
+    return name
+      .split(' ')
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   useEffect(() => {
     const loadUser = async () => {
@@ -68,22 +86,17 @@ export default function StudentSettingsPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-4 w-4 text-primary" />
-              </div>
-              <span className="text-sm font-medium text-foreground">
-                {user?.user_metadata?.username || user?.email}
-              </span>
-            </div>
-            
-            {/* Account Info Modal Trigger */}
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <User className="h-4 w-4 mr-2" />
-                  Account Info
-                </Button>
+                <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+                  <Avatar className="h-8 w-8">
+                    {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
+                    <AvatarFallback className="text-xs font-semibold">{getInitials()}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium text-foreground">
+                    {getDisplayName()}
+                  </span>
+                </div>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
@@ -96,32 +109,32 @@ export default function StudentSettingsPage() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                  <div className="grid gap-2">
-                    <Label className="text-muted-foreground text-sm">Email</Label>
-                    <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300 max-w-md">
-                      <CardContent className="flex items-center gap-2 p-3 bg-secondary border border-border rounded-md">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{user?.email}</span>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label className="text-muted-foreground text-sm">Username</Label>
-                    <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300 max-w-md">
-                      <CardContent className="p-3 bg-secondary border border-border rounded-md">
-                        <span className="font-medium">{user?.user_metadata?.username || "-"}</span>
-                      </CardContent>
-                    </Card>
-                    <div className="p-3 bg-secondary border border-border rounded-md">
-                      <span className="font-medium">{user?.user_metadata?.username || "-"}</span>
+                  <div className="bg-gradient-to-br from-primary/10 to-secondary/50 border-2 border-primary/20 rounded-lg p-6 space-y-4">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-20 w-20 border-4 border-primary cursor-pointer" onClick={() => {
+                        if (user?.user_metadata?.avatar_url) {
+                          window.open(user.user_metadata.avatar_url, '_blank');
+                        }
+                      }}>
+                        {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
+                        <AvatarFallback className="text-xl font-semibold">{getInitials()}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold">{getDisplayName()}</h3>
+                        <p className="text-sm text-muted-foreground">{user?.email}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label className="text-muted-foreground text-sm">Role</Label>
-                    <div className="p-3 bg-secondary border border-border rounded-md">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                        {user?.user_metadata?.role || "Student"}
-                      </span>
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-primary/20">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Gender</p>
+                        <p className="font-medium capitalize">{user?.user_metadata?.gender || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Role</p>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
+                          {user?.user_metadata?.role || "Student"}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -139,13 +152,15 @@ export default function StudentSettingsPage() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
-          {/* User Settings Component - 4 cards in one row on desktop */}
-          <UserSettings 
-            showPasswordChange={true} 
-            showUsernameChange={true}
-            user={user}
-            onUserUpdate={(updatedUser) => setUser(updatedUser)}
-          />
+          {/* User Settings Component - cards in grid layout */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <UserSettings 
+              showPasswordChange={true} 
+              showUsernameChange={true}
+              user={user}
+              onUserUpdate={(updatedUser) => setUser(updatedUser)}
+            />
+          </div>
         </div>
       </main>
     </div>
