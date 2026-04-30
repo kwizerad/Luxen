@@ -42,28 +42,46 @@ export default function AdminLayout({
   const sidebarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const checkAdmin = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Allow access if user is primary admin OR has Admin role
-      const isPrimaryAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-      const hasAdminRole = user?.user_metadata?.role === "Admin";
-      
-      if (!user || (!isPrimaryAdmin && !hasAdminRole)) {
-        console.log("Access denied:", { email: user?.email, role: user?.user_metadata?.role });
+    const checkAdmin = async (retryCount = 0) => {
+      try {
+        const supabase = createClient();
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        // Handle auth lock error by retrying
+        if (error?.message?.includes("lock") && retryCount < 3) {
+          console.log("Auth lock detected, retrying...", retryCount + 1);
+          setTimeout(() => checkAdmin(retryCount + 1), 500 * (retryCount + 1));
+          return;
+        }
+        
+        if (error) {
+          console.error("Auth error:", error);
+          router.push("/");
+          return;
+        }
+        
+        // Allow access if user is primary admin OR has Admin role
+        const isPrimaryAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        const hasAdminRole = user?.user_metadata?.role === "Admin";
+        
+        if (!user || (!isPrimaryAdmin && !hasAdminRole)) {
+          console.log("Access denied:", { email: user?.email, role: user?.user_metadata?.role });
+          router.push("/");
+          return;
+        }
+        
+        setUser(user);
+        
+        // Check if password change is required
+        if (user?.user_metadata?.require_password_change && !isPrimaryAdmin) {
+          setShowPasswordChange(true);
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error("Check admin error:", error);
         router.push("/");
-        return;
       }
-      
-      setUser(user);
-      
-      // Check if password change is required
-      if (user?.user_metadata?.require_password_change && !isPrimaryAdmin) {
-        setShowPasswordChange(true);
-      }
-      
-      setLoading(false);
     };
     
     checkAdmin();
@@ -188,7 +206,7 @@ export default function AdminLayout({
   const navItems = [
     { href: "/Admin", icon: LayoutDashboard, label: "Dashboard" },
     ...(canViewStudentsTab ? [{ href: "/Admin/users", icon: Users, label: "Users" }] : []),
-    ...(canAddQuestionsTab ? [{ href: "/Admin/exams", icon: FileText, label: "Exams" }] : []),
+    ...(canAddQuestionsTab ? [{ href: "/Admin/exams", icon: FileText, label: "Exam Management" }] : []),
     ...(canViewQuestionsTab ? [{ href: "/Admin/questions", icon: FileText, label: "Questions" }] : []),
   ];
 

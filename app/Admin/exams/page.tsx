@@ -10,26 +10,52 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { FileText, Plus, BookOpen, CheckCircle, Image as ImageIcon, X, Edit, Trash2, Loader2, ChevronDown, Settings, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { FileText, Plus, BookOpen, CheckCircle, Image as ImageIcon, X, Edit, Trash2, Loader2, ChevronDown, Settings, Eye, EyeOff, AlertTriangle, Trophy, Users } from "lucide-react";
 import { toast } from "sonner";
-import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
+import type { ExamCategory, ExamQuestion, ExamQuestionSortingMode } from "@/lib/database.types";
 import { ImageUpload } from "@/components/image-upload";
 import { createClient } from "@/lib/supabase/client";
 import { isAdmin, canAddQuestions, canViewQuestions } from "@/lib/permissions";
+import { DEFAULT_EXAM_SETTINGS } from "@/lib/exam-settings";
+
+const ADMIN_EMAIL = "Navo@admin.jn";
 
 export default function ExamManagementPage() {
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
+  const [filteredQuestions, setFilteredQuestions] = useState<ExamQuestion[]>([]);
   const [categoryQuestionCounts, setCategoryQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [hasPermission, setHasPermission] = useState(false);
   const [canViewQuestionsTab, setCanViewQuestionsTab] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  
+  // Search/filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterByImage, setFilterByImage] = useState<"all" | "with" | "without">("all");
+  
+  // Exam results state
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [examAttempts, setExamAttempts] = useState<any[]>([]);
+  const [loadingResults, setLoadingResults] = useState(false);
+  const [selectedAttempt, setSelectedAttempt] = useState<any>(null);
   
   // Category form state
   const [categoryName, setCategoryName] = useState("");
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<ExamCategory | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
+  const [showEditCategoryModal, setShowEditCategoryModal] = useState(false);
+  const [editCategoryName, setEditCategoryName] = useState("");
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,6 +86,20 @@ export default function ExamManagementPage() {
     A: false, B: false, C: false, D: false
   });
 
+  // Exam settings modal
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsCategory, setSettingsCategory] = useState<ExamCategory | null>(null);
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({
+    alwaysAvailable: true,
+    available_from: "" as string,
+    available_to: "" as string,
+    question_count: DEFAULT_EXAM_SETTINGS.question_count,
+    duration_minutes: DEFAULT_EXAM_SETTINGS.duration_minutes,
+    sorting_mode: DEFAULT_EXAM_SETTINGS.sorting_mode as ExamQuestionSortingMode,
+  });
+
   useEffect(() => {
     const checkPermissions = async () => {
       const supabase = createClient();
@@ -69,6 +109,8 @@ export default function ExamManagementPage() {
         router.push("/Admin");
         return;
       }
+
+      setCurrentUser(user);
 
       // Check if user has permission to add questions
       if (!canAddQuestions(user)) {
@@ -117,6 +159,7 @@ export default function ExamManagementPage() {
       const data = await res.json();
       if (data.questions) {
         setQuestions(data.questions);
+        setFilteredQuestions(data.questions);
         // Update the count for this category
         setCategoryQuestionCounts(prev => ({
           ...prev,
@@ -125,6 +168,103 @@ export default function ExamManagementPage() {
       }
     } catch (error) {
       toast.error("Failed to load questions");
+    }
+  };
+
+  useEffect(() => {
+    let filtered = questions;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(q => 
+        q.question?.toLowerCase().includes(query) ||
+        q.option_a?.toLowerCase().includes(query) ||
+        q.option_b?.toLowerCase().includes(query) ||
+        q.option_c?.toLowerCase().includes(query) ||
+        q.option_d?.toLowerCase().includes(query) ||
+        q.explanation?.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply image filter
+    if (filterByImage === "with") {
+      filtered = filtered.filter(q => 
+        q.question_image || q.option_a_image || q.option_b_image || 
+        q.option_c_image || q.option_d_image
+      );
+    } else if (filterByImage === "without") {
+      filtered = filtered.filter(q => 
+        !q.question_image && !q.option_a_image && !q.option_b_image && 
+        !q.option_c_image && !q.option_d_image
+      );
+    }
+
+    setFilteredQuestions(filtered);
+  }, [questions, searchQuery, filterByImage]);
+
+  const toLocalInputValue = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const openSettingsForCategory = async (category: ExamCategory) => {
+    setSettingsCategory(category);
+    setShowSettingsModal(true);
+    setLoadingSettings(true);
+    try {
+      const res = await fetch(`/api/exam/settings?categoryId=${category.id}`);
+      const data = await res.json();
+      if (data?.settings) {
+        const s = data.settings;
+        const always = !s.available_from && !s.available_to;
+        setSettingsForm({
+          alwaysAvailable: always,
+          available_from: s.available_from ? toLocalInputValue(s.available_from) : "",
+          available_to: s.available_to ? toLocalInputValue(s.available_to) : "",
+          question_count: s.question_count ?? DEFAULT_EXAM_SETTINGS.question_count,
+          duration_minutes: s.duration_minutes ?? DEFAULT_EXAM_SETTINGS.duration_minutes,
+          sorting_mode: (s.sorting_mode ?? DEFAULT_EXAM_SETTINGS.sorting_mode) as ExamQuestionSortingMode,
+        });
+      } else if (data?.error) {
+        toast.error(data.error);
+      }
+    } catch {
+      toast.error("Failed to load exam settings");
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
+  const saveExamSettings = async () => {
+    if (!settingsCategory) return;
+    setSavingSettings(true);
+    try {
+      const payload = {
+        categoryId: settingsCategory.id,
+        question_count: settingsForm.question_count,
+        duration_minutes: settingsForm.duration_minutes,
+        sorting_mode: settingsForm.sorting_mode,
+        available_from: settingsForm.alwaysAvailable || !settingsForm.available_from ? null : new Date(settingsForm.available_from).toISOString(),
+        available_to: settingsForm.alwaysAvailable || !settingsForm.available_to ? null : new Date(settingsForm.available_to).toISOString(),
+      };
+      const res = await fetch("/api/exam/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data?.settings) {
+        toast.success("Exam settings saved");
+        setShowSettingsModal(false);
+      } else {
+        toast.error(data?.error || "Failed to save settings");
+      }
+    } catch {
+      toast.error("Failed to save settings");
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -155,6 +295,72 @@ export default function ExamManagementPage() {
       toast.error("Failed to create category");
     } finally {
       setCreatingCategory(false);
+    }
+  };
+
+  const handleEditCategory = (category: ExamCategory) => {
+    setEditingCategory(category);
+    setEditCategoryName(category.name);
+    setShowEditCategoryModal(true);
+  };
+
+  const handleUpdateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory || !editCategoryName.trim()) {
+      toast.error("Category name is required");
+      return;
+    }
+
+    setCreatingCategory(true);
+    try {
+      const res = await fetch("/api/exam/categories", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingCategory.id, name: editCategoryName }),
+      });
+
+      const data = await res.json();
+      if (data.category) {
+        toast.success("Category updated successfully");
+        setCategories(categories.map(c => c.id === editingCategory.id ? data.category : c));
+        setShowEditCategoryModal(false);
+        setEditingCategory(null);
+        setEditCategoryName("");
+      } else {
+        toast.error(data.error || "Failed to update category");
+      }
+    } catch (error) {
+      toast.error("Failed to update category");
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm("Are you sure you want to delete this category? This will also delete all questions in this category.")) return;
+
+    setDeletingCategory(categoryId);
+    try {
+      const res = await fetch(`/api/exam/categories?id=${categoryId}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Category deleted successfully");
+        setCategories(categories.filter(c => c.id !== categoryId));
+        if (activeCategory === categoryId) {
+          setActiveCategory(null);
+          setQuestions([]);
+          setFilteredQuestions([]);
+        }
+      } else {
+        toast.error(data.error || "Failed to delete category");
+      }
+    } catch (error) {
+      toast.error("Failed to delete category");
+    } finally {
+      setDeletingCategory(null);
     }
   };
 
@@ -393,6 +599,30 @@ export default function ExamManagementPage() {
     }
   };
 
+  const loadExamResults = async () => {
+    setLoadingResults(true);
+    try {
+      const res = await fetch("/api/exam/attempts");
+      const data = await res.json();
+      if (data.attempts) {
+        setExamAttempts(data.attempts);
+      }
+    } catch {
+      toast.error("Failed to load exam results");
+    } finally {
+      setLoadingResults(false);
+    }
+  };
+
+  const openResultsModal = () => {
+    loadExamResults();
+    setShowResultsModal(true);
+  };
+
+  const viewAttemptDetails = (attempt: any) => {
+    setSelectedAttempt(attempt);
+  };
+
   const cardHoverClass = "hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300";
 
   if (loading) {
@@ -427,10 +657,11 @@ export default function ExamManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 relative">
+      <div className="navo-watermark brand-protected">Navo</div>
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Exam Management</h1>
+          <h1 className="text-3xl font-bold brand-protected">Exam Management</h1>
           <p className="text-muted-foreground mt-1">
             Create and manage exam categories and questions
           </p>
@@ -442,6 +673,10 @@ export default function ExamManagementPage() {
               Manage Questions
             </Button>
           )}
+          <Button variant="outline" onClick={openResultsModal}>
+            <Trophy className="h-4 w-4 mr-2" />
+            View Results
+          </Button>
           <Button onClick={() => setShowCategoryForm(!showCategoryForm)}>
             <Plus className="h-4 w-4 mr-2" />
             {showCategoryForm ? "Cancel" : "Add Category"}
@@ -452,7 +687,7 @@ export default function ExamManagementPage() {
       <div className="space-y-6">
         {/* Create Category Form */}
         {showCategoryForm && (
-          <Card className={cardHoverClass}>
+          <Card className={`${cardHoverClass} navo-card-brand`}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BookOpen className="h-5 w-5 text-primary" />
@@ -492,46 +727,349 @@ export default function ExamManagementPage() {
           </Card>
         )}
 
+        {/* Edit Category Modal */}
+        <Dialog open={showEditCategoryModal} onOpenChange={setShowEditCategoryModal}>
+          <DialogContent className="navo-card-brand">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-primary" />
+                Edit Category
+              </DialogTitle>
+              <DialogDescription>
+                Update the category name
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdateCategory} className="space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="editCategoryName">Category Name *</Label>
+                <Input
+                  id="editCategoryName"
+                  value={editCategoryName}
+                  onChange={(e) => setEditCategoryName(e.target.value)}
+                  placeholder="e.g., Mathematics, Science, History"
+                  required
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" disabled={creatingCategory} className="flex-1">
+                  {creatingCategory ? (
+                    <>
+                      <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Update Category
+                    </>
+                  )}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowEditCategoryModal(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
         {/* Categories List */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {categories.map((category) => (
-            <Card
-              key={category.id}
-              className={`${cardHoverClass} cursor-pointer ${
-                activeCategory === category.id ? "border-primary ring-1 ring-primary" : ""
-              }`}
-              onClick={() => selectCategory(category.id)}
-            >
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  {category.name}
-                </CardTitle>
-                <CardDescription className="text-xs flex items-center justify-between">
-                  <span>Created: {new Date(category.created_at).toLocaleDateString()}</span>
-                  <span className="flex items-center gap-1">
-                    <FileText className="h-3 w-3" />
-                    {categoryQuestionCounts[category.id] || 0} questions
-                  </span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openAddQuestionModal(category.id);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Questions
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+          {categories.map((category) => {
+            const isPrimaryAdmin = currentUser?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+            
+            return (
+              <Card
+                key={category.id}
+                className={`${cardHoverClass} cursor-pointer navo-card-brand ${
+                  activeCategory === category.id ? "border-primary ring-1 ring-primary" : ""
+                }`}
+                onClick={() => selectCategory(category.id)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary" />
+                      {category.name}
+                    </CardTitle>
+                    {isPrimaryAdmin && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditCategory(category); }}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={(e) => { e.stopPropagation(); handleDeleteCategory(category.id); }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                  <CardDescription className="text-xs flex items-center justify-between">
+                    <span>Created: {new Date(category.created_at).toLocaleDateString()}</span>
+                    <span className="flex items-center gap-1">
+                      <FileText className="h-3 w-3" />
+                      {categoryQuestionCounts[category.id] || 0} questions
+                    </span>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openAddQuestionModal(category.id);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Questions
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openSettingsForCategory(category);
+                      }}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Settings
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
+
+        {/* Questions List for Selected Category */}
+        {activeCategory && (
+          <Card className={`${cardHoverClass} navo-card-brand`}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-primary" />
+                Questions - {categories.find(c => c.id === activeCategory)?.name}
+              </CardTitle>
+              <CardDescription>
+                {filteredQuestions.length} question{filteredQuestions.length !== 1 ? 's' : ''} found
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Search and Filter Controls */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Search questions, options, or explanations..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Select value={filterByImage} onValueChange={(v: any) => setFilterByImage(v)}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Questions</SelectItem>
+                    <SelectItem value="with">With Images</SelectItem>
+                    <SelectItem value="without">Without Images</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button onClick={() => openAddQuestionModal(activeCategory)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Question
+                </Button>
+              </div>
+
+              {/* Questions Grid */}
+              {filteredQuestions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  {searchQuery || filterByImage !== "all" ? "No questions match your filters" : "No questions in this category yet"}
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                  {filteredQuestions.map((question) => (
+                    <div
+                      key={question.id}
+                      className="p-4 border rounded-lg hover:border-primary/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline">Correct: {question.correct_answer}</Badge>
+                            {(question.question_image || question.option_a_image || question.option_b_image || 
+                              question.option_c_image || question.option_d_image) && (
+                              <Badge variant="secondary" className="flex items-center gap-1">
+                                <ImageIcon className="h-3 w-3" />
+                                Has Images
+                              </Badge>
+                            )}
+                          </div>
+                          {question.question && (
+                            <p className="text-sm mb-2">{question.question}</p>
+                          )}
+                          <div className="text-xs text-muted-foreground grid grid-cols-2 gap-2">
+                            <div>A: {question.option_a || "(image only)"}</div>
+                            <div>B: {question.option_b || "(image only)"}</div>
+                            <div>C: {question.option_c || "(image only)"}</div>
+                            <div>D: {question.option_d || "(image only)"}</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditQuestion(question)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteQuestion(question.id)}
+                            disabled={deletingQuestion === question.id}
+                          >
+                            {deletingQuestion === question.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Exam Settings Modal */}
+        <Dialog open={showSettingsModal} onOpenChange={setShowSettingsModal}>
+          <DialogContent className="max-w-lg navo-card-brand">
+            <DialogHeader>
+              <DialogTitle>Exam Settings</DialogTitle>
+              <DialogDescription>
+                {settingsCategory ? `Category: ${settingsCategory.name}` : "Configure exam rules"}
+              </DialogDescription>
+            </DialogHeader>
+
+            {loadingSettings ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading settings...
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div>
+                    <div className="font-medium">Always available</div>
+                    <div className="text-sm text-muted-foreground">If disabled, set an availability window</div>
+                  </div>
+                  <Switch
+                    checked={settingsForm.alwaysAvailable}
+                    onCheckedChange={(v) => setSettingsForm((p) => ({ ...p, alwaysAvailable: v }))}
+                  />
+                </div>
+
+                {!settingsForm.alwaysAvailable && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="available_from">Available from</Label>
+                      <Input
+                        id="available_from"
+                        type="datetime-local"
+                        value={settingsForm.available_from}
+                        onChange={(e) => setSettingsForm((p) => ({ ...p, available_from: e.target.value }))}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="available_to">Available to</Label>
+                      <Input
+                        id="available_to"
+                        type="datetime-local"
+                        value={settingsForm.available_to}
+                        onChange={(e) => setSettingsForm((p) => ({ ...p, available_to: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="question_count">Questions number</Label>
+                    <Input
+                      id="question_count"
+                      type="number"
+                      min={1}
+                      max={200}
+                      value={settingsForm.question_count}
+                      onChange={(e) => setSettingsForm((p) => ({ ...p, question_count: Number(e.target.value) }))}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="duration_minutes">Time (minutes)</Label>
+                    <Input
+                      id="duration_minutes"
+                      type="number"
+                      min={1}
+                      max={300}
+                      value={settingsForm.duration_minutes}
+                      onChange={(e) => setSettingsForm((p) => ({ ...p, duration_minutes: Number(e.target.value) }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Question sorting</Label>
+                  <Select
+                    value={settingsForm.sorting_mode}
+                    onValueChange={(v) => setSettingsForm((p) => ({ ...p, sorting_mode: v as ExamQuestionSortingMode }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="RANDOM">Random</SelectItem>
+                      <SelectItem value="TEXT_ONLY">Texts only</SelectItem>
+                      <SelectItem value="WITH_PICTURE">With picture</SelectItem>
+                      <SelectItem value="MIXED_50">Mixed 50%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setShowSettingsModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={saveExamSettings} disabled={savingSettings}>
+                    {savingSettings ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {categories.length === 0 && !loading && (
           <div className="text-center py-12">
@@ -545,7 +1083,7 @@ export default function ExamManagementPage() {
 
       {/* Add/Edit Question Modal */}
       <Dialog open={showQuestionModal} onOpenChange={setShowQuestionModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto navo-card-brand">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editingQuestion ? (
@@ -803,6 +1341,119 @@ export default function ExamManagementPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Exam Results Modal */}
+      <Dialog open={showResultsModal} onOpenChange={setShowResultsModal}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto navo-card-brand">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-primary" />
+              Exam Results
+            </DialogTitle>
+            <DialogDescription>
+              View all user exam attempts and results
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingResults ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : selectedAttempt ? (
+            <div className="space-y-4">
+              <Button variant="outline" onClick={() => setSelectedAttempt(null)}>
+                ← Back to all results
+              </Button>
+              
+              <Card className="navo-card-brand">
+                <CardHeader>
+                  <CardTitle>{selectedAttempt.category_name}</CardTitle>
+                  <CardDescription>
+                    User ID: {selectedAttempt.user_id} · Completed: {new Date(selectedAttempt.completed_at).toLocaleString()}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="text-center p-3 bg-secondary rounded-lg">
+                      <div className="text-2xl font-bold text-primary">{selectedAttempt.score_percentage}%</div>
+                      <div className="text-xs text-muted-foreground">Score</div>
+                    </div>
+                    <div className="text-center p-3 bg-secondary rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">{selectedAttempt.correct_answers}</div>
+                      <div className="text-xs text-muted-foreground">Correct</div>
+                    </div>
+                    <div className="text-center p-3 bg-secondary rounded-lg">
+                      <div className="text-2xl font-bold text-red-600">{selectedAttempt.total_questions - selectedAttempt.correct_answers}</div>
+                      <div className="text-xs text-muted-foreground">Incorrect</div>
+                    </div>
+                    <div className="text-center p-3 bg-secondary rounded-lg">
+                      <div className="text-2xl font-bold">{Math.floor(selectedAttempt.duration_seconds / 60)}:{String(selectedAttempt.duration_seconds % 60).padStart(2, "0")}</div>
+                      <div className="text-xs text-muted-foreground">Time</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Answer Breakdown</h4>
+                    {selectedAttempt.answers.map((answer: any, idx: number) => (
+                      <div key={answer.question_id} className="p-3 border rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant={answer.is_correct ? "default" : "destructive"}>
+                            {answer.is_correct ? "Correct" : "Incorrect"}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">Question {idx + 1}</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Selected: </span>
+                          <span className={answer.is_correct ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                            {answer.selected_answer || "Not answered"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {examAttempts.length === 0 ? (
+                <div className="text-center py-12">
+                  <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No exam results yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {examAttempts.map((attempt) => (
+                    <Card key={attempt.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => viewAttemptDetails(attempt)}>
+                      <CardContent className="pt-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-semibold">{attempt.category_name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {new Date(attempt.completed_at).toLocaleString()} · User: {attempt.user_id.slice(0, 8)}...
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <div className={`text-lg font-bold ${attempt.score_percentage >= 80 ? 'text-green-600' : attempt.score_percentage >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                {attempt.score_percentage}%
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {attempt.correct_answers}/{attempt.total_questions} correct
+                              </div>
+                            </div>
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

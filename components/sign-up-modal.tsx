@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -25,12 +23,7 @@ export function SignUpModal({ size = "sm" }: SignUpModalProps) {
         <Button size={size} variant="outline">Sign Up</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Sign Up</DialogTitle>
-          <DialogDescription>
-            Create a new account to get started
-          </DialogDescription>
-        </DialogHeader>
+        <DialogTitle className="sr-only">Sign Up</DialogTitle>
         <SignUpForm onSuccess={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
