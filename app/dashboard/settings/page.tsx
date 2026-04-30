@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, User, ArrowLeft } from "lucide-react";
+import { Mail, User, ArrowLeft, LogOut, Menu } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { UserSettings } from "@/components/user-settings";
 import { Loader2 } from "lucide-react";
@@ -19,10 +19,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function StudentSettingsPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
 
   const getDisplayName = () => {
@@ -79,73 +87,156 @@ export default function StudentSettingsPage() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold">Settings</h1>
-              <p className="text-muted-foreground mt-1">
+              <h1 className="text-xl md:text-2xl font-bold">Settings</h1>
+              <p className="text-sm text-muted-foreground mt-1 hidden md:block">
                 Manage your preferences and account
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Dialog>
-              <DialogTrigger asChild>
-                <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-                  <Avatar className="h-8 w-8">
-                    {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
-                    <AvatarFallback className="text-xs font-semibold">{getInitials()}</AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm font-medium text-foreground">
-                    {getDisplayName()}
-                  </span>
-                </div>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-primary" />
-                    Account Information
-                  </DialogTitle>
-                  <DialogDescription>
-                    Your current account details
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="bg-gradient-to-br from-primary/10 to-secondary/50 border-2 border-primary/20 rounded-lg p-6 space-y-4">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-20 w-20 border-4 border-primary cursor-pointer" onClick={() => {
-                        if (user?.user_metadata?.avatar_url) {
-                          window.open(user.user_metadata.avatar_url, '_blank');
-                        }
-                      }}>
-                        {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
-                        <AvatarFallback className="text-xl font-semibold">{getInitials()}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold">{getDisplayName()}</h3>
-                        <p className="text-sm text-muted-foreground">{user?.email}</p>
+            {/* Desktop: Show avatar and logout button */}
+            <div className="hidden md:flex items-center gap-3">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+                    <Avatar className="h-8 w-8">
+                      {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
+                      <AvatarFallback className="text-xs font-semibold">{getInitials()}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium text-foreground">
+                      {getDisplayName()}
+                    </span>
+                  </div>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5 text-primary" />
+                      Account Information
+                    </DialogTitle>
+                    <DialogDescription>
+                      Your current account details
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="bg-gradient-to-br from-primary/10 to-secondary/50 border-2 border-primary/20 rounded-lg p-6 space-y-4">
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-20 w-20 border-4 border-primary cursor-pointer" onClick={() => {
+                          if (user?.user_metadata?.avatar_url) {
+                            window.open(user.user_metadata.avatar_url, '_blank');
+                          }
+                        }}>
+                          {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
+                          <AvatarFallback className="text-xl font-semibold">{getInitials()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold">{getDisplayName()}</h3>
+                          <p className="text-sm text-muted-foreground">{user?.email}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-primary/20">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Gender</p>
-                        <p className="font-medium capitalize">{user?.user_metadata?.gender || "-"}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Role</p>
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
-                          {user?.user_metadata?.role || "Student"}
-                        </span>
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-primary/20">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Gender</p>
+                          <p className="font-medium capitalize">{user?.user_metadata?.gender || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Role</p>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
+                            {user?.user_metadata?.role || "Student"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
 
-            <Button variant="outline" onClick={async () => {
-              const supabase = createClient();
-              await supabase.auth.signOut();
-              router.push("/");
-            }}>Logout</Button>
+              <Button variant="outline" onClick={async () => {
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                router.push("/");
+              }}>Logout</Button>
+            </div>
+
+            {/* Mobile: Dropdown menu with account info and logout */}
+            <div className="md:hidden">
+              <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <div className="cursor-pointer" onClick={() => {
+                      setMobileMenuOpen(false);
+                    }}>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <div className="flex items-center gap-2 w-full">
+                            <Avatar className="h-6 w-6">
+                              {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
+                              <AvatarFallback className="text-[10px] font-semibold">{getInitials()}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{getDisplayName()}</span>
+                          </div>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                              <User className="h-5 w-5 text-primary" />
+                              Account Information
+                            </DialogTitle>
+                            <DialogDescription>
+                              Your current account details
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="bg-gradient-to-br from-primary/10 to-secondary/50 border-2 border-primary/20 rounded-lg p-6 space-y-4">
+                              <div className="flex items-center gap-4">
+                                <Avatar className="h-20 w-20 border-4 border-primary cursor-pointer" onClick={() => {
+                                  if (user?.user_metadata?.avatar_url) {
+                                    window.open(user.user_metadata.avatar_url, '_blank');
+                                  }
+                                }}>
+                                  {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
+                                  <AvatarFallback className="text-xl font-semibold">{getInitials()}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                  <h3 className="text-xl font-bold">{getDisplayName()}</h3>
+                                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-primary/20">
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Gender</p>
+                                  <p className="font-medium capitalize">{user?.user_metadata?.gender || "-"}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Role</p>
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
+                                    {user?.user_metadata?.role || "Student"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={async () => {
+                    const supabase = createClient();
+                    await supabase.auth.signOut();
+                    router.push("/");
+                  }} className="text-destructive focus:text-destructive cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>

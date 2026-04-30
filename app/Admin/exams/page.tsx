@@ -185,8 +185,23 @@ export default function ExamManagementPage() {
           ...prev,
           [activeCategory]: (prev[activeCategory] || 0) + 1
         }));
-        // Close modal and reset form
-        closeQuestionModal();
+        // Reset form but keep modal open for simultaneous inserts
+        setQuestionForm({
+          question: "",
+          question_image: "",
+          option_a: "",
+          option_a_image: "",
+          option_b: "",
+          option_b_image: "",
+          option_c: "",
+          option_c_image: "",
+          option_d: "",
+          option_d_image: "",
+          correct_answer: "A",
+          explanation: "",
+        });
+        setShowQuestionImage(false);
+        setShowOptionImages({ A: false, B: false, C: false, D: false });
       } else {
         toast.error(data.error || "Failed to add question");
       }

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { 
   Users, Settings, UserPlus, LogOut, LayoutDashboard, 
@@ -36,8 +36,10 @@ export default function AdminLayout({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const sidebarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -71,6 +73,44 @@ export default function AdminLayout({
     // Close mobile menu on route change
     setMobileMenuOpen(false);
   }, [pathname]);
+
+  // Auto-hide sidebar when cursor leaves sidebar area
+  useEffect(() => {
+    const handleMouseEnter = () => {
+      setIsHoveringSidebar(true);
+      if (sidebarTimeoutRef.current) {
+        clearTimeout(sidebarTimeoutRef.current);
+        sidebarTimeoutRef.current = null;
+      }
+      setSidebarOpen(true);
+    };
+
+    const handleMouseLeave = () => {
+      setIsHoveringSidebar(false);
+      if (sidebarTimeoutRef.current) {
+        clearTimeout(sidebarTimeoutRef.current);
+      }
+      sidebarTimeoutRef.current = setTimeout(() => {
+        setSidebarOpen(false);
+      }, 500); // Hide after 500ms of not hovering
+    };
+
+    const sidebarElement = document.querySelector('[data-sidebar="true"]');
+    if (sidebarElement) {
+      sidebarElement.addEventListener('mouseenter', handleMouseEnter);
+      sidebarElement.addEventListener('mouseleave', handleMouseLeave);
+    }
+
+    return () => {
+      if (sidebarTimeoutRef.current) {
+        clearTimeout(sidebarTimeoutRef.current);
+      }
+      if (sidebarElement) {
+        sidebarElement.removeEventListener('mouseenter', handleMouseEnter);
+        sidebarElement.removeEventListener('mouseleave', handleMouseLeave);
+      }
+    };
+  }, []);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -204,6 +244,31 @@ export default function AdminLayout({
             </Link>
           );
         })}
+        
+        {/* Mobile: Settings and Logout */}
+        {mobileMenuOpen && (
+          <>
+            <div className="border-t border-border my-2" />
+            <Link
+              href="/Admin/settings"
+              className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
+                pathname === "/Admin/settings" 
+                  ? "bg-primary text-primary-foreground" 
+                  : "hover:bg-secondary"
+              }`}
+            >
+              <Settings className="h-5 w-5 flex-shrink-0" />
+              <span>Settings</span>
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-3 py-3 rounded-lg transition-colors w-full text-left text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="h-5 w-5 flex-shrink-0" />
+              <span>Logout</span>
+            </button>
+          </>
+        )}
       </nav>
     </>
   );
@@ -226,6 +291,7 @@ export default function AdminLayout({
       <div className="flex h-[calc(100vh-56px)] lg:h-screen">
         {/* Desktop Sidebar */}
         <aside 
+          data-sidebar="true"
           className={`hidden lg:flex bg-card border-r border-border flex-col transition-all duration-300 ${
             sidebarOpen ? "w-64" : "w-20"
           }`}
@@ -247,7 +313,14 @@ export default function AdminLayout({
         )}
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-background">
+        <main 
+          className="flex-1 overflow-auto bg-background relative"
+          onMouseEnter={() => {
+            if (!sidebarOpen && !isHoveringSidebar) {
+              setSidebarOpen(true);
+            }
+          }}
+        >
           {/* Desktop Header */}
           <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-border bg-card sticky top-0 z-30">
             <div>

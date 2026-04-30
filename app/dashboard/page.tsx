@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, Clock, Trophy, Settings, User, Moon, Sun, Monitor, Globe, ChevronRight, Mail } from "lucide-react";
+import { BookOpen, Calendar, Clock, Trophy, Settings, User, Moon, Sun, Monitor, Globe, ChevronRight, Mail, Menu, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
@@ -37,6 +37,7 @@ export default function Dashboard() {
   const { language, setLanguage, t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [showAccountDialog, setShowAccountDialog] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -94,79 +95,109 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Navo</h1>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setShowAccountDialog(true)}>
-              <Avatar className="h-8 w-8">
-                {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
-                <AvatarFallback className="text-xs font-semibold">{getInitials()}</AvatarFallback>
-              </Avatar>
-              <span className="text-sm font-medium text-foreground">
-                {getDisplayName()}
-              </span>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Settings className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                {/* Theme Submenu */}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="cursor-pointer">
-                    <Sun className="h-4 w-4 mr-2" />
-                    Theme
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuItem onClick={() => setTheme("light")} className={theme === "light" ? "bg-accent" : ""}>
+            {/* Desktop: Show avatar and dropdown */}
+            <div className="hidden md:flex items-center gap-3">
+              <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setShowAccountDialog(true)}>
+                <Avatar className="h-8 w-8">
+                  {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
+                  <AvatarFallback className="text-xs font-semibold">{getInitials()}</AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium text-foreground">
+                  {getDisplayName()}
+                </span>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Settings className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {/* Theme Submenu */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="cursor-pointer">
                       <Sun className="h-4 w-4 mr-2" />
-                      Light
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTheme("dark")} className={theme === "dark" ? "bg-accent" : ""}>
-                      <Moon className="h-4 w-4 mr-2" />
-                      Dark
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTheme("system")} className={theme === "system" ? "bg-accent" : ""}>
-                      <Monitor className="h-4 w-4 mr-2" />
-                      System
-                    </DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
+                      Theme
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem onClick={() => setTheme("light")} className={theme === "light" ? "bg-accent" : ""}>
+                        <Sun className="h-4 w-4 mr-2" />
+                        Light
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setTheme("dark")} className={theme === "dark" ? "bg-accent" : ""}>
+                        <Moon className="h-4 w-4 mr-2" />
+                        Dark
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setTheme("system")} className={theme === "system" ? "bg-accent" : ""}>
+                        <Monitor className="h-4 w-4 mr-2" />
+                        System
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
 
-                {/* Language Submenu */}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="cursor-pointer">
-                    <Globe className="h-4 w-4 mr-2" />
-                    Language
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuItem onClick={() => setLanguage("English")} className={language === "English" ? "bg-accent" : ""}>
-                      English
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setLanguage("Arabic")} className={language === "Arabic" ? "bg-accent" : ""}>
-                      Arabic
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setLanguage("Kinyarwanda")} className={language === "Kinyarwanda" ? "bg-accent" : ""}>
-                      Kinyarwanda
-                    </DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
+                  {/* Language Submenu */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="cursor-pointer">
+                      <Globe className="h-4 w-4 mr-2" />
+                      Language
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem onClick={() => setLanguage("en")} className={language === "en" ? "bg-accent" : ""}>
+                        English
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLanguage("am")} className={language === "am" ? "bg-accent" : ""}>
+                        አማርኛ
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/settings" className="cursor-pointer">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="outline" onClick={async () => {
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                router.push("/");
+              }}>Logout</Button>
+            </div>
 
-                <DropdownMenuSeparator />
-
-                {/* More+ Link to Settings */}
-                <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/dashboard/settings" className="flex items-center justify-between w-full">
-                    <span>More+</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button variant="outline" onClick={async () => {
-            const supabase = createClient();
-            await supabase.auth.signOut();
-            router.push("/");
-          }}>Logout</Button>
+            {/* Mobile: Menu button */}
+            <div className="md:hidden">
+              <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setShowAccountDialog(true)}>
+                    <User className="mr-2 h-4 w-4" />
+                    Account Info
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/settings" className="cursor-pointer">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={async () => {
+                    const supabase = createClient();
+                    await supabase.auth.signOut();
+                    router.push("/");
+                  }} className="text-destructive focus:text-destructive cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>

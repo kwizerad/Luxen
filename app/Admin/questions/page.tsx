@@ -54,6 +54,10 @@ export default function QuestionManagementPage() {
     A: false, B: false, C: false, D: false
   });
 
+  // View modal state
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewingQuestion, setViewingQuestion] = useState<ExamQuestion | null>(null);
+
   useEffect(() => {
     const checkPermissions = async () => {
       const supabase = createClient();
@@ -198,6 +202,11 @@ export default function QuestionManagementPage() {
       D: !!q.option_d_image,
     });
     setShowEditModal(true);
+  };
+
+  const handleViewQuestion = (q: ExamQuestion) => {
+    setViewingQuestion(q);
+    setShowViewModal(true);
   };
 
   const closeEditModal = () => {
@@ -363,6 +372,127 @@ export default function QuestionManagementPage() {
               alt="Preview"
               className="w-full h-auto rounded-lg"
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Question Modal */}
+      <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-primary" />
+              Question Details
+            </DialogTitle>
+            <DialogDescription>
+              Category: {viewingQuestion ? getCategoryName(viewingQuestion.category_id) : ""}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingQuestion && (
+            <div className="space-y-6 mt-4">
+              {/* Question Card */}
+              <Card className="border-2 border-primary/20">
+                <CardHeader>
+                  <CardTitle className="text-lg">Question</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {viewingQuestion.question_image && (
+                    <div>
+                      <img 
+                        src={viewingQuestion.question_image} 
+                        alt="Question" 
+                        className="w-full h-auto rounded-lg border cursor-pointer"
+                        onClick={() => setSelectedImage(viewingQuestion.question_image!)}
+                      />
+                    </div>
+                  )}
+                  <p className="text-base">{viewingQuestion.question}</p>
+                </CardContent>
+              </Card>
+
+              {/* Options Card */}
+              <Card className="border-2 border-primary/20">
+                <CardHeader>
+                  <CardTitle className="text-lg">Options</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {['A', 'B', 'C', 'D'].map((option) => {
+                    const optionText = viewingQuestion[`option_${option.toLowerCase()}` as keyof ExamQuestion];
+                    const optionImage = viewingQuestion[`option_${option.toLowerCase()}_image` as keyof ExamQuestion];
+                    const isCorrect = viewingQuestion.correct_answer === option;
+                    
+                    return (
+                      <div 
+                        key={option}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          isCorrect 
+                            ? "bg-green-50 border-green-500 dark:bg-green-900/20 dark:border-green-500" 
+                            : "bg-secondary border-border"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
+                            isCorrect 
+                              ? "bg-green-500 text-white" 
+                              : "bg-primary text-white"
+                          }`}>
+                            {option}
+                          </span>
+                          <div className="flex-1 space-y-2">
+                            {optionImage && (
+                              <img 
+                                src={optionImage as string} 
+                                alt={`Option ${option}`} 
+                                className="w-full h-auto rounded border cursor-pointer"
+                                onClick={() => setSelectedImage(optionImage as string)}
+                              />
+                            )}
+                            <p className="text-sm">{optionText}</p>
+                          </div>
+                          {isCorrect && (
+                            <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                              ✓ Correct
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              {/* Explanation Card */}
+              {viewingQuestion.explanation && (
+                <Card className="border-2 border-primary/20">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Explanation</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">{viewingQuestion.explanation}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4 border-t">
+                {!isReadOnly && (
+                  <Button 
+                    onClick={() => {
+                      setShowViewModal(false);
+                      handleEditQuestion(viewingQuestion);
+                    }}
+                    className="flex-1"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Question
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => setShowViewModal(false)} className="flex-1">
+                  Close
+                </Button>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -658,9 +788,13 @@ export default function QuestionManagementPage() {
                             <span className="text-xs">View Image</span>
                           </button>
                         ) : (
-                          <p className="text-sm truncate max-w-[150px]" title={q.question || ""}>
+                          <button
+                            onClick={() => handleViewQuestion(q)}
+                            className="text-sm truncate max-w-[150px] text-left hover:text-primary transition-colors"
+                            title={q.question || ""}
+                          >
                             {q.question || "-"}
-                          </p>
+                          </button>
                         )}
                       </div>
                     </TableCell>

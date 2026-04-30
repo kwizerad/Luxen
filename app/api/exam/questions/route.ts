@@ -36,10 +36,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
+    
+    // Refresh session to ensure it's valid
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session) {
+      return NextResponse.json({ error: "Session expired. Please refresh and try again." }, { status: 401 });
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user || !isAdmin(user)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      return NextResponse.json({ error: "Unauthorized. You must be an admin to add questions." }, { status: 403 });
     }
 
     // Check if user can add questions
