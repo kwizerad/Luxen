@@ -142,11 +142,11 @@ export default function Dashboard() {
                       Language
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent>
-                      <DropdownMenuItem onClick={() => setLanguage("en")} className={language === "en" ? "bg-accent" : ""}>
+                      <DropdownMenuItem onClick={() => setLanguage("English")} className={language === "English" ? "bg-accent" : ""}>
                         English
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setLanguage("am")} className={language === "am" ? "bg-accent" : ""}>
-                        አማርኛ
+                      <DropdownMenuItem onClick={() => setLanguage("Arabic")} className={language === "Arabic" ? "bg-accent" : ""}>
+                        العربية
                       </DropdownMenuItem>
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
