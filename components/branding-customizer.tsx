@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ImageIcon, Type, RotateCcw, Save, Sparkles, Globe } from "lucide-react";
+import { ImageIcon, Type, RotateCcw, Save, Sparkles, Globe, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { ImageUpload } from "./image-upload";
 
 export function BrandingCustomizer() {
   const { config, setSystemName, setLogoUrl, setLogoText, saveConfig, resetToDefault } = useBrandingConfig();
@@ -36,13 +37,8 @@ export function BrandingCustomizer() {
     setHasChanges(true);
   };
 
-  const handleLogoUrlChange = (value: string) => {
-    setPreviewLogoUrl(value);
-    setHasChanges(true);
-  };
-
-  const handleClearLogoUrl = () => {
-    setPreviewLogoUrl("");
+  const handleLogoUrlChange = (value: string | undefined) => {
+    setPreviewLogoUrl(value || "");
     setHasChanges(true);
   };
 
@@ -161,39 +157,20 @@ export function BrandingCustomizer() {
             </p>
           </div>
 
-          {/* Logo URL */}
+          {/* Logo Image Upload */}
           <div className="space-y-2">
-            <Label htmlFor="logo-url">Logo Image URL</Label>
-            <div className="flex gap-2">
-              <Input
-                id="logo-url"
-                value={previewLogoUrl}
-                onChange={(e) => handleLogoUrlChange(e.target.value)}
-                placeholder="https://example.com/logo.png"
-                className="flex-1"
-              />
-              {previewLogoUrl && (
-                <Button variant="outline" size="icon" onClick={handleClearLogoUrl}>
-                  <span className="sr-only">Clear</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M18 6 6 18" />
-                    <path d="m6 6 12 12" />
-                  </svg>
-                </Button>
-              )}
-            </div>
+            <Label className="flex items-center gap-2">
+              <Upload className="h-3 w-3" />
+              Logo Image
+            </Label>
+            <ImageUpload
+              value={previewLogoUrl || undefined}
+              onChange={handleLogoUrlChange}
+              folder="logos"
+              className="max-w-md"
+            />
             <p className="text-xs text-muted-foreground">
-              Recommended: Square image, at least 64x64px, PNG or SVG format
+              Upload a square logo image (PNG, JPG). Recommended: 64x64px or larger. The logo will be displayed in the header and dashboard.
             </p>
           </div>
         </CardContent>

@@ -8,7 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Watermark } from "@/components/watermark";
 import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Clock, Trophy, ArrowRight, Home } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Trophy, ArrowRight, Home, AlertCircle, BookOpen, Eye, Shield, Timer, HelpCircle, ChevronRight } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type TakeResponse = {
   categoryId: string;
@@ -49,6 +58,9 @@ export default function TakeExamPage() {
   const [userAnswers, setUserAnswers] = useState<Record<string, UserAnswer>>({});
   const [showResults, setShowResults] = useState(false);
   const [examResult, setExamResult] = useState<any>(null);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [instructionsAccepted, setInstructionsAccepted] = useState(false);
+  const [pendingCategoryId, setPendingCategoryId] = useState<string>("");
 
   useEffect(() => {
     const load = async () => {
@@ -81,11 +93,22 @@ export default function TakeExamPage() {
     return () => clearInterval(id);
   }, [secondsLeft]);
 
-  const startExam = async () => {
+  const showExamInstructions = () => {
     if (!categoryId) {
       toast.error("Select a category first");
       return;
     }
+    setPendingCategoryId(categoryId);
+    setShowInstructions(true);
+    setInstructionsAccepted(false);
+  };
+
+  const startExam = async () => {
+    if (!instructionsAccepted) {
+      toast.error("Please read and accept the exam instructions");
+      return;
+    }
+    setShowInstructions(false);
     setLoadingExam(true);
     try {
       const res = await fetch(`/api/exam/take?categoryId=${categoryId}`);
@@ -320,7 +343,7 @@ export default function TakeExamPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button onClick={startExam} disabled={loadingExam || !categoryId}>
+              <Button onClick={showExamInstructions} disabled={loadingExam || !categoryId}>
                 {loadingExam ? "Starting..." : "Start Exam"}
               </Button>
             </div>
@@ -437,6 +460,126 @@ export default function TakeExamPage() {
           </Card>
         </>
       )}
+
+      {/* Exam Instructions Dialog */}
+      <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <BookOpen className="h-6 w-6 text-primary" />
+              Exam Instructions
+            </DialogTitle>
+            <DialogDescription>
+              Please read the following instructions carefully before starting your exam
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Exam Overview */}
+            <div className="bg-primary/5 rounded-lg p-4 space-y-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <HelpCircle className="h-4 w-4 text-primary" />
+                Exam Overview
+              </h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span>Time limit applies</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                  <span>Questions randomized</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <span>Anti-cheating enabled</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-muted-foreground" />
+                  <span>Auto-submit on timeout</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Rules */}
+            <div className="space-y-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+                Important Rules
+              </h3>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-start gap-2">
+                  <ChevronRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                  <span>Once started, the exam cannot be paused. The timer will continue running.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ChevronRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                  <span>Do not refresh the page or navigate away. This may result in automatic submission.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ChevronRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                  <span>Each question has exactly one correct answer. Select the best option.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ChevronRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                  <span>You can navigate between questions using Previous/Next buttons.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ChevronRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                  <span>Unanswered questions will be marked as incorrect when time expires.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ChevronRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                  <span>Your score and detailed results will be shown immediately after submission.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Tips */}
+            <div className="bg-green-50 dark:bg-green-950/20 rounded-lg p-4 space-y-2">
+              <h3 className="font-semibold text-green-700 dark:text-green-400 flex items-center gap-2">
+                <Trophy className="h-4 w-4" />
+                Tips for Success
+              </h3>
+              <ul className="space-y-1 text-sm text-green-700 dark:text-green-400">
+                <li>• Read each question carefully before selecting an answer</li>
+                <li>• Manage your time - don't spend too long on one question</li>
+                <li>• Review your answers before submitting if time permits</li>
+                <li>• Stay calm and focused throughout the exam</li>
+              </ul>
+            </div>
+
+            {/* Acceptance */}
+            <div className="flex items-start gap-3 pt-2 border-t">
+              <Checkbox
+                id="accept"
+                checked={instructionsAccepted}
+                onCheckedChange={(checked) => setInstructionsAccepted(checked as boolean)}
+              />
+              <label
+                htmlFor="accept"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                I have read and understood the exam instructions. I agree to follow all rules and guidelines.
+              </label>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowInstructions(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={startExam}
+              disabled={!instructionsAccepted}
+              className="min-w-[120px]"
+            >
+              {loadingExam ? "Starting..." : "Begin Exam"}
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

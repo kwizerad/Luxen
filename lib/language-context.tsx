@@ -166,6 +166,23 @@ const translations: Record<Language, Record<string, string>> = {
     "driver": "Driver",
     "landlord": "Landlord",
     
+    // Enhanced Dashboard Features
+    "totalExamsTaken": "Total Exams",
+    "averageScore": "Average Score",
+    "bestScore": "Best Score",
+    "totalTimeSpent": "Total Time Spent",
+    "recentExamActivity": "Recent Exam Activity",
+    "yourLatestExamResults": "Your latest exam results",
+    "viewAll": "View All",
+    "noExamsTakenYet": "No exams taken yet. Start your learning journey!",
+    "takeYourFirstExam": "Take Your First Exam",
+    "performanceOverview": "Performance Overview",
+    "yourLearningProgress": "Your learning progress and statistics",
+    "startExamsToSeeStats": "Start taking exams to see your performance statistics",
+    "scoreDistribution": "Score Distribution",
+    "availableExamCategories": "Available Exam Categories",
+    "selectCategoryToStart": "Select a category to start an exam",
+    
     // Admin Dashboard
     "adminDashboard": "Admin Dashboard",
     "welcomeBackAdmin": "Welcome back! Manage your platform from here.",
@@ -376,6 +393,23 @@ const translations: Record<Language, Record<string, string>> = {
     "driver": "سائق",
     "landlord": "مالك",
     
+    // Enhanced Dashboard Features
+    "totalExamsTaken": "إجمالي الامتحانات",
+    "averageScore": "المتوسط",
+    "bestScore": "أفضل نتيجة",
+    "totalTimeSpent": "إجمالي الوقت",
+    "recentExamActivity": "النشاط الأخير",
+    "yourLatestExamResults": "نتائج اختباراتك الأخيرة",
+    "viewAll": "عرض الكل",
+    "noExamsTakenYet": "لم يتم أداء أي امتحانات بعد. ابدأ رحلة التعلم!",
+    "takeYourFirstExam": "أداء أول اختبار",
+    "performanceOverview": "نظرة عامة على الأداء",
+    "yourLearningProgress": "تقدمك في التعلم والإحصائيات",
+    "startExamsToSeeStats": "ابدأ أداء الامتحانات لرؤية إحصائيات أدائك",
+    "scoreDistribution": "توزيع النتائج",
+    "availableExamCategories": "فئات الامتحانات المتاحة",
+    "selectCategoryToStart": "اختر فئة لبدء الامتحان",
+    
     // Admin Dashboard
     "adminDashboard": "لوحة تحكم المسؤول",
     "welcomeBackAdmin": "مرحباً بعودتك! أدخل منصتك من هنا.",
@@ -580,10 +614,27 @@ const translations: Record<Language, Record<string, string>> = {
     "dateOfBirth": "Date de naissance",
     "role": "Rôle",
     "student": "Étudiant",
-    "admin": "Admin",
+    "admin": "Administrateur",
     "teacher": "Enseignant",
     "driver": "Chauffeur",
     "landlord": "Propriétaire",
+    
+    // Enhanced Dashboard Features
+    "totalExamsTaken": "Examens Passés",
+    "averageScore": "Moyenne",
+    "bestScore": "Meilleure Note",
+    "totalTimeSpent": "Temps Total",
+    "recentExamActivity": "Activité Récente",
+    "yourLatestExamResults": "Vos derniers résultats d'examen",
+    "viewAll": "Voir Tout",
+    "noExamsTakenYet": "Aucun examen passé. Commencez votre parcours d'apprentissage!",
+    "takeYourFirstExam": "Passer Votre Premier Examen",
+    "performanceOverview": "Aperçu des Performances",
+    "yourLearningProgress": "Votre progression et statistiques d'apprentissage",
+    "startExamsToSeeStats": "Commencez à passer des examens pour voir vos statistiques",
+    "scoreDistribution": "Distribution des Scores",
+    "availableExamCategories": "Catégories d'Examens Disponibles",
+    "selectCategoryToStart": "Sélectionnez une catégorie pour commencer un examen",
     
     // Admin Dashboard
     "adminDashboard": "Tableau de bord Admin",
@@ -793,6 +844,23 @@ const translations: Record<Language, Record<string, string>> = {
     "teacher": "Umwarimu",
     "driver": "Umushoferi",
     "landlord": "Umunyamuryango",
+    
+    // Enhanced Dashboard Features
+    "totalExamsTaken": "Ibizamini Byose",
+    "averageScore": "Imibare Yose",
+    "bestScore": "Amanota Meza",
+    "totalTimeSpent": "Igihe Cyose",
+    "recentExamActivity": "Ibikorwa Bya Vuba",
+    "yourLatestExamResults": "Amanota yawe ya vuba",
+    "viewAll": "Reba Byose",
+    "noExamsTakenYet": "Nta bizamini wakoze. Tangiriza urugendo rwawe!",
+    "takeYourFirstExam": "Kora Ikizamini Cya Mbere",
+    "performanceOverview": "Incamake y'Imikorere",
+    "yourLearningProgress": "Iterambere ryawe n'imibare",
+    "startExamsToSeeStats": "Kora ibizamini kugira ngo urebe imibare yawe",
+    "scoreDistribution": "Gusaga Amanota",
+    "availableExamCategories": "Ibyiciro by'Ibizamini Bihari",
+    "selectCategoryToStart": "Hitamo ikiciro kugira ngo utangire ikizamini",
     
     // Admin Dashboard
     "adminDashboard": "Dashboard y'Umuyobozi",
