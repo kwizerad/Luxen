@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { isPrimaryAdmin } from "@/lib/permissions";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" {...props}>
@@ -79,11 +80,12 @@ export function LoginForm({
         throw error;
       }
       console.log("Login successful:", data.user?.email);
-      // Call onSuccess callback if provided
       if (onSuccess) onSuccess();
-      // Redirect based on role - admins go to /Admin, others to /dashboard
+
+      const isPrimary = isPrimaryAdmin({ email: trimmedEmail });
       const role = data.user?.user_metadata?.role;
-      if (role === "Admin") {
+
+      if (isPrimary || role === "Admin") {
         router.push("/Admin");
       } else {
         router.push("/dashboard");

@@ -18,11 +18,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FileText, Plus, BookOpen, CheckCircle, Image as ImageIcon, X, Edit, Trash2, Loader2, ChevronDown, Settings, Eye, EyeOff, AlertTriangle, Trophy, Users } from "lucide-react";
+import { Watermark } from "@/components/watermark";
 import { toast } from "sonner";
 import type { ExamCategory, ExamQuestion, ExamQuestionSortingMode } from "@/lib/database.types";
 import { ImageUpload } from "@/components/image-upload";
 import { createClient } from "@/lib/supabase/client";
-import { isAdmin, canAddQuestions, canViewQuestions } from "@/lib/permissions";
+import { isAdmin, canAddQuestions, canViewQuestions, canManageExamSettings } from "@/lib/permissions";
 import { DEFAULT_EXAM_SETTINGS } from "@/lib/exam-settings";
 
 const ADMIN_EMAIL = "Navo@admin.jn";
@@ -34,7 +35,9 @@ export default function ExamManagementPage() {
   const [categoryQuestionCounts, setCategoryQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [hasPermission, setHasPermission] = useState(false);
+  const [canAddQuestionPermission, setCanAddQuestionPermission] = useState(false);
   const [canViewQuestionsTab, setCanViewQuestionsTab] = useState(false);
+  const [canManageSettings, setCanManageSettings] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   
@@ -112,15 +115,20 @@ export default function ExamManagementPage() {
 
       setCurrentUser(user);
 
-      // Check if user has permission to add questions
-      if (!canAddQuestions(user)) {
-        setHasPermission(false);
-        setLoading(false);
+      const canAdd = canAddQuestions(user);
+      const canView = canViewQuestions(user);
+      const canManage = canManageExamSettings(user);
+      const hasExamAccess = canAdd || canView || canManage;
+
+      if (!hasExamAccess) {
+        router.push("/Admin");
         return;
       }
 
-      setHasPermission(true);
-      setCanViewQuestionsTab(canViewQuestions(user));
+      setHasPermission(hasExamAccess);
+      setCanAddQuestionPermission(canAdd);
+      setCanViewQuestionsTab(canView);
+      setCanManageSettings(canManage);
       loadCategories();
       // Check if editing a question from query params
       if (editQuestionId) {
@@ -646,7 +654,7 @@ export default function ExamManagementPage() {
               <div>
                 <h3 className="font-semibold text-destructive">Access Denied</h3>
                 <p className="text-destructive/80 mt-1">
-                  You don't have permission to add questions. Please contact the primary administrator for access.
+                  You don't have permission to manage exams. Please contact the primary administrator for access.
                 </p>
               </div>
             </div>
@@ -658,7 +666,7 @@ export default function ExamManagementPage() {
 
   return (
     <div className="space-y-6 relative">
-      <div className="navo-watermark brand-protected">Navo</div>
+      <Watermark />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold brand-protected">Exam Management</h1>
@@ -686,7 +694,7 @@ export default function ExamManagementPage() {
 
       <div className="space-y-6">
         {/* Create Category Form */}
-        {showCategoryForm && (
+        {showCategoryForm && currentUser?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
           <Card className={`${cardHoverClass} navo-card-brand`}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -824,30 +832,34 @@ export default function ExamManagementPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openAddQuestionModal(category.id);
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Questions
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openSettingsForCategory(category);
-                      }}
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Settings
-                    </Button>
+                    {canAddQuestionPermission && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openAddQuestionModal(category.id);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Questions
+                  </Button>
+                )}
+                {canManageSettings && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openSettingsForCategory(category);
+                    }}
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Settings
+                  </Button>
+                )}
                   </div>
                 </CardContent>
               </Card>

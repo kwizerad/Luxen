@@ -6,13 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, UserPlus, Shield, AlertTriangle, Trash2, Users, Eye, Lock, Edit, FileText, X, ArrowLeft, User } from "lucide-react";
+import { Loader2, UserPlus, Shield, AlertTriangle, Trash2, Users, Eye, Lock, Edit, FileText, X, ArrowLeft, User, Settings } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useRouter } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { PRIMARY_ADMIN_EMAIL, DEFAULT_PERMISSIONS } from "@/lib/permissions";
+import { PRIMARY_ADMIN_EMAIL, DEFAULT_PERMISSIONS, getUserPermissions } from "@/lib/permissions";
 import Link from "next/link";
 
 export default function RegisterAdminPage() {
@@ -34,6 +34,7 @@ export default function RegisterAdminPage() {
   const [examPermissionsEnabled, setExamPermissionsEnabled] = useState(true);
   const [canAddQuestions, setCanAddQuestions] = useState(true);
   const [canViewQuestions, setCanViewQuestions] = useState(true);
+  const [canManageSettings, setCanManageSettings] = useState(true);
   const [questionAccess, setQuestionAccess] = useState<"read_only" | "read_write">("read_write");
   
   const [admins, setAdmins] = useState<any[]>([]);
@@ -56,6 +57,7 @@ export default function RegisterAdminPage() {
   const [editExamPermissionsEnabled, setEditExamPermissionsEnabled] = useState(true);
   const [editCanAddQuestions, setEditCanAddQuestions] = useState(true);
   const [editCanViewQuestions, setEditCanViewQuestions] = useState(true);
+  const [editCanManageSettings, setEditCanManageSettings] = useState(true);
   const [editQuestionAccess, setEditQuestionAccess] = useState<"read_only" | "read_write">("read_write");
   
   const router = useRouter();
@@ -138,17 +140,22 @@ export default function RegisterAdminPage() {
 
   const handleEditAdmin = (admin: any) => {
     setEditingAdmin(admin);
-    const permissions = admin.user_metadata?.permissions || DEFAULT_PERMISSIONS;
+    const permissions = getUserPermissions(admin);
     
     setEditEmail(admin.email || "");
     setEditUsername(admin.user_metadata?.username || "");
     setEditGender(admin.user_metadata?.gender || "male");
     setEditStudentsEnabled(permissions.students?.enabled ?? true);
-    setEditStudentAccess(permissions.students?.access ?? "read_write");
+    setEditStudentAccess(
+      permissions.students?.access === "none" ? "read_write" : permissions.students?.access ?? "read_write"
+    );
     setEditExamPermissionsEnabled(permissions.examPermissions?.enabled ?? true);
     setEditCanAddQuestions(permissions.examPermissions?.canAddQuestions ?? true);
     setEditCanViewQuestions(permissions.examPermissions?.canViewQuestions ?? true);
-    setEditQuestionAccess(permissions.examPermissions?.questionAccess ?? "read_write");
+    setEditCanManageSettings(permissions.examPermissions?.canManageSettings ?? true);
+    setEditQuestionAccess(
+      permissions.examPermissions?.questionAccess === "none" ? "read_write" : permissions.examPermissions?.questionAccess ?? "read_write"
+    );
     
     setShowEditModal(true);
   };
@@ -175,6 +182,7 @@ export default function RegisterAdminPage() {
               enabled: editExamPermissionsEnabled,
               canAddQuestions: editCanAddQuestions,
               canViewQuestions: editCanViewQuestions,
+              canManageSettings: editCanManageSettings,
               questionAccess: editQuestionAccess,
             },
           },
@@ -228,6 +236,7 @@ export default function RegisterAdminPage() {
               enabled: examPermissionsEnabled,
               canAddQuestions,
               canViewQuestions,
+              canManageSettings,
               questionAccess,
             },
           },
@@ -246,6 +255,7 @@ export default function RegisterAdminPage() {
         setExamPermissionsEnabled(true);
         setCanAddQuestions(true);
         setCanViewQuestions(true);
+        setCanManageSettings(true);
         setQuestionAccess("read_write");
         // Reload admins list
         loadAdmins();
@@ -482,6 +492,23 @@ export default function RegisterAdminPage() {
                     </p>
                   </div>
 
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        <Label htmlFor="canManageSettings" className="cursor-pointer">Manage Exam Settings</Label>
+                      </div>
+                      <Switch
+                        id="canManageSettings"
+                        checked={canManageSettings}
+                        onCheckedChange={setCanManageSettings}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground ml-6">
+                      Allow this admin to update exam settings for categories
+                    </p>
+                  </div>
+
                   {canViewQuestions && (
                     <div className="space-y-3">
                       <Label>Question Access Level</Label>
@@ -606,7 +633,7 @@ export default function RegisterAdminPage() {
                 <TableBody>
                   {admins.map((admin) => {
                     const isPrimary = admin.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
-                    const permissions = admin.user_metadata?.permissions || DEFAULT_PERMISSIONS;
+                    const permissions = getUserPermissions(admin);
                     return (
                       <TableRow key={admin.id}>
                         <TableCell className="font-medium">
@@ -658,6 +685,11 @@ export default function RegisterAdminPage() {
                                     ) : (
                                       <><Eye className="h-3 w-3 mr-1" />Qs RO</>
                                     )}
+                                  </span>
+                                )}
+                                {permissions.examPermissions?.canManageSettings && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                                    <Settings className="h-3 w-3 mr-1" />Settings
                                   </span>
                                 )}
                               </>
@@ -871,6 +903,23 @@ export default function RegisterAdminPage() {
                     </div>
                     <p className="text-xs text-muted-foreground ml-6">
                       Allow this admin to view and manage questions
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        <Label htmlFor="editCanManageSettings" className="cursor-pointer">Manage Exam Settings</Label>
+                      </div>
+                      <Switch
+                        id="editCanManageSettings"
+                        checked={editCanManageSettings}
+                        onCheckedChange={setEditCanManageSettings}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground ml-6">
+                      Allow this admin to update exam settings for categories
                     </p>
                   </div>
 

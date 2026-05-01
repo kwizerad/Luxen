@@ -9,6 +9,7 @@ import { BookOpen, Calendar, Clock, Trophy, Settings, User, Moon, Sun, Monitor, 
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
+import { useBrandingConfig } from "@/lib/branding-config";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import {
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
   const [showAccountDialog, setShowAccountDialog] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { config } = useBrandingConfig();
 
   useEffect(() => {
     setMounted(true);
@@ -71,6 +73,8 @@ export default function Dashboard() {
     return user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || "User";
   };
 
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.google_avatar_url || user?.user_metadata?.picture;
+
   const getInitials = () => {
     const name = getDisplayName();
     return name
@@ -92,14 +96,26 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Navo</h1>
+        <div className="container mx-auto px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+              {config.logoUrl ? (
+                <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm font-bold">{config.logoText || "N"}</span>
+              )}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">{config.systemName}</h1>
+              <p className="text-sm text-muted-foreground">Welcome back to your dashboard</p>
+            </div>
+          </div>
           <div className="flex items-center gap-3">
             {/* Desktop: Show avatar and dropdown */}
             <div className="hidden md:flex items-center gap-3">
               <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setShowAccountDialog(true)}>
                 <Avatar className="h-8 w-8">
-                  {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
                   <AvatarFallback className="text-xs font-semibold">{getInitials()}</AvatarFallback>
                 </Avatar>
                 <span className="text-sm font-medium text-foreground">
@@ -349,11 +365,11 @@ export default function Dashboard() {
             <div className="bg-gradient-to-br from-primary/10 to-secondary/50 border-2 border-primary/20 rounded-lg p-6 space-y-4">
               <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20 border-4 border-primary cursor-pointer" onClick={() => {
-                  if (user?.user_metadata?.avatar_url) {
-                    window.open(user.user_metadata.avatar_url, '_blank');
+                  if (avatarUrl) {
+                    window.open(avatarUrl, '_blank');
                   }
                 }}>
-                  {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
                   <AvatarFallback className="text-xl font-semibold">{getInitials()}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
@@ -365,6 +381,14 @@ export default function Dashboard() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Gender</p>
                   <p className="font-medium capitalize">{user?.user_metadata?.gender || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Nationality</p>
+                  <p className="font-medium capitalize">{user?.user_metadata?.nationality || user?.user_metadata?.country || user?.user_metadata?.locale || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Date of Birth</p>
+                  <p className="font-medium">{user?.user_metadata?.birthdate || user?.user_metadata?.date_of_birth || user?.user_metadata?.birthday || user?.user_metadata?.dob || "-"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Role</p>

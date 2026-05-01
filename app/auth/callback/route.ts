@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isPrimaryAdmin } from "@/lib/permissions";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -31,9 +32,10 @@ export async function GET(request: NextRequest) {
           const metadata: any = { role: "Student" };
           
           // Extract Google profile data if available
-          if (user.user_metadata?.avatar_url) {
-            metadata.avatar_url = user.user_metadata.avatar_url;
-            metadata.google_avatar_url = user.user_metadata.avatar_url;
+          const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+          if (avatarUrl) {
+            metadata.avatar_url = avatarUrl;
+            metadata.google_avatar_url = avatarUrl;
           }
           if (user.user_metadata?.full_name) {
             metadata.full_name = user.user_metadata.full_name;
@@ -48,6 +50,18 @@ export async function GET(request: NextRequest) {
           if (user.user_metadata?.family_name) {
             metadata.last_name = user.user_metadata.family_name;
           }
+          const providerGender = user.user_metadata?.gender || user.user_metadata?.sex || user.user_metadata?.gender_identity;
+          if (providerGender) {
+            metadata.gender = providerGender;
+          }
+          const providerNationality = user.user_metadata?.nationality || user.user_metadata?.country || user.user_metadata?.locale;
+          if (providerNationality) {
+            metadata.nationality = providerNationality;
+          }
+          const providerBirthdate = user.user_metadata?.birthdate || user.user_metadata?.birthday || user.user_metadata?.dob || user.user_metadata?.date_of_birth;
+          if (providerBirthdate) {
+            metadata.birthdate = providerBirthdate;
+          }
           
           await supabase.auth.updateUser({
             data: metadata
@@ -55,12 +69,12 @@ export async function GET(request: NextRequest) {
           role = "Student";
         }
 
-        // Redirect based on role
-        if (role === "Admin") {
+        // Redirect primary admin accounts to the Admin console
+        if (isPrimaryAdmin(user) || role === "Admin") {
           return NextResponse.redirect(new URL("/Admin", requestUrl.origin));
-        } else {
-          return NextResponse.redirect(new URL("/dashboard", requestUrl.origin));
         }
+
+        return NextResponse.redirect(new URL("/dashboard", requestUrl.origin));
       } else {
         console.error("Session exchange error:", error);
         return NextResponse.redirect(
@@ -86,9 +100,10 @@ export async function GET(request: NextRequest) {
         const metadata: any = { role: "Student" };
         
         // Extract Google profile data if available
-        if (user.user_metadata?.avatar_url) {
-          metadata.avatar_url = user.user_metadata.avatar_url;
-          metadata.google_avatar_url = user.user_metadata.avatar_url;
+        const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+        if (avatarUrl) {
+          metadata.avatar_url = avatarUrl;
+          metadata.google_avatar_url = avatarUrl;
         }
         if (user.user_metadata?.full_name) {
           metadata.full_name = user.user_metadata.full_name;
@@ -103,6 +118,18 @@ export async function GET(request: NextRequest) {
         if (user.user_metadata?.family_name) {
           metadata.last_name = user.user_metadata.family_name;
         }
+        const providerGender = user.user_metadata?.gender || user.user_metadata?.sex || user.user_metadata?.gender_identity;
+        if (providerGender) {
+          metadata.gender = providerGender;
+        }
+        const providerNationality = user.user_metadata?.nationality || user.user_metadata?.country || user.user_metadata?.locale;
+        if (providerNationality) {
+          metadata.nationality = providerNationality;
+        }
+        const providerBirthdate = user.user_metadata?.birthdate || user.user_metadata?.birthday || user.user_metadata?.dob || user.user_metadata?.date_of_birth;
+        if (providerBirthdate) {
+          metadata.birthdate = providerBirthdate;
+        }
         
         await supabase.auth.updateUser({
           data: metadata
@@ -110,11 +137,11 @@ export async function GET(request: NextRequest) {
         role = "Student";
       }
 
-      if (role === "Admin") {
+      if (isPrimaryAdmin(user) || role === "Admin") {
         return NextResponse.redirect(new URL("/Admin", requestUrl.origin));
-      } else {
-        return NextResponse.redirect(new URL("/dashboard", requestUrl.origin));
       }
+
+      return NextResponse.redirect(new URL("/dashboard", requestUrl.origin));
     }
   } catch (error) {
     console.error("User check error:", error);

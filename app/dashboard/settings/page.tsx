@@ -40,6 +40,8 @@ export default function StudentSettingsPage() {
     return user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || "User";
   };
 
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.google_avatar_url || user?.user_metadata?.picture;
+
   const getInitials = () => {
     const name = getDisplayName();
     return name
@@ -78,8 +80,8 @@ export default function StudentSettingsPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="border-b border-border bg-card">
+        <div className="container mx-auto px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <Link href="/dashboard">
               <Button variant="ghost" size="icon">
@@ -87,170 +89,106 @@ export default function StudentSettingsPage() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-xl md:text-2xl font-bold">Settings</h1>
-              <p className="text-sm text-muted-foreground mt-1 hidden md:block">
-                Manage your preferences and account
+              <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Manage your profile, preferences, and account details.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Desktop: Show avatar and logout button */}
-            <div className="hidden md:flex items-center gap-3">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-                    <Avatar className="h-8 w-8">
-                      {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
-                      <AvatarFallback className="text-xs font-semibold">{getInitials()}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium text-foreground">
-                      {getDisplayName()}
-                    </span>
-                  </div>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <User className="h-5 w-5 text-primary" />
-                      Account Information
-                    </DialogTitle>
-                    <DialogDescription>
-                      Your current account details
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="bg-gradient-to-br from-primary/10 to-secondary/50 border-2 border-primary/20 rounded-lg p-6 space-y-4">
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-20 w-20 border-4 border-primary cursor-pointer" onClick={() => {
-                          if (user?.user_metadata?.avatar_url) {
-                            window.open(user.user_metadata.avatar_url, '_blank');
-                          }
-                        }}>
-                          {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
-                          <AvatarFallback className="text-xl font-semibold">{getInitials()}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold">{getDisplayName()}</h3>
-                          <p className="text-sm text-muted-foreground">{user?.email}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-primary/20">
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Gender</p>
-                          <p className="font-medium capitalize">{user?.user_metadata?.gender || "-"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Role</p>
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
-                            {user?.user_metadata?.role || "Student"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <Button variant="outline" onClick={async () => {
-                const supabase = createClient();
-                await supabase.auth.signOut();
-                router.push("/");
-              }}>Logout</Button>
+            <div className="hidden md:flex items-center gap-3 rounded-3xl border border-border bg-secondary/80 px-4 py-3">
+              <Avatar className="h-10 w-10">
+                {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
+                <AvatarFallback className="text-sm font-semibold">{getInitials()}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-sm font-medium">{getDisplayName()}</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
+              </div>
             </div>
-
-            {/* Mobile: Dropdown menu with account info and logout */}
-            <div className="md:hidden">
-              <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem asChild>
-                    <div className="cursor-pointer" onClick={() => {
-                      setMobileMenuOpen(false);
-                    }}>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <div className="flex items-center gap-2 w-full">
-                            <Avatar className="h-6 w-6">
-                              {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
-                              <AvatarFallback className="text-[10px] font-semibold">{getInitials()}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm">{getDisplayName()}</span>
-                          </div>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                              <User className="h-5 w-5 text-primary" />
-                              Account Information
-                            </DialogTitle>
-                            <DialogDescription>
-                              Your current account details
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="bg-gradient-to-br from-primary/10 to-secondary/50 border-2 border-primary/20 rounded-lg p-6 space-y-4">
-                              <div className="flex items-center gap-4">
-                                <Avatar className="h-20 w-20 border-4 border-primary cursor-pointer" onClick={() => {
-                                  if (user?.user_metadata?.avatar_url) {
-                                    window.open(user.user_metadata.avatar_url, '_blank');
-                                  }
-                                }}>
-                                  {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={getDisplayName()} />}
-                                  <AvatarFallback className="text-xl font-semibold">{getInitials()}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                  <h3 className="text-xl font-bold">{getDisplayName()}</h3>
-                                  <p className="text-sm text-muted-foreground">{user?.email}</p>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-primary/20">
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Gender</p>
-                                  <p className="font-medium capitalize">{user?.user_metadata?.gender || "-"}</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Role</p>
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
-                                    {user?.user_metadata?.role || "Student"}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={async () => {
-                    const supabase = createClient();
-                    await supabase.auth.signOut();
-                    router.push("/");
-                  }} className="text-destructive focus:text-destructive cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            <Button variant="outline" size="sm" onClick={() => router.push("/dashboard")}>Back to Dashboard</Button>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          {/* User Settings Component - cards in grid layout */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <UserSettings 
-              showPasswordChange={true} 
-              showUsernameChange={true}
-              user={user}
-              onUserUpdate={(updatedUser) => setUser(updatedUser)}
-            />
+        <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+          <div className="space-y-6">
+            <Card className="border border-border rounded-[32px] shadow-sm hover:shadow-lg transition-shadow duration-300">
+              <CardHeader>
+                <CardTitle>Personal Settings</CardTitle>
+                <CardDescription>
+                  Update your profile, password, and account preferences in one place.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UserSettings 
+                  showPasswordChange={true} 
+                  showUsernameChange={true}
+                  user={user}
+                  onUserUpdate={(updatedUser) => setUser(updatedUser)}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="border border-border rounded-[32px] shadow-sm hover:shadow-lg transition-shadow duration-300">
+              <CardHeader>
+                <CardTitle>Account Snapshot</CardTitle>
+                <CardDescription>Quick view of your profile and access.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-3xl border border-border bg-secondary p-4">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-16 w-16">
+                      {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
+                      <AvatarFallback className="text-lg font-semibold">{getInitials()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-lg font-semibold">{getDisplayName()}</p>
+                      <p className="text-sm text-muted-foreground">{user?.email}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-3">
+                  <div className="rounded-3xl border border-border bg-secondary p-4">
+                    <p className="text-sm text-muted-foreground">Role</p>
+                    <p className="font-semibold">{user?.user_metadata?.role || "Student"}</p>
+                  </div>
+                  <div className="rounded-3xl border border-border bg-secondary p-4">
+                    <p className="text-sm text-muted-foreground">Gender</p>
+                    <p className="font-semibold capitalize">{user?.user_metadata?.gender || "Unspecified"}</p>
+                  </div>
+                  <div className="rounded-3xl border border-border bg-secondary p-4">
+                    <p className="text-sm text-muted-foreground">Nationality</p>
+                    <p className="font-semibold capitalize">{user?.user_metadata?.nationality || user?.user_metadata?.country || user?.user_metadata?.locale || "Unspecified"}</p>
+                  </div>
+                  <div className="rounded-3xl border border-border bg-secondary p-4">
+                    <p className="text-sm text-muted-foreground">Date of Birth</p>
+                    <p className="font-semibold">{user?.user_metadata?.birthdate || user?.user_metadata?.date_of_birth || user?.user_metadata?.birthday || user?.user_metadata?.dob || "Unspecified"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border rounded-[32px] shadow-sm hover:shadow-lg transition-shadow duration-300">
+              <CardHeader>
+                <CardTitle>Need help?</CardTitle>
+                <CardDescription>Useful links and support resources.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Link href="/dashboard/settings" className="block rounded-2xl border border-border bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/90">
+                  Update profile settings
+                </Link>
+                <Link href="/dashboard/exam" className="block rounded-2xl border border-border bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/90">
+                  View available exams
+                </Link>
+                <Link href="/dashboard" className="block rounded-2xl border border-border bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/90">
+                  Back to home
+                </Link>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </main>

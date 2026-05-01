@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
-type Language = "English" | "Arabic" | "Kinyarwanda";
+type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
 
 interface LanguageContextType {
   language: Language;
@@ -11,6 +11,21 @@ interface LanguageContextType {
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+// Get default system name from localStorage or fallback to "Navo"
+const getDefaultSystemName = (): string => {
+  if (typeof window === "undefined") return "Navo";
+  const saved = localStorage.getItem("navo-branding-config");
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      return parsed.systemName || "Navo";
+    } catch (e) {
+      return "Navo";
+    }
+  }
+  return "Navo";
+};
 
 const translations: Record<Language, Record<string, string>> = {
   English: {
@@ -65,6 +80,32 @@ const translations: Record<Language, Record<string, string>> = {
     "light": "فاتح",
     "dark": "داكن",
   },
+  French: {
+    "navo": "Navo",
+    "home": "Accueil",
+    "about": "À propos",
+    "features": "Fonctionnalités",
+    "welcome": "Bienvenue",
+    "welcome.description": "Votre application SaaS moderne est prête. Connectez-vous pour accéder à toutes les fonctionnalités.",
+    "signIn": "Connexion",
+    "createAccount": "Créer un compte",
+    "secure": "Sécurisé",
+    "secure.description": "Sécurité de niveau entreprise avec chiffrement de bout en bout",
+    "fast": "Rapide",
+    "fast.description": "Performances ultra rapides avec CDN mondial",
+    "simple": "Simple",
+    "simple.description": "Interface intuitive conçue pour tous",
+    "theme": "Thème",
+    "language": "Langue",
+    "textSize": "Taille du texte",
+    "help": "Aide",
+    "small": "Petit",
+    "medium": "Moyen",
+    "large": "Grand",
+    "system": "Système",
+    "light": "Clair",
+    "dark": "Sombre",
+  },
   Kinyarwanda: {
     "navo": "Navo",
     "home": "Ahabanza",
@@ -94,9 +135,41 @@ const translations: Record<Language, Record<string, string>> = {
 };
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>("English");
+  const [language, setLanguageState] = useState<Language>("English");
+  const [systemName, setSystemName] = useState<string>("Navo");
+
+  useEffect(() => {
+    const savedLanguage = typeof window !== "undefined" ? localStorage.getItem("navo-language") : null;
+    if (savedLanguage && ["English", "Arabic", "Kinyarwanda", "French"].includes(savedLanguage)) {
+      setLanguageState(savedLanguage as Language);
+    }
+
+    setSystemName(getDefaultSystemName());
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "navo-branding-config") {
+        setSystemName(getDefaultSystemName());
+      }
+      if (e.key === "navo-language" && e.newValue && ["English", "Arabic", "Kinyarwanda", "French"].includes(e.newValue)) {
+        setLanguageState(e.newValue as Language);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-language", lang);
+    }
+  };
 
   const t = (key: string): string => {
+    if (key === "navo") {
+      return systemName;
+    }
     return translations[language][key] || key;
   };
 

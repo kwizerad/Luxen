@@ -61,10 +61,10 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
   const [updatingUsername, setUpdatingUsername] = useState(false);
   
   // Profile picture state
-  const [avatarUrl, setAvatarUrl] = useState(user?.user_metadata?.avatar_url || "");
+  const [avatarUrl, setAvatarUrl] = useState(user?.user_metadata?.avatar_url || user?.user_metadata?.google_avatar_url || user?.user_metadata?.picture || "");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
-  const [googleAvatarUrl, setGoogleAvatarUrl] = useState(user?.user_metadata?.google_avatar_url || "");
+  const [googleAvatarUrl, setGoogleAvatarUrl] = useState(user?.user_metadata?.google_avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || "");
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   
@@ -72,6 +72,8 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
   const [firstName, setFirstName] = useState(user?.user_metadata?.first_name || "");
   const [lastName, setLastName] = useState(user?.user_metadata?.last_name || "");
   const [gender, setGender] = useState(user?.user_metadata?.gender || "");
+  const [nationality, setNationality] = useState(user?.user_metadata?.nationality || "");
+  const [birthdate, setBirthdate] = useState(user?.user_metadata?.birthdate || "");
   const [updatingProfile, setUpdatingProfile] = useState(false);
 
   useEffect(() => {
@@ -83,6 +85,17 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
       applyTextSize(saved);
     }
   }, []);
+
+  useEffect(() => {
+    setUsername(user?.user_metadata?.username || "");
+    setAvatarUrl(user?.user_metadata?.avatar_url || user?.user_metadata?.google_avatar_url || user?.user_metadata?.picture || "");
+    setGoogleAvatarUrl(user?.user_metadata?.google_avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || "");
+    setFirstName(user?.user_metadata?.first_name || "");
+    setLastName(user?.user_metadata?.last_name || "");
+    setGender(user?.user_metadata?.gender || "");
+    setNationality(user?.user_metadata?.nationality || "");
+    setBirthdate(user?.user_metadata?.birthdate || user?.user_metadata?.date_of_birth || user?.user_metadata?.birthday || user?.user_metadata?.dob || "");
+  }, [user]);
 
   const applyTextSize = (size: TextSize) => {
     const root = document.documentElement;
@@ -269,6 +282,8 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
           last_name: lastName.trim(),
           full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
           gender: gender,
+          nationality: nationality,
+          birthdate: birthdate,
         },
       });
       
@@ -304,6 +319,8 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
       .slice(0, 2);
   };
 
+  const displayAvatarUrl = avatarUrl || googleAvatarUrl;
+
   if (!mounted) {
     return null;
   }
@@ -312,6 +329,7 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
     { value: "English", label: "English" },
     { value: "Arabic", label: "Arabic" },
     { value: "Kinyarwanda", label: "Kinyarwanda" },
+    { value: "French", label: "French" },
   ];
 
   const textSizes = [
@@ -342,7 +360,7 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
             <div className="flex items-center justify-center gap-4">
               <div className="relative">
                 <Avatar className="h-24 w-24 border-4 border-primary/20">
-                  {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
+                  {displayAvatarUrl && <AvatarImage src={displayAvatarUrl} alt={getDisplayName()} />}
                   <AvatarFallback className="text-2xl font-semibold">{getInitials()}</AvatarFallback>
                 </Avatar>
               </div>
@@ -400,6 +418,8 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
                 last_name: lastName.trim(),
                 full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
                 gender: gender,
+                nationality: nationality,
+                birthdate: birthdate,
               };
               
               if (showUsernameChange && username) {
@@ -460,6 +480,27 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
                 <option value="other">Other</option>
                 <option value="prefer-not-to-say">Prefer not to say</option>
               </select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="nationality" className="text-sm">Nationality</Label>
+              <Input
+                id="nationality"
+                type="text"
+                value={nationality}
+                onChange={(e) => setNationality(e.target.value)}
+                placeholder="Enter nationality"
+                className="h-10"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="birthdate" className="text-sm">Date of Birth</Label>
+              <Input
+                id="birthdate"
+                type="date"
+                value={birthdate}
+                onChange={(e) => setBirthdate(e.target.value)}
+                className="h-10"
+              />
             </div>
             {showUsernameChange && (
               <div className="grid gap-2">

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isAdmin } from "@/lib/permissions";
+import { canManageExamSettings } from "@/lib/permissions";
 import { normalizeExamSettings } from "@/lib/exam-settings";
 import type { ExamQuestionSortingMode } from "@/lib/database.types";
 
@@ -54,7 +54,7 @@ export async function PUT(request: Request) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !isAdmin(user)) {
+    if (!user || !canManageExamSettings(user)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

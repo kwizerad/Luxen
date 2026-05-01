@@ -9,6 +9,7 @@ export interface AdminPermissions {
     enabled: boolean;
     canAddQuestions: boolean;
     canViewQuestions: boolean;
+    canManageSettings: boolean;
     questionAccess: "read_only" | "read_write" | "none";
   };
 }
@@ -22,6 +23,7 @@ export const DEFAULT_PERMISSIONS: AdminPermissions = {
     enabled: true,
     canAddQuestions: true,
     canViewQuestions: true,
+    canManageSettings: true,
     questionAccess: "read_write",
   },
 };
@@ -57,12 +59,20 @@ export function getUserPermissions(user: any): AdminPermissions {
         enabled: true,
         canAddQuestions: true,
         canViewQuestions: true,
+        canManageSettings: true,
         questionAccess: "read_write",
       },
     };
   }
   
-  return user?.user_metadata?.permissions || DEFAULT_PERMISSIONS;
+  return {
+    ...DEFAULT_PERMISSIONS,
+    ...user?.user_metadata?.permissions,
+    examPermissions: {
+      ...DEFAULT_PERMISSIONS.examPermissions,
+      ...user?.user_metadata?.permissions?.examPermissions,
+    },
+  };
 }
 
 /**
@@ -103,6 +113,11 @@ export function canAddQuestions(user: any): boolean {
 export function canViewQuestions(user: any): boolean {
   const perms = getUserPermissions(user);
   return perms.examPermissions.enabled && perms.examPermissions.canViewQuestions;
+}
+
+export function canManageExamSettings(user: any): boolean {
+  const perms = getUserPermissions(user);
+  return perms.examPermissions.enabled && perms.examPermissions.canManageSettings;
 }
 
 /**

@@ -7,9 +7,11 @@ import { Label } from "@/components/ui/label";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useBrandingConfig } from "@/lib/branding-config";
 import { 
   Users, Settings, UserPlus, LogOut, LayoutDashboard, 
-  ChevronLeft, ChevronRight, Menu, X, FileText, Lock, MoreVertical
+  ChevronLeft, ChevronRight, Menu, X, FileText, Lock, MoreVertical,
+  PanelLeft, PanelLeftClose, PanelLeftOpen, MousePointer2
 } from "lucide-react";
 import { toast } from "sonner";
 import { canViewStudents, canAddQuestions, canViewQuestions } from "@/lib/permissions";
@@ -28,15 +30,18 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { config } = useBrandingConfig();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarMode, setSidebarMode] = useState<"expanded" | "collapsed" | "auto">("auto");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
+  const [isNearSidebarEdge, setIsNearSidebarEdge] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const sidebarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -92,8 +97,20 @@ export default function AdminLayout({
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  // Auto-hide sidebar when cursor leaves sidebar area
+  // Sidebar visibility effect based on mode
   useEffect(() => {
+    if (sidebarMode === "expanded") {
+      setSidebarOpen(true);
+    } else if (sidebarMode === "collapsed") {
+      setSidebarOpen(false);
+    }
+    // "auto" mode is handled by the mouse detection effects
+  }, [sidebarMode]);
+
+  // Auto-hide sidebar when cursor leaves sidebar area (only in "auto" mode)
+  useEffect(() => {
+    if (sidebarMode !== "auto") return;
+
     const handleMouseEnter = () => {
       setIsHoveringSidebar(true);
       if (sidebarTimeoutRef.current) {
@@ -128,7 +145,24 @@ export default function AdminLayout({
         sidebarElement.removeEventListener('mouseleave', handleMouseLeave);
       }
     };
-  }, []);
+  }, [sidebarMode]);
+
+  // Detect cursor near left edge of screen to show sidebar in auto mode
+  useEffect(() => {
+    if (sidebarMode !== "auto") return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const isNearEdge = e.clientX < 20; // Within 20px of left edge
+      setIsNearSidebarEdge(isNearEdge);
+      
+      if (isNearEdge && !sidebarOpen) {
+        setSidebarOpen(true);
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => document.removeEventListener('mousemove', handleMouseMove);
+  }, [sidebarMode, sidebarOpen]);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -215,19 +249,58 @@ export default function AdminLayout({
       <div className="p-4 border-b border-border flex items-center justify-between min-h-[73px]">
         {/* Title - always visible on mobile, conditionally on desktop */}
         <div className={`${sidebarOpen || mobileMenuOpen ? "block" : "hidden lg:hidden"} flex-1 min-w-0`}>
-          <h1 className="text-xl font-bold text-foreground">Admin Panel</h1>
-          <p className="text-sm text-muted-foreground mt-1 truncate max-w-[180px]">{user?.email}</p>
+          <Link href="/Admin" className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+              {config.logoUrl ? (
+                <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm font-bold">{config.logoText || "N"}</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-foreground truncate">{config.systemName}</h1>
+              <p className="text-sm text-muted-foreground mt-1 truncate max-w-[180px]">{user?.email}</p>
+            </div>
+          </Link>
         </div>
-        {/* Desktop collapse/expand button - only visible when sidebar is open on desktop */}
+        {/* Desktop sidebar mode dropdown */}
         {!mobileMenuOpen && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`hidden lg:flex flex-shrink-0 ${!sidebarOpen ? "mx-auto" : ""}`}
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            {sidebarOpen ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`hidden lg:flex flex-shrink-0 ${!sidebarOpen ? "mx-auto" : ""}`}
+              >
+                {sidebarMode === "expanded" && <PanelLeftOpen className="h-5 w-5" />}
+                {sidebarMode === "collapsed" && <PanelLeftClose className="h-5 w-5" />}
+                {sidebarMode === "auto" && <MousePointer2 className="h-5 w-5" />}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem 
+                onClick={() => setSidebarMode("expanded")}
+                className={sidebarMode === "expanded" ? "bg-primary/10" : ""}
+              >
+                <PanelLeftOpen className="mr-2 h-4 w-4" />
+                Expanded
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => setSidebarMode("collapsed")}
+                className={sidebarMode === "collapsed" ? "bg-primary/10" : ""}
+              >
+                <PanelLeftClose className="mr-2 h-4 w-4" />
+                Collapsed
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => setSidebarMode("auto")}
+                className={sidebarMode === "auto" ? "bg-primary/10" : ""}
+              >
+                <MousePointer2 className="mr-2 h-4 w-4" />
+                Automatic
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
         {/* Mobile close button */}
         <Button
@@ -295,7 +368,16 @@ export default function AdminLayout({
     <div className="min-h-screen bg-background">
       {/* Mobile Header */}
       <header className="lg:hidden bg-card border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-40">
-        <h1 className="text-lg font-bold text-foreground">Admin Panel</h1>
+        <Link href="/Admin" className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-sm font-bold">{config.logoText || "N"}</span>
+            )}
+          </div>
+          <span className="text-lg font-bold text-foreground truncate">{config.systemName}</span>
+        </Link>
         <Button
           variant="ghost"
           size="icon"
@@ -310,7 +392,7 @@ export default function AdminLayout({
         {/* Desktop Sidebar */}
         <aside 
           data-sidebar="true"
-          className={`hidden lg:flex bg-card border-r border-border flex-col transition-all duration-300 ${
+          className={`hidden lg:flex bg-card border-r border-border flex-col transition-all duration-300 sticky top-0 h-screen ${
             sidebarOpen ? "w-64" : "w-20"
           }`}
         >
@@ -334,16 +416,32 @@ export default function AdminLayout({
         <main 
           className="flex-1 overflow-auto bg-background relative"
           onMouseEnter={() => {
-            if (!sidebarOpen && !isHoveringSidebar) {
-              setSidebarOpen(true);
+            // In auto mode, when entering main content, keep sidebar behavior based on cursor position
+            if (sidebarMode === "auto" && !isHoveringSidebar && !isNearSidebarEdge) {
+              // Only hide if we're not near the edge and not hovering sidebar
+              if (sidebarTimeoutRef.current) {
+                clearTimeout(sidebarTimeoutRef.current);
+              }
+              sidebarTimeoutRef.current = setTimeout(() => {
+                setSidebarOpen(false);
+              }, 300);
             }
           }}
         >
           {/* Desktop Header */}
           <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-border bg-card sticky top-0 z-30">
-            <div>
-              <h1 className="text-xl font-bold text-foreground">Admin Panel</h1>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+                {config.logoUrl ? (
+                  <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-sm font-bold">{config.logoText || "N"}</span>
+                )}
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">{config.systemName}</h1>
+                <p className="text-sm text-muted-foreground">Admin Panel</p>
+              </div>
             </div>
             
             <DropdownMenu>

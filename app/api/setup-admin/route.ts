@@ -5,15 +5,15 @@ export async function POST() {
   try {
     const supabase = createAdminClient();
     
-    // Check if admin already exists
+    // Check if admin already exists - prevent access if already set up
     const { data: existingUser } = await supabase.auth.admin.listUsers();
     const adminExists = existingUser.users.find(u => u.email === "Navo@admin.jn");
     
     if (adminExists) {
       return NextResponse.json({ 
         success: false, 
-        message: "Admin user already exists" 
-      }, { status: 400 });
+        message: "Admin user already exists. Setup is disabled for security reasons." 
+      }, { status: 403 });
     }
 
     // Create admin user using admin API

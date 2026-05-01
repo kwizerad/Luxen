@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, User, Palette, UserPlus } from "lucide-react";
+import { Mail, User, Palette, UserPlus, ImageIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { UserSettings } from "@/components/user-settings";
 import { ThemeCustomizer } from "@/components/theme-customizer";
+import { BrandingCustomizer } from "@/components/branding-customizer";
 import { Loader2 } from "lucide-react";
 import { ADMIN_CREDENTIALS } from "@/lib/admin-config";
 import Link from "next/link";
@@ -20,103 +21,114 @@ export default function AdminSettingsPage() {
     const loadUser = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (user) {
         console.log("Admin settings user:", {
           email: user.email,
           expected: ADMIN_CREDENTIALS.email,
           matches: user.email === ADMIN_CREDENTIALS.email,
-          role: user.user_metadata?.role
+          role: user.user_metadata?.role,
         });
       }
-      
+
       setUser(user);
       setLoading(false);
     };
-    
+
     loadUser();
   }, []);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your admin account settings
-          </p>
+    <div className="min-h-screen bg-background py-8">
+      <main className="container mx-auto px-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Settings</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage your admin account, brand, and appearance.
+            </p>
+          </div>
+          {user?.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() && (
+            <Button asChild>
+              <Link href="/Admin/register">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Register Admin
+              </Link>
+            </Button>
+          )}
         </div>
-        {user?.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() && (
-          <Button asChild>
-            <Link href="/Admin/register">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Register Admin
-            </Link>
-          </Button>
-        )}
-      </div>
 
-      {/* All Cards in Horizontal Row - Same Size */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Account Info */}
-        <Card className="hover:shadow-lg hover:-translate-y-1 hover:border-primary transition-all duration-300 h-full flex flex-col">
-          <CardHeader className="flex-1">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <User className="h-5 w-5 text-primary" />
-              Account Information
-            </CardTitle>
-            <CardDescription className="text-sm">
-              Your current account details
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label className="text-sm text-muted-foreground">Email</Label>
-              <div className="flex items-center gap-2 p-3 bg-secondary border border-border rounded-md">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{user?.email}</span>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label className="text-sm text-muted-foreground">Role</Label>
-              <div className="p-3 bg-secondary border border-border rounded-md">
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary">
-                  {user?.user_metadata?.role || "Admin"}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid gap-6 lg:grid-cols-[1.8fr_1fr] mt-8">
+          <div className="space-y-6">
+            <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+              <CardHeader>
+                <CardTitle>Account Overview</CardTitle>
+                <CardDescription>Quick access to account details and profile settings.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label className="text-sm text-muted-foreground">Email</Label>
+                  <div className="rounded-3xl border border-border bg-secondary p-4 text-sm font-medium">
+                    {user?.email || "—"}
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label className="text-sm text-muted-foreground">Role</Label>
+                  <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
+                    {user?.user_metadata?.role || "Admin"}
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label className="text-sm text-muted-foreground">Joined</Label>
+                  <div className="rounded-3xl border border-border bg-secondary p-4 text-sm">
+                    {user?.created_at ? new Date(user.created_at).toLocaleDateString() : "Unknown"}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* User Settings Component (Appearance, Language, Password) */}
-        <UserSettings showPasswordChange={true} />
-      </div>
+            <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+              <CardHeader>
+                <CardTitle>Profile Settings</CardTitle>
+                <CardDescription>Update personal settings and account details.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UserSettings showPasswordChange={true} />
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Theme Customization - Only for Primary Admin (Other Settings) */}
-      {user?.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() && (
-        <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300 border-primary/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Palette className="h-5 w-5 text-primary" />
-              Other Settings
-            </CardTitle>
-            <CardDescription>
-              Theme customization (Primary Admin Only)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ThemeCustomizer />
-          </CardContent>
-        </Card>
-      )}
+          <div className="space-y-6">
+            <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+              <CardHeader>
+                <CardTitle>Theme Customization</CardTitle>
+                <CardDescription>Customize colors and the app appearance.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ThemeCustomizer />
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+              <CardHeader>
+                <CardTitle>Branding Settings</CardTitle>
+                <CardDescription>Update logo, system name, and identity.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BrandingCustomizer />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

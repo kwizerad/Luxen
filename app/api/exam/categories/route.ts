@@ -27,10 +27,9 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser();
 
     const isPrimaryAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-    const hasAdminRole = user?.user_metadata?.role === "Admin";
 
-    if (!user || (!isPrimaryAdmin && !hasAdminRole)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!user || !isPrimaryAdmin) {
+      return NextResponse.json({ error: "Unauthorized. Only primary admin can create categories." }, { status: 403 });
     }
 
     const body = await request.json();

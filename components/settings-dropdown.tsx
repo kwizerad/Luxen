@@ -82,6 +82,7 @@ export function SettingsDropdown() {
                 <option value="English">English</option>
                 <option value="Arabic">Arabic</option>
                 <option value="Kinyarwanda">Kinyarwanda</option>
+                <option value="French">French</option>
               </select>
             </div>
 

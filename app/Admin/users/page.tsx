@@ -8,6 +8,7 @@ import { Search, GraduationCap, Loader2, Eye, Trash2, Ban, CheckCircle, AlertTri
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useRouter } from "next/navigation";
 import { isAdmin, canViewStudents, hasReadWriteStudentAccess } from "@/lib/permissions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,6 +20,11 @@ interface User {
   banned?: boolean;
   user_metadata: {
     gender?: string;
+    nationality?: string;
+    birthdate?: string;
+    date_of_birth?: string;
+    birthday?: string;
+    dob?: string;
     role?: string;
     username?: string;
     first_name?: string;
@@ -34,6 +40,12 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [processingUser, setProcessingUser] = useState<string | null>(null);
+  const [confirmUserAction, setConfirmUserAction] = useState<{
+    action: "banUnban" | "delete";
+    userId: string;
+    email: string;
+    currentBanned: boolean;
+  } | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const router = useRouter();
@@ -116,49 +128,61 @@ export default function UsersPage() {
       .slice(0, 2);
   };
 
-  const handleBanUnban = async (userId: string, currentBanned: boolean) => {
-    if (!confirm(`Are you sure you want to ${currentBanned ? 'unban' : 'ban'} this user?`)) return;
-    
-    setProcessingUser(userId);
-    try {
-      const res = await fetch("/api/users", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, banned: !currentBanned }),
-      });
-      
-      const data = await res.json();
-      if (data.success) {
-        toast.success(data.message);
-        setUsers(users.map(u => u.id === userId ? { ...u, banned: !currentBanned } : u));
-      } else {
-        toast.error(data.error || "Failed to update user");
-      }
-    } catch (error) {
-      toast.error("Failed to update user");
-    } finally {
-      setProcessingUser(null);
-    }
+  const handleBanUnban = (userId: string, currentBanned: boolean, email: string) => {
+    setConfirmUserAction({
+      action: "banUnban",
+      userId,
+      email,
+      currentBanned,
+    });
   };
 
-  const handleDelete = async (userId: string, email: string) => {
-    if (!confirm(`Are you sure you want to delete user ${email}? This action cannot be undone.`)) return;
-    
+  const handleDelete = (userId: string, email: string) => {
+    setConfirmUserAction({
+      action: "delete",
+      userId,
+      email,
+      currentBanned: false,
+    });
+  };
+
+  const handleConfirmUserAction = async () => {
+    if (!confirmUserAction) return;
+
+    const { action, userId, currentBanned } = confirmUserAction;
+    setConfirmUserAction(null);
     setProcessingUser(userId);
+
     try {
-      const res = await fetch(`/api/users?id=${userId}`, {
-        method: "DELETE",
-      });
-      
-      const data = await res.json();
-      if (data.success) {
-        toast.success("User deleted successfully");
-        setUsers(users.filter(u => u.id !== userId));
+      if (action === "banUnban") {
+        const res = await fetch("/api/users", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, banned: !currentBanned }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          toast.success(data.message);
+          setUsers(users.map((u) => (u.id === userId ? { ...u, banned: !currentBanned } : u)));
+        } else {
+          toast.error(data.error || "Failed to update user");
+        }
       } else {
-        toast.error(data.error || "Failed to delete user");
+        const res = await fetch(`/api/users?id=${userId}`, {
+          method: "DELETE",
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          toast.success("User deleted successfully");
+          setUsers(users.filter((u) => u.id !== userId));
+        } else {
+          toast.error(data.error || "Failed to delete user");
+        }
       }
     } catch (error) {
-      toast.error("Failed to delete user");
+      toast.error(action === "banUnban" ? "Failed to update user" : "Failed to delete user");
     } finally {
       setProcessingUser(null);
     }
@@ -172,14 +196,10 @@ First Name: ${user.user_metadata?.first_name || '-'}
 Last Name: ${user.user_metadata?.last_name || '-'}
 Username: ${user.user_metadata?.username || '-'}
 Gender: ${user.user_metadata?.gender || '-'}
-Role: ${user.user_metadata?.role || 'User'}
-Joined: ${new Date(user.created_at).toLocaleDateString()}
-Status: ${user.banned ? 'Banned' : 'Active'}
-Profile Picture: ${user.user_metadata?.avatar_url ? 'Yes' : 'No'}`
+Nationality: ${user.user_metadata?.nationality || '-'}
+Date of Birth: ${user.user_metadata?.birthdate || user.user_metadata?.date_of_birth || user.user_metadata?.birthday || user.user_metadata?.dob || '-'}`,
     });
-  };
 
-  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -275,6 +295,8 @@ Profile Picture: ${user.user_metadata?.avatar_url ? 'Yes' : 'No'}`
                     <TableHead>Email</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Gender</TableHead>
+                    <TableHead>Nationality</TableHead>
+                    <TableHead>Birthdate</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -284,7 +306,7 @@ Profile Picture: ${user.user_metadata?.avatar_url ? 'Yes' : 'No'}`
                   {filteredUsers.map((user) => (
                     <TableRow 
                       key={user.id} 
-                      className={`hover:bg-secondary/50 transition-colors ${user.banned ? "bg-red-50/50 dark:bg-red-950/20" : ""}`}
+                      className={"hover:bg-secondary/50 transition-colors " + (user.banned ? "bg-red-50/50 dark:bg-red-950/20" : "")}
                     >
                       <TableCell>
                         <Avatar className="h-10 w-10">
@@ -294,7 +316,7 @@ Profile Picture: ${user.user_metadata?.avatar_url ? 'Yes' : 'No'}`
                           </AvatarFallback>
                         </Avatar>
                       </TableCell>
-                      <TableCell className={`font-medium ${user.banned ? "text-red-600 dark:text-red-400" : ""}`}>
+                      <TableCell className={"font-medium " + (user.banned ? "text-red-600 dark:text-red-400" : "") }>
                         {user.email}
                         {user.banned && (
                           <span className="ml-2 text-xs bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 px-2 py-0.5 rounded font-medium border border-red-200 dark:border-red-800">
@@ -308,19 +330,21 @@ Profile Picture: ${user.user_metadata?.avatar_url ? 'Yes' : 'No'}`
                           <span>{getDisplayName(user)}</span>
                         </div>
                       </TableCell>
-                      <TableCell className={`capitalize ${user.banned ? "text-red-600 dark:text-red-400" : ""}`}>
+                      <TableCell className={"capitalize " + (user.banned ? "text-red-600 dark:text-red-400" : "") }>
                         {user.user_metadata?.gender || "-"}
                       </TableCell>
+                      <TableCell className={"" + (user.banned ? "text-red-600 dark:text-red-400" : "") }>
+                        {user.user_metadata?.nationality || "-"}
+                      </TableCell>
+                      <TableCell className={"" + (user.banned ? "text-red-600 dark:text-red-400" : "") }>
+                        {user.user_metadata?.birthdate || user.user_metadata?.date_of_birth || user.user_metadata?.birthday || user.user_metadata?.dob || "-"}
+                      </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          user.banned 
-                            ? "bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800" 
-                            : "bg-primary/10 text-primary"
-                        }`}>
+                        <span className={"inline-flex items-center px-2 py-1 rounded-full text-xs font-medium " + (user.banned ? "bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800" : "bg-primary/10 text-primary") }>
                           {user.banned ? "Banned" : (user.user_metadata?.role || "User")}
                         </span>
                       </TableCell>
-                      <TableCell className={`${user.banned ? "text-red-500 dark:text-red-400" : "text-muted-foreground"}`}>
+                      <TableCell className={"" + (user.banned ? "text-red-500 dark:text-red-400" : "text-muted-foreground") }>
                         {new Date(user.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
@@ -344,7 +368,7 @@ Profile Picture: ${user.user_metadata?.avatar_url ? 'Yes' : 'No'}`
                                     ? "text-green-500 hover:text-green-600"
                                     : "text-orange-500 hover:text-orange-600"
                                 }
-                                onClick={() => handleBanUnban(user.id, user.banned || false)}
+                                onClick={() => handleBanUnban(user.id, user.banned || false, user.email)}
                                 disabled={processingUser === user.id}
                               >
                                 {processingUser === user.id ? (
@@ -393,6 +417,25 @@ Profile Picture: ${user.user_metadata?.avatar_url ? 'Yes' : 'No'}`
           )}
         </CardContent>
       </Card>
+      <ConfirmDialog
+        open={!!confirmUserAction}
+        onOpenChange={(open) => {
+          if (!open) setConfirmUserAction(null);
+        }}
+        title={
+          confirmUserAction?.action === "banUnban"
+            ? `${confirmUserAction.currentBanned ? "Unban" : "Ban"} User?`
+            : "Delete User?"
+        }
+        description={
+          confirmUserAction?.action === "banUnban"
+            ? `This will ${confirmUserAction.currentBanned ? "unban" : "ban"} ${confirmUserAction.email}.`
+            : `This will delete ${confirmUserAction?.email}. This action cannot be undone.`
+        }
+        confirmLabel={confirmUserAction?.action === "banUnban" ? (confirmUserAction.currentBanned ? "Unban" : "Ban") : "Delete"}
+        onConfirm={handleConfirmUserAction}
+        confirmVariant={confirmUserAction?.action === "delete" ? "destructive" : "default"}
+      />
     </div>
   );
 }

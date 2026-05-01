@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Trophy, Clock, TrendingUp, Play, Eye, CheckCircle, XCircle } from "lucide-react";
+import { Watermark } from "@/components/watermark";
 import type { ExamAttempt } from "@/lib/database.types";
 
 export default function UserExamsPage() {
@@ -62,7 +63,7 @@ export default function UserExamsPage() {
 
   return (
     <div className="space-y-6 relative">
-      <div className="navo-watermark brand-protected">Navo</div>
+      <Watermark />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold brand-protected">My Exams</h1>

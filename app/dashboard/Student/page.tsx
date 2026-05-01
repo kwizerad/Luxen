@@ -20,9 +20,14 @@ export default function StudentDashboard() {
     loadUser();
   }, []);
 
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.google_avatar_url || user?.user_metadata?.picture;
+
   const displayName = user?.user_metadata?.first_name && user?.user_metadata?.last_name
     ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
     : user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || "User";
+
+  const nationality = user?.user_metadata?.nationality || user?.user_metadata?.country || user?.user_metadata?.locale;
+  const birthdate = user?.user_metadata?.birthdate || user?.user_metadata?.date_of_birth || user?.user_metadata?.birthday || user?.user_metadata?.dob;
 
   const initials = displayName
     .split(' ')
@@ -43,7 +48,7 @@ export default function StudentDashboard() {
     <div className="container mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center gap-6">
         <Avatar className="h-20 w-20 border-2 border-primary">
-          {user?.user_metadata?.avatar_url && <AvatarImage src={user?.user_metadata?.avatar_url} alt={displayName} />}
+          {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
           <AvatarFallback className="text-lg font-semibold">{initials}</AvatarFallback>
         </Avatar>
         <div>
@@ -92,6 +97,29 @@ export default function StudentDashboard() {
                 <div>
                   <p className="text-sm text-muted-foreground">Gender</p>
                   <p className="font-medium capitalize">{user.user_metadata.gender}</p>
+                </div>
+              </div>
+            )}
+            {nationality && (
+              <div className="flex items-center gap-3">
+                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Nationality</p>
+                  <p className="font-medium capitalize">{nationality}</p>
+                </div>
+              </div>
+            )}
+            {birthdate && (
+              <div className="flex items-center gap-3">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Date of Birth</p>
+                  <p className="font-medium">
+                    {(() => {
+                      const date = new Date(birthdate);
+                      return Number.isNaN(date.getTime()) ? birthdate : date.toLocaleDateString();
+                    })()}
+                  </p>
                 </div>
               </div>
             )}

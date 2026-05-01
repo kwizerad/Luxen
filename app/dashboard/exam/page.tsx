@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Watermark } from "@/components/watermark";
 import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, Clock, Trophy, ArrowRight, Home } from "lucide-react";
@@ -182,7 +183,7 @@ export default function TakeExamPage() {
   if (showResults && examResult) {
     return (
       <main className="max-w-4xl mx-auto space-y-6 relative">
-        <div className="navo-watermark brand-protected">Navo</div>
+        <Watermark />
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold brand-protected">Exam Results</h1>
@@ -279,7 +280,7 @@ export default function TakeExamPage() {
 
   return (
     <main className="max-w-4xl mx-auto space-y-6 relative">
-      <div className="navo-watermark brand-protected">Navo</div>
+      <Watermark />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold brand-protected">Take Exam</h1>

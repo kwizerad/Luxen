@@ -55,6 +55,13 @@ export function SettingsModal() {
                 Arabic
               </Button>
               <Button
+                variant={language === "French" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setLanguage("French")}
+              >
+                French
+              </Button>
+              <Button
                 variant={language === "Kinyarwanda" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setLanguage("Kinyarwanda")}
