@@ -12,11 +12,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { isPrimaryAdmin } from "@/lib/permissions";
+import { useLanguage } from "@/lib/language-context";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" {...props}>
@@ -26,17 +26,20 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 interface LoginFormProps extends React.ComponentPropsWithoutRef<"div"> {
   onSuccess?: () => void;
+  onSwitchToSignUp?: () => void;
 }
 
 export function LoginForm({
   className,
   onSuccess,
+  onSwitchToSignUp,
   ...props
 }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { t } = useLanguage();
 
   const handleGoogleSignIn = async () => {
     const supabase = createClient();
@@ -110,9 +113,9 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="bg-card backdrop-blur-0">
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-2xl">{t("login")}</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            {t("enterYourEmail")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -125,7 +128,7 @@ export function LoginForm({
               className="w-full"
             >
               <GoogleIcon className="mr-2 h-4 w-4" />
-              Continue with Google
+              {t("continueWithGoogle")}
             </Button>
 
             <div className="relative">
@@ -134,7 +137,7 @@ export function LoginForm({
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with email
+                  {t("orContinueWithEmail")}
                 </span>
               </div>
             </div>
@@ -142,7 +145,7 @@ export function LoginForm({
             <form onSubmit={handleLogin}>
               <div className="flex flex-col gap-6">
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t("email")}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -153,7 +156,7 @@ export function LoginForm({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t("password")}</Label>
                   <Input
                     id="password"
                     type="password"
@@ -162,26 +165,28 @@ export function LoginForm({
                     onChange={(e) => setPassword(e.target.value)}
                   />
                   <div className="text-right">
-                    <Link
-                      href="/auth/forgot-password"
-                      className="inline-block text-sm underline-offset-4 hover:underline"
+                    <button
+                      type="button"
+                      onClick={() => router.push("/auth/forgot-password")}
+                      className="inline-block text-sm underline-offset-4 hover:underline text-left"
                     >
-                      Forgot your password?
-                    </Link>
+                      {t("forgotPassword")}
+                    </button>
                   </div>
                 </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Logging in..." : "Login"}
+                {isLoading ? t("loggingIn") : t("login")}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/auth/sign-up"
+              {t("dontHaveAccount")}{" "}
+              <button
+                type="button"
+                onClick={onSwitchToSignUp}
                 className="underline underline-offset-4"
               >
-                Sign up
-              </Link>
+                {t("signUp")}
+              </button>
             </div>
           </form>
           </div>

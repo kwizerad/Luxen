@@ -3,15 +3,15 @@
 import { Button } from "./ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { LogoutButton } from "./logout-button";
+import { useAuthModals } from "@/lib/auth-modals-context";
+import { useLanguage } from "@/lib/language-context";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { LoginModal } from "./login-modal";
-import { SignUpModal } from "./sign-up-modal";
 
 export function AuthButton() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const { openLogin, openSignUp } = useAuthModals();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const checkUser = async () => {
@@ -35,15 +35,15 @@ export function AuthButton() {
 
   return user ? (
     <div className="flex items-center gap-4">
-      <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard")}>
-        Dashboard
+      <Button variant="ghost" size="sm" onClick={() => window.location.href = "/dashboard"}>
+        {t("dashboard")}
       </Button>
       <LogoutButton />
     </div>
   ) : (
     <div className="flex gap-2">
-      <LoginModal />
-      <SignUpModal />
+      <Button size="sm" onClick={openLogin}>{t("signIn")}</Button>
+      <Button size="sm" variant="outline" onClick={openSignUp}>{t("createAccount")}</Button>
     </div>
   );
 }

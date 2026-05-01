@@ -4,8 +4,10 @@ import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/lib/language-context";
 import { ThemeConfigProvider } from "@/lib/theme-config";
 import { BrandingConfigProvider } from "@/lib/branding-config";
+import { AuthModalsProvider } from "@/lib/auth-modals-context";
 import { FloatingSettings } from "@/components/floating-settings";
 import { GoogleOneTap } from "@/components/google-one-tap";
+import { AuthModalsContainer } from "@/components/auth-modals-container";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -46,12 +48,15 @@ export default function RootLayout({
             storageKey="navo-theme"
           >
             <LanguageProvider>
-              <ThemeConfigProvider>
-                {children}
-                <FloatingSettings />
-                <GoogleOneTap />
-                <Toaster position="top-right" richColors closeButton />
-              </ThemeConfigProvider>
+              <AuthModalsProvider>
+                <ThemeConfigProvider>
+                  {children}
+                  <FloatingSettings />
+                  <GoogleOneTap />
+                  <AuthModalsContainer />
+                  <Toaster position="top-right" richColors closeButton />
+                </ThemeConfigProvider>
+              </AuthModalsProvider>
             </LanguageProvider>
           </ThemeProvider>
         </BrandingConfigProvider>

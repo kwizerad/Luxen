@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/lib/language-context";
 
 export function ForgotPasswordForm({
   className,
@@ -27,6 +28,7 @@ export function ForgotPasswordForm({
   const [resendCooldown, setResendCooldown] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const router = useRouter();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (success && resendCooldown > 0) {
@@ -84,13 +86,12 @@ export function ForgotPasswordForm({
       {success ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Check Your Email</CardTitle>
-            <CardDescription>Password reset instructions sent</CardDescription>
+            <CardTitle className="text-2xl">{t("checkEmail")}</CardTitle>
+            <CardDescription>{t("passwordResetSent")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              If you registered using your email and password, you will receive
-              a password reset email.
+              {t("checkYourEmail")}
             </p>
             {error && <p className="text-sm text-red-500">{error}</p>}
             <Button
@@ -100,34 +101,33 @@ export function ForgotPasswordForm({
               disabled={!canResend || isLoading}
             >
               {isLoading
-                ? "Sending..."
+                ? t("sending")
                 : canResend
-                  ? "Resend email"
-                  : `Resend in ${resendCooldown}s`}
+                  ? t("resend")
+                  : `${t("resendIn")} ${resendCooldown}s`}
             </Button>
             <Button
               onClick={() => router.push("/")}
               variant="ghost"
               className="w-full"
             >
-              Cancel
+              {t("cancel")}
             </Button>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+            <CardTitle className="text-2xl">{t("resetPassword")}</CardTitle>
             <CardDescription>
-              Type in your email and we&apos;ll send you a link to reset your
-              password
+              {t("typeYourEmail")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleForgotPassword}>
               <div className="flex flex-col gap-6">
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t("email")}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -139,17 +139,17 @@ export function ForgotPasswordForm({
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Sending..." : "Send reset email"}
+                  {isLoading ? t("sending") : t("sendResetEmail")}
                 </Button>
               </div>
               <div className="mt-4 flex flex-col gap-2">
                 <div className="text-center text-sm">
-                  Already have an account?{" "}
+                  {t("alreadyHaveAccount")}{" "}
                   <Link
                     href="/"
                     className="underline underline-offset-4"
                   >
-                    Login
+                    {t("login")}
                   </Link>
                 </div>
                 <Button
@@ -158,7 +158,7 @@ export function ForgotPasswordForm({
                   variant="ghost"
                   className="w-full"
                 >
-                  Cancel
+                  {t("cancel")}
                 </Button>
               </div>
             </form>

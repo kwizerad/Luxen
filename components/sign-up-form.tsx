@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useLanguage } from "@/lib/language-context";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" {...props}>
@@ -24,11 +24,13 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 interface SignUpFormProps extends React.ComponentPropsWithoutRef<"div"> {
   onSuccess?: () => void;
+  onSwitchToLogin?: () => void;
 }
 
 export function SignUpForm({
   className,
   onSuccess,
+  onSwitchToLogin,
   ...props
 }: SignUpFormProps) {
   const [email, setEmail] = useState("");
@@ -37,6 +39,7 @@ export function SignUpForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { t } = useLanguage();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,8 +91,8 @@ export function SignUpForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="bg-card backdrop-blur-0">
         <CardHeader>
-          <CardTitle className="text-2xl">Sign up</CardTitle>
-          <CardDescription>Create a new account</CardDescription>
+          <CardTitle className="text-2xl">{t("signUp")}</CardTitle>
+          <CardDescription>{t("createAccount")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-6">
@@ -111,7 +114,7 @@ export function SignUpForm({
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
+                  {t("orContinueWithEmail")}
                 </span>
               </div>
             </div>
@@ -119,7 +122,7 @@ export function SignUpForm({
             <form onSubmit={handleSignUp}>
               <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("email")}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -132,7 +135,7 @@ export function SignUpForm({
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t("password")}</Label>
                 </div>
                 <Input
                   id="password"
@@ -144,7 +147,7 @@ export function SignUpForm({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="gender">Gender</Label>
+                <Label htmlFor="gender">{t("gender")}</Label>
                 <select
                   id="gender"
                   required
@@ -152,23 +155,27 @@ export function SignUpForm({
                   onChange={(e) => setGender(e.target.value)}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 >
-                  <option value="">Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
+                  <option value="">{t("selectGender")}</option>
+                  <option value="male">{t("male")}</option>
+                  <option value="female">{t("female")}</option>
                 </select>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creating an account..." : "Sign up"}
+                {isLoading ? t("creatingAccount") : t("signUp")}
               </Button>
               </div>
             </form>
 
             <div className="text-center text-sm">
-              Already have an account?{" "}
-              <Link href="/" className="underline underline-offset-4">
-                Login
-              </Link>
+              {t("alreadyHaveAccount")}{" "}
+              <button
+                type="button"
+                onClick={onSwitchToLogin}
+                className="underline underline-offset-4"
+              >
+                {t("login")}
+              </button>
             </div>
           </div>
         </CardContent>

@@ -107,7 +107,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-2xl font-bold">{config.systemName}</h1>
-              <p className="text-sm text-muted-foreground">Welcome back to your dashboard</p>
+              <p className="text-sm text-muted-foreground">{t("learningDashboard")}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -133,7 +133,7 @@ export default function Dashboard() {
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger className="cursor-pointer">
                       <Sun className="h-4 w-4 mr-2" />
-                      Theme
+                      {t("theme")}
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent>
                       <DropdownMenuItem onClick={() => setTheme("light")} className={theme === "light" ? "bg-accent" : ""}>
@@ -155,11 +155,11 @@ export default function Dashboard() {
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger className="cursor-pointer">
                       <Globe className="h-4 w-4 mr-2" />
-                      Language
+                      {t("language")}
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent>
                       <DropdownMenuItem onClick={() => setLanguage("English")} className={language === "English" ? "bg-accent" : ""}>
-                        English
+                        {t("language") === "Arabic" ? "العربية" : "English"}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setLanguage("Arabic")} className={language === "Arabic" ? "bg-accent" : ""}>
                         العربية
@@ -170,7 +170,7 @@ export default function Dashboard() {
                   <DropdownMenuItem asChild>
                     <Link href="/dashboard/settings" className="cursor-pointer">
                       <Settings className="mr-2 h-4 w-4" />
-                      Settings
+                      {t("settings")}
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -179,7 +179,7 @@ export default function Dashboard() {
                 const supabase = createClient();
                 await supabase.auth.signOut();
                 router.push("/");
-              }}>Logout</Button>
+              }}>{t("logout")}</Button>
             </div>
 
             {/* Mobile: Menu button */}
@@ -193,7 +193,7 @@ export default function Dashboard() {
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem onClick={() => setShowAccountDialog(true)}>
                     <User className="mr-2 h-4 w-4" />
-                    Account Info
+                    {t("accountInfo")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
@@ -209,7 +209,7 @@ export default function Dashboard() {
                     router.push("/");
                   }} className="text-destructive focus:text-destructive cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
-                    Logout
+                    {t("logout")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -220,52 +220,52 @@ export default function Dashboard() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Welcome back!</h2>
-          <p className="text-muted-foreground">Here's your learning dashboard</p>
+          <h2 className="text-3xl font-bold mb-2">{t("welcomeBack")}</h2>
+          <p className="text-muted-foreground">{t("learningDashboard")}</p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Courses</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("courses")}</CardTitle>
               <BookOpen className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground">Active courses</p>
+              <p className="text-xs text-muted-foreground">{t("activeCourses")}</p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Hours</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("hours")}</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">12.5</div>
-              <p className="text-xs text-muted-foreground">This week</p>
+              <p className="text-xs text-muted-foreground">{t("thisWeek")}</p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Schedule</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("schedule")}</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">5</div>
-              <p className="text-xs text-muted-foreground">Upcoming classes</p>
+              <p className="text-xs text-muted-foreground">{t("upcomingClasses")}</p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Achievements</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("achievements")}</CardTitle>
               <Trophy className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">8</div>
-              <p className="text-xs text-muted-foreground">Badges earned</p>
+              <p className="text-xs text-muted-foreground">{t("badgesEarned")}</p>
             </CardContent>
           </Card>
         </div>
@@ -273,15 +273,15 @@ export default function Dashboard() {
         <div className="grid md:grid-cols-2 gap-6">
           <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
             <CardHeader>
-              <CardTitle>Recent Courses</CardTitle>
-              <CardDescription>Your current learning progress</CardDescription>
+              <CardTitle>{t("recentCourses")}</CardTitle>
+              <CardDescription>{t("currentLearningProgress")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Mathematics 101</p>
-                    <p className="text-sm text-muted-foreground">Progress: 75%</p>
+                    <p className="text-sm text-muted-foreground">{t("progress")}: 75%</p>
                   </div>
                   <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
                     <div className="h-full bg-primary w-3/4" />
@@ -290,7 +290,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Physics Fundamentals</p>
-                    <p className="text-sm text-muted-foreground">Progress: 45%</p>
+                    <p className="text-sm text-muted-foreground">{t("progress")}: 45%</p>
                   </div>
                   <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
                     <div className="h-full bg-primary w-[45%]" />
@@ -299,7 +299,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Chemistry Basics</p>
-                    <p className="text-sm text-muted-foreground">Progress: 20%</p>
+                    <p className="text-sm text-muted-foreground">{t("progress")}: 20%</p>
                   </div>
                   <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
                     <div className="h-full bg-primary w-1/5" />
@@ -311,8 +311,8 @@ export default function Dashboard() {
 
           <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
             <CardHeader>
-              <CardTitle>Upcoming Schedule</CardTitle>
-              <CardDescription>Your next classes and deadlines</CardDescription>
+              <CardTitle>{t("upcomingSchedule")}</CardTitle>
+              <CardDescription>{t("nextClassesDeadlines")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -322,7 +322,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="font-medium">Mathematics 101</p>
-                    <p className="text-sm text-muted-foreground">Today, 2:00 PM</p>
+                    <p className="text-sm text-muted-foreground">{t("today")}, 2:00 PM</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -331,7 +331,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="font-medium">Physics Lab</p>
-                    <p className="text-sm text-muted-foreground">Tomorrow, 10:00 AM</p>
+                    <p className="text-sm text-muted-foreground">{t("tomorrow")}, 10:00 AM</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -340,7 +340,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="font-medium">Chemistry Quiz</p>
-                    <p className="text-sm text-muted-foreground">Friday, 3:00 PM</p>
+                    <p className="text-sm text-muted-foreground">{t("schedule")}, 3:00 PM</p>
                   </div>
                 </div>
               </div>
@@ -355,10 +355,10 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="h-5 w-5 text-primary" />
-              Account Information
+              {t("accountInformation")}
             </DialogTitle>
             <DialogDescription>
-              Your current account details
+              {t("currentAccountDetails")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -379,21 +379,21 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-primary/20">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Gender</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("gender")}</p>
                   <p className="font-medium capitalize">{user?.user_metadata?.gender || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Nationality</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("nationality")}</p>
                   <p className="font-medium capitalize">{user?.user_metadata?.nationality || user?.user_metadata?.country || user?.user_metadata?.locale || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Date of Birth</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("dateOfBirth")}</p>
                   <p className="font-medium">{user?.user_metadata?.birthdate || user?.user_metadata?.date_of_birth || user?.user_metadata?.birthday || user?.user_metadata?.dob || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Role</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("role")}</p>
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
-                    {user?.user_metadata?.role || "Student"}
+                    {t(user?.user_metadata?.role?.toLowerCase() || "student")}
                   </span>
                 </div>
               </div>

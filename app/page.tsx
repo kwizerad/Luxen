@@ -1,14 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { useLanguage } from "@/lib/language-context";
+import { useAuthModals } from "@/lib/auth-modals-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShieldCheck, Rocket, Sparkles } from "lucide-react";
 
 export default function Home() {
   const { t } = useLanguage();
+  const { openLogin, openSignUp } = useAuthModals();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -26,12 +27,8 @@ export default function Home() {
               {t("welcome.description")}
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link href="/auth/login">
-                <Button size="lg">{t("signIn")}</Button>
-              </Link>
-              <Link href="/auth/sign-up">
-                <Button variant="outline" size="lg">{t("createAccount")}</Button>
-              </Link>
+              <Button size="lg" onClick={openLogin}>{t("signIn")}</Button>
+              <Button variant="outline" size="lg" onClick={openSignUp}>{t("createAccount")}</Button>
             </div>
           </div>
 

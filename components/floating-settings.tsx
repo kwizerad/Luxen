@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
+import { useAuthModals } from "@/lib/auth-modals-context";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,7 +30,7 @@ const languages: { value: Language; label: string; flag: string }[] = [
 export function FloatingSettings() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const { openLogin, openSignUp } = useAuthModals();
   const { theme, setTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
 
@@ -54,7 +54,7 @@ export function FloatingSettings() {
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
-      router.push("/");
+      window.location.href = "/";
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -76,18 +76,18 @@ export function FloatingSettings() {
         <DropdownMenuContent align="end" sideOffset={8} className="w-64">
           <div className="space-y-2 px-4 py-3">
             {loading ? (
-              <p className="text-sm text-muted-foreground">Loading...</p>
+              <p className="text-sm text-muted-foreground">{t("loading")}</p>
             ) : user ? (
               <div className="space-y-1">
                 <p className="text-sm font-semibold truncate">{user.email}</p>
                 <p className="text-xs text-muted-foreground">
-                  {user.user_metadata?.role || "Student"}
+                  {t(user.user_metadata?.role?.toLowerCase() || "student")}
                 </p>
               </div>
             ) : (
               <div className="space-y-1">
                 <p className="text-sm font-semibold">{t("welcome")}</p>
-                <p className="text-xs text-muted-foreground">Customize your experience</p>
+                <p className="text-xs text-muted-foreground">{t("customizeYourExperience")}</p>
               </div>
             )}
           </div>
@@ -144,32 +144,32 @@ export function FloatingSettings() {
           {user ? (
             <>
               <DropdownMenuItem
-                onClick={() => router.push("/dashboard/settings")}
+                onClick={() => window.location.href = "/dashboard/settings"}
                 className="cursor-pointer"
               >
                 <ShieldCheck className="mr-2 h-4 w-4" />
                 {t("home")}
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => router.push("/dashboard")}
+                onClick={() => window.location.href = "/dashboard"}
                 className="cursor-pointer"
               >
                 <User className="mr-2 h-4 w-4" />
-                Dashboard
+                {t("dashboard")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
-                Logout
+                {t("logout")}
               </DropdownMenuItem>
             </>
           ) : (
             <>
-              <DropdownMenuItem onClick={() => router.push("/auth/login")} className="cursor-pointer">
+              <DropdownMenuItem onClick={openLogin} className="cursor-pointer">
                 <LogIn className="mr-2 h-4 w-4" />
                 {t("signIn")}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/auth/sign-up")} className="cursor-pointer">
+              <DropdownMenuItem onClick={openSignUp} className="cursor-pointer">
                 <User className="mr-2 h-4 w-4" />
                 {t("createAccount")}
               </DropdownMenuItem>
