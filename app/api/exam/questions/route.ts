@@ -104,6 +104,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid correct answer" }, { status: 400 });
     }
 
+    // Check for duplicate question - same text and all options must match
+    const normalizedQuestion = question?.trim().toLowerCase() || "";
+    const { data: existingQuestions, error: checkError } = await supabase
+      .from("exam_questions")
+      .select("id, question, option_a, option_b, option_c, option_d")
+      .eq("category_id", category_id)
+      .ilike("question", normalizedQuestion);
+
+    if (checkError) {
+      return NextResponse.json({ error: "Error checking for duplicates" }, { status: 500 });
+    }
+
+    // Check if any existing question has the exact same text and all matching options
+    const isDuplicate = existingQuestions?.some((q) => {
+      const normalize = (str: string | null | undefined) => (str?.trim().toLowerCase() || "");
+      const questionTextMatch = normalize(q.question) === normalizedQuestion;
+      const optionAMatch = normalize(q.option_a) === normalize(option_a);
+      const optionBMatch = normalize(q.option_b) === normalize(option_b);
+      const optionCMatch = normalize(q.option_c) === normalize(option_c);
+      const optionDMatch = normalize(q.option_d) === normalize(option_d);
+
+      return questionTextMatch && optionAMatch && optionBMatch && optionCMatch && optionDMatch;
+    });
+
+    if (isDuplicate) {
+      return NextResponse.json(
+        { error: "A question with the same text and identical options already exists in this category" },
+        { status: 409 }
+      );
+    }
+
     const { data, error } = await supabase
       .from("exam_questions")
       .insert([{
