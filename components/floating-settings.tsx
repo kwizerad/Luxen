@@ -35,19 +35,49 @@ export function FloatingSettings() {
   const { language, setLanguage, t } = useLanguage();
 
   useEffect(() => {
+    let isMounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
+
     const loadUser = async () => {
       try {
         const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
-      } catch (error) {
-        console.error("Failed to load user for floating settings:", error);
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        // Handle lock errors with retry
+        if (error && error.message?.includes("lock")) {
+          if (retryCount < maxRetries) {
+            retryCount++;
+            setTimeout(loadUser, 100 * retryCount);
+            return;
+          }
+          console.warn("Auth lock timeout after retries in floating settings");
+        }
+        
+        if (!isMounted) return;
+        
+        if (user) {
+          setUser(user);
+        }
+      } catch (error: any) {
+        // Ignore lock errors - they're internal Supabase timing issues
+        if (error?.message?.includes("lock")) {
+          console.warn("Supabase auth lock in floating settings (non-critical):", error.message);
+        } else {
+          console.error("Failed to load user for floating settings:", error);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadUser();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const logout = async () => {
@@ -151,7 +181,7 @@ export function FloatingSettings() {
                 {t("dashboard")}
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => window.location.href = "/user/settings"}
+                onClick={() => window.location.href = "/dashboard/settings"}
                 className="cursor-pointer"
               >
                 <Settings className="mr-2 h-4 w-4" />

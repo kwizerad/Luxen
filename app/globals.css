@@ -74,6 +74,23 @@
   }
 }
 
+/* Ensure dialog portals render correctly */
+[data-radix-dialog-portal] {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+[data-radix-dialog-portal] > * {
+  pointer-events: auto;
+}
+
+/* Ensure dialogs are always on top */
+[role="dialog"] {
+  z-index: 50;
+}
+
 @layer utilities {
   .glassmorphism {
     background: rgba(255, 255, 255, 0.7);
@@ -184,6 +201,13 @@
 
   .navo-card-brand {
     position: relative;
+    isolation: isolate; /* Create proper stacking context without affecting fixed children */
+  }
+  
+  /* Ensure fixed positioned elements inside navo-card-brand are positioned relative to viewport */
+  .navo-card-brand [data-radix-popper-content-wrapper],
+  .navo-card-brand [data-radix-dialog-content] {
+    position: fixed !important;
   }
 
   .navo-card-brand::after {

@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, GraduationCap, Loader2, Eye, Trash2, Ban, CheckCircle, AlertTriangle, Lock as LockIcon, User } from "lucide-react";
+import { Search, GraduationCap, Loader2, Eye, Trash2, Ban, CheckCircle, AlertTriangle, Lock as LockIcon, User, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { UserExamLimitDialog } from "@/components/user-exam-limit-dialog";
 import { useRouter } from "next/navigation";
 import { isAdmin, canViewStudents, hasReadWriteStudentAccess } from "@/lib/permissions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,6 +46,12 @@ export default function UsersPage() {
     userId: string;
     email: string;
     currentBanned: boolean;
+  } | null>(null);
+  const [examLimitDialog, setExamLimitDialog] = useState<{
+    open: boolean;
+    userId: string;
+    email: string;
+    currentLimit?: number;
   } | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -186,6 +193,29 @@ export default function UsersPage() {
     } finally {
       setProcessingUser(null);
     }
+  };
+
+  const handleSetExamLimit = (user: User) => {
+    // Fetch current limit
+    fetch(`/api/exam/limits?userId=${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        setExamLimitDialog({
+          open: true,
+          userId: user.id,
+          email: user.email,
+          currentLimit: data.daily_limit,
+        });
+      })
+      .catch(() => {
+        // If error, assume default limit
+        setExamLimitDialog({
+          open: true,
+          userId: user.id,
+          email: user.email,
+          currentLimit: 5,
+        });
+      });
   };
 
   const handleView = (user: User) => {
@@ -363,6 +393,22 @@ Date of Birth: ${user.user_metadata?.birthdate || user.user_metadata?.date_of_bi
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                onClick={() => handleSetExamLimit(user)}
+                                disabled={processingUser === user.id}
+                                className="text-blue-500 hover:text-blue-600"
+                              >
+                                {processingUser === user.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : (
+                                  <>
+                                    <Hash className="h-4 w-4 mr-2" />
+                                    Set Limit
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className={
                                   user.banned
                                     ? "text-green-500 hover:text-green-600"
@@ -436,6 +482,18 @@ Date of Birth: ${user.user_metadata?.birthdate || user.user_metadata?.date_of_bi
         onConfirm={handleConfirmUserAction}
         confirmVariant={confirmUserAction?.action === "delete" ? "destructive" : "default"}
       />
+      {examLimitDialog && (
+        <UserExamLimitDialog
+          open={examLimitDialog.open}
+          onOpenChange={(open) => {
+            if (!open) setExamLimitDialog(null);
+            else setExamLimitDialog({ ...examLimitDialog, open });
+          }}
+          userId={examLimitDialog.userId}
+          userEmail={examLimitDialog.email}
+          currentLimit={examLimitDialog.currentLimit}
+        />
+      )}
     </div>
   );
 }

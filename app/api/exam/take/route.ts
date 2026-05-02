@@ -42,6 +42,48 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // Check daily exam limit
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Get user's daily limit
+    const { data: userLimit, error: limitError } = await supabase
+      .from("user_exam_limits")
+      .select("daily_limit")
+      .eq("user_id", user.id)
+      .single();
+
+    if (limitError && limitError.code !== "PGRST116") {
+      console.error("Error fetching user limit:", limitError);
+    }
+
+    const dailyLimit = userLimit?.daily_limit ?? 5;
+
+    // Count today's attempts
+    const { count: attemptsToday, error: countError } = await supabase
+      .from("exam_attempts")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("started_at", today.toISOString())
+      .lt("started_at", tomorrow.toISOString());
+
+    if (countError) {
+      console.error("Error counting attempts:", countError);
+    }
+
+    const attemptsCount = attemptsToday || 0;
+
+    if (attemptsCount >= dailyLimit) {
+      return NextResponse.json({
+        error: `Daily exam limit reached. You can take ${dailyLimit} exam(s) per day. Please try again tomorrow.`,
+        daily_limit: dailyLimit,
+        attempts_today: attemptsCount,
+        remaining_attempts: 0,
+      }, { status: 429 });
+    }
+
     // Load settings (defaults if missing)
     const { data: rawSettings, error: settingsError } = await supabase
       .from("exam_settings")
@@ -74,6 +116,9 @@ export async function GET(request: Request) {
       totalAvailable: (questions ?? []).length,
       questions: picked,
       serverTime: now.toISOString(),
+      daily_limit: dailyLimit,
+      attempts_today: attemptsCount,
+      remaining_attempts: dailyLimit - attemptsCount - 1, // -1 for current exam
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

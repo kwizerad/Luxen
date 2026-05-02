@@ -737,7 +737,7 @@ export default function ExamManagementPage() {
 
         {/* Edit Category Modal */}
         <Dialog open={showEditCategoryModal} onOpenChange={setShowEditCategoryModal}>
-          <DialogContent className="sm:max-w-[425px] max-w-[95vw] w-full navo-card-brand">
+          <DialogContent className="sm:max-w-[425px] max-w-[95vw] w-full">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Edit className="h-5 w-5 text-primary" />
@@ -971,7 +971,7 @@ export default function ExamManagementPage() {
 
         {/* Exam Settings Modal */}
         <Dialog open={showSettingsModal} onOpenChange={setShowSettingsModal}>
-          <DialogContent className="sm:max-w-lg max-w-[95vw] w-full max-h-[90vh] overflow-y-auto navo-card-brand">
+          <DialogContent className="sm:max-w-lg max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Exam Settings</DialogTitle>
               <DialogDescription>
@@ -1095,7 +1095,7 @@ export default function ExamManagementPage() {
 
       {/* Add/Edit Question Modal */}
       <Dialog open={showQuestionModal} onOpenChange={setShowQuestionModal}>
-        <DialogContent className="sm:max-w-4xl max-w-[98vw] w-full max-h-[95vh] overflow-y-auto navo-card-brand">
+        <DialogContent className="sm:max-w-4xl max-w-[98vw] w-full max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editingQuestion ? (
@@ -1358,7 +1358,7 @@ export default function ExamManagementPage() {
 
       {/* Exam Results Modal */}
       <Dialog open={showResultsModal} onOpenChange={setShowResultsModal}>
-        <DialogContent className="sm:max-w-6xl max-w-[98vw] w-full max-h-[95vh] overflow-y-auto navo-card-brand">
+        <DialogContent className="sm:max-w-6xl max-w-[98vw] w-full max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Trophy className="h-5 w-5 text-primary" />

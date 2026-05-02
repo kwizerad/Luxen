@@ -1,0 +1,37 @@
+// Top-level build file for Navo Lite Android app
+// This file is used by Android Studio and Gradle
+
+buildscript {
+    ext {
+        // SDK versions - targeting Android 14 (API 34)
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+        minSdkVersion = 24  // Android 7.0 (API 24) - covers 95%+ of devices
+        
+        // Build tools version
+        buildToolsVersion = '34.0.0'
+        
+        // Gradle plugin version
+        agp_version = '8.2.0'
+        
+        // Kotlin version (if needed)
+        kotlin_version = '1.9.20'
+    }
+    
+    repositories {
+        google()
+        mavenCentral()
+    }
+    
+    dependencies {
+        classpath "com.android.tools.build:gradle:$agp_version"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}

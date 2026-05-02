@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, Clock, Trophy, Settings, User, Moon, Sun, Monitor, Globe, ChevronRight, Mail, Menu, LogOut, Play, TrendingUp, Target, Award, BarChart3, Eye, FileText, Zap, History, Star, CheckCircle2, Search, Copy, X } from "lucide-react";
+import { BookOpen, Calendar, Clock, Trophy, Settings, User, Moon, Sun, Monitor, Globe, ChevronRight, Mail, Menu, LogOut, Play, TrendingUp, Target, Award, BarChart3, Eye, FileText, Zap, History, Star, CheckCircle2, Search, Copy, X, Hash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useTheme } from "next-themes";
@@ -84,33 +84,71 @@ export default function Dashboard() {
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  
+  // Exam limits state
+  const [examLimit, setExamLimit] = useState({
+    daily_limit: 5,
+    attempts_today: 0,
+    remaining_attempts: 5,
+  });
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
+
     const checkUser = async () => {
       try {
         const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        // Handle lock errors with retry
+        if (error && error.message?.includes("lock")) {
+          if (retryCount < maxRetries) {
+            retryCount++;
+            setTimeout(checkUser, 100 * retryCount);
+            return;
+          }
+          console.warn("Auth lock timeout after retries, continuing...");
+        }
+        
+        if (!isMounted) return;
+        
+        if (!user && !error?.message?.includes("lock")) {
           router.push("/");
           return;
         }
-        setUser(user);
         
-        // Load exam data
-        await loadExamData();
-      } catch (error) {
-        console.error("Error checking user:", error);
-        router.push("/");
+        if (user) {
+          setUser(user);
+          // Load exam data and limit
+          await Promise.all([loadExamData(), loadExamLimit()]);
+        }
+      } catch (error: any) {
+        // Ignore lock errors - they're internal Supabase timing issues
+        if (error?.message?.includes("lock")) {
+          console.warn("Supabase auth lock error (non-critical):", error.message);
+          // Don't redirect on lock errors, just stop loading
+        } else {
+          console.error("Error checking user:", error);
+          router.push("/");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     checkUser();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   const loadExamData = async () => {
@@ -153,6 +191,22 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error("Failed to load exam data:", error);
+    }
+  };
+
+  const loadExamLimit = async () => {
+    try {
+      const res = await fetch("/api/exam/limits");
+      if (res.ok) {
+        const data = await res.json();
+        setExamLimit({
+          daily_limit: data.daily_limit || 5,
+          attempts_today: data.attempts_today || 0,
+          remaining_attempts: data.remaining_attempts ?? (data.daily_limit || 5) - (data.attempts_today || 0),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load exam limit:", error);
     }
   };
 
@@ -369,9 +423,13 @@ export default function Dashboard() {
 
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-3 mb-8">
-          <Button onClick={() => router.push("/dashboard/exam")} className="gap-2">
+          <Button 
+            onClick={() => router.push("/dashboard/exam")} 
+            className="gap-2"
+            disabled={examLimit.remaining_attempts === 0}
+          >
             <Play className="h-4 w-4" />
-            Take Exam
+            {examLimit.remaining_attempts === 0 ? 'Daily Limit Reached' : 'Take Exam'}
           </Button>
           <Button variant="outline" onClick={() => router.push("/userExam")} className="gap-2">
             <History className="h-4 w-4" />
@@ -384,7 +442,7 @@ export default function Dashboard() {
         </div>
 
         {/* Exam Statistics */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{t("totalExamsTaken")}</CardTitle>
@@ -432,6 +490,37 @@ export default function Dashboard() {
                 {Math.floor(examStats.totalTime / 3600)}h {Math.floor((examStats.totalTime % 3600) / 60)}m
               </div>
               <p className="text-xs text-muted-foreground">Across all exams</p>
+            </CardContent>
+          </Card>
+
+          {/* Remaining Attempts Card */}
+          <Card className={`hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300 ${
+            examLimit.remaining_attempts === 0 ? 'border-red-300 bg-red-50/30 dark:bg-red-950/20' : 
+            examLimit.remaining_attempts <= 2 ? 'border-yellow-300 bg-yellow-50/30 dark:bg-yellow-950/20' : 
+            ''
+          }`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Remaining Attempts</CardTitle>
+              <Hash className={`h-4 w-4 ${
+                examLimit.remaining_attempts === 0 ? 'text-red-500' : 
+                examLimit.remaining_attempts <= 2 ? 'text-yellow-500' : 
+                'text-muted-foreground'
+              }`} />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${
+                examLimit.remaining_attempts === 0 ? 'text-red-600' : 
+                examLimit.remaining_attempts <= 2 ? 'text-yellow-600' : 
+                ''
+              }`}>
+                {examLimit.remaining_attempts}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {examLimit.remaining_attempts === 0 ? 'Daily limit reached' : 
+                 examLimit.remaining_attempts === 1 ? '1 exam left today' : 
+                 `${examLimit.remaining_attempts} exams left today`} 
+                ({examLimit.attempts_today}/{examLimit.daily_limit} taken)
+              </p>
             </CardContent>
           </Card>
         </div>

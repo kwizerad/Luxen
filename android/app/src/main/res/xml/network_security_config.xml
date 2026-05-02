@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 
+  Network Security Configuration for Navo Lite
+  
+  This configuration:
+  1. Allows cleartext traffic to localhost for debugging
+  2. Configures certificate pinning for production domains (optional)
+  3. Trusts user-installed certificates for debugging (disabled in production)
+  
+  For production builds, minimize security exceptions.
+-->
+<network-security-config>
+    <!-- Base configuration - cleartext disabled by default -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system certificates only -->
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+
+    <!-- Debug configuration - allows cleartext to localhost -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+        </trust-anchors>
+    </debug-overrides>
+
+    <!-- Domain-specific configurations (uncomment and modify as needed) -->
+    <!-- 
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">your-api-domain.com</domain>
+        <pin-set expiration="2025-01-01">
+            <pin digest="SHA-256">sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+            <pin digest="SHA-256">sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+        </pin-set>
+    </domain-config>
+    -->
+</network-security-config>

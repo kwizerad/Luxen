@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Navo Lite</string>
+    <string name="title_activity_main">Navo Lite</string>
+    <string name="package_name">com.navo.lite</string>
+    <string name="custom_url_scheme">com.navo.lite</string>
+</resources>

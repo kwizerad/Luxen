@@ -414,7 +414,8 @@ export default function AdminLayout({
 
         {/* Main Content */}
         <main 
-          className="flex-1 overflow-auto bg-background relative"
+          className="flex-1 overflow-auto bg-background relative isolate"
+          style={{ zIndex: 1 }}
           onMouseEnter={() => {
             // In auto mode, when entering main content, keep sidebar behavior based on cursor position
             if (sidebarMode === "auto" && !isHoveringSidebar && !isNearSidebarEdge) {
@@ -474,7 +475,7 @@ export default function AdminLayout({
       
       {/* Password Change Modal */}
       {showPasswordChange && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-lg max-w-md w-full p-6 shadow-lg">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-amber-100 rounded-full">
