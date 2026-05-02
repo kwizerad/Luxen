@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, Clock, Trophy, Settings, User, Moon, Sun, Monitor, Globe, ChevronRight, Mail, Menu, LogOut, Play, TrendingUp, Target, Award, BarChart3, Eye, FileText, Zap, History, Star, CheckCircle2 } from "lucide-react";
+import { BookOpen, Calendar, Clock, Trophy, Settings, User, Moon, Sun, Monitor, Globe, ChevronRight, Mail, Menu, LogOut, Play, TrendingUp, Target, Award, BarChart3, Eye, FileText, Zap, History, Star, CheckCircle2, Search, Copy, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
@@ -41,6 +42,19 @@ type ExamAttempt = {
   status: string;
 };
 
+type Question = {
+  id: string;
+  category_id: string;
+  question?: string;
+  question_image?: string;
+  option_a?: string;
+  option_b?: string;
+  option_c?: string;
+  option_d?: string;
+  correct_answer: 'A' | 'B' | 'C' | 'D';
+  explanation?: string;
+};
+
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -62,6 +76,14 @@ export default function Dashboard() {
     completedExams: 0,
   });
   const [examCategories, setExamCategories] = useState<any[]>([]);
+
+  // Question search state
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questionSearchQuery, setQuestionSearchQuery] = useState("");
+  const [showQuestionSearch, setShowQuestionSearch] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
+  const [showQuestionModal, setShowQuestionModal] = useState(false);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -133,6 +155,59 @@ export default function Dashboard() {
       console.error("Failed to load exam data:", error);
     }
   };
+
+  // Load all questions for search
+  const loadQuestions = async () => {
+    try {
+      const res = await fetch("/api/exam/questions");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.questions) {
+          setQuestions(data.questions);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load questions:", error);
+    }
+  };
+
+  // Toggle question search visibility
+  const toggleQuestionSearch = () => {
+    if (!showQuestionSearch) {
+      loadQuestions();
+    }
+    setShowQuestionSearch(!showQuestionSearch);
+    setQuestionSearchQuery("");
+    setSelectedQuestion(null);
+  };
+
+  // Handle question selection
+  const handleSelectQuestion = (question: Question) => {
+    setSelectedQuestion(question);
+    setShowQuestionModal(true);
+    setShowQuestionSearch(false);
+  };
+
+  // Copy text to clipboard
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedText(label);
+      setTimeout(() => setCopiedText(null), 2000);
+    });
+  };
+
+  // Filter questions based on search query
+  const filteredQuestions = questions.filter((q) => {
+    const query = questionSearchQuery.toLowerCase();
+    return (
+      q.question?.toLowerCase().includes(query) ||
+      q.option_a?.toLowerCase().includes(query) ||
+      q.option_b?.toLowerCase().includes(query) ||
+      q.option_c?.toLowerCase().includes(query) ||
+      q.option_d?.toLowerCase().includes(query) ||
+      q.explanation?.toLowerCase().includes(query)
+    );
+  });
 
   const getDisplayName = () => {
     if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
@@ -538,7 +613,187 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* Question Search Section */}
+        <Card className="mt-6 hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-primary" />
+                Search Questions
+              </CardTitle>
+              <CardDescription>Find and copy questions for reference</CardDescription>
+            </div>
+            <Button variant="outline" onClick={toggleQuestionSearch}>
+              {showQuestionSearch ? (
+                <><X className="h-4 w-4 mr-2" /> Close</>
+              ) : (
+                <><Search className="h-4 w-4 mr-2" /> Search</>
+              )}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {showQuestionSearch && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search questions, options, or explanations..."
+                    value={questionSearchQuery}
+                    onChange={(e) => setQuestionSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                
+                {filteredQuestions.length > 0 ? (
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {filteredQuestions.map((q) => (
+                      <div
+                        key={q.id}
+                        onClick={() => handleSelectQuestion(q)}
+                        className="p-3 border rounded-lg hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
+                      >
+                        <p className="font-medium line-clamp-2">{q.question}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Options: A) {q.option_a?.slice(0, 30)}... | Correct: {q.correct_answer}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : questionSearchQuery ? (
+                  <p className="text-center text-muted-foreground py-4">No questions found matching your search</p>
+                ) : (
+                  <p className="text-center text-muted-foreground py-4">Type to search questions</p>
+                )}
+              </div>
+            )}
+            {!showQuestionSearch && (
+              <p className="text-muted-foreground">Click Search to browse and copy questions from the database</p>
+            )}
+          </CardContent>
+        </Card>
       </main>
+
+      {/* Question Detail Modal */}
+      <Dialog open={showQuestionModal} onOpenChange={setShowQuestionModal}>
+        <DialogContent className="sm:max-w-3xl max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Eye className="h-5 w-5 text-primary" />
+                Question Details
+              </span>
+              {selectedQuestion && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(selectedQuestion.question || "", "Question")}
+                  className="shrink-0"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  {copiedText === "Question" ? "Copied!" : "Copy Question"}
+                </Button>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              Category: {examCategories.find(c => c.id === selectedQuestion?.category_id)?.name || "Unknown"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedQuestion && (
+            <div className="space-y-6 mt-4">
+              {/* Question */}
+              <Card className="border-2 border-primary/20">
+                <CardHeader>
+                  <CardTitle className="text-lg">Question</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {selectedQuestion.question_image && (
+                    <img 
+                      src={selectedQuestion.question_image} 
+                      alt="Question" 
+                      className="w-full max-h-[200px] object-contain rounded-lg mb-3 border"
+                    />
+                  )}
+                  <p className="text-base">{selectedQuestion.question}</p>
+                </CardContent>
+              </Card>
+
+              {/* Options */}
+              <Card className="border-2 border-primary/20">
+                <CardHeader>
+                  <CardTitle className="text-lg">Options</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {[
+                    { key: 'A', text: selectedQuestion.option_a },
+                    { key: 'B', text: selectedQuestion.option_b },
+                    { key: 'C', text: selectedQuestion.option_c },
+                    { key: 'D', text: selectedQuestion.option_d },
+                  ].map((option) => {
+                    const isCorrect = selectedQuestion.correct_answer === option.key;
+                    return (
+                      <div 
+                        key={option.key}
+                        className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
+                          isCorrect 
+                            ? "bg-green-50 border-green-500 dark:bg-green-900/20 dark:border-green-500" 
+                            : "bg-secondary border-border"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
+                            isCorrect 
+                              ? "bg-green-500 text-white" 
+                              : "bg-primary text-white"
+                          }`}>
+                            {option.key}
+                          </span>
+                          <p className="text-sm">{option.text}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(option.text || "", `Option ${option.key}`)}
+                        >
+                          <Copy className="h-4 w-4" />
+                          {copiedText === `Option ${option.key}` && <span className="ml-1 text-xs">Copied!</span>}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              {/* Explanation */}
+              {selectedQuestion.explanation && (
+                <Card className="border-2 border-primary/20">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="text-lg">Explanation</CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(selectedQuestion.explanation || "", "Explanation")}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      {copiedText === "Explanation" ? "Copied!" : "Copy"}
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">{selectedQuestion.explanation}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setShowQuestionModal(false)} className="flex-1">
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Account Info Dialog */}
       <Dialog open={showAccountDialog} onOpenChange={setShowAccountDialog}>
