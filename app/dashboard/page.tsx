@@ -95,35 +95,39 @@ export default function Dashboard() {
     try {
       // Load exam attempts
       const attemptsRes = await fetch("/api/exam/attempts");
-      const attemptsData = await attemptsRes.json();
-      if (attemptsData.attempts) {
-        setExamAttempts(attemptsData.attempts);
-        
-        // Calculate stats
-        const completed = attemptsData.attempts.filter((a: ExamAttempt) => a.status === 'completed');
-        const totalExams = completed.length;
-        const averageScore = totalExams > 0 
-          ? Math.round(completed.reduce((sum: number, a: ExamAttempt) => sum + a.score_percentage, 0) / totalExams)
-          : 0;
-        const bestScore = totalExams > 0 
-          ? Math.max(...completed.map((a: ExamAttempt) => a.score_percentage))
-          : 0;
-        const totalTime = completed.reduce((sum: number, a: ExamAttempt) => sum + a.duration_seconds, 0);
-        
-        setExamStats({
-          totalExams,
-          averageScore,
-          bestScore,
-          totalTime,
-          completedExams: totalExams,
-        });
+      if (attemptsRes.ok) {
+        const attemptsData = await attemptsRes.json();
+        if (attemptsData.attempts) {
+          setExamAttempts(attemptsData.attempts);
+          
+          // Calculate stats
+          const completed = attemptsData.attempts.filter((a: ExamAttempt) => a.status === 'completed');
+          const totalExams = completed.length;
+          const averageScore = totalExams > 0 
+            ? Math.round(completed.reduce((sum: number, a: ExamAttempt) => sum + a.score_percentage, 0) / totalExams)
+            : 0;
+          const bestScore = totalExams > 0 
+            ? Math.max(...completed.map((a: ExamAttempt) => a.score_percentage))
+            : 0;
+          const totalTime = completed.reduce((sum: number, a: ExamAttempt) => sum + a.duration_seconds, 0);
+          
+          setExamStats({
+            totalExams,
+            averageScore,
+            bestScore,
+            totalTime,
+            completedExams: totalExams,
+          });
+        }
       }
 
       // Load categories
       const categoriesRes = await fetch("/api/exam/categories");
-      const categoriesData = await categoriesRes.json();
-      if (categoriesData.categories) {
-        setExamCategories(categoriesData.categories);
+      if (categoriesRes.ok) {
+        const categoriesData = await categoriesRes.json();
+        if (categoriesData.categories) {
+          setExamCategories(categoriesData.categories);
+        }
       }
     } catch (error) {
       console.error("Failed to load exam data:", error);
