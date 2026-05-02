@@ -159,7 +159,7 @@ export default function Dashboard() {
   // Load all questions for search
   const loadQuestions = async () => {
     try {
-      const res = await fetch("/api/exam/questions");
+      const res = await fetch("/api/exam/questions/public");
       if (res.ok) {
         const data = await res.json();
         if (data.questions) {

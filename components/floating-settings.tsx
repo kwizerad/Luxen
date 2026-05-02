@@ -15,7 +15,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Settings, LogOut, User, LogIn, ShieldCheck, Moon, Sun, Monitor, Globe, Check } from "lucide-react";
+import { Settings, LogOut, User, LogIn, Moon, Sun, Monitor, Globe, Check } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 
 type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
@@ -144,18 +144,18 @@ export function FloatingSettings() {
           {user ? (
             <>
               <DropdownMenuItem
-                onClick={() => window.location.href = "/dashboard/settings"}
-                className="cursor-pointer"
-              >
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                {t("home")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
                 onClick={() => window.location.href = "/dashboard"}
                 className="cursor-pointer"
               >
                 <User className="mr-2 h-4 w-4" />
                 {t("dashboard")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => window.location.href = "/user/settings"}
+                className="cursor-pointer"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                {t("settings")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive">
