@@ -49,15 +49,18 @@ export async function GET(request: Request) {
         console.error("Error counting attempts:", countError);
       }
 
+      const isLimited = limit?.is_limited ?? true;
       const dailyLimit = limit?.daily_limit ?? 5;
-      const remaining = Math.max(0, dailyLimit - (attemptsToday || 0));
+      const remaining = isLimited ? Math.max(0, dailyLimit - (attemptsToday || 0)) : 999999;
 
       return NextResponse.json({
         user_id: userId,
         daily_limit: dailyLimit,
+        is_limited: isLimited,
         attempts_today: attemptsToday || 0,
         remaining_attempts: remaining,
         limit_exists: !!limit,
+        unlimited: !isLimited,
       });
     }
 
@@ -98,15 +101,18 @@ export async function GET(request: Request) {
       .gte("started_at", today.toISOString())
       .lt("started_at", tomorrow.toISOString());
 
+    const isLimited = limit?.is_limited ?? true;
     const dailyLimit = limit?.daily_limit ?? 5;
-    const remaining = Math.max(0, dailyLimit - (attemptsToday || 0));
+    const remaining = isLimited ? Math.max(0, dailyLimit - (attemptsToday || 0)) : 999999;
 
     return NextResponse.json({
       user_id: user.id,
       daily_limit: dailyLimit,
+      is_limited: isLimited,
       attempts_today: attemptsToday || 0,
       remaining_attempts: remaining,
       limit_exists: !!limit,
+      unlimited: !isLimited,
     });
   } catch (error: any) {
     console.error("Error in GET /api/exam/limits:", error);
@@ -130,30 +136,40 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { user_id, daily_limit } = body;
+    const { user_id, daily_limit, is_limited } = body;
 
-    if (!user_id || typeof daily_limit !== "number") {
+    if (!user_id || (daily_limit !== undefined && typeof daily_limit !== "number")) {
       return NextResponse.json(
-        { error: "user_id and daily_limit are required" },
+        { error: "user_id is required, daily_limit must be a number if provided" },
         { status: 400 }
       );
     }
 
-    if (daily_limit < 1 || daily_limit > 100) {
+    if (daily_limit !== undefined && (daily_limit < 1 || daily_limit > 100)) {
       return NextResponse.json(
         { error: "daily_limit must be between 1 and 100" },
         { status: 400 }
       );
     }
 
+    // Build upsert data
+    const upsertData: any = {
+      user_id,
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (daily_limit !== undefined) {
+      upsertData.daily_limit = daily_limit;
+    }
+    
+    if (is_limited !== undefined) {
+      upsertData.is_limited = is_limited;
+    }
+
     // Upsert the limit (insert or update)
     const { data, error } = await supabase
       .from("user_exam_limits")
-      .upsert({
-        user_id,
-        daily_limit,
-        updated_at: new Date().toISOString(),
-      }, {
+      .upsert(upsertData, {
         onConflict: "user_id",
       })
       .select()

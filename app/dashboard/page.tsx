@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, Clock, Trophy, Settings, User, Moon, Sun, Monitor, Globe, ChevronRight, Mail, Menu, LogOut, Play, TrendingUp, Target, Award, BarChart3, Eye, FileText, Zap, History, Star, CheckCircle2, Search, Copy, X, Hash } from "lucide-react";
+import { BookOpen, Calendar, Clock, Trophy, Settings, User, Moon, Sun, Monitor, Globe, ChevronRight, Mail, Menu, LogOut, Play, TrendingUp, Target, Award, BarChart3, Eye, FileText, Zap, History, Star, CheckCircle2, Search, Copy, X, Hash, Infinity } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useTheme } from "next-themes";
@@ -13,6 +13,7 @@ import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
+import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,6 +91,8 @@ export default function Dashboard() {
     daily_limit: 5,
     attempts_today: 0,
     remaining_attempts: 5,
+    is_limited: true,
+    unlimited: false,
   });
 
   useEffect(() => {
@@ -203,6 +206,8 @@ export default function Dashboard() {
           daily_limit: data.daily_limit || 5,
           attempts_today: data.attempts_today || 0,
           remaining_attempts: data.remaining_attempts ?? (data.daily_limit || 5) - (data.attempts_today || 0),
+          is_limited: data.is_limited ?? true,
+          unlimited: data.unlimited || !data.is_limited,
         });
       }
     } catch (error) {
@@ -308,6 +313,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationsDropdown />
             {/* Desktop: Show avatar and dropdown */}
             <div className="hidden md:flex items-center gap-3">
               <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setShowAccountDialog(true)}>
@@ -426,10 +432,10 @@ export default function Dashboard() {
           <Button 
             onClick={() => router.push("/dashboard/exam")} 
             className="gap-2"
-            disabled={examLimit.remaining_attempts === 0}
+            disabled={!examLimit.unlimited && examLimit.remaining_attempts === 0}
           >
             <Play className="h-4 w-4" />
-            {examLimit.remaining_attempts === 0 ? 'Daily Limit Reached' : 'Take Exam'}
+            {!examLimit.unlimited && examLimit.remaining_attempts === 0 ? 'Daily Limit Reached' : 'Take Exam'}
           </Button>
           <Button variant="outline" onClick={() => router.push("/userExam")} className="gap-2">
             <History className="h-4 w-4" />
@@ -495,32 +501,53 @@ export default function Dashboard() {
 
           {/* Remaining Attempts Card */}
           <Card className={`hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300 ${
-            examLimit.remaining_attempts === 0 ? 'border-red-300 bg-red-50/30 dark:bg-red-950/20' : 
-            examLimit.remaining_attempts <= 2 ? 'border-yellow-300 bg-yellow-50/30 dark:bg-yellow-950/20' : 
+            !examLimit.unlimited && examLimit.remaining_attempts === 0 ? 'border-red-300 bg-red-50/30 dark:bg-red-950/20' : 
+            !examLimit.unlimited && examLimit.remaining_attempts <= 2 ? 'border-yellow-300 bg-yellow-50/30 dark:bg-yellow-950/20' : 
+            examLimit.unlimited ? 'border-green-300 bg-green-50/30 dark:bg-green-950/20' : 
             ''
           }`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Remaining Attempts</CardTitle>
-              <Hash className={`h-4 w-4 ${
-                examLimit.remaining_attempts === 0 ? 'text-red-500' : 
-                examLimit.remaining_attempts <= 2 ? 'text-yellow-500' : 
-                'text-muted-foreground'
-              }`} />
+              <CardTitle className="text-sm font-medium">
+                {examLimit.unlimited ? 'Unlimited Access' : 'Remaining Attempts'}
+              </CardTitle>
+              {examLimit.unlimited ? (
+                <Infinity className="h-4 w-4 text-green-500" />
+              ) : (
+                <Hash className={`h-4 w-4 ${
+                  examLimit.remaining_attempts === 0 ? 'text-red-500' : 
+                  examLimit.remaining_attempts <= 2 ? 'text-yellow-500' : 
+                  'text-muted-foreground'
+                }`} />
+              )}
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${
-                examLimit.remaining_attempts === 0 ? 'text-red-600' : 
-                examLimit.remaining_attempts <= 2 ? 'text-yellow-600' : 
-                ''
-              }`}>
-                {examLimit.remaining_attempts}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {examLimit.remaining_attempts === 0 ? 'Daily limit reached' : 
-                 examLimit.remaining_attempts === 1 ? '1 exam left today' : 
-                 `${examLimit.remaining_attempts} exams left today`} 
-                ({examLimit.attempts_today}/{examLimit.daily_limit} taken)
-              </p>
+              {examLimit.unlimited ? (
+                <>
+                  <div className="text-2xl font-bold text-green-600">
+                    <Infinity className="h-8 w-8 inline" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    You have unlimited exam access 
+                    ({examLimit.attempts_today} taken today)
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className={`text-2xl font-bold ${
+                    examLimit.remaining_attempts === 0 ? 'text-red-600' : 
+                    examLimit.remaining_attempts <= 2 ? 'text-yellow-600' : 
+                    ''
+                  }`}>
+                    {examLimit.remaining_attempts}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {examLimit.remaining_attempts === 0 ? 'Daily limit reached' : 
+                     examLimit.remaining_attempts === 1 ? '1 exam left today' : 
+                     `${examLimit.remaining_attempts} exams left today`} 
+                    ({examLimit.attempts_today}/{examLimit.daily_limit} taken)
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -3,19 +3,33 @@ import { NextResponse } from "next/server";
 
 const ADMIN_EMAIL = "Navo@admin.jn";
 
-export async function GET() {
+export async function GET(request?: Request) {
   try {
     const supabase = await createClient();
-    const { data: categories, error } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Check if user is admin
+    const isPrimaryAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const hasAdminRole = user?.user_metadata?.role === "Admin";
+    const isAdmin = isPrimaryAdmin || hasAdminRole;
+
+    let query = supabase
       .from("exam_categories")
       .select("*")
       .order("created_at", { ascending: false });
+
+    // Non-admin users can only see published categories
+    if (!isAdmin) {
+      query = query.eq("is_published", true);
+    }
+
+    const { data: categories, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ categories });
+    return NextResponse.json({ categories, is_admin: isAdmin });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -33,7 +47,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name } = body;
+    const { name, is_published = false } = body;
 
     if (!name || name.trim() === "") {
       return NextResponse.json({ error: "Category name is required" }, { status: 400 });
@@ -41,7 +55,7 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase
       .from("exam_categories")
-      .insert([{ name: name.trim(), created_by: user.id }])
+      .insert([{ name: name.trim(), created_by: user.id, is_published }])
       .select()
       .single();
 
@@ -76,7 +90,7 @@ export async function PUT(request: Request) {
 
     const { data, error } = await supabase
       .from("exam_categories")
-      .update({ name: name.trim() })
+      .update({ name: name.trim(), updated_at: new Date().toISOString() })
       .eq("id", id)
       .select()
       .single();
@@ -131,6 +145,48 @@ export async function DELETE(request: Request) {
     }
 
     return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// PATCH for updating publish status (any admin)
+export async function PATCH(request: Request) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Allow any admin to toggle publish status
+    const isPrimaryAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const hasAdminRole = user?.user_metadata?.role === "Admin";
+    
+    if (!user || (!isPrimaryAdmin && !hasAdminRole)) {
+      return NextResponse.json({ error: "Unauthorized. Admin access required." }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { id, is_published } = body;
+
+    if (!id || typeof is_published !== "boolean") {
+      return NextResponse.json({ error: "Category ID and is_published are required" }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from("exam_categories")
+      .update({ is_published, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      category: data,
+      message: is_published ? "Category published" : "Category unpublished"
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

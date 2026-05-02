@@ -17,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileText, Plus, BookOpen, CheckCircle, Image as ImageIcon, X, Edit, Trash2, Loader2, ChevronDown, Settings, Eye, EyeOff, AlertTriangle, Trophy, Users } from "lucide-react";
+import { FileText, Plus, BookOpen, CheckCircle, Image as ImageIcon, X, Edit, Trash2, Loader2, ChevronDown, Settings, Eye, EyeOff, AlertTriangle, Trophy, Users, Globe, Lock } from "lucide-react";
 import { Watermark } from "@/components/watermark";
 import { toast } from "sonner";
 import type { ExamCategory, ExamQuestion, ExamQuestionSortingMode } from "@/lib/database.types";
@@ -631,6 +631,37 @@ export default function ExamManagementPage() {
     setSelectedAttempt(attempt);
   };
 
+  const togglePublishCategory = async (category: ExamCategory, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const newStatus = !category.is_published;
+    
+    try {
+      const res = await fetch("/api/exam/categories", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: category.id,
+          is_published: newStatus,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success(newStatus ? `Category "${category.name}" published` : `Category "${category.name}" unpublished`);
+        // Update local state
+        setCategories(prev => prev.map(c => 
+          c.id === category.id ? { ...c, is_published: newStatus } : c
+        ));
+      } else {
+        toast.error(data.error || "Failed to update publish status");
+      }
+    } catch (error) {
+      toast.error("Failed to update publish status");
+    }
+  };
+
   const cardHoverClass = "hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300";
 
   if (loading) {
@@ -795,34 +826,66 @@ export default function ExamManagementPage() {
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-primary" />
-                      {category.name}
-                    </CardTitle>
-                    {isPrimaryAdmin && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditCategory(category); }}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={(e) => { e.stopPropagation(); handleDeleteCategory(category.id); }}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                        <span className="truncate">{category.name}</span>
+                      </CardTitle>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge 
+                          variant={category.is_published ? "default" : "secondary"}
+                          className={`text-xs ${category.is_published ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-100'}`}
+                        >
+                          {category.is_published ? (
+                            <><Globe className="h-3 w-3 mr-1" /> Published</>
+                          ) : (
+                            <><Lock className="h-3 w-3 mr-1" /> Draft</>
+                          )}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {/* Publish Toggle */}
+                      {(isPrimaryAdmin || canManageSettings) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => togglePublishCategory(category, e)}
+                          className={category.is_published ? "text-green-600" : "text-gray-500"}
+                          title={category.is_published ? "Unpublish category" : "Publish category"}
+                        >
+                          {category.is_published ? (
+                            <Globe className="h-4 w-4" />
+                          ) : (
+                            <Lock className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                      {isPrimaryAdmin && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditCategory(category); }}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={(e) => { e.stopPropagation(); handleDeleteCategory(category.id); }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
                   </div>
-                  <CardDescription className="text-xs flex items-center justify-between">
+                  <CardDescription className="text-xs flex items-center justify-between mt-2">
                     <span>Created: {new Date(category.created_at).toLocaleDateString()}</span>
                     <span className="flex items-center gap-1">
                       <FileText className="h-3 w-3" />

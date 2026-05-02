@@ -52,6 +52,7 @@ export default function UsersPage() {
     userId: string;
     email: string;
     currentLimit?: number;
+    currentIsLimited?: boolean;
   } | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -205,6 +206,7 @@ export default function UsersPage() {
           userId: user.id,
           email: user.email,
           currentLimit: data.daily_limit,
+          currentIsLimited: data.is_limited,
         });
       })
       .catch(() => {
@@ -214,6 +216,7 @@ export default function UsersPage() {
           userId: user.id,
           email: user.email,
           currentLimit: 5,
+          currentIsLimited: true,
         });
       });
   };
@@ -492,6 +495,7 @@ Date of Birth: ${user.user_metadata?.birthdate || user.user_metadata?.date_of_bi
           userId={examLimitDialog.userId}
           userEmail={examLimitDialog.email}
           currentLimit={examLimitDialog.currentLimit}
+          currentIsLimited={examLimitDialog.currentIsLimited}
         />
       )}
     </div>

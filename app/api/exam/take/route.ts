@@ -48,10 +48,10 @@ export async function GET(request: Request) {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Get user's daily limit
+    // Get user's daily limit and unlimited status
     const { data: userLimit, error: limitError } = await supabase
       .from("user_exam_limits")
-      .select("daily_limit")
+      .select("daily_limit, is_limited")
       .eq("user_id", user.id)
       .single();
 
@@ -59,6 +59,7 @@ export async function GET(request: Request) {
       console.error("Error fetching user limit:", limitError);
     }
 
+    const isLimited = userLimit?.is_limited ?? true;
     const dailyLimit = userLimit?.daily_limit ?? 5;
 
     // Count today's attempts
@@ -75,10 +76,12 @@ export async function GET(request: Request) {
 
     const attemptsCount = attemptsToday || 0;
 
-    if (attemptsCount >= dailyLimit) {
+    // Only enforce limit if user is in limited mode
+    if (isLimited && attemptsCount >= dailyLimit) {
       return NextResponse.json({
         error: `Daily exam limit reached. You can take ${dailyLimit} exam(s) per day. Please try again tomorrow.`,
         daily_limit: dailyLimit,
+        is_limited: true,
         attempts_today: attemptsCount,
         remaining_attempts: 0,
       }, { status: 429 });
@@ -110,6 +113,8 @@ export async function GET(request: Request) {
 
     const picked = pickQuestions((questions ?? []) as ExamQuestion[], settings.question_count, settings.sorting_mode);
 
+    const remainingAttempts = isLimited ? dailyLimit - attemptsCount - 1 : 999999;
+
     return NextResponse.json({
       categoryId,
       settings,
@@ -117,8 +122,10 @@ export async function GET(request: Request) {
       questions: picked,
       serverTime: now.toISOString(),
       daily_limit: dailyLimit,
+      is_limited: isLimited,
+      unlimited: !isLimited,
       attempts_today: attemptsCount,
-      remaining_attempts: dailyLimit - attemptsCount - 1, // -1 for current exam
+      remaining_attempts: remainingAttempts,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

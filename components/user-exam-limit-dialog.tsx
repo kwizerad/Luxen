@@ -13,7 +13,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Hash } from "lucide-react";
+import { Loader2, Hash, Infinity, Lock } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface UserExamLimitDialogProps {
   open: boolean;
@@ -21,6 +22,7 @@ interface UserExamLimitDialogProps {
   userId: string;
   userEmail: string;
   currentLimit?: number;
+  currentIsLimited?: boolean;
   onSuccess?: () => void;
 }
 
@@ -30,15 +32,17 @@ export function UserExamLimitDialog({
   userId,
   userEmail,
   currentLimit,
+  currentIsLimited = true,
   onSuccess,
 }: UserExamLimitDialogProps) {
   const [limit, setLimit] = useState(currentLimit?.toString() || "5");
+  const [isLimited, setIsLimited] = useState(currentIsLimited);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
     const numLimit = parseInt(limit, 10);
 
-    if (isNaN(numLimit) || numLimit < 1 || numLimit > 100) {
+    if (isLimited && (isNaN(numLimit) || numLimit < 1 || numLimit > 100)) {
       toast.error("Please enter a valid number between 1 and 100");
       return;
     }
@@ -51,14 +55,18 @@ export function UserExamLimitDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userId,
-          daily_limit: numLimit,
+          daily_limit: isLimited ? numLimit : 5, // Default to 5 when unlimited
+          is_limited: isLimited,
         }),
       });
 
       const data = await res.json();
 
       if (data.success) {
-        toast.success(`Exam limit updated to ${numLimit} per day`);
+        toast.success(isLimited 
+          ? `Exam limit updated to ${numLimit} per day` 
+          : "User now has unlimited exam access"
+        );
         onOpenChange(false);
         onSuccess?.();
       } else {
@@ -117,26 +125,55 @@ export function UserExamLimitDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="limit">Daily Exam Limit</Label>
-            <Input
-              id="limit"
-              type="number"
-              min={1}
-              max={100}
-              value={limit}
-              onChange={(e) => setLimit(e.target.value)}
-              placeholder="5"
-              className="text-lg"
+          {/* Limit Toggle */}
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-full ${isLimited ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>
+                {isLimited ? <Lock className="h-4 w-4" /> : <Infinity className="h-4 w-4" />}
+              </div>
+              <div>
+                <Label htmlFor="limit-toggle" className="font-medium cursor-pointer">
+                  {isLimited ? "Limited Access" : "Unlimited Access"}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {isLimited 
+                    ? "User has daily exam limits" 
+                    : "User can take unlimited exams"}
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="limit-toggle"
+              checked={isLimited}
+              onCheckedChange={setIsLimited}
             />
-            <p className="text-xs text-muted-foreground">
-              Enter a number between 1 and 100. Default is 5 exams per day.
-            </p>
           </div>
+
+          {/* Limit Input - Only show when limited */}
+          {isLimited && (
+            <div className="space-y-2">
+              <Label htmlFor="limit">Daily Exam Limit</Label>
+              <Input
+                id="limit"
+                type="number"
+                min={1}
+                max={100}
+                value={limit}
+                onChange={(e) => setLimit(e.target.value)}
+                placeholder="5"
+                className="text-lg"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter a number between 1 and 100. Default is 5 exams per day.
+              </p>
+            </div>
+          )}
 
           <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md p-3">
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              <strong>Note:</strong> The daily limit resets at midnight UTC. Users will see how many exams they have remaining.
+              <strong>Note:</strong> {isLimited 
+                ? "The daily limit resets at midnight UTC. Users will see how many exams they have remaining."
+                : "This user will not have any exam restrictions and can take as many exams as they want."}
             </p>
           </div>
         </div>
@@ -166,7 +203,7 @@ export function UserExamLimitDialog({
                 Saving...
               </>
             ) : (
-              "Save Limit"
+              isLimited ? "Save Limit" : "Set Unlimited"
             )}
           </Button>
         </DialogFooter>
