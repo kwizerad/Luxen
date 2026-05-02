@@ -3,6 +3,52 @@ import { NextResponse } from "next/server";
 
 const ADMIN_EMAIL = "Navo@admin.jn";
 
+// Helper to notify primary admin of other admin actions
+async function notifyPrimaryAdminOfAction(
+  supabase: any,
+  actor: any,
+  action: string,
+  details: string
+) {
+  try {
+    // Don't notify if the actor is the primary admin
+    if (actor.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+      return;
+    }
+
+    // Get primary admin's ID
+    const { data: users, error: listError } = await supabase.auth.admin.listUsers();
+    if (listError || !users?.users) {
+      console.error("Failed to list users for notification:", listError);
+      return;
+    }
+
+    const primaryAdmin = users.users.find(
+      (u: any) => u.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()
+    );
+
+    if (!primaryAdmin) {
+      console.error("Primary admin not found for notification");
+      return;
+    }
+
+    const actorName = actor.user_metadata?.full_name || actor.email;
+
+    // Create notification for primary admin only
+    await supabase.from("notifications").insert({
+      title: `Admin Action: ${action}`,
+      message: `${actorName} ${details}`,
+      type: "warning",
+      target_role: null,
+      target_user_id: primaryAdmin.id,
+      sender_id: actor.id,
+      sender_name: actorName,
+    });
+  } catch (error) {
+    console.error("Error sending admin notification:", error);
+  }
+}
+
 export async function GET(request?: Request) {
   try {
     const supabase = await createClient();
@@ -181,6 +227,14 @@ export async function PATCH(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Notify primary admin of this action
+    await notifyPrimaryAdminOfAction(
+      supabase,
+      user,
+      "Category Publish Status Changed",
+      `${is_published ? "published" : "unpublished"} category "${data.name}"`
+    );
 
     return NextResponse.json({ 
       success: true, 

@@ -5,10 +5,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, Clock, Trophy, Settings, User, Moon, Sun, Monitor, Globe, ChevronRight, Mail, Menu, LogOut, Play, TrendingUp, Target, Award, BarChart3, Eye, FileText, Zap, History, Star, CheckCircle2, Search, Copy, X, Hash, Infinity } from "lucide-react";
+import { BookOpen, Calendar, Clock, Trophy, Settings, User, ChevronRight, Mail, Menu, LogOut, Play, TrendingUp, Target, Award, BarChart3, Eye, FileText, Zap, History, Star, CheckCircle2, Search, Copy, X, Hash, Infinity } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,9 +19,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -60,9 +56,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
-  const { language, setLanguage, t } = useLanguage();
-  const [mounted, setMounted] = useState(false);
+  const { t } = useLanguage();
   const [showAccountDialog, setShowAccountDialog] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { config } = useBrandingConfig();
@@ -94,10 +88,6 @@ export default function Dashboard() {
     is_limited: true,
     unlimited: false,
   });
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -325,59 +315,6 @@ export default function Dashboard() {
                   {getDisplayName()}
                 </span>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Settings className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {/* Theme Submenu */}
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="cursor-pointer">
-                      <Sun className="h-4 w-4 mr-2" />
-                      {t("theme")}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuItem onClick={() => setTheme("light")} className={theme === "light" ? "bg-accent" : ""}>
-                        <Sun className="h-4 w-4 mr-2" />
-                        Light
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setTheme("dark")} className={theme === "dark" ? "bg-accent" : ""}>
-                        <Moon className="h-4 w-4 mr-2" />
-                        Dark
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setTheme("system")} className={theme === "system" ? "bg-accent" : ""}>
-                        <Monitor className="h-4 w-4 mr-2" />
-                        System
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-
-                  {/* Language Submenu */}
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="cursor-pointer">
-                      <Globe className="h-4 w-4 mr-2" />
-                      {t("language")}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuItem onClick={() => setLanguage("English")} className={language === "English" ? "bg-accent" : ""}>
-                        {t("language") === "Arabic" ? "العربية" : "English"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setLanguage("Arabic")} className={language === "Arabic" ? "bg-accent" : ""}>
-                        العربية
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/settings" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      {t("settings")}
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
               <Button variant="outline" onClick={async () => {
                 const supabase = createClient();
                 await supabase.auth.signOut();
@@ -440,10 +377,6 @@ export default function Dashboard() {
           <Button variant="outline" onClick={() => router.push("/userExam")} className="gap-2">
             <History className="h-4 w-4" />
             Exam History
-          </Button>
-          <Button variant="outline" onClick={() => router.push("/dashboard/settings")} className="gap-2">
-            <Settings className="h-4 w-4" />
-            Settings
           </Button>
         </div>
 

@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { 
   Users, Settings, UserPlus, LogOut, LayoutDashboard, 
-  ChevronLeft, ChevronRight, Menu, X, FileText, Lock, MoreVertical,
+  ChevronLeft, ChevronRight, Menu, X, FileText, Lock,
   PanelLeft, PanelLeftClose, PanelLeftOpen, MousePointer2
 } from "lucide-react";
 import { toast } from "sonner";
@@ -448,26 +448,22 @@ export default function AdminLayout({
             
             <div className="flex items-center gap-2">
               <NotificationsDropdown />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem asChild>
-                    <Link href="/Admin/settings" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Link href="/Admin/settings">
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </Link>
+              {/* Expandable Logout Button */}
+              <Button
+                variant="ghost"
+                onClick={handleLogout}
+                className="group h-9 px-2 transition-all duration-300 ease-in-out overflow-hidden w-9 hover:w-auto hover:px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <LogOut className="h-5 w-5 flex-shrink-0" />
+                <span className="ml-2 opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-300">
+                  Logout
+                </span>
+              </Button>
             </div>
           </header>
 

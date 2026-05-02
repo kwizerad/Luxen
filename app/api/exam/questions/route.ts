@@ -1,6 +1,52 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { isAdmin, canAddQuestions, hasReadWriteQuestionAccess } from "@/lib/permissions";
+import { isAdmin, canAddQuestions, hasReadWriteQuestionAccess, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
+
+// Helper to notify primary admin of other admin actions
+async function notifyPrimaryAdminOfAction(
+  supabase: any,
+  actor: any,
+  action: string,
+  details: string
+) {
+  try {
+    // Don't notify if the actor is the primary admin
+    if (actor.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase()) {
+      return;
+    }
+
+    // Get primary admin's ID
+    const { data: users, error: listError } = await supabase.auth.admin.listUsers();
+    if (listError || !users?.users) {
+      console.error("Failed to list users for notification:", listError);
+      return;
+    }
+
+    const primaryAdmin = users.users.find(
+      (u: any) => u.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase()
+    );
+
+    if (!primaryAdmin) {
+      console.error("Primary admin not found for notification");
+      return;
+    }
+
+    const actorName = actor.user_metadata?.full_name || actor.email;
+
+    // Create notification for primary admin only
+    await supabase.from("notifications").insert({
+      title: `Admin Action: ${action}`,
+      message: `${actorName} ${details}`,
+      type: "warning",
+      target_role: null,
+      target_user_id: primaryAdmin.id,
+      sender_id: actor.id,
+      sender_name: actorName,
+    });
+  } catch (error) {
+    console.error("Error sending admin notification:", error);
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -160,6 +206,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Notify primary admin of this action
+    await notifyPrimaryAdminOfAction(
+      supabase,
+      user,
+      "Question Added",
+      `added a new question to category "${category_id}"`
+    );
+
     return NextResponse.json({ question: data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -198,6 +252,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Notify primary admin of this action
+    await notifyPrimaryAdminOfAction(
+      supabase,
+      user,
+      "Question Updated",
+      `updated question "${id}"`
+    );
+
     return NextResponse.json({ question: data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -233,6 +295,14 @@ export async function DELETE(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Notify primary admin of this action
+    await notifyPrimaryAdminOfAction(
+      supabase,
+      user,
+      "Question Deleted",
+      `deleted question "${id}"`
+    );
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
