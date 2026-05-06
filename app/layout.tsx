@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/lib/language-context";
+
+// Use CSS variables for fonts to support static export without network dependencies
+const fontClass = "font-sans";
 import { ThemeConfigProvider } from "@/lib/theme-config";
 import { BrandingConfigProvider } from "@/lib/branding-config";
+import { AuthProvider } from "@/lib/auth-context";
 import { AuthModalsProvider } from "@/lib/auth-modals-context";
 import { FloatingSettings } from "@/components/floating-settings";
 import { GoogleOneTap } from "@/components/google-one-tap";
@@ -21,7 +24,6 @@ export const metadata: Metadata = {
   title: "Navo Lite - Modern Learning Platform",
   description: "Navo Lite - Your lightweight modern learning platform. Access courses, exams, and learning materials even offline.",
   manifest: "/manifest.json",
-  themeColor: "#3b82f6",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -49,12 +51,8 @@ export const viewport: Viewport = {
   themeColor: "#3b82f6",
 };
 
-const inter = Inter({
-  variable: "--font-inter",
-  display: "swap",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
-});
+// Font configuration for static export (no Google Fonts network dependency)
+// Using system font stack via CSS
 
 export default function RootLayout({
   children,
@@ -66,7 +64,7 @@ export default function RootLayout({
       <head>
         <script src="/theme-init.js" />
       </head>
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${fontClass} antialiased`}>
         <BrandingConfigProvider>
           <ThemeProvider
             attribute="class"
@@ -76,8 +74,9 @@ export default function RootLayout({
             storageKey="navo-theme"
           >
             <LanguageProvider>
-              <AuthModalsProvider>
-                <ThemeConfigProvider>
+              <AuthProvider>
+                <AuthModalsProvider>
+                  <ThemeConfigProvider>
                   {children}
                   <FloatingSettings />
                   <GoogleOneTap />
@@ -86,6 +85,7 @@ export default function RootLayout({
                   <Toaster position="top-right" richColors closeButton />
                 </ThemeConfigProvider>
               </AuthModalsProvider>
+              </AuthProvider>
             </LanguageProvider>
           </ThemeProvider>
         </BrandingConfigProvider>

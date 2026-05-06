@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getExamAttempts, getExamCategories, getExamLimits, getPublicExamQuestions } from "@/lib/supabase/queries";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Calendar, Clock, Trophy, Settings, User, ChevronRight, Mail, Menu, LogOut, Play, TrendingUp, Target, Award, BarChart3, Eye, FileText, Zap, History, Star, CheckCircle2, Search, Copy, X, Hash, Infinity } from "lucide-react";
@@ -147,40 +148,34 @@ export default function Dashboard() {
   const loadExamData = async () => {
     try {
       // Load exam attempts
-      const attemptsRes = await fetch("/api/exam/attempts");
-      if (attemptsRes.ok) {
-        const attemptsData = await attemptsRes.json();
-        if (attemptsData.attempts) {
-          setExamAttempts(attemptsData.attempts);
-          
-          // Calculate stats
-          const completed = attemptsData.attempts.filter((a: ExamAttempt) => a.status === 'completed');
-          const totalExams = completed.length;
-          const averageScore = totalExams > 0 
-            ? Math.round(completed.reduce((sum: number, a: ExamAttempt) => sum + a.score_percentage, 0) / totalExams)
-            : 0;
-          const bestScore = totalExams > 0 
-            ? Math.max(...completed.map((a: ExamAttempt) => a.score_percentage))
-            : 0;
-          const totalTime = completed.reduce((sum: number, a: ExamAttempt) => sum + a.duration_seconds, 0);
-          
-          setExamStats({
-            totalExams,
-            averageScore,
-            bestScore,
-            totalTime,
-            completedExams: totalExams,
-          });
-        }
+      const attemptsData = await getExamAttempts();
+      if (attemptsData.attempts) {
+        setExamAttempts(attemptsData.attempts);
+        
+        // Calculate stats
+        const completed = attemptsData.attempts.filter((a: ExamAttempt) => a.status === 'completed');
+        const totalExams = completed.length;
+        const averageScore = totalExams > 0 
+          ? Math.round(completed.reduce((sum: number, a: ExamAttempt) => sum + a.score_percentage, 0) / totalExams)
+          : 0;
+        const bestScore = totalExams > 0 
+          ? Math.max(...completed.map((a: ExamAttempt) => a.score_percentage))
+          : 0;
+        const totalTime = completed.reduce((sum: number, a: ExamAttempt) => sum + a.duration_seconds, 0);
+        
+        setExamStats({
+          totalExams,
+          averageScore,
+          bestScore,
+          totalTime,
+          completedExams: totalExams,
+        });
       }
 
       // Load categories
-      const categoriesRes = await fetch("/api/exam/categories");
-      if (categoriesRes.ok) {
-        const categoriesData = await categoriesRes.json();
-        if (categoriesData.categories) {
-          setExamCategories(categoriesData.categories);
-        }
+      const categoriesData = await getExamCategories();
+      if (categoriesData.categories) {
+        setExamCategories(categoriesData.categories);
       }
     } catch (error) {
       console.error("Failed to load exam data:", error);
@@ -189,17 +184,14 @@ export default function Dashboard() {
 
   const loadExamLimit = async () => {
     try {
-      const res = await fetch("/api/exam/limits");
-      if (res.ok) {
-        const data = await res.json();
-        setExamLimit({
-          daily_limit: data.daily_limit || 5,
-          attempts_today: data.attempts_today || 0,
-          remaining_attempts: data.remaining_attempts ?? (data.daily_limit || 5) - (data.attempts_today || 0),
-          is_limited: data.is_limited ?? true,
-          unlimited: data.unlimited || !data.is_limited,
-        });
-      }
+      const data = await getExamLimits();
+      setExamLimit({
+        daily_limit: data.daily_limit || 5,
+        attempts_today: data.attempts_today || 0,
+        remaining_attempts: data.remaining_attempts ?? (data.daily_limit || 5) - (data.attempts_today || 0),
+        is_limited: data.is_limited ?? true,
+        unlimited: data.unlimited || !data.is_limited,
+      });
     } catch (error) {
       console.error("Failed to load exam limit:", error);
     }
@@ -208,12 +200,9 @@ export default function Dashboard() {
   // Load all questions for search
   const loadQuestions = async () => {
     try {
-      const res = await fetch("/api/exam/questions/public");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.questions) {
-          setQuestions(data.questions);
-        }
+      const data = await getPublicExamQuestions();
+      if (data.questions) {
+        setQuestions(data.questions);
       }
     } catch (error) {
       console.error("Failed to load questions:", error);

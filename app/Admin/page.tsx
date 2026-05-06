@@ -5,27 +5,23 @@ import { Users, Settings, UserPlus, GraduationCap, FileText, Activity, CheckCirc
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { getAdminStats } from "@/lib/supabase/queries";
 
 const ADMIN_EMAIL = "Navo@admin.jn";
 
 interface DashboardStats {
-  totalUsers: number;
-  totalAdmins: number;
+  totalUsers?: number;
+  totalAdmins?: number;
   totalCategories: number;
   totalQuestions: number;
+  totalAttempts?: number;
 }
 
 interface RecentActivity {
   categories: any[];
   questions: any[];
-  users: any[];
-}
-
-interface UserGrowthData {
-  date: string;
-  count: number;
+  users?: any[];
 }
 
 interface SystemStatus {
@@ -37,7 +33,6 @@ interface SystemStatus {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity | null>(null);
-  const [userGrowth, setUserGrowth] = useState<UserGrowthData[]>([]);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
@@ -51,14 +46,11 @@ export default function AdminDashboard() {
         setIsPrimaryAdmin(user.email === ADMIN_EMAIL);
       }
       
-      // Fetch dashboard stats from API
+      // Fetch dashboard stats from Supabase
       try {
-        const res = await fetch("/api/admin/stats");
-        const data = await res.json();
-        
+        const data = await getAdminStats();
         if (data.stats) setStats(data.stats);
         if (data.recentActivity) setRecentActivity(data.recentActivity);
-        if (data.userGrowth) setUserGrowth(data.userGrowth);
         if (data.systemStatus) setSystemStatus(data.systemStatus);
       } catch (error) {
         console.error("Failed to load dashboard stats:", error);
@@ -73,7 +65,7 @@ export default function AdminDashboard() {
   const statCards = [
     { 
       title: "Total Users", 
-      value: loading ? "..." : stats?.totalUsers.toString() || "0", 
+      value: loading ? "..." : (stats?.totalUsers?.toString() ?? "N/A"), 
       icon: GraduationCap,
       href: "/Admin/users",
       color: "text-blue-500",
@@ -82,7 +74,7 @@ export default function AdminDashboard() {
     },
     { 
       title: "Exam Categories", 
-      value: loading ? "..." : stats?.totalCategories.toString() || "0", 
+      value: loading ? "..." : (stats?.totalCategories?.toString() ?? "0"), 
       icon: FileText,
       href: "/Admin/exams",
       color: "text-purple-500",
@@ -91,7 +83,7 @@ export default function AdminDashboard() {
     },
     { 
       title: "Total Questions", 
-      value: loading ? "..." : stats?.totalQuestions.toString() || "0", 
+      value: loading ? "..." : (stats?.totalQuestions?.toString() ?? "0"), 
       icon: Activity,
       href: "/Admin/questions",
       color: "text-green-500",
@@ -99,10 +91,10 @@ export default function AdminDashboard() {
       trend: "+23%",
     },
     { 
-      title: "Admin Users", 
-      value: loading ? "..." : stats?.totalAdmins.toString() || "0", 
+      title: "Total Attempts", 
+      value: loading ? "..." : (stats?.totalAttempts?.toString() ?? "0"), 
       icon: Users,
-      href: "/Admin/users",
+      href: "/Admin/exams",
       color: "text-orange-500",
       bgColor: "bg-orange-500/10",
       trend: "Stable",
@@ -145,56 +137,6 @@ export default function AdminDashboard() {
           );
         })}
       </div>
-
-      {/* User Growth Chart */}
-      <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:border-[var(--hover-border-color)] transition-all duration-300">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            User Growth Trend
-          </CardTitle>
-          <CardDescription>Number of users registered over the last 7 days</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={userGrowth}>
-                <defs>
-                  <linearGradient id="colorGrowth" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis 
-                  dataKey="date" 
-                  className="text-xs text-muted-foreground"
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                />
-                <YAxis 
-                  className="text-xs text-muted-foreground"
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorGrowth)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Recent Activity Feed */}

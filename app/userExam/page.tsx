@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Trophy, Clock, TrendingUp, Play, Eye, CheckCircle, XCircle } from "lucide-react";
 import { Watermark } from "@/components/watermark";
 import type { ExamAttempt } from "@/lib/database.types";
+import { getExamAttempts } from "@/lib/supabase/queries";
 
 export default function UserExamsPage() {
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
@@ -16,13 +17,12 @@ export default function UserExamsPage() {
   useEffect(() => {
     const loadAttempts = async () => {
       try {
-        const res = await fetch("/api/exam/attempts");
-        const data = await res.json();
+        const data = await getExamAttempts();
         if (data.attempts) {
           setAttempts(data.attempts);
         }
-      } catch {
-        toast.error("Failed to load exam history");
+      } catch (error: any) {
+        toast.error("Failed to load exam history: " + error.message);
       } finally {
         setLoading(false);
       }

@@ -1,16 +1,22 @@
 import type { NextConfig } from "next";
-const withPWA = require("next-pwa");
+import withPWA from "next-pwa";
 
 const isProduction = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {
-  cacheComponents: true,
-  // Disable image optimization for PWA static export compatibility
+  cacheComponents: false,
+  // Static export only in production (for Capacitor builds)
+  // Development uses server mode for API routes and middleware
+  output: isProduction ? 'export' : undefined,
+  distDir: 'dist',
+  // Disable image optimization for static export
   images: {
     unoptimized: true,
   },
   // Silence Turbopack warning
   turbopack: {},
+  // Handle trailing slashes consistently
+  trailingSlash: true,
 };
 
 // Apply PWA configuration only in production

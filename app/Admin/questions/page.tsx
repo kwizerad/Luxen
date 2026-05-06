@@ -12,11 +12,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/image-upload";
-import { FileText, Edit, Trash2, Loader2, Search, ArrowLeft, Image as ImageIcon, AlertTriangle, Eye, Lock } from "lucide-react";
+import { FileText, Edit, Trash2, Loader2, Search, ArrowLeft, Image as ImageIcon, AlertTriangle, Eye, Lock, CheckSquare, Square, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { isAdmin, hasReadWriteQuestionAccess, hasReadOnlyQuestionAccess } from "@/lib/permissions";
+import { getExamCategories, getExamQuestions, updateExamQuestion, deleteExamQuestion } from "@/lib/supabase/queries";
 
 export default function QuestionManagementPage() {
   const router = useRouter();
@@ -58,6 +59,17 @@ export default function QuestionManagementPage() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingQuestion, setViewingQuestion] = useState<ExamQuestion | null>(null);
 
+  // Bulk selection state
+  const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkMoving, setBulkMoving] = useState(false);
+
+  // Sorting state
+  type SortField = 'question' | 'category' | 'correct_answer' | 'created_at';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
   useEffect(() => {
     const checkPermissions = async () => {
       const supabase = createClient();
@@ -87,26 +99,24 @@ export default function QuestionManagementPage() {
 
   const loadCategories = async () => {
     try {
-      const res = await fetch("/api/exam/categories");
-      const data = await res.json();
+      const data = await getExamCategories();
       if (data.categories) {
         setCategories(data.categories);
       }
-    } catch (error) {
-      toast.error("Failed to load categories");
+    } catch (error: any) {
+      toast.error("Failed to load categories: " + error.message);
     }
   };
 
   const loadAllQuestions = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/exam/questions");
-      const data = await res.json();
+      const data = await getExamQuestions();
       if (data.questions) {
         setQuestions(data.questions);
       }
-    } catch (error) {
-      toast.error("Failed to load questions");
+    } catch (error: any) {
+      toast.error("Failed to load questions: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -117,19 +127,11 @@ export default function QuestionManagementPage() {
 
     setDeletingQuestion(questionId);
     try {
-      const res = await fetch(`/api/exam/questions?id=${questionId}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        toast.success("Question deleted successfully");
-        setQuestions(questions.filter(q => q.id !== questionId));
-      } else {
-        toast.error(data.error || "Failed to delete question");
-      }
-    } catch (error) {
-      toast.error("Failed to delete question");
+      await deleteExamQuestion(questionId);
+      toast.success("Question deleted successfully");
+      setQuestions(questions.filter(q => q.id !== questionId));
+    } catch (error: any) {
+      toast.error("Failed to delete question: " + error.message);
     } finally {
       setDeletingQuestion(null);
     }
@@ -137,44 +139,122 @@ export default function QuestionManagementPage() {
 
   const handleChangeCategory = async (questionId: string, newCategoryId: string) => {
     try {
-      const res = await fetch("/api/exam/questions", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: questionId,
-          category_id: newCategoryId,
-        }),
-      });
-      const data = await res.json();
-      if (data.question) {
-        toast.success("Question category updated successfully");
-        setQuestions(questions.map(q => q.id === questionId ? data.question : q));
-        loadAllQuestions();
-      } else {
-        toast.error(data.error || "Failed to update question category");
-      }
-    } catch (error) {
-      toast.error("Failed to update question category");
+      const data = await updateExamQuestion(questionId, { category_id: newCategoryId });
+      toast.success("Question category updated successfully");
+      setQuestions(questions.map(q => q.id === questionId ? data.question : q));
+      loadAllQuestions();
+    } catch (error: any) {
+      toast.error("Failed to update question category: " + error.message);
     }
+  };
+
+  // Helper function defined before use to avoid hoisting issues
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    return category?.name || "Unknown";
   };
 
   const filteredQuestions = questions.filter(q => {
     // Category filter
     const matchesCategory = selectedCategory === "all" || q.category_id === selectedCategory;
-    // Search filter
+    // Search filter - safely check each field
+    const searchLower = searchQuery.toLowerCase().trim();
     const matchesSearch = searchQuery === "" || 
-      q.question?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.option_a?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.option_b?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.option_c?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.option_d?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      getCategoryName(q.category_id).toLowerCase().includes(searchQuery.toLowerCase());
+      (q.question && q.question.toLowerCase().includes(searchLower)) ||
+      (q.option_a && q.option_a.toLowerCase().includes(searchLower)) ||
+      (q.option_b && q.option_b.toLowerCase().includes(searchLower)) ||
+      (q.option_c && q.option_c.toLowerCase().includes(searchLower)) ||
+      (q.option_d && q.option_d.toLowerCase().includes(searchLower)) ||
+      getCategoryName(q.category_id).toLowerCase().includes(searchLower);
     return matchesCategory && matchesSearch;
   });
 
-  const getCategoryName = (categoryId: string) => {
-    const category = categories.find(c => c.id === categoryId);
-    return category?.name || "Unknown";
+  // Sort questions
+  const sortedQuestions = [...filteredQuestions].sort((a, b) => {
+    let comparison = 0;
+    switch (sortField) {
+      case 'question':
+        comparison = (a.question || '').localeCompare(b.question || '');
+        break;
+      case 'category':
+        comparison = getCategoryName(a.category_id).localeCompare(getCategoryName(b.category_id));
+        break;
+      case 'correct_answer':
+        comparison = a.correct_answer.localeCompare(b.correct_answer);
+        break;
+      case 'created_at':
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        break;
+    }
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
+
+  // Bulk selection handlers
+  const toggleSelectAll = () => {
+    if (selectedQuestions.size === filteredQuestions.length) {
+      setSelectedQuestions(new Set());
+    } else {
+      setSelectedQuestions(new Set(filteredQuestions.map(q => q.id)));
+    }
+  };
+
+  const toggleSelectQuestion = (questionId: string) => {
+    const newSelected = new Set(selectedQuestions);
+    if (newSelected.has(questionId)) {
+      newSelected.delete(questionId);
+    } else {
+      newSelected.add(questionId);
+    }
+    setSelectedQuestions(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${selectedQuestions.size} questions?`)) return;
+
+    setBulkDeleting(true);
+    try {
+      const promises = Array.from(selectedQuestions).map(id => deleteExamQuestion(id));
+      await Promise.all(promises);
+      toast.success(`${selectedQuestions.size} questions deleted successfully`);
+      setSelectedQuestions(new Set());
+      loadAllQuestions();
+    } catch (error: any) {
+      toast.error("Failed to delete some questions: " + error.message);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleBulkMove = async (newCategoryId: string) => {
+    setBulkMoving(true);
+    try {
+      const promises = Array.from(selectedQuestions).map(id =>
+        updateExamQuestion(id, { category_id: newCategoryId })
+      );
+      await Promise.all(promises);
+      toast.success(`${selectedQuestions.size} questions moved successfully`);
+      setSelectedQuestions(new Set());
+      loadAllQuestions();
+    } catch (error: any) {
+      toast.error("Failed to move some questions: " + error.message);
+    } finally {
+      setBulkMoving(false);
+    }
+  };
+
+  // Sorting handler
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="h-4 w-4 text-muted-foreground" />;
+    return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 text-primary" /> : <ArrowDown className="h-4 w-4 text-primary" />;
   };
 
   const handleEditQuestion = (q: ExamQuestion) => {
@@ -237,25 +317,12 @@ export default function QuestionManagementPage() {
 
     setUpdatingQuestion(true);
     try {
-      const res = await fetch("/api/exam/questions", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editingQuestion,
-          ...questionForm,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.question) {
-        toast.success("Question updated successfully");
-        setQuestions(questions.map(q => q.id === editingQuestion ? data.question : q));
-        closeEditModal();
-      } else {
-        toast.error(data.error || "Failed to update question");
-      }
-    } catch (error) {
-      toast.error("Failed to update question");
+      const data = await updateExamQuestion(editingQuestion, questionForm);
+      toast.success("Question updated successfully");
+      setQuestions(questions.map(q => q.id === editingQuestion ? data.question : q));
+      closeEditModal();
+    } catch (error: any) {
+      toast.error("Failed to update question: " + error.message);
     } finally {
       setUpdatingQuestion(false);
     }
@@ -329,6 +396,7 @@ export default function QuestionManagementPage() {
               </CardTitle>
               <CardDescription>
                 Total questions: {filteredQuestions.length}
+                {selectedQuestions.size > 0 && ` • ${selectedQuestions.size} selected`}
               </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -361,6 +429,54 @@ export default function QuestionManagementPage() {
           </div>
         </CardHeader>
       </Card>
+
+      {/* Bulk Actions Bar */}
+      {selectedQuestions.size > 0 && !isReadOnly && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="py-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="h-5 w-5 text-primary" />
+                <span className="font-medium">{selectedQuestions.size} questions selected</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Select onValueChange={handleBulkMove} disabled={bulkMoving}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Move to category..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                >
+                  {bulkDeleting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  Delete Selected
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedQuestions(new Set())}
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Image Modal */}
       <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
@@ -747,7 +863,7 @@ export default function QuestionManagementPage() {
         </DialogContent>
       </Dialog>
 
-      {filteredQuestions.length === 0 ? (
+      {sortedQuestions.length === 0 ? (
         <Card>
           <CardContent className="py-12">
             <p className="text-muted-foreground text-center">
@@ -763,19 +879,49 @@ export default function QuestionManagementPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[40px]">
+                    <button
+                      onClick={toggleSelectAll}
+                      className="flex items-center justify-center"
+                      title={selectedQuestions.size === filteredQuestions.length ? "Deselect all" : "Select all"}
+                    >
+                      {selectedQuestions.size === filteredQuestions.length ? (
+                        <CheckSquare className="h-5 w-5 text-primary" />
+                      ) : (
+                        <Square className="h-5 w-4 text-muted-foreground hover:text-primary" />
+                      )}
+                    </button>
+                  </TableHead>
                   <TableHead className="w-[40px]">#</TableHead>
-                  <TableHead className="min-w-[150px]">Question</TableHead>
+                  <TableHead className="min-w-[150px] cursor-pointer" onClick={() => handleSort('question')}>
+                    <div className="flex items-center gap-1">Question {getSortIcon('question')}</div>
+                  </TableHead>
                   <TableHead className="min-w-[100px]">Option A</TableHead>
                   <TableHead className="min-w-[100px]">Option B</TableHead>
                   <TableHead className="min-w-[100px]">Option C</TableHead>
                   <TableHead className="min-w-[100px]">Option D</TableHead>
-                  <TableHead className="w-[80px]">Answer</TableHead>
+                  <TableHead className="w-[100px] cursor-pointer" onClick={() => handleSort('correct_answer')}>
+                    <div className="flex items-center gap-1">Answer {getSortIcon('correct_answer')}</div>
+                  </TableHead>
                   <TableHead className="w-[250px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredQuestions.map((q, index) => (
-                  <TableRow key={q.id}>
+                {sortedQuestions.map((q, index) => (
+                  <TableRow key={q.id} className={selectedQuestions.has(q.id) ? "bg-primary/5" : ""}>
+                    <TableCell className="font-medium">
+                      <button
+                        onClick={() => toggleSelectQuestion(q.id)}
+                        className="flex items-center justify-center"
+                        title={selectedQuestions.has(q.id) ? "Deselect" : "Select"}
+                      >
+                        {selectedQuestions.has(q.id) ? (
+                          <CheckSquare className="h-5 w-5 text-primary" />
+                        ) : (
+                          <Square className="h-5 w-4 text-muted-foreground hover:text-primary" />
+                        )}
+                      </button>
+                    </TableCell>
                     <TableCell className="font-medium">{index + 1}</TableCell>
                     <TableCell>
                       <div className="space-y-1">

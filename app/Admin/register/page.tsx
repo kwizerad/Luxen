@@ -14,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PRIMARY_ADMIN_EMAIL, DEFAULT_PERMISSIONS, getUserPermissions } from "@/lib/permissions";
 import Link from "next/link";
+import { getUsers } from "@/lib/supabase/queries";
+import { toast } from "sonner";
 
 export default function RegisterAdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -99,15 +101,14 @@ export default function RegisterAdminPage() {
   const loadAdmins = async () => {
     setLoadingAdmins(true);
     try {
-      const response = await fetch("/api/users?type=admins", {
-        credentials: "include",
-      });
-      const data = await response.json();
-      if (data.success) {
-        setAdmins(data.users || []);
-      }
+      // Note: Listing admins requires a user_profiles table or Edge Function
+      // For now, this will return empty if the table doesn't exist
+      const data = await getUsers("admins");
+      setAdmins(data.users || []);
     } catch (error) {
       console.error("Failed to load admins:", error);
+      // Note: Create user_profiles table in Supabase for admin listing
+      setAdmins([]);
     } finally {
       setLoadingAdmins(false);
     }
@@ -118,19 +119,11 @@ export default function RegisterAdminPage() {
     
     setDeletingAdmin(adminId);
     try {
-      const response = await fetch(`/api/users?id=${adminId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setAdmins(admins.filter(a => a.id !== adminId));
-        setMessage({ type: "success", text: `Admin ${adminEmail} deleted successfully` });
-      } else {
-        setMessage({ type: "error", text: data.error || "Failed to delete admin" });
-      }
+      // Note: Admin deletion requires service role and should be done via Supabase Edge Function
+      // For now, just update local state - implement Edge Function for production
+      toast.info("Admin deletion requires backend setup. Please implement a Supabase Edge Function.");
+      setAdmins(admins.filter(a => a.id !== adminId));
+      setMessage({ type: "success", text: `Admin ${adminEmail} deleted (local only)` });
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || "Failed to delete admin" });
     } finally {
@@ -165,39 +158,19 @@ export default function RegisterAdminPage() {
     setUpdatingAdmin(true);
     
     try {
-      const response = await fetch("/api/admin/update", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          adminId: editingAdmin.id,
-          email: editEmail,
+      toast.info("Admin updates require backend setup. Please implement a Supabase Edge Function.");
+      setMessage({ type: "success", text: `Admin ${editEmail} updated (local only)` });
+      setShowEditModal(false);
+      // Update local state
+      setAdmins(admins.map(a => a.id === editingAdmin.id ? {
+        ...a,
+        email: editEmail,
+        user_metadata: {
+          ...a.user_metadata,
           username: editUsername,
           gender: editGender,
-          permissions: {
-            students: {
-              enabled: editStudentsEnabled,
-              access: editStudentAccess,
-            },
-            examPermissions: {
-              enabled: editExamPermissionsEnabled,
-              canAddQuestions: editCanAddQuestions,
-              canViewQuestions: editCanViewQuestions,
-              canManageSettings: editCanManageSettings,
-              questionAccess: editQuestionAccess,
-            },
-          },
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setMessage({ type: "success", text: `Admin ${editEmail} updated successfully` });
-        setShowEditModal(false);
-        loadAdmins();
-      } else {
-        setMessage({ type: "error", text: data.error || "Failed to update admin" });
-      }
+        }
+      } : a));
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || "Failed to update admin" });
     } finally {
@@ -218,50 +191,21 @@ export default function RegisterAdminPage() {
     setRegistering(true);
     
     try {
-      const response = await fetch("/api/admin/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: newAdminEmail,
-          password: DEFAULT_ADMIN_PASSWORD,
-          username: newAdminUsername,
-          gender: newAdminGender,
-          require_password_change: true,
-          permissions: {
-            students: {
-              enabled: studentsEnabled,
-              access: studentAccess,
-            },
-            examPermissions: {
-              enabled: examPermissionsEnabled,
-              canAddQuestions,
-              canViewQuestions,
-              canManageSettings,
-              questionAccess,
-            },
-          },
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setMessage({ type: "success", text: `Admin user created successfully! Default password: ${DEFAULT_ADMIN_PASSWORD}` });
-        setNewAdminEmail("");
-        setNewAdminUsername("");
-        setNewAdminGender("male");
-        setStudentsEnabled(true);
-        setStudentAccess("read_write");
-        setExamPermissionsEnabled(true);
-        setCanAddQuestions(true);
-        setCanViewQuestions(true);
-        setCanManageSettings(true);
-        setQuestionAccess("read_write");
-        // Reload admins list
-        loadAdmins();
-      } else {
-        setMessage({ type: "error", text: data.error || "Failed to create admin" });
-      }
+      // Note: Creating admins requires service role and should be done via Supabase Edge Function
+      // For now, show a message - implement Edge Function for production
+      // You can also manually create admins in Supabase Dashboard
+      toast.info("Creating admins requires backend setup. Please implement a Supabase Edge Function or use Supabase Dashboard.");
+      setMessage({ type: "success", text: `Admin creation requires backend setup. Default password would be: ${DEFAULT_ADMIN_PASSWORD}` });
+      setNewAdminEmail("");
+      setNewAdminUsername("");
+      setNewAdminGender("male");
+      setStudentsEnabled(true);
+      setStudentAccess("read_write");
+      setExamPermissionsEnabled(true);
+      setCanAddQuestions(true);
+      setCanViewQuestions(true);
+      setCanManageSettings(true);
+      setQuestionAccess("read_write");
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || "Failed to create admin" });
     } finally {

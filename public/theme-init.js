@@ -83,7 +83,7 @@
               try {
                 const config = JSON.parse(savedConfig);
                 applyThemeColors(config);
-              } catch (e) {}
+              } catch {}
             }
           }
         });

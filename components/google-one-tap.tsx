@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 declare global {
@@ -37,22 +38,12 @@ interface GoogleOneTapProps {
 
 export function GoogleOneTap({ disabled = false }: GoogleOneTapProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const [user, setUser] = useState<any>(null);
-
-  // Check if user is already logged in
-  useEffect(() => {
-    const checkUser = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    checkUser();
-  }, []);
 
   // Load Google Identity Services script
   useEffect(() => {
-    if (disabled || user) return;
+    if (disabled || user || typeof window === "undefined") return;
 
     const existingScript = document.getElementById("google-identity-script");
     if (existingScript) {
@@ -60,14 +51,30 @@ export function GoogleOneTap({ disabled = false }: GoogleOneTapProps) {
       return;
     }
 
-    const script = document.createElement("script");
-    script.id = "google-identity-script";
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => setScriptLoaded(true);
-    script.onerror = () => console.error("Failed to load Google Identity Services");
-    document.body.appendChild(script);
+    let retryCount = 0;
+    const maxRetries = 2;
+
+    const loadScript = () => {
+      const script = document.createElement("script");
+      script.id = "google-identity-script";
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => setScriptLoaded(true);
+      script.onerror = () => {
+        retryCount++;
+        if (retryCount <= maxRetries) {
+          console.warn(`Google Identity Services failed to load, retrying (${retryCount}/${maxRetries})`);
+          setTimeout(loadScript, 1000 * retryCount);
+        } else {
+          console.warn("Google Identity Services unavailable - One Tap sign-in disabled");
+          setScriptLoaded(false);
+        }
+      };
+      document.body.appendChild(script);
+    };
+
+    loadScript();
 
     return () => {
       // Don't remove script on unmount to avoid reloading issues

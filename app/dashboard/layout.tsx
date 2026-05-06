@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isPrimaryAdmin } from "@/lib/permissions";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FileText, Settings } from "lucide-react";
+import { LayoutDashboard, FileText, Settings, LogOut } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -123,6 +123,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
 
           <div className="mt-auto" />
+
+          {/* Logout Button */}
+          <button
+            onClick={async () => {
+              const supabase = createClient();
+              await supabase.auth.signOut();
+              router.push("/");
+            }}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-destructive/10 text-muted-foreground hover:text-destructive w-full"
+          >
+            <LogOut className="h-4 w-4 flex-shrink-0" />
+            <span className={`${sidebarOpen ? "text-sm font-medium" : "sr-only"}`}>Logout</span>
+          </button>
         </div>
       </aside>
 

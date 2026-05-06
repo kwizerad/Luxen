@@ -573,25 +573,28 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
                   
                   setUploadingAvatar(true);
                   try {
-                    const formData = new FormData();
-                    formData.append("file", file);
-                    formData.append("folder", "profile-pictures");
+                    // Upload directly to Supabase Storage
+                    const supabase = createClient();
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+                    const filePath = `profile-pictures/${fileName}`;
 
-                    const res = await fetch("/api/profile-picture", {
-                      method: "POST",
-                      body: formData,
-                    });
+                    const { error: uploadError } = await supabase.storage
+                      .from('avatars')
+                      .upload(filePath, file);
 
-                    const data = await res.json();
-
-                    if (data.url) {
-                      await handleAvatarUpload(data.url);
-                      setShowUploadDialog(false);
-                    } else {
-                      toast.error(data.error || "Failed to upload image");
+                    if (uploadError) {
+                      throw uploadError;
                     }
-                  } catch (error) {
-                    toast.error("Failed to upload image");
+
+                    const { data: { publicUrl } } = supabase.storage
+                      .from('avatars')
+                      .getPublicUrl(filePath);
+
+                    await handleAvatarUpload(publicUrl);
+                    setShowUploadDialog(false);
+                  } catch (error: any) {
+                    toast.error("Failed to upload image: " + error.message);
                   } finally {
                     setUploadingAvatar(false);
                   }

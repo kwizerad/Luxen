@@ -4,6 +4,7 @@ export interface ExamCategory {
   created_at: string;
   created_by: string;
   is_published?: boolean;
+  updated_at?: string;
 }
 
 export interface ExamQuestion {
@@ -56,10 +57,26 @@ export interface ExamAttempt {
 
 export interface ExamAnswer {
   question_id: string;
-  selected_answer: 'A' | 'B' | 'C' | 'D';
+  selected_answer: 'A' | 'B' | 'C' | 'D' | null;
   is_correct: boolean;
   time_spent_seconds?: number;
 }
 
 // Validation: At least one of question or question_image must be provided
 // At least one of option_X or option_X_image must be provided for each option
+
+export interface UserProfile {
+  id: string;
+  email?: string;
+  role?: 'Student' | 'Admin' | 'Teacher' | 'Driver' | 'Landlord';
+  username?: string;
+  full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  gender?: 'male' | 'female' | 'other';
+  nationality?: string;
+  birthdate?: string;
+  created_at: string;
+  updated_at?: string;
+}

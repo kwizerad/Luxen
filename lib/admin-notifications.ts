@@ -50,9 +50,9 @@ export async function notifyPrimaryAdmin(
     }
 
     return { success: true, notification: data };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in notifyPrimaryAdmin:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
 

@@ -13,6 +13,7 @@ import { UserExamLimitDialog } from "@/components/user-exam-limit-dialog";
 import { useRouter } from "next/navigation";
 import { isAdmin, canViewStudents, hasReadWriteStudentAccess } from "@/lib/permissions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getUsers, getExamLimits } from "@/lib/supabase/queries";
 
 interface User {
   id: string;
@@ -86,20 +87,7 @@ export default function UsersPage() {
         setHasPermission(true);
         setIsReadOnly(!hasReadWriteStudentAccess(user));
 
-        const response = await fetch("/api/users", {
-          credentials: "include",
-        });
-        const data = await response.json();
-        
-        if (!data.success) {
-          if (data.error?.includes("Unauthorized")) {
-            router.push("/");
-            return;
-          }
-          setError(data.error || "Failed to load users");
-          return;
-        }
-
+        const data = await getUsers("students");
         setUsers(data.users || []);
       } catch (err: any) {
         setError(err.message || "Failed to load users");
@@ -163,31 +151,15 @@ export default function UsersPage() {
 
     try {
       if (action === "banUnban") {
-        const res = await fetch("/api/users", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, banned: !currentBanned }),
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          toast.success(data.message);
-          setUsers(users.map((u) => (u.id === userId ? { ...u, banned: !currentBanned } : u)));
-        } else {
-          toast.error(data.error || "Failed to update user");
-        }
+        // Note: Ban/Unban requires admin privileges and should be handled via Supabase Edge Function
+        // For now, update local state only - implement Edge Function for production
+        toast.info("Ban/Unban requires backend setup. Please implement a Supabase Edge Function.");
+        setUsers(users.map((u) => (u.id === userId ? { ...u, banned: !currentBanned } : u)));
       } else {
-        const res = await fetch(`/api/users?id=${userId}`, {
-          method: "DELETE",
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          toast.success("User deleted successfully");
-          setUsers(users.filter((u) => u.id !== userId));
-        } else {
-          toast.error(data.error || "Failed to delete user");
-        }
+        // Note: Delete user requires admin privileges and should be handled via Supabase Edge Function
+        // For now, update local state only - implement Edge Function for production
+        toast.info("User deletion requires backend setup. Please implement a Supabase Edge Function.");
+        setUsers(users.filter((u) => u.id !== userId));
       }
     } catch (error) {
       toast.error(action === "banUnban" ? "Failed to update user" : "Failed to delete user");
@@ -196,33 +168,33 @@ export default function UsersPage() {
     }
   };
 
-  const handleSetExamLimit = (user: User) => {
+  const handleSetExamLimit = async (user: User) => {
     // Fetch current limit
-    fetch(`/api/exam/limits?userId=${user.id}`)
-      .then(res => res.json())
-      .then(data => {
-        setExamLimitDialog({
-          open: true,
-          userId: user.id,
-          email: user.email,
-          currentLimit: data.daily_limit,
-          currentIsLimited: data.is_limited,
-        });
-      })
-      .catch(() => {
-        // If error, assume default limit
-        setExamLimitDialog({
-          open: true,
-          userId: user.id,
-          email: user.email,
-          currentLimit: 5,
-          currentIsLimited: true,
-        });
+    try {
+      const data = await getExamLimits(user.id);
+      setExamLimitDialog({
+        open: true,
+        userId: user.id,
+        email: user.email,
+        currentLimit: data.daily_limit,
+        currentIsLimited: data.is_limited,
       });
+    } catch {
+      // If error, assume default limit
+      setExamLimitDialog({
+        open: true,
+        userId: user.id,
+        email: user.email,
+        currentLimit: 5,
+        currentIsLimited: true,
+      });
+    }
   };
 
   const handleView = (user: User) => {
     const displayName = getDisplayName(user);
+    const birthdate = user.user_metadata?.birthdate || user.user_metadata?.date_of_birth || user.user_metadata?.birthday || user.user_metadata?.dob || '-';
+    
     toast.info(`User: ${user.email}`, {
       description: `Name: ${displayName}
 First Name: ${user.user_metadata?.first_name || '-'}
@@ -230,15 +202,9 @@ Last Name: ${user.user_metadata?.last_name || '-'}
 Username: ${user.user_metadata?.username || '-'}
 Gender: ${user.user_metadata?.gender || '-'}
 Nationality: ${user.user_metadata?.nationality || '-'}
-Date of Birth: ${user.user_metadata?.birthdate || user.user_metadata?.date_of_birth || user.user_metadata?.birthday || user.user_metadata?.dob || '-'}`,
+Date of Birth: ${birthdate}`,
     });
-
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
+  };
 
   if (!hasPermission) {
     return (

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { checkAdminExists, setupAdmin } from "@/lib/supabase/queries";
 
 export default function SetupAdminPage() {
   const [loading, setLoading] = useState(false);
@@ -25,10 +26,8 @@ export default function SetupAdminPage() {
           return;
         }
 
-        // Check if admin already exists via API
-        const response = await fetch("/api/setup-admin/check", { method: "GET" });
-        const data = await response.json();
-        
+        // Check if admin already exists
+        const data = await checkAdminExists();
         setAdminExists(data.adminExists);
       } catch (error) {
         console.error("Error checking admin:", error);
@@ -45,17 +44,17 @@ export default function SetupAdminPage() {
     setResult(null);
     
     try {
-      const response = await fetch("/api/setup-admin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
+      // Note: Admin creation via client requires proper setup
+      // The setupAdmin function uses Supabase Auth signUp
+      const data = await setupAdmin("Navo@admin.jn", "adminjohn");
+      setResult({
+        success: true,
+        message: "Admin user created successfully. Please check your email to confirm the account."
       });
-      
-      const data = await response.json();
-      setResult(data);
-    } catch (error) {
+    } catch (error: any) {
       setResult({ 
         success: false, 
-        error: error instanceof Error ? error.message : "Failed to create admin" 
+        error: error.message || "Failed to create admin" 
       });
     } finally {
       setLoading(false);

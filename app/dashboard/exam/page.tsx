@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Watermark } from "@/components/watermark";
 import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Clock, Trophy, ArrowRight, Home, AlertCircle, BookOpen, Eye, Shield, Timer, HelpCircle, ChevronRight } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Trophy, ArrowRight, Home, AlertCircle, BookOpen, Eye, Shield, Timer, HelpCircle, ChevronRight, FileText, Play } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getExamCategories, getExamForTaking, createExamAttempt } from "@/lib/supabase/queries";
 
 type TakeResponse = {
   categoryId: string;
@@ -66,11 +67,10 @@ export default function TakeExamPage() {
     const load = async () => {
       setLoadingCategories(true);
       try {
-        const res = await fetch("/api/exam/categories");
-        const data = await res.json();
+        const data = await getExamCategories();
         setCategories(data.categories || []);
-      } catch {
-        toast.error("Failed to load categories");
+      } catch (error: any) {
+        toast.error("Failed to load categories: " + error.message);
       } finally {
         setLoadingCategories(false);
       }
@@ -93,14 +93,21 @@ export default function TakeExamPage() {
     return () => clearInterval(id);
   }, [secondsLeft]);
 
-  const showExamInstructions = () => {
+  const showExamInstructions = async () => {
     if (!categoryId) {
       toast.error("Select a category first");
       return;
     }
-    setPendingCategoryId(categoryId);
-    setShowInstructions(true);
-    setInstructionsAccepted(false);
+    setLoadingExam(true);
+    try {
+      const data = await getExamForTaking(categoryId);
+      setExam(data);
+      setShowInstructions(true);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load exam");
+    } finally {
+      setLoadingExam(false);
+    }
   };
 
   const startExam = async () => {
@@ -111,12 +118,7 @@ export default function TakeExamPage() {
     setShowInstructions(false);
     setLoadingExam(true);
     try {
-      const res = await fetch(`/api/exam/take?categoryId=${categoryId}`);
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data?.error || "Failed to start exam");
-        return;
-      }
+      const data = await getExamForTaking(categoryId);
       setExam(data as TakeResponse);
       setCurrentIndex(0);
       setSecondsLeft((data.settings?.duration_minutes ?? 20) * 60);
@@ -124,8 +126,8 @@ export default function TakeExamPage() {
       setUserAnswers({});
       setShowResults(false);
       setExamResult(null);
-    } catch {
-      toast.error("Failed to start exam");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to start exam");
     } finally {
       setLoadingExam(false);
     }
@@ -162,29 +164,19 @@ export default function TakeExamPage() {
         };
       });
 
-      const res = await fetch("/api/exam/attempts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category_id: exam.categoryId,
-          category_name: categories.find((c) => c.id === exam.categoryId)?.name || "Unknown",
-          total_questions: exam.questions.length,
-          answers,
-          duration_seconds: durationSeconds,
-        }),
+      const data = await createExamAttempt({
+        category_id: exam.categoryId,
+        category_name: categories.find((c) => c.id === exam.categoryId)?.name || "Unknown",
+        total_questions: exam.questions.length,
+        answers,
+        duration_seconds: durationSeconds,
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data?.error || "Failed to submit exam");
-        return;
-      }
 
       setExamResult(data.attempt);
       setShowResults(true);
       toast.success("Exam submitted successfully!");
-    } catch {
-      toast.error("Failed to submit exam");
+    } catch (error: any) {
+      toast.error("Failed to submit exam: " + error.message);
     } finally {
       setSubmittingExam(false);
     }
@@ -323,30 +315,75 @@ export default function TakeExamPage() {
         <Card className="navo-card-brand">
           <CardHeader>
             <CardTitle>Start</CardTitle>
-            <CardDescription>Select a category and begin</CardDescription>
+            <CardDescription>
+              {categories.length === 0
+                ? "No exams available yet"
+                : categories.length === 1
+                ? "Ready to begin"
+                : "Select a category and begin"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <div className="text-sm font-medium">Category</div>
-              <Select value={categoryId} onValueChange={setCategoryId} disabled={loadingCategories}>
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingCategories ? "Loading..." : "Select category"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {categories.length === 0 ? (
+              // No exams published
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground mb-2">No exams have been published yet.</p>
+                <p className="text-sm text-muted-foreground">Please check back later when exams become available.</p>
+              </div>
+            ) : categories.length === 1 ? (
+              // Single category - show direct start button
+              <div className="space-y-4">
+                <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                  <p className="text-sm text-muted-foreground mb-1">Available Exam</p>
+                  <p className="font-medium text-lg">{categories[0].name}</p>
+                </div>
+                <Button
+                  onClick={() => {
+                    setCategoryId(categories[0].id);
+                    setPendingCategoryId(categories[0].id);
+                    setShowInstructions(true);
+                    setInstructionsAccepted(false);
+                  }}
+                  disabled={loadingExam}
+                  className="w-full"
+                >
+                  {loadingExam ? (
+                    "Starting..."
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      Start Exam {categories[0].name}
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              // Multiple categories - show select
+              <>
+                <div className="grid gap-2">
+                  <div className="text-sm font-medium">Category</div>
+                  <Select value={categoryId} onValueChange={setCategoryId} disabled={loadingCategories}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={loadingCategories ? "Loading..." : "Select category"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="flex items-center gap-2">
-              <Button onClick={showExamInstructions} disabled={loadingExam || !categoryId}>
-                {loadingExam ? "Starting..." : "Start Exam"}
-              </Button>
-            </div>
+                <div className="flex items-center gap-2">
+                  <Button onClick={showExamInstructions} disabled={loadingExam || !categoryId}>
+                    {loadingExam ? "Starting..." : "Start Exam"}
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (

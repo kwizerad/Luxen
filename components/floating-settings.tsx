@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { useAuthModals } from "@/lib/auth-modals-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,57 +29,10 @@ const languages: { value: Language; label: string; flag: string }[] = [
 ];
 
 export function FloatingSettings() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
   const { openLogin, openSignUp } = useAuthModals();
   const { theme, setTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
-
-  useEffect(() => {
-    let isMounted = true;
-    let retryCount = 0;
-    const maxRetries = 3;
-
-    const loadUser = async () => {
-      try {
-        const supabase = createClient();
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
-        // Handle lock errors with retry
-        if (error && error.message?.includes("lock")) {
-          if (retryCount < maxRetries) {
-            retryCount++;
-            setTimeout(loadUser, 100 * retryCount);
-            return;
-          }
-          console.warn("Auth lock timeout after retries in floating settings");
-        }
-        
-        if (!isMounted) return;
-        
-        if (user) {
-          setUser(user);
-        }
-      } catch (error: any) {
-        // Ignore lock errors - they're internal Supabase timing issues
-        if (error?.message?.includes("lock")) {
-          console.warn("Supabase auth lock in floating settings (non-critical):", error.message);
-        } else {
-          console.error("Failed to load user for floating settings:", error);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadUser();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const logout = async () => {
     try {

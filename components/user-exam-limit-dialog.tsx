@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, Hash, Infinity, Lock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { updateExamLimit, deleteExamLimit } from "@/lib/supabase/queries";
 
 interface UserExamLimitDialogProps {
   open: boolean;
@@ -50,30 +51,15 @@ export function UserExamLimitDialog({
     setLoading(true);
 
     try {
-      const res = await fetch("/api/exam/limits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-          daily_limit: isLimited ? numLimit : 5, // Default to 5 when unlimited
-          is_limited: isLimited,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        toast.success(isLimited 
-          ? `Exam limit updated to ${numLimit} per day` 
-          : "User now has unlimited exam access"
-        );
-        onOpenChange(false);
-        onSuccess?.();
-      } else {
-        toast.error(data.error || "Failed to update exam limit");
-      }
-    } catch (error) {
-      toast.error("Failed to update exam limit");
+      await updateExamLimit(userId, isLimited ? numLimit : 5, isLimited);
+      toast.success(isLimited 
+        ? `Exam limit updated to ${numLimit} per day` 
+        : "User now has unlimited exam access"
+      );
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (error: any) {
+      toast.error("Failed to update exam limit: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -83,22 +69,13 @@ export function UserExamLimitDialog({
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/exam/limits?userId=${userId}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        toast.success("Exam limit reset to default (5 per day)");
-        setLimit("5");
-        onOpenChange(false);
-        onSuccess?.();
-      } else {
-        toast.error(data.error || "Failed to reset exam limit");
-      }
-    } catch (error) {
-      toast.error("Failed to reset exam limit");
+      await deleteExamLimit(userId);
+      toast.success("Exam limit reset to default (5 per day)");
+      setLimit("5");
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (error: any) {
+      toast.error("Failed to reset exam limit: " + error.message);
     } finally {
       setLoading(false);
     }

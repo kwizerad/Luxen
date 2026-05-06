@@ -5,14 +5,19 @@ const config: CapacitorConfig = {
   appName: 'Navo Lite',
   webDir: 'dist',
   
-  // Server configuration - load from live deployed URL
+  // Server configuration for Capacitor
+  // IMPORTANT: For mobile app to work, you need to either:
+  // 1. Set NEXT_PUBLIC_LIVE_URL to your deployed backend URL (Vercel/Netlify)
+  // 2. Or use local dev server with --host flag for mobile testing
   server: {
-    // Replace with your actual deployed URL (e.g., https://your-app.vercel.app)
-    url: process.env.NAVO_LIVE_URL || 'https://your-app.vercel.app',
-    // Allow cleartext (HTTP) if needed for development
-    cleartext: process.env.NODE_ENV === 'development',
-    // Enable debugging in development
+    // Use deployed URL for production mobile app, or local IP for dev
+    // Example local dev: 'http://192.168.1.100:3000' (your computer's IP)
+    url: process.env.NEXT_PUBLIC_LIVE_URL || '',
+    // Allow cleartext HTTP for local development
+    cleartext: true,
     androidScheme: 'https',
+    // Enable capacitor-native http for API calls (allows calling external APIs)
+    allowNavigation: ['*'],
   },
 
   // Android specific configuration

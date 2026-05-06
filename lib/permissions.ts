@@ -1,5 +1,13 @@
 // Permission types and validation utilities
 
+export interface User {
+  email?: string | null;
+  user_metadata?: {
+    role?: string;
+    permissions?: AdminPermissions;
+  } | null;
+}
+
 export interface AdminPermissions {
   students: {
     enabled: boolean;
@@ -33,21 +41,21 @@ export const PRIMARY_ADMIN_EMAIL = "Navo@admin.jn";
 /**
  * Check if user is the primary admin
  */
-export function isPrimaryAdmin(user: any): boolean {
+export function isPrimaryAdmin(user: User | null): boolean {
   return user?.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
 }
 
 /**
  * Check if user has admin role
  */
-export function isAdmin(user: any): boolean {
+export function isAdmin(user: User | null): boolean {
   return user?.user_metadata?.role === "Admin" || isPrimaryAdmin(user);
 }
 
 /**
  * Get user permissions from metadata
  */
-export function getUserPermissions(user: any): AdminPermissions {
+export function getUserPermissions(user: User | null): AdminPermissions {
   if (isPrimaryAdmin(user)) {
     // Primary admin has all permissions
     return {
@@ -78,7 +86,7 @@ export function getUserPermissions(user: any): AdminPermissions {
 /**
  * Check if user can view students
  */
-export function canViewStudents(user: any): boolean {
+export function canViewStudents(user: User | null): boolean {
   const perms = getUserPermissions(user);
   return perms.students.enabled;
 }
@@ -86,7 +94,7 @@ export function canViewStudents(user: any): boolean {
 /**
  * Check if user has read-write access to students
  */
-export function hasReadWriteStudentAccess(user: any): boolean {
+export function hasReadWriteStudentAccess(user: User | null): boolean {
   const perms = getUserPermissions(user);
   return perms.students.enabled && perms.students.access === "read_write";
 }
@@ -94,7 +102,7 @@ export function hasReadWriteStudentAccess(user: any): boolean {
 /**
  * Check if user has read-only access to students
  */
-export function hasReadOnlyStudentAccess(user: any): boolean {
+export function hasReadOnlyStudentAccess(user: User | null): boolean {
   const perms = getUserPermissions(user);
   return perms.students.enabled && perms.students.access === "read_only";
 }
@@ -102,7 +110,7 @@ export function hasReadOnlyStudentAccess(user: any): boolean {
 /**
  * Check if user can add questions
  */
-export function canAddQuestions(user: any): boolean {
+export function canAddQuestions(user: User | null): boolean {
   const perms = getUserPermissions(user);
   return perms.examPermissions.enabled && perms.examPermissions.canAddQuestions;
 }
@@ -110,12 +118,12 @@ export function canAddQuestions(user: any): boolean {
 /**
  * Check if user can view questions
  */
-export function canViewQuestions(user: any): boolean {
+export function canViewQuestions(user: User | null): boolean {
   const perms = getUserPermissions(user);
   return perms.examPermissions.enabled && perms.examPermissions.canViewQuestions;
 }
 
-export function canManageExamSettings(user: any): boolean {
+export function canManageExamSettings(user: User | null): boolean {
   const perms = getUserPermissions(user);
   return perms.examPermissions.enabled && perms.examPermissions.canManageSettings;
 }
@@ -123,7 +131,7 @@ export function canManageExamSettings(user: any): boolean {
 /**
  * Check if user has read-write access to questions
  */
-export function hasReadWriteQuestionAccess(user: any): boolean {
+export function hasReadWriteQuestionAccess(user: User | null): boolean {
   const perms = getUserPermissions(user);
   return perms.examPermissions.enabled && perms.examPermissions.canViewQuestions && perms.examPermissions.questionAccess === "read_write";
 }
@@ -131,7 +139,7 @@ export function hasReadWriteQuestionAccess(user: any): boolean {
 /**
  * Check if user has read-only access to questions
  */
-export function hasReadOnlyQuestionAccess(user: any): boolean {
+export function hasReadOnlyQuestionAccess(user: User | null): boolean {
   const perms = getUserPermissions(user);
   return perms.examPermissions.enabled && perms.examPermissions.canViewQuestions && perms.examPermissions.questionAccess === "read_only";
 }

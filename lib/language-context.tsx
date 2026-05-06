@@ -20,7 +20,7 @@ const getDefaultSystemName = (): string => {
     try {
       const parsed = JSON.parse(saved);
       return parsed.systemName || "Navo";
-    } catch (e) {
+    } catch {
       return "Navo";
     }
   }

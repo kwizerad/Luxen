@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Bell, Check, Trash2, Loader2, Info, CheckCircle, AlertTriangle, XCircle, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification as deleteNotificationQuery } from "@/lib/supabase/queries";
 
 interface Notification {
   id: string;
@@ -52,14 +53,12 @@ export function NotificationsDropdown() {
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch("/api/notifications");
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unread_count || 0);
-      }
-    } catch (error) {
-      console.error("Failed to fetch notifications:", error);
+      const data = await getNotifications();
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.unread_count || 0);
+    } catch {
+      // Silently fail - notifications table may not exist yet
+      // This is expected until SQL migrations are applied in Supabase
     } finally {
       setLoading(false);
     }
@@ -74,15 +73,11 @@ export function NotificationsDropdown() {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      const res = await fetch(`/api/notifications?notificationId=${notificationId}`, {
-        method: "PUT",
-      });
-      if (res.ok) {
-        setNotifications(prev =>
-          prev.map(n => (n.id === notificationId ? { ...n, is_read: true } : n))
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      }
+      await markNotificationAsRead(notificationId);
+      setNotifications(prev =>
+        prev.map(n => (n.id === notificationId ? { ...n, is_read: true } : n))
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Failed to mark as read:", error);
     }
@@ -90,14 +85,10 @@ export function NotificationsDropdown() {
 
   const markAllAsRead = async () => {
     try {
-      const res = await fetch("/api/notifications?markAllRead=true", {
-        method: "PUT",
-      });
-      if (res.ok) {
-        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-        setUnreadCount(0);
-        toast.success("All notifications marked as read");
-      }
+      await markAllNotificationsAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+      toast.success("All notifications marked as read");
     } catch (error) {
       console.error("Failed to mark all as read:", error);
     }
@@ -105,13 +96,9 @@ export function NotificationsDropdown() {
 
   const deleteNotification = async (notificationId: string) => {
     try {
-      const res = await fetch(`/api/notifications?notificationId=${notificationId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setNotifications(prev => prev.filter(n => n.id !== notificationId));
-        toast.success("Notification deleted");
-      }
+      await deleteNotificationQuery(notificationId);
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      toast.success("Notification deleted");
     } catch (error) {
       console.error("Failed to delete notification:", error);
     }

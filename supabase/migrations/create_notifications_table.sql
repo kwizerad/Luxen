@@ -49,6 +49,12 @@ CREATE INDEX IF NOT EXISTS idx_notification_reads_notification ON notification_r
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notification_reads ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (for idempotent runs)
+DROP POLICY IF EXISTS "Users can view their notifications" ON notifications;
+DROP POLICY IF EXISTS "Admins can create notifications" ON notifications;
+DROP POLICY IF EXISTS "Admins can manage notifications" ON notifications;
+DROP POLICY IF EXISTS "Users can manage their notification reads" ON notification_reads;
+
 -- Policy: Users can view notifications targeted to them
 CREATE POLICY "Users can view their notifications"
   ON notifications FOR SELECT

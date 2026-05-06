@@ -17,12 +17,26 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileText, Plus, BookOpen, CheckCircle, Image as ImageIcon, X, Edit, Trash2, Loader2, ChevronDown, Settings, Eye, EyeOff, AlertTriangle, Trophy, Users, Globe, Lock } from "lucide-react";
+import { FileText, Plus, BookOpen, CheckCircle, Image as ImageIcon, X, Edit, Trash2, Loader2, ChevronDown, Settings, Eye, EyeOff, AlertTriangle, Trophy, Users, Globe, Lock, ArrowUpDown } from "lucide-react";
 import { Watermark } from "@/components/watermark";
 import { toast } from "sonner";
 import type { ExamCategory, ExamQuestion, ExamQuestionSortingMode } from "@/lib/database.types";
 import { ImageUpload } from "@/components/image-upload";
 import { createClient } from "@/lib/supabase/client";
+import {
+  getExamCategories,
+  getExamQuestions,
+  createExamCategory,
+  updateExamCategory,
+  deleteExamCategory,
+  toggleCategoryPublishStatus,
+  createExamQuestion,
+  updateExamQuestion,
+  deleteExamQuestion,
+  getExamSettings,
+  updateExamSettings,
+  getExamAttempts,
+} from "@/lib/supabase/queries";
 import { isAdmin, canAddQuestions, canViewQuestions, canManageExamSettings } from "@/lib/permissions";
 import { DEFAULT_EXAM_SETTINGS } from "@/lib/exam-settings";
 
@@ -44,6 +58,12 @@ export default function ExamManagementPage() {
   // Search/filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [filterByImage, setFilterByImage] = useState<"all" | "with" | "without">("all");
+
+  // Sorting state
+  type SortField = 'question' | 'correct_answer' | 'created_at';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
   // Exam results state
   const [showResultsModal, setShowResultsModal] = useState(false);
@@ -141,21 +161,19 @@ export default function ExamManagementPage() {
 
   const loadCategories = async () => {
     try {
-      const res = await fetch("/api/exam/categories");
-      const data = await res.json();
+      const data = await getExamCategories();
       if (data.categories) {
         setCategories(data.categories);
         // Load question counts for each category
         const counts: Record<string, number> = {};
         for (const category of data.categories) {
-          const qRes = await fetch(`/api/exam/questions?categoryId=${category.id}`);
-          const qData = await qRes.json();
+          const qData = await getExamQuestions(category.id);
           counts[category.id] = qData.questions?.length || 0;
         }
         setCategoryQuestionCounts(counts);
       }
-    } catch (error) {
-      toast.error("Failed to load categories");
+    } catch (error: any) {
+      toast.error("Failed to load categories: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -163,8 +181,7 @@ export default function ExamManagementPage() {
 
   const loadQuestions = async (categoryId: string) => {
     try {
-      const res = await fetch(`/api/exam/questions?categoryId=${categoryId}`);
-      const data = await res.json();
+      const data = await getExamQuestions(categoryId);
       if (data.questions) {
         setQuestions(data.questions);
         setFilteredQuestions(data.questions);
@@ -174,8 +191,8 @@ export default function ExamManagementPage() {
           [categoryId]: data.questions.length
         }));
       }
-    } catch (error) {
-      toast.error("Failed to load questions");
+    } catch (error: any) {
+      toast.error("Failed to load questions: " + error.message);
     }
   };
 
@@ -208,8 +225,25 @@ export default function ExamManagementPage() {
       );
     }
 
-    setFilteredQuestions(filtered);
-  }, [questions, searchQuery, filterByImage]);
+    // Sort questions
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'question':
+          comparison = (a.question || '').localeCompare(b.question || '');
+          break;
+        case 'correct_answer':
+          comparison = a.correct_answer.localeCompare(b.correct_answer);
+          break;
+        case 'created_at':
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    setFilteredQuestions(sorted);
+  }, [questions, searchQuery, filterByImage, sortField, sortDirection]);
 
   const toLocalInputValue = (iso: string) => {
     const d = new Date(iso);
@@ -222,8 +256,7 @@ export default function ExamManagementPage() {
     setShowSettingsModal(true);
     setLoadingSettings(true);
     try {
-      const res = await fetch(`/api/exam/settings?categoryId=${category.id}`);
-      const data = await res.json();
+      const data = await getExamSettings(category.id);
       if (data?.settings) {
         const s = data.settings;
         const always = !s.available_from && !s.available_to;
@@ -235,11 +268,9 @@ export default function ExamManagementPage() {
           duration_minutes: s.duration_minutes ?? DEFAULT_EXAM_SETTINGS.duration_minutes,
           sorting_mode: (s.sorting_mode ?? DEFAULT_EXAM_SETTINGS.sorting_mode) as ExamQuestionSortingMode,
         });
-      } else if (data?.error) {
-        toast.error(data.error);
       }
-    } catch {
-      toast.error("Failed to load exam settings");
+    } catch (error: any) {
+      toast.error("Failed to load exam settings: " + error.message);
     } finally {
       setLoadingSettings(false);
     }
@@ -250,27 +281,17 @@ export default function ExamManagementPage() {
     setSavingSettings(true);
     try {
       const payload = {
-        categoryId: settingsCategory.id,
         question_count: settingsForm.question_count,
         duration_minutes: settingsForm.duration_minutes,
         sorting_mode: settingsForm.sorting_mode,
         available_from: settingsForm.alwaysAvailable || !settingsForm.available_from ? null : new Date(settingsForm.available_from).toISOString(),
         available_to: settingsForm.alwaysAvailable || !settingsForm.available_to ? null : new Date(settingsForm.available_to).toISOString(),
       };
-      const res = await fetch("/api/exam/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data?.settings) {
-        toast.success("Exam settings saved");
-        setShowSettingsModal(false);
-      } else {
-        toast.error(data?.error || "Failed to save settings");
-      }
-    } catch {
-      toast.error("Failed to save settings");
+      await updateExamSettings(settingsCategory.id, payload);
+      toast.success("Exam settings saved");
+      setShowSettingsModal(false);
+    } catch (error: any) {
+      toast.error("Failed to save settings: " + error.message);
     } finally {
       setSavingSettings(false);
     }
@@ -285,22 +306,12 @@ export default function ExamManagementPage() {
 
     setCreatingCategory(true);
     try {
-      const res = await fetch("/api/exam/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: categoryName }),
-      });
-
-      const data = await res.json();
-      if (data.category) {
-        toast.success("Category created successfully");
-        setCategories([data.category, ...categories]);
-        setCategoryName("");
-      } else {
-        toast.error(data.error || "Failed to create category");
-      }
-    } catch (error) {
-      toast.error("Failed to create category");
+      const data = await createExamCategory(categoryName);
+      toast.success("Category created successfully");
+      setCategories([data.category, ...categories]);
+      setCategoryName("");
+    } catch (error: any) {
+      toast.error("Failed to create category: " + error.message);
     } finally {
       setCreatingCategory(false);
     }
@@ -321,24 +332,14 @@ export default function ExamManagementPage() {
 
     setCreatingCategory(true);
     try {
-      const res = await fetch("/api/exam/categories", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editingCategory.id, name: editCategoryName }),
-      });
-
-      const data = await res.json();
-      if (data.category) {
-        toast.success("Category updated successfully");
-        setCategories(categories.map(c => c.id === editingCategory.id ? data.category : c));
-        setShowEditCategoryModal(false);
-        setEditingCategory(null);
-        setEditCategoryName("");
-      } else {
-        toast.error(data.error || "Failed to update category");
-      }
-    } catch (error) {
-      toast.error("Failed to update category");
+      const data = await updateExamCategory(editingCategory.id, editCategoryName);
+      toast.success("Category updated successfully");
+      setCategories(categories.map(c => c.id === editingCategory.id ? data.category : c));
+      setShowEditCategoryModal(false);
+      setEditingCategory(null);
+      setEditCategoryName("");
+    } catch (error: any) {
+      toast.error("Failed to update category: " + error.message);
     } finally {
       setCreatingCategory(false);
     }
@@ -349,24 +350,16 @@ export default function ExamManagementPage() {
 
     setDeletingCategory(categoryId);
     try {
-      const res = await fetch(`/api/exam/categories?id=${categoryId}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        toast.success("Category deleted successfully");
-        setCategories(categories.filter(c => c.id !== categoryId));
-        if (activeCategory === categoryId) {
-          setActiveCategory(null);
-          setQuestions([]);
-          setFilteredQuestions([]);
-        }
-      } else {
-        toast.error(data.error || "Failed to delete category");
+      await deleteExamCategory(categoryId);
+      toast.success("Category deleted successfully");
+      setCategories(categories.filter(c => c.id !== categoryId));
+      if (activeCategory === categoryId) {
+        setActiveCategory(null);
+        setQuestions([]);
+        setFilteredQuestions([]);
       }
-    } catch (error) {
-      toast.error("Failed to delete category");
+    } catch (error: any) {
+      toast.error("Failed to delete category: " + error.message);
     } finally {
       setDeletingCategory(null);
     }
@@ -381,46 +374,36 @@ export default function ExamManagementPage() {
 
     setCreatingQuestion(true);
     try {
-      const res = await fetch("/api/exam/questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...questionForm,
-          category_id: activeCategory,
-        }),
+      const data = await createExamQuestion({
+        ...questionForm,
+        category_id: activeCategory,
       });
-
-      const data = await res.json();
-      if (data.question) {
-        toast.success("Question added successfully");
-        setQuestions([data.question, ...questions]);
-        // Update category question count
-        setCategoryQuestionCounts(prev => ({
-          ...prev,
-          [activeCategory]: (prev[activeCategory] || 0) + 1
-        }));
-        // Reset form but keep modal open for simultaneous inserts
-        setQuestionForm({
-          question: "",
-          question_image: "",
-          option_a: "",
-          option_a_image: "",
-          option_b: "",
-          option_b_image: "",
-          option_c: "",
-          option_c_image: "",
-          option_d: "",
-          option_d_image: "",
-          correct_answer: "A",
-          explanation: "",
-        });
-        setShowQuestionImage(false);
-        setShowOptionImages({ A: false, B: false, C: false, D: false });
-      } else {
-        toast.error(data.error || "Failed to add question");
-      }
-    } catch (error) {
-      toast.error("Failed to add question");
+      toast.success("Question added successfully");
+      setQuestions([data.question, ...questions]);
+      // Update category question count
+      setCategoryQuestionCounts(prev => ({
+        ...prev,
+        [activeCategory]: (prev[activeCategory] || 0) + 1
+      }));
+      // Reset form but keep modal open for simultaneous inserts
+      setQuestionForm({
+        question: "",
+        question_image: "",
+        option_a: "",
+        option_a_image: "",
+        option_b: "",
+        option_b_image: "",
+        option_c: "",
+        option_c_image: "",
+        option_d: "",
+        option_d_image: "",
+        correct_answer: "A",
+        explanation: "",
+      });
+      setShowQuestionImage(false);
+      setShowOptionImages({ A: false, B: false, C: false, D: false });
+    } catch (error: any) {
+      toast.error("Failed to add question: " + error.message);
     } finally {
       setCreatingQuestion(false);
     }
@@ -498,29 +481,18 @@ export default function ExamManagementPage() {
 
     setCreatingQuestion(true);
     try {
-      const res = await fetch("/api/exam/questions", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editingQuestion,
-          ...questionForm,
-        }),
+      const data = await updateExamQuestion(editingQuestion, {
+        ...questionForm,
       });
-
-      const data = await res.json();
-      if (data.question) {
-        toast.success("Question updated successfully");
-        setQuestions(questions.map(q => q.id === editingQuestion ? data.question : q));
-        closeQuestionModal();
-        // If came from questions page, go back
-        if (returnTo === "questions") {
-          router.push("/Admin/questions");
-        }
-      } else {
-        toast.error(data.error || "Failed to update question");
+      toast.success("Question updated successfully");
+      setQuestions(questions.map(q => q.id === editingQuestion ? data.question : q));
+      closeQuestionModal();
+      // If came from questions page, go back
+      if (returnTo === "questions") {
+        router.push("/Admin/questions");
       }
-    } catch (error) {
-      toast.error("Failed to update question");
+    } catch (error: any) {
+      toast.error("Failed to update question: " + error.message);
     } finally {
       setCreatingQuestion(false);
     }
@@ -531,26 +503,18 @@ export default function ExamManagementPage() {
 
     setDeletingQuestion(questionId);
     try {
-      const res = await fetch(`/api/exam/questions?id=${questionId}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        toast.success("Question deleted successfully");
-        setQuestions(questions.filter(q => q.id !== questionId));
-        // Update category question count
-        if (activeCategory) {
-          setCategoryQuestionCounts(prev => ({
-            ...prev,
-            [activeCategory]: Math.max(0, (prev[activeCategory] || 0) - 1)
-          }));
-        }
-      } else {
-        toast.error(data.error || "Failed to delete question");
+      await deleteExamQuestion(questionId);
+      toast.success("Question deleted successfully");
+      setQuestions(questions.filter(q => q.id !== questionId));
+      // Update category question count
+      if (activeCategory) {
+        setCategoryQuestionCounts(prev => ({
+          ...prev,
+          [activeCategory]: Math.max(0, (prev[activeCategory] || 0) - 1)
+        }));
       }
-    } catch (error) {
-      toast.error("Failed to delete question");
+    } catch (error: any) {
+      toast.error("Failed to delete question: " + error.message);
     } finally {
       setDeletingQuestion(null);
     }
@@ -566,8 +530,7 @@ export default function ExamManagementPage() {
 
   const loadQuestionForEdit = async (questionId: string) => {
     try {
-      const res = await fetch(`/api/exam/questions`);
-      const data = await res.json();
+      const data = await getExamQuestions();
       if (data.questions) {
         const q = data.questions.find((q: ExamQuestion) => q.id === questionId);
         if (q) {
@@ -585,7 +548,7 @@ export default function ExamManagementPage() {
             option_c_image: q.option_c_image || "",
             option_d: q.option_d || "",
             option_d_image: q.option_d_image || "",
-            correct_answer: q.correct_answer as "A" | "B" | "C" | "D",
+            correct_answer: q.correct_answer,
             explanation: q.explanation || "",
           });
           // Set image visibility based on existing data
@@ -602,21 +565,20 @@ export default function ExamManagementPage() {
           }, 100);
         }
       }
-    } catch (error) {
-      toast.error("Failed to load question for editing");
+    } catch (error: any) {
+      toast.error("Failed to load question for edit: " + error.message);
     }
   };
 
   const loadExamResults = async () => {
     setLoadingResults(true);
     try {
-      const res = await fetch("/api/exam/attempts");
-      const data = await res.json();
+      const data = await getExamAttempts();
       if (data.attempts) {
         setExamAttempts(data.attempts);
       }
-    } catch {
-      toast.error("Failed to load exam results");
+    } catch (error: any) {
+      toast.error("Failed to load exam results: " + error.message);
     } finally {
       setLoadingResults(false);
     }
@@ -637,28 +599,14 @@ export default function ExamManagementPage() {
     const newStatus = !category.is_published;
     
     try {
-      const res = await fetch("/api/exam/categories", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: category.id,
-          is_published: newStatus,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        toast.success(newStatus ? `Category "${category.name}" published` : `Category "${category.name}" unpublished`);
-        // Update local state
-        setCategories(prev => prev.map(c => 
-          c.id === category.id ? { ...c, is_published: newStatus } : c
-        ));
-      } else {
-        toast.error(data.error || "Failed to update publish status");
-      }
-    } catch (error) {
-      toast.error("Failed to update publish status");
+      await toggleCategoryPublishStatus(category.id, newStatus);
+      toast.success(newStatus ? `Category "${category.name}" published` : `Category "${category.name}" unpublished`);
+      // Update local state
+      setCategories(prev => prev.map(c => 
+        c.id === category.id ? { ...c, is_published: newStatus } : c
+      ));
+    } catch (error: any) {
+      toast.error("Failed to update publish status: " + error.message);
     }
   };
 
@@ -943,7 +891,7 @@ export default function ExamManagementPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Search and Filter Controls */}
+              {/* Search, Filter, and Sort Controls */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
                   <Input
@@ -953,13 +901,34 @@ export default function ExamManagementPage() {
                   />
                 </div>
                 <Select value={filterByImage} onValueChange={(v: any) => setFilterByImage(v)}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[150px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Questions</SelectItem>
                     <SelectItem value="with">With Images</SelectItem>
                     <SelectItem value="without">Without Images</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={`${sortField}-${sortDirection}`}
+                  onValueChange={(v: string) => {
+                    const [field, direction] = v.split('-') as [SortField, SortDirection];
+                    setSortField(field);
+                    setSortDirection(direction);
+                  }}
+                >
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <ArrowUpDown className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Sort by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="created_at-desc">Newest First</SelectItem>
+                    <SelectItem value="created_at-asc">Oldest First</SelectItem>
+                    <SelectItem value="question-asc">Question (A-Z)</SelectItem>
+                    <SelectItem value="question-desc">Question (Z-A)</SelectItem>
+                    <SelectItem value="correct_answer-asc">Answer (A-D)</SelectItem>
+                    <SelectItem value="correct_answer-desc">Answer (D-A)</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button onClick={() => openAddQuestionModal(activeCategory)}>
