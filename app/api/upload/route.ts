@@ -3,10 +3,20 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
+    // Check environment variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+      console.error("Missing environment variables");
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    }
+
     const supabase = await createClient();
     
     // Check authentication
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+      console.error("Auth error:", authError);
+      return NextResponse.json({ error: "Authentication failed", details: authError.message }, { status: 401 });
+    }
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -63,10 +73,11 @@ export async function POST(request: NextRequest) {
       message: "Image uploaded successfully" 
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Upload error:", error);
+    console.error("Error stack:", error?.stack);
     return NextResponse.json(
-      { error: "Failed to upload image" }, 
+      { error: "Failed to upload image", details: error?.message || "Unknown error" }, 
       { status: 500 }
     );
   }
