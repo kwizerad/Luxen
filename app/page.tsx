@@ -28,7 +28,6 @@ export default function Home() {
             </p>
             <div className="flex flex-wrap gap-4">
               <Button size="lg" onClick={openLogin}>{t("signIn")}</Button>
-              <Button variant="outline" size="lg" onClick={openSignUp}>{t("createAccount")}</Button>
             </div>
           </div>
 

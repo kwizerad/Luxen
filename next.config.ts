@@ -13,8 +13,6 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  // Silence Turbopack warning
-  turbopack: {},
   // Handle trailing slashes consistently
   trailingSlash: true,
 };

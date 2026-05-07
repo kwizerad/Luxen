@@ -93,26 +93,44 @@ export default function Dashboard() {
   useEffect(() => {
     let isMounted = true;
     let retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = 5;
+    const supabase = createClient();
 
     const checkUser = async () => {
       try {
-        const supabase = createClient();
-        const { data: { user }, error } = await supabase.auth.getUser();
+        // First try getSession which is more reliable immediately after login
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        // Handle lock errors with retry
-        if (error && error.message?.includes("lock")) {
-          if (retryCount < maxRetries) {
-            retryCount++;
-            setTimeout(checkUser, 100 * retryCount);
-            return;
+        if (sessionError) {
+          console.log("Session error:", sessionError.message);
+        }
+        
+        let user = session?.user || null;
+        
+        // If no session, try getUser as fallback
+        if (!user) {
+          const { data: { user: userData }, error: userError } = await supabase.auth.getUser();
+          if (userError && userError.message?.includes("lock")) {
+            if (retryCount < maxRetries) {
+              retryCount++;
+              setTimeout(checkUser, 100 * retryCount);
+              return;
+            }
+            console.warn("Auth lock timeout after retries, continuing...");
           }
-          console.warn("Auth lock timeout after retries, continuing...");
+          user = userData || null;
         }
         
         if (!isMounted) return;
         
-        if (!user && !error?.message?.includes("lock")) {
+        if (!user) {
+          // Retry a few times in case session is still loading
+          if (retryCount < maxRetries) {
+            retryCount++;
+            console.log(`No user found, retrying (${retryCount}/${maxRetries})...`);
+            setTimeout(checkUser, 800 * retryCount);
+            return;
+          }
           router.push("/");
           return;
         }
@@ -126,9 +144,13 @@ export default function Dashboard() {
         // Ignore lock errors - they're internal Supabase timing issues
         if (error?.message?.includes("lock")) {
           console.warn("Supabase auth lock error (non-critical):", error.message);
-          // Don't redirect on lock errors, just stop loading
         } else {
           console.error("Error checking user:", error);
+          if (retryCount < maxRetries) {
+            retryCount++;
+            setTimeout(checkUser, 800 * retryCount);
+            return;
+          }
           router.push("/");
         }
       } finally {
@@ -137,11 +159,22 @@ export default function Dashboard() {
         }
       }
     };
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: { user: any } | null) => {
+      console.log("Dashboard auth state changed:", event);
+      if (event === 'SIGNED_IN' && session?.user) {
+        console.log("User signed in via auth state change in dashboard");
+        setUser(session.user);
+        Promise.all([loadExamData(), loadExamLimit()]);
+      }
+    });
 
     checkUser();
     
     return () => {
       isMounted = false;
+      subscription.unsubscribe();
     };
   }, [router]);
 

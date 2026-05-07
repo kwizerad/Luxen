@@ -65,11 +65,24 @@ function AuthCallbackContent() {
           role = "Student";
         }
 
-        // Redirect based on role
+        // Wait a bit more for session to be fully propagated
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Verify session is still valid before redirecting
+        const { data: { session: verifySession } } = await supabase.auth.getSession();
+        if (!verifySession) {
+          console.error("Session lost before redirect");
+          router.push("/auth/error?error=Session verification failed");
+          return;
+        }
+        
+        // Redirect based on role - use window.location for full page load
         if (isPrimaryAdmin(user) || role === "Admin") {
-          router.push("/Admin");
+          console.log("Redirecting to /Admin");
+          window.location.href = "/Admin";
         } else {
-          router.push("/dashboard");
+          console.log("Redirecting to /dashboard");
+          window.location.href = "/dashboard";
         }
       } catch (err: unknown) {
         console.error("OAuth callback error:", err);

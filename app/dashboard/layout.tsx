@@ -5,9 +5,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isPrimaryAdmin } from "@/lib/permissions";
+import { getCurrentUser } from "@/lib/auth-utils";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FileText, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, FileText, Settings, LogOut, Trophy } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -20,23 +21,87 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { config } = useBrandingConfig();
 
   useEffect(() => {
-    const check = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+    let isMounted = true;
+    let retryCount = 0;
+    const maxRetries = 5;
+    const supabase = createClient();
+
+    const checkAuth = async () => {
+      try {
+        // First try getSession which is more reliable immediately after login
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.log("Session error:", sessionError.message);
+        }
+        
+        let user = session?.user || null;
+        
+        // If no session, try getUser as fallback
+        if (!user) {
+          const { data: { user: userData }, error: userError } = await supabase.auth.getUser();
+          if (userError) {
+            console.log("User error:", userError.message);
+          }
+          user = userData || null;
+        }
+        
+        if (!isMounted) return;
+        
+        if (!user) {
+          // Retry a few times in case session is still loading
+          if (retryCount < maxRetries) {
+            retryCount++;
+            console.log(`No user found, retrying (${retryCount}/${maxRetries})...`);
+            setTimeout(checkAuth, 800 * retryCount);
+            return;
+          }
+          console.log("No user found after retries, redirecting to home");
+          router.push("/");
+          return;
+        }
+
+        if (isPrimaryAdmin(user)) {
+          console.log("Primary admin detected, redirecting to Admin");
+          router.push("/Admin");
+          return;
+        }
+
+        console.log("User authenticated successfully:", user.email);
+        setUserEmail(user.email ?? null);
+        setLoading(false);
+      } catch (error) {
+        console.error("Auth check failed:", error);
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`Auth error, retrying (${retryCount}/${maxRetries})...`);
+          setTimeout(checkAuth, 800 * retryCount);
+          return;
+        }
         router.push("/");
-        return;
       }
-
-      if (isPrimaryAdmin(user)) {
-        router.push("/Admin");
-        return;
-      }
-
-      setUserEmail(user.email ?? null);
-      setLoading(false);
     };
-    check();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: { user: { email: string | null } } | null) => {
+      console.log("Auth state changed:", event);
+      if (event === 'SIGNED_IN' && session?.user) {
+        console.log("User signed in via auth state change");
+        if (isPrimaryAdmin(session.user)) {
+          router.push("/Admin");
+        } else {
+          setUserEmail(session.user.email ?? null);
+          setLoading(false);
+        }
+      }
+    });
+    
+    checkAuth();
+    
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   useEffect(() => {
@@ -64,6 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navItems = useMemo(() => ([
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/exam", label: "Take Exam", icon: FileText },
+    { href: "/userExam", label: "My Exams", icon: Trophy },
     { href: "/dashboard/settings", label: "Settings", icon: Settings },
   ]), []);
 

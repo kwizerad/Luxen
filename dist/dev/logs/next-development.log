@@ -1,0 +1,157 @@
+{"timestamp":"00:00:03.656","source":"Server","level":"WARN","message":"⚠ Turbopack's filesystem cache has been deleted as the result of a user request. Builds or page loads may be slower as a result."}
+{"timestamp":"00:00:05.021","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:08.669","source":"Server","level":"LOG","message":"○ Compiling / ..."}
+{"timestamp":"00:00:12.789","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:00:13.019","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:00:13.019","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:00:13.084","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:00:13.085","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:00:13.108","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:00:13.112","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:00:13.112","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\u001b[39m"}
+{"timestamp":"00:00:14.294","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:00:14.294","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\u001b[39m"}
+{"timestamp":"00:00:14.294","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (2/2)"}
+{"timestamp":"00:00:15.011","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:00:15.163","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:00:15.163","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:00:15.163","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:00:15.163","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:00:15.265","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:00:15.266","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\u001b[39m"}
+{"timestamp":"00:00:15.266","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:00:16.452","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (2/2)"}
+{"timestamp":"00:00:16.452","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:00:16.453","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\u001b[39m"}
+{"timestamp":"00:00:18.680","source":"Browser","level":"WARN","message":"Google Identity Services unavailable - One Tap sign-in disabled"}
+{"timestamp":"00:00:18.687","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:93:19)\\u001b[22m\""}
+{"timestamp":"00:00:18.687","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\u001b[39m"}
+{"timestamp":"00:00:19.472","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:00:19.636","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:00:19.636","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:00:19.637","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:00:19.637","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:00:19.712","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:00:19.712","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\u001b[39m"}
+{"timestamp":"00:00:19.712","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:00:22.034","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (2/2)"}
+{"timestamp":"00:00:25.035","source":"Browser","level":"WARN","message":"Google Identity Services unavailable - One Tap sign-in disabled"}
+{"timestamp":"00:01:52.783","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:01:52.783","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\u001b[39m"}
+{"timestamp":"00:01:52.785","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:93:19)\\u001b[22m\""}
+{"timestamp":"00:01:52.785","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\u001b[39m"}
+{"timestamp":"00:01:54.770","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:01:54.957","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:01:54.957","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:01:54.959","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:01:54.959","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:01:55.045","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:01:55.046","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\u001b[39m"}
+{"timestamp":"00:01:55.046","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:01:56.468","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:01:56.636","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:01:56.636","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:01:56.637","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:01:56.637","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:01:57.029","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:01:57.029","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\u001b[39m"}
+{"timestamp":"00:01:57.029","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:01:57.751","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:01:57.908","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:01:57.908","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:01:57.908","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:01:57.909","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:01:58.081","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:01:58.081","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\u001b[39m"}
+{"timestamp":"00:01:58.082","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:01:58.975","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:01:59.077","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:01:59.077","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:01:59.077","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:01:59.077","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:01:59.382","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:01:59.383","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\u001b[39m"}
+{"timestamp":"00:01:59.384","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:02:02.040","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (2/2)"}
+{"timestamp":"00:02:05.039","source":"Browser","level":"WARN","message":"Google Identity Services unavailable - One Tap sign-in disabled"}
+{"timestamp":"00:03:24.194","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:03:24.195","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\u001b[39m"}
+{"timestamp":"00:03:24.196","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:93:19)\\u001b[22m\""}
+{"timestamp":"00:03:24.197","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\u001b[39m"}
+{"timestamp":"00:04:39.043","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:04:39.208","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:04:39.208","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:04:39.209","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:04:39.209","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:04:39.410","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:04:39.410","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\u001b[39m"}
+{"timestamp":"00:04:39.411","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:04:40.501","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:04:40.502","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:04:40.502","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:04:40.624","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (2/2)"}
+{"timestamp":"00:04:40.625","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:04:40.625","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\u001b[39m"}
+{"timestamp":"00:04:42.776","source":"Browser","level":"WARN","message":"Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}."}
+{"timestamp":"00:04:42.778","source":"Browser","level":"WARN","message":"Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}."}
+{"timestamp":"00:04:42.779","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:93:19)\\u001b[22m\""}
+{"timestamp":"00:04:42.779","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\u001b[39m"}
+{"timestamp":"00:04:42.780","source":"Browser","level":"WARN","message":"Google Identity Services unavailable - One Tap sign-in disabled"}
+{"timestamp":"00:04:42.815","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mWarning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.\\u001b[39m\""}
+{"timestamp":"00:04:42.816","source":"Browser","level":"WARN","message":"\u001b[33mWarning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.\u001b[39m"}
+{"timestamp":"00:04:42.838","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mWarning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.\\u001b[39m\""}
+{"timestamp":"00:04:42.839","source":"Browser","level":"WARN","message":"\u001b[33mWarning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.\u001b[39m"}
+{"timestamp":"00:04:52.249","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:04:52.349","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:04:52.349","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:04:52.350","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:04:52.350","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:04:52.527","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:04:52.527","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\u001b[39m"}
+{"timestamp":"00:04:52.528","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:04:53.725","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:04:53.726","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\u001b[39m"}
+{"timestamp":"00:04:53.726","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (2/2)"}
+{"timestamp":"00:04:53.927","source":"Browser","level":"LOG","message":"Redirecting to /dashboard"}
+{"timestamp":"00:04:53.944","source":"Browser","level":"LOG","message":"Redirecting to /dashboard"}
+{"timestamp":"00:04:55.910","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:93:19)\\u001b[22m\""}
+{"timestamp":"00:04:55.910","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\u001b[39m"}
+{"timestamp":"00:04:55.910","source":"Browser","level":"WARN","message":"Google Identity Services unavailable - One Tap sign-in disabled"}
+{"timestamp":"00:05:15.885","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:05:16.061","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:05:16.061","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:05:16.061","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:05:16.062","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:05:16.413","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:05:16.413","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\u001b[39m"}
+{"timestamp":"00:05:16.413","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:05:17.684","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:05:17.886","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:05:17.886","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:05:17.887","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:05:17.888","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:05:19.421","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:05:19.421","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (1/2)\u001b[39m"}
+{"timestamp":"00:05:19.421","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:05:20.752","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:90:19)\\u001b[22m\""}
+{"timestamp":"00:05:20.752","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services failed to load, retrying (2/2)\u001b[39m"}
+{"timestamp":"00:05:20.752","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (2/2)"}
+{"timestamp":"00:05:22.941","source":"Browser","level":"WARN","message":"Google Identity Services unavailable - One Tap sign-in disabled"}
+{"timestamp":"00:05:22.942","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:93:19)\\u001b[22m\""}
+{"timestamp":"00:05:22.942","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services unavailable - One Tap sign-in disabled\u001b[39m"}
+{"timestamp":"00:06:03.653","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:06:03.792","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:06:03.792","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:06:03.793","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:06:03.793","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:06:05.149","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:06:05.300","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:06:05.300","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:06:05.300","source":"Server","level":"WARN","message":"[browser] \"\\u001b[33mGoogle Identity Services not available\\u001b[39m\" \"\\u001b[2m(components/google-one-tap.tsx:119:15)\\u001b[22m\""}
+{"timestamp":"00:06:05.300","source":"Browser","level":"WARN","message":"\u001b[33mGoogle Identity Services not available\u001b[39m"}
+{"timestamp":"00:06:06.693","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:06:07.040","source":"Browser","level":"LOG","message":"Theme config loaded and applied: {\"dark\":{\"hoverBorderColor\":\"#14B8A6\",\"primaryColor\":\"#14B8A6\"},\"glowIntensity\":0,\"light\":{\"hoverBorderColor\":\"#22C55E\",\"primaryColor\":\"#22C55E\"}}"}
+{"timestamp":"00:06:07.040","source":"Browser","level":"WARN","message":"Google Identity Services not available"}
+{"timestamp":"00:06:08.030","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (1/2)"}
+{"timestamp":"00:06:10.031","source":"Browser","level":"WARN","message":"Google Identity Services failed to load, retrying (2/2)"}
+{"timestamp":"00:06:13.034","source":"Browser","level":"WARN","message":"Google Identity Services unavailable - One Tap sign-in disabled"}

@@ -19,11 +19,7 @@ declare global {
             context?: string;
             use_fedcm_for_prompt?: boolean;
           }) => void;
-          prompt: (callback?: (notification: {
-            isNotShown: () => boolean;
-            isSkippedMoment: () => boolean;
-            getMomentType: () => string;
-          }) => void) => void;
+          prompt: (callback?: (notification: any) => void) => void;
           cancel: () => void;
           disableAutoSelect: () => void;
         };
@@ -40,6 +36,27 @@ export function GoogleOneTap({ disabled = false }: GoogleOneTapProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [scriptLoaded, setScriptLoaded] = useState(false);
+
+  // Filter out non-critical GSI console errors
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const originalError = console.error;
+      console.error = (...args) => {
+        const message = args[0];
+        if (typeof message === 'string' && 
+            (message.includes('[GSI_LOGGER]: Check credential status returns invalid response') ||
+             message.includes('GSI_LOGGER'))) {
+          // Suppress these non-critical GSI logger messages
+          return;
+        }
+        originalError.apply(console, args);
+      };
+
+      return () => {
+        console.error = originalError;
+      };
+    }
+  }, []);
 
   // Load Google Identity Services script
   useEffect(() => {
@@ -60,8 +77,14 @@ export function GoogleOneTap({ disabled = false }: GoogleOneTapProps) {
       script.src = "https://accounts.google.com/gsi/client";
       script.async = true;
       script.defer = true;
-      script.onload = () => setScriptLoaded(true);
-      script.onerror = () => {
+      script.crossOrigin = "anonymous";
+      
+      script.onload = () => {
+        console.log("Google Identity Services loaded successfully");
+        setScriptLoaded(true);
+      };
+      
+      script.onerror = (error) => {
         retryCount++;
         if (retryCount <= maxRetries) {
           console.warn(`Google Identity Services failed to load, retrying (${retryCount}/${maxRetries})`);
@@ -71,6 +94,7 @@ export function GoogleOneTap({ disabled = false }: GoogleOneTapProps) {
           setScriptLoaded(false);
         }
       };
+      
       document.body.appendChild(script);
     };
 
@@ -145,8 +169,17 @@ export function GoogleOneTap({ disabled = false }: GoogleOneTapProps) {
 
     // Show the One Tap prompt
     window.google?.accounts.id.prompt((notification) => {
-      if (notification.isNotShown() || notification.isSkippedMoment()) {
-        console.log("Google One Tap not shown:", notification.getMomentType());
+      try {
+        // Check if the notification object has the expected methods
+        if (notification && typeof notification.isNotShown === 'function' && typeof notification.isSkippedMoment === 'function') {
+          if (notification.isNotShown() || notification.isSkippedMoment()) {
+            console.log("Google One Tap not shown:", typeof notification.getMomentType === 'function' ? notification.getMomentType() : 'unknown');
+          }
+        } else {
+          console.log("Google One Tap notification format unexpected:", notification);
+        }
+      } catch (error) {
+        console.error("Error handling Google One Tap notification:", error);
       }
     });
 

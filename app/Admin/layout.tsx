@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,23 +49,9 @@ export default function AdminLayout({
   const sidebarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const checkAdmin = async (retryCount = 0) => {
+    const checkAdmin = async () => {
       try {
-        const supabase = createClient();
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
-        // Handle auth lock error by retrying
-        if (error?.message?.includes("lock") && retryCount < 3) {
-          console.log("Auth lock detected, retrying...", retryCount + 1);
-          setTimeout(() => checkAdmin(retryCount + 1), 500 * (retryCount + 1));
-          return;
-        }
-        
-        if (error) {
-          console.error("Auth error:", error);
-          router.push("/");
-          return;
-        }
+        const user = await getCurrentUser();
         
         // Allow access if user is primary admin OR has Admin role
         const isPrimaryAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();

@@ -424,6 +424,65 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
   return { attempts: attempts || [] };
 }
 
+export async function getExamAttemptsWithQuestions(attemptId?: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  if (attemptId) {
+    // Get the specific attempt
+    const { data: attempt, error: attemptError } = await supabase
+      .from("exam_attempts")
+      .select("*")
+      .eq("id", attemptId)
+      .single();
+
+    if (attemptError) throw attemptError;
+
+    // Users can only see their own attempts, admins can see all
+    if (attempt.user_id !== user.id && !isAdmin(user)) {
+      throw new Error("Unauthorized");
+    }
+
+    // Get all question IDs from the answers
+    const questionIds = attempt.answers.map((answer: any) => answer.question_id);
+
+    if (questionIds.length === 0) {
+      return { attempt: { ...attempt, questions: [] } };
+    }
+
+    // Fetch the full question details
+    const { data: questions, error: questionsError } = await supabase
+      .from("exam_questions")
+      .select("*")
+      .in("id", questionIds);
+
+    if (questionsError) throw questionsError;
+
+    // Map questions to answers
+    const questionsWithAnswers = attempt.answers.map((answer: any) => {
+      const question = questions?.find((q: any) => q.id === answer.question_id);
+      return {
+        ...answer,
+        question: question || null
+      };
+    });
+
+    return { 
+      attempt: { 
+        ...attempt, 
+        answers: questionsWithAnswers,
+        questions: questions || []
+      } 
+    };
+  }
+
+  throw new Error("Attempt ID is required for detailed view");
+}
+
 export async function createExamAttempt(attemptData: {
   category_id: string;
   category_name: string;

@@ -7,12 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Trophy, Clock, TrendingUp, Play, Eye, CheckCircle, XCircle } from "lucide-react";
 import { Watermark } from "@/components/watermark";
+import { ExamDetailsModal } from "@/components/exam-details-modal";
 import type { ExamAttempt } from "@/lib/database.types";
-import { getExamAttempts } from "@/lib/supabase/queries";
+import { getExamAttempts, getExamAttemptsWithQuestions } from "@/lib/supabase/queries";
 
 export default function UserExamsPage() {
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAttempt, setSelectedAttempt] = useState<ExamAttempt | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   useEffect(() => {
     const loadAttempts = async () => {
@@ -46,6 +49,21 @@ export default function UserExamsPage() {
     if (percentage >= 80) return "default";
     if (percentage >= 60) return "secondary";
     return "destructive";
+  };
+
+  const handleViewDetails = async (attempt: ExamAttempt) => {
+    try {
+      setLoading(true);
+      const data = await getExamAttemptsWithQuestions(attempt.id);
+      if (data.attempt) {
+        setSelectedAttempt(data.attempt);
+        setShowDetailsModal(true);
+      }
+    } catch (error: any) {
+      toast.error("Failed to load exam details: " + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -185,7 +203,11 @@ export default function UserExamsPage() {
                   </div>
                   
                   <div className="mt-4 pt-4 border-t">
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleViewDetails(attempt)}
+                    >
                       <Eye className="h-4 w-4 mr-2" />
                       View Details
                     </Button>
@@ -196,6 +218,13 @@ export default function UserExamsPage() {
           </div>
         )}
       </div>
+
+      {/* Exam Details Modal */}
+      <ExamDetailsModal
+        attempt={selectedAttempt}
+        open={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+      />
     </div>
   );
 }
