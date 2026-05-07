@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
   },
   // Handle trailing slashes consistently
   trailingSlash: true,
+  // Silence Turbopack warning for PWA webpack config
+  turbopack: {},
 };
 
 // Apply PWA configuration only in production
