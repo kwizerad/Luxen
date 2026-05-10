@@ -66,7 +66,9 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
             glowIntensity: parsed.glowIntensity || 30,
           };
           // Save migrated config
-          localStorage.setItem("navo-theme-config", JSON.stringify(configToUse));
+          if (typeof window !== "undefined") {
+            localStorage.setItem("navo-theme-config", JSON.stringify(configToUse));
+          }
           console.log("Migrated old theme config to new format:", configToUse);
         }
         
@@ -165,47 +167,61 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
   const setLightPrimaryColor = (color: string) => {
     const newConfig = { ...config, light: { ...config.light, primaryColor: color } };
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const setLightHoverBorderColor = (color: string) => {
     const newConfig = { ...config, light: { ...config.light, hoverBorderColor: color } };
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const setDarkPrimaryColor = (color: string) => {
     const newConfig = { ...config, dark: { ...config.dark, primaryColor: color } };
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const setDarkHoverBorderColor = (color: string) => {
     const newConfig = { ...config, dark: { ...config.dark, hoverBorderColor: color } };
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const setGlowIntensity = (intensity: number) => {
     const newConfig = { ...config, glowIntensity: intensity };
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const saveConfig = (newConfig: ThemeConfig) => {
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const resetToDefault = () => {
     setConfig(defaultConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(defaultConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(defaultConfig));
+    }
     applyThemeConfig(defaultConfig);
   };
 

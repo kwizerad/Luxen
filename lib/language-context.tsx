@@ -963,6 +963,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
     if (typeof window !== "undefined") {
       localStorage.setItem("navo-language", lang);
+      window.dispatchEvent(new StorageEvent("storage", { key: "navo-language", newValue: lang }));
     }
   };
 

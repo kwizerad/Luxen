@@ -56,35 +56,44 @@ export function BrandingConfigProvider({ children }: { children: ReactNode }) {
   const setSystemName = (name: string) => {
     const newConfig = { ...config, systemName: name };
     setConfig(newConfig);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
-    // Dispatch event to notify other components
-    window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+      window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+    }
   };
 
   const setLogoUrl = (url: string | null) => {
     const newConfig = { ...config, logoUrl: url };
     setConfig(newConfig);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
-    window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+      window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+    }
   };
 
   const setLogoText = (text: string) => {
     const newConfig = { ...config, logoText: text };
     setConfig(newConfig);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
-    window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+      window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+    }
   };
 
   const saveConfig = (newConfig: BrandingConfig) => {
     setConfig(newConfig);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
-    window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+      window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+    }
   };
 
   const resetToDefault = () => {
     setConfig(defaultConfig);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultConfig));
-    window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultConfig));
+      window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+    }
   };
 
   return (
