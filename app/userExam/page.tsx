@@ -4,18 +4,32 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Trophy, Clock, TrendingUp, Play, Eye, CheckCircle, XCircle } from "lucide-react";
+import { Trophy, Clock, TrendingUp, Play, Eye, CheckCircle, XCircle, Trash2, AlertTriangle } from "lucide-react";
 import { Watermark } from "@/components/watermark";
 import { ExamDetailsModal } from "@/components/exam-details-modal";
+import { FloatingUserSettings } from "@/components/floating-user-settings";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { NotificationsDropdown } from "@/components/notifications-dropdown";
+import { useBrandingConfig } from "@/lib/branding-config";
 import type { ExamAttempt } from "@/lib/database.types";
-import { getExamAttempts, getExamAttemptsWithQuestions } from "@/lib/supabase/queries";
+import { getExamAttempts, getExamAttemptsWithQuestions, deleteExamAttempt } from "@/lib/supabase/queries";
+import Link from "next/link";
 
 export default function UserExamsPage() {
+  const { config } = useBrandingConfig();
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAttempt, setSelectedAttempt] = useState<ExamAttempt | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  
+  // Custom confirm dialog states
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState("");
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadAttempts = async () => {
@@ -66,6 +80,24 @@ export default function UserExamsPage() {
     }
   };
 
+  const handleDelete = (attemptId: string, category: string) => {
+    setConfirmTitle("Delete Exam History?");
+    setConfirmMessage(`Are you sure you want to delete the exam record for "${category}"?\n\nThis action cannot be undone.`);
+    setConfirmCallback(() => async () => {
+      try {
+        setDeletingId(attemptId);
+        await deleteExamAttempt(attemptId);
+        setAttempts(attempts.filter(a => a.id !== attemptId));
+        toast.success("Exam history deleted successfully");
+      } catch (error: any) {
+        toast.error("Failed to delete exam history: " + error.message);
+      } finally {
+        setDeletingId(null);
+      }
+    });
+    setShowConfirm(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -80,50 +112,23 @@ export default function UserExamsPage() {
     : 0;
 
   return (
-    <div className="space-y-6 relative">
-      <Watermark />
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold brand-protected">My Exams</h1>
-          <p className="text-muted-foreground mt-1">View your exam history and results</p>
-        </div>
-        <Button onClick={() => window.location.href = "/dashboard/exam"}>
-          <Play className="h-4 w-4 mr-2" />
-          Take New Exam
-        </Button>
+    <>
+      {/* Floating Navo Button */}
+      <div className="fixed top-4 left-4 z-50 md:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold">{config.logoText || "N"}</span>
+            )}
+          </div>
+          <span className="text-sm font-medium pr-1">{config.systemName}</span>
+        </Link>
       </div>
-
-      {/* Stats Overview */}
-      {completedAttempts.length > 0 && (
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card className="navo-card-brand">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Exams</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{completedAttempts.length}</div>
-            </CardContent>
-          </Card>
-          <Card className="navo-card-brand">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Average Score</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-3xl font-bold ${getScoreColor(averageScore)}`}>{averageScore}%</div>
-            </CardContent>
-          </Card>
-          <Card className="navo-card-brand">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Time</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">
-                {formatTime(completedAttempts.reduce((sum, a) => sum + a.duration_seconds, 0))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      
+      <div className="container mx-auto px-4 py-4 md:py-8 pt-16 md:pt-8 pb-24 md:pb-8 space-y-6 relative">
+        <Watermark />
 
       {/* Exam History */}
       <div className="space-y-4">
@@ -148,68 +153,82 @@ export default function UserExamsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {attempts.map((attempt) => (
               <Card 
                 key={attempt.id}
-                className="hover:shadow-md transition-shadow navo-card-brand"
+                className="hover:shadow-lg transition-all navo-card-brand flex flex-col"
               >
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center gap-2">
-                        <Trophy className="h-5 w-5 text-primary" />
-                        {attempt.category_name}
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-base font-semibold truncate flex items-center gap-2">
+                        <Trophy className="h-4 w-4 text-primary flex-shrink-0" />
+                        <span className="truncate">{attempt.category_name}</span>
                       </CardTitle>
-                      <CardDescription className="mt-1">
-                        {new Date(attempt.started_at).toLocaleString()}
+                      <CardDescription className="text-xs mt-1 truncate">
+                        {new Date(attempt.started_at).toLocaleDateString()} at {new Date(attempt.started_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </CardDescription>
                     </div>
-                    <Badge variant={getScoreBadge(attempt.score_percentage)} className="text-lg px-4 py-1">
+                    <Badge variant={getScoreBadge(attempt.score_percentage)} className="text-base px-2 py-0.5 flex-shrink-0">
                       {attempt.score_percentage}%
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <div>
-                        <div className="text-sm text-muted-foreground">Correct</div>
-                        <div className="font-semibold">{attempt.correct_answers}</div>
-                      </div>
+                <CardContent className="flex-1 flex flex-col justify-between space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Marks:</span>
+                      <span className={`font-semibold ${getScoreColor(attempt.score_percentage)}`}>
+                        {attempt.score_percentage}%
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <XCircle className="h-4 w-4 text-red-600" />
-                      <div>
-                        <div className="text-sm text-muted-foreground">Incorrect</div>
-                        <div className="font-semibold">{attempt.total_questions - attempt.correct_answers}</div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <CheckCircle className="h-3 w-3 text-green-600" />
+                        Correct
                       </div>
+                      <span className="font-semibold">{attempt.correct_answers}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <div className="text-sm text-muted-foreground">Time</div>
-                        <div className="font-semibold">{formatTime(attempt.duration_seconds)}</div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <XCircle className="h-3 w-3 text-red-600" />
+                        Incorrect
                       </div>
+                      <span className="font-semibold">{attempt.total_questions - attempt.correct_answers}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <div className="text-sm text-muted-foreground">Questions</div>
-                        <div className="font-semibold">{attempt.total_questions}</div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        Duration
                       </div>
+                      <span className="font-semibold">{formatTime(attempt.duration_seconds)}</span>
                     </div>
                   </div>
                   
-                  <div className="mt-4 pt-4 border-t">
+                  <div className="flex gap-2">
                     <Button 
                       variant="outline" 
                       size="sm"
+                      className="flex-1"
                       onClick={() => handleViewDetails(attempt)}
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       View Details
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="flex-1 text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(attempt.id, attempt.category_name)}
+                      disabled={deletingId === attempt.id}
+                    >
+                      {deletingId === attempt.id ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-destructive border-t-transparent mr-2" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 mr-2" />
+                      )}
+                      Delete
                     </Button>
                   </div>
                 </CardContent>
@@ -225,7 +244,52 @@ export default function UserExamsPage() {
         open={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
       />
-    </div>
+      
+      {/* Custom Confirm Dialog for Delete */}
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent className="max-w-md border-red-500 border-2">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl text-red-700">
+              <AlertTriangle className="h-6 w-6" />
+              {confirmTitle}
+            </DialogTitle>
+            <DialogDescription className="text-base mt-2 whitespace-pre-line">
+              {confirmMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 my-4">
+            <p className="text-sm text-red-800 font-medium text-center">
+              This action cannot be undone
+            </p>
+          </div>
+          <DialogFooter className="flex-row gap-3">
+            <Button 
+              variant="outline"
+              onClick={() => {
+                setShowConfirm(false);
+                setConfirmCallback(null);
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowConfirm(false);
+                confirmCallback?.();
+                setConfirmCallback(null);
+              }}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <MobileBottomNav />
+      </div>
+    </>
   );
 }
 

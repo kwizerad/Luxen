@@ -12,12 +12,13 @@ const config: CapacitorConfig = {
   server: {
     // Use deployed URL for production mobile app, or local IP for dev
     // Example local dev: 'http://192.168.1.100:3000' (your computer's IP)
+    // NOTE: Only set url for external loading - leave empty for local build files
     url: process.env.NEXT_PUBLIC_LIVE_URL || '',
     // Allow cleartext HTTP for local development
     cleartext: true,
     androidScheme: 'https',
-    // Enable capacitor-native http for API calls (allows calling external APIs)
-    allowNavigation: ['*'],
+    // Limit allowNavigation to prevent external redirect loops
+    allowNavigation: [],
   },
 
   // Android specific configuration
@@ -28,6 +29,8 @@ const config: CapacitorConfig = {
     captureInput: true,
     // Background color for the webview during load
     backgroundColor: '#3b82f6',
+    // Disable WebView built-in error page reloads
+    webContentsDebuggingEnabled: false,
   },
 
   // Plugins configuration

@@ -80,3 +80,12 @@ export interface UserProfile {
   created_at: string;
   updated_at?: string;
 }
+
+export interface SystemConfig {
+  id: string;
+  key: string;
+  value: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}

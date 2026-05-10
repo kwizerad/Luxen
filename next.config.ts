@@ -15,8 +15,41 @@ const nextConfig: NextConfig = {
   },
   // Handle trailing slashes consistently
   trailingSlash: true,
+  // Disable React StrictMode to prevent double-mounting issues
+  reactStrictMode: false,
   // Silence Turbopack warning for PWA webpack config
   turbopack: {},
+  // Add headers to handle CORS for Google Identity Services
+  async headers() {
+    return [
+      {
+        source: '/_next/static/(.*)',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+        ],
+      },
+      {
+        source: '/(.*).google.com/(.*)',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, PUT, DELETE, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 // Apply PWA configuration only in production

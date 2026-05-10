@@ -229,7 +229,6 @@ export default function AdminLayout({
     { href: "/Admin", icon: LayoutDashboard, label: "Dashboard" },
     ...(canViewStudentsTab ? [{ href: "/Admin/users", icon: Users, label: "Users" }] : []),
     ...(canAddQuestionsTab ? [{ href: "/Admin/exams", icon: FileText, label: "Exam Management" }] : []),
-    ...(canViewQuestionsTab ? [{ href: "/Admin/questions", icon: FileText, label: "Questions" }] : []),
   ];
 
   const SidebarContent = () => (

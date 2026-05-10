@@ -99,12 +99,13 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
 
   const applyTextSize = (size: TextSize) => {
     const root = document.documentElement;
+    // Use rem units for better accessibility and responsiveness
     if (size === "small") {
-      root.style.fontSize = "14px";
+      root.style.fontSize = "0.875rem"; // 14px base
     } else if (size === "medium") {
-      root.style.fontSize = "16px";
+      root.style.fontSize = "1rem"; // 16px base
     } else if (size === "large") {
-      root.style.fontSize = "18px";
+      root.style.fontSize = "1.125rem"; // 18px base
     }
   };
 
@@ -276,6 +277,15 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
     
     try {
       const supabase = createClient();
+      
+      // Get current session to ensure user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("You must be logged in to update your profile");
+        setUpdatingProfile(false);
+        return;
+      }
+      
       const { data, error } = await supabase.auth.updateUser({
         data: {
           first_name: firstName.trim(),
@@ -287,7 +297,10 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
         },
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Profile update error:", error);
+        throw error;
+      }
       
       toast.success("Profile information updated successfully");
       
@@ -296,7 +309,15 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
         onUserUpdate(data.user);
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to update profile");
+      console.error("Failed to update profile:", error);
+      // Check for specific Supabase error types
+      if (error?.code === 'PGRST116') {
+        toast.error("Session expired. Please sign in again.");
+      } else if (error?.message?.includes('JWT')) {
+        toast.error("Authentication error. Please sign in again.");
+      } else {
+        toast.error(error?.message || "Failed to update profile. Please try again.");
+      }
     } finally {
       setUpdatingProfile(false);
     }

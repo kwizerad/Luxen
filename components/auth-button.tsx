@@ -5,6 +5,7 @@ import { LogoutButton } from "./logout-button";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModals } from "@/lib/auth-modals-context";
 import { useLanguage } from "@/lib/language-context";
+import { isAdmin } from "@/lib/permissions";
 
 export function AuthButton() {
   const { user, loading } = useAuth();
@@ -17,7 +18,11 @@ export function AuthButton() {
 
   return user ? (
     <div className="flex items-center gap-4">
-      <Button variant="ghost" size="sm" onClick={() => window.location.href = "/dashboard"}>
+      <Button variant="ghost" size="sm" onClick={() => {
+        // Redirect admins to /Admin, regular users to /dashboard
+        const destination = isAdmin(user) ? "/Admin" : "/dashboard";
+        window.location.href = destination;
+      }}>
         {t("dashboard")}
       </Button>
       <LogoutButton />

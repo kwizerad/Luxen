@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { useBrandingConfig } from "@/lib/branding-config";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +45,7 @@ import { DEFAULT_EXAM_SETTINGS } from "@/lib/exam-settings";
 const ADMIN_EMAIL = "Navo@admin.jn";
 
 export default function ExamManagementPage() {
+  const { config } = useBrandingConfig();
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [filteredQuestions, setFilteredQuestions] = useState<ExamQuestion[]>([]);
@@ -622,13 +625,24 @@ export default function ExamManagementPage() {
 
   if (!hasPermission) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Exam Management</h1>
+      <>
+        {/* Floating Navo Button */}
+        <div className="fixed top-4 left-4 z-50 md:hidden">
+          <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+              {config.logoUrl ? (
+                <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xs font-bold">{config.logoText || "N"}</span>
+              )}
+            </div>
+            <span className="text-sm font-medium pr-1">{config.systemName}</span>
+          </Link>
         </div>
-        <Card className="border-destructive/20 hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--destructive)/0.3)] hover:-translate-y-1 hover:border-destructive transition-all duration-300">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
+        
+        <div className="flex items-center justify-center min-h-screen">
+          <Card>
+            <CardContent className="flex items-start gap-4 p-6">
               <AlertTriangle className="h-6 w-6 text-destructive mt-0.5" />
               <div>
                 <h3 className="font-semibold text-destructive">Access Denied</h3>
@@ -636,17 +650,32 @@ export default function ExamManagementPage() {
                   You don't have permission to manage exams. Please contact the primary administrator for access.
                 </p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="space-y-6 relative">
-      <Watermark />
-      <div className="flex items-start justify-between gap-4">
+    <>
+      {/* Floating Navo Button */}
+      <div className="fixed top-4 left-4 z-50 md:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold">{config.logoText || "N"}</span>
+            )}
+          </div>
+          <span className="text-sm font-medium pr-1">{config.systemName}</span>
+        </Link>
+      </div>
+      
+      <div className="space-y-6 relative">
+        <Watermark />
+        <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold brand-protected">Exam Management</h1>
           <p className="text-muted-foreground mt-1">
@@ -1500,6 +1529,7 @@ export default function ExamManagementPage() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </>
   );
 }

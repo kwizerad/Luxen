@@ -6,8 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { checkAdminExists, setupAdmin } from "@/lib/supabase/queries";
+import { useBrandingConfig } from "@/lib/branding-config";
+import Link from "next/link";
 
 export default function SetupAdminPage() {
+  const { config } = useBrandingConfig();
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [adminExists, setAdminExists] = useState(true);
@@ -103,14 +106,29 @@ export default function SetupAdminPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Setup Admin Account</CardTitle>
-          <CardDescription>
-            Create the admin user with role metadata
-          </CardDescription>
-        </CardHeader>
+    <>
+      {/* Floating Navo Button */}
+      <div className="fixed top-4 left-4 z-50 md:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold">{config.logoText || "N"}</span>
+            )}
+          </div>
+          <span className="text-sm font-medium pr-1">{config.systemName}</span>
+        </Link>
+      </div>
+      
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl">Setup Admin Account</CardTitle>
+            <CardDescription>
+              Create the admin user with role metadata
+            </CardDescription>
+          </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-muted p-3 rounded-md text-sm">
             <p><strong>Email:</strong> Navo@admin.jn</p>
@@ -133,6 +151,7 @@ export default function SetupAdminPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }

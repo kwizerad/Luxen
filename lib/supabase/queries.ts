@@ -1,9 +1,26 @@
 "use client";
 
 import { createClient } from "./client";
+import { createAdminClient } from "./admin";
 import { isAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
 import type { ExamQuestion, ExamAnswer, ExamQuestionSortingMode } from "@/lib/database.types";
+
+// Helper function to handle Supabase auth lock errors
+async function getAuthUser() {
+  const supabase = createClient();
+  try {
+    const result = await supabase.auth.getUser();
+    return result.data.user;
+  } catch (error: any) {
+    // Suppress lock errors - they're internal Supabase timing issues
+    if (error?.message?.includes("lock") || error?.message?.includes("Lock")) {
+      console.warn("Supabase auth lock error (non-critical):", error.message);
+      throw new Error("Auth temporarily unavailable, please try again");
+    }
+    throw error;
+  }
+}
 
 // ============================================================================
 // EXAM CATEGORIES QUERIES
@@ -11,7 +28,7 @@ import type { ExamQuestion, ExamAnswer, ExamQuestionSortingMode } from "@/lib/da
 
 export async function getExamCategories() {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
@@ -32,7 +49,7 @@ export async function getExamCategories() {
 
 export async function createExamCategory(name: string, is_published = false) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const isPrimaryAdmin = user?.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
 
@@ -56,7 +73,7 @@ export async function createExamCategory(name: string, is_published = false) {
 
 export async function updateExamCategory(id: string, name: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const isPrimaryAdmin = user?.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
 
@@ -81,7 +98,7 @@ export async function updateExamCategory(id: string, name: string) {
 
 export async function deleteExamCategory(id: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const isPrimaryAdmin = user?.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
 
@@ -113,7 +130,7 @@ export async function deleteExamCategory(id: string) {
 
 export async function toggleCategoryPublishStatus(id: string, is_published: boolean) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
@@ -147,7 +164,7 @@ export async function toggleCategoryPublishStatus(id: string, is_published: bool
 
 export async function getExamQuestions(categoryId?: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user || !isAdmin(user)) {
     throw new Error("Unauthorized");
@@ -167,7 +184,7 @@ export async function getExamQuestions(categoryId?: string) {
 
 export async function getPublicExamQuestions(categoryId?: string, search?: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -205,7 +222,7 @@ export async function createExamQuestion(questionData: {
   explanation?: string;
 }) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user || !isAdmin(user)) {
     throw new Error("Unauthorized. You must be an admin to add questions.");
@@ -317,7 +334,7 @@ export async function createExamQuestion(questionData: {
 
 export async function updateExamQuestion(id: string, updateData: Partial<ExamQuestion>) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user || !isAdmin(user)) {
     throw new Error("Unauthorized");
@@ -344,7 +361,7 @@ export async function updateExamQuestion(id: string, updateData: Partial<ExamQue
 
 export async function deleteExamQuestion(id: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user || !isAdmin(user)) {
     throw new Error("Unauthorized");
@@ -373,7 +390,7 @@ export async function deleteExamQuestion(id: string) {
 
 export async function getExamAttempts(userId?: string, attemptId?: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -424,9 +441,41 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
   return { attempts: attempts || [] };
 }
 
+export async function deleteExamAttempt(attemptId: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  // Verify the attempt belongs to the user or user is admin
+  const { data: attempt, error: fetchError } = await supabase
+    .from("exam_attempts")
+    .select("*")
+    .eq("id", attemptId)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  if (attempt.user_id !== user.id && !isAdmin(user)) {
+    throw new Error("Unauthorized: You can only delete your own exam attempts");
+  }
+
+  // Delete the exam attempt
+  const { error: deleteError } = await supabase
+    .from("exam_attempts")
+    .delete()
+    .eq("id", attemptId);
+
+  if (deleteError) throw deleteError;
+
+  return { success: true };
+}
+
 export async function getExamAttemptsWithQuestions(attemptId?: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -491,7 +540,7 @@ export async function createExamAttempt(attemptData: {
   duration_seconds: number;
 }) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -546,7 +595,7 @@ export async function createExamAttempt(attemptData: {
 
 export async function getExamSettings(categoryId: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -584,7 +633,7 @@ export async function updateExamSettings(
   }
 ) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user || !canManageExamSettings(user)) {
     throw new Error("Unauthorized");
@@ -642,7 +691,7 @@ export async function updateExamSettings(
 
 export async function getExamLimits(userId?: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -736,7 +785,7 @@ export async function getExamLimits(userId?: string) {
 
 export async function updateExamLimit(user_id: string, daily_limit?: number, is_limited?: boolean) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -767,7 +816,10 @@ export async function updateExamLimit(user_id: string, daily_limit?: number, is_
     upsertData.is_limited = is_limited;
   }
 
-  const { data, error } = await supabase
+  // Use admin client to bypass RLS policies
+  const adminClient = createAdminClient();
+
+  const { data, error } = await adminClient
     .from("user_exam_limits")
     .upsert(upsertData, { onConflict: "user_id" })
     .select()
@@ -784,7 +836,7 @@ export async function updateExamLimit(user_id: string, daily_limit?: number, is_
 
 export async function deleteExamLimit(userId: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -798,7 +850,10 @@ export async function deleteExamLimit(userId: string) {
     throw new Error("userId is required");
   }
 
-  const { error } = await supabase
+  // Use admin client to bypass RLS policies
+  const adminClient = createAdminClient();
+
+  const { error } = await adminClient
     .from("user_exam_limits")
     .delete()
     .eq("user_id", userId);
@@ -817,7 +872,7 @@ export async function deleteExamLimit(userId: string) {
 
 export async function getExamForTaking(categoryId: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -832,7 +887,16 @@ export async function getExamForTaking(categoryId: string) {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Get user's daily limit and unlimited status
+  // Get universal exam limit
+  const { data: universalLimit, error: universalError } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", "universal_exam_limit")
+    .single();
+
+  const universalExamLimit = universalLimit ? parseInt(universalLimit.value, 10) : 5;
+
+  // Get user's daily limit and unlimited status (user limit can override universal)
   const { data: userLimit, error: limitError } = await supabase
     .from("user_exam_limits")
     .select("daily_limit, is_limited")
@@ -844,7 +908,9 @@ export async function getExamForTaking(categoryId: string) {
   }
 
   const isLimited = userLimit?.is_limited ?? true;
-  const dailyLimit = userLimit?.daily_limit ?? 5;
+  // Use user limit if set and less than universal, otherwise use universal
+  const userLimitValue = userLimit?.daily_limit ?? universalExamLimit;
+  const dailyLimit = Math.min(userLimitValue, universalExamLimit);
 
   // Count today's attempts
   const { count: attemptsToday, error: countError } = await supabase
@@ -940,7 +1006,7 @@ export async function getExamForTaking(categoryId: string) {
 
 export async function getNotifications(unreadOnly = false, limit = 50) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -949,20 +1015,23 @@ export async function getNotifications(unreadOnly = false, limit = 50) {
   const userRole = user.user_metadata?.role || "student";
   const isUserAdmin = isAdmin(user);
 
+  // Build the OR conditions properly
+  let orConditions = [`target_user_id.eq.${user.id}`, `target_role.eq.all`];
+  
+  if (userRole !== "Admin" && userRole !== "Teacher") {
+    orConditions.push("target_role.eq.student");
+  }
+  if (isUserAdmin) {
+    orConditions.push("target_role.eq.admin");
+  }
+  if (userRole === "Teacher") {
+    orConditions.push("target_role.eq.teacher");
+  }
+
   let query = supabase
     .from("notifications")
     .select("*")
-    .or(`target_user_id.eq.${user.id},target_role.eq.all`);
-
-  if (userRole !== "Admin" && userRole !== "Teacher") {
-    query = query.or("target_role.eq.student");
-  }
-  if (isUserAdmin) {
-    query = query.or("target_role.eq.admin");
-  }
-  if (userRole === "Teacher") {
-    query = query.or("target_role.eq.teacher");
-  }
+    .or(orConditions.join(","));
 
   query = query.or("expires_at.is.null,expires_at.gt.now()");
   query = query.order("created_at", { ascending: false });
@@ -1007,14 +1076,16 @@ export async function createNotification(notification: {
   title: string;
   message: string;
   type?: string;
+  priority?: "urgent" | "normal" | "low";
   target_role?: string;
   target_user_id?: string;
   expires_at?: string;
   related_entity_type?: string;
   related_entity_id?: string;
+  action_url?: string;
 }) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -1028,11 +1099,13 @@ export async function createNotification(notification: {
     title,
     message,
     type = "info",
+    priority = "normal",
     target_role = "all",
     target_user_id,
     expires_at,
     related_entity_type,
     related_entity_id,
+    action_url,
   } = notification;
 
   if (!title || !message) {
@@ -1050,6 +1123,7 @@ export async function createNotification(notification: {
       title,
       message,
       type,
+      priority,
       target_role,
       target_user_id,
       sender_id: user.id,
@@ -1057,6 +1131,7 @@ export async function createNotification(notification: {
       expires_at,
       related_entity_type,
       related_entity_id,
+      action_url,
     }])
     .select()
     .single();
@@ -1072,7 +1147,7 @@ export async function createNotification(notification: {
 
 export async function markNotificationAsRead(notificationId: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -1099,7 +1174,7 @@ export async function markNotificationAsRead(notificationId: string) {
 
 export async function markAllNotificationsAsRead() {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -1134,7 +1209,7 @@ export async function markAllNotificationsAsRead() {
 
 export async function deleteNotification(notificationId: string) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     throw new Error("Unauthorized");
@@ -1167,7 +1242,7 @@ export async function deleteNotification(notificationId: string) {
 
 export async function getAdminStats() {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
@@ -1235,7 +1310,7 @@ export async function getAdminStats() {
 
 export async function getUsers(type: "students" | "admins" = "students") {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user || !isAdmin(user)) {
     throw new Error("Unauthorized - Admin access required");
@@ -1310,4 +1385,106 @@ export async function setupAdmin(email: string, password: string) {
     message: "Admin user created successfully",
     user: data.user,
   };
+}
+
+// ============================================================================
+// SYSTEM CONFIGURATION QUERIES
+// ============================================================================
+
+export async function getSystemConfig(key?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  // Only admins can access system config
+  if (!isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  if (key) {
+    const { data, error } = await supabase
+      .from("system_config")
+      .select("*")
+      .eq("key", key)
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+    return { config: data };
+  }
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("*")
+    .order("key");
+
+  if (error) throw error;
+  return { configs: data || [] };
+}
+
+export async function updateSystemConfig(key: string, value: string, description?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  // Only admins can update system config
+  if (!isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .upsert(
+      {
+        key,
+        value,
+        description,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "key" }
+    )
+    .select()
+    .single();
+
+  if (error) throw error;
+  return { config: data };
+}
+
+// Get universal exam limit for all users
+export async function getUniversalExamLimit(): Promise<number> {
+  const supabase = createClient();
+  
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", "universal_exam_limit")
+    .single();
+
+  if (error || !data) {
+    return 5; // Default limit
+  }
+
+  return parseInt(data.value, 10) || 5;
+}
+
+// Check if violation measures are enabled
+export async function areViolationMeasuresEnabled(): Promise<boolean> {
+  const supabase = createClient();
+  
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", "violation_measures_enabled")
+    .single();
+
+  if (error || !data) {
+    return true; // Default to enabled
+  }
+
+  return data.value === "true";
 }

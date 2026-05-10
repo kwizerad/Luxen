@@ -29,7 +29,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user as User | null);
-    } catch (error) {
+    } catch (error: any) {
+      // Suppress lock errors - they're internal Supabase timing issues
+      if (error?.message?.includes("lock") || error?.message?.includes("Lock")) {
+        console.warn("Supabase auth lock error (non-critical):", error.message);
+        // Don't set user to null on lock errors - keep existing state
+        return;
+      }
       console.error("Auth context error:", error);
       setUser(null);
     } finally {

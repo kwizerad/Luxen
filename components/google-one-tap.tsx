@@ -37,6 +37,10 @@ export function GoogleOneTap({ disabled = false }: GoogleOneTapProps) {
   const { user } = useAuth();
   const [scriptLoaded, setScriptLoaded] = useState(false);
 
+  // Disable Google One Tap in development mode to avoid CORS issues
+  const isDevelopment = process.env.NODE_ENV === "development";
+  if (isDevelopment || disabled || user) return null;
+
   // Filter out non-critical GSI console errors
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -78,6 +82,10 @@ export function GoogleOneTap({ disabled = false }: GoogleOneTapProps) {
       script.async = true;
       script.defer = true;
       script.crossOrigin = "anonymous";
+      script.type = "text/javascript";
+      
+      // Add additional attributes for better CORS handling
+      script.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
       
       script.onload = () => {
         console.log("Google Identity Services loaded successfully");
@@ -95,7 +103,8 @@ export function GoogleOneTap({ disabled = false }: GoogleOneTapProps) {
         }
       };
       
-      document.body.appendChild(script);
+      // Append to head instead of body for better loading
+      document.head.appendChild(script);
     };
 
     loadScript();

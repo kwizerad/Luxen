@@ -45,7 +45,7 @@ export function FloatingSettings() {
   };
 
   return (
-    <div className="fixed right-5 bottom-5 z-50">
+    <div className="fixed right-5 bottom-5 z-50 hidden md:block">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

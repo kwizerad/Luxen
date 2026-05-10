@@ -6,6 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Mail, User, ArrowLeft, LogOut, Menu } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { UserSettings } from "@/components/user-settings";
+import { FloatingUserSettings } from "@/components/floating-user-settings";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { useBrandingConfig } from "@/lib/branding-config";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -28,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function StudentSettingsPage() {
+  const { config } = useBrandingConfig();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -79,39 +83,21 @@ export default function StudentSettingsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Manage your profile, preferences, and account details.
-              </p>
-            </div>
+      {/* Floating Navo Button */}
+      <div className="fixed top-4 left-4 z-50 md:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold">{config.logoText || "N"}</span>
+            )}
           </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-3 rounded-3xl border border-border bg-secondary/80 px-4 py-3">
-              <Avatar className="h-10 w-10">
-                {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
-                <AvatarFallback className="text-sm font-semibold">{getInitials()}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm font-medium">{getDisplayName()}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => router.push("/dashboard")}>Back to Dashboard</Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
+          <span className="text-sm font-medium pr-1">{config.systemName}</span>
+        </Link>
+      </div>
+      
+      <main className="container mx-auto px-4 py-4 md:py-8 pt-16 md:pt-8 pb-24 md:pb-8">
         <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
           <div className="space-y-6">
             <Card className="border border-border rounded-[32px] shadow-sm hover:shadow-lg transition-shadow duration-300">
@@ -174,24 +160,22 @@ export default function StudentSettingsPage() {
 
             <Card className="border border-border rounded-[32px] shadow-sm hover:shadow-lg transition-shadow duration-300">
               <CardHeader>
-                <CardTitle>Need help?</CardTitle>
-                <CardDescription>Useful links and support resources.</CardDescription>
+                <CardTitle>Quick Links</CardTitle>
+                <CardDescription>Useful links and resources</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Link href="/dashboard/settings" className="block rounded-2xl border border-border bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/90">
-                  Update profile settings
-                </Link>
                 <Link href="/dashboard/exam" className="block rounded-2xl border border-border bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/90">
                   View available exams
                 </Link>
-                <Link href="/dashboard" className="block rounded-2xl border border-border bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/90">
-                  Back to home
+                <Link href="/userExam" className="block rounded-2xl border border-border bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/90">
+                  View exam history
                 </Link>
               </CardContent>
             </Card>
           </div>
         </div>
       </main>
+      <MobileBottomNav />
     </div>
   );
 }

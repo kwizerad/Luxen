@@ -9,11 +9,14 @@ import { Label } from "@/components/ui/label";
 import { UserSettings } from "@/components/user-settings";
 import { ThemeCustomizer } from "@/components/theme-customizer";
 import { BrandingCustomizer } from "@/components/branding-customizer";
+import { SystemConfigSettings } from "@/components/system-config";
 import { Loader2 } from "lucide-react";
 import { ADMIN_CREDENTIALS } from "@/lib/admin-config";
 import Link from "next/link";
+import { useBrandingConfig } from "@/lib/branding-config";
 
 export default function AdminSettingsPage() {
+  const { config } = useBrandingConfig();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,16 +50,31 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-8">
-      <main className="container mx-auto px-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Settings</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage your admin account, brand, and appearance.
-            </p>
+    <>
+      {/* Floating Navo Button */}
+      <div className="fixed top-4 left-4 z-50 md:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold">{config.logoText || "N"}</span>
+            )}
           </div>
-          {user?.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() && (
+          <span className="text-sm font-medium pr-1">{config.systemName}</span>
+        </Link>
+      </div>
+      
+      <div className="min-h-screen bg-background py-8">
+        <main className="container mx-auto px-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Settings</h1>
+              <p className="text-muted-foreground mt-1">
+                Manage your admin account, brand, and appearance.
+              </p>
+            </div>
+            {user?.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() && (
             <Button asChild>
               <Link href="/Admin/register">
                 <UserPlus className="mr-2 h-4 w-4" />
@@ -104,6 +122,8 @@ export default function AdminSettingsPage() {
                 <UserSettings showPasswordChange={true} />
               </CardContent>
             </Card>
+
+            <SystemConfigSettings />
           </div>
 
           <div className="space-y-6">
@@ -129,6 +149,7 @@ export default function AdminSettingsPage() {
           </div>
         </div>
       </main>
-    </div>
+      </div>
+    </>
   );
 }

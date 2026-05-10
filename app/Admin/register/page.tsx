@@ -13,11 +13,14 @@ import { useRouter } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PRIMARY_ADMIN_EMAIL, DEFAULT_PERMISSIONS, getUserPermissions } from "@/lib/permissions";
-import Link from "next/link";
+import { Watermark } from "@/components/watermark";
+import { useBrandingConfig } from "@/lib/branding-config";
 import { getUsers } from "@/lib/supabase/queries";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export default function RegisterAdminPage() {
+  const { config } = useBrandingConfig();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -249,15 +252,30 @@ export default function RegisterAdminPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/Admin/settings">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-          </Button>
-          <div>
+    <>
+      {/* Floating Navo Button */}
+      <div className="fixed top-4 left-4 z-50 md:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold">{config.logoText || "N"}</span>
+            )}
+          </div>
+          <span className="text-sm font-medium pr-1">{config.systemName}</span>
+        </Link>
+      </div>
+      
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/Admin/settings">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <UserPlus className="h-8 w-8 text-primary" />
               Register New Admin
@@ -949,6 +967,7 @@ export default function RegisterAdminPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </>
   );
 }

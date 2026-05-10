@@ -14,13 +14,8 @@ import { useBrandingConfig } from "@/lib/branding-config";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { FloatingUserSettings } from "@/components/floating-user-settings";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import {
   Dialog,
   DialogContent,
@@ -102,7 +97,10 @@ export default function Dashboard() {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          console.log("Session error:", sessionError.message);
+          // Suppress lock errors
+          if (!sessionError.message?.includes("lock") && !sessionError.message?.includes("Lock")) {
+            console.log("Session error:", sessionError.message);
+          }
         }
         
         let user = session?.user || null;
@@ -110,13 +108,18 @@ export default function Dashboard() {
         // If no session, try getUser as fallback
         if (!user) {
           const { data: { user: userData }, error: userError } = await supabase.auth.getUser();
-          if (userError && userError.message?.includes("lock")) {
-            if (retryCount < maxRetries) {
-              retryCount++;
-              setTimeout(checkUser, 100 * retryCount);
-              return;
+          if (userError) {
+            // Suppress lock errors
+            if (userError.message?.includes("lock") || userError.message?.includes("Lock")) {
+              if (retryCount < maxRetries) {
+                retryCount++;
+                setTimeout(checkUser, 100 * retryCount);
+                return;
+              }
+              console.warn("Auth lock timeout after retries, continuing...");
+            } else {
+              console.log("User error:", userError.message);
             }
-            console.warn("Auth lock timeout after retries, continuing...");
           }
           user = userData || null;
         }
@@ -309,384 +312,25 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
-              {config.logoUrl ? (
-                <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-sm font-bold">{config.logoText || "N"}</span>
-              )}
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">{config.systemName}</h1>
-              <p className="text-sm text-muted-foreground">{t("learningDashboard")}</p>
-            </div>
+      {/* Floating Navo Button */}
+      <div className="fixed top-4 left-4 z-50 md:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold">{config.logoText || "N"}</span>
+            )}
           </div>
-          <div className="flex items-center gap-3">
-            <NotificationsDropdown />
-            {/* Desktop: Show avatar and dropdown */}
-            <div className="hidden md:flex items-center gap-3">
-              <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setShowAccountDialog(true)}>
-                <Avatar className="h-8 w-8">
-                  {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
-                  <AvatarFallback className="text-xs font-semibold">{getInitials()}</AvatarFallback>
-                </Avatar>
-                <span className="text-sm font-medium text-foreground">
-                  {getDisplayName()}
-                </span>
-              </div>
-              <Button variant="outline" onClick={async () => {
-                const supabase = createClient();
-                await supabase.auth.signOut();
-                router.push("/");
-              }}>{t("logout")}</Button>
-            </div>
+          <span className="text-sm font-medium pr-1">{config.systemName}</span>
+        </Link>
+      </div>
+      
+      <main className="container mx-auto px-4 py-4 md:py-8 pt-16 md:pt-8 pb-24 md:pb-8">
 
-            {/* Mobile: Menu button */}
-            <div className="md:hidden">
-              <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => setShowAccountDialog(true)}>
-                    <User className="mr-2 h-4 w-4" />
-                    {t("accountInfo")}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/settings" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={async () => {
-                    const supabase = createClient();
-                    await supabase.auth.signOut();
-                    router.push("/");
-                  }} className="text-destructive focus:text-destructive cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    {t("logout")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">{t("welcomeBack")}</h2>
-          <p className="text-muted-foreground">{t("learningDashboard")}</p>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-3 mb-8">
-          <Button 
-            onClick={() => router.push("/dashboard/exam")} 
-            className="gap-2"
-            disabled={!examLimit.unlimited && examLimit.remaining_attempts === 0}
-          >
-            <Play className="h-4 w-4" />
-            {!examLimit.unlimited && examLimit.remaining_attempts === 0 ? 'Daily Limit Reached' : 'Take Exam'}
-          </Button>
-          <Button variant="outline" onClick={() => router.push("/userExam")} className="gap-2">
-            <History className="h-4 w-4" />
-            Exam History
-          </Button>
-        </div>
-
-        {/* Exam Statistics */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t("totalExamsTaken")}</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{examStats.totalExams}</div>
-              <p className="text-xs text-muted-foreground">{examStats.totalExams > 0 ? "Completed exams" : "No exams yet"}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t("averageScore")}</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${examStats.averageScore >= 80 ? 'text-green-600' : examStats.averageScore >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
-                {examStats.averageScore}%
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {examStats.averageScore >= 80 ? 'Excellent performance!' : examStats.averageScore >= 60 ? 'Good progress' : 'Keep practicing'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t("bestScore")}</CardTitle>
-              <Trophy className="h-4 w-4 text-amber-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">{examStats.bestScore}%</div>
-              <p className="text-xs text-muted-foreground">Personal best</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t("totalTimeSpent")}</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {Math.floor(examStats.totalTime / 3600)}h {Math.floor((examStats.totalTime % 3600) / 60)}m
-              </div>
-              <p className="text-xs text-muted-foreground">Across all exams</p>
-            </CardContent>
-          </Card>
-
-          {/* Remaining Attempts Card */}
-          <Card className={`hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300 ${
-            !examLimit.unlimited && examLimit.remaining_attempts === 0 ? 'border-red-300 bg-red-50/30 dark:bg-red-950/20' : 
-            !examLimit.unlimited && examLimit.remaining_attempts <= 2 ? 'border-yellow-300 bg-yellow-50/30 dark:bg-yellow-950/20' : 
-            examLimit.unlimited ? 'border-green-300 bg-green-50/30 dark:bg-green-950/20' : 
-            ''
-          }`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {examLimit.unlimited ? 'Unlimited Access' : 'Remaining Attempts'}
-              </CardTitle>
-              {examLimit.unlimited ? (
-                <Infinity className="h-4 w-4 text-green-500" />
-              ) : (
-                <Hash className={`h-4 w-4 ${
-                  examLimit.remaining_attempts === 0 ? 'text-red-500' : 
-                  examLimit.remaining_attempts <= 2 ? 'text-yellow-500' : 
-                  'text-muted-foreground'
-                }`} />
-              )}
-            </CardHeader>
-            <CardContent>
-              {examLimit.unlimited ? (
-                <>
-                  <div className="text-2xl font-bold text-green-600">
-                    <Infinity className="h-8 w-8 inline" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    You have unlimited exam access 
-                    ({examLimit.attempts_today} taken today)
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className={`text-2xl font-bold ${
-                    examLimit.remaining_attempts === 0 ? 'text-red-600' : 
-                    examLimit.remaining_attempts <= 2 ? 'text-yellow-600' : 
-                    ''
-                  }`}>
-                    {examLimit.remaining_attempts}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {examLimit.remaining_attempts === 0 ? 'Daily limit reached' : 
-                     examLimit.remaining_attempts === 1 ? '1 exam left today' : 
-                     `${examLimit.remaining_attempts} exams left today`} 
-                    ({examLimit.attempts_today}/{examLimit.daily_limit} taken)
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Recent Exam Activity */}
-          <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <History className="h-5 w-5 text-primary" />
-                  {t("recentExamActivity")}
-                </CardTitle>
-                <CardDescription>{t("yourLatestExamResults")}</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => router.push("/userExam")}>
-                View All
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {examAttempts.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">{t("noExamsTakenYet")}</p>
-                  <Button className="mt-4" onClick={() => router.push("/dashboard/exam")}>
-                    <Play className="h-4 w-4 mr-2" />
-                    Take Your First Exam
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {examAttempts.slice(0, 5).map((attempt) => (
-                    <div key={attempt.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          attempt.score_percentage >= 80 ? 'bg-green-100 text-green-600' : 
-                          attempt.score_percentage >= 60 ? 'bg-yellow-100 text-yellow-600' : 
-                          'bg-red-100 text-red-600'
-                        }`}>
-                          {attempt.score_percentage >= 80 ? <Trophy className="h-5 w-5" /> : 
-                           attempt.score_percentage >= 60 ? <Star className="h-5 w-5" /> : 
-                           <Target className="h-5 w-5" />}
-                        </div>
-                        <div>
-                          <p className="font-medium">{attempt.category_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(attempt.completed_at).toLocaleDateString()} • {Math.floor(attempt.duration_seconds / 60)}m {attempt.duration_seconds % 60}s
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-bold ${
-                          attempt.score_percentage >= 80 ? 'text-green-600' : 
-                          attempt.score_percentage >= 60 ? 'text-yellow-600' : 
-                          'text-red-600'
-                        }`}>
-                          {attempt.score_percentage}%
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {attempt.correct_answers}/{attempt.total_questions} correct
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Performance Overview */}
-          <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-primary" />
-                {t("performanceOverview")}
-              </CardTitle>
-              <CardDescription>{t("yourLearningProgress")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {examStats.totalExams === 0 ? (
-                <div className="text-center py-8">
-                  <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">{t("startExamsToSeeStats")}</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Score Distribution */}
-                  <div>
-                    <p className="text-sm font-medium mb-3">{t("scoreDistribution")}</p>
-                    <div className="space-y-2">
-                      {['90-100%', '80-89%', '70-79%', '60-69%', 'Below 60%'].map((range, idx) => {
-                        const count = examAttempts.filter(a => {
-                          if (idx === 0) return a.score_percentage >= 90;
-                          if (idx === 1) return a.score_percentage >= 80 && a.score_percentage < 90;
-                          if (idx === 2) return a.score_percentage >= 70 && a.score_percentage < 80;
-                          if (idx === 3) return a.score_percentage >= 60 && a.score_percentage < 70;
-                          return a.score_percentage < 60;
-                        }).length;
-                        const percentage = examStats.totalExams > 0 ? (count / examStats.totalExams) * 100 : 0;
-                        const colors = ['bg-green-500', 'bg-green-400', 'bg-yellow-400', 'bg-orange-400', 'bg-red-400'];
-                        
-                        return (
-                          <div key={range} className="flex items-center gap-3">
-                            <span className="text-xs w-16">{range}</span>
-                            <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
-                              <div className={`h-full ${colors[idx]} transition-all duration-500`} style={{ width: `${percentage}%` }} />
-                            </div>
-                            <span className="text-xs w-8 text-right">{count}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Quick Stats */}
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Zap className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{examStats.totalExams > 0 ? Math.round(examStats.totalTime / examStats.totalExams / 60) : 0}m</p>
-                        <p className="text-xs text-muted-foreground">Avg. time per exam</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <CheckCircle2 className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">
-                          {examStats.totalExams > 0 
-                            ? Math.round(examAttempts.reduce((sum, a) => sum + (a.correct_answers / a.total_questions * 100), 0) / examStats.totalExams)
-                            : 0}%
-                        </p>
-                        <p className="text-xs text-muted-foreground">Avg. accuracy</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Available Exam Categories */}
-        {examCategories.length > 0 && (
-          <Card className="mt-6 hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Award className="h-5 w-5 text-primary" />
-                {t("availableExamCategories")}
-              </CardTitle>
-              <CardDescription>{t("selectCategoryToStart")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {examCategories.map((category) => (
-                  <div 
-                    key={category.id} 
-                    className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer group"
-                    onClick={() => router.push("/dashboard/exam")}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium group-hover:text-primary transition-colors">{category.name}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {category.question_count || 0} questions available
-                        </p>
-                      </div>
-                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                        <Play className="h-4 w-4" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
+        
         {/* Question Search Section */}
-        <Card className="mt-6 hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
+        <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -717,7 +361,7 @@ export default function Dashboard() {
                 </div>
                 
                 {filteredQuestions.length > 0 ? (
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  <div className="space-y-2 max-h-[250px] overflow-y-auto">
                     {filteredQuestions.map((q) => (
                       <div
                         key={q.id}
@@ -737,9 +381,6 @@ export default function Dashboard() {
                   <p className="text-center text-muted-foreground py-4">Type to search questions</p>
                 )}
               </div>
-            )}
-            {!showQuestionSearch && (
-              <p className="text-muted-foreground">Click Search to browse and copy questions from the database</p>
             )}
           </CardContent>
         </Card>
@@ -918,6 +559,8 @@ export default function Dashboard() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      <MobileBottomNav />
     </div>
   );
 }

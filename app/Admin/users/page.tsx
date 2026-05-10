@@ -10,9 +10,14 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { UserExamLimitDialog } from "@/components/user-exam-limit-dialog";
+import { UserPerformanceModal } from "@/components/user-performance-modal";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { isAdmin, canViewStudents, hasReadWriteStudentAccess } from "@/lib/permissions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Watermark } from "@/components/watermark";
+import { useBrandingConfig } from "@/lib/branding-config";
 import { getUsers, getExamLimits } from "@/lib/supabase/queries";
 
 interface User {
@@ -37,6 +42,7 @@ interface User {
 }
 
 export default function UsersPage() {
+  const { config } = useBrandingConfig();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +61,10 @@ export default function UsersPage() {
     currentLimit?: number;
     currentIsLimited?: boolean;
   } | null>(null);
+  const [performanceModal, setPerformanceModal] = useState<{
+    open: boolean;
+    user: User | null;
+  }>({ open: false, user: null });
   const [hasPermission, setHasPermission] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const router = useRouter();
@@ -192,18 +202,7 @@ export default function UsersPage() {
   };
 
   const handleView = (user: User) => {
-    const displayName = getDisplayName(user);
-    const birthdate = user.user_metadata?.birthdate || user.user_metadata?.date_of_birth || user.user_metadata?.birthday || user.user_metadata?.dob || '-';
-    
-    toast.info(`User: ${user.email}`, {
-      description: `Name: ${displayName}
-First Name: ${user.user_metadata?.first_name || '-'}
-Last Name: ${user.user_metadata?.last_name || '-'}
-Username: ${user.user_metadata?.username || '-'}
-Gender: ${user.user_metadata?.gender || '-'}
-Nationality: ${user.user_metadata?.nationality || '-'}
-Date of Birth: ${birthdate}`,
-    });
+    setPerformanceModal({ open: true, user });
   };
 
   if (!hasPermission) {
@@ -239,15 +238,30 @@ Date of Birth: ${birthdate}`,
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Users</h1>
-          <p className="text-muted-foreground mt-1">
-            {isReadOnly ? "View all user accounts (Read Only)" : "View and manage all user accounts"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <>
+      {/* Floating Navo Button */}
+      <div className="fixed top-4 left-4 z-50 md:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold">{config.logoText || "N"}</span>
+            )}
+          </div>
+          <span className="text-sm font-medium pr-1">{config.systemName}</span>
+        </Link>
+      </div>
+      
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Users</h1>
+            <p className="text-muted-foreground mt-1">
+              {isReadOnly ? "View all user accounts (Read Only)" : "View and manage all user accounts"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
           {isReadOnly && (
             <div className="flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded-full text-sm">
               <Eye className="h-4 w-4" />
@@ -305,7 +319,8 @@ Date of Birth: ${birthdate}`,
                   {filteredUsers.map((user) => (
                     <TableRow 
                       key={user.id} 
-                      className={"hover:bg-secondary/50 transition-colors " + (user.banned ? "bg-red-50/50 dark:bg-red-950/20" : "")}
+                      className={"hover:bg-secondary/50 transition-colors cursor-pointer " + (user.banned ? "bg-red-50/50 dark:bg-red-950/20" : "")}
+                      onClick={() => handleView(user)}
                     >
                       <TableCell>
                         <Avatar className="h-10 w-10">
@@ -464,6 +479,16 @@ Date of Birth: ${birthdate}`,
           currentIsLimited={examLimitDialog.currentIsLimited}
         />
       )}
-    </div>
+      
+      {/* User Performance Modal */}
+      {performanceModal.user && (
+        <UserPerformanceModal
+          open={performanceModal.open}
+          onOpenChange={(open) => setPerformanceModal({ open, user: open ? performanceModal.user : null })}
+          user={performanceModal.user}
+        />
+      )}
+      </div>
+    </>
   );
 }
