@@ -9,9 +9,8 @@ import { BrandingConfigProvider } from "@/lib/branding-config";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthModalsProvider } from "@/lib/auth-modals-context";
 import { FloatingSettings } from "@/components/floating-settings";
-import { GoogleOneTap } from "@/components/google-one-tap";
 import { AuthModalsContainer } from "@/components/auth-modals-container";
-import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { ClientComponents } from "@/components/client-components";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -79,9 +78,8 @@ export default function RootLayout({
                   <ThemeConfigProvider>
                   {children}
                   <FloatingSettings />
-                  <GoogleOneTap />
                   <AuthModalsContainer />
-                  <PWAInstallPrompt />
+                  <ClientComponents />
                   <Toaster position="top-right" richColors closeButton />
                 </ThemeConfigProvider>
               </AuthModalsProvider>

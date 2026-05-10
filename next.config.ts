@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
   // Silence Turbopack warning for PWA webpack config
   turbopack: {},
+  // Enable source maps for production to debug errors
+  productionBrowserSourceMaps: true,
   // Add headers to handle CORS for Google Identity Services
   async headers() {
     return [
