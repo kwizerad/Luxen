@@ -1,18 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { ThemeProvider } from "next-themes";
-import { LanguageProvider } from "@/lib/language-context";
-
-// Use CSS variables for fonts to support static export without network dependencies
-const fontClass = "font-sans";
-import { ThemeConfigProvider } from "@/lib/theme-config";
-import { BrandingConfigProvider } from "@/lib/branding-config";
-import { AuthProvider } from "@/lib/auth-context";
-import { AuthModalsProvider } from "@/lib/auth-modals-context";
-import { FloatingSettings } from "@/components/floating-settings";
-import { AuthModalsContainer } from "@/components/auth-modals-container";
-import { ClientComponents } from "@/components/client-components";
-import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
+
+const fontClass = "font-sans";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -59,31 +48,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body className={`${fontClass} antialiased`}>
-        <BrandingConfigProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-            storageKey="navo-theme"
-          >
-            <LanguageProvider>
-              <AuthProvider>
-                <AuthModalsProvider>
-                  <ThemeConfigProvider>
-                    {children}
-                    <FloatingSettings />
-                    <AuthModalsContainer />
-                    <ClientComponents />
-                    <Toaster position="top-right" richColors closeButton />
-                  </ThemeConfigProvider>
-                </AuthModalsProvider>
-              </AuthProvider>
-            </LanguageProvider>
-          </ThemeProvider>
-        </BrandingConfigProvider>
+        {children}
       </body>
     </html>
   );
