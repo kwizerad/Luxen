@@ -1,7 +1,6 @@
 # Build artifacts
-dist
 out
-.next
+dist
 
 # Dependencies
 node_modules

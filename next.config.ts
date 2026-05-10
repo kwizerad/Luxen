@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   // Use server mode for API routes and middleware
   // Static export disabled for deployment compatibility
   output: undefined,
-  distDir: 'dist',
+  distDir: '.next',
   // Disable image optimization for static export
   images: {
     unoptimized: true,
