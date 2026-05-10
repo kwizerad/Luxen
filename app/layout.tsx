@@ -76,13 +76,13 @@ export default function RootLayout({
               <AuthProvider>
                 <AuthModalsProvider>
                   <ThemeConfigProvider>
-                  {children}
-                  <FloatingSettings />
-                  <AuthModalsContainer />
-                  <ClientComponents />
-                  <Toaster position="top-right" richColors closeButton />
-                </ThemeConfigProvider>
-              </AuthModalsProvider>
+                    {children}
+                    <FloatingSettings />
+                    <AuthModalsContainer />
+                    <ClientComponents />
+                    <Toaster position="top-right" richColors closeButton />
+                  </ThemeConfigProvider>
+                </AuthModalsProvider>
               </AuthProvider>
             </LanguageProvider>
           </ThemeProvider>
