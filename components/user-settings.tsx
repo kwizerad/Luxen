@@ -79,6 +79,8 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
   useEffect(() => {
     setMounted(true);
     // Load saved text size from localStorage
+    if (typeof window === "undefined") return;
+    
     const saved = localStorage.getItem("navo-text-size") as TextSize;
     if (saved) {
       setTextSize(saved);
