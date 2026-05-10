@@ -38,7 +38,7 @@ export function PWAInstallPrompt() {
       
       // Show prompt after a short delay for better UX
       const timer = setTimeout(() => {
-        const dismissed = localStorage.getItem("navo-pwa-dismissed");
+        const dismissed = typeof window !== "undefined" ? localStorage.getItem("navo-pwa-dismissed") : null;
         const dismissedTime = dismissed ? parseInt(dismissed, 10) : 0;
         const oneWeek = 7 * 24 * 60 * 60 * 1000;
         
@@ -57,7 +57,9 @@ export function PWAInstallPrompt() {
       setIsInstalled(true);
       setIsVisible(false);
       setDeferredPrompt(null);
-      localStorage.removeItem("navo-pwa-dismissed");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("navo-pwa-dismissed");
+      }
     };
 
     window.addEventListener("appinstalled", handleAppInstalled);
@@ -65,7 +67,7 @@ export function PWAInstallPrompt() {
     // For iOS: show prompt after delay if not dismissed
     if (isIOSDevice) {
       const timer = setTimeout(() => {
-        const dismissed = localStorage.getItem("navo-pwa-dismissed");
+        const dismissed = typeof window !== "undefined" ? localStorage.getItem("navo-pwa-dismissed") : null;
         const dismissedTime = dismissed ? parseInt(dismissed, 10) : 0;
         const oneWeek = 7 * 24 * 60 * 60 * 1000;
         
@@ -101,7 +103,9 @@ export function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setIsVisible(false);
-    localStorage.setItem("navo-pwa-dismissed", Date.now().toString());
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-pwa-dismissed", Date.now().toString());
+    }
   };
 
   if (isInstalled || !isVisible) return null;

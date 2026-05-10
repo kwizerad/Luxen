@@ -111,7 +111,9 @@ export function UserSettings({ showPasswordChange = true, showUsernameChange = f
 
   const handleTextSizeChange = (size: TextSize) => {
     setTextSize(size);
-    localStorage.setItem("navo-text-size", size);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-text-size", size);
+    }
     applyTextSize(size);
   };
 

@@ -31,7 +31,9 @@ export function BrandingConfigProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<BrandingConfig>(defaultConfig);
 
   useEffect(() => {
-    // Load saved config from localStorage
+    // Load saved config from localStorage only on client
+    if (typeof window === "undefined") return;
+    
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {

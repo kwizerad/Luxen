@@ -939,7 +939,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [systemName, setSystemName] = useState<string>("Navo");
 
   useEffect(() => {
-    const savedLanguage = typeof window !== "undefined" ? localStorage.getItem("navo-language") : null;
+    // Only run on client
+    if (typeof window === "undefined") return;
+    
+    const savedLanguage = localStorage.getItem("navo-language");
     if (savedLanguage && ["English", "Arabic", "Kinyarwanda", "French"].includes(savedLanguage)) {
       setLanguageState(savedLanguage as Language);
     }
