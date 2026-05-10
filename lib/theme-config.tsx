@@ -45,6 +45,8 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     // Load saved config from localStorage and apply immediately
+    if (typeof window === "undefined") return;
+    
     const saved = localStorage.getItem("navo-theme-config");
     if (saved) {
       try {
@@ -66,9 +68,7 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
             glowIntensity: parsed.glowIntensity || 30,
           };
           // Save migrated config
-          if (typeof window !== "undefined") {
-            localStorage.setItem("navo-theme-config", JSON.stringify(configToUse));
-          }
+          localStorage.setItem("navo-theme-config", JSON.stringify(configToUse));
           console.log("Migrated old theme config to new format:", configToUse);
         }
         
