@@ -39,6 +39,7 @@ export function GoogleOneTap({ disabled = false }: GoogleOneTapProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     setMounted(true);
   }, []);
 
