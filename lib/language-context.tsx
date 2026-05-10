@@ -974,14 +974,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const t = (key: string): string => {
     if (key === "navo") {
-      return systemName;
+      return mounted ? systemName : "Navo";
     }
     return translations[language][key] || key;
   };
-
-  if (!mounted) {
-    return <>{children}</>;
-  }
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
