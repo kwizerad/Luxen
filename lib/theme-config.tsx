@@ -225,10 +225,6 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
     applyThemeConfig(defaultConfig);
   };
 
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
   return (
     <ThemeConfigContext.Provider
       value={{
