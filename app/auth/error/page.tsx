@@ -7,6 +7,8 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const params = new URLSearchParams(window.location.search);
     setError(params.get("error"));
   }, []);

@@ -81,6 +81,8 @@ export function NotificationsDropdown() {
   };
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     fetchNotifications();
     
     // Set up real-time subscription for new notifications

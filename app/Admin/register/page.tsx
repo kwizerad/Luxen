@@ -68,6 +68,8 @@ export default function RegisterAdminPage() {
   const router = useRouter();
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     let mounted = true;
     
     const checkAuth = async () => {

@@ -127,6 +127,8 @@ export default function ExamManagementPage() {
   });
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const checkPermissions = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();

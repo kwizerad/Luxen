@@ -249,6 +249,8 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
   };
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     if (open && user.id) {
       fetchPerformanceData();
     }

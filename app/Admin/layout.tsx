@@ -49,6 +49,8 @@ export default function AdminLayout({
   const sidebarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const checkAdmin = async () => {
       try {
         const user = await getCurrentUser();

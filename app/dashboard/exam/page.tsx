@@ -88,6 +88,8 @@ export default function TakeExamPage() {
   const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const load = async () => {
       setLoadingCategories(true);
       try {
@@ -112,7 +114,9 @@ export default function TakeExamPage() {
     };
     loadViolationStatus();
   }, []);
-
+if (typeof window === "undefined") return;
+    
+    
   useEffect(() => {
     const handleFullscreenChange = () => {
       // If user tries to exit full screen during exam, show warning and prevent

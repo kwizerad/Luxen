@@ -18,6 +18,8 @@ export default function SetupAdminPage() {
   const router = useRouter();
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const checkAdmin = async () => {
       try {
         const supabase = createClient();

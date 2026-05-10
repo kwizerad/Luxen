@@ -40,6 +40,8 @@ export default function AdminDashboard() {
   const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const loadData = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
