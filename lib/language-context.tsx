@@ -937,6 +937,7 @@ const translations: Record<Language, Record<string, string>> = {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>("English");
   const [systemName, setSystemName] = useState<string>("Navo");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     // Only run on client
@@ -948,6 +949,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
 
     setSystemName(getDefaultSystemName());
+    setMounted(true);
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "navo-branding-config") {
@@ -976,6 +978,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
     return translations[language][key] || key;
   };
+
+  if (!mounted) {
+    return <>{children}</>;
+  }
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
