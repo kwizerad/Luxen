@@ -5,9 +5,9 @@ const isProduction = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {
   cacheComponents: false,
-  // Static export only in production (for Capacitor builds)
-  // Development uses server mode for API routes and middleware
-  output: isProduction ? 'export' : undefined,
+  // Use server mode for API routes and middleware
+  // Static export disabled for deployment compatibility
+  output: undefined,
   distDir: 'dist',
   // Disable image optimization for static export
   images: {
