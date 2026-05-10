@@ -1,0 +1,19 @@
+# Build artifacts
+dist
+out
+.next
+
+# Dependencies
+node_modules
+
+# Cache
+.cache
+.turbo
+
+# IDE
+.idea
+.vscode
+
+# OS
+.DS_Store
+Thumbs.db

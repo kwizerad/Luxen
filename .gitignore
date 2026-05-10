@@ -44,3 +44,13 @@ next-env.d.ts
 
 # large files
 *.pdf
+
+# Android
+android/
+*.gradle
+gradle/
+gradlew
+gradlew.bat
+capacitor.settings.gradle
+CAPACITOR_ANDROID_GUIDE.md
+README_ANDROID_SETUP.md
