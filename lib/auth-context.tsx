@@ -44,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     refreshUser();
 
     // Listen for auth state changes

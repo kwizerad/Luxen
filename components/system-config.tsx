@@ -21,6 +21,8 @@ export function SystemConfigSettings() {
   const [violationsEnabled, setViolationsEnabled] = useState<boolean>(true);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const loadConfigs = async () => {
       try {
         const { configs: data } = await getSystemConfig();
