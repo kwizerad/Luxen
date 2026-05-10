@@ -18,8 +18,10 @@ export function PWAInstallPrompt() {
   const [isVisible, setIsVisible] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     // Check if already installed
     if (window.matchMedia("(display-mode: standalone)").matches ||
         (window.navigator as Navigator & { standalone?: boolean }).standalone === true) {
@@ -108,7 +110,7 @@ export function PWAInstallPrompt() {
     }
   };
 
-  if (isInstalled || !isVisible) return null;
+  if (!mounted || isInstalled || !isVisible) return null;
 
   return (
     <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 md:bottom-4 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">

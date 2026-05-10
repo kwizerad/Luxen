@@ -36,10 +36,15 @@ export function GoogleOneTap({ disabled = false }: GoogleOneTapProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Disable Google One Tap in development mode to avoid CORS issues
   const isDevelopment = process.env.NODE_ENV === "development";
-  if (isDevelopment || disabled || user) return null;
+  if (!mounted || isDevelopment || disabled || user) return null;
 
   // Filter out non-critical GSI console errors
   useEffect(() => {
