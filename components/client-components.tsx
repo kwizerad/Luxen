@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GoogleOneTap } from "./google-one-tap";
 import { PWAInstallPrompt } from "./pwa-install-prompt";
 
 export function ClientComponents() {
@@ -18,7 +17,6 @@ export function ClientComponents() {
 
   return (
     <>
-      <GoogleOneTap />
       <PWAInstallPrompt />
     </>
   );
