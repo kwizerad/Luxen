@@ -32,6 +32,8 @@ export default function UserExamsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const loadAttempts = async () => {
       try {
         const data = await getExamAttempts();

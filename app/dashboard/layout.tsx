@@ -87,6 +87,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [pathname]); // Re-run when pathname changes
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     let isMounted = true;
     let retryCount = 0;
     const maxRetries = 5;

@@ -86,6 +86,8 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     let isMounted = true;
     let retryCount = 0;
     const maxRetries = 5;

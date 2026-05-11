@@ -11,6 +11,8 @@ function AuthCallbackContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const handleCallback = async () => {
       const supabase = createClient();
       

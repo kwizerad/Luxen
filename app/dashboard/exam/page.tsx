@@ -88,6 +88,8 @@ export default function TakeExamPage() {
   const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const load = async () => {
       setLoadingCategories(true);
       try {
@@ -112,6 +114,232 @@ export default function TakeExamPage() {
     };
     loadViolationStatus();
   }, []);
+if (typeof window === "undefined") return;
+    
+    
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      // If user tries to exit full screen during exam, show warning and prevent
+      if (exam && !document.fullscreenElement && !showResults && violationMeasuresEnabled) {
+        const newCount = fullscreenRetryCount + 1;
+        setFullscreenRetryCount(newCount);
+        
+        // Show cheating warning modal
+        setViolationType("fullscreen");
+        setCheatingWarningMessage(
+          newCount === 1 
+            ? "You have exited fullscreen mode. This is a violation of exam rules. Please re-enter fullscreen immediately."
+            : newCount === 2
+            ? "SECOND VIOLATION: You exited fullscreen again! One more violation and your exam will be automatically submitted."
+            : "FINAL VIOLATION: Your exam is being submitted due to repeated fullscreen violations."
+        );
+        setShowCheatingWarning(true);
+        
+        // Auto-submit exam after 3 attempts
+        if (newCount >= 3) {
+          setTimeout(() => {
+            toast.error("Exam automatically submitted due to repeated fullscreen violations.");
+            handleSubmitExam();
+          }, 3000);
+        } else {
+          // Show fullscreen warning too
+          setShowFullscreenWarning(true);
+        }
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent ESC key and other fullscreen exit keys during exam
+      if (exam && !showResults && violationMeasuresEnabled) {
+        if (e.key === 'Escape' || e.key === 'F11') {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          return false;
+        }
+        
+        // Prevent other common exit shortcuts
+        if (e.ctrlKey && e.key === 'w') {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+        
+        if (e.altKey && e.key === 'Tab') {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      // Prevent right-click context menu during exam
+      if (exam && !showResults && violationMeasuresEnabled) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (exam && !showResults && !isSubmittingOnExit && violationMeasuresEnabled) {
+        e.preventDefault();
+        e.returnValue = 'Leaving the exam will submit your answers. Are you sure?';
+        
+        // Auto-submit exam when user tries to close/refresh
+        setIsSubmittingOnExit(true);
+        handleSubmitExam();
+        return e.returnValue;
+      }
+    };
+
+    // Prevent copy, paste, cut, and select during exam
+    const handleCopy = (e: ClipboardEvent) => {
+      if (exam && !showResults && violationMeasuresEnabled) {
+        e.preventDefault();
+        setViolationType("copy");
+        setCheatingWarningMessage("COPY ATTEMPT DETECTED!\n\nCopying content is strictly prohibited during the exam. This incident has been recorded.");
+        setShowCheatingWarning(true);
+        toast.error("Copy is not allowed during the exam!");
+        return false;
+      }
+    };
+
+    const handlePaste = (e: ClipboardEvent) => {
+      if (exam && !showResults && violationMeasuresEnabled) {
+        e.preventDefault();
+        setViolationType("paste");
+        setCheatingWarningMessage("PASTE ATTEMPT DETECTED!\n\nPasting content is strictly prohibited during the exam. This incident has been recorded.");
+        setShowCheatingWarning(true);
+        toast.error("Paste is not allowed during the exam!");
+        return false;
+      }
+    };
+
+    const handleCut = (e: ClipboardEvent) => {
+      if (exam && !showResults && violationMeasuresEnabled) {
+        e.preventDefault();
+        setViolationType("other");
+        setCheatingWarningMessage("CUT ATTEMPT DETECTED!\n\nCutting content is strictly prohibited during the exam. This incident has been recorded.");
+        setShowCheatingWarning(true);
+        toast.error("Cut is not allowed during the exam!");
+        return false;
+      }
+    };
+
+    // Prevent ALL text selection during exam
+    const handleSelectStart = (e: Event) => {
+      if (exam && !showResults && violationMeasuresEnabled) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+    };
+
+    // Prevent double/triple click selection
+    const handleMouseDown = (e: MouseEvent) => {
+      if (exam && !showResults && violationMeasuresEnabled) {
+        // Prevent text selection via double/triple click
+        if (e.detail > 1) {
+          e.preventDefault();
+          return false;
+        }
+      }
+    };
+
+    // Track tab visibility changes (cheating detection)
+    const handleVisibilityChange = () => {
+      if (exam && !showResults && document.hidden && violationMeasuresEnabled) {
+        const newCount = cheatingAttempts + 1;
+        setCheatingAttempts(newCount);
+        
+        // Show cheating warning modal
+        setViolationType("tabswitch");
+        setCheatingWarningMessage(
+          newCount === 1 
+            ? "TAB SWITCHING DETECTED! (1/3)\n\nYou have switched tabs or minimized the browser. This is considered cheating."
+            : newCount === 2
+            ? "TAB SWITCHING DETECTED AGAIN! (2/3)\n\nThis is your SECOND violation. One more attempt and your exam will be submitted automatically!"
+            : "CHEATING DETECTED! (3/3)\n\nYour exam is being submitted due to repeated tab switching violations."
+        );
+        setShowCheatingWarning(true);
+        
+        if (newCount === 1) {
+          toast.error("Warning: Tab switching detected! (1/3)");
+        } else if (newCount === 2) {
+          toast.error("Warning: Tab switching detected again! (2/3) - Final warning!");
+        } else if (newCount >= 3) {
+          setTimeout(() => {
+            toast.error("Cheating detected! Exam will be submitted automatically.");
+            handleSubmitExam();
+          }, 3000);
+        }
+      }
+    };
+
+    // Prevent drag and drop
+    const handleDragStart = (e: DragEvent) => {
+      if (exam && !showResults && violationMeasuresEnabled) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      if (exam && !showResults && violationMeasuresEnabled) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Add event listeners
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    document.addEventListener('keydown', handleKeyDown, true); // Use capture phase
+    document.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Clipboard protection
+    document.addEventListener('copy', handleCopy, true);
+    document.addEventListener('paste', handlePaste, true);
+    document.addEventListener('cut', handleCut, true);
+    document.addEventListener('selectstart', handleSelectStart, true);
+    document.addEventListener('mousedown', handleMouseDown, true);
+    
+    // Tab visibility tracking
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Drag and drop prevention
+    document.addEventListener('dragstart', handleDragStart, true);
+    document.addEventListener('drop', handleDrop, true);
+
+    return () => {
+      // Clean up event listeners
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+      document.removeEventListener('keydown', handleKeyDown, true);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      
+      // Remove clipboard protection
+      document.removeEventListener('copy', handleCopy, true);
+      document.removeEventListener('paste', handlePaste, true);
+      document.removeEventListener('cut', handleCut, true);
+      document.removeEventListener('selectstart', handleSelectStart, true);
+      document.removeEventListener('mousedown', handleMouseDown, true);
+      
+      // Remove visibility tracking
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Remove drag prevention
+      document.removeEventListener('dragstart', handleDragStart, true);
+      document.removeEventListener('drop', handleDrop, true);
+    };
+  }, [exam, showResults, violationMeasuresEnabled]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {

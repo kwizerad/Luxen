@@ -7,7 +7,7 @@ import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage,
 import type { ExamQuestion, ExamAnswer, ExamQuestionSortingMode } from "@/lib/database.types";
 
 // Helper function to handle Supabase auth lock errors
-export async function getAuthUser() {
+async function getAuthUser() {
   const supabase = createClient();
   try {
     const result = await supabase.auth.getUser();
@@ -420,70 +420,22 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
       throw new Error("Unauthorized");
     }
 
-    let query = supabase
+    const { data: attempts, error } = await supabase
       .from("exam_attempts")
       .select("*")
-      .eq("user_id", userId);
-    
-    // Non-admin users don't see soft-deleted attempts
-    // Gracefully handle missing column
-    if (!isAdmin(user)) {
-      try {
-        query = query.or("hidden_from_user.is.false,hidden_from_user.is.null");
-      } catch {
-        // Column doesn't exist yet, skip filter
-      }
-    }
-    
-    const { data: attempts, error } = await query
+      .eq("user_id", userId)
       .order("started_at", { ascending: false });
-
-    // If error is about missing column, retry without filter
-    if (error && error.message?.includes("hidden_from_user")) {
-      const { data: attemptsRetry, error: retryError } = await supabase
-        .from("exam_attempts")
-        .select("*")
-        .eq("user_id", userId)
-        .order("started_at", { ascending: false });
-      
-      if (retryError) throw retryError;
-      return { attempts: attemptsRetry || [] };
-    }
 
     if (error) throw error;
     return { attempts: attempts || [] };
   }
 
-  // Return current user's attempts (filter out soft-deleted for non-admins)
-  let query = supabase
+  // Return current user's attempts
+  const { data: attempts, error } = await supabase
     .from("exam_attempts")
     .select("*")
-    .eq("user_id", user.id);
-  
-  // Non-admin users don't see their soft-deleted attempts
-  // This gracefully handles if hidden_from_user column doesn't exist yet
-  if (!isAdmin(user)) {
-    try {
-      query = query.or("hidden_from_user.is.false,hidden_from_user.is.null");
-    } catch {
-      // Column doesn't exist yet, skip filter
-    }
-  }
-  
-  const { data: attempts, error } = await query
+    .eq("user_id", user.id)
     .order("started_at", { ascending: false });
-
-  // If error is about missing column, retry without the filter
-  if (error && error.message?.includes("hidden_from_user")) {
-    const { data: attemptsRetry, error: retryError } = await supabase
-      .from("exam_attempts")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("started_at", { ascending: false });
-    
-    if (retryError) throw retryError;
-    return { attempts: attemptsRetry || [] };
-  }
 
   if (error) throw error;
   return { attempts: attempts || [] };
@@ -510,31 +462,15 @@ export async function deleteExamAttempt(attemptId: string) {
     throw new Error("Unauthorized: You can only delete your own exam attempts");
   }
 
-  // Soft delete: mark as hidden from user but keep record for admin
-  // This preserves the daily limit count and admin records
-  const { error: updateError } = await supabase
+  // Delete the exam attempt
+  const { error: deleteError } = await supabase
     .from("exam_attempts")
-    .update({ 
-      hidden_from_user: true,
-      hidden_at: new Date().toISOString()
-    })
+    .delete()
     .eq("id", attemptId);
 
-  // If columns don't exist yet, fall back to actual delete for now
-  if (updateError && updateError.message?.includes("hidden_from_user")) {
-    console.warn("Soft delete columns not found, falling back to hard delete. Please run migration.");
-    const { error: deleteError } = await supabase
-      .from("exam_attempts")
-      .delete()
-      .eq("id", attemptId);
-    
-    if (deleteError) throw deleteError;
-    return { success: true, message: "Exam attempt deleted (soft delete not available)" };
-  }
+  if (deleteError) throw deleteError;
 
-  if (updateError) throw updateError;
-
-  return { success: true, message: "Exam attempt hidden from your history" };
+  return { success: true };
 }
 
 export async function getExamAttemptsWithQuestions(attemptId?: string) {

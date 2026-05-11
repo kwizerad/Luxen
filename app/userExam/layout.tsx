@@ -23,6 +23,11 @@ export default function UserExamLayout({ children }: { children: React.ReactNode
   const { config } = useBrandingConfig();
 
   useEffect(() => {
+<<<<<<< HEAD
+=======
+    if (typeof window === "undefined") return;
+    
+>>>>>>> f0bd8b7b5e571701abc6f1ecf61f9c53eb35cfe6
     let isMounted = true;
     let retryCount = 0;
     const maxRetries = 5;

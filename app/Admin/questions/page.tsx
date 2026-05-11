@@ -75,6 +75,8 @@ export default function QuestionManagementPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const checkPermissions = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();

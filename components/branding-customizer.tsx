@@ -21,6 +21,8 @@ export function BrandingCustomizer() {
 
   // Sync with config when it changes externally
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     setPreviewName(config.systemName);
     setPreviewLogoText(config.logoText);
     setPreviewLogoUrl(config.logoUrl || "");

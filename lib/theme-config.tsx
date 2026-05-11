@@ -45,6 +45,8 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     // Load saved config from localStorage and apply immediately
+    if (typeof window === "undefined") return;
+    
     const saved = localStorage.getItem("navo-theme-config");
     if (saved) {
       try {
@@ -165,53 +167,63 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
   const setLightPrimaryColor = (color: string) => {
     const newConfig = { ...config, light: { ...config.light, primaryColor: color } };
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const setLightHoverBorderColor = (color: string) => {
     const newConfig = { ...config, light: { ...config.light, hoverBorderColor: color } };
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const setDarkPrimaryColor = (color: string) => {
     const newConfig = { ...config, dark: { ...config.dark, primaryColor: color } };
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const setDarkHoverBorderColor = (color: string) => {
     const newConfig = { ...config, dark: { ...config.dark, hoverBorderColor: color } };
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const setGlowIntensity = (intensity: number) => {
     const newConfig = { ...config, glowIntensity: intensity };
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const saveConfig = (newConfig: ThemeConfig) => {
     setConfig(newConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(newConfig));
+    }
     applyThemeConfig(newConfig);
   };
 
   const resetToDefault = () => {
     setConfig(defaultConfig);
-    localStorage.setItem("navo-theme-config", JSON.stringify(defaultConfig));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-theme-config", JSON.stringify(defaultConfig));
+    }
     applyThemeConfig(defaultConfig);
   };
-
-  if (!mounted) {
-    return <>{children}</>;
-  }
 
   return (
     <ThemeConfigContext.Provider

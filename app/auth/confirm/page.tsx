@@ -12,6 +12,8 @@ function ConfirmContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const handleConfirm = async () => {
       const supabase = createClient();
       

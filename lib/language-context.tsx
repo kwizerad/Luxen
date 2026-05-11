@@ -937,14 +937,19 @@ const translations: Record<Language, Record<string, string>> = {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>("English");
   const [systemName, setSystemName] = useState<string>("Navo");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const savedLanguage = typeof window !== "undefined" ? localStorage.getItem("navo-language") : null;
+    // Only run on client
+    if (typeof window === "undefined") return;
+    
+    const savedLanguage = localStorage.getItem("navo-language");
     if (savedLanguage && ["English", "Arabic", "Kinyarwanda", "French"].includes(savedLanguage)) {
       setLanguageState(savedLanguage as Language);
     }
 
     setSystemName(getDefaultSystemName());
+    setMounted(true);
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "navo-branding-config") {
@@ -963,12 +968,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
     if (typeof window !== "undefined") {
       localStorage.setItem("navo-language", lang);
+      window.dispatchEvent(new StorageEvent("storage", { key: "navo-language", newValue: lang }));
     }
   };
 
   const t = (key: string): string => {
     if (key === "navo") {
-      return systemName;
+      return mounted ? systemName : "Navo";
     }
     return translations[language][key] || key;
   };

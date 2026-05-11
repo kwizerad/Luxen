@@ -70,6 +70,8 @@ export default function UsersPage() {
   const router = useRouter();
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const loadUsers = async () => {
       try {
         // Check if user is authenticated first

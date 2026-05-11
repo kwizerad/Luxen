@@ -26,6 +26,8 @@ export function ThemeCustomizer() {
 
   // Sync previewConfig with config when config changes (e.g., on initial load or reset)
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     setPreviewConfig({
       light: { ...config.light },
       dark: { ...config.dark },

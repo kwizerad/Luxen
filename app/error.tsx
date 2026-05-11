@@ -11,6 +11,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    if (typeof window === "undefined") return;
     console.error("Application error:", error);
   }, [error]);
 

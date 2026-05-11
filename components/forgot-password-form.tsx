@@ -31,6 +31,8 @@ export function ForgotPasswordForm({
   const { t } = useLanguage();
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     if (success && resendCooldown > 0) {
       const timer = setInterval(() => {
         setResendCooldown((prev) => prev - 1);

@@ -4,6 +4,8 @@ import { useEffect } from "react";
 
 export function ThemeScript() {
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const getTheme = () => {
       const stored = localStorage.getItem("theme");
       if (stored) return stored;

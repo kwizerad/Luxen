@@ -10,6 +10,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
+    if (typeof window === "undefined") return;
     console.error("Global application error:", error);
   }, [error]);
 

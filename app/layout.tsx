@@ -1,19 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/lib/language-context";
-
-// Use CSS variables for fonts to support static export without network dependencies
-const fontClass = "font-sans";
 import { ThemeConfigProvider } from "@/lib/theme-config";
 import { BrandingConfigProvider } from "@/lib/branding-config";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthModalsProvider } from "@/lib/auth-modals-context";
 import { FloatingSettings } from "@/components/floating-settings";
-import { GoogleOneTap } from "@/components/google-one-tap";
 import { AuthModalsContainer } from "@/components/auth-modals-container";
-import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { ClientComponents } from "@/components/client-components";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
+
+const fontClass = "font-sans";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -61,9 +59,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script src="/theme-init.js" />
-      </head>
       <body className={`${fontClass} antialiased`}>
         <BrandingConfigProvider>
           <ThemeProvider
@@ -77,14 +72,13 @@ export default function RootLayout({
               <AuthProvider>
                 <AuthModalsProvider>
                   <ThemeConfigProvider>
-                  {children}
-                  <FloatingSettings />
-                  <GoogleOneTap />
-                  <AuthModalsContainer />
-                  <PWAInstallPrompt />
-                  <Toaster position="top-right" richColors closeButton />
-                </ThemeConfigProvider>
-              </AuthModalsProvider>
+                    {children}
+                    <FloatingSettings />
+                    <AuthModalsContainer />
+                    <ClientComponents />
+                    <Toaster position="top-right" richColors closeButton />
+                  </ThemeConfigProvider>
+                </AuthModalsProvider>
               </AuthProvider>
             </LanguageProvider>
           </ThemeProvider>

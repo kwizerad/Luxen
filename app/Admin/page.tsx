@@ -5,7 +5,11 @@ import { Users, Settings, UserPlus, GraduationCap, FileText, Activity, CheckCirc
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+<<<<<<< HEAD
 import { getAdminStats, getAuthUser } from "@/lib/supabase/queries";
+=======
+import { getAdminStats } from "@/lib/supabase/queries";
+>>>>>>> f0bd8b7b5e571701abc6f1ecf61f9c53eb35cfe6
 import { useBrandingConfig } from "@/lib/branding-config";
 
 const ADMIN_EMAIL = "Navo@admin.jn";
@@ -39,6 +43,8 @@ export default function AdminDashboard() {
   const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const loadData = async () => {
       try {
         // Use getAuthUser to handle lock errors gracefully

@@ -99,6 +99,8 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
 
   // Reset state when modal opens
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     if (open) {
       setCurrentQuestionIndex(0);
       setCurrentView('overview');

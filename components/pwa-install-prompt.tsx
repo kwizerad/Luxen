@@ -18,8 +18,12 @@ export function PWAInstallPrompt() {
   const [isVisible, setIsVisible] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    if (typeof window === "undefined") return;
+    
     // Check if already installed
     if (window.matchMedia("(display-mode: standalone)").matches ||
         (window.navigator as Navigator & { standalone?: boolean }).standalone === true) {
@@ -38,7 +42,7 @@ export function PWAInstallPrompt() {
       
       // Show prompt after a short delay for better UX
       const timer = setTimeout(() => {
-        const dismissed = localStorage.getItem("navo-pwa-dismissed");
+        const dismissed = typeof window !== "undefined" ? localStorage.getItem("navo-pwa-dismissed") : null;
         const dismissedTime = dismissed ? parseInt(dismissed, 10) : 0;
         const oneWeek = 7 * 24 * 60 * 60 * 1000;
         
@@ -57,7 +61,9 @@ export function PWAInstallPrompt() {
       setIsInstalled(true);
       setIsVisible(false);
       setDeferredPrompt(null);
-      localStorage.removeItem("navo-pwa-dismissed");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("navo-pwa-dismissed");
+      }
     };
 
     window.addEventListener("appinstalled", handleAppInstalled);
@@ -65,7 +71,7 @@ export function PWAInstallPrompt() {
     // For iOS: show prompt after delay if not dismissed
     if (isIOSDevice) {
       const timer = setTimeout(() => {
-        const dismissed = localStorage.getItem("navo-pwa-dismissed");
+        const dismissed = typeof window !== "undefined" ? localStorage.getItem("navo-pwa-dismissed") : null;
         const dismissedTime = dismissed ? parseInt(dismissed, 10) : 0;
         const oneWeek = 7 * 24 * 60 * 60 * 1000;
         
@@ -101,10 +107,12 @@ export function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setIsVisible(false);
-    localStorage.setItem("navo-pwa-dismissed", Date.now().toString());
+    if (typeof window !== "undefined") {
+      localStorage.setItem("navo-pwa-dismissed", Date.now().toString());
+    }
   };
 
-  if (isInstalled || !isVisible) return null;
+  if (!mounted || isInstalled || !isVisible) return null;
 
   return (
     <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 md:bottom-4 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
