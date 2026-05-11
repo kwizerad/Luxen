@@ -83,7 +83,6 @@ export function FloatingHeader() {
   }
 
   return (
-<<<<<<< HEAD
     <>
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-4 py-3">
@@ -102,28 +101,16 @@ export function FloatingHeader() {
 
       {/* Desktop Header - Top Right */}
       <div className="hidden md:flex fixed top-4 right-4 z-50 items-center gap-3">
-=======
-    <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-4 py-3">
-      <div className="flex items-center justify-end gap-2">
->>>>>>> f0bd8b7b5e571701abc6f1ecf61f9c53eb35cfe6
         {/* Notifications */}
         <div className="bg-background/95 backdrop-blur-sm border rounded-full shadow-lg">
           <NotificationsDropdown />
         </div>
         
-<<<<<<< HEAD
-        {/* User Settings / Profile Picture */}
-=======
         {/* User Settings */}
->>>>>>> f0bd8b7b5e571701abc6f1ecf61f9c53eb35cfe6
         <div className="bg-background/95 backdrop-blur-sm border rounded-full shadow-lg">
           <FloatingUserSettings user={user} />
         </div>
       </div>
-<<<<<<< HEAD
     </>
-=======
-    </div>
->>>>>>> f0bd8b7b5e571701abc6f1ecf61f9c53eb35cfe6
   );
 }
