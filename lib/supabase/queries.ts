@@ -396,6 +396,9 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
     throw new Error("Unauthorized");
   }
 
+  // Check if user is admin
+  const userIsAdmin = isAdmin(user);
+
   // If requesting specific attempt
   if (attemptId) {
     const { data: attempt, error } = await supabase
@@ -407,8 +410,13 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
     if (error) throw error;
 
     // Users can only see their own attempts, admins can see all
-    if (attempt.user_id !== user.id && !isAdmin(user)) {
+    if (attempt.user_id !== user.id && !userIsAdmin) {
       throw new Error("Unauthorized");
+    }
+
+    // Non-admin users can't see hidden attempts
+    if (attempt.hidden_from_user && !userIsAdmin) {
+      throw new Error("Attempt not found");
     }
 
     return { attempt };
@@ -416,26 +424,40 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
 
   // If requesting user's attempts
   if (userId) {
-    if (userId !== user.id && !isAdmin(user)) {
+    if (userId !== user.id && !userIsAdmin) {
       throw new Error("Unauthorized");
     }
 
-    const { data: attempts, error } = await supabase
+    let query = supabase
       .from("exam_attempts")
       .select("*")
       .eq("user_id", userId)
       .order("started_at", { ascending: false });
 
+    // Non-admin users can only see non-hidden attempts
+    if (!userIsAdmin) {
+      query = query.eq("hidden_from_user", false);
+    }
+
+    const { data: attempts, error } = await query;
+
     if (error) throw error;
     return { attempts: attempts || [] };
   }
 
-  // Return current user's attempts
-  const { data: attempts, error } = await supabase
+  // Return current user's attempts (only non-hidden for non-admin)
+  let query = supabase
     .from("exam_attempts")
     .select("*")
     .eq("user_id", user.id)
     .order("started_at", { ascending: false });
+
+  // Non-admin users can only see non-hidden attempts
+  if (!userIsAdmin) {
+    query = query.eq("hidden_from_user", false);
+  }
+
+  const { data: attempts, error } = await query;
 
   if (error) throw error;
   return { attempts: attempts || [] };
@@ -462,15 +484,42 @@ export async function deleteExamAttempt(attemptId: string) {
     throw new Error("Unauthorized: You can only delete your own exam attempts");
   }
 
-  // Delete the exam attempt
-  const { error: deleteError } = await supabase
+  // Soft delete - mark as hidden from user (admin can still see it)
+  const { error: updateError } = await supabase
     .from("exam_attempts")
-    .delete()
+    .update({
+      hidden_from_user: true,
+      hidden_at: new Date().toISOString(),
+    })
     .eq("id", attemptId);
 
-  if (deleteError) throw deleteError;
+  if (updateError) throw updateError;
 
   return { success: true };
+}
+
+// Admin function to get all exam attempts including hidden ones
+export async function getAllExamAttemptsForAdmin(userId?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized: Only admins can access all exam attempts");
+  }
+
+  let query = supabase
+    .from("exam_attempts")
+    .select("*")
+    .order("started_at", { ascending: false });
+
+  if (userId) {
+    query = query.eq("user_id", userId);
+  }
+
+  const { data: attempts, error } = await query;
+
+  if (error) throw error;
+  return { attempts: attempts || [] };
 }
 
 export async function getExamAttemptsWithQuestions(attemptId?: string) {

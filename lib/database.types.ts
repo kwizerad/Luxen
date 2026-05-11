@@ -53,6 +53,8 @@ export interface ExamAttempt {
   score_percentage: number;
   answers: ExamAnswer[];
   status: 'in_progress' | 'completed' | 'abandoned';
+  hidden_from_user?: boolean;
+  hidden_at?: string | null;
 }
 
 export interface ExamAnswer {
