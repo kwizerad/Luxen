@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, Settings, UserPlus, GraduationCap, FileText, Activity, CheckCircle, AlertCircle, TrendingUp, Clock, Database, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { getAdminStats } from "@/lib/supabase/queries";
+import { getAdminStats, getAuthUser } from "@/lib/supabase/queries";
+import { useBrandingConfig } from "@/lib/branding-config";
 
 const ADMIN_EMAIL = "Navo@admin.jn";
 
@@ -31,6 +31,7 @@ interface SystemStatus {
 }
 
 export default function AdminDashboard() {
+  const { config } = useBrandingConfig();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
@@ -39,24 +40,24 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const loadData = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        setIsPrimaryAdmin(user.email === ADMIN_EMAIL);
-      }
-      
-      // Fetch dashboard stats from Supabase
       try {
+        // Use getAuthUser to handle lock errors gracefully
+        const user = await getAuthUser();
+        
+        if (user) {
+          setIsPrimaryAdmin(user.email === ADMIN_EMAIL);
+        }
+        
+        // Fetch dashboard stats from Supabase
         const data = await getAdminStats();
         if (data.stats) setStats(data.stats);
         if (data.recentActivity) setRecentActivity(data.recentActivity);
         if (data.systemStatus) setSystemStatus(data.systemStatus);
       } catch (error) {
-        console.error("Failed to load dashboard stats:", error);
+        console.error("Failed to load dashboard data:", error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
     
     loadData();
@@ -103,6 +104,20 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Floating Navo Button */}
+      <div className="fixed top-4 left-4 z-50 md:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold">{config.logoText || "N"}</span>
+            )}
+          </div>
+          <span className="text-sm font-medium pr-1">{config.systemName}</span>
+        </Link>
+      </div>
+      
       <div>
         <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
         <p className="text-muted-foreground mt-1">

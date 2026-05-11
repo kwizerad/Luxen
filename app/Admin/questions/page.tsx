@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +15,15 @@ import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/image-upload";
 import { FileText, Edit, Trash2, Loader2, Search, ArrowLeft, Image as ImageIcon, AlertTriangle, Eye, Lock, CheckSquare, Square, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
+import { Watermark } from "@/components/watermark";
+import { useBrandingConfig } from "@/lib/branding-config";
 import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { isAdmin, hasReadWriteQuestionAccess, hasReadOnlyQuestionAccess } from "@/lib/permissions";
 import { getExamCategories, getExamQuestions, updateExamQuestion, deleteExamQuestion } from "@/lib/supabase/queries";
 
 export default function QuestionManagementPage() {
+  const { config } = useBrandingConfig();
   const router = useRouter();
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
@@ -366,14 +370,29 @@ export default function QuestionManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => router.push("/Admin/exams")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Question Management</h1>
+    <>
+      {/* Floating Navo Button */}
+      <div className="fixed top-4 left-4 z-50 md:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            {config.logoUrl ? (
+              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold">{config.logoText || "N"}</span>
+            )}
+          </div>
+          <span className="text-sm font-medium pr-1">{config.systemName}</span>
+        </Link>
+      </div>
+      
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={() => router.push("/Admin/exams")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Question Management</h1>
           <p className="text-muted-foreground mt-1">
             {isReadOnly ? "View all exam questions (Read Only)" : "View, edit, delete, and manage all exam questions"}
           </p>
@@ -1081,6 +1100,7 @@ export default function QuestionManagementPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </>
   );
 }

@@ -39,7 +39,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
     return "destructive";
   };
 
-  const [showCorrectAnswers, setShowCorrectAnswers] = useState(false);
+  const [showCorrectAnswers, setShowCorrectAnswers] = useState(true);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -107,15 +107,15 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-[95vw] sm:w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-6xl w-[95vw] sm:w-full h-[90vh] max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-primary" />
             Exam Details - {attempt.category_name}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Side Navigation Icons */}
           <div className="flex items-center justify-between absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 hidden sm:block">
             {currentView === 'questions' && currentQuestionIndex > 0 && (
@@ -156,11 +156,11 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
           </div>
 
           {/* Content Part */}
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {currentView === 'overview' ? (
               /* Exam Overview Page */
-              <div className="h-full flex flex-col">
-                <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+              <div className="flex flex-col p-4 md:p-6">
+                <div className="flex-1">
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">Exam Overview</CardTitle>
@@ -195,7 +195,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                       {/* Question Summary */}
                       <div className="mt-6 pt-6 border-t">
                         <h3 className="text-lg font-semibold mb-4 text-center">Question Summary</h3>
-                        <div className="flex flex-wrap justify-center gap-2 max-w-2xl mx-auto">
+                        <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
                           {answers.map((answer, index) => (
                             <button
                               key={index}
@@ -203,7 +203,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                                 setCurrentQuestionIndex(index);
                                 goToQuestions();
                               }}
-                              className={`w-10 h-10 rounded-full text-sm font-medium transition-all hover:scale-110 ${
+                              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full text-xs sm:text-sm font-medium transition-all hover:scale-110 ${
                                 answer.is_correct 
                                   ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-600' 
                                   : 'bg-red-100 text-red-700 border border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-600'
@@ -219,7 +219,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                   </Card>
                 </div>
                 
-                <div className="flex justify-center mt-6">
+                <div className="flex justify-center mt-6 pb-4">
                   <Button
                     onClick={goToQuestions}
                     className="flex items-center gap-2"
@@ -232,7 +232,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
               </div>
             ) : (
               /* Questions Page */
-              <div className="h-full flex flex-col">
+              <div className="flex flex-col p-4 md:p-6">
                 {/* Toggle Correct Answers */}
                 <div className="flex-shrink-0 mb-4">
                   <div className="flex items-center justify-between">
@@ -245,12 +245,12 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                       {showCorrectAnswers ? (
                         <>
                           <EyeOff className="h-4 w-4 mr-2" />
-                          Hide Correct Answers
+                          Hide Answers
                         </>
                       ) : (
                         <>
                           <Eye className="h-4 w-4 mr-2" />
-                          Show Correct Answers
+                          Show Answers
                         </>
                       )}
                     </Button>
@@ -259,16 +259,16 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
 
                 {/* Question Progress Indicator */}
                 <div className="flex-shrink-0">
-                  <div className="flex flex-col items-center gap-3 mb-4">
+                  <div className="flex flex-col items-center gap-2 sm:gap-3 mb-4">
                     <span className="text-sm font-medium text-muted-foreground">
                       Question {currentQuestionIndex + 1} of {answers.length}
                     </span>
-                    <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
+                    <div className="flex flex-wrap justify-center gap-1 sm:gap-2 max-h-24 sm:max-h-32 overflow-y-auto">
                       {answers.map((answer, index) => (
                         <button
                           key={index}
                           onClick={() => goToQuestion(index)}
-                          className={`w-8 h-8 rounded-full text-xs font-medium transition-all hover:scale-110 ${
+                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full text-xs font-medium transition-all hover:scale-110 ${
                             index === currentQuestionIndex
                               ? 'bg-primary text-primary-foreground ring-2 ring-primary/50'
                               : answer.is_correct
@@ -286,7 +286,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
 
                 {/* Single Question Display */}
                 <div 
-                  className="flex-1 min-h-0 overflow-y-auto pr-2"
+                  className="flex-1 min-h-0"
                   onTouchStart={handleTouchStart}
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
@@ -434,8 +434,8 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                 </div>
 
                 {/* Navigation Buttons */}
-                <div className="flex-shrink-0">
-                  <div className="flex items-center justify-between pt-4 border-t gap-2">
+                <div className="flex-shrink-0 pt-4 border-t">
+                  <div className="flex items-center justify-between gap-2">
                     <Button
                       variant="outline"
                       onClick={previousQuestion}

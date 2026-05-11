@@ -16,8 +16,9 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Settings, LogOut, User, LogIn, Moon, Sun, Monitor, Globe, Check } from "lucide-react";
+import { Settings, LogOut, User, LogIn, Moon, Sun, Monitor, Globe, Check, Download } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
+import { usePwaInstall } from "@/hooks/use-pwa-install";
 
 type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
 
@@ -34,6 +35,8 @@ export function FloatingSettings() {
   const { theme, setTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
 
+  const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
+
   const logout = async () => {
     try {
       const supabase = createClient();
@@ -45,7 +48,7 @@ export function FloatingSettings() {
   };
 
   return (
-    <div className="fixed right-5 bottom-5 z-50">
+    <div className="fixed right-5 bottom-5 z-50 hidden md:block">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -124,6 +127,16 @@ export function FloatingSettings() {
           </DropdownMenuSub>
 
           <DropdownMenuSeparator />
+
+          {/* Install App Button - Available when app is installable */}
+          {!isInstalled && isInstallable && (
+            <DropdownMenuItem onClick={promptInstall} className="cursor-pointer">
+              <Download className="mr-2 h-4 w-4" />
+              Install App
+            </DropdownMenuItem>
+          )}
+
+          {!isInstalled && isInstallable && <DropdownMenuSeparator />}
 
           {user ? (
             <>
