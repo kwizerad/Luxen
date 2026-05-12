@@ -90,7 +90,9 @@ export default function UserExamsPage() {
         setDeletingId(attemptId);
         await deleteExamAttempt(attemptId);
         setAttempts(attempts.filter(a => a.id !== attemptId));
-        toast.success("Exam history deleted successfully");
+        toast.success("Exam history deleted successfully", {
+          description: "The record has been hidden from your view but remains visible to administrators"
+        });
       } catch (error: any) {
         toast.error("Failed to delete exam history: " + error.message);
       } finally {

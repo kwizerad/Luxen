@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, Settings, Download, LogOut, Menu, Home, Plus, Moon, Sun, Monitor, Globe, Check } from "lucide-react";
+import { User, Settings, Download, LogOut, Menu, Home, Plus, Moon, Sun, Monitor, Globe, Check, Smartphone } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
 
@@ -107,8 +107,6 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
   }, []);
 
   const handleInstallApp = async () => {
-    if (!deferredPrompt && !isIOS) return;
-
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
@@ -117,11 +115,12 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
         setIsInstalled(true);
       }
       setDeferredPrompt(null);
-    }
-    
-    if (isIOS) {
+    } else if (isIOS) {
       // For iOS, show instructions
       alert('To install: Tap the share button in Safari, then select "Add to Home Screen"');
+    } else {
+      // For other browsers, show general instructions
+      alert('To install: Look for the install icon in your browser\'s address bar');
     }
   };
 
@@ -148,9 +147,9 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
             Account Info
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          {!isInstalled && isInstallable && (
+          {!isInstalled && (
             <DropdownMenuItem onClick={handleInstallApp}>
-              <Plus className="mr-2 h-4 w-4" />
+              <Smartphone className="mr-2 h-4 w-4" />
               Install App
             </DropdownMenuItem>
           )}
@@ -204,9 +203,9 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
             Account Settings
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          {!isInstalled && isInstallable && (
+          {!isInstalled && (
             <DropdownMenuItem onClick={handleInstallApp}>
-              <Plus className="mr-2 h-4 w-4" />
+              <Smartphone className="mr-2 h-4 w-4" />
               Install App
             </DropdownMenuItem>
           )}
