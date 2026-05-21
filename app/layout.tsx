@@ -29,6 +29,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
       { url: "/icons/icon-192x192.svg", sizes: "192x192", type: "image/svg+xml" },
       { url: "/icons/icon-512x512.svg", sizes: "512x512", type: "image/svg+xml" },
     ],
@@ -60,29 +61,30 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${fontClass} antialiased`}>
-        <BrandingConfigProvider>
-          <ThemeProvider
+        <ThemeProvider
             attribute="class"
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
             storageKey="navo-theme"
           >
-            <LanguageProvider>
-              <AuthProvider>
-                <AuthModalsProvider>
-                  <ThemeConfigProvider>
-                    {children}
-                    <FloatingSettings />
-                    <AuthModalsContainer />
-                    <ClientComponents />
-                    <Toaster position="top-right" richColors closeButton />
-                  </ThemeConfigProvider>
-                </AuthModalsProvider>
-              </AuthProvider>
-            </LanguageProvider>
+            <ThemeConfigProvider>
+              <BrandingConfigProvider>
+                <LanguageProvider>
+                  <AuthProvider>
+                    <AuthModalsProvider>
+                      {children}
+                      <FloatingSettings />
+                      <AuthModalsContainer />
+                      <ClientComponents />
+                      <Toaster position="top-right" richColors closeButton />
+                    </AuthModalsProvider>
+                  </AuthProvider>
+                </LanguageProvider>
+              </BrandingConfigProvider>
+            </ThemeConfigProvider>
           </ThemeProvider>
-        </BrandingConfigProvider>
+        
       </body>
     </html>
   );

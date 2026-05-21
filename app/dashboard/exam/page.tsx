@@ -114,9 +114,7 @@ export default function TakeExamPage() {
     };
     loadViolationStatus();
   }, []);
-if (typeof window === "undefined") return;
-    
-    
+  
   useEffect(() => {
     const handleFullscreenChange = () => {
       // If user tries to exit full screen during exam, show warning and prevent

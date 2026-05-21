@@ -1,12 +1,13 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import { useRouter } from "next/navigation";
-import { getExamAttempts, getExamCategories, getExamLimits, getPublicExamQuestions } from "@/lib/supabase/queries";
+import { getExamAttempts, getExamCategories, getExamLimits, getPublicExamQuestions, deleteExamAttempt } from "@/lib/supabase/queries";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, Clock, Trophy, Settings, User, ChevronRight, Mail, Menu, LogOut, Play, TrendingUp, Target, Award, BarChart3, Eye, FileText, Zap, History, Star, CheckCircle2, Search, Copy, X, Hash, Infinity } from "lucide-react";
+import { BookOpen, Calendar, Clock, Trophy, Settings, User, ChevronRight, Mail, Menu, LogOut, Play, TrendingUp, Target, Award, BarChart3, Eye, FileText, Zap, History, Star, CheckCircle2, Search, Copy, X, Hash, Infinity, Flame, Brain } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useLanguage } from "@/lib/language-context";
@@ -23,6 +24,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { KPICard, EmptyState } from "@/components/dashboard-widgets";
+import { PerformanceCharts } from "@/components/performance-charts";
+import { QuickActions } from "@/components/quick-actions";
+import { ActivityFeed } from "@/components/activity-feed";
+import { ProfileCompletion } from "@/components/profile-completion";
+import { calculateExamStats, groupByCategory, formatDuration, formatRelativeTime, generateActivityFeed, calculateStreak } from "@/lib/dashboard-utils";
 
 type ExamAttempt = {
   id: string;
@@ -65,6 +72,7 @@ export default function Dashboard() {
     bestScore: 0,
     totalTime: 0,
     completedExams: 0,
+    passRate: 0,
   });
   const [examCategories, setExamCategories] = useState<any[]>([]);
 
@@ -201,12 +209,16 @@ export default function Dashboard() {
           : 0;
         const totalTime = completed.reduce((sum: number, a: ExamAttempt) => sum + a.duration_seconds, 0);
         
+        const passCount = completed.filter((a: ExamAttempt) => a.score_percentage >= 50).length;
+        const passRate = totalExams > 0 ? Math.round((passCount / totalExams) * 100) : 0;
+
         setExamStats({
           totalExams,
           averageScore,
           bestScore,
           totalTime,
           completedExams: totalExams,
+          passRate,
         });
       }
 
@@ -217,6 +229,18 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error("Failed to load exam data:", error);
+    }
+  };
+
+  // Delete an attempt and refresh
+  const handleDeleteAttempt = async (attemptId: string) => {
+    if (!confirm("Delete this attempt? This action cannot be undone.")) return;
+    try {
+      await deleteExamAttempt(attemptId);
+      await loadExamData();
+    } catch (err) {
+      console.error("Failed to delete attempt:", err);
+      alert("Failed to delete attempt");
     }
   };
 
@@ -272,18 +296,24 @@ export default function Dashboard() {
     });
   };
 
-  // Filter questions based on search query
-  const filteredQuestions = questions.filter((q) => {
-    const query = questionSearchQuery.toLowerCase();
-    return (
-      q.question?.toLowerCase().includes(query) ||
-      q.option_a?.toLowerCase().includes(query) ||
-      q.option_b?.toLowerCase().includes(query) ||
-      q.option_c?.toLowerCase().includes(query) ||
-      q.option_d?.toLowerCase().includes(query) ||
-      q.explanation?.toLowerCase().includes(query)
-    );
-  });
+  // Filter questions based on search query (memoized)
+  const queryLower = questionSearchQuery.trim().toLowerCase();
+  const filteredQuestions = useMemo(() => {
+    if (!queryLower) return questions;
+
+    return questions.filter((q) => {
+      return (
+        q.question?.toLowerCase().includes(queryLower) ||
+        q.option_a?.toLowerCase().includes(queryLower) ||
+        q.option_b?.toLowerCase().includes(queryLower) ||
+        q.option_c?.toLowerCase().includes(queryLower) ||
+        q.option_d?.toLowerCase().includes(queryLower) ||
+        q.explanation?.toLowerCase().includes(queryLower)
+      );
+    });
+  }, [questions, queryLower]);
+
+
 
   const getDisplayName = () => {
     if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
@@ -328,9 +358,187 @@ export default function Dashboard() {
         </Link>
       </div>
       
-      <main className="container mx-auto px-4 py-4 md:py-8 pt-16 md:pt-8 pb-24 md:pb-8">
-
+      <main className="container mx-auto px-4 py-4 md:py-8 pt-16 md:pt-8 pb-24 md:pb-8 space-y-6">
         
+        {/* Enhanced Header with Greeting and Stats */}
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold">{t("welcome")}, {getDisplayName().split(' ')[0]}! 👋</h1>
+              <p className="text-muted-foreground mt-2">Here's your learning dashboard overview</p>
+            </div>
+          </div>
+
+          {/* Quick Stats Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <KPICard
+              title="Total Exams"
+              value={examStats.totalExams}
+              unit="taken"
+              icon={<Trophy className="h-5 w-5" />}
+              description="All completed exams"
+            />
+            <KPICard
+              title="Average Score"
+              value={examStats.averageScore}
+              unit="%"
+              icon={<BarChart3 className="h-5 w-5" />}
+              description="Your overall performance"
+            />
+            <KPICard
+              title="Best Score"
+              value={examStats.bestScore}
+              unit="%"
+              icon={<Award className="h-5 w-5" />}
+              description="Highest score achieved"
+            />
+            <KPICard
+              title="Pass Rate"
+              value={examStats.passRate}
+              unit="%"
+              icon={<CheckCircle2 className="h-5 w-5" />}
+              description="Exams passed (≥50%)"
+            />
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+          <QuickActions />
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Left Column - Analytics and Charts */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Performance Charts */}
+            {examStats.totalExams > 0 && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">Performance Analytics</h2>
+                <PerformanceCharts
+                  categoryPerformance={groupByCategory(examAttempts)}
+                  loading={loading}
+                />
+              </div>
+            )}
+
+            {examStats.totalExams === 0 && (
+              <Card>
+                <CardContent className="pt-6">
+                  <EmptyState
+                    icon={<Brain className="h-12 w-12" />}
+                    title="No Exams Yet"
+                    description="Start taking exams to see your performance analytics and track your progress"
+                    action={{
+                      label: "Take First Exam",
+                      onClick: () => router.push("/dashboard/exam"),
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Right Column - Sidebar */}
+          <div className="space-y-6">
+            {/* Profile Completion */}
+            <ProfileCompletion
+              userMetadata={user?.user_metadata || {}}
+              onEditClick={() => router.push("/dashboard/settings")}
+              isLoading={loading}
+            />
+
+            {/* Learning Streak */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-orange-500" />
+                  Learning Streak
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center">
+                  <p className="text-4xl font-bold text-primary">{calculateStreak(examAttempts)}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Consecutive days active</p>
+                  <p className="text-xs text-muted-foreground mt-1">Keep it up! 🔥</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Exam Limit Info */}
+            {examLimit.is_limited && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-yellow-500" />
+                    Daily Exam Limit
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-muted-foreground">Attempts Used</span>
+                      <span className="font-semibold">{examLimit.attempts_today}/{examLimit.daily_limit}</span>
+                    </div>
+                    <div className="bg-secondary rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all duration-300"
+                        style={{
+                          width: `${(examLimit.attempts_today / examLimit.daily_limit) * 100}%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {examLimit.remaining_attempts} attempt{examLimit.remaining_attempts !== 1 ? 's' : ''} remaining
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+        {/* Recent Attempts */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Recent Attempts</h2>
+          <Card>
+            <CardContent>
+              {examAttempts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No attempts yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {examAttempts.slice(0, 5).map((a) => (
+                    <div key={a.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <div className="font-medium">{a.category_name} - {a.score_percentage}%</div>
+                        <div className="text-xs text-muted-foreground">{formatRelativeTime(a.completed_at)} · {formatDuration(a.duration_seconds)}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => router.push(`/dashboard/exam-attempts/${a.id}`)}>
+                          View
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDeleteAttempt(a.id)}>
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Activity Feed */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
+          <ActivityFeed
+            activities={generateActivityFeed(examAttempts)}
+            loading={loading}
+            maxItems={10}
+          />
+        </div>
+
         {/* Question Search Section */}
         <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between">

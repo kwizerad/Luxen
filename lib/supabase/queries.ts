@@ -413,11 +413,6 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
       throw new Error("Unauthorized");
     }
 
-    // Filter out hidden attempts for non-admin users
-    if (!isUserAdmin && attempt.hidden_from_user) {
-      throw new Error("Exam attempt not found");
-    }
-
     return { attempt };
   }
 
@@ -433,11 +428,6 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
       .eq("user_id", userId)
       .order("started_at", { ascending: false });
 
-    // Filter out hidden attempts for non-admin users
-    if (!isUserAdmin) {
-      query = query.eq("hidden_from_user", false);
-    }
-
     const { data: attempts, error } = await query;
 
     if (error) throw error;
@@ -451,11 +441,6 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
     .eq("user_id", user.id)
     .order("started_at", { ascending: false });
 
-  // Filter out hidden attempts for non-admin users
-  if (!isUserAdmin) {
-    query = query.eq("hidden_from_user", false);
-  }
-
   const { data: attempts, error } = await query;
 
   if (error) throw error;
@@ -463,38 +448,32 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
 }
 
 export async function deleteExamAttempt(attemptId: string) {
+  if (!attemptId) {
+    throw new Error("Attempt ID is required");
+  }
+
   const supabase = createClient();
-  const user = await getAuthUser();
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-  if (!user) {
-    throw new Error("Unauthorized");
+  if (sessionError) {
+    console.warn("Failed to get session before deleting exam attempt:", sessionError.message);
   }
 
-  // Verify the attempt belongs to the user or user is admin
-  const { data: attempt, error: fetchError } = await supabase
-    .from("exam_attempts")
-    .select("*")
-    .eq("id", attemptId)
-    .single();
+  const accessToken = session?.access_token;
 
-  if (fetchError) throw fetchError;
+  const response = await fetch(`/api/exam-attempts/${attemptId}`, {
+    method: "DELETE",
+    credentials: "same-origin",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
 
-  if (attempt.user_id !== user.id && !isAdmin(user)) {
-    throw new Error("Unauthorized: You can only delete your own exam attempts");
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result?.error || result?.details || "Failed to delete exam attempt");
   }
 
-  // Soft delete: mark as hidden from user but keep for admin
-  const { error: deleteError } = await supabase
-    .from("exam_attempts")
-    .update({ 
-      hidden_from_user: true,
-      hidden_at: new Date().toISOString()
-    })
-    .eq("id", attemptId);
-
-  if (deleteError) throw deleteError;
-
-  return { success: true };
+  return result;
 }
 
 export async function getExamAttemptsWithQuestions(attemptId?: string) {

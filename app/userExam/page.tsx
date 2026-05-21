@@ -83,18 +83,35 @@ export default function UserExamsPage() {
   };
 
   const handleDelete = (attemptId: string, category: string) => {
-    setConfirmTitle("Delete Exam History?");
-    setConfirmMessage(`Are you sure you want to delete the exam record for "${category}"?\n\nThis action cannot be undone.`);
-    setConfirmCallback(() => async () => {
+    setConfirmTitle("⚠️ Permanent Delete");
+    setConfirmMessage(`You are about to permanently delete your exam attempt for "${category}".\n\nThis will remove:\n• Your score and answers\n• Time spent on the exam\n• All exam history data\n\nThis action cannot be undone.`);
+    setConfirmCallback(async () => {
       try {
         setDeletingId(attemptId);
-        await deleteExamAttempt(attemptId);
-        setAttempts(attempts.filter(a => a.id !== attemptId));
-        toast.success("Exam history deleted successfully", {
-          description: "The record has been hidden from your view but remains visible to administrators"
+        
+        // Optimistic UI update - remove immediately from UI
+        setAttempts(prevAttempts => prevAttempts.filter(a => a.id !== attemptId));
+        
+        // Then perform the actual delete operation
+        console.log("Attempting to delete exam attempt:", attemptId);
+        const deleteResult = await deleteExamAttempt(attemptId);
+        console.log("Delete result:", deleteResult);
+        
+        toast.success("✅ Exam deleted permanently", {
+          description: "The exam record has been permanently removed"
         });
       } catch (error: any) {
-        toast.error("Failed to delete exam history: " + error.message);
+        // If delete failed, refresh the attempts to restore correct state
+        try {
+          const data = await getExamAttempts();
+          if (data.attempts) {
+            setAttempts(data.attempts);
+          }
+        } catch (refreshError) {
+          console.error("Failed to refresh attempts:", refreshError);
+        }
+        
+        toast.error("❌ Failed to delete exam: " + error.message);
       } finally {
         setDeletingId(null);
       }
@@ -251,29 +268,34 @@ export default function UserExamsPage() {
       
       {/* Custom Confirm Dialog for Delete */}
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent className="max-w-md border-red-500 border-2">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl text-red-700">
-              <AlertTriangle className="h-6 w-6" />
+        <DialogContent className="max-w-md border-0 shadow-2xl bg-gradient-to-br from-background to-muted/20">
+          <DialogHeader className="text-center pb-2">
+            <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+            </div>
+            <DialogTitle className="text-2xl font-bold text-foreground">
               {confirmTitle}
             </DialogTitle>
-            <DialogDescription className="text-base mt-2 whitespace-pre-line">
+            <DialogDescription className="text-muted-foreground mt-3 whitespace-pre-line text-sm leading-relaxed">
               {confirmMessage}
             </DialogDescription>
           </DialogHeader>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 my-4">
-            <p className="text-sm text-red-800 font-medium text-center">
-              This action cannot be undone
-            </p>
+          <div className="bg-gradient-to-r from-destructive/5 to-destructive/10 border border-destructive/20 rounded-xl p-4 my-6">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-destructive rounded-full animate-pulse"></div>
+              <p className="text-sm font-semibold text-destructive">
+                This action is permanent and cannot be undone
+              </p>
+            </div>
           </div>
-          <DialogFooter className="flex-row gap-3">
+          <DialogFooter className="flex-col gap-3 sm:flex-row">
             <Button 
               variant="outline"
               onClick={() => {
                 setShowConfirm(false);
                 setConfirmCallback(null);
               }}
-              className="flex-1"
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
@@ -283,9 +305,10 @@ export default function UserExamsPage() {
                 confirmCallback?.();
                 setConfirmCallback(null);
               }}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              variant="destructive"
+              className="w-full sm:w-auto font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
             >
-              Delete
+              Delete Permanently
             </Button>
           </DialogFooter>
         </DialogContent>
