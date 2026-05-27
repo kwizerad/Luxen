@@ -376,45 +376,45 @@ export default function Dashboard() {
         </Link>
       </div>
       
-      <main className="container mx-auto px-4 py-4 md:py-8 pt-16 md:pt-8 pb-24 md:pb-8 space-y-6">
+      <main className="container mx-auto px-3 md:px-4 py-3 md:py-6 pt-14 md:pt-6 pb-20 md:pb-6 space-y-4">
         
         {/* Enhanced Header with Greeting and Stats */}
-        <div className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div className="space-y-3">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold">{t("welcome")}, {getDisplayName().split(' ')[0]}! 👋</h1>
-              <p className="text-muted-foreground mt-2">Here's your learning dashboard overview</p>
+              <h1 className="text-2xl md:text-3xl font-bold">{t("welcome")}, {getDisplayName().split(' ')[0]}! 👋</h1>
+              <p className="text-sm text-muted-foreground mt-1">Your learning dashboard overview</p>
             </div>
           </div>
 
           {/* Quick Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <KPICard
               title="Total Exams"
               value={examStats.totalExams}
               unit="taken"
-              icon={<Trophy className="h-5 w-5" />}
+              icon={<Trophy className="h-4 w-4" />}
               description="All completed exams"
             />
             <KPICard
               title="Average Score"
               value={examStats.averageScore}
               unit="%"
-              icon={<BarChart3 className="h-5 w-5" />}
+              icon={<BarChart3 className="h-4 w-4" />}
               description="Your overall performance"
             />
             <KPICard
               title="Best Score"
               value={examStats.bestScore}
               unit="%"
-              icon={<Award className="h-5 w-5" />}
+              icon={<Award className="h-4 w-4" />}
               description="Highest score achieved"
             />
             <KPICard
               title="Pass Rate"
               value={examStats.passRate}
               unit="%"
-              icon={<CheckCircle2 className="h-5 w-5" />}
+              icon={<CheckCircle2 className="h-4 w-4" />}
               description="Exams passed (≥50%)"
             />
           </div>
@@ -422,18 +422,18 @@ export default function Dashboard() {
 
         {/* Quick Actions */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+          <h2 className="text-lg font-semibold mb-2">Quick Actions</h2>
           <QuickActions />
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left Column - Analytics and Charts */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Left Column - Primary Content */}
+          <div className="lg:col-span-3 space-y-4">
             {/* Performance Charts */}
             {examStats.totalExams > 0 && (
               <div>
-                <h2 className="text-xl font-semibold mb-4">Performance Analytics</h2>
+                <h2 className="text-lg font-semibold mb-3">Performance Analytics</h2>
                 <PerformanceCharts
                   categoryPerformance={groupByCategory(examAttempts)}
                   loading={loading}
@@ -442,7 +442,7 @@ export default function Dashboard() {
             )}
 
             {examStats.totalExams === 0 && (
-              <Card>
+              <Card className="border border-border">
                 <CardContent className="pt-6">
                   <EmptyState
                     icon={<Brain className="h-12 w-12" />}
@@ -456,10 +456,54 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Recent Attempts - Compact */}
+            <div>
+              <h2 className="text-lg font-semibold mb-3">Recent Attempts</h2>
+              <Card className="border border-border">
+                <CardContent className="p-4">
+                  {examAttempts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No attempts yet</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {examAttempts.slice(0, 3).map((a) => (
+                        <div key={a.id} className="flex items-center justify-between p-2 border rounded-md hover:bg-accent transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm">{a.category_name}</div>
+                            <div className="text-xs text-muted-foreground">{formatRelativeTime(a.completed_at)} · {formatDuration(a.duration_seconds)}</div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-2">
+                            <span className="text-sm font-semibold text-primary">{a.score_percentage}%</span>
+                            <Button size="sm" variant="ghost" onClick={() => router.push(`/dashboard/exam-attempts/${a.id}`)}>
+                              View
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      {examAttempts.length > 3 && (
+                        <Button variant="outline" size="sm" className="w-full mt-2">
+                          View All Attempts
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Activity Feed - Compact */}
+            <div>
+              <h2 className="text-lg font-semibold mb-3">Recent Activity</h2>
+              <ActivityFeed
+                activities={generateActivityFeed(examAttempts)}
+                loading={loading}
+                maxItems={5}
+              />
+            </div>
           </div>
 
-          {/* Right Column - Sidebar */}
-          <div className="space-y-6">
+          {/* Right Column - Sidebar Widgets */}
+          <div className="space-y-4">
             {/* Profile Completion */}
             <ProfileCompletion
               userMetadata={user?.user_metadata || {}}
@@ -468,35 +512,34 @@ export default function Dashboard() {
             />
 
             {/* Learning Streak */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-orange-500" />
-                  Learning Streak
+            <Card className="border border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Flame className="h-4 w-4 text-orange-500" />
+                  Streak
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <div className="text-center">
-                  <p className="text-4xl font-bold text-primary">{calculateStreak(examAttempts)}</p>
-                  <p className="text-sm text-muted-foreground mt-2">Consecutive days active</p>
-                  <p className="text-xs text-muted-foreground mt-1">Keep it up! 🔥</p>
+                  <p className="text-3xl font-bold text-primary">{calculateStreak(examAttempts)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Consecutive days</p>
                 </div>
               </CardContent>
             </Card>
 
             {/* Exam Limit Info */}
             {examLimit.is_limited && (
-              <Card>
-                <CardHeader>
+              <Card className="border border-border">
+                <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Zap className="h-4 w-4 text-yellow-500" />
-                    Daily Exam Limit
+                    Daily Limit
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="pt-0 space-y-2">
                   <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-muted-foreground">Attempts Used</span>
+                    <div className="flex justify-between items-center mb-1 text-xs">
+                      <span className="text-muted-foreground">Used</span>
                       <span className="font-semibold">{examLimit.attempts_today}/{examLimit.daily_limit}</span>
                     </div>
                     <div className="bg-secondary rounded-full h-2 overflow-hidden">
@@ -509,109 +552,64 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {examLimit.remaining_attempts} attempt{examLimit.remaining_attempts !== 1 ? 's' : ''} remaining
+                    {examLimit.remaining_attempts} left
                   </p>
                 </CardContent>
               </Card>
             )}
+
+            {/* Question Search - Compact */}
+            <Card className="border border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Search className="h-4 w-4 text-primary" />
+                  Search Questions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {showQuestionSearch && (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search..."
+                        value={questionSearchQuery}
+                        onChange={(e) => setQuestionSearchQuery(e.target.value)}
+                        className="pl-10 text-sm h-8"
+                      />
+                    </div>
+                    
+                    {filteredQuestions.length > 0 ? (
+                      <div className="space-y-1 max-h-[180px] overflow-y-auto">
+                        {filteredQuestions.slice(0, 3).map((q) => (
+                          <div
+                            key={q.id}
+                            onClick={() => handleSelectQuestion(q)}
+                            className="p-2 border rounded text-xs hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all line-clamp-2"
+                          >
+                            {q.question}
+                          </div>
+                        ))}
+                      </div>
+                    ) : questionSearchQuery ? (
+                      <p className="text-xs text-muted-foreground py-2">No results</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground py-2">Type to search</p>
+                    )}
+                  </div>
+                )}
+                <Button 
+                  variant={showQuestionSearch ? "default" : "outline"} 
+                  size="sm" 
+                  onClick={toggleQuestionSearch}
+                  className="w-full text-xs h-8"
+                >
+                  {showQuestionSearch ? "Close" : "Search"}
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
-        {/* Recent Attempts */}
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Recent Attempts</h2>
-          <Card>
-            <CardContent>
-              {examAttempts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No attempts yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {examAttempts.slice(0, 5).map((a) => (
-                    <div key={a.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <div className="font-medium">{a.category_name} - {a.score_percentage}%</div>
-                        <div className="text-xs text-muted-foreground">{formatRelativeTime(a.completed_at)} · {formatDuration(a.duration_seconds)}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" onClick={() => router.push(`/dashboard/exam-attempts/${a.id}`)}>
-                          View
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleDeleteAttempt(a.id)}>
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Activity Feed */}
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-          <ActivityFeed
-            activities={generateActivityFeed(examAttempts)}
-            loading={loading}
-            maxItems={10}
-          />
-        </div>
-
-        {/* Question Search Section */}
-        <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5 text-primary" />
-                Search Questions
-              </CardTitle>
-              <CardDescription>Find and copy questions for reference</CardDescription>
-            </div>
-            <Button variant="outline" onClick={toggleQuestionSearch}>
-              {showQuestionSearch ? (
-                <><X className="h-4 w-4 mr-2" /> Close</>
-              ) : (
-                <><Search className="h-4 w-4 mr-2" /> Search</>
-              )}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {showQuestionSearch && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search questions, options, or explanations..."
-                    value={questionSearchQuery}
-                    onChange={(e) => setQuestionSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                
-                {filteredQuestions.length > 0 ? (
-                  <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                    {filteredQuestions.map((q) => (
-                      <div
-                        key={q.id}
-                        onClick={() => handleSelectQuestion(q)}
-                        className="p-3 border rounded-lg hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
-                      >
-                        <p className="font-medium line-clamp-2">{q.question}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Options: A) {q.option_a?.slice(0, 30)}... | Correct: {q.correct_answer}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : questionSearchQuery ? (
-                  <p className="text-center text-muted-foreground py-4">No questions found matching your search</p>
-                ) : (
-                  <p className="text-center text-muted-foreground py-4">Type to search questions</p>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </main>
 
       {/* Question Detail Modal */}
