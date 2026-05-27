@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ImageIcon, X, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 
 interface ImageUploadProps {
   value?: string;
@@ -51,30 +52,44 @@ export function ImageUpload({
     onUploadStart?.();
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("folder", folder);
+      const supabase = createClient();
 
-      // Use profile-picture API for profile pictures, otherwise use upload API
-      const apiUrl = folder === "profile-pictures" ? "/api/profile-picture" : "/api/upload";
-      
-      const res = await fetch(apiUrl, {
-        method: "POST",
-        body: formData,
-      });
+      const timestamp = Date.now();
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${timestamp}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const filePathLocal = `${folder}/${fileName}`;
 
-      const data = await res.json();
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("images")
+        .upload(filePathLocal, file, {
+          contentType: file.type,
+          cacheControl: "3600",
+        });
 
-      if (data.url) {
-        onChange(data.url);
-        setFilePath(data.path);
-        toast.success("Image uploaded successfully");
-      } else {
-        toast.error(data.error || "Failed to upload image");
-        setPreview(null);
+      if (uploadError) {
+        console.error("Supabase storage upload error:", uploadError);
+        throw uploadError;
       }
-    } catch (error) {
-      toast.error("Failed to upload image");
+
+      const { data: publicData } = supabase.storage.from("images").getPublicUrl(filePathLocal);
+      const publicUrl = publicData.publicUrl;
+
+      // If profile picture, update user metadata
+      if (folder === "profile-pictures") {
+        try {
+          const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
+          if (updateError) console.error("Failed to update user metadata:", updateError);
+        } catch (e) {
+          console.error("Failed to update user metadata:", e);
+        }
+      }
+
+      onChange(publicUrl);
+      setFilePath(filePathLocal);
+      toast.success("Image uploaded successfully");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error(error?.message || "Failed to upload image");
       setPreview(null);
     } finally {
       setIsUploading(false);
@@ -97,9 +112,9 @@ export function ImageUpload({
   const handleRemove = async () => {
     if (filePath) {
       try {
-        await fetch(`/api/upload?path=${encodeURIComponent(filePath)}`, {
-          method: "DELETE",
-        });
+        const supabase = createClient();
+        const { error } = await supabase.storage.from("images").remove([filePath]);
+        if (error) console.error("Supabase storage delete error:", error);
       } catch (error) {
         console.error("Failed to delete file:", error);
       }

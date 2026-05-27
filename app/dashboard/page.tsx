@@ -100,6 +100,14 @@ export default function Dashboard() {
     let retryCount = 0;
     const maxRetries = 5;
     const supabase = createClient();
+    
+    // Add a safety timeout to prevent indefinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (isMounted && loading) {
+        console.warn("Dashboard loading timeout - setting loading to false");
+        setLoading(false);
+      }
+    }, 10000); // 10 second timeout
 
     const checkUser = async () => {
       try {
@@ -151,7 +159,12 @@ export default function Dashboard() {
         if (user) {
           setUser(user);
           // Load exam data and limit
-          await Promise.all([loadExamData(), loadExamLimit()]);
+          try {
+            await Promise.all([loadExamData(), loadExamLimit()]);
+          } catch (dataError) {
+            console.error("Failed to load exam data after user check:", dataError);
+            // Don't block on data load failures - still set loading to false
+          }
         }
       } catch (error: any) {
         // Ignore lock errors - they're internal Supabase timing issues
@@ -187,6 +200,7 @@ export default function Dashboard() {
     
     return () => {
       isMounted = false;
+      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
   }, [router]);
@@ -336,8 +350,12 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Loading...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-6">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div className="text-center space-y-2">
+          <p className="text-lg font-medium text-foreground">Loading your dashboard...</p>
+          <p className="text-sm text-muted-foreground">Please wait while we fetch your data</p>
+        </div>
       </div>
     );
   }

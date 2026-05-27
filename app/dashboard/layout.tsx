@@ -131,6 +131,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             return;
           }
           console.log("No user found after retries, redirecting to home");
+          setLoading(false);
           router.push("/");
           return;
         }
@@ -152,6 +153,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           setTimeout(checkAuth, 800 * retryCount);
           return;
         }
+        setLoading(false);
         router.push("/");
       }
     };
