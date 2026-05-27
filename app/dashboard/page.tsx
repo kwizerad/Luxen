@@ -431,33 +431,6 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* Left Column - Primary Content */}
           <div className="lg:col-span-3 space-y-4">
-            {/* Performance Charts */}
-            {examStats.totalExams > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-3">Performance Analytics</h2>
-                <PerformanceCharts
-                  categoryPerformance={groupByCategory(examAttempts)}
-                  loading={loading}
-                />
-              </div>
-            )}
-
-            {examStats.totalExams === 0 && (
-              <Card className="border border-border">
-                <CardContent className="pt-6">
-                  <EmptyState
-                    icon={<Brain className="h-12 w-12" />}
-                    title="No Exams Yet"
-                    description="Start taking exams to see your performance analytics and track your progress"
-                    action={{
-                      label: "Take First Exam",
-                      onClick: () => router.push("/dashboard/exam"),
-                    }}
-                  />
-                </CardContent>
-              </Card>
-            )}
-
             {/* Recent Attempts - Compact */}
             <div>
               <h2 className="text-lg font-semibold mb-3">Recent Attempts</h2>
