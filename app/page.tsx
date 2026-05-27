@@ -29,7 +29,6 @@ export default function Home() {
             <div className="flex flex-wrap gap-4">
               <Button size="lg" onClick={openLogin}>{t("signIn")}</Button>
               <Button size="lg" variant="outline" onClick={openSignUp}>{t("signUp")}</Button>
-              <Button size="lg" variant="ghost" onClick={() => window.location.href = '/dashboard'}>{t("explore") || 'Explore'}</Button>
             </div>
           </div>
 
