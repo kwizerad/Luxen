@@ -30,6 +30,7 @@ import { QuickActions } from "@/components/quick-actions";
 import { ActivityFeed } from "@/components/activity-feed";
 import { ProfileCompletion } from "@/components/profile-completion";
 import { calculateExamStats, groupByCategory, formatDuration, formatRelativeTime, generateActivityFeed, calculateStreak } from "@/lib/dashboard-utils";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 type ExamAttempt = {
   id: string;
@@ -491,15 +492,59 @@ export default function Dashboard() {
               </Card>
             </div>
 
-            {/* Activity Feed - Compact */}
-            <div>
-              <h2 className="text-lg font-semibold mb-3">Recent Activity</h2>
-              <ActivityFeed
-                activities={generateActivityFeed(examAttempts)}
-                loading={loading}
-                maxItems={5}
-              />
-            </div>
+            {/* Activity Feed - Removed: read-only, no functionality */}
+            
+            {/* Score Distribution Chart */}
+            {examStats.totalExams > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-3">Score Distribution</h2>
+                <Card className="border border-border">
+                  <CardContent className="pt-4">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { 
+                              name: 'Excellent (90-100%)', 
+                              value: examAttempts.filter(a => a.score_percentage >= 90).length,
+                              fill: '#10b981'
+                            },
+                            { 
+                              name: 'Good (75-89%)', 
+                              value: examAttempts.filter(a => a.score_percentage >= 75 && a.score_percentage < 90).length,
+                              fill: '#3b82f6'
+                            },
+                            { 
+                              name: 'Fair (50-74%)', 
+                              value: examAttempts.filter(a => a.score_percentage >= 50 && a.score_percentage < 75).length,
+                              fill: '#f59e0b'
+                            },
+                            { 
+                              name: 'Below 50%', 
+                              value: examAttempts.filter(a => a.score_percentage < 50).length,
+                              fill: '#ef4444'
+                            }
+                          ].filter(item => item.value > 0)}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, value }) => `${name}: ${value}`}
+                          outerRadius={80}
+                          dataKey="value"
+                        >
+                          {[].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
 
           {/* Right Column - Sidebar Widgets */}
@@ -510,22 +555,6 @@ export default function Dashboard() {
               onEditClick={() => router.push("/dashboard/settings")}
               isLoading={loading}
             />
-
-            {/* Learning Streak */}
-            <Card className="border border-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Flame className="h-4 w-4 text-orange-500" />
-                  Streak
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-primary">{calculateStreak(examAttempts)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Consecutive days</p>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Exam Limit Info */}
             {examLimit.is_limited && (
@@ -557,57 +586,6 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             )}
-
-            {/* Question Search - Compact */}
-            <Card className="border border-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Search className="h-4 w-4 text-primary" />
-                  Search Questions
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {showQuestionSearch && (
-                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search..."
-                        value={questionSearchQuery}
-                        onChange={(e) => setQuestionSearchQuery(e.target.value)}
-                        className="pl-10 text-sm h-8"
-                      />
-                    </div>
-                    
-                    {filteredQuestions.length > 0 ? (
-                      <div className="space-y-1 max-h-[180px] overflow-y-auto">
-                        {filteredQuestions.slice(0, 3).map((q) => (
-                          <div
-                            key={q.id}
-                            onClick={() => handleSelectQuestion(q)}
-                            className="p-2 border rounded text-xs hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all line-clamp-2"
-                          >
-                            {q.question}
-                          </div>
-                        ))}
-                      </div>
-                    ) : questionSearchQuery ? (
-                      <p className="text-xs text-muted-foreground py-2">No results</p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground py-2">Type to search</p>
-                    )}
-                  </div>
-                )}
-                <Button 
-                  variant={showQuestionSearch ? "default" : "outline"} 
-                  size="sm" 
-                  onClick={toggleQuestionSearch}
-                  className="w-full text-xs h-8"
-                >
-                  {showQuestionSearch ? "Close" : "Search"}
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </main>
