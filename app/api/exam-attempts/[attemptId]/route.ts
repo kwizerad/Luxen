@@ -12,9 +12,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { attem
     }
 
     const supabase = await createClient();
+    const authorization = request.headers.get("authorization");
+    const accessToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
 
     // Get the authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
 
     if (authError) {
       console.error("Auth error while deleting exam attempt:", authError);
@@ -25,7 +27,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { attem
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: attempt, error: fetchError } = await supabase
+    const adminSupabase = createAdminClient();
+    const { data: attempt, error: fetchError } = await adminSupabase
       .from("exam_attempts")
       .select("id, user_id")
       .eq("id", attemptId)
@@ -44,7 +47,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { attem
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const adminSupabase = createAdminClient();
     const { error: deleteError } = await adminSupabase
       .from("exam_attempts")
       .delete()
@@ -56,10 +58,13 @@ export async function DELETE(request: NextRequest, { params }: { params: { attem
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error deleting exam attempt:", error);
     return NextResponse.json(
-      { error: "Failed to delete exam attempt", details: error?.message || "Unknown error" },
+      {
+        error: "Failed to delete exam attempt",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
