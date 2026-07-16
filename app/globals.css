@@ -1,0 +1,229 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Theme - User's Colors */
+    --background: 140 9% 98%; /* #F8FAF9 */
+    --foreground: 215 19% 15%; /* #1F2937 */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 215 19% 15%; /* #1F2937 */
+    --popover: 0 0% 100%; /* #FFFFFF */
+    --popover-foreground: 215 19% 15%; /* #1F2937 */
+    --primary: 142 71% 45%; /* #22C55E */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --secondary: 140 9% 96%; /* #F0F4F1 */
+    --secondary-foreground: 215 19% 15%; /* #1F2937 */
+    --muted: 140 9% 96%; /* #F0F4F1 */
+    --muted-foreground: 218 11% 50%; /* #6B7280 */
+    --accent: 142 76% 36%; /* #16A34A */
+    --accent-foreground: 0 0% 100%; /* #FFFFFF */
+    --destructive: 317 88% 59%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 9% 89%; /* #E5E7EB */
+    --input: 220 9% 89%; /* #E5E7EB */
+    --ring: 142 71% 45%; /* #22C55E */
+    --chart-1: 142 71% 45%;
+    --chart-2: 142 76% 36%;
+    --chart-3: 160 60% 45%;
+    --chart-4: 120 50% 50%;
+    --chart-5: 100 40% 40%;
+    --radius: 1.25rem;
+    --site-name: "System"; /* Will be overridden by branding config */
+    
+    /* Dynamic Theme Config - Can be changed by admin */
+    --hover-border-color: #22C55E;
+    --glow-intensity: 30px;
+  }
+  .dark {
+    /* Dark Theme - Dark equivalents */
+    --background: 215 28% 10%; /* #111827 */
+    --foreground: 140 9% 98%; /* #F8FAF9 */
+    --card: 215 25% 14%; /* #1F2937 */
+    --card-foreground: 140 9% 98%; /* #F8FAF9 */
+    --popover: 215 25% 14%; /* #1F2937 */
+    --popover-foreground: 140 9% 98%; /* #F8FAF9 */
+    /* Note: --primary, --primary-foreground, --ring, --accent, --accent-foreground, 
+       and chart colors are set by JavaScript via ThemeConfigProvider to allow admin customization.
+       They are not hardcoded here so customizations work in both light and dark modes. */
+    --secondary: 215 25% 18%;
+    --secondary-foreground: 140 9% 98%;
+    --muted: 215 25% 18%;
+    --muted-foreground: 218 11% 65%;
+    --destructive: 317 88% 59%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 215 25% 22%;
+    --input: 215 25% 22%;
+    /* Note: --ring is set by JavaScript via ThemeConfigProvider */
+    /* Note: chart colors are set by JavaScript via ThemeConfigProvider */
+  }
+}
+
+/* Dynamic theme overrides - Apply when custom theme is set via inline styles */
+/* Note: JavaScript sets --primary, --primary-foreground, --ring, --accent, 
+   --hover-border-color, and --glow-intensity as inline styles on <html> element.
+   These override the default :root values due to higher specificity. */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Ensure dialog portals render correctly */
+[data-radix-dialog-portal] {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+[data-radix-dialog-portal] > * {
+  pointer-events: auto;
+}
+
+/* Ensure dialogs are always on top */
+[role="dialog"] {
+  z-index: 50;
+}
+
+@layer utilities {
+  .glassmorphism {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  
+  .dark .glassmorphism {
+    background: rgba(17, 24, 39, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .neumorphic {
+    background: hsl(var(--background));
+    border-radius: var(--radius);
+    box-shadow: 
+      8px 8px 16px hsl(var(--shadow-dark)),
+      -8px -8px 16px hsl(var(--shadow-light));
+  }
+  
+  .neumorphic-inset {
+    background: hsl(var(--background));
+    border-radius: var(--radius);
+    box-shadow: 
+      inset 4px 4px 8px hsl(var(--shadow-dark)),
+      inset -4px -4px 8px hsl(var(--shadow-light));
+  }
+  
+  .neumorphic-flat {
+    background: hsl(var(--background));
+    border-radius: var(--radius);
+    box-shadow: 
+      4px 4px 8px hsl(var(--shadow-dark)),
+      -4px -4px 8px hsl(var(--shadow-light));
+    transition: all 0.3s ease;
+  }
+  
+  .neumorphic-flat:hover {
+    box-shadow: 
+      6px 6px 12px hsl(var(--shadow-dark)),
+      -6px -6px 12px hsl(var(--shadow-light));
+  }
+  
+  .neumorphic-flat:active {
+    box-shadow: 
+      inset 2px 2px 4px hsl(var(--shadow-dark)),
+      inset -2px -2px 4px hsl(var(--shadow-light));
+  }
+  
+  .soft-shadow {
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06),
+      0 1px 3px -1px rgba(0, 0, 0, 0.05);
+  }
+  
+  .smooth-surface {
+    background: hsl(var(--background));
+    border-radius: var(--radius);
+  }
+  
+  .card-glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.08),
+      0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+  
+  .dark .card-glass {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .brand-no-select {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+
+  .brand-no-copy {
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+  }
+
+  .brand-protected {
+    @apply brand-no-select brand-no-copy;
+  }
+
+  .navo-watermark {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    font-size: 120px;
+    font-weight: 900;
+    color: hsl(var(--primary) / 0.05);
+    pointer-events: none;
+    z-index: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+
+  .navo-card-brand {
+    position: relative;
+    isolation: isolate; /* Create proper stacking context without affecting fixed children */
+  }
+  
+  /* Ensure fixed positioned elements inside navo-card-brand are positioned relative to viewport */
+  .navo-card-brand [data-radix-popper-content-wrapper],
+  .navo-card-brand [data-radix-dialog-content] {
+    position: fixed !important;
+  }
+
+  .navo-card-brand::after {
+    content: var(--site-name, "System");
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 40px;
+    font-weight: 900;
+    color: hsl(var(--primary) / 0.08);
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    white-space: nowrap;
+  }
+}

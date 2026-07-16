@@ -1,0 +1,76 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+/dist/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*.local
+.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# large files
+*.pdf
+
+# Android
+android/
+*.gradle
+gradle/
+gradlew
+gradlew.bat
+capacitor.settings.gradle
+CAPACITOR_ANDROID_GUIDE.md
+README_ANDROID_SETUP.md
+
+# Capacitor
+capacitor.config.ts
+capacitor-env.d.ts
+CAPACITOR_MIGRATION_SUMMARY.md
+CAPACITOR_STATIC_EXPORT_GUIDE.md
+
+# Other configs
+netlify.toml
+next.config.dev.ts
+
+# Extracted files
+extract-pdf.js
+extracted_text.txt
+
+# IDE
+.idea/
+
+# Resources
+resources/
