@@ -17,9 +17,9 @@ export async function notifyPrimaryAdmin(
     
     // Get the primary admin's user ID
     const { data: primaryAdmin, error: userError } = await supabase
-      .from("auth.users")
+      .from("user_profiles")
       .select("id")
-      .eq("email", PRIMARY_ADMIN_EMAIL)
+      .ilike("email", PRIMARY_ADMIN_EMAIL)
       .single();
     
     if (userError || !primaryAdmin) {
@@ -64,9 +64,9 @@ export async function getPrimaryAdminId(): Promise<string | null> {
     const supabase = await createClient();
     
     const { data: primaryAdmin, error } = await supabase
-      .from("auth.users")
+      .from("user_profiles")
       .select("id")
-      .eq("email", PRIMARY_ADMIN_EMAIL)
+      .ilike("email", PRIMARY_ADMIN_EMAIL)
       .single();
     
     if (error || !primaryAdmin) {

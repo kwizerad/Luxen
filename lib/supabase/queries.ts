@@ -1,7 +1,6 @@
 "use client";
 
 import { createClient } from "./client";
-import { createAdminClient } from "./admin";
 import { isAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
 import type { ExamQuestion, ExamAnswer, ExamQuestionSortingMode } from "@/lib/database.types";
@@ -428,6 +427,12 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
       .eq("user_id", userId)
       .order("started_at", { ascending: false });
 
+    // Students never see their own soft-deleted attempts; admins viewing another
+    // user's history still see everything.
+    if (userId === user.id && !isUserAdmin) {
+      query = query.eq("hidden_from_user", false);
+    }
+
     const { data: attempts, error } = await query;
 
     if (error) throw error;
@@ -441,6 +446,10 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
     .eq("user_id", user.id)
     .order("started_at", { ascending: false });
 
+  if (!isUserAdmin) {
+    query = query.eq("hidden_from_user", false);
+  }
+
   const { data: attempts, error } = await query;
 
   if (error) throw error;
@@ -453,27 +462,27 @@ export async function deleteExamAttempt(attemptId: string) {
   }
 
   const supabase = createClient();
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  const user = await getAuthUser();
 
-  if (sessionError) {
-    console.warn("Failed to get session before deleting exam attempt:", sessionError.message);
+  if (!user) {
+    throw new Error("Unauthorized");
   }
 
-  const accessToken = session?.access_token;
-
-  const response = await fetch(`/api/exam-attempts/${attemptId}`, {
-    method: "DELETE",
-    credentials: "same-origin",
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  // Soft delete: hide the attempt from the student while keeping it for admins.
+  // Authorization (owner or admin) is enforced inside the SECURITY DEFINER
+  // function, so no service-role client is required.
+  const { error } = await supabase.rpc("hide_exam_attempt", {
+    p_attempt_id: attemptId,
   });
 
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result?.error || result?.details || "Failed to delete exam attempt");
+  if (error) {
+    throw new Error(error.message || "Failed to delete exam attempt");
   }
 
-  return result;
+  return {
+    success: true,
+    message: "Exam attempt removed from your history",
+  };
 }
 
 export async function getExamAttemptsWithQuestions(attemptId?: string) {
@@ -819,10 +828,7 @@ export async function updateExamLimit(user_id: string, daily_limit?: number, is_
     upsertData.is_limited = is_limited;
   }
 
-  // Use admin client to bypass RLS policies
-  const adminClient = createAdminClient();
-
-  const { data, error } = await adminClient
+  const { data, error } = await supabase
     .from("user_exam_limits")
     .upsert(upsertData, { onConflict: "user_id" })
     .select()
@@ -853,10 +859,7 @@ export async function deleteExamLimit(userId: string) {
     throw new Error("userId is required");
   }
 
-  // Use admin client to bypass RLS policies
-  const adminClient = createAdminClient();
-
-  const { error } = await adminClient
+  const { error } = await supabase
     .from("user_exam_limits")
     .delete()
     .eq("user_id", userId);
