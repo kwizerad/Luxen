@@ -83,8 +83,8 @@ export default function UserExamsPage() {
   };
 
   const handleDelete = (attemptId: string, category: string) => {
-    setConfirmTitle("⚠️ Permanent Delete");
-    setConfirmMessage(`You are about to permanently delete your exam attempt for "${category}".\n\nThis will remove:\n• Your score and answers\n• Time spent on the exam\n• All exam history data\n\nThis action cannot be undone.`);
+    setConfirmTitle("Remove from history");
+    setConfirmMessage(`Remove your exam attempt for "${category}" from your history?\n\nIt will no longer appear in your exam history. Administrators can still access this record.`);
     setConfirmCallback(async () => {
       try {
         setDeletingId(attemptId);
@@ -97,8 +97,8 @@ export default function UserExamsPage() {
         const deleteResult = await deleteExamAttempt(attemptId);
         console.log("Delete result:", deleteResult);
         
-        toast.success("✅ Exam deleted permanently", {
-          description: "The exam record has been permanently removed"
+        toast.success("✅ Removed from your history", {
+          description: "This attempt no longer appears in your history"
         });
       } catch (error: any) {
         // If delete failed, refresh the attempts to restore correct state
