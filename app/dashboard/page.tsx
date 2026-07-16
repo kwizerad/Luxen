@@ -249,7 +249,7 @@ export default function Dashboard() {
 
   // Delete an attempt and refresh
   const handleDeleteAttempt = async (attemptId: string) => {
-    if (!confirm("Delete this attempt? This action cannot be undone.")) return;
+    if (!confirm("Remove this attempt from your history? Administrators can still access it.")) return;
     try {
       await deleteExamAttempt(attemptId);
       await loadExamData();
@@ -505,7 +505,7 @@ export default function Dashboard() {
                           outerRadius={80}
                           dataKey="value"
                         >
-                          {[].map((entry, index) => (
+                          {([] as Array<{ fill: string }>).map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.fill} />
                           ))}
                         </Pie>
