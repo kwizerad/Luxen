@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
@@ -40,14 +42,14 @@ export async function GET(request: Request) {
       const row = [
         u.id,
         u.email || "",
-        u.user_metadata?.username || "",
-        u.user_metadata?.first_name || "",
-        u.user_metadata?.last_name || "",
-        u.user_metadata?.full_name || "",
-        u.user_metadata?.role || "",
-        u.user_metadata?.gender || "",
-        u.user_metadata?.nationality || "",
-        u.user_metadata?.birthdate || "",
+        u.username || "",
+        u.first_name || "",
+        u.last_name || "",
+        u.full_name || "",
+        u.role || "",
+        u.gender || "",
+        u.nationality || "",
+        u.birthdate || "",
         u.banned ? "Yes" : "No",
         u.created_at || "",
       ];
