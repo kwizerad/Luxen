@@ -425,26 +425,24 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
       throw new Error("Unauthorized");
     }
 
-    let query = supabase
+    const { data: attempts, error } = await supabase
       .from("exam_attempts")
       .select(EXAM_ATTEMPT_COLUMNS)
       .eq("user_id", userId)
-      .order("started_at", { ascending: false });
-
-    const { data: attempts, error } = await query;
+      .order("started_at", { ascending: false })
+      .limit(50);
 
     if (error) throw error;
     return { attempts: attempts || [] };
   }
 
   // Return current user's attempts
-  let query = supabase
+  const { data: attempts, error } = await supabase
     .from("exam_attempts")
     .select(EXAM_ATTEMPT_COLUMNS)
     .eq("user_id", user.id)
-    .order("started_at", { ascending: false });
-
-  const { data: attempts, error } = await query;
+    .order("started_at", { ascending: false })
+    .limit(50);
 
   if (error) throw error;
   return { attempts: attempts || [] };
@@ -1019,30 +1017,26 @@ export async function getNotifications(unreadOnly = false, limit = 50) {
     throw new Error("Unauthorized");
   }
 
-  const userRole = user.user_metadata?.role || "student";
   const isUserAdmin = isAdmin(user);
 
   // Build the OR conditions properly
   let orConditions = [`target_user_id.eq.${user.id}`, `target_role.eq.all`];
   
-  if (userRole !== "Admin" && userRole !== "Teacher") {
-    orConditions.push("target_role.eq.student");
-  }
   if (isUserAdmin) {
     orConditions.push("target_role.eq.admin");
-  }
-  if (userRole === "Teacher") {
-    orConditions.push("target_role.eq.teacher");
+  } else {
+    orConditions.push("target_role.eq.student");
   }
 
-  // Combine target and expiry filters with AND, each group using OR
+  // Use OR filter
   const targetFilter = `or(${orConditions.join(",")})`;
-  const expiryFilter = "or(expires_at.is.null,expires_at.gt.now())";
+
+  console.log('Fetching notifications with filter:', targetFilter);
 
   let query = supabase
     .from("notifications")
     .select("*")
-    .and(`${targetFilter},${expiryFilter}`);
+    .or(targetFilter);
 
   query = query.order("created_at", { ascending: false });
 
@@ -1052,7 +1046,12 @@ export async function getNotifications(unreadOnly = false, limit = 50) {
 
   const { data: notifications, error } = await query;
 
-  if (error) throw error;
+  if (error) {
+    console.error('Supabase query error:', error);
+    throw error;
+  }
+
+  console.log('Raw notifications from DB:', notifications);
 
   // Get read status for each notification
   const { data: readStatuses, error: readError } = await supabase
@@ -1122,7 +1121,7 @@ export async function createNotification(notification: {
     throw new Error("title and message are required");
   }
 
-  const validRoles = ["all", "student", "admin", "teacher"];
+  const validRoles = ["all", "student", "admin"];
   if (!validRoles.includes(target_role)) {
     throw new Error(`target_role must be one of: ${validRoles.join(", ")}`);
   }
@@ -1400,7 +1399,7 @@ export async function setupAdmin(email: string, password: string) {
 // COURSE MANAGEMENT QUERIES
 // ============================================================================
 
-export async function getCourseModules() {
+export async function getCourseLanguages() {
   const supabase = createClient();
   const user = await getAuthUser();
 
@@ -1408,11 +1407,55 @@ export async function getCourseModules() {
     throw new Error("Unauthorized");
   }
 
-  const { data, error } = await supabase
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  // Use admin client for admins to bypass RLS issues
+  const client = isUserAdmin ? createAdminClient() : supabase;
+
+  let query = client
+    .from("course_languages")
+    .select("*")
+    .order("order_index", { ascending: true });
+
+  // Only show published languages to non-admin users
+  if (!isUserAdmin) {
+    query = query.eq("is_published", true);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return { languages: data || [] };
+}
+
+export async function getCourseModules(languageId?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  // Use admin client for admins to bypass RLS issues
+  const client = isUserAdmin ? createAdminClient() : supabase;
+
+  let query = client
     .from("course_modules")
     .select("*")
-    .eq("is_published", true)
     .order("order_index", { ascending: true });
+
+  if (languageId) {
+    query = query.eq("language_id", languageId);
+  }
+
+  // Only show published modules to non-admin users
+  if (!isUserAdmin) {
+    query = query.eq("is_published", true);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return { modules: data || [] };
@@ -1426,12 +1469,23 @@ export async function getCourseLessons(moduleId: string) {
     throw new Error("Unauthorized");
   }
 
-  const { data, error } = await supabase
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  // Use admin client for admins to bypass RLS issues
+  const client = isUserAdmin ? createAdminClient() : supabase;
+
+  let query = client
     .from("course_lessons")
     .select("*")
     .eq("module_id", moduleId)
-    .eq("is_published", true)
     .order("order_index", { ascending: true });
+
+  // Only show published lessons to non-admin users
+  if (!isUserAdmin) {
+    query = query.eq("is_published", true);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return { lessons: data || [] };
@@ -1445,7 +1499,12 @@ export async function getModuleExamSettings(moduleId: string) {
     throw new Error("Unauthorized");
   }
 
-  const { data, error } = await supabase
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  // Use admin client for admins to bypass RLS issues
+  const client = isUserAdmin ? createAdminClient() : supabase;
+
+  const { data, error } = await client
     .from("module_exam_settings")
     .select("*")
     .eq("module_id", moduleId)
@@ -1478,7 +1537,12 @@ export async function getModuleExamQuestions(moduleId: string) {
     throw new Error("Unauthorized");
   }
 
-  const { data, error } = await supabase
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  // Use admin client for admins to bypass RLS issues
+  const client = isUserAdmin ? createAdminClient() : supabase;
+
+  const { data, error } = await client
     .from("module_exam_questions")
     .select("*")
     .eq("module_id", moduleId)
@@ -1497,9 +1561,14 @@ export async function getStudentModuleProgress(userId?: string) {
     throw new Error("Unauthorized");
   }
 
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  // Use admin client for admins to bypass RLS issues
+  const client = isUserAdmin ? createAdminClient() : supabase;
+
   const targetUserId = userId || user.id;
 
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from("student_module_progress")
     .select("*")
     .eq("user_id", targetUserId);
@@ -1516,9 +1585,14 @@ export async function getStudentLessonProgress(userId?: string, moduleId?: strin
     throw new Error("Unauthorized");
   }
 
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  // Use admin client for admins to bypass RLS issues
+  const client = isUserAdmin ? createAdminClient() : supabase;
+
   const targetUserId = userId || user.id;
 
-  let query = supabase
+  let query = client
     .from("student_lesson_progress")
     .select("*")
     .eq("user_id", targetUserId);
@@ -1535,6 +1609,7 @@ export async function getStudentLessonProgress(userId?: string, moduleId?: strin
 
 export async function markLessonComplete(lessonId: string, moduleId: string, timeSpentSeconds: number = 0) {
   const supabase = createClient();
+  const adminSupabase = createAdminClient();
   const user = await getAuthUser();
 
   if (!user) {
@@ -1559,6 +1634,32 @@ export async function markLessonComplete(lessonId: string, moduleId: string, tim
   // Update module progress
   await updateModuleProgress(moduleId);
 
+  // Send notification for lesson completion
+  try {
+    // Get lesson details
+    const { data: lesson } = await supabase
+      .from("course_lessons")
+      .select("title")
+      .eq("id", lessonId)
+      .single();
+
+    await adminSupabase
+      .from("notifications")
+      .insert({
+        user_id: user.id,
+        type: 'system_update',
+        title: 'Lesson Completed ✅',
+        message: `You completed "${lesson?.title || 'a lesson'}"! Keep up the great work.`,
+        data: {
+          lesson_id: lessonId,
+          module_id: moduleId,
+        },
+      });
+  } catch (notificationError) {
+    console.error("Failed to create notification:", notificationError);
+    // Don't throw error - notification is secondary to lesson completion
+  }
+
   return { progress: data };
 }
 
@@ -1570,8 +1671,13 @@ async function updateModuleProgress(moduleId: string) {
     throw new Error("Unauthorized");
   }
 
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  // Use admin client for admins to bypass RLS issues
+  const client = isUserAdmin ? createAdminClient() : supabase;
+
   // Get total lessons for this module
-  const { data: totalLessonsData } = await supabase
+  const { data: totalLessonsData } = await client
     .from("course_lessons")
     .select("id")
     .eq("module_id", moduleId)
@@ -1580,7 +1686,7 @@ async function updateModuleProgress(moduleId: string) {
   const totalLessons = totalLessonsData?.length || 0;
 
   // Get completed lessons for this user
-  const { data: completedLessonsData } = await supabase
+  const { data: completedLessonsData } = await client
     .from("student_lesson_progress")
     .select("id")
     .eq("user_id", user.id)
@@ -1590,7 +1696,7 @@ async function updateModuleProgress(moduleId: string) {
   const lessonsCompleted = completedLessonsData?.length || 0;
 
   // Get exam status
-  const { data: moduleProgress } = await supabase
+  const { data: moduleProgress } = await client
     .from("student_module_progress")
     .select("*")
     .eq("user_id", user.id)
@@ -1598,7 +1704,7 @@ async function updateModuleProgress(moduleId: string) {
     .maybeSingle();
 
   // Update or insert module progress
-  await supabase
+  await client
     .from("student_module_progress")
     .upsert([{
       user_id: user.id,
@@ -1665,8 +1771,13 @@ async function updateModuleExamProgress(moduleId: string, score: number, passed:
     throw new Error("Unauthorized");
   }
 
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  // Use admin client for admins to bypass RLS issues
+  const client = isUserAdmin ? createAdminClient() : supabase;
+
   // Get current progress
-  const { data: currentProgress } = await supabase
+  const { data: currentProgress } = await client
     .from("student_module_progress")
     .select("*")
     .eq("user_id", user.id)
@@ -1679,7 +1790,7 @@ async function updateModuleExamProgress(moduleId: string, score: number, passed:
     : score;
 
   // Update or insert module progress
-  await supabase
+  await client
     .from("student_module_progress")
     .upsert([{
       user_id: user.id,
@@ -1701,9 +1812,14 @@ export async function getModuleExamAttempts(userId?: string, moduleId?: string) 
     throw new Error("Unauthorized");
   }
 
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  // Use admin client for admins to bypass RLS issues
+  const client = isUserAdmin ? createAdminClient() : supabase;
+
   const targetUserId = userId || user.id;
 
-  let query = supabase
+  let query = client
     .from("module_exam_attempts")
     .select("*")
     .eq("user_id", targetUserId);
@@ -1726,8 +1842,13 @@ export async function getModuleExamForTaking(moduleId: string) {
     throw new Error("Unauthorized");
   }
 
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  // Use admin client for admins to bypass RLS issues
+  const client = isUserAdmin ? createAdminClient() : supabase;
+
   // Get settings
-  const { data: settings } = await supabase
+  const { data: settings } = await client
     .from("module_exam_settings")
     .select("*")
     .eq("module_id", moduleId)
@@ -1738,7 +1859,7 @@ export async function getModuleExamForTaking(moduleId: string) {
   }
 
   // Get all published questions
-  const { data: allQuestions } = await supabase
+  const { data: allQuestions } = await client
     .from("module_exam_questions")
     .select("*")
     .eq("module_id", moduleId)
@@ -1749,7 +1870,7 @@ export async function getModuleExamForTaking(moduleId: string) {
   }
 
   // Get module info
-  const { data: module } = await supabase
+  const { data: module } = await client
     .from("course_modules")
     .select("*")
     .eq("id", moduleId)

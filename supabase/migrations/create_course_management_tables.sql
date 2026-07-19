@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS course_modules (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT,
+  title_translations JSONB DEFAULT '{}',
+  description_translations JSONB DEFAULT '{}',
   order_index INTEGER NOT NULL DEFAULT 0,
   is_published BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -80,6 +82,8 @@ CREATE TABLE IF NOT EXISTS course_lessons (
   module_id UUID NOT NULL REFERENCES course_modules(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
+  title_translations JSONB DEFAULT '{}',
+  content_translations JSONB DEFAULT '{}',
   content_type TEXT NOT NULL DEFAULT 'text' CHECK (content_type IN ('text', 'video', 'image', 'document')),
   media_url TEXT,
   order_index INTEGER NOT NULL DEFAULT 0,
@@ -552,3 +556,14 @@ CREATE TRIGGER update_student_lesson_progress_updated_at BEFORE UPDATE ON studen
 
 CREATE TRIGGER update_module_exam_attempts_updated_at BEFORE UPDATE ON module_exam_attempts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- MULTILINGUAL SUPPORT (English, Kinyarwanda, French)
+-- ============================================================================
+ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS title_translations JSONB DEFAULT '{}';
+ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS description_translations JSONB DEFAULT '{}';
+ALTER TABLE course_lessons ADD COLUMN IF NOT EXISTS title_translations JSONB DEFAULT '{}';
+ALTER TABLE course_lessons ADD COLUMN IF NOT EXISTS content_translations JSONB DEFAULT '{}';
+
+UPDATE course_modules SET title_translations = COALESCE(title_translations, '{}'), description_translations = COALESCE(description_translations, '{}') WHERE title_translations IS NULL OR description_translations IS NULL;
+UPDATE course_lessons SET title_translations = COALESCE(title_translations, '{}'), content_translations = COALESCE(content_translations, '{}') WHERE title_translations IS NULL OR content_translations IS NULL;

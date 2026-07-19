@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Mail, User, Palette, UserPlus, ImageIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { UserSettings } from "@/components/user-settings";
+import UserSettings from "@/components/user-settings";
 import { ThemeCustomizer } from "@/components/theme-customizer";
 import { BrandingCustomizer } from "@/components/branding-customizer";
 import { SystemConfigSettings } from "@/components/system-config";
@@ -14,7 +14,6 @@ import { Loader2 } from "lucide-react";
 import { ADMIN_CREDENTIALS } from "@/lib/admin-config";
 import Link from "next/link";
 import { useBrandingConfig } from "@/lib/branding-config";
-import { useThemeConfig } from "@/lib/theme-config";
 import { useThemeConfig } from "@/lib/theme-config";
 
 export default function AdminSettingsPage() {
@@ -129,7 +128,7 @@ export default function AdminSettingsPage() {
                 <CardDescription>Update personal settings and account details.</CardDescription>
               </CardHeader>
               <CardContent>
-                <UserSettings showPasswordChange={true} />
+                <UserSettings user={user} showPasswordChange={true} />
               </CardContent>
             </Card>
 

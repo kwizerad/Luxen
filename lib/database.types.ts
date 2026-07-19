@@ -68,7 +68,7 @@ export interface ExamAnswer {
 export interface UserProfile {
   id: string;
   email?: string;
-  role?: 'Student' | 'Admin' | 'Teacher' | 'Driver' | 'Landlord';
+  role?: 'Student' | 'Admin';
   username?: string;
   full_name?: string;
   first_name?: string;
@@ -94,10 +94,28 @@ export interface SystemConfig {
 // COURSE MANAGEMENT TYPES
 // ============================================================================
 
-export interface CourseModule {
+export type CourseLanguage = 'English' | 'Kinyarwanda' | 'French';
+
+export interface CourseLanguageCourse {
   id: string;
+  language: CourseLanguage;
   title: string;
   description?: string;
+  is_published: boolean;
+  order_index: number;
+  created_at: string;
+  updated_at?: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+export interface CourseModule {
+  id: string;
+  language_id?: string;
+  title: string;
+  description?: string;
+  title_translations?: Record<string, string>;
+  description_translations?: Record<string, string>;
   order_index: number;
   is_published: boolean;
   created_at: string;
@@ -111,8 +129,11 @@ export interface CourseLesson {
   module_id: string;
   title: string;
   content: string;
-  content_type: 'text' | 'video' | 'image' | 'document';
+  title_translations?: Record<string, string>;
+  content_translations?: Record<string, string>;
+  content_type: 'text' | 'video' | 'image' | 'document' | 'mixed';
   media_url?: string;
+  image_url?: string;
   order_index: number;
   is_published: boolean;
   created_at: string;
@@ -207,4 +228,32 @@ export interface ModuleExamAnswer {
   selected_answer: 'A' | 'B' | 'C' | 'D' | null;
   is_correct: boolean;
   time_spent_seconds?: number;
+}
+
+// ============================================================================
+// NOTIFICATION TYPES
+// ============================================================================
+
+export type NotificationType = 
+  | 'language_published'
+  | 'module_published'
+  | 'lesson_published'
+  | 'exam_result'
+  | 'module_completed'
+  | 'course_updated'
+  | 'system_update'
+  | 'announcement'
+  | 'exam_available'
+  | 'reminder';
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  data: Record<string, any>;
+  is_read: boolean;
+  read_at?: string;
+  created_at: string;
 }

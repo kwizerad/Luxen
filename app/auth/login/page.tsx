@@ -2,6 +2,7 @@
 
 import { LoginForm } from "@/components/login-form";
 import { SignUpForm } from "@/components/sign-up-form";
+import { GoogleOneTap } from "@/components/google-one-tap";
 import { useLanguage } from "@/lib/language-context";
 
 export default function Page() {
@@ -16,6 +17,9 @@ export default function Page() {
         <div className="grid md:grid-cols-2 gap-8 items-start">
           <LoginForm />
           <SignUpForm />
+        </div>
+        <div className="flex justify-center pt-4">
+          <GoogleOneTap />
         </div>
       </div>
     </main>

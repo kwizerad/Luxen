@@ -5,12 +5,11 @@ import { usePathname } from "next/navigation";
 import { NotificationsDropdown } from "./notifications-dropdown";
 import { FloatingUserSettings } from "./floating-user-settings";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { Menu, X } from "lucide-react";
 
 export function FloatingHeader() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
 
@@ -30,11 +29,6 @@ export function FloatingHeader() {
     const updateExamState = () => {
       const examActive = checkExamActive();
       setIsExamActive(examActive);
-      
-      if (examActive) {
-        setLoading(false);
-        return;
-      }
     };
     
     updateExamState();
@@ -55,30 +49,13 @@ export function FloatingHeader() {
     }
   }, [isExamPage]);
 
-  useEffect(() => {
-    // Don't load user if exam is active
-    if (isExamActive) {
-      setLoading(false);
-      return;
-    }
-
-    const loadUser = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      setLoading(false);
-    };
-
-    loadUser();
-  }, [isExamActive]);
-
   // Don't render on exam page if exam is active
   if (isExamActive) {
     return null;
   }
 
   // Don't render if no user
-  if (!user && !loading) {
+  if (!user && !authLoading) {
     return null;
   }
 

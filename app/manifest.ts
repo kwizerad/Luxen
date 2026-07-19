@@ -1,13 +1,10 @@
 import { MetadataRoute } from "next";
-import { getSystemName } from "@/lib/server-config";
 
 export default function manifest(): MetadataRoute.Manifest {
-  const systemName = getSystemName();
-  
   return {
-    name: `${systemName} Lite`,
-    short_name: systemName,
-    description: `${systemName} Lite - Your lightweight modern learning platform. Access courses, exams, and learning materials offline.`,
+    name: "Navo Lite",
+    short_name: "Navo",
+    description: "Navo Lite - Your lightweight modern learning platform. Access courses, exams, and learning materials offline.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
@@ -22,13 +19,13 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/icons/icon-192x192.svg",
         sizes: "192x192",
         type: "image/svg+xml",
-        purpose: "any maskable"
+        purpose: "any"
       },
       {
         src: "/icons/icon-512x512.svg",
         sizes: "512x512",
         type: "image/svg+xml",
-        purpose: "any maskable"
+        purpose: "any"
       },
       {
         src: "/icons/icon-180x180.svg",
@@ -47,20 +44,6 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: "76x76",
         type: "image/svg+xml",
         purpose: "any"
-      }
-    ],
-    screenshots: [
-      {
-        src: "/screenshots/dashboard.png",
-        sizes: "1280x720",
-        type: "image/png",
-        form_factor: "wide"
-      },
-      {
-        src: "/screenshots/mobile.png",
-        sizes: "750x1334",
-        type: "image/png",
-        form_factor: "narrow"
       }
     ],
     related_applications: [],

@@ -6,9 +6,10 @@ import { isAdmin } from "@/lib/permissions";
 // PATCH update module (admin only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { moduleId: string } }
+  { params }: { params: Promise<{ moduleId: string }> }
 ) {
   try {
+    const { moduleId } = await params;
     const supabase = await createClient();
 
     // Get the authenticated user. Prefer the Authorization header token sent by the client,
@@ -32,18 +33,20 @@ export async function PATCH(
     const adminSupabase = createAdminClient();
 
     const body = await request.json();
-    const { title, description, order_index, is_published } = body;
+    const { title, description, title_translations, description_translations, order_index, is_published } = body;
 
     const { data, error } = await adminSupabase
       .from("course_modules")
       .update({
         title: title !== undefined ? title : undefined,
         description: description !== undefined ? description : undefined,
+        title_translations: title_translations !== undefined ? title_translations : undefined,
+        description_translations: description_translations !== undefined ? description_translations : undefined,
         order_index: order_index !== undefined ? order_index : undefined,
         is_published: is_published !== undefined ? is_published : undefined,
         updated_by: user.id,
       })
-      .eq("id", params.moduleId)
+      .eq("id", moduleId)
       .select()
       .single();
 
@@ -62,9 +65,10 @@ export async function PATCH(
 // DELETE module (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { moduleId: string } }
+  { params }: { params: Promise<{ moduleId: string }> }
 ) {
   try {
+    const { moduleId } = await params;
     const supabase = await createClient();
 
     // Get the authenticated user. Prefer the Authorization header token sent by the client,
@@ -90,7 +94,7 @@ export async function DELETE(
     const { error } = await adminSupabase
       .from("course_modules")
       .delete()
-      .eq("id", params.moduleId);
+      .eq("id", moduleId);
 
     if (error) throw error;
 

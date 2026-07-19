@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,7 +15,7 @@ import { Bell, Check, Trash2, Loader2, Info, CheckCircle, AlertTriangle, XCircle
 import { formatDistanceToNow } from "date-fns";
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification as deleteNotificationQuery } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/client";
-import { getCurrentUser } from "@/lib/auth-utils";
+import { useAuth } from "@/lib/auth-context";
 import { isAdmin } from "@/lib/permissions";
 
 interface Notification {
@@ -68,32 +68,38 @@ function isNotificationForUser(notification: Notification, user: any) {
   if (!user?.id) return false;
 
   const userIsAdmin = isAdmin(user);
-  const userIsTeacher = user.user_metadata?.role === "Teacher";
 
   if (notification.target_user_id && notification.target_user_id === user.id) return true;
   if (notification.target_role === "all") return true;
-  if (notification.target_role === "student" && !userIsAdmin && !userIsTeacher) return true;
+  if (notification.target_role === "student" && !userIsAdmin) return true;
   if (notification.target_role === "admin" && userIsAdmin) return true;
-  if (notification.target_role === "teacher" && userIsTeacher) return true;
 
   return false;
 }
 
 export function NotificationsDropdown() {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const subscriptionRef = useRef<any>(null);
+  const channelRef = useRef<any>(null);
+  const isSetupRef = useRef(false);
+  const supabaseRef = useRef<any>(null);
 
   const fetchNotifications = async () => {
     try {
+      console.log('Fetching notifications...');
       const data = await getNotifications();
+      console.log('Fetched notifications:', data);
       setNotifications(data.notifications || []);
       setUnreadCount(data.unread_count || 0);
-    } catch {
-      // Silently fail - notifications table may not exist yet
-      // This is expected until SQL migrations are applied in Supabase
+    } catch (error: any) {
+      console.error('Error fetching notifications:', error);
+      console.error('Error details:', error.message);
+      // Set empty state on error so loading stops
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
@@ -102,79 +108,11 @@ export function NotificationsDropdown() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    let isMounted = true;
-    let channel: any = null;
-    const supabase = createClient();
-
-    const setup = async () => {
-      let user: any = null;
-      try {
-        user = await getCurrentUser();
-      } catch {
-        // Not authenticated; notifications won't apply
-      }
-
-      if (!isMounted) return;
-
-      fetchNotifications();
-
-      if (subscriptionRef.current) return;
-
-      try {
-        // Create channel with unique ID to avoid conflicts
-        channel = supabase.channel(`notifications-channel-${user?.id || 'anon'}-${Date.now()}`);
-
-        // Add the postgres_changes listener before subscribing
-        channel.on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'notifications'
-          },
-          (payload: any) => {
-            // Fetch all notifications when a change occurs
-            fetchNotifications();
-
-            // Show toast only for new notifications targeted to the current user
-            if (payload.eventType === 'INSERT') {
-              const newNotification = payload.new as Notification;
-              if (!newNotification.is_read && isNotificationForUser(newNotification, user)) {
-                toast.success(newNotification.title, {
-                  description: newNotification.message,
-                });
-
-                // Play sound for urgent notifications
-                if (newNotification.priority === 'urgent') {
-                  playNotificationSound();
-                }
-              }
-            }
-          }
-        );
-
-        // Subscribe after all listeners are added
-        channel.subscribe((status: string) => {
-          if (status === 'SUBSCRIBED') {
-            subscriptionRef.current = channel;
-          }
-        });
-      } catch (error) {
-        console.error('Failed to subscribe to notifications:', error);
-      }
-    };
-
-    setup();
-
-    return () => {
-      isMounted = false;
-      const activeChannel = subscriptionRef.current || channel;
-      if (activeChannel) {
-        supabase.removeChannel(activeChannel);
-        subscriptionRef.current = null;
-      }
-    };
-  }, []);
+    // Just fetch notifications on mount and when user changes
+    // Disable real-time for now to fix the subscription error
+    console.log('Fetching notifications for user:', user?.id);
+    fetchNotifications();
+  }, [user]);
 
   const playNotificationSound = () => {
     try {

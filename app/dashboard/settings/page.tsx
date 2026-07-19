@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, User, ArrowLeft, LogOut, Menu } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { UserSettings } from "@/components/user-settings";
+import UserSettings from "@/components/user-settings";
 import { FloatingUserSettings } from "@/components/floating-user-settings";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { useBrandingConfig } from "@/lib/branding-config";
@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export default function StudentSettingsPage() {
+export default function UserSettingsPage() {
   const { config } = useBrandingConfig();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -100,81 +100,23 @@ export default function StudentSettingsPage() {
       </div>
       
       <main className="container mx-auto px-4 py-4 md:py-8 pt-16 md:pt-8 pb-24 md:pb-8">
-        <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-          <div className="space-y-6">
-            <Card className="border border-border rounded-[32px] shadow-sm hover:shadow-lg transition-shadow duration-300">
-              <CardHeader>
-                <CardTitle>Personal Settings</CardTitle>
-                <CardDescription>
-                  Update your profile, password, and account preferences in one place.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <UserSettings 
-                  showPasswordChange={true} 
-                  showUsernameChange={true}
-                  user={user}
-                  onUserUpdate={(updatedUser) => setUser(updatedUser)}
-                />
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-6">
-            <Card className="border border-border rounded-[32px] shadow-sm hover:shadow-lg transition-shadow duration-300">
-              <CardHeader>
-                <CardTitle>Account Snapshot</CardTitle>
-                <CardDescription>Quick view of your profile and access.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-3xl border border-border bg-secondary p-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16">
-                      {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
-                      <AvatarFallback className="text-lg font-semibold">{getInitials()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-lg font-semibold">{getDisplayName()}</p>
-                      <p className="text-sm text-muted-foreground">{user?.email}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid gap-3">
-                  <div className="rounded-3xl border border-border bg-secondary p-4">
-                    <p className="text-sm text-muted-foreground">Role</p>
-                    <p className="font-semibold">{user?.user_metadata?.role || "Student"}</p>
-                  </div>
-                  <div className="rounded-3xl border border-border bg-secondary p-4">
-                    <p className="text-sm text-muted-foreground">Gender</p>
-                    <p className="font-semibold capitalize">{user?.user_metadata?.gender || "Unspecified"}</p>
-                  </div>
-                  <div className="rounded-3xl border border-border bg-secondary p-4">
-                    <p className="text-sm text-muted-foreground">Nationality</p>
-                    <p className="font-semibold capitalize">{user?.user_metadata?.nationality || user?.user_metadata?.country || user?.user_metadata?.locale || "Unspecified"}</p>
-                  </div>
-                  <div className="rounded-3xl border border-border bg-secondary p-4">
-                    <p className="text-sm text-muted-foreground">Date of Birth</p>
-                    <p className="font-semibold">{user?.user_metadata?.birthdate || user?.user_metadata?.date_of_birth || user?.user_metadata?.birthday || user?.user_metadata?.dob || "Unspecified"}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border rounded-[32px] shadow-sm hover:shadow-lg transition-shadow duration-300">
-              <CardHeader>
-                <CardTitle>Quick Links</CardTitle>
-                <CardDescription>Useful links and resources</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Link href="/dashboard/exam" className="block rounded-2xl border border-border bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/90">
-                  View available exams
-                </Link>
-                <Link href="/userExam" className="block rounded-2xl border border-border bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/90">
-                  View exam history
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
+        <div className="max-w-6xl mx-auto">
+          <Card className="border border-border rounded-[32px] shadow-sm hover:shadow-lg transition-shadow duration-300">
+            <CardHeader>
+              <CardTitle>Personal Settings</CardTitle>
+              <CardDescription>
+                Update your profile, password, and account preferences in one place.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <UserSettings 
+                showPasswordChange={true} 
+                showUsernameChange={true}
+                user={user}
+                onUserUpdate={(updatedUser) => setUser(updatedUser)}
+              />
+            </CardContent>
+          </Card>
         </div>
       </main>
       <MobileBottomNav />

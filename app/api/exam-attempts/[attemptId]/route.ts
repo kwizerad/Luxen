@@ -3,9 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/permissions";
 
-export async function DELETE(request: NextRequest, { params }: { params: { attemptId?: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ attemptId?: string }> }) {
   try {
-    const attemptId = params?.attemptId;
+    const { attemptId } = await params;
 
     if (!attemptId) {
       return NextResponse.json({ error: "Attempt ID is required" }, { status: 400 });

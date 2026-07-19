@@ -21,7 +21,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/20 bg-background/60 backdrop-blur-xl shadow-lg">
-      <div className="container flex h-16 items-center justify-between px-6">
+      <div className="container flex h-16 items-center justify-between pl-6 pr-6">
         <div className="flex items-center">
           <Link href="/" prefetch={true} className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md relative">
@@ -40,7 +40,7 @@ export function SiteHeader() {
             <span className="font-bold text-xl tracking-tight">{config.systemName}</span>
           </Link>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 pr-6">
           <SettingsModal />
           <AuthButton />
         </div>

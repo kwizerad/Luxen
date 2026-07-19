@@ -1,7 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 
 interface ThemeConfig {
   light: {
@@ -48,47 +47,41 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
   const [config, setConfig] = useState<ThemeConfig>(defaultConfig);
   const [mounted, setMounted] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+
     // Load theme config from API first, then localStorage as fallback
     const loadThemeConfig = async () => {
       if (typeof window === "undefined") return;
-      
+
       try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
-          // Try to load from API first
-          const authHeader = await supabase.auth.getSession();
-          const response = await fetch('/api/system-config/theme_config', {
-            headers: authHeader.session?.access_token ? {
-              'Authorization': `Bearer ${authHeader.session.access_token}`
-            } : {}
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.value) {
-              const dbConfig = JSON.parse(data.value);
-              setConfig(dbConfig);
-              applyThemeConfig(dbConfig);
-              console.log("Theme config loaded from API:", dbConfig);
-              setMounted(true);
-              return;
-            }
+        // API reads session from cookies; no need for explicit auth header
+        const response = await fetch('/api/system-config/theme_config');
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.value) {
+            const dbConfig = JSON.parse(data.value);
+            setConfig(dbConfig);
+            applyThemeConfig(dbConfig);
+            console.log("Theme config loaded from API:", dbConfig);
+            setMounted(true);
+            return;
           }
         }
       } catch (error) {
         console.log("Could not load theme from API, using localStorage:", error);
       }
-      
+
       // Fallback to localStorage
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          
+
           // Migrate old format to new format if needed
           let configToUse = parsed;
           if (parsed.primaryColor && !parsed.light) {
@@ -108,7 +101,7 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
             localStorage.setItem(STORAGE_KEY, JSON.stringify(configToUse));
             console.log("Migrated old theme config to new format:", configToUse);
           }
-          
+
           setConfig(configToUse);
           applyThemeConfig(configToUse);
           console.log("Theme config loaded from localStorage:", configToUse);
@@ -235,28 +228,22 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
 
   const saveToDatabase = async (newConfig: ThemeConfig) => {
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.access_token) {
-        // Save to database via API
-        const response = await fetch('/api/system-config/theme_config', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({
-            value: JSON.stringify(newConfig),
-            description: 'Global theme configuration applied to all users'
-          })
-        });
-        
-        if (response.ok) {
-          console.log("Theme config saved to database via API");
-        } else {
-          console.error("Failed to save theme to database via API:", await response.text());
-        }
+      // API reads session from cookies; no need for explicit auth header
+      const response = await fetch('/api/system-config/theme_config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          value: JSON.stringify(newConfig),
+          description: 'Global theme configuration applied to all users'
+        })
+      });
+
+      if (response.ok) {
+        console.log("Theme config saved to database via API");
+      } else {
+        console.error("Failed to save theme to database via API:", await response.text());
       }
     } catch (error) {
       console.error("Error saving theme to database:", error);

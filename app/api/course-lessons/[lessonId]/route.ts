@@ -6,9 +6,10 @@ import { isAdmin } from "@/lib/permissions";
 // PATCH update lesson (admin only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { lessonId: string } }
+  { params }: { params: Promise<{ lessonId: string }> }
 ) {
   try {
+    const { lessonId } = await params;
     const supabase = await createClient();
 
     // Get the authenticated user. Prefer the Authorization header token sent by the client,
@@ -32,20 +33,23 @@ export async function PATCH(
     const adminSupabase = createAdminClient();
 
     const body = await request.json();
-    const { title, content, content_type, media_url, order_index, is_published } = body;
+    const { title, content, title_translations, content_translations, content_type, media_url, image_url, order_index, is_published } = body;
 
     const { data, error } = await adminSupabase
       .from("course_lessons")
       .update({
         title: title !== undefined ? title : undefined,
         content: content !== undefined ? content : undefined,
+        title_translations: title_translations !== undefined ? title_translations : undefined,
+        content_translations: content_translations !== undefined ? content_translations : undefined,
         content_type: content_type !== undefined ? content_type : undefined,
         media_url: media_url !== undefined ? media_url : undefined,
+        image_url: image_url !== undefined ? image_url : undefined,
         order_index: order_index !== undefined ? order_index : undefined,
         is_published: is_published !== undefined ? is_published : undefined,
         updated_by: user.id,
       })
-      .eq("id", params.lessonId)
+      .eq("id", lessonId)
       .select()
       .single();
 
@@ -64,9 +68,10 @@ export async function PATCH(
 // DELETE lesson (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { lessonId: string } }
+  { params }: { params: Promise<{ lessonId: string }> }
 ) {
   try {
+    const { lessonId } = await params;
     const supabase = await createClient();
 
     // Get the authenticated user. Prefer the Authorization header token sent by the client,
@@ -92,7 +97,7 @@ export async function DELETE(
     const { error } = await adminSupabase
       .from("course_lessons")
       .delete()
-      .eq("id", params.lessonId);
+      .eq("id", lessonId);
 
     if (error) throw error;
 

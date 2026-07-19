@@ -164,9 +164,6 @@ const translations: Record<Language, Record<string, string>> = {
     "role": "Role",
     "student": "Student",
     "admin": "Admin",
-    "teacher": "Teacher",
-    "driver": "Driver",
-    "landlord": "Landlord",
     
     // Enhanced Dashboard Features
     "totalExamsTaken": "Total Exams",
@@ -393,9 +390,6 @@ const translations: Record<Language, Record<string, string>> = {
     "role": "الدور",
     "student": "طالب",
     "admin": "مسؤول",
-    "teacher": "معلم",
-    "driver": "سائق",
-    "landlord": "مالك",
     
     // Enhanced Dashboard Features
     "totalExamsTaken": "إجمالي الامتحانات",
@@ -621,9 +615,6 @@ const translations: Record<Language, Record<string, string>> = {
     "role": "Rôle",
     "student": "Étudiant",
     "admin": "Administrateur",
-    "teacher": "Enseignant",
-    "driver": "Chauffeur",
-    "landlord": "Propriétaire",
     
     // Enhanced Dashboard Features
     "totalExamsTaken": "Examens Passés",
@@ -849,9 +840,6 @@ const translations: Record<Language, Record<string, string>> = {
     "role": "Uruhare",
     "student": "Umunyeshuri",
     "admin": "Umuyobozi",
-    "teacher": "Umwarimu",
-    "driver": "Umushoferi",
-    "landlord": "Nyir'amazu",
     
     // Enhanced Dashboard Features
     "totalExamsTaken": "Ibizamini Byose",

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 interface BrandingConfig {
   systemName: string;
@@ -41,34 +40,24 @@ export function BrandingConfigProvider({ children }: { children: ReactNode }) {
     // Load branding config from database first, then localStorage as fallback
     const loadBrandingConfig = async () => {
       if (typeof window === "undefined") return;
-      
+
       try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
-          // Try to load from database first
-          const authHeader = await supabase.auth.getSession();
-          const response = await fetch('/api/system-config/branding_config', {
-            headers: authHeader.session?.access_token ? {
-              'Authorization': `Bearer ${authHeader.session.access_token}`
-            } : {}
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.value) {
-              const dbConfig = JSON.parse(data.value);
-              setConfig(dbConfig);
-              console.log("Branding config loaded from database:", dbConfig);
-              return;
-            }
+        // API reads session from cookies; no need for explicit auth header
+        const response = await fetch('/api/system-config/branding_config');
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.value) {
+            const dbConfig = JSON.parse(data.value);
+            setConfig(dbConfig);
+            console.log("Branding config loaded from database:", dbConfig);
+            return;
           }
         }
       } catch (error) {
         console.log("Could not load branding from database, using localStorage:", error);
       }
-      
+
       // Fallback to localStorage
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -150,28 +139,22 @@ export function BrandingConfigProvider({ children }: { children: ReactNode }) {
 
   const saveToDatabase = async (newConfig: BrandingConfig) => {
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.access_token) {
-        // Save to database via API
-        const response = await fetch('/api/system-config/branding_config', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({
-            value: JSON.stringify(newConfig),
-            description: 'Global branding configuration for system name and logo'
-          })
-        });
-        
-        if (response.ok) {
-          console.log("Branding config saved to database via API");
-        } else {
-          console.error("Failed to save branding to database via API:", await response.text());
-        }
+      // API reads session from cookies; no need for explicit auth header
+      const response = await fetch('/api/system-config/branding_config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          value: JSON.stringify(newConfig),
+          description: 'Global branding configuration for system name and logo'
+        })
+      });
+
+      if (response.ok) {
+        console.log("Branding config saved to database via API");
+      } else {
+        console.error("Failed to save branding to database via API:", await response.text());
       }
     } catch (error) {
       console.error("Error saving branding to database:", error);

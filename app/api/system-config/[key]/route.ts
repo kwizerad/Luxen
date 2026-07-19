@@ -6,9 +6,10 @@ import { isAdmin } from "@/lib/permissions";
 // GET system config value by key (all authenticated users can read)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { key: string } }
+  { params }: { params: Promise<{ key: string }> }
 ) {
   try {
+    const { key } = await params;
     const supabase = await createClient();
 
     // Get the authenticated user
@@ -28,7 +29,7 @@ export async function GET(
     const { data, error } = await adminSupabase
       .from("system_config")
       .select("value")
-      .eq("key", params.key)
+      .eq("key", key)
       .single();
 
     if (error) {
@@ -52,9 +53,10 @@ export async function GET(
 // PUT/UPDATE system config value (admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { key: string } }
+  { params }: { params: Promise<{ key: string }> }
 ) {
   try {
+    const { key } = await params;
     const supabase = await createClient();
 
     // Get the authenticated user
@@ -83,7 +85,7 @@ export async function PUT(
     const { data, error } = await adminSupabase
       .from("system_config")
       .upsert(
-        { key: params.key, value, description, updated_at: new Date().toISOString() },
+        { key: key, value, description, updated_at: new Date().toISOString() },
         { onConflict: "key" }
       );
 

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useBrandingConfig } from "@/lib/branding-config";
+import { useLanguage } from "@/lib/language-context";
 import {
   BookOpen,
   Lock,
@@ -18,23 +19,70 @@ import {
   ChevronRight,
   FileText,
   ArrowLeft,
+  Languages,
 } from "lucide-react";
 import { Watermark } from "@/components/watermark";
 import { toast } from "sonner";
-import type { CourseModule, CourseLesson, StudentModuleProgress, StudentLessonProgress } from "@/lib/database.types";
+import type { CourseModule, CourseLesson, StudentModuleProgress, StudentLessonProgress, CourseLanguageCourse } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/client";
 import {
+  getCourseLanguages,
   getCourseModules,
   getCourseLessons,
   getStudentModuleProgress,
   getStudentLessonProgress,
   getModuleExamSettings,
+  createNotification,
 } from "@/lib/supabase/queries";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const COURSE_LANGUAGES = ["English", "Kinyarwanda", "French"] as const;
+type CourseLanguageEnum = (typeof COURSE_LANGUAGES)[number];
 
 export default function CoursePage() {
   const { config } = useBrandingConfig();
+  const { language } = useLanguage();
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
 
+  const [selectedLanguageCourse, setSelectedLanguageCourse] = useState<CourseLanguageCourse | null>(null);
+  const [lessonLanguage, setLessonLanguage] = useState<CourseLanguageEnum>(language as CourseLanguageEnum);
+  const [userCourseLanguageId, setUserCourseLanguageId] = useState<string | null>(null);
+
+  const getLocalized = (value: string, translations: Record<string, string> | undefined | null, lang: string) => {
+    if (lang === "English") return value;
+    return translations?.[lang] || value;
+  };
+
+  const getModuleTitle = (module: CourseModule) => getLocalized(module.title, module.title_translations, language);
+  const getModuleDescription = (module: CourseModule) =>
+    module.description ? getLocalized(module.description, module.description_translations, language) : undefined;
+  const getLessonTitle = (lesson: CourseLesson) => getLocalized(lesson.title, lesson.title_translations, lessonLanguage);
+  const getLessonContent = (lesson: CourseLesson) => getLocalized(lesson.content, lesson.content_translations, lessonLanguage);
+
+  // Get available languages for a lesson (languages that have translations)
+  const getAvailableLanguages = (lesson: CourseLesson): CourseLanguageEnum[] => {
+    const available: CourseLanguageEnum[] = ['English']; // English is always available as default
+    
+    COURSE_LANGUAGES.forEach(lang => {
+      if (lang === 'English') return;
+      const hasTitleTranslation = lesson.title_translations?.[lang];
+      const hasContentTranslation = lesson.content_translations?.[lang];
+      if (hasTitleTranslation || hasContentTranslation) {
+        available.push(lang);
+      }
+    });
+    
+    return available;
+  };
+
+  const [languageCourses, setLanguageCourses] = useState<CourseLanguageCourse[]>([]);
   const [modules, setModules] = useState<CourseModule[]>([]);
   const [lessons, setLessons] = useState<Record<string, CourseLesson[]>>({});
   const [moduleProgress, setModuleProgress] = useState<Record<string, StudentModuleProgress>>({});
@@ -45,58 +93,112 @@ export default function CoursePage() {
   const [activeLesson, setActiveLesson] = useState<CourseLesson | null>(null);
 
   useEffect(() => {
+    loadUser();
     loadData();
   }, []);
+
+  const loadUser = async () => {
+    try {
+      const supabase = createClient();
+      const { data: { user: userData } } = await supabase.auth.getUser();
+      setUser(userData);
+    } catch (error) {
+      console.error("Failed to load user:", error);
+    }
+  };
+
+  useEffect(() => {
+    setLessonLanguage(language as CourseLanguageEnum);
+    // Load user's course language preference
+    if (user?.user_metadata?.course_language_id) {
+      setUserCourseLanguageId(user.user_metadata.course_language_id);
+    }
+  }, [language]);
+
+  useEffect(() => {
+    if (selectedLanguageCourse) {
+      loadData();
+    }
+  }, [selectedLanguageCourse]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       const supabase = createClient();
 
-      // Load modules
-      const modulesData = await getCourseModules();
-      setModules(modulesData.modules);
+      // Load published language courses
+      const languagesData = await getCourseLanguages();
+      setLanguageCourses(languagesData.languages);
 
-      // Load lessons for each module
-      const lessonsData: Record<string, CourseLesson[]> = {};
-      for (const module of modulesData.modules) {
-        const moduleLessons = await getCourseLessons(module.id);
-        lessonsData[module.id] = moduleLessons.lessons;
-      }
-      setLessons(lessonsData);
-
-      // Load module progress
-      const progressData = await getStudentModuleProgress();
-      const progressMap: Record<string, StudentModuleProgress> = {};
-      progressData.progress.forEach((p: StudentModuleProgress) => {
-        progressMap[p.module_id] = p;
-      });
-      setModuleProgress(progressMap);
-
-      // Load lesson progress
-      const lessonProgressData = await getStudentLessonProgress();
-      const lessonProgressMap: Record<string, StudentLessonProgress> = {};
-      lessonProgressData.progress.forEach((p: StudentLessonProgress) => {
-        lessonProgressMap[p.lesson_id] = p;
-      });
-      setLessonProgress(lessonProgressMap);
-
-      // Load exam settings for each module
-      const settingsMap: Record<string, any> = {};
-      for (const module of modulesData.modules) {
-        try {
-          const settings = await getModuleExamSettings(module.id);
-          settingsMap[module.id] = settings.settings;
-        } catch {
-          // Use defaults if settings not found
-          settingsMap[module.id] = {
-            question_count: 20,
-            duration_minutes: 20,
-            passing_score: 70,
-          };
+      // Auto-select the user's preferred language course if none selected
+      if (!selectedLanguageCourse && languagesData.languages.length > 0) {
+        // First try to find the user's preferred language course by ID
+        const userPreferredCourse = languagesData.languages.find((l: CourseLanguageCourse) => 
+          l.is_published && l.id === userCourseLanguageId
+        );
+        
+        // Fall back to first published course if user preference not found
+        const firstPublished = languagesData.languages.find((l: CourseLanguageCourse) => l.is_published);
+        
+        if (userPreferredCourse) {
+          setSelectedLanguageCourse(userPreferredCourse);
+        } else if (firstPublished) {
+          setSelectedLanguageCourse(firstPublished);
         }
       }
-      setExamSettings(settingsMap);
+
+      // Load modules for selected language course
+      if (selectedLanguageCourse) {
+        const modulesData = await getCourseModules(selectedLanguageCourse.id);
+        setModules(modulesData.modules);
+
+        // Load lessons for each module
+        const lessonsData: Record<string, CourseLesson[]> = {};
+        for (const module of modulesData.modules) {
+          const moduleLessons = await getCourseLessons(module.id);
+          lessonsData[module.id] = moduleLessons.lessons;
+        }
+        setLessons(lessonsData);
+
+        // Load module progress
+        const progressData = await getStudentModuleProgress();
+        const progressMap: Record<string, StudentModuleProgress> = {};
+        progressData.progress.forEach((p: StudentModuleProgress) => {
+          progressMap[p.module_id] = p;
+        });
+        setModuleProgress(progressMap);
+
+        // Load lesson progress
+        const lessonProgressData = await getStudentLessonProgress();
+        const lessonProgressMap: Record<string, StudentLessonProgress> = {};
+        lessonProgressData.progress.forEach((p: StudentLessonProgress) => {
+          lessonProgressMap[p.lesson_id] = p;
+        });
+        setLessonProgress(lessonProgressMap);
+
+        // Load exam settings for each module
+        const settingsMap: Record<string, any> = {};
+        for (const module of modulesData.modules) {
+          try {
+            const settings = await getModuleExamSettings(module.id);
+            settingsMap[module.id] = settings.settings;
+          } catch {
+            // Use defaults if settings not found
+            settingsMap[module.id] = {
+              question_count: 20,
+              duration_minutes: 20,
+              passing_score: 70,
+            };
+          }
+        }
+        setExamSettings(settingsMap);
+      } else {
+        setModules([]);
+        setLessons({});
+        setModuleProgress({});
+        setLessonProgress({});
+        setExamSettings({});
+      }
     } catch (error: any) {
       toast.error("Failed to load course data: " + error.message);
     } finally {
@@ -162,19 +264,35 @@ export default function CoursePage() {
       <div className="min-h-screen bg-background">
         <Watermark />
         <div className="max-w-4xl mx-auto p-6 space-y-6">
-          <Button variant="ghost" onClick={() => setActiveLesson(null)}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Course
-          </Button>
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" onClick={() => setActiveLesson(null)}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Course
+            </Button>
+            <div className="flex items-center gap-2">
+              <Languages className="h-4 w-4" />
+              <Select value={lessonLanguage} onValueChange={(v) => setLessonLanguage(v as CourseLanguageEnum)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableLanguages(activeLesson).map((lang) => (
+                    <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>{activeLesson.title}</CardTitle>
+              <CardTitle>{activeLesson ? getLessonTitle(activeLesson) : ""}</CardTitle>
               <CardDescription>
                 {activeLesson.content_type === 'video' && 'Video Lesson'}
                 {activeLesson.content_type === 'image' && 'Image Lesson'}
                 {activeLesson.content_type === 'document' && 'Document Lesson'}
                 {activeLesson.content_type === 'text' && 'Text Lesson'}
+                {activeLesson.content_type === 'mixed' && 'Text + Image Lesson'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -190,7 +308,15 @@ export default function CoursePage() {
               {activeLesson.content_type === 'image' && activeLesson.media_url && (
                 <img
                   src={activeLesson.media_url}
-                  alt={activeLesson.title}
+                  alt={activeLesson ? getLessonTitle(activeLesson) : ""}
+                  className="w-full rounded-lg"
+                />
+              )}
+
+              {activeLesson.content_type === 'mixed' && activeLesson.image_url && (
+                <img
+                  src={activeLesson.image_url}
+                  alt={activeLesson ? getLessonTitle(activeLesson) : ""}
                   className="w-full rounded-lg"
                 />
               )}
@@ -209,9 +335,11 @@ export default function CoursePage() {
                 </div>
               )}
 
-              <div className="prose prose-sm max-w-none">
-                <p className="whitespace-pre-wrap">{activeLesson.content}</p>
-              </div>
+              {(activeLesson.content_type === 'text' || activeLesson.content_type === 'mixed') && (
+                <div className="prose prose-sm max-w-none">
+                  <p className="whitespace-pre-wrap">{activeLesson ? getLessonContent(activeLesson) : ""}</p>
+                </div>
+              )}
 
               <Button
                 onClick={async () => {
@@ -248,18 +376,37 @@ export default function CoursePage() {
     );
   }
 
+  const publishedCourses = languageCourses.filter(l => l.is_published);
+
   return (
     <div className="min-h-screen bg-background">
       <Watermark />
       <div className="max-w-5xl mx-auto p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Traffic School Course</h1>
-          <p className="text-muted-foreground mt-1">
-            Complete all modules and pass the exams to finish the course
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Traffic School Course</h1>
+            <p className="text-muted-foreground mt-1">
+              {selectedLanguageCourse
+                ? `${selectedLanguageCourse.title} - Complete all modules and pass the exams to finish the course`
+                : publishedCourses.length > 0
+                  ? "Loading your course..."
+                  : "Course content will be available soon"
+              }
+            </p>
+          </div>
         </div>
 
-        {modules.length === 0 ? (
+        {publishedCourses.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">Course Content Coming Soon</h3>
+              <p className="text-muted-foreground">
+                We're currently preparing our course materials. Please check back later for available language courses and learning modules.
+              </p>
+            </CardContent>
+          </Card>
+        ) : modules.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -283,7 +430,7 @@ export default function CoursePage() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <CardTitle className="text-xl">{module.title}</CardTitle>
+                          <CardTitle className="text-xl">{getModuleTitle(module)}</CardTitle>
                           {!unlocked && (
                             <Badge variant="secondary">
                               <Lock className="h-3 w-3 mr-1" />
@@ -297,8 +444,8 @@ export default function CoursePage() {
                             </Badge>
                           )}
                         </div>
-                        {module.description && (
-                          <CardDescription>{module.description}</CardDescription>
+                        {getModuleDescription(module) && (
+                          <CardDescription>{getModuleDescription(module)}</CardDescription>
                         )}
                       </div>
                     </div>
@@ -340,7 +487,7 @@ export default function CoursePage() {
                                   <Play className="h-5 w-5 text-muted-foreground" />
                                 )}
                                 <span className={isCompleted ? "line-through text-muted-foreground" : ""}>
-                                  {lesson.title}
+                                  {getLessonTitle(lesson)}
                                 </span>
                               </div>
                               <ChevronRight className="h-4 w-4 text-muted-foreground" />

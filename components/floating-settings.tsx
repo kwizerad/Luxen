@@ -48,6 +48,38 @@ export function FloatingSettings() {
     }
   };
 
+  const handleThemeChange = async (newTheme: string) => {
+    setTheme(newTheme);
+    
+    // Save to user metadata if logged in
+    if (user) {
+      try {
+        const supabase = createClient();
+        await supabase.auth.updateUser({
+          data: { theme: newTheme }
+        });
+      } catch (error) {
+        console.error("Failed to save theme:", error);
+      }
+    }
+  };
+
+  const handleLanguageChange = async (newLanguage: string) => {
+    setLanguage(newLanguage);
+    
+    // Save to user metadata if logged in
+    if (user) {
+      try {
+        const supabase = createClient();
+        await supabase.auth.updateUser({
+          data: { language: newLanguage }
+        });
+      } catch (error) {
+        console.error("Failed to save language:", error);
+      }
+    }
+  };
+
   return (
     <div className="fixed right-5 bottom-5 z-50 hidden md:block">
       <DropdownMenu>
@@ -61,7 +93,7 @@ export function FloatingSettings() {
             <span className="sr-only">Settings</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" sideOffset={8} className="w-64">
+        <DropdownMenuContent align="end" side="top" sideOffset={8} className="w-64">
           <div className="space-y-2 px-4 py-3">
             {loading ? (
               <p className="text-sm text-muted-foreground">{t("loading")}</p>
@@ -87,18 +119,18 @@ export function FloatingSettings() {
               {theme === "light" ? <Sun className="mr-2 h-4 w-4" /> : theme === "dark" ? <Moon className="mr-2 h-4 w-4" /> : <Monitor className="mr-2 h-4 w-4" />}
               {t("theme")}
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => setTheme("light")} className={theme === "light" ? "bg-accent" : ""}>
+            <DropdownMenuSubContent alignOffset={-8}>
+              <DropdownMenuItem onClick={() => handleThemeChange("light")} className={theme === "light" ? "bg-accent" : ""}>
                 <Sun className="mr-2 h-4 w-4" />
                 {t("light")}
                 {theme === "light" && <Check className="ml-auto h-4 w-4" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")} className={theme === "dark" ? "bg-accent" : ""}>
+              <DropdownMenuItem onClick={() => handleThemeChange("dark")} className={theme === "dark" ? "bg-accent" : ""}>
                 <Moon className="mr-2 h-4 w-4" />
                 {t("dark")}
                 {theme === "dark" && <Check className="ml-auto h-4 w-4" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")} className={theme === "system" ? "bg-accent" : ""}>
+              <DropdownMenuItem onClick={() => handleThemeChange("system")} className={theme === "system" ? "bg-accent" : ""}>
                 <Monitor className="mr-2 h-4 w-4" />
                 {t("system")}
                 {theme === "system" && <Check className="ml-auto h-4 w-4" />}
@@ -112,11 +144,11 @@ export function FloatingSettings() {
               <Globe className="mr-2 h-4 w-4" />
               {t("language")}
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
+            <DropdownMenuSubContent alignOffset={-8}>
               {languages.map((lang) => (
                 <DropdownMenuItem
                   key={lang.value}
-                  onClick={() => setLanguage(lang.value)}
+                  onClick={() => handleLanguageChange(lang.value)}
                   className={language === lang.value ? "bg-accent" : ""}
                 >
                   <span className="mr-2">{lang.flag}</span>

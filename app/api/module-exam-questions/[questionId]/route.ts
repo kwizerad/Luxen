@@ -6,9 +6,10 @@ import { isAdmin } from "@/lib/permissions";
 // PATCH update module exam question (admin only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { questionId: string } }
+  { params }: { params: Promise<{ questionId: string }> }
 ) {
   try {
+    const { questionId } = await params;
     const supabase = await createClient();
 
     // Get the authenticated user. Prefer the Authorization header token sent by the client,
@@ -68,7 +69,7 @@ export async function PATCH(
         is_published: is_published !== undefined ? is_published : undefined,
         updated_by: user.id,
       })
-      .eq("id", params.questionId)
+      .eq("id", questionId)
       .select()
       .single();
 
@@ -87,9 +88,10 @@ export async function PATCH(
 // DELETE module exam question (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { questionId: string } }
+  { params }: { params: Promise<{ questionId: string }> }
 ) {
   try {
+    const { questionId } = await params;
     const supabase = await createClient();
 
     // Get the authenticated user. Prefer the Authorization header token sent by the client,
@@ -115,7 +117,7 @@ export async function DELETE(
     const { error } = await adminSupabase
       .from("module_exam_questions")
       .delete()
-      .eq("id", params.questionId);
+      .eq("id", questionId);
 
     if (error) throw error;
 

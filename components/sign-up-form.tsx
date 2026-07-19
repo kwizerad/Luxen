@@ -3,13 +3,6 @@
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
@@ -89,97 +82,93 @@ export function SignUpForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="bg-card backdrop-blur-0">
-        <CardHeader>
-          <CardTitle className="text-2xl">{t("signUp")}</CardTitle>
-          <CardDescription>{t("createAccount")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 gap-2">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => handleSocialSignUp("google")}
-                disabled={isLoading}
-              >
-                <GoogleIcon className="mr-2 h-4 w-4" />
-                Google
-              </Button>
-            </div>
+      <div className="flex flex-col gap-6">
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold">{t("signUp")}</h2>
+          <p className="text-muted-foreground">{t("createAccount")}</p>
+        </div>
+        <div className="grid grid-cols-1 gap-2">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => handleSocialSignUp("google")}
+            disabled={isLoading}
+          >
+            <GoogleIcon className="mr-2 h-4 w-4" />
+            Google
+          </Button>
+        </div>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  {t("orContinueWithEmail")}
-                </span>
-              </div>
-            </div>
-
-            <form onSubmit={handleSignUp}>
-              <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="email">{t("email")}</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  value={email}
-                  autoComplete="off"
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">{t("password")}</Label>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  autoComplete="new-password"
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="gender">{t("gender")}</Label>
-                <select
-                  id="gender"
-                  required
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="">{t("selectGender")}</option>
-                  <option value="male">{t("male")}</option>
-                  <option value="female">{t("female")}</option>
-                </select>
-              </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? t("creatingAccount") : t("signUp")}
-              </Button>
-              </div>
-            </form>
-
-            <div className="text-center text-sm">
-              {t("alreadyHaveAccount")}{" "}
-              <button
-                type="button"
-                onClick={onSwitchToLogin}
-                className="underline underline-offset-4"
-              >
-                {t("login")}
-              </button>
-            </div>
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">
+              {t("orContinueWithEmail")}
+            </span>
+          </div>
+        </div>
+
+        <form onSubmit={handleSignUp}>
+          <div className="flex flex-col gap-6">
+            <div className="grid gap-2">
+              <Label htmlFor="email">{t("email")}</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                value={email}
+                autoComplete="off"
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center">
+                <Label htmlFor="password">{t("password")}</Label>
+              </div>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                autoComplete="new-password"
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="gender">{t("gender")}</Label>
+              <select
+                id="gender"
+                required
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">{t("selectGender")}</option>
+                <option value="male">{t("male")}</option>
+                <option value="female">{t("female")}</option>
+              </select>
+            </div>
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? t("creatingAccount") : t("signUp")}
+            </Button>
+          </div>
+        </form>
+
+        <div className="text-center text-sm">
+          {t("alreadyHaveAccount")}{" "}
+          <button
+            type="button"
+            onClick={onSwitchToLogin}
+            className="underline underline-offset-4"
+          >
+            {t("login")}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

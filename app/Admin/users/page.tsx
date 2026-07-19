@@ -357,7 +357,7 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell>
                         <span className={"inline-flex items-center px-2 py-1 rounded-full text-xs font-medium " + (user.banned ? "bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800" : "bg-primary/10 text-primary") }>
-                          {user.banned ? "Banned" : (user.user_metadata?.role || "User")}
+                          {user.banned ? "Banned" : "Student"}
                         </span>
                       </TableCell>
                       <TableCell className={"" + (user.banned ? "text-red-500 dark:text-red-400" : "text-muted-foreground") }>

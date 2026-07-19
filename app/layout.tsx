@@ -8,6 +8,7 @@ import { AuthModalsProvider } from "@/lib/auth-modals-context";
 import { FloatingSettings } from "@/components/floating-settings";
 import { AuthModalsContainer } from "@/components/auth-modals-container";
 import { ClientComponents } from "@/components/client-components";
+import { UserPreferencesLoader } from "@/components/user-preferences-loader";
 import { Toaster } from "@/components/ui/sonner";
 import { getSystemName } from "@/lib/server-config";
 import "./globals.css";
@@ -80,6 +81,7 @@ export default function RootLayout({
                       <FloatingSettings />
                       <AuthModalsContainer />
                       <ClientComponents />
+                      <UserPreferencesLoader />
                       <Toaster position="top-right" richColors closeButton />
                     </AuthModalsProvider>
                   </AuthProvider>

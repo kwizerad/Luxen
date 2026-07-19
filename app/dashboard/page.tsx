@@ -1,9 +1,9 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
-import { useEffect, useMemo, useState, lazy, Suspense, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import { getExamAttempts, getExamCategories, getExamLimits, getPublicExamQuestions, deleteExamAttempt } from "@/lib/supabase/queries";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,11 +31,11 @@ import { ProfileCompletion } from "@/components/profile-completion";
 import { calculateExamStats, groupByCategory, formatDuration, formatRelativeTime, generateActivityFeed, calculateStreak } from "@/lib/dashboard-utils";
 
 // Dynamic imports for heavy components
-const PieChart = lazy(() => import("recharts").then(module => ({ default: module.PieChart })));
-const Pie = lazy(() => import("recharts").then(module => ({ default: module.Pie })));
-const Cell = lazy(() => import("recharts").then(module => ({ default: module.Cell })));
-const ResponsiveContainer = lazy(() => import("recharts").then(module => ({ default: module.ResponsiveContainer })));
-const Tooltip = lazy(() => import("recharts").then(module => ({ default: module.Tooltip })));
+// const PieChart = lazy(() => import("recharts").then(module => ({ default: module.PieChart })));
+// const Pie = lazy(() => import("recharts").then(module => ({ default: module.Pie })));
+// const Cell = lazy(() => import("recharts").then(module => ({ default: module.Cell })));
+// const ResponsiveContainer = lazy(() => import("recharts").then(module => ({ default: module.ResponsiveContainer })));
+// const Tooltip = lazy(() => import("recharts").then(module => ({ default: module.Tooltip })));
 
 type ExamAttempt = {
   id: string;
@@ -62,8 +62,8 @@ type Question = {
 };
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
+  const [dataLoading, setDataLoading] = useState(true);
   const router = useRouter();
   const { t } = useLanguage();
   const [showAccountDialog, setShowAccountDialog] = useState(false);
@@ -157,145 +157,52 @@ export default function Dashboard() {
     }
   }, []);
 
-  const scoreDistributionData = useMemo(
-    () =>
-      [
-        {
-          name: 'Excellent (90-100%)',
-          value: examAttempts.filter((a) => a.score_percentage >= 90).length,
-          fill: '#10b981',
-        },
-        {
-          name: 'Good (75-89%)',
-          value: examAttempts.filter((a) => a.score_percentage >= 75 && a.score_percentage < 90).length,
-          fill: '#3b82f6',
-        },
-        {
-          name: 'Fair (50-74%)',
-          value: examAttempts.filter((a) => a.score_percentage >= 50 && a.score_percentage < 75).length,
-          fill: '#f59e0b',
-        },
-        {
-          name: 'Below 50%',
-          value: examAttempts.filter((a) => a.score_percentage < 50).length,
-          fill: '#ef4444',
-        },
-      ].filter((item) => item.value > 0),
-    [examAttempts]
-  );
+  const scoreDistributionData = [
+    {
+      name: 'Excellent (90-100%)',
+      value: examAttempts.filter((a) => a.score_percentage >= 90).length,
+      fill: '#10b981',
+    },
+    {
+      name: 'Good (75-89%)',
+      value: examAttempts.filter((a) => a.score_percentage >= 75 && a.score_percentage < 90).length,
+      fill: '#3b82f6',
+    },
+    {
+      name: 'Fair (50-74%)',
+      value: examAttempts.filter((a) => a.score_percentage >= 50 && a.score_percentage < 75).length,
+      fill: '#f59e0b',
+    },
+    {
+      name: 'Below 50%',
+      value: examAttempts.filter((a) => a.score_percentage < 50).length,
+      fill: '#ef4444',
+    },
+  ].filter((item) => item.value > 0);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    
-    let isMounted = true;
-    let retryCount = 0;
-    const maxRetries = 5;
-    const supabase = createClient();
-    
-    // Add a safety timeout to prevent indefinite loading
-    const loadingTimeout = setTimeout(() => {
-      if (isMounted && loading) {
-        console.warn("Dashboard loading timeout - setting loading to false");
-        setLoading(false);
-      }
-    }, 10000); // 10 second timeout
+    if (typeof window === "undefined" || authLoading || !user) return;
 
-    const checkUser = async () => {
+    let isMounted = true;
+
+    const loadData = async () => {
       try {
-        // First try getSession which is more reliable immediately after login
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          // Suppress lock errors
-          if (!sessionError.message?.includes("lock") && !sessionError.message?.includes("Lock")) {
-            console.log("Session error:", sessionError.message);
-          }
-        }
-        
-        let user = session?.user || null;
-        
-        // If no session, try getUser as fallback
-        if (!user) {
-          const { data: { user: userData }, error: userError } = await supabase.auth.getUser();
-          if (userError) {
-            // Suppress lock errors
-            if (userError.message?.includes("lock") || userError.message?.includes("Lock")) {
-              if (retryCount < maxRetries) {
-                retryCount++;
-                setTimeout(checkUser, 100 * retryCount);
-                return;
-              }
-              console.warn("Auth lock timeout after retries, continuing...");
-            } else {
-              console.log("User error:", userError.message);
-            }
-          }
-          user = userData || null;
-        }
-        
-        if (!isMounted) return;
-        
-        if (!user) {
-          // Retry a few times in case session is still loading
-          if (retryCount < maxRetries) {
-            retryCount++;
-            console.log(`No user found, retrying (${retryCount}/${maxRetries})...`);
-            setTimeout(checkUser, 800 * retryCount);
-            return;
-          }
-          router.push("/");
-          return;
-        }
-        
-        if (user) {
-          setUser(user);
-          // Load exam data and limit
-          try {
-            await Promise.all([loadExamData(), loadExamLimit()]);
-          } catch (dataError) {
-            console.error("Failed to load exam data after user check:", dataError);
-            // Don't block on data load failures - still set loading to false
-          }
-        }
-      } catch (error: any) {
-        // Ignore lock errors - they're internal Supabase timing issues
-        if (error?.message?.includes("lock")) {
-          console.warn("Supabase auth lock error (non-critical):", error.message);
-        } else {
-          console.error("Error checking user:", error);
-          if (retryCount < maxRetries) {
-            retryCount++;
-            setTimeout(checkUser, 800 * retryCount);
-            return;
-          }
-          router.push("/");
-        }
+        await Promise.all([loadExamData(), loadExamLimit()]);
+      } catch (dataError) {
+        console.error("Failed to load exam data:", dataError);
       } finally {
         if (isMounted) {
-          setLoading(false);
+          setDataLoading(false);
         }
       }
     };
-    
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: { user: any } | null) => {
-      console.log("Dashboard auth state changed:", event);
-      if (event === 'SIGNED_IN' && session?.user) {
-        console.log("User signed in via auth state change in dashboard");
-        setUser(session.user);
-        // Load all data in parallel
-        Promise.all([loadExamData(), loadExamLimit()]);
-      }
-    });
 
-    checkUser();
-    
+    loadData();
+
     return () => {
       isMounted = false;
-      clearTimeout(loadingTimeout);
-      subscription.unsubscribe();
     };
-  }, [router, loadExamData, loadExamLimit]);
+  }, [authLoading, user]);
 
   // Delete an attempt and refresh
   const handleDeleteAttempt = async (attemptId: string) => {
@@ -384,7 +291,7 @@ export default function Dashboard() {
       .slice(0, 2);
   };
 
-  if (loading) {
+  if (authLoading || dataLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-6">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -501,35 +408,24 @@ export default function Dashboard() {
             </div>
 
             {/* Activity Feed - Removed: read-only, no functionality */}
-            
+
             {/* Score Distribution Chart */}
             {examStats.totalExams > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-3">Score Distribution</h2>
                 <Card className="border border-border">
                   <CardContent className="pt-4">
-                    <Suspense fallback={<div className="h-[250px] flex items-center justify-center">Loading chart...</div>}>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <PieChart>
-                          <Pie
-                            data={scoreDistributionData}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, value }) => `${name}: ${value}`}
-                            outerRadius={80}
-                            dataKey="value"
-                          >
-                            {scoreDistributionData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            contentStyle={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </Suspense>
+                    <div className="space-y-2">
+                      {scoreDistributionData.map((item) => (
+                        <div key={item.name} className="flex items-center justify-between p-2 rounded bg-secondary/50">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.fill }} />
+                            <span className="text-sm">{item.name}</span>
+                          </div>
+                          <span className="font-semibold">{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -542,7 +438,7 @@ export default function Dashboard() {
             <ProfileCompletion
               userMetadata={user?.user_metadata || {}}
               onEditClick={() => router.push("/dashboard/settings")}
-              isLoading={loading}
+              isLoading={dataLoading || authLoading}
             />
 
             {/* Exam Limit Info */}

@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS user_profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT,
-    role TEXT DEFAULT 'Student' CHECK (role IN ('Student', 'Admin', 'Teacher', 'Driver', 'Landlord')),
+    "role" TEXT DEFAULT 'Student' CHECK ("role" IN ('Student', 'Admin')),
     username TEXT,
     full_name TEXT,
     first_name TEXT,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 );
 
 -- Index for faster queries
-CREATE INDEX IF NOT EXISTS idx_user_profiles_role ON user_profiles(role);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_role ON user_profiles("role");
 CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_created_at ON user_profiles(created_at DESC);
 
@@ -64,9 +64,9 @@ CREATE OR REPLACE FUNCTION sync_user_to_profile()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.user_profiles (
-    id, 
-    email, 
-    role,
+    id,
+    email,
+    "role",
     username,
     full_name,
     first_name,
@@ -91,7 +91,7 @@ BEGIN
   )
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
-    role = EXCLUDED.role,
+    "role" = EXCLUDED."role",
     username = EXCLUDED.username,
     full_name = EXCLUDED.full_name,
     first_name = EXCLUDED.first_name,
@@ -101,7 +101,7 @@ BEGIN
     nationality = EXCLUDED.nationality,
     birthdate = EXCLUDED.birthdate,
     updated_at = NOW();
-  
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -118,9 +118,9 @@ COMMENT ON FUNCTION sync_user_to_profile() IS 'Automatically syncs auth.users me
 
 -- Backfill existing users (if any)
 INSERT INTO user_profiles (
-  id, 
-  email, 
-  role,
+  id,
+  email,
+  "role",
   username,
   full_name,
   first_name,
@@ -130,7 +130,7 @@ INSERT INTO user_profiles (
   nationality,
   birthdate
 )
-SELECT 
+SELECT
   id,
   email,
   COALESCE(raw_user_meta_data->>'role', 'Student'),

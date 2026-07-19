@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, Trophy, Settings, Home, Car } from "lucide-react";
+import { LayoutDashboard, FileText, Trophy, Settings, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -14,7 +14,6 @@ const navItems: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/dashboard/exam", label: "Exam", icon: FileText },
   { href: "/userExam", label: "Results", icon: Trophy },
-  { href: "/dashboard/Driver", label: "Driver", icon: Car },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
@@ -42,7 +41,7 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
     <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
       {/* Glassmorphism container */}
       <div className="bg-background/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/10 h-14">
-        <div className="grid grid-cols-5 h-full">
+        <div className="grid grid-cols-4 h-full">
           {navItems.map((item) => {
             const isActive = isNavItemActive(item.href);
             const Icon = item.icon;

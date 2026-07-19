@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     const adminSupabase = createAdminClient();
 
     const body = await request.json();
-    const { title, description, order_index, is_published } = body;
+    const { language_id, title, description, title_translations, description_translations, order_index, is_published } = body;
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -94,8 +94,11 @@ export async function POST(request: NextRequest) {
     const { data, error } = await adminSupabase
       .from("course_modules")
       .insert([{
+        language_id: language_id || null,
         title,
         description: description || null,
+        title_translations: title_translations || {},
+        description_translations: description_translations || {},
         order_index: finalOrderIndex,
         is_published: is_published || false,
         created_by: user.id,

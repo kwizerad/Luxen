@@ -3,13 +3,6 @@
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
@@ -111,87 +104,83 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="bg-card backdrop-blur-0">
-        <CardHeader>
-          <CardTitle className="text-2xl">{t("login")}</CardTitle>
-          <CardDescription>
+      <div className="flex flex-col gap-6">
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold">{t("login")}</h2>
+          <p className="text-muted-foreground">
             {t("enterYourEmail")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-6">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={isLoading}
-              className="w-full"
-            >
-              <GoogleIcon className="mr-2 h-4 w-4" />
-              {t("continueWithGoogle")}
-            </Button>
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={isLoading}
+          className="w-full"
+        >
+          <GoogleIcon className="mr-2 h-4 w-4" />
+          {t("continueWithGoogle")}
+        </Button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  {t("orContinueWithEmail")}
-                </span>
-              </div>
-            </div>
-
-            <form onSubmit={handleLogin}>
-              <div className="flex flex-col gap-6">
-                <div className="grid gap-2">
-                  <Label htmlFor="email">{t("email")}</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="m@example.com"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="password">{t("password")}</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <div className="text-right">
-                    <button
-                      type="button"
-                      onClick={() => router.push("/auth/forgot-password")}
-                      className="inline-block text-sm underline-offset-4 hover:underline text-left"
-                    >
-                      {t("forgotPassword")}
-                    </button>
-                  </div>
-                </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? t("loggingIn") : t("login")}
-              </Button>
-            </div>
-            <div className="mt-4 text-center text-sm">
-              {t("dontHaveAccount")}{" "}
-              <button
-                type="button"
-                onClick={onSwitchToSignUp}
-                className="underline underline-offset-4"
-              >
-                {t("signUp")}
-              </button>
-            </div>
-          </form>
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">
+              {t("orContinueWithEmail")}
+            </span>
+          </div>
+        </div>
+
+        <form onSubmit={handleLogin}>
+          <div className="flex flex-col gap-6">
+            <div className="grid gap-2">
+              <Label htmlFor="email">{t("email")}</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">{t("password")}</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => router.push("/auth/forgot-password")}
+                  className="inline-block text-sm underline-offset-4 hover:underline text-left"
+                >
+                  {t("forgotPassword")}
+                </button>
+              </div>
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? t("loggingIn") : t("login")}
+            </Button>
+          </div>
+        </form>
+        <div className="mt-4 text-center text-sm">
+          {t("dontHaveAccount")}{" "}
+          <button
+            type="button"
+            onClick={onSwitchToSignUp}
+            className="underline underline-offset-4"
+          >
+            {t("signUp")}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -77,11 +77,13 @@ export async function POST(request: NextRequest) {
     const adminSupabase = createAdminClient();
 
     const body = await request.json();
-    const { module_id, title, content, content_type, media_url, order_index, is_published } = body;
+    const { module_id, title, content, title_translations, content_translations, content_type, media_url, image_url, order_index, is_published } = body;
 
-    if (!module_id || !title || !content) {
+    // Content is required for text and mixed types, but not for image-only, video, or document
+    const requiresContent = content_type === 'text' || content_type === 'mixed';
+    if (!module_id || !title || (requiresContent && !content)) {
       return NextResponse.json(
-        { error: "module_id, title, and content are required" },
+        { error: requiresContent ? "module_id, title, and content are required" : "module_id and title are required" },
         { status: 400 }
       );
     }
@@ -106,9 +108,12 @@ export async function POST(request: NextRequest) {
       .insert([{
         module_id,
         title,
-        content,
+        content: content || '',
+        title_translations: title_translations || {},
+        content_translations: content_translations || {},
         content_type: content_type || 'text',
         media_url: media_url || null,
+        image_url: image_url || null,
         order_index: finalOrderIndex,
         is_published: is_published || false,
         created_by: user.id,

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { User, Mail, Calendar, GraduationCap } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-export default function StudentDashboard() {
+export default function UserDashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +55,7 @@ export default function StudentDashboard() {
         </Avatar>
         <div>
           <h1 className="text-3xl font-bold">Welcome, {displayName}!</h1>
-          <p className="text-muted-foreground mt-1">Student Dashboard</p>
+          <p className="text-muted-foreground mt-1">User Dashboard</p>
         </div>
       </div>
 
@@ -149,7 +149,7 @@ export default function StudentDashboard() {
               <GraduationCap className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm text-muted-foreground">Role</p>
-                <p className="font-medium">{user?.user_metadata?.role || "Student"}</p>
+                <p className="font-medium">{user?.user_metadata?.role || "User"}</p>
               </div>
             </div>
           </CardContent>
