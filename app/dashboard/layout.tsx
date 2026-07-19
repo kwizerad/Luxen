@@ -138,7 +138,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const sidebarLinks = [
     { href: "/dashboard", icon: LayoutDashboard, label: t("dashboard") },
-    { href: "/dashboard/course", icon: BookOpen, label: t("courses") },
+    ...(hasPublishedCourses ? [{ href: "/dashboard/course", icon: BookOpen, label: t("courses") }] : []),
     { href: "/dashboard/exam", icon: Trophy, label: t("exams") },
     { href: "/dashboard/settings", icon: Settings, label: t("settings") },
   ];
