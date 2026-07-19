@@ -16,6 +16,8 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
 type TextSize = "sm" | "md" | "lg";
+type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
+type LanguageCode = "en" | "rw" | "fr" | "ar";
 
 interface UserSettingsProps {
   user: any;
@@ -205,7 +207,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
     await saveUserPreferences({ text_size: size });
   };
 
-  const handleLanguageChange = async (newLanguage: string) => {
+  const handleLanguageChange = async (newLanguage: LanguageCode) => {
     setLanguage(newLanguage);
     
     // Save to user metadata

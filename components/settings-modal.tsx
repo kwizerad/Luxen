@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 
 type TextSize = "sm" | "md" | "lg";
+type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
 
 export function SettingsModal() {
   const [open, setOpen] = useState(false);
@@ -61,7 +62,7 @@ export function SettingsModal() {
     }
   };
 
-  const handleLanguageChange = async (newLanguage: string) => {
+  const handleLanguageChange = async (newLanguage: Language) => {
     setLanguage(newLanguage);
     
     // Save to user metadata if logged in
@@ -133,7 +134,7 @@ export function SettingsModal() {
               <Button
                 variant={language === "English" ? "default" : "outline"}
                 size="sm"
-                onClick={() => handleLanguageChange("English")}
+                onClick={() => handleLanguageChange("English" as Language)}
                 className="min-w-[80px]"
               >
                 English
@@ -141,7 +142,7 @@ export function SettingsModal() {
               <Button
                 variant={language === "Arabic" ? "default" : "outline"}
                 size="sm"
-                onClick={() => handleLanguageChange("Arabic")}
+                onClick={() => handleLanguageChange("Arabic" as Language)}
                 className="min-w-[80px]"
               >
                 Arabic
@@ -149,7 +150,7 @@ export function SettingsModal() {
               <Button
                 variant={language === "French" ? "default" : "outline"}
                 size="sm"
-                onClick={() => handleLanguageChange("French")}
+                onClick={() => handleLanguageChange("French" as Language)}
                 className="min-w-[80px]"
               >
                 French
@@ -157,7 +158,7 @@ export function SettingsModal() {
               <Button
                 variant={language === "Kinyarwanda" ? "default" : "outline"}
                 size="sm"
-                onClick={() => handleLanguageChange("Kinyarwanda")}
+                onClick={() => handleLanguageChange("Kinyarwanda" as Language)}
                 className="min-w-[80px]"
               >
                 Kinyarwanda
