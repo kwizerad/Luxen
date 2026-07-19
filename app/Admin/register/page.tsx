@@ -15,12 +15,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { PRIMARY_ADMIN_EMAIL, DEFAULT_PERMISSIONS, getUserPermissions } from "@/lib/permissions";
 import { Watermark } from "@/components/watermark";
 import { useBrandingConfig } from "@/lib/branding-config";
+import { useLanguage } from "@/lib/language-context";
 import { getUsers } from "@/lib/supabase/queries";
 import { toast } from "sonner";
 import Link from "next/link";
 
 export default function RegisterAdminPage() {
   const { config } = useBrandingConfig();
+  const { t } = useLanguage();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -120,17 +122,17 @@ export default function RegisterAdminPage() {
   };
 
   const handleDeleteAdmin = async (adminId: string, adminEmail: string) => {
-    if (!confirm(`Are you sure you want to delete admin: ${adminEmail}?`)) return;
+    if (!confirm(t("confirmDeleteAdmin").replace("{email}", adminEmail))) return;
     
     setDeletingAdmin(adminId);
     try {
       // Note: Admin deletion requires service role and should be done via Supabase Edge Function
       // For now, just update local state - implement Edge Function for production
-      toast.info("Admin deletion requires backend setup. Please implement a Supabase Edge Function.");
+      toast.info(t("adminDeletionRequiresBackend"));
       setAdmins(admins.filter(a => a.id !== adminId));
-      setMessage({ type: "success", text: `Admin ${adminEmail} deleted (local only)` });
+      setMessage({ type: "success", text: t("adminDeletedLocal").replace("{email}", adminEmail) });
     } catch (error: any) {
-      setMessage({ type: "error", text: error.message || "Failed to delete admin" });
+      setMessage({ type: "error", text: error.message || t("failedToDeleteAdmin") });
     } finally {
       setDeletingAdmin(null);
     }
@@ -163,8 +165,8 @@ export default function RegisterAdminPage() {
     setUpdatingAdmin(true);
     
     try {
-      toast.info("Admin updates require backend setup. Please implement a Supabase Edge Function.");
-      setMessage({ type: "success", text: `Admin ${editEmail} updated (local only)` });
+      toast.info(t("adminUpdatesRequireBackend"));
+      setMessage({ type: "success", text: t("adminUpdatedLocal").replace("{email}", editEmail) });
       setShowEditModal(false);
       // Update local state
       setAdmins(admins.map(a => a.id === editingAdmin.id ? {
@@ -177,7 +179,7 @@ export default function RegisterAdminPage() {
         }
       } : a));
     } catch (error: any) {
-      setMessage({ type: "error", text: error.message || "Failed to update admin" });
+      setMessage({ type: "error", text: error.message || t("failedToUpdateAdmin") });
     } finally {
       setUpdatingAdmin(false);
     }
@@ -199,8 +201,8 @@ export default function RegisterAdminPage() {
       // Note: Creating admins requires service role and should be done via Supabase Edge Function
       // For now, show a message - implement Edge Function for production
       // You can also manually create admins in Supabase Dashboard
-      toast.info("Creating admins requires backend setup. Please implement a Supabase Edge Function or use Supabase Dashboard.");
-      setMessage({ type: "success", text: `Admin creation requires backend setup. Default password would be: ${DEFAULT_ADMIN_PASSWORD}` });
+      toast.info(t("creatingAdminsRequiresBackend"));
+      setMessage({ type: "success", text: t("adminCreationDefaultPassword") });
       setNewAdminEmail("");
       setNewAdminUsername("");
       setNewAdminGender("male");
@@ -212,7 +214,7 @@ export default function RegisterAdminPage() {
       setCanManageSettings(true);
       setQuestionAccess("read_write");
     } catch (error: any) {
-      setMessage({ type: "error", text: error.message || "Failed to create admin" });
+      setMessage({ type: "error", text: error.message || t("failedToCreateAdmin") });
     } finally {
       setRegistering(false);
     }
@@ -230,9 +232,9 @@ export default function RegisterAdminPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Access Denied</h1>
+          <h1 className="text-3xl font-bold">{t("accessDenied")}</h1>
           <p className="text-muted-foreground mt-1">
-            You do not have permission to access this page
+            {t("registerAdminNoPermission")}
           </p>
         </div>
         
@@ -241,9 +243,9 @@ export default function RegisterAdminPage() {
             <div className="flex items-start gap-4">
               <AlertTriangle className="h-6 w-6 text-destructive mt-0.5" />
               <div>
-                <h3 className="font-semibold text-destructive">Unauthorized</h3>
+                <h3 className="font-semibold text-destructive">{t("unauthorized")}</h3>
                 <p className="text-destructive/80 mt-1">
-                  Only the primary administrator (<strong>{PRIMARY_ADMIN_EMAIL}</strong>) can register new admin accounts.
+                  {t("onlyPrimaryAdminCanRegister").replace("{email}", PRIMARY_ADMIN_EMAIL)}
                 </p>
               </div>
             </div>
@@ -280,16 +282,16 @@ export default function RegisterAdminPage() {
             <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <UserPlus className="h-8 w-8 text-primary" />
-              Register New Admin
+              {t("registerNewAdmin")}
             </h1>
             <p className="text-muted-foreground mt-1">
-              Create a new administrator account
+              {t("createAdministratorAccount")}
             </p>
           </div>
         </div>
         <Button onClick={() => setShowAdminForm(!showAdminForm)}>
           <UserPlus className="h-4 w-4 mr-2" />
-          {showAdminForm ? "Cancel" : "New Admin"}
+          {showAdminForm ? t("cancel") : t("newAdmin")}
         </Button>
       </div>
 
@@ -298,50 +300,50 @@ export default function RegisterAdminPage() {
           <CardHeader className="bg-primary/5">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-accent" />
-              <CardTitle className="text-accent">Privileged Access</CardTitle>
+              <CardTitle className="text-accent">{t("privilegedAccess")}</CardTitle>
             </div>
             <CardDescription className="text-accent/80">
-              You are authorized to create new admin accounts as the primary administrator.
+              {t("privilegedAccessDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleRegisterAdmin} className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email">{t("email")}</Label>
               <Input
                 id="email"
                 type="email"
                 value={newAdminEmail}
                 onChange={(e) => setNewAdminEmail(e.target.value)}
-                placeholder="admin@example.com"
+                placeholder={t("emailPlaceholder")}
                 required
               />
             </div>
             
             <div className="grid gap-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">{t("username")}</Label>
               <Input
                 id="username"
                 type="text"
                 value={newAdminUsername}
                 onChange={(e) => setNewAdminUsername(e.target.value)}
-                placeholder="AdminName"
+                placeholder={t("usernamePlaceholder")}
                 required
               />
             </div>
             
             <div className="grid gap-2">
-              <Label htmlFor="gender">Gender</Label>
+              <Label htmlFor="gender">{t("gender")}</Label>
               <Select
                 value={newAdminGender}
                 onValueChange={(value) => setNewAdminGender(value)}
               >
                 <SelectTrigger id="gender">
-                  <SelectValue placeholder="Select gender" />
+                  <SelectValue placeholder={t("selectGender")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="male">Male</SelectItem>
-                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="male">{t("male")}</SelectItem>
+                  <SelectItem value="female">{t("female")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -350,14 +352,14 @@ export default function RegisterAdminPage() {
             <div className="space-y-4 pt-4 border-t">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-primary" />
-                <Label className="font-semibold">Permissions</Label>
+                <Label className="font-semibold">{t("permissions")}</Label>
               </div>
               
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Eye className="h-4 w-4 text-muted-foreground" />
-                    <Label htmlFor="studentsEnabled" className="cursor-pointer">View Students</Label>
+                    <Label htmlFor="studentsEnabled" className="cursor-pointer">{t("viewStudents")}</Label>
                   </div>
                   <Switch
                     id="studentsEnabled"
@@ -366,13 +368,13 @@ export default function RegisterAdminPage() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground ml-6">
-                  Allow this admin to view student accounts
+                  {t("viewStudentsDescription")}
                 </p>
               </div>
 
               {studentsEnabled && (
                 <div className="space-y-3 pl-4 border-l-2 border-border">
-                  <Label>Student Access Level</Label>
+                  <Label>{t("studentAccessLevel")}</Label>
                   <Select
                     value={studentAccess}
                     onValueChange={(value: "read_only" | "read_write") => setStudentAccess(value)}
@@ -384,21 +386,21 @@ export default function RegisterAdminPage() {
                       <SelectItem value="read_only">
                         <div className="flex items-center gap-2">
                           <Eye className="h-4 w-4" />
-                          <span>Read Only</span>
+                          <span>{t("readOnly")}</span>
                         </div>
                       </SelectItem>
                       <SelectItem value="read_write">
                         <div className="flex items-center gap-2">
                           <Edit className="h-4 w-4" />
-                          <span>Read / Write</span>
+                          <span>{t("readWrite")}</span>
                         </div>
                       </SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     {studentAccess === "read_only" 
-                      ? "Can only view student accounts, cannot modify"
-                      : "Can view and manage student accounts"}
+                      ? t("readOnlyStudentsDescription")
+                      : t("readWriteStudentsDescription")}
                   </p>
                 </div>
               )}
@@ -407,7 +409,7 @@ export default function RegisterAdminPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-muted-foreground" />
-                    <Label htmlFor="examPermissionsEnabled" className="cursor-pointer">Exam Permissions</Label>
+                    <Label htmlFor="examPermissionsEnabled" className="cursor-pointer">{t("examPermissions")}</Label>
                   </div>
                   <Switch
                     id="examPermissionsEnabled"
@@ -426,7 +428,7 @@ export default function RegisterAdminPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Edit className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="canAddQuestions" className="cursor-pointer">Add Questions</Label>
+                        <Label htmlFor="canAddQuestions" className="cursor-pointer">{t("addQuestions")}</Label>
                       </div>
                       <Switch
                         id="canAddQuestions"
@@ -435,7 +437,7 @@ export default function RegisterAdminPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground ml-6">
-                      Allow this admin to add new questions to exams
+                      {t("addQuestionsDescription")}
                     </p>
                   </div>
 
@@ -443,7 +445,7 @@ export default function RegisterAdminPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Eye className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="canViewQuestions" className="cursor-pointer">View Questions</Label>
+                        <Label htmlFor="canViewQuestions" className="cursor-pointer">{t("viewQuestions")}</Label>
                       </div>
                       <Switch
                         id="canViewQuestions"
@@ -452,7 +454,7 @@ export default function RegisterAdminPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground ml-6">
-                      Allow this admin to view and manage questions
+                      {t("viewQuestionsDescription")}
                     </p>
                   </div>
 
@@ -460,7 +462,7 @@ export default function RegisterAdminPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Settings className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="canManageSettings" className="cursor-pointer">Manage Exam Settings</Label>
+                        <Label htmlFor="canManageSettings" className="cursor-pointer">{t("manageExamSettings")}</Label>
                       </div>
                       <Switch
                         id="canManageSettings"
@@ -469,13 +471,13 @@ export default function RegisterAdminPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground ml-6">
-                      Allow this admin to update exam settings for categories
+                      {t("manageExamSettingsDescription")}
                     </p>
                   </div>
 
                   {canViewQuestions && (
                     <div className="space-y-3">
-                      <Label>Question Access Level</Label>
+                      <Label>{t("questionAccessLevel")}</Label>
                       <Select
                         value={questionAccess}
                         onValueChange={(value: "read_only" | "read_write") => setQuestionAccess(value)}
@@ -487,21 +489,21 @@ export default function RegisterAdminPage() {
                           <SelectItem value="read_only">
                             <div className="flex items-center gap-2">
                               <Eye className="h-4 w-4" />
-                              <span>Read Only</span>
+                              <span>{t("readOnly")}</span>
                             </div>
                           </SelectItem>
                           <SelectItem value="read_write">
                             <div className="flex items-center gap-2">
                               <Edit className="h-4 w-4" />
-                              <span>Read / Write</span>
+                              <span>{t("readWrite")}</span>
                             </div>
                           </SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
                         {questionAccess === "read_only" 
-                          ? "Can only view existing questions, cannot add, edit, or delete"
-                          : "Can view, add, edit, and delete questions"}
+                          ? t("readOnlyQuestionsDescription")
+                          : t("readWriteQuestionsDescription")}
                       </p>
                     </div>
                   )}
@@ -511,10 +513,10 @@ export default function RegisterAdminPage() {
             
             <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
               <p className="text-sm text-amber-800 dark:text-amber-200">
-                <strong>Default Password:</strong> {DEFAULT_ADMIN_PASSWORD}
+                <strong>{t("defaultPassword")}:</strong> {DEFAULT_ADMIN_PASSWORD}
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                The new admin will be required to change this password on first login.
+                {t("defaultPasswordDescription")}
               </p>
             </div>
             
@@ -547,12 +549,12 @@ export default function RegisterAdminPage() {
               {registering ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating Admin...
+                  {t("creatingAdmin")}
                 </>
               ) : (
                 <>
                   <UserPlus className="mr-2 h-4 w-4" />
-                  Create Admin Account
+                  {t("createAdminAccount")}
                 </>
               )}
             </Button>
@@ -566,10 +568,10 @@ export default function RegisterAdminPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
-            Manage Existing Admins
+            {t("manageExistingAdmins")}
           </CardTitle>
           <CardDescription>
-            View and delete administrator accounts
+            {t("manageExistingAdminsDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -579,19 +581,19 @@ export default function RegisterAdminPage() {
             </div>
           ) : admins.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
-              No admin accounts found.
+              {t("noAdminAccountsFound")}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Gender</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Permissions</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("email")}</TableHead>
+                    <TableHead>{t("username")}</TableHead>
+                    <TableHead>{t("gender")}</TableHead>
+                    <TableHead>{t("role")}</TableHead>
+                    <TableHead>{t("permissions")}</TableHead>
+                    <TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -604,7 +606,7 @@ export default function RegisterAdminPage() {
                           {admin.email}
                           {isPrimary && (
                             <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                              Primary
+                              {t("primary")}
                             </span>
                           )}
                         </TableCell>
@@ -612,7 +614,7 @@ export default function RegisterAdminPage() {
                         <TableCell className="capitalize">{admin.user_metadata?.gender || "-"}</TableCell>
                         <TableCell>
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                            {admin.user_metadata?.role || "Admin"}
+                            {admin.user_metadata?.role || t("admin")}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -624,9 +626,9 @@ export default function RegisterAdminPage() {
                                   : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
                               }`}>
                                 {permissions.students.access === "read_write" ? (
-                                  <><Edit className="h-3 w-3 mr-1" />Students RW</>
+                                  <><Edit className="h-3 w-3 mr-1" />{t("studentsReadWrite")}</>
                                 ) : (
-                                  <><Eye className="h-3 w-3 mr-1" />Students RO</>
+                                  <><Eye className="h-3 w-3 mr-1" />{t("studentsReadOnly")}</>
                                 )}
                               </span>
                             )}
@@ -635,7 +637,7 @@ export default function RegisterAdminPage() {
                                 {permissions.examPermissions.canAddQuestions && (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                     <Edit className="h-3 w-3 mr-1" />
-                                    Add Qs
+                                    {t("addQuestionsShort")}
                                   </span>
                                 )}
                                 {permissions.examPermissions.canViewQuestions && (
@@ -645,15 +647,15 @@ export default function RegisterAdminPage() {
                                       : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
                                   }`}>
                                     {permissions.examPermissions.questionAccess === "read_write" ? (
-                                      <><Edit className="h-3 w-3 mr-1" />Qs RW</>
+                                      <><Edit className="h-3 w-3 mr-1" />{t("questionsReadWrite")}</>
                                     ) : (
-                                      <><Eye className="h-3 w-3 mr-1" />Qs RO</>
+                                      <><Eye className="h-3 w-3 mr-1" />{t("questionsReadOnly")}</>
                                     )}
                                   </span>
                                 )}
                                 {permissions.examPermissions?.canManageSettings && (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                                    <Settings className="h-3 w-3 mr-1" />Settings
+                                    <Settings className="h-3 w-3 mr-1" />{t("settingsShort")}
                                   </span>
                                 )}
                               </>
@@ -704,10 +706,10 @@ export default function RegisterAdminPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="h-5 w-5 text-primary" />
-              Edit Admin
+              {t("editAdmin")}
             </DialogTitle>
             <DialogDescription>
-              Admin: {editingAdmin?.email}
+              {t("admin")}: {editingAdmin?.email}
             </DialogDescription>
           </DialogHeader>
           
@@ -716,12 +718,12 @@ export default function RegisterAdminPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-primary" />
-                <Label className="font-semibold">Admin Information</Label>
+                <Label className="font-semibold">{t("adminInformation")}</Label>
               </div>
               
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="editEmail">Email</Label>
+                  <Label htmlFor="editEmail">{t("email")}</Label>
                   <Input
                     id="editEmail"
                     type="email"
@@ -732,7 +734,7 @@ export default function RegisterAdminPage() {
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="editUsername">Username</Label>
+                  <Label htmlFor="editUsername">{t("username")}</Label>
                   <Input
                     id="editUsername"
                     type="text"
@@ -743,7 +745,7 @@ export default function RegisterAdminPage() {
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="editGender">Gender</Label>
+                  <Label htmlFor="editGender">{t("gender")}</Label>
                   <Select
                     value={editGender}
                     onValueChange={setEditGender}
@@ -752,8 +754,8 @@ export default function RegisterAdminPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="male">{t("male")}</SelectItem>
+                      <SelectItem value="female">{t("female")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -764,14 +766,14 @@ export default function RegisterAdminPage() {
             <div className="space-y-4 pt-4 border-t">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-primary" />
-                <Label className="font-semibold">Permissions</Label>
+                <Label className="font-semibold">{t("permissions")}</Label>
               </div>
               
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Eye className="h-4 w-4 text-muted-foreground" />
-                    <Label htmlFor="editStudentsEnabled" className="cursor-pointer">View Students</Label>
+                    <Label htmlFor="editStudentsEnabled" className="cursor-pointer">{t("viewStudents")}</Label>
                   </div>
                   <Switch
                     id="editStudentsEnabled"
@@ -780,13 +782,13 @@ export default function RegisterAdminPage() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground ml-6">
-                  Allow this admin to view student accounts
+                  {t("viewStudentsDescription")}
                 </p>
               </div>
 
               {editStudentsEnabled && (
                 <div className="space-y-3 pl-4 border-l-2 border-border">
-                  <Label>Student Access Level</Label>
+                  <Label>{t("studentAccessLevel")}</Label>
                   <Select
                     value={editStudentAccess}
                     onValueChange={(value: "read_only" | "read_write") => setEditStudentAccess(value)}
@@ -798,21 +800,21 @@ export default function RegisterAdminPage() {
                       <SelectItem value="read_only">
                         <div className="flex items-center gap-2">
                           <Eye className="h-4 w-4" />
-                          <span>Read Only</span>
+                          <span>{t("readOnly")}</span>
                         </div>
                       </SelectItem>
                       <SelectItem value="read_write">
                         <div className="flex items-center gap-2">
                           <Edit className="h-4 w-4" />
-                          <span>Read / Write</span>
+                          <span>{t("readWrite")}</span>
                         </div>
                       </SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     {editStudentAccess === "read_only" 
-                      ? "Can only view student accounts, cannot modify"
-                      : "Can view and manage student accounts"}
+                      ? t("readOnlyStudentsDescription")
+                      : t("readWriteStudentsDescription")}
                   </p>
                 </div>
               )}
@@ -821,7 +823,7 @@ export default function RegisterAdminPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-muted-foreground" />
-                    <Label htmlFor="editExamPermissionsEnabled" className="cursor-pointer">Exam Permissions</Label>
+                    <Label htmlFor="editExamPermissionsEnabled" className="cursor-pointer">{t("examPermissions")}</Label>
                   </div>
                   <Switch
                     id="editExamPermissionsEnabled"
@@ -840,7 +842,7 @@ export default function RegisterAdminPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Edit className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="editCanAddQuestions" className="cursor-pointer">Add Questions</Label>
+                        <Label htmlFor="editCanAddQuestions" className="cursor-pointer">{t("addQuestions")}</Label>
                       </div>
                       <Switch
                         id="editCanAddQuestions"
@@ -849,7 +851,7 @@ export default function RegisterAdminPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground ml-6">
-                      Allow this admin to add new questions to exams
+                      {t("addQuestionsDescription")}
                     </p>
                   </div>
 
@@ -857,7 +859,7 @@ export default function RegisterAdminPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Eye className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="editCanViewQuestions" className="cursor-pointer">View Questions</Label>
+                        <Label htmlFor="editCanViewQuestions" className="cursor-pointer">{t("viewQuestions")}</Label>
                       </div>
                       <Switch
                         id="editCanViewQuestions"
@@ -866,7 +868,7 @@ export default function RegisterAdminPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground ml-6">
-                      Allow this admin to view and manage questions
+                      {t("viewQuestionsDescription")}
                     </p>
                   </div>
 
@@ -874,7 +876,7 @@ export default function RegisterAdminPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Settings className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="editCanManageSettings" className="cursor-pointer">Manage Exam Settings</Label>
+                        <Label htmlFor="editCanManageSettings" className="cursor-pointer">{t("manageExamSettings")}</Label>
                       </div>
                       <Switch
                         id="editCanManageSettings"
@@ -883,13 +885,13 @@ export default function RegisterAdminPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground ml-6">
-                      Allow this admin to update exam settings for categories
+                      {t("manageExamSettingsDescription")}
                     </p>
                   </div>
 
                   {editCanViewQuestions && (
                     <div className="space-y-3">
-                      <Label>Question Access Level</Label>
+                      <Label>{t("questionAccessLevel")}</Label>
                       <Select
                         value={editQuestionAccess}
                         onValueChange={(value: "read_only" | "read_write") => setEditQuestionAccess(value)}
@@ -901,21 +903,21 @@ export default function RegisterAdminPage() {
                           <SelectItem value="read_only">
                             <div className="flex items-center gap-2">
                               <Eye className="h-4 w-4" />
-                              <span>Read Only</span>
+                              <span>{t("readOnly")}</span>
                             </div>
                           </SelectItem>
                           <SelectItem value="read_write">
                             <div className="flex items-center gap-2">
                               <Edit className="h-4 w-4" />
-                              <span>Read / Write</span>
+                              <span>{t("readWrite")}</span>
                             </div>
                           </SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
                         {editQuestionAccess === "read_only" 
-                          ? "Can only view existing questions, cannot add, edit, or delete"
-                          : "Can view, add, edit, and delete questions"}
+                          ? t("readOnlyQuestionsDescription")
+                          : t("readWriteQuestionsDescription")}
                       </p>
                     </div>
                   )}
@@ -953,17 +955,17 @@ export default function RegisterAdminPage() {
                 {updatingAdmin ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
+                    {t("updating")}
                   </>
                 ) : (
                   <>
                     <Edit className="mr-2 h-4 w-4" />
-                    Update Permissions
+                    {t("updatePermissions")}
                   </>
                 )}
               </Button>
               <Button type="button" variant="outline" onClick={closeEditModal}>
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           </form>

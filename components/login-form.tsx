@@ -46,7 +46,7 @@ export function LoginForm({
       });
       if (error) throw error;
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "An error occurred");
+      toast.error(error instanceof Error ? error.message : t("errorSomethingWentWrong"));
       setIsLoading(false);
     }
   };
@@ -69,7 +69,7 @@ export function LoginForm({
         console.error("Supabase auth error:", error.message, error.status);
         // Show toast for invalid credentials instead of throwing
         if (error.message.includes("Invalid login credentials")) {
-          toast.error("Invalid email or password. Please check your credentials and try again.");
+          toast.error(t("login.invalidCredentials"));
           setIsLoading(false);
           return;
         }
@@ -90,12 +90,12 @@ export function LoginForm({
       console.error("Login error:", error);
       if (error instanceof Error) {
         if (error.message.includes("Email not confirmed")) {
-          toast.error("Please confirm your email address before logging in.");
+          toast.error(t("login.confirmEmailBeforeLogin"));
         } else {
           toast.error(error.message);
         }
       } else {
-        toast.error("An error occurred");
+        toast.error(t("errorSomethingWentWrong"));
       }
     } finally {
       setIsLoading(false);
@@ -140,7 +140,7 @@ export function LoginForm({
               <Input
                 id="email"
                 type="email"
-                placeholder="m@example.com"
+                placeholder={t("emailPlaceholder")}
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

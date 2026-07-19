@@ -77,6 +77,8 @@ export interface UserProfile {
   gender?: 'male' | 'female' | 'other';
   nationality?: string;
   birthdate?: string;
+  last_seen?: string;
+  banned?: boolean;
   created_at: string;
   updated_at?: string;
 }

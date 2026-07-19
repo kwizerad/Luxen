@@ -11,6 +11,7 @@ import { ClientComponents } from "@/components/client-components";
 import { UserPreferencesLoader } from "@/components/user-preferences-loader";
 import { Toaster } from "@/components/ui/sonner";
 import { getSystemName } from "@/lib/server-config";
+import "sonner/dist/styles.css";
 import "./globals.css";
 
 const fontClass = "font-sans";
@@ -77,12 +78,12 @@ export default function RootLayout({
                 <LanguageProvider>
                   <AuthProvider>
                     <AuthModalsProvider>
+                      <Toaster position="top-right" richColors closeButton />
                       {children}
                       <FloatingSettings />
                       <AuthModalsContainer />
                       <ClientComponents />
                       <UserPreferencesLoader />
-                      <Toaster position="top-right" richColors closeButton />
                     </AuthModalsProvider>
                   </AuthProvider>
                 </LanguageProvider>

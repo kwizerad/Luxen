@@ -14,6 +14,7 @@ import { Lock, Loader2, Globe, Moon, Sun, Monitor, Type, User, Camera, Upload, X
 import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { useLanguage } from "@/lib/language-context";
 
 type TextSize = "sm" | "md" | "lg";
 type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
@@ -28,8 +29,9 @@ interface UserSettingsProps {
 
 export default function UserSettings({ user, onUserUpdate, showUsernameChange = false, showPasswordChange = false }: UserSettingsProps) {
   const { theme, setTheme } = useTheme();
+  const { t, language: contextLanguage, setLanguage: setContextLanguage } = useLanguage();
   const [textSize, setTextSize] = useState<TextSize>("md");
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguage] = useState<LanguageCode>("en");
   const [cardHoverClass, setCardHoverClass] = useState("transition-all duration-200 hover:shadow-lg");
 
   // Profile state
@@ -106,9 +108,18 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
       // Load language preference
       if (metadata.language) {
         setLanguage(metadata.language);
+
+        // Convert language code to full name for context
+        const languageMap: Record<LanguageCode, Language> = {
+          en: "English",
+          rw: "Kinyarwanda",
+          fr: "French",
+          ar: "Arabic"
+        };
+        setContextLanguage(languageMap[metadata.language as LanguageCode]);
       }
     }
-  }, [user]);
+  }, [user, setContextLanguage]);
 
   const applyTextSize = (size: TextSize) => {
     const root = document.documentElement;
@@ -139,7 +150,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
         if (updatedUser) onUserUpdate(updatedUser);
       }
     } catch (error: any) {
-      toast.error("Failed to save preferences: " + error.message);
+      toast.error(`${t("userSettings.failedToSavePreferences")}: ${error.message}`);
     }
   };
 
@@ -175,29 +186,17 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
   const [deletingAccount, setDeletingAccount] = useState(false);
 
   const textSizes = [
-    { value: "sm", label: "Small" },
-    { value: "md", label: "Medium" },
-    { value: "lg", label: "Large" },
+    { value: "sm", label: t("small") },
+    { value: "md", label: t("medium") },
+    { value: "lg", label: t("large") },
   ];
 
   const languages = [
-    { value: "en", label: "English" },
-    { value: "rw", label: "Kinyarwanda" },
-    { value: "fr", label: "Français" },
-    { value: "ar", label: "العربية" },
+    { value: "en", label: t("userSettings.english") },
+    { value: "rw", label: t("userSettings.kinyarwanda") },
+    { value: "fr", label: t("userSettings.french") },
+    { value: "ar", label: t("userSettings.arabic") },
   ];
-
-  const t = (key: string) => {
-    const translations: Record<string, string> = {
-      theme: "Theme",
-      light: "Light",
-      dark: "Dark",
-      system: "System",
-      textSize: "Text Size",
-      language: "Language",
-    };
-    return translations[key] || key;
-  };
 
   const handleTextSizeChange = async (size: TextSize) => {
     setTextSize(size);
@@ -209,7 +208,16 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
 
   const handleLanguageChange = async (newLanguage: LanguageCode) => {
     setLanguage(newLanguage);
-    
+
+    // Convert language code to full name for context
+    const languageMap: Record<LanguageCode, Language> = {
+      en: "English",
+      rw: "Kinyarwanda",
+      fr: "French",
+      ar: "Arabic"
+    };
+    setContextLanguage(languageMap[newLanguage]);
+
     // Save to user metadata
     await saveUserPreferences({ language: newLanguage });
   };
@@ -247,7 +255,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
     if (firstName && lastName) return `${firstName} ${lastName}`;
     if (firstName) return firstName;
     if (lastName) return lastName;
-    return user?.email?.split("@")[0] || "User";
+    return user?.email?.split("@")[0] || t("user");
   };
 
   const getInitials = () => {
@@ -272,14 +280,14 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
       if (error) throw error;
 
       setAvatarUrl(url);
-      toast.success("Profile picture updated successfully");
+      toast.success(t("userSettings.profilePictureUpdated"));
 
       if (onUserUpdate) {
         const { data: { user: updatedUser } } = await supabase.auth.getUser();
         if (updatedUser) onUserUpdate(updatedUser);
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to update profile picture");
+      toast.error(error.message || t("userSettings.failedToUpdateProfilePicture"));
     }
   };
 
@@ -294,14 +302,14 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
 
       setAvatarUrl("");
       setShowRemoveDialog(false);
-      toast.success("Profile picture removed successfully");
+      toast.success(t("userSettings.profilePictureRemoved"));
 
       if (onUserUpdate) {
         const { data: { user: updatedUser } } = await supabase.auth.getUser();
         if (updatedUser) onUserUpdate(updatedUser);
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to remove profile picture");
+      toast.error(error.message || t("userSettings.failedToRemoveProfilePicture"));
     }
   };
 
@@ -315,12 +323,12 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
     e.preventDefault();
     
     if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error(t("passwordsDoNotMatch"));
       return;
     }
 
     if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error(t("passwordMinLength"));
       return;
     }
 
@@ -333,11 +341,11 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
 
       if (error) throw error;
 
-      toast.success("Password updated successfully");
+      toast.success(t("userSettings.passwordUpdated"));
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
-      toast.error(error.message || "Failed to update password");
+      toast.error(error.message || t("userSettings.failedToUpdatePassword"));
     } finally {
       setUpdating(false);
     }
@@ -358,10 +366,10 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
               <p className="text-muted-foreground">{user?.email}</p>
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant="outline" className="text-xs">
-                  {user?.user_metadata?.role || "User"}
+                  {user?.user_metadata?.role || t("user")}
                 </Badge>
                 <Badge variant="secondary" className="text-xs">
-                  {user?.created_at ? `Joined ${new Date(user.created_at).toLocaleDateString()}` : "Member"}
+                  {user?.created_at ? `${t("joined")} ${new Date(user.created_at).toLocaleDateString()}` : t("userSettings.member")}
                 </Badge>
               </div>
             </div>
@@ -374,16 +382,16 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setShowViewDialog(true)}>
                   <Eye className="mr-2 h-4 w-4" />
-                  View Profile
+                  {t("userSettings.viewProfile")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowUploadDialog(true)}>
                   <Upload className="mr-2 h-4 w-4" />
-                  Change Photo
+                  {t("userSettings.changePhoto")}
                 </DropdownMenuItem>
                 {googleAvatarUrl && avatarUrl !== googleAvatarUrl && (
                   <DropdownMenuItem onClick={handleRestoreGoogleAvatar}>
                     <RefreshCw className="mr-2 h-4 w-4" />
-                    Restore Google
+                    {t("userSettings.restoreGoogle")}
                   </DropdownMenuItem>
                 )}
                 {avatarUrl && (
@@ -391,7 +399,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => setShowRemoveDialog(true)} className="text-red-600">
                       <X className="mr-2 h-4 w-4" />
-                      Remove Photo
+                      {t("removePhoto")}
                     </DropdownMenuItem>
                   </>
                 )}
@@ -405,7 +413,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search settings..."
+          placeholder={t("userSettings.searchPlaceholder")}
           className="pl-10"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -419,7 +427,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2 text-blue-600">
             <User className="h-5 w-5" />
-            Account
+            {t("userSettings.account")}
           </h3>
           
           {/* Profile Settings */}
@@ -429,7 +437,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Profile Settings</CardTitle>
+                <CardTitle className="text-base">{t("userSettings.profileSettings")}</CardTitle>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -442,34 +450,34 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   <ChevronDown className={`h-4 w-4 transition-transform ${profileSettingsOpen ? 'rotate-180' : ''}`} />
                 </Button>
               </div>
-              <CardDescription className="text-xs">Manage your profile information</CardDescription>
+              <CardDescription className="text-xs">{t("userSettings.manageProfileInformation")}</CardDescription>
             </CardHeader>
             {profileSettingsOpen && (
             <CardContent className="pt-0 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden transition-all duration-300 ease-in-out max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Profile Picture</span>
+                  <span className="text-sm">{t("profilePicture")}</span>
                   <Badge variant={avatarUrl ? "default" : "secondary"} className="text-xs">
-                    {avatarUrl ? "Set" : "Not Set"}
+                    {avatarUrl ? t("userSettings.set") : t("userSettings.notSet")}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Personal Info</span>
+                  <span className="text-sm">{t("userSettings.personalInfo")}</span>
                   <Badge variant={firstName || lastName ? "default" : "secondary"} className="text-xs">
-                    {firstName || lastName ? "Complete" : "Incomplete"}
+                    {firstName || lastName ? t("completed") : t("userSettings.incomplete")}
                   </Badge>
                 </div>
                 {showUsernameChange && (
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">Username</span>
+                    <span className="text-sm">{t("userSettings.username")}</span>
                     <Badge variant={username ? "default" : "secondary"} className="text-xs">
-                      {username ? "Set" : "Not Set"}
+                      {username ? t("userSettings.set") : t("userSettings.notSet")}
                     </Badge>
                   </div>
                 )}
               </div>
               <Button variant="outline" size="sm" className="w-full" onClick={() => setShowEditProfileDialog(true)}>
-                Edit Profile
+                {t("userSettings.editProfile")}
               </Button>
             </CardContent>
             )}
@@ -482,7 +490,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Privacy & Data</CardTitle>
+                <CardTitle className="text-base">{t("userSettings.privacyData")}</CardTitle>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -495,12 +503,12 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   <ChevronDown className={`h-4 w-4 transition-transform ${privacyOpen ? 'rotate-180' : ''}`} />
                 </Button>
               </div>
-              <CardDescription className="text-xs">Export, delete, retention</CardDescription>
+              <CardDescription className="text-xs">{t("userSettings.privacyDataDescription")}</CardDescription>
             </CardHeader>
             {privacyOpen && (
             <CardContent className="pt-0 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden transition-all duration-300 ease-in-out max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Download Data</span>
+                <span className="text-sm">{t("userSettings.downloadData")}</span>
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -510,7 +518,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                       const { data: { user: currentUser } } = await supabase.auth.getUser();
                       
                       if (!currentUser) {
-                        toast.error("User not found");
+                        toast.error(t("userSettings.userNotFound"));
                         return;
                       }
 
@@ -532,18 +540,18 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                       document.body.removeChild(a);
                       URL.revokeObjectURL(url);
                       
-                      toast.success("Data exported successfully");
+                      toast.success(t("userSettings.dataExported"));
                     } catch (error: any) {
-                      toast.error("Failed to export data: " + error.message);
+                      toast.error(`${t("userSettings.failedToExportData")}: ${error.message}`);
                     }
                   }}
                 >
                   <Download className="h-3 w-3 mr-1" />
-                  Export
+                  {t("download")}
                 </Button>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-red-600">Delete Account</span>
+                <span className="text-sm text-red-600">{t("userSettings.deleteAccount")}</span>
                 <Button 
                   variant="destructive" 
                   size="sm"
@@ -552,12 +560,12 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   }}
                 >
                   <Trash2 className="h-3 w-3 mr-1" />
-                  Delete
+                  {t("delete")}
                 </Button>
               </div>
               <div className="p-3 bg-secondary/50 rounded-lg">
                 <p className="text-xs text-muted-foreground">
-                  Data retained for 30 days after deletion
+                  {t("userSettings.dataRetention")}
                 </p>
               </div>
             </CardContent>
@@ -579,7 +587,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Security Settings</CardTitle>
+                <CardTitle className="text-base">{t("userSettings.securitySettings")}</CardTitle>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -592,23 +600,23 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   <ChevronDown className={`h-4 w-4 transition-transform ${securityOpen ? 'rotate-180' : ''}`} />
                 </Button>
               </div>
-              <CardDescription className="text-xs">Login history, sessions</CardDescription>
+              <CardDescription className="text-xs">{t("userSettings.loginHistorySessions")}</CardDescription>
             </CardHeader>
             {securityOpen && (
             <CardContent className="pt-0 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden transition-all duration-300 ease-in-out max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Active Sessions</span>
-                <Badge variant="secondary" className="text-xs">1 Active</Badge>
+                <span className="text-sm">{t("userSettings.activeSessions")}</span>
+                <Badge variant="secondary" className="text-xs">1 {t("active")}</Badge>
               </div>
               <Button 
                 variant="outline" 
                 size="sm" 
                 className="w-full"
                 onClick={() => {
-                  toast.info("Session management and login history will be available in the next update");
+                  toast.info(t("userSettings.sessionManagementComingSoon"));
                 }}
               >
-                View Security Details
+                {t("userSettings.viewSecurityDetails")}
               </Button>
             </CardContent>
             )}
@@ -622,7 +630,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Change Password</CardTitle>
+                <CardTitle className="text-base">{t("changePassword")}</CardTitle>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -635,37 +643,37 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   <ChevronDown className={`h-4 w-4 transition-transform ${changePasswordOpen ? 'rotate-180' : ''}`} />
                 </Button>
               </div>
-              <CardDescription className="text-xs">Update your password</CardDescription>
+              <CardDescription className="text-xs">{t("userSettings.updateYourPassword")}</CardDescription>
             </CardHeader>
             {changePasswordOpen && (
             <CardContent className="pt-0 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden transition-all duration-300 ease-in-out max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <form onSubmit={handleUpdatePassword} className="space-y-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="newPassword" className="text-sm">New Password</Label>
+                  <Label htmlFor="newPassword" className="text-sm">{t("newPassword")}</Label>
                   <Input
                     id="newPassword"
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter new password"
+                    placeholder={t("userSettings.enterNewPassword")}
                     required
                     className="h-9"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="confirmPassword" className="text-sm">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword" className="text-sm">{t("confirmNewPassword")}</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm password"
+                    placeholder={t("userSettings.confirmPasswordPlaceholder")}
                     required
                     className="h-9"
                   />
                 </div>
                 <Button type="submit" disabled={updating} className="w-full" size="sm">
-                  {updating ? "Updating..." : "Update Password"}
+                  {updating ? t("updating") : t("userSettings.updatePassword")}
                 </Button>
               </form>
             </CardContent>
@@ -688,7 +696,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Appearance & Language</CardTitle>
+                <CardTitle className="text-base">{t("userSettings.appearanceLanguage")}</CardTitle>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -701,12 +709,12 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   <ChevronDown className={`h-4 w-4 transition-transform ${appearanceLanguageOpen ? 'rotate-180' : ''}`} />
                 </Button>
               </div>
-              <CardDescription className="text-xs">Theme, text size, language</CardDescription>
+              <CardDescription className="text-xs">{t("userSettings.appearanceLanguageDescription")}</CardDescription>
             </CardHeader>
             {appearanceLanguageOpen && (
             <CardContent className="pt-0 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden transition-all duration-300 ease-in-out max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="space-y-2">
-                <Label className="text-xs">Theme</Label>
+                <Label className="text-xs">{t("theme")}</Label>
                 <div className="flex gap-2 flex-wrap">
                   {[
                     { value: "light", icon: Sun, label: t("light") },
@@ -727,7 +735,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Text Size</Label>
+                <Label className="text-xs">{t("textSize")}</Label>
                 <div className="flex gap-2 flex-wrap">
                   {textSizes.map(({ value, label }) => (
                     <Button
@@ -743,7 +751,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Language</Label>
+                <Label className="text-xs">{t("language")}</Label>
                 <div className="flex gap-2 flex-wrap">
                   {languages.map(({ value, label }) => (
                     <Button
@@ -769,7 +777,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Course Selection</CardTitle>
+                <CardTitle className="text-base">{t("userSettings.courseSelection")}</CardTitle>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -782,12 +790,12 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   <ChevronDown className={`h-4 w-4 transition-transform ${courseLanguageOpen ? 'rotate-180' : ''}`} />
                 </Button>
               </div>
-              <CardDescription className="text-xs">Choose your learning course</CardDescription>
+              <CardDescription className="text-xs">{t("userSettings.chooseLearningCourse")}</CardDescription>
             </CardHeader>
             {courseLanguageOpen && (
             <CardContent className="pt-0 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden transition-all duration-300 ease-in-out max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Current Course</span>
+                <span className="text-sm">{t("userSettings.currentCourse")}</span>
                 <Badge variant="default" className="text-xs">{courseLanguage}</Badge>
               </div>
               <Button 
@@ -796,7 +804,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                 className="w-full"
                 onClick={() => setShowCourseLanguageDialog(true)}
               >
-                Change Course
+                {t("userSettings.changeCourse")}
               </Button>
             </CardContent>
             )}
@@ -809,7 +817,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Notifications</CardTitle>
+                <CardTitle className="text-base">{t("notifications")}</CardTitle>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -822,28 +830,28 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   <ChevronDown className={`h-4 w-4 transition-transform ${notificationsOpen ? 'rotate-180' : ''}`} />
                 </Button>
               </div>
-              <CardDescription className="text-xs">Email, push, preferences</CardDescription>
+              <CardDescription className="text-xs">{t("userSettings.notificationsDescription")}</CardDescription>
             </CardHeader>
             {notificationsOpen && (
             <CardContent className="pt-0 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden transition-all duration-300 ease-in-out max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Email Alerts</span>
+                <span className="text-sm">{t("userSettings.emailAlerts")}</span>
                 <Button
                   variant={emailNotifications ? "default" : "outline"}
                   size="sm"
                   onClick={() => setEmailNotifications(!emailNotifications)}
                 >
-                  {emailNotifications ? "On" : "Off"}
+                  {emailNotifications ? t("on") : t("off")}
                 </Button>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Browser Alerts</span>
+                <span className="text-sm">{t("userSettings.browserAlerts")}</span>
                 <Button
                   variant={pushNotifications ? "default" : "outline"}
                   size="sm"
                   onClick={() => setPushNotifications(!pushNotifications)}
                 >
-                  {pushNotifications ? "On" : "Off"}
+                  {pushNotifications ? t("on") : t("off")}
                 </Button>
               </div>
               <Button 
@@ -852,7 +860,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                 className="w-full"
                 onClick={() => setShowNotificationDialog(true)}
               >
-                Choose What to Get
+                {t("userSettings.chooseNotifications")}
               </Button>
             </CardContent>
             )}
@@ -866,14 +874,14 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
       <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Profile Picture?</AlertDialogTitle>
+            <AlertDialogTitle>{t("userSettings.removeProfilePicture")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove your current profile picture. You can upload a new one or restore your Google profile picture later.
+              {t("userSettings.removeProfilePictureDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRemoveAvatar}>Remove</AlertDialogAction>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemoveAvatar}>{t("remove")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -882,9 +890,9 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
       <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change Profile Picture</DialogTitle>
+            <DialogTitle>{t("userSettings.changeProfilePicture")}</DialogTitle>
             <DialogDescription>
-              Upload a new profile picture from your device
+              {t("userSettings.uploadProfilePictureDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -895,11 +903,11 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                 const file = e.target.files?.[0];
                 if (file) {
                   if (!file.type.startsWith("image/")) {
-                    toast.error("Please select an image file");
+                    toast.error(t("imageUpload.selectImageFile"));
                     return;
                   }
                   if (file.size > 5 * 1024 * 1024) {
-                    toast.error("File size must be less than 5MB");
+                    toast.error(t("imageUpload.fileSizeLimit"));
                     return;
                   }
                   
@@ -923,7 +931,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                     await handleAvatarUpload(publicUrl);
                     setShowUploadDialog(false);
                   } catch (error: any) {
-                    toast.error("Failed to upload image: " + error.message);
+                    toast.error(`${t("userSettings.failedToUploadImage")}: ${error.message}`);
                   } finally {
                     setUploadingAvatar(false);
                   }
@@ -945,12 +953,12 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Profile Picture</DialogTitle>
+            <DialogTitle>{t("profilePicture")}</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center">
             <img
               src={avatarUrl}
-              alt="Profile"
+              alt={t("userSettings.profile")}
               className="max-w-full max-h-96 rounded-lg"
             />
           </div>
@@ -961,9 +969,9 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
       <Dialog open={showEditProfileDialog} onOpenChange={setShowEditProfileDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
+            <DialogTitle>{t("userSettings.editProfile")}</DialogTitle>
             <DialogDescription>
-              Update your personal information
+              {t("userSettings.updatePersonalInformation")}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={async (e) => {
@@ -991,65 +999,65 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
               
               if (error) throw error;
               
-              toast.success("Profile updated successfully");
+              toast.success(t("userSettings.profileUpdated"));
               
               if (onUserUpdate && data?.user) {
                 onUserUpdate(data.user);
               }
               setShowEditProfileDialog(false);
             } catch (error: any) {
-              toast.error(error.message || "Failed to update profile");
+              toast.error(error.message || t("userSettings.failedToUpdateProfile"));
             } finally {
               setUpdatingProfile(false);
             }
           }} className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="firstName">First Name</Label>
+              <Label htmlFor="firstName">{t("firstName")}</Label>
               <Input
                 id="firstName"
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Enter first name"
+                placeholder={t("userSettings.enterFirstName")}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="lastName">Last Name</Label>
+              <Label htmlFor="lastName">{t("lastName")}</Label>
               <Input
                 id="lastName"
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                placeholder="Enter last name"
+                placeholder={t("userSettings.enterLastName")}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="gender">Gender</Label>
+              <Label htmlFor="gender">{t("gender")}</Label>
               <select
                 id="gender"
                 value={gender}
                 onChange={(e) => setGender(e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="">Select gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-                <option value="prefer-not-to-say">Prefer not to say</option>
+                <option value="">{t("selectGender")}</option>
+                <option value="male">{t("male")}</option>
+                <option value="female">{t("female")}</option>
+                <option value="other">{t("userSettings.other")}</option>
+                <option value="prefer-not-to-say">{t("userSettings.preferNotToSay")}</option>
               </select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="nationality">Nationality</Label>
+              <Label htmlFor="nationality">{t("nationality")}</Label>
               <Input
                 id="nationality"
                 type="text"
                 value={nationality}
                 onChange={(e) => setNationality(e.target.value)}
-                placeholder="Enter nationality"
+                placeholder={t("userSettings.enterNationality")}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="birthdate">Date of Birth</Label>
+              <Label htmlFor="birthdate">{t("dateOfBirth")}</Label>
               <Input
                 id="birthdate"
                 type="date"
@@ -1059,29 +1067,29 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
             </div>
             {showUsernameChange && (
               <div className="grid gap-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">{t("userSettings.username")}</Label>
                 <Input
                   id="username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter username"
+                  placeholder={t("userSettings.enterUsername")}
                   required
                 />
               </div>
             )}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setShowEditProfileDialog(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
               <Button type="submit" disabled={updatingProfile}>
                 {updatingProfile ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
+                    {t("updating")}
                   </>
                 ) : (
-                  "Save Changes"
+                  t("userSettings.saveChanges")
                 )}
               </Button>
             </div>
@@ -1093,16 +1101,16 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
       <Dialog open={showCourseLanguageDialog} onOpenChange={setShowCourseLanguageDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Choose Course</DialogTitle>
+            <DialogTitle>{t("userSettings.chooseCourse")}</DialogTitle>
             <DialogDescription>
-              Select the course you want to learn from available published courses
+              {t("userSettings.chooseCourseDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {availableCourseLanguages.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No published courses available</p>
+                <p>{t("userSettings.noPublishedCourses")}</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -1138,7 +1146,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
             )}
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowCourseLanguageDialog(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
               <Button 
                 onClick={async () => {
@@ -1153,7 +1161,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
 
                     if (error) throw error;
 
-                    toast.success("Course selection saved");
+                    toast.success(t("userSettings.courseSelectionSaved"));
                     setShowCourseLanguageDialog(false);
 
                     if (onUserUpdate) {
@@ -1161,12 +1169,12 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                       if (updatedUser) onUserUpdate(updatedUser);
                     }
                   } catch (error: any) {
-                    toast.error("Failed to save: " + error.message);
+                    toast.error(`${t("userSettings.failedToSave")}: ${error.message}`);
                   }
                 }}
                 disabled={!courseLanguageId}
               >
-                Save Selection
+                {t("userSettings.saveSelection")}
               </Button>
             </div>
           </div>
@@ -1177,9 +1185,9 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
       <Dialog open={showNotificationDialog} onOpenChange={setShowNotificationDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Choose What to Get</DialogTitle>
+            <DialogTitle>{t("userSettings.chooseNotifications")}</DialogTitle>
             <DialogDescription>
-              Pick the types of alerts you want to receive
+              {t("userSettings.notificationPreferencesDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1192,7 +1200,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   onChange={(e) => setNotificationPreferences({...notificationPreferences, courses: e.target.checked})}
                   className="rounded"
                 />
-                <label htmlFor="courses" className="text-sm cursor-pointer">New Courses and Lessons</label>
+                <label htmlFor="courses" className="text-sm cursor-pointer">{t("userSettings.newCoursesLessons")}</label>
               </div>
             </div>
             <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -1204,7 +1212,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   onChange={(e) => setNotificationPreferences({...notificationPreferences, exams: e.target.checked})}
                   className="rounded"
                 />
-                <label htmlFor="exams" className="text-sm cursor-pointer">Exam Results and Reminders</label>
+                <label htmlFor="exams" className="text-sm cursor-pointer">{t("userSettings.examResultsReminders")}</label>
               </div>
             </div>
             <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -1216,7 +1224,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   onChange={(e) => setNotificationPreferences({...notificationPreferences, announcements: e.target.checked})}
                   className="rounded"
                 />
-                <label htmlFor="announcements" className="text-sm cursor-pointer">System Messages</label>
+                <label htmlFor="announcements" className="text-sm cursor-pointer">{t("userSettings.systemMessages")}</label>
               </div>
             </div>
             <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -1228,12 +1236,12 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   onChange={(e) => setNotificationPreferences({...notificationPreferences, grades: e.target.checked})}
                   className="rounded"
                 />
-                <label htmlFor="grades" className="text-sm cursor-pointer">Grade Updates</label>
+                <label htmlFor="grades" className="text-sm cursor-pointer">{t("userSettings.gradeUpdates")}</label>
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowNotificationDialog(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
               <Button onClick={async () => {
                 try {
@@ -1244,7 +1252,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
 
                   if (error) throw error;
 
-                  toast.success("Alert choices saved");
+                  toast.success(t("userSettings.alertChoicesSaved"));
                   setShowNotificationDialog(false);
 
                   if (onUserUpdate) {
@@ -1252,7 +1260,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                     if (updatedUser) onUserUpdate(updatedUser);
                   }
                 } catch (error: any) {
-                  toast.error("Failed to save: " + error.message);
+                  toast.error(`${t("userSettings.failedToSave")}: ${error.message}`);
                 }
               }}>
                 Save Choices
@@ -1266,14 +1274,14 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogTitle>{t("userSettings.deleteAccount")}</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="deleteConfirm">Type "DELETE" to confirm</Label>
+              <Label htmlFor="deleteConfirm">{t("userSettings.typeDeleteToConfirm")}</Label>
               <Input
                 id="deleteConfirm"
                 value={deleteConfirmText}
@@ -1282,11 +1290,11 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
               />
             </div>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={async () => {
                   if (deleteConfirmText !== "DELETE") {
-                    toast.error("Please type DELETE to confirm");
+                    toast.error(t("userSettings.typeDeleteToConfirm"));
                     return;
                   }
 
@@ -1299,7 +1307,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
 
                     if (error) throw error;
 
-                    toast.success("Account deleted successfully");
+                    toast.success(t("userSettings.accountDeleted"));
                     await supabase.auth.signOut();
                     window.location.href = "/";
                   } catch (error: any) {
@@ -1319,7 +1327,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                     Deleting...
                   </>
                 ) : (
-                  "Delete Account"
+                  t("userSettings.deleteAccount")
                 )}
               </AlertDialogAction>
             </AlertDialogFooter>

@@ -5,10 +5,12 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Mail, Calendar, GraduationCap } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useLanguage } from "@/lib/language-context";
 
 export default function UserDashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -26,7 +28,7 @@ export default function UserDashboard() {
 
   const displayName = user?.user_metadata?.first_name && user?.user_metadata?.last_name
     ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
-    : user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || "User";
+    : user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || t("user");
 
   const nationality = user?.user_metadata?.nationality || user?.user_metadata?.country || user?.user_metadata?.locale;
   const birthdate = user?.user_metadata?.birthdate || user?.user_metadata?.date_of_birth || user?.user_metadata?.birthday || user?.user_metadata?.dob;
@@ -41,7 +43,7 @@ export default function UserDashboard() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <p>Loading...</p>
+        <p>{t("loading")}</p>
       </div>
     );
   }
@@ -54,8 +56,8 @@ export default function UserDashboard() {
           <AvatarFallback className="text-lg font-semibold">{initials}</AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-3xl font-bold">Welcome, {displayName}!</h1>
-          <p className="text-muted-foreground mt-1">User Dashboard</p>
+          <h1 className="text-3xl font-bold">{t("welcome")}, {displayName}!</h1>
+          <p className="text-muted-foreground mt-1">{t("userDashboard")}</p>
         </div>
       </div>
 
@@ -64,14 +66,14 @@ export default function UserDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Profile Information
+              {t("profileInformation")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">
               <Mail className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-sm text-muted-foreground">Email</p>
+                <p className="text-sm text-muted-foreground">{t("email")}</p>
                 <p className="font-medium">{user?.email}</p>
               </div>
             </div>
@@ -79,7 +81,7 @@ export default function UserDashboard() {
               <div className="flex items-center gap-3">
                 <User className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">First Name</p>
+                  <p className="text-sm text-muted-foreground">{t("firstName")}</p>
                   <p className="font-medium">{user.user_metadata.first_name}</p>
                 </div>
               </div>
@@ -88,7 +90,7 @@ export default function UserDashboard() {
               <div className="flex items-center gap-3">
                 <User className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Last Name</p>
+                  <p className="text-sm text-muted-foreground">{t("lastName")}</p>
                   <p className="font-medium">{user.user_metadata.last_name}</p>
                 </div>
               </div>
@@ -97,7 +99,7 @@ export default function UserDashboard() {
               <div className="flex items-center gap-3">
                 <GraduationCap className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Gender</p>
+                  <p className="text-sm text-muted-foreground">{t("gender")}</p>
                   <p className="font-medium capitalize">{user.user_metadata.gender}</p>
                 </div>
               </div>
@@ -106,7 +108,7 @@ export default function UserDashboard() {
               <div className="flex items-center gap-3">
                 <GraduationCap className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Nationality</p>
+                  <p className="text-sm text-muted-foreground">{t("nationality")}</p>
                   <p className="font-medium capitalize">{nationality}</p>
                 </div>
               </div>
@@ -115,7 +117,7 @@ export default function UserDashboard() {
               <div className="flex items-center gap-3">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Date of Birth</p>
+                  <p className="text-sm text-muted-foreground">{t("dateOfBirth")}</p>
                   <p className="font-medium">
                     {(() => {
                       const date = new Date(birthdate);
@@ -132,24 +134,24 @@ export default function UserDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Account Details
+              {t("accountDetails")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-sm text-muted-foreground">Member Since</p>
+                <p className="text-sm text-muted-foreground">{t("memberSince")}</p>
                 <p className="font-medium">
-                  {user?.created_at ? new Date(user.created_at).toLocaleDateString() : "N/A"}
+                  {user?.created_at ? new Date(user.created_at).toLocaleDateString() : t("notAvailable")}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <GraduationCap className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-sm text-muted-foreground">Role</p>
-                <p className="font-medium">{user?.user_metadata?.role || "User"}</p>
+                <p className="text-sm text-muted-foreground">{t("role")}</p>
+                <p className="font-medium">{user?.user_metadata?.role || t("user")}</p>
               </div>
             </div>
           </CardContent>

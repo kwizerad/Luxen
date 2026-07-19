@@ -10,11 +10,13 @@ import { useBrandingConfig } from "@/lib/branding-config";
 import { LayoutDashboard, FileText, Settings, LogOut, Trophy } from "lucide-react";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { FloatingHeader } from "@/components/floating-header";
+import { useLanguage } from "@/lib/language-context";
 
 export default function UserExamLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
   const sidebarHideTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -56,16 +58,16 @@ export default function UserExamLayout({ children }: { children: React.ReactNode
   }, [isHoveringSidebar]);
 
   const navItems = useMemo(() => ([
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/dashboard/exam", label: "Take Exam", icon: FileText },
-    { href: "/userExam", label: "My Exams", icon: Trophy },
-    { href: "/dashboard/settings", label: "Settings", icon: Settings },
-  ]), []);
+    { href: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
+    { href: "/dashboard/exam", label: t("takeExam"), icon: FileText },
+    { href: "/userExam", label: t("myExams"), icon: Trophy },
+    { href: "/dashboard/settings", label: t("settings"), icon: Settings },
+  ]), [t]);
 
   if (authLoading || !user || isPrimaryAdmin(user)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
+        <p>{t("loading")}</p>
       </div>
     );
   }
@@ -92,7 +94,7 @@ export default function UserExamLayout({ children }: { children: React.ReactNode
               </div>
               <div className={`min-w-0 ${sidebarOpen ? "block" : "hidden"}`}>
                 <p className="text-sm font-bold truncate">{config.systemName}</p>
-                <p className="text-xs text-muted-foreground">User Dashboard</p>
+                <p className="text-xs text-muted-foreground">{t("userDashboard")}</p>
               </div>
             </Link>
           </div>
@@ -130,7 +132,7 @@ export default function UserExamLayout({ children }: { children: React.ReactNode
             className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-destructive/10 text-muted-foreground hover:text-destructive w-full"
           >
             <LogOut className="h-4 w-4 flex-shrink-0" />
-            <span className={`${sidebarOpen ? "text-sm font-medium" : "sr-only"}`}>Logout</span>
+            <span className={`${sidebarOpen ? "text-sm font-medium" : "sr-only"}`}>{t("logout")}</span>
           </button>
         </div>
       </aside>

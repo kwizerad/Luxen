@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatRelativeTime, ActivityItem } from '@/lib/dashboard-utils';
 import { CheckCircle2, Medal, Star, Zap, Trophy, Calendar } from 'lucide-react';
+import { useLanguage } from '@/lib/language-context';
 
 interface ActivityFeedProps {
   activities: ActivityItem[];
@@ -12,6 +13,7 @@ interface ActivityFeedProps {
 }
 
 export function ActivityFeed({ activities, loading = false, maxItems = 5, onActivityClick }: ActivityFeedProps) {
+  const { t } = useLanguage();
   const displayActivities = activities.slice(0, maxItems);
 
   const getActivityIcon = (type: ActivityItem['type']) => {
@@ -48,7 +50,7 @@ export function ActivityFeed({ activities, loading = false, maxItems = 5, onActi
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Recent Activity</CardTitle>
+          <CardTitle className="text-lg">{t("recentActivity")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -70,13 +72,13 @@ export function ActivityFeed({ activities, loading = false, maxItems = 5, onActi
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Recent Activity</CardTitle>
-        <CardDescription>Your recent actions and achievements</CardDescription>
+        <CardTitle className="text-lg">{t("recentActivity")}</CardTitle>
+        <CardDescription>{t("activityFeed.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         {displayActivities.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            <p>No activities yet. Start taking exams to see your progress!</p>
+            <p>{t("activityFeed.empty")}</p>
           </div>
         ) : (
           <div className="space-y-3">

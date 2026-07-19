@@ -1,21 +1,18 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, Trophy, Settings, Home } from "lucide-react";
+import { LayoutDashboard, FileText, Trophy, Settings, Home, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/language-context";
+import { useAuth } from "@/lib/auth-context";
+import { getCourseLanguages } from "@/lib/supabase/queries";
+import { useEffect, useState } from "react";
 
 interface NavItem {
   href: string;
-  label: string;
+  labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
 }
-
-const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/dashboard/exam", label: "Exam", icon: FileText },
-  { href: "/userExam", label: "Results", icon: Trophy },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
-];
 
 interface MobileBottomNavProps {
   hide?: boolean;
@@ -24,8 +21,65 @@ interface MobileBottomNavProps {
 export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useLanguage();
+  const { user } = useAuth();
+  const [hasPublishedCourses, setHasPublishedCourses] = useState(false);
+  const [isExamActive, setIsExamActive] = useState(false);
+
+  useEffect(() => {
+    const checkPublishedCourses = async () => {
+      if (!user) return;
+
+      try {
+        const data = await getCourseLanguages();
+        setHasPublishedCourses(data.languages && data.languages.length > 0);
+      } catch (error) {
+        console.error("Failed to check published courses:", error);
+        setHasPublishedCourses(false);
+      }
+    };
+
+    checkPublishedCourses();
+  }, [user]);
+
+  // Check if exam is active
+  useEffect(() => {
+    const checkExamActive = () => {
+      const isActive = sessionStorage.getItem('exam-active') === 'true';
+      setIsExamActive(isActive);
+    };
+
+    checkExamActive();
+
+    const handleExamStateChange = () => {
+      checkExamActive();
+    };
+
+    window.addEventListener('exam-state-change', handleExamStateChange);
+    window.addEventListener('storage', handleExamStateChange);
+
+    return () => {
+      window.removeEventListener('exam-state-change', handleExamStateChange);
+      window.removeEventListener('storage', handleExamStateChange);
+    };
+  }, []);
+
+  const navItems: NavItem[] = [
+    { href: "/dashboard", labelKey: "home", icon: LayoutDashboard },
+    { href: "/dashboard/exam", labelKey: "takeExam", icon: FileText },
+    { href: "/userExam", labelKey: "results", icon: Trophy },
+    { href: "/dashboard/settings", labelKey: "settings", icon: Settings },
+  ];
+
+  // Add courses tab if there are published courses
+  if (hasPublishedCourses) {
+    navItems.splice(1, 0, { href: "/dashboard/course", labelKey: "courses", icon: BookOpen });
+  }
 
   if (hide) return null;
+
+  // Hide during any active exam
+  if (isExamActive) return null;
 
   // Helper to check if a nav item is active (works with nested routes)
   const isNavItemActive = (href: string) => {
@@ -41,7 +95,7 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
     <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
       {/* Glassmorphism container */}
       <div className="bg-background/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/10 h-14">
-        <div className="grid grid-cols-4 h-full">
+        <div className={`grid ${hasPublishedCourses ? 'grid-cols-5' : 'grid-cols-4'} h-full`}>
           {navItems.map((item) => {
             const isActive = isNavItemActive(item.href);
             const Icon = item.icon;
@@ -56,7 +110,7 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
                     ? "text-primary bg-primary/15 font-semibold" 
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 )}
-                aria-label={item.label}
+                aria-label={t(item.labelKey)}
                 aria-current={isActive ? "page" : undefined}
               >
                 <div className={cn(
@@ -72,7 +126,7 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
                   "text-[10px] font-medium transition-all duration-200",
                   isActive && "scale-105"
                 )}>
-                  {item.label}
+                  {t(item.labelKey)}
                 </span>
                 {/* Active indicator dot */}
                 {isActive && (

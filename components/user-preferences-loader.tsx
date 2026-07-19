@@ -6,6 +6,9 @@ import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
 import { createClient } from "@/lib/supabase/client";
 
+type LanguageCode = "en" | "rw" | "fr" | "ar";
+type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
+
 export function UserPreferencesLoader() {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -18,20 +21,27 @@ export function UserPreferencesLoader() {
       try {
         const supabase = createClient();
         const { data: { user: currentUser } } = await supabase.auth.getUser();
-        
+
         if (currentUser?.user_metadata) {
           const metadata = currentUser.user_metadata;
-          
+
           // Load theme preference
           if (metadata.theme && metadata.theme !== theme) {
             setTheme(metadata.theme);
           }
-          
+
           // Load language preference
           if (metadata.language && metadata.language !== language) {
-            setLanguage(metadata.language);
+            // Convert language code to full name for context
+            const languageMap: Record<LanguageCode, Language> = {
+              en: "English",
+              rw: "Kinyarwanda",
+              fr: "French",
+              ar: "Arabic"
+            };
+            setLanguage(languageMap[metadata.language as LanguageCode] || "English");
           }
-          
+
           // Load text size preference
           if (metadata.text_size) {
             const root = document.documentElement;

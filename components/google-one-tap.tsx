@@ -19,7 +19,7 @@ function GoogleOneTapContent() {
   const handleGoogleLoginSuccess = async (credentialResponse: CredentialResponse) => {
     try {
       const supabase = createClient();
-      
+
       // Sign in with the Google ID token
       const { data: authData, error: authError } = await supabase.auth.signInWithIdToken({
         provider: 'google',
@@ -54,19 +54,23 @@ function GoogleOneTapContent() {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       setIsAuthenticated(!!session);
-      
+
+      // Check if the card was previously dismissed (persisted in localStorage)
+      const wasDismissed = localStorage.getItem('google-one-tap-dismissed') === 'true';
+      setDismissed(wasDismissed);
+
       // Only show the card if not authenticated and not dismissed
-      if (!session && !dismissed) {
+      if (!session && !wasDismissed) {
         const timer = setTimeout(() => {
           setShowCard(true);
         }, 2000);
-        
+
         return () => clearTimeout(timer);
       }
     };
 
     checkAuth();
-  }, [dismissed]);
+  }, []);
 
   // Auto-dismiss after 30 seconds
   useEffect(() => {
@@ -74,7 +78,7 @@ function GoogleOneTapContent() {
       const timer = setTimeout(() => {
         handleDismiss();
       }, 30000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [showCard]);
@@ -82,6 +86,8 @@ function GoogleOneTapContent() {
   const handleDismiss = () => {
     setShowCard(false);
     setDismissed(true);
+    // Persist dismissal in localStorage so it never comes back
+    localStorage.setItem('google-one-tap-dismissed', 'true');
   };
 
   if (isAuthenticated) {

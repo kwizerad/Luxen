@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlayCircle, FileText, Settings, BarChart3, Trophy, BookOpen } from 'lucide-react';
 import Link from 'next/link';
+import { useLanguage } from '@/lib/language-context';
 
 interface QuickAction {
   id: string;
@@ -20,42 +21,45 @@ interface QuickActionsProps {
   isLoading?: boolean;
 }
 
-const defaultActions: QuickAction[] = [
+const getDefaultActions = (t: (key: string) => string): QuickAction[] => [
   {
     id: 'take-exam',
-    label: 'Take Exam',
-    description: 'Start a new exam',
+    label: t("takeExam"),
+    description: t("quickActions.startNewExam"),
     icon: <PlayCircle className="h-5 w-5" />,
     href: '/dashboard/exam',
     variant: 'primary',
   },
   {
     id: 'view-results',
-    label: 'My Results',
-    description: 'View exam history',
+    label: t("quickActions.myResults"),
+    description: t("quickActions.viewExamHistory"),
     icon: <Trophy className="h-5 w-5" />,
     href: '/userExam',
     variant: 'secondary',
   },
   {
     id: 'analytics',
-    label: 'Analytics',
-    description: 'View performance',
+    label: t("quickActions.analytics"),
+    description: t("quickActions.viewPerformance"),
     icon: <BarChart3 className="h-5 w-5" />,
     href: '/dashboard',
     variant: 'secondary',
   },
   {
     id: 'settings',
-    label: 'Settings',
-    description: 'Manage profile',
+    label: t("settings"),
+    description: t("quickActions.manageProfile"),
     icon: <Settings className="h-5 w-5" />,
     href: '/dashboard/settings',
     variant: 'secondary',
   },
 ];
 
-export function QuickActions({ actions = defaultActions, isLoading = false }: QuickActionsProps) {
+export function QuickActions({ actions, isLoading = false }: QuickActionsProps) {
+  const { t } = useLanguage();
+  const displayActions = actions || getDefaultActions(t);
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -68,7 +72,7 @@ export function QuickActions({ actions = defaultActions, isLoading = false }: Qu
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {actions.map((action) => (
+      {displayActions.map((action) => (
         <Link
           key={action.id}
           href={action.href || '#'}

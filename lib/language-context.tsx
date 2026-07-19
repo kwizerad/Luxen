@@ -1,6 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
+import en from "./translations/en";
+import rw from "./translations/rw";
+import fr from "./translations/fr";
+import ar from "./translations/ar";
 
 type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
 
@@ -8,9 +12,19 @@ interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: (key: string) => string;
+  isRTL: boolean;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+const translations: Record<Language, Record<string, string>> = {
+  English: en,
+  Kinyarwanda: rw,
+  French: fr,
+  Arabic: ar,
+};
+
+const RTL_LANGUAGES: Language[] = ["Arabic"];
 
 // Get default system name from localStorage or fallback to "Navo"
 const getDefaultSystemName = (): string => {
@@ -27,944 +41,61 @@ const getDefaultSystemName = (): string => {
   return "Navo";
 };
 
-const translations: Record<Language, Record<string, string>> = {
-  English: {
-    // System & Common
-    "navo": "Navo",
-    "app.name": "Navo",
-    "loading": "Loading...",
-    "loadingEllipsis": "Loading...",
-    "cancel": "Cancel",
-    "save": "Save",
-    "submit": "Submit",
-    "close": "Close",
-    "back": "Back",
-    "next": "Next",
-    "previous": "Previous",
-    "confirm": "Confirm",
-    "delete": "Delete",
-    "edit": "Edit",
-    "add": "Add",
-    "search": "Search",
-    "filter": "Filter",
-    "sort": "Sort",
-    "refresh": "Refresh",
-    "view": "View",
-    "download": "Download",
-    "upload": "Upload",
-    "print": "Print",
-    "share": "Share",
-    "copy": "Copy",
-    "success": "Success",
-    "error": "Error",
-    "warning": "Warning",
-    "info": "Info",
-    "yes": "Yes",
-    "no": "No",
-    "ok": "OK",
-    "done": "Done",
-    "pending": "Pending",
-    "completed": "Completed",
-    "failed": "Failed",
-    "active": "Active",
-    "inactive": "Inactive",
-    "activeLanguage": "Active Language",
-    "required": "Required",
-    "optional": "Optional",
-    "default": "Default",
-    "custom": "Custom",
-    "settings": "Settings",
-    "preferences": "Preferences",
-    
-    // Theme & Language
-    "theme": "Theme",
-    "language": "Language",
-    "textSize": "Text Size",
-    "help": "Help",
-    "small": "Small",
-    "medium": "Medium",
-    "large": "Large",
-    "system": "System",
-    "light": "Light",
-    "dark": "Dark",
-    
-    // Home Page
-    "home": "Home",
-    "about": "About",
-    "features": "Features",
-    "welcome": "Welcome",
-    "welcome.description": "Your modern learning platform is ready. Get started by authenticating to access all features.",
-    "signIn": "Sign In",
-    "createAccount": "Create Account",
-    "secure": "Secure",
-    "secure.description": "Enterprise-grade security with end-to-end encryption",
-    "fast": "Fast",
-    "fast.description": "Lightning-fast performance with global CDN",
-    "simple": "Simple",
-    "simple.description": "Intuitive interface designed for everyone",
-    "customizeYourExperience": "Customize your experience",
-    
-    // Auth
-    "login": "Login",
-    "logout": "Logout",
-    "signUp": "Sign Up",
-    "email": "Email",
-    "password": "Password",
-    "forgotPassword": "Forgot your password?",
-    "resetPassword": "Reset Password",
-    "sendResetEmail": "Send reset email",
-    "checkEmail": "Check Your Email",
-    "passwordResetSent": "Password reset instructions sent",
-    "resend": "Resend",
-    "resendIn": "Resend in",
-    "dontHaveAccount": "Don't have an account?",
-    "alreadyHaveAccount": "Already have an account?",
-    "continueWithGoogle": "Continue with Google",
-    "orContinueWithEmail": "Or continue with email",
-    "gender": "Gender",
-    "selectGender": "Select gender",
-    "male": "Male",
-    "female": "Female",
-    "loggingIn": "Logging in...",
-    "sending": "Sending...",
-    "creatingAccount": "Creating an account...",
-    
-    // Sign Up Success
-    "thankYou": "Thank you for signing up!",
-    "checkEmailConfirm": "Check your email to confirm",
-    "signupSuccessMessage": "You've successfully signed up. Please check your email to confirm your account before signing in.",
-    "resendVerification": "Resend Verification Email",
-    "enterEmailResend": "Enter your email to resend",
-    
-    // Dashboard
-    "dashboard": "Dashboard",
-    "welcomeBack": "Welcome back!",
-    "learningDashboard": "Here's your learning dashboard",
-    "courses": "Courses",
-    "activeCourses": "Active courses",
-    "hours": "Hours",
-    "thisWeek": "This week",
-    "schedule": "Schedule",
-    "upcomingClasses": "Upcoming classes",
-    "achievements": "Achievements",
-    "badgesEarned": "Badges earned",
-    "recentCourses": "Recent Courses",
-    "recentAttempts": "Recent Attempts",
-    "currentLearningProgress": "Your current learning progress",
-    "upcomingSchedule": "Upcoming Schedule",
-    "nextClassesDeadlines": "Your next classes and deadlines",
-    "progress": "Progress",
-    "today": "Today",
-    "tomorrow": "Tomorrow",
-    "accountInfo": "Account Info",
-    "accountInformation": "Account Information",
-    "currentAccountDetails": "Your current account details",
-    "nationality": "Nationality",
-    "dateOfBirth": "Date of Birth",
-    "role": "Role",
-    "student": "Student",
-    "admin": "Admin",
-    
-    // Enhanced Dashboard Features
-    "totalExamsTaken": "Total Exams",
-    "averageScore": "Average Score",
-    "bestScore": "Best Score",
-    "totalTimeSpent": "Total Time Spent",
-    "recentExamActivity": "Recent Exam Activity",
-    "yourLatestExamResults": "Your latest exam results",
-    "viewAll": "View All",
-    "noExamsTakenYet": "No exams taken yet. Start your learning journey!",
-    "takeYourFirstExam": "Take Your First Exam",
-    "performanceOverview": "Performance Overview",
-    "yourLearningProgress": "Your learning progress and statistics",
-    "startExamsToSeeStats": "Start taking exams to see your performance statistics",
-    "scoreDistribution": "Score Distribution",
-    "availableExamCategories": "Available Exam Categories",
-    "selectCategoryToStart": "Select a category to start an exam",
-    
-    // Admin Dashboard
-    "adminDashboard": "Admin Dashboard",
-    "welcomeBackAdmin": "Welcome back! Manage your platform from here.",
-    "totalUsers": "Total Users",
-    "examCategories": "Exam Categories",
-    "totalQuestions": "Total Questions",
-    "adminUsers": "Admin Users",
-    "userGrowthTrend": "User Growth Trend",
-    "usersRegisteredLast7Days": "Number of users registered over the last 7 days",
-    "recentActivity": "Recent Activity",
-    "latestEvents": "Latest events across the platform",
-    "systemStatus": "System Status",
-    "platformHealth": "Platform health and connectivity",
-    "database": "Database",
-    "supabaseConnection": "Supabase Connection",
-    "apiService": "API Service",
-    "backendStatus": "Backend Status",
-    "lastUpdated": "Last Updated",
-    "dataRefreshTime": "Data refresh time",
-    "systemTip": "System Tip",
-    "systemTipMessage": "Regularly review user activity and update exam questions to maintain platform quality.",
-    "quickActions": "Quick Actions",
-    "commonAdminTasks": "Common administrative tasks and operations",
-    "manageUsers": "Manage Users",
-    "viewManageAccounts": "View and manage accounts",
-    "manageExams": "Manage Exams",
-    "createExamCategories": "Create exam categories",
-    "manageQuestions": "Manage Questions",
-    "addEditQuestions": "Add and edit questions",
-    "updateCredentials": "Update credentials",
-    "registerAdmin": "Register Admin",
-    "createAdminAccounts": "Create admin accounts",
-    "healthy": "Healthy",
-    "connected": "Connected",
-    "justNow": "Just now",
-    
-    // Setup Admin
-    "setupAdmin": "Setup Admin Account",
-    "createAdminUser": "Create admin user with role metadata",
-    "checkingSystem": "Checking system status...",
-    "accessDenied": "Access Denied",
-    "adminExists": "Admin account already exists",
-    "setupDisabled": "Setup is disabled",
-    "setupLocked": "The admin account has already been created. This setup page is now locked for security reasons.",
-    "goToHome": "Go to Home",
-    "creating": "Creating...",
-    "createAdminUserBtn": "Create Admin User",
-    
-    // Errors & Validation
-    "error.occurred": "An error occurred",
-    "error.invalidCredentials": "Invalid email or password. Please check your credentials and try again.",
-    "error.emailNotConfirmed": "Please confirm your email address before logging in.",
-    "error.loading": "Failed to load",
-    "error.saving": "Failed to save",
-    "error.network": "Network error. Please try again.",
-    "enterEmail": "Enter your email",
-    "checkYourEmail": "Check your email to confirm",
-    
-    // Form Labels
-    "enterYourEmail": "Enter your email below to login to your account",
-    "resetYourPassword": "Reset Your Password",
-    "typeYourEmail": "Type in your email and we'll send you a link to reset your password",
-    
-    // Misc UI
-    "new": "New",
-    "created": "Created",
-    "updated": "Updated",
-    "newCategory": "New Category Created",
-    "newQuestion": "New Question Added",
-    "newUser": "New User Registered",
-  },
-  Arabic: {
-    // System & Common
-    "navo": "نافو",
-    "app.name": "نافو",
-    "loading": "جاري التحميل...",
-    "loadingEllipsis": "جاري التحميل...",
-    "cancel": "إلغاء",
-    "save": "حفظ",
-    "submit": "إرسال",
-    "close": "إغلاق",
-    "back": "رجوع",
-    "next": "التالي",
-    "previous": "السابق",
-    "confirm": "تأكيد",
-    "delete": "حذف",
-    "edit": "تعديل",
-    "add": "إضافة",
-    "search": "بحث",
-    "filter": "تصفية",
-    "sort": "ترتيب",
-    "refresh": "تحديث",
-    "view": "عرض",
-    "download": "تحميل",
-    "upload": "رفع",
-    "print": "طباعة",
-    "share": "مشاركة",
-    "copy": "نسخ",
-    "success": "نجاح",
-    "error": "خطأ",
-    "warning": "تحذير",
-    "info": "معلومات",
-    "yes": "نعم",
-    "no": "لا",
-    "ok": "موافق",
-    "done": "تم",
-    "pending": "معلق",
-    "completed": "مكتمل",
-    "failed": "فشل",
-    "active": "نشط",
-    "inactive": "غير نشط",
-    "activeLanguage": "اللغة النشطة",
-    "required": "مطلوب",
-    "optional": "اختياري",
-    "default": "افتراضي",
-    "custom": "مخصص",
-    "settings": "الإعدادات",
-    "preferences": "التفضيلات",
-    
-    // Theme & Language
-    "theme": "المظهر",
-    "language": "اللغة",
-    "textSize": "حجم النص",
-    "help": "مساعدة",
-    "small": "صغير",
-    "medium": "متوسط",
-    "large": "كبير",
-    "system": "النظام",
-    "light": "فاتح",
-    "dark": "داكن",
-    
-    // Home Page
-    "home": "الرئيسية",
-    "about": "حول",
-    "features": "الميزات",
-    "welcome": "مرحباً",
-    "welcome.description": "تطبيقك الحديث للتعلم جاهز. ابدأ بالمصادقة للوصول إلى جميع الميزات.",
-    "signIn": "تسجيل الدخول",
-    "createAccount": "إنشاء حساب",
-    "secure": "آمن",
-    "secure.description": "أمان على مستوى المؤسسات مع تشفير من طرف إلى طرف",
-    "fast": "سريع",
-    "fast.description": "أداء سريع للغاية مع شبكة توصيل محتوى عالمية",
-    "simple": "بسيط",
-    "simple.description": "واجهة بديهية مصممة للجميع",
-    "customizeYourExperience": "تخصيص تجربتك",
-    
-    // Auth
-    "login": "تسجيل الدخول",
-    "logout": "تسجيل الخروج",
-    "signUp": "إنشاء حساب",
-    "email": "البريد الإلكتروني",
-    "password": "كلمة المرور",
-    "forgotPassword": "نسيت كلمة المرور؟",
-    "resetPassword": "إعادة تعيين كلمة المرور",
-    "sendResetEmail": "إرسال بريد إعادة التعيين",
-    "checkEmail": "تحقق من بريدك الإلكتروني",
-    "passwordResetSent": "تم إرسال تعليمات إعادة تعيين كلمة المرور",
-    "resend": "إعادة الإرسال",
-    "resendIn": "إعادة الإرسال خلال",
-    "dontHaveAccount": "ليس لديك حساب؟",
-    "alreadyHaveAccount": "لديك حساب بالفعل؟",
-    "continueWithGoogle": "المتابعة مع Google",
-    "orContinueWithEmail": "أو المتابعة بالبريد الإلكتروني",
-    "gender": "الجنس",
-    "selectGender": "اختر الجنس",
-    "male": "ذكر",
-    "female": "أنثى",
-    "loggingIn": "جاري تسجيل الدخول...",
-    "sending": "جاري الإرسال...",
-    "creatingAccount": "جاري إنشاء الحساب...",
-    "checkYourEmail": "إذا قمت بالتسجيل باستخدام بريدك الإلكتروني وكلمة المرور، ستتلقى بريداً لإعادة تعيين كلمة المرور.",
-    
-    // Sign Up Success
-    "thankYou": "شكراً لك على التسجيل!",
-    "checkEmailConfirm": "تحقق من بريدك الإلكتروني للتأكيد",
-    "signupSuccessMessage": "لقد سجلت بنجاح. يرجى التحقق من بريدك الإلكتروني لتأكيد حسابك قبل تسجيل الدخول.",
-    "resendVerification": "إعادة إرسال بريد التحقق",
-    "enterEmailResend": "أدخل بريدك الإلكتروني لإعادة الإرسال",
-    
-    // Dashboard
-    "dashboard": "لوحة التحكم",
-    "welcomeBack": "مرحباً بعودتك!",
-    "learningDashboard": "إليك لوحة تحكم التعلم الخاصة بك",
-    "courses": "الدورات",
-    "activeCourses": "الدورات النشطة",
-    "hours": "الساعات",
-    "thisWeek": "هذا الأسبوع",
-    "schedule": "الجدول",
-    "upcomingClasses": "الفصول القادمة",
-    "achievements": "الإنجازات",
-    "badgesEarned": "الشارات المكتسبة",
-    "recentCourses": "الدورات الحديثة",
-    "recentAttempts": "المحاولات الأخيرة",
-    "currentLearningProgress": "تقدم التعلم الحالي",
-    "upcomingSchedule": "الجدول القادم",
-    "nextClassesDeadlines": "فصولك ومواعيدك النهائية القادمة",
-    "progress": "التقدم",
-    "today": "اليوم",
-    "tomorrow": "غداً",
-    "accountInfo": "معلومات الحساب",
-    "accountInformation": "معلومات الحساب",
-    "currentAccountDetails": "تفاصيل حسابك الحالية",
-    "nationality": "الجنسية",
-    "dateOfBirth": "تاريخ الميلاد",
-    "role": "الدور",
-    "student": "طالب",
-    "admin": "مسؤول",
-    
-    // Enhanced Dashboard Features
-    "totalExamsTaken": "إجمالي الامتحانات",
-    "averageScore": "المتوسط",
-    "bestScore": "أفضل نتيجة",
-    "totalTimeSpent": "إجمالي الوقت",
-    "recentExamActivity": "النشاط الأخير",
-    "yourLatestExamResults": "نتائج اختباراتك الأخيرة",
-    "viewAll": "عرض الكل",
-    "noExamsTakenYet": "لم يتم أداء أي امتحانات بعد. ابدأ رحلة التعلم!",
-    "takeYourFirstExam": "أداء أول اختبار",
-    "performanceOverview": "نظرة عامة على الأداء",
-    "yourLearningProgress": "تقدمك في التعلم والإحصائيات",
-    "startExamsToSeeStats": "ابدأ أداء الامتحانات لرؤية إحصائيات أدائك",
-    "scoreDistribution": "توزيع النتائج",
-    "availableExamCategories": "فئات الامتحانات المتاحة",
-    "selectCategoryToStart": "اختر فئة لبدء الامتحان",
-    
-    // Admin Dashboard
-    "adminDashboard": "لوحة تحكم المسؤول",
-    "welcomeBackAdmin": "مرحباً بعودتك! أدخل منصتك من هنا.",
-    "totalUsers": "إجمالي المستخدمين",
-    "examCategories": "فئات الامتحانات",
-    "totalQuestions": "إجمالي الأسئلة",
-    "adminUsers": "المستخدمين المسؤولين",
-    "userGrowthTrend": "اتجاه نمو المستخدمين",
-    "usersRegisteredLast7Days": "عدد المستخدمين المسجلين في آخر 7 أيام",
-    "recentActivity": "النشاط الحديث",
-    "latestEvents": "أحدث الأحداث عبر المنصة",
-    "systemStatus": "حالة النظام",
-    "platformHealth": "صحة المنصة والاتصال",
-    "database": "قاعدة البيانات",
-    "supabaseConnection": "اتصال Supabase",
-    "apiService": "خدمة API",
-    "backendStatus": "حالة الخلفية",
-    "lastUpdated": "آخر تحديث",
-    "dataRefreshTime": "وقت تحديث البيانات",
-    "systemTip": "نصيحة النظام",
-    "systemTipMessage": "راجع نشاط المستخدم بانتظام وحدث أسئلة الامتحان للحفاظ على جودة المنصة.",
-    "quickActions": "إجراءات سريعة",
-    "commonAdminTasks": "المهام الإدارية الشائعة والعمليات",
-    "manageUsers": "إدارة المستخدمين",
-    "viewManageAccounts": "عرض وإدارة الحسابات",
-    "manageExams": "إدارة الامتحانات",
-    "createExamCategories": "إنشاء فئات الامتحانات",
-    "manageQuestions": "إدارة الأسئلة",
-    "addEditQuestions": "إضافة وتحرير الأسئلة",
-    "updateCredentials": "تحديث بيانات الاعتماد",
-    "registerAdmin": "تسجيل مسؤول",
-    "createAdminAccounts": "إنشاء حسابات المسؤولين",
-    "healthy": "صحي",
-    "connected": "متصل",
-    "justNow": "الآن",
-    
-    // Setup Admin
-    "setupAdmin": "إعداد حساب المسؤول",
-    "createAdminUser": "إنشاء مستخدم مسؤول مع بيانات الدور",
-    "checkingSystem": "جاري التحقق من حالة النظام...",
-    "accessDenied": "الوصول مرفوض",
-    "adminExists": "حساب المسؤول موجود بالفعل",
-    "setupDisabled": "الإعداد معطل",
-    "setupLocked": "تم إنشاء حساب المسؤول بالفعل. صفحة الإعداد هذه مغلقة الآن لأسباب أمنية.",
-    "goToHome": "الذهاب إلى الرئيسية",
-    "creating": "جاري الإنشاء...",
-    "createAdminUserBtn": "إنشاء مستخدم مسؤول",
-    
-    // Errors & Validation
-    "error.occurred": "حدث خطأ",
-    "error.invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى التحقق والمحاولة مرة أخرى.",
-    "error.emailNotConfirmed": "يرجى تأكيد عنوان بريدك الإلكتروني قبل تسجيل الدخول.",
-    "error.loading": "فشل التحميل",
-    "error.saving": "فشل الحفظ",
-    "error.network": "خطأ في الشبكة. يرجى المحاولة مرة أخرى.",
-    "enterEmail": "أدخل بريدك الإلكتروني",
-    
-    // Form Labels
-    "enterYourEmail": "أدخل بريدك الإلكتروني أدناه لتسجيل الدخول إلى حسابك",
-    "resetYourPassword": "إعادة تعيين كلمة المرور",
-    "typeYourEmail": "اكتب بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور",
-    
-    // Misc UI
-    "new": "جديد",
-    "created": "تم الإنشاء",
-    "updated": "تم التحديث",
-    "newCategory": "تم إنشاء فئة جديدة",
-    "newQuestion": "تمت إضافة سؤال جديد",
-    "newUser": "تم تسجيل مستخدم جديد",
-  },
-  French: {
-    // System & Common
-    "navo": "Navo",
-    "app.name": "Navo",
-    "loading": "Chargement...",
-    "loadingEllipsis": "Chargement...",
-    "cancel": "Annuler",
-    "save": "Enregistrer",
-    "submit": "Soumettre",
-    "close": "Fermer",
-    "back": "Retour",
-    "next": "Suivant",
-    "previous": "Précédent",
-    "confirm": "Confirmer",
-    "delete": "Supprimer",
-    "edit": "Modifier",
-    "add": "Ajouter",
-    "search": "Rechercher",
-    "filter": "Filtrer",
-    "sort": "Trier",
-    "refresh": "Actualiser",
-    "view": "Voir",
-    "download": "Télécharger",
-    "upload": "Téléverser",
-    "print": "Imprimer",
-    "share": "Partager",
-    "copy": "Copier",
-    "success": "Succès",
-    "error": "Erreur",
-    "warning": "Avertissement",
-    "info": "Info",
-    "yes": "Oui",
-    "no": "Non",
-    "ok": "OK",
-    "done": "Terminé",
-    "pending": "En attente",
-    "completed": "Terminé",
-    "failed": "Échoué",
-    "active": "Actif",
-    "inactive": "Inactif",
-    "activeLanguage": "Langue Active",
-    "required": "Requis",
-    "optional": "Optionnel",
-    "default": "Par défaut",
-    "custom": "Personnalisé",
-    "settings": "Paramètres",
-    "preferences": "Préférences",
-    
-    // Theme & Language
-    "theme": "Thème",
-    "language": "Langue",
-    "textSize": "Taille du texte",
-    "help": "Aide",
-    "small": "Petit",
-    "medium": "Moyen",
-    "large": "Grand",
-    "system": "Système",
-    "light": "Clair",
-    "dark": "Sombre",
-    
-    // Home Page
-    "home": "Accueil",
-    "about": "À propos",
-    "features": "Fonctionnalités",
-    "welcome": "Bienvenue",
-    "welcome.description": "Votre plateforme d'apprentissage moderne est prête. Connectez-vous pour accéder à toutes les fonctionnalités.",
-    "signIn": "Connexion",
-    "createAccount": "Créer un compte",
-    "secure": "Sécurisé",
-    "secure.description": "Sécurité de niveau entreprise avec chiffrement de bout en bout",
-    "fast": "Rapide",
-    "fast.description": "Performances ultra rapides avec CDN mondial",
-    "simple": "Simple",
-    "simple.description": "Interface intuitive conçue pour tous",
-    "customizeYourExperience": "Personnalisez votre expérience",
-    
-    // Auth
-    "login": "Connexion",
-    "logout": "Déconnexion",
-    "signUp": "Inscription",
-    "email": "Email",
-    "password": "Mot de passe",
-    "forgotPassword": "Mot de passe oublié ?",
-    "resetPassword": "Réinitialiser le mot de passe",
-    "sendResetEmail": "Envoyer l'email de réinitialisation",
-    "checkEmail": "Vérifiez votre email",
-    "passwordResetSent": "Instructions de réinitialisation envoyées",
-    "resend": "Renvoyer",
-    "resendIn": "Renvoyer dans",
-    "dontHaveAccount": "Vous n'avez pas de compte ?",
-    "alreadyHaveAccount": "Vous avez déjà un compte ?",
-    "continueWithGoogle": "Continuer avec Google",
-    "orContinueWithEmail": "Ou continuer avec l'email",
-    "gender": "Genre",
-    "selectGender": "Sélectionnez le genre",
-    "male": "Homme",
-    "female": "Femme",
-    "loggingIn": "Connexion...",
-    "sending": "Envoi...",
-    "creatingAccount": "Création du compte...",
-    "checkYourEmail": "Si vous vous êtes inscrit avec votre email et mot de passe, vous recevrez un email de réinitialisation.",
-    
-    // Sign Up Success
-    "thankYou": "Merci de vous être inscrit !",
-    "checkEmailConfirm": "Vérifiez votre email pour confirmer",
-    "signupSuccessMessage": "Vous vous êtes inscrit avec succès. Veuillez vérifier votre email pour confirmer votre compte avant de vous connecter.",
-    "resendVerification": "Renvoyer l'email de vérification",
-    "enterEmailResend": "Entrez votre email pour renvoyer",
-    
-    // Dashboard
-    "dashboard": "Tableau de bord",
-    "welcomeBack": "Bon retour !",
-    "learningDashboard": "Voici votre tableau de bord d'apprentissage",
-    "courses": "Cours",
-    "activeCourses": "Cours actifs",
-    "hours": "Heures",
-    "thisWeek": "Cette semaine",
-    "schedule": "Planning",
-    "upcomingClasses": "Prochains cours",
-    "achievements": "Réalisations",
-    "badgesEarned": "Badges gagnés",
-    "recentCourses": "Cours récents",
-    "recentAttempts": "Tentatives Récentes",
-    "currentLearningProgress": "Votre progression actuelle",
-    "upcomingSchedule": "Planning à venir",
-    "nextClassesDeadlines": "Vos prochains cours et échéances",
-    "progress": "Progression",
-    "today": "Aujourd'hui",
-    "tomorrow": "Demain",
-    "accountInfo": "Infos compte",
-    "accountInformation": "Informations du compte",
-    "currentAccountDetails": "Vos détails de compte actuels",
-    "nationality": "Nationalité",
-    "dateOfBirth": "Date de naissance",
-    "role": "Rôle",
-    "student": "Étudiant",
-    "admin": "Administrateur",
-    
-    // Enhanced Dashboard Features
-    "totalExamsTaken": "Examens Passés",
-    "averageScore": "Moyenne",
-    "bestScore": "Meilleure Note",
-    "totalTimeSpent": "Temps Total",
-    "recentExamActivity": "Activité Récente",
-    "yourLatestExamResults": "Vos derniers résultats d'examen",
-    "viewAll": "Voir Tout",
-    "noExamsTakenYet": "Aucun examen passé. Commencez votre parcours d'apprentissage!",
-    "takeYourFirstExam": "Passer Votre Premier Examen",
-    "performanceOverview": "Aperçu des Performances",
-    "yourLearningProgress": "Votre progression et statistiques d'apprentissage",
-    "startExamsToSeeStats": "Commencez à passer des examens pour voir vos statistiques",
-    "scoreDistribution": "Distribution des Scores",
-    "availableExamCategories": "Catégories d'Examens Disponibles",
-    "selectCategoryToStart": "Sélectionnez une catégorie pour commencer un examen",
-    
-    // Admin Dashboard
-    "adminDashboard": "Tableau de bord Admin",
-    "welcomeBackAdmin": "Bon retour ! Gérez votre plateforme ici.",
-    "totalUsers": "Utilisateurs totaux",
-    "examCategories": "Catégories d'examens",
-    "totalQuestions": "Questions totales",
-    "adminUsers": "Utilisateurs admin",
-    "userGrowthTrend": "Tendance de croissance",
-    "usersRegisteredLast7Days": "Utilisateurs enregistrés sur les 7 derniers jours",
-    "recentActivity": "Activité récente",
-    "latestEvents": "Derniers événements sur la plateforme",
-    "systemStatus": "État du système",
-    "platformHealth": "Santé de la plateforme et connectivité",
-    "database": "Base de données",
-    "supabaseConnection": "Connexion Supabase",
-    "apiService": "Service API",
-    "backendStatus": "État du backend",
-    "lastUpdated": "Dernière mise à jour",
-    "dataRefreshTime": "Heure d'actualisation",
-    "systemTip": "Conseil système",
-    "systemTipMessage": "Consultez régulièrement l'activité des utilisateurs et mettez à jour les questions d'examen.",
-    "quickActions": "Actions rapides",
-    "commonAdminTasks": "Tâches administratives courantes",
-    "manageUsers": "Gérer les utilisateurs",
-    "viewManageAccounts": "Voir et gérer les comptes",
-    "manageExams": "Gérer les examens",
-    "createExamCategories": "Créer des catégories d'examens",
-    "manageQuestions": "Gérer les questions",
-    "addEditQuestions": "Ajouter et modifier des questions",
-    "updateCredentials": "Mettre à jour les identifiants",
-    "registerAdmin": "Enregistrer un admin",
-    "createAdminAccounts": "Créer des comptes admin",
-    "healthy": "Sain",
-    "connected": "Connecté",
-    "justNow": "À l'instant",
-    
-    // Setup Admin
-    "setupAdmin": "Configuration Admin",
-    "createAdminUser": "Créer un utilisateur admin",
-    "checkingSystem": "Vérification du système...",
-    "accessDenied": "Accès refusé",
-    "adminExists": "Le compte admin existe déjà",
-    "setupDisabled": "Configuration désactivée",
-    "setupLocked": "Le compte admin a déjà été créé. Cette page est verrouillée.",
-    "goToHome": "Aller à l'accueil",
-    "creating": "Création...",
-    "createAdminUserBtn": "Créer un utilisateur admin",
-    
-    // Errors & Validation
-    "error.occurred": "Une erreur est survenue",
-    "error.invalidCredentials": "Email ou mot de passe invalide. Veuillez vérifier et réessayer.",
-    "error.emailNotConfirmed": "Veuillez confirmer votre email avant de vous connecter.",
-    "error.loading": "Échec du chargement",
-    "error.saving": "Échec de l'enregistrement",
-    "error.network": "Erreur réseau. Veuillez réessayer.",
-    "enterEmail": "Entrez votre email",
-    
-    // Form Labels
-    "enterYourEmail": "Entrez votre email ci-dessous pour vous connecter",
-    "resetYourPassword": "Réinitialiser le mot de passe",
-    "typeYourEmail": "Entrez votre email et nous vous enverrons un lien de réinitialisation",
-    
-    // Misc UI
-    "new": "Nouveau",
-    "created": "Créé",
-    "updated": "Mis à jour",
-    "newCategory": "Nouvelle catégorie créée",
-    "newQuestion": "Nouvelle question ajoutée",
-    "newUser": "Nouvel utilisateur inscrit",
-  },
-  Kinyarwanda: {
-    // System & Common
-    "navo": "Navo",
-    "app.name": "Navo",
-    "loading": "Birakorwa...",
-    "loadingEllipsis": "Birakorwa...",
-    "cancel": "Guhagarika",
-    "save": "Kubika",
-    "submit": "Kohereza",
-    "close": "Gufunga",
-    "back": "Gusubira inyuma",
-    "next": "Ibikurikira",
-    "previous": "Ibyabanje",
-    "confirm": "Kwemeza",
-    "delete": "Gusiba",
-    "edit": "Guhindura",
-    "add": "Kongeraho",
-    "search": "Gushaka",
-    "filter": "Kurondora",
-    "sort": "Gutondeka",
-    "refresh": "Kuvugurura",
-    "view": "Kureba",
-    "download": "Kumanura",
-    "upload": "Kohereza",
-    "print": "Gucapa",
-    "share": "Gusangira",
-    "copy": "Gukoporora",
-    "success": "Byagenze neza",
-    "error": "Ikosa",
-    "warning": "Iburira",
-    "info": "Amakuru",
-    "yes": "Yego",
-    "no": "Oya",
-    "ok": "Nibyo",
-    "done": "Byarangiye",
-    "pending": "Birategerejwa",
-    "completed": "Byarangiye",
-    "failed": "Byanze",
-    "active": "Kiri gukora",
-    "inactive": "Ntikigikora",
-    "activeLanguage": "Ururimi Rukoreshwa",
-    "required": "Birakenewe",
-    "optional": "Bishobora kubikwa",
-    "default": "Ibyahanzwe",
-    "custom": "Bihariye",
-    "settings": "Igenamiterere",
-    "preferences": "Ibyatoranyijwe",
-    
-    // Theme & Language
-    "theme": "Imigaragarire",
-    "language": "Ururimi",
-    "textSize": "Ingano y'inyandiko",
-    "help": "Ubufasha",
-    "small": "Kitoya",
-    "medium": "Gatoya",
-    "large": "Kinini",
-    "system": "Sisitemu",
-    "light": "Kweruruka",
-    "dark": "Kwijimira",
-    
-    // Home Page
-    "home": "Ahabanza",
-    "about": "Ibyerekeye",
-    "features": "Ibirimo",
-    "welcome": "Murakaza neza",
-    "welcome.description": "Ikigo cyawe cy'imyigire giteguye. Injira mu konti yawe kugira ngo ubashe kubona ibirimo byose.",
-    "signIn": "Injira",
-    "createAccount": "Fungura konti",
-    "secure": "Umutekano",
-    "secure.description": "Umutekano wo hejuru n'ububiko bw' amakuru bwihishe",
-    "fast": "Kinyaruka",
-    "fast.description": "Igikorwa cyihuta cyane hamwe n' uburyo bwo kwihuza ku muryango",
-    "simple": "Kiroroshye",
-    "simple.description": "Imigaragarire iroroshye igamije korohera buri wese",
-    "customizeYourExperience": "Tunganya igikorwa cya sisitemu",
-    
-    // Auth
-    "login": "Injira",
-    "logout": "Gusohoka",
-    "signUp": "Iyandikishe",
-    "email": "Imeyili",
-    "password": "Ijambo ryibanga",
-    "forgotPassword": "Wibagiwe ijambo ryibanga?",
-    "resetPassword": "Hindura ijambo ryibanga",
-    "sendResetEmail": "Kohereza ubutumwa bwo guhindura",
-    "checkEmail": "Reba imeyili yawe",
-    "passwordResetSent": "Ubutumwa bwo guhindura ijambo ryibanga bwoherejwe",
-    "resend": "Kohereza nanone",
-    "resendIn": "Kohereza nyuma y'amasegonda",
-    "dontHaveAccount": "Nta konti ufite?",
-    "alreadyHaveAccount": "Usanzwe ufite konti?",
-    "continueWithGoogle": "Komeza na Google",
-    "orContinueWithEmail": "Cyangwa ukomeze na imeyili",
-    "gender": "Igitsina",
-    "selectGender": "Hitamo igitsina",
-    "male": "Umugabo",
-    "female": "Umugore",
-    "loggingIn": "Birimo kwinjiza...",
-    "sending": "Birimo koherezwa...",
-    "creatingAccount": "Konti irimo gufungurwa...",
-    "checkYourEmail": "Niba wiyandikishije ukoresheje imeyili yawe n'ijambo ryibanga, uzahabwa ubutumwa bwo guhindura ijambo ryibanga.",
-    
-    // Sign Up Success
-    "thankYou": "Murakoze kwiyandikisha!",
-    "checkEmailConfirm": "Reba imeyili yawe wemeze",
-    "signupSuccessMessage": "Wiyandikishije neza. Mwihangane mu reba imeyili yawe wemeze konti yawe mbere yo kwinjira.",
-    "resendVerification": "Kohereza nanone ubutumwa bwemeza",
-    "enterEmailResend": "Shyiramo imeyili yawe ukohereze",
-    
-    // Dashboard
-    "dashboard": "Umwobo w'amakuru",
-    "welcomeBack": "Murakaza neza!",
-    "learningDashboard": "Umwobo wawe w'imyigire",
-    "courses": "Amasomo",
-    "activeCourses": "Amasomo akora",
-    "hours": "Amasaha",
-    "thisWeek": "Iki cyumweru",
-    "schedule": "Gahunda y'ibizamini",
-    "upcomingClasses": "Amasomo azaza",
-    "achievements": "Ibyagezweho",
-    "badgesEarned": "Ibikombe byabitswe",
-    "recentCourses": "Amasomo yakinnye",
-    "recentAttempts": "Igeragezwa rya vuba",
-    "currentLearningProgress": "Iterambere ry'imyigire",
-    "upcomingSchedule": "Gahunda izaza",
-    "nextClassesDeadlines": "Amasomo n'igihe cyazo bizaza",
-    "progress": "Aho igeze",
-    "today": "Uyumunsi",
-    "tomorrow": "Ejo",
-    "accountInfo": "Amakuru ya konti",
-    "accountInformation": "Amakuru ya konti",
-    "currentAccountDetails": "Amakuru ya konti yawe",
-    "nationality": "Ubwenegihugu",
-    "dateOfBirth": "Itariki y'amavuko",
-    "role": "Uruhare",
-    "student": "Umunyeshuri",
-    "admin": "Umuyobozi",
-    
-    // Enhanced Dashboard Features
-    "totalExamsTaken": "Ibizamini Byose",
-    "averageScore": "Amanota Agezweho",
-    "bestScore": "Amanota Meza",
-    "totalTimeSpent": "Igihe Cyose Cyakoreshejwe",
-    "recentExamActivity": "Ibyakozwe Vuba",
-    "yourLatestExamResults": "Amanota yawe ya vuba",
-    "viewAll": "Reba Byose",
-    "noExamsTakenYet": "Nta bizamini wakoze. Tangiriza urugendo rwawe!",
-    "takeYourFirstExam": "Kora Ikizamini Cya Mbere",
-    "performanceOverview": "Incamake y'Imikorere",
-    "yourLearningProgress": "Iterambere ryawe n'imibare",
-    "startExamsToSeeStats": "Kora ibizamini kugira ngo urebe imibare yawe",
-    "scoreDistribution": "Itondekanya Amanota",
-    "availableExamCategories": "Ibyiciro by'Ibizamini Bihari",
-    "selectCategoryToStart": "Hitamo ikiciro kugira ngo utangire ikizamini",
-    
-    // Admin Dashboard
-    "adminDashboard": "Umwobo w'Umuyobozi",
-    "welcomeBackAdmin": "Murakaza neza! Teguza sisitemu yawe hano.",
-    "totalUsers": "Abakoresha bose",
-    "examCategories": "Ibyiciro by'ibizamini",
-    "totalQuestions": "Ibibazo byose",
-    "adminUsers": "Abayobozi",
-    "userGrowthTrend": "Imikurire y'abakoresha",
-    "usersRegisteredLast7Days": "Abakoresha bashya mu minsi 7 ishize",
-    "recentActivity": "Ibyakozwe vuba",
-    "latestEvents": "Ibyabaye vuba kuri sisitemu",
-    "systemStatus": "Uko sisitemu ikora",
-    "platformHealth": "Ubuzima bwa sisitemu",
-    "database": "Ububiko bw' amakuru",
-    "supabaseConnection": "Isuzuma rya Supabase",
-    "apiService": "Serivisi ya API",
-    "backendStatus": "Uko Backend ikora",
-    "lastUpdated": "Igihe cyanyuma yavugururwamo",
-    "dataRefreshTime": "Igihe amakuru yavugururwamo",
-    "systemTip": "Inama",
-    "systemTipMessage": "Reba ibikorwa by'abakoresha kandi uvugurure ibibazo by'ibizamini buri gihe.",
-    "quickActions": "Ibikorwa vuba vuba",
-    "commonAdminTasks": "Ibikorwa by'umuyobozi bikunze gukorwa",
-    "manageUsers": "Gukurikirana abakoresha",
-    "viewManageAccounts": "Kureba no gutunganya konti",
-    "manageExams": "Gukurikirana ibizamini",
-    "createExamCategories": "Gukora ibyiciro by'ibizamini",
-    "manageQuestions": "Gukurikirana ibibazo",
-    "addEditQuestions": "Kongeramo no guhindura ibibazo",
-    "updateCredentials": "Kuvugurura amakuru",
-    "registerAdmin": "Kwandikisha umuyobozi",
-    "createAdminAccounts": "Gukora konti z'Abayobozi",
-    "healthy": "Nziza",
-    "connected": "Yihuje",
-    "justNow": "None",
-    
-    // Setup Admin
-    "setupAdmin": "Gutegura konti y'Umuyobozi",
-    "createAdminUser": "Gukora konti y'umuyobozi",
-    "checkingSystem": "Gusuzuma uko sisitemu ikora...",
-    "accessDenied": "Kwinjira byanze",
-    "adminExists": "Konti y'umuyobozi isanzwe iriho",
-    "setupDisabled": "Gutegurwa byahagaritswe",
-    "setupLocked": "Konti y'umuyobozi yararemewe. Iyi paji yafungwe kubera umutekano.",
-    "goToHome": "Kujya ahabanza",
-    "creating": "Biri gukorerwa...",
-    "createAdminUserBtn": "Gukora konti y'umuyobozi",
-    
-    // Errors & Validation
-    "error.occurred": "Habayeho ikosa",
-    "error.invalidCredentials": "Imeyili cyangwa ijambo ryibanga ntabwo aribyo. Ongera ugerageze.",
-    "error.emailNotConfirmed": "Emeza imeyili yawe mbere yo kwinjira.",
-    "error.loading": "Ntibyashoboye kwinjira",
-    "error.saving": "Ntibyashoboye kubika",
-    "error.network": "Ikosa ry'umuyoboro. Ongera ugerageze.",
-    "enterEmail": "Shyiramo imeyili yawe",
-    
-    // Form Labels
-    "enterYourEmail": "Shyiramo imeyili yawe winjire",
-    "resetYourPassword": "Hindura ijambo ryibanga",
-    "typeYourEmail": "Andika imeyili yawe tugutumirire aho guhindura",
-    
-    // Misc UI
-    "new": "Gishya",
-    "created": "Cyaremewe",
-    "updated": "Cyavuguruwe",
-    "newCategory": "Icyiciro gishya cyaremewe",
-    "newQuestion": "Ikibazo gishya cyongewe",
-    "newUser": "Umukoresha mushya yiyandikishije",
-  },
-};
+const LANGUAGE_STORAGE_KEY = "navo-language";
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>("English");
   const [systemName, setSystemName] = useState<string>("Navo");
   const [mounted, setMounted] = useState(false);
 
+  const isRTL = RTL_LANGUAGES.includes(language);
+
+  const applyLanguage = useCallback((lang: Language) => {
+    // Validate language before setting
+    const validLang = ["English", "Arabic", "Kinyarwanda", "French"].includes(lang) ? lang : "English";
+    setLanguageState(validLang);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, validLang);
+      // Apply RTL/LTR direction to the document
+      document.documentElement.dir = RTL_LANGUAGES.includes(validLang) ? "rtl" : "ltr";
+      document.documentElement.lang = validLang === "English" ? "en" : validLang === "Arabic" ? "ar" : validLang === "French" ? "fr" : "rw";
+    }
+  }, []);
+
   useEffect(() => {
-    // Only run on client
     if (typeof window === "undefined") return;
-    
-    const savedLanguage = localStorage.getItem("navo-language");
-    if (savedLanguage && ["English", "Arabic", "Kinyarwanda", "French"].includes(savedLanguage)) {
-      setLanguageState(savedLanguage as Language);
+
+    const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    const validLanguages: Language[] = ["English", "Arabic", "Kinyarwanda", "French"];
+    if (savedLanguage && validLanguages.includes(savedLanguage as Language)) {
+      applyLanguage(savedLanguage as Language);
+    } else {
+      applyLanguage("English");
     }
 
     setSystemName(getDefaultSystemName());
     setMounted(true);
 
+    // Listen for storage changes from other tabs
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "navo-branding-config") {
         setSystemName(getDefaultSystemName());
       }
-      if (e.key === "navo-language" && e.newValue && ["English", "Arabic", "Kinyarwanda", "French"].includes(e.newValue)) {
-        setLanguageState(e.newValue as Language);
+      if (e.key === LANGUAGE_STORAGE_KEY && e.newValue && validLanguages.includes(e.newValue as Language)) {
+        applyLanguage(e.newValue as Language);
       }
     };
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+  }, [applyLanguage]);
 
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
+    const validLanguages: Language[] = ["English", "Arabic", "Kinyarwanda", "French"];
+    const validLang = validLanguages.includes(lang) ? lang : "English";
+    applyLanguage(validLang);
     if (typeof window !== "undefined") {
-      localStorage.setItem("navo-language", lang);
-      window.dispatchEvent(new StorageEvent("storage", { key: "navo-language", newValue: lang }));
+      window.dispatchEvent(new StorageEvent("storage", { key: LANGUAGE_STORAGE_KEY, newValue: validLang }));
     }
   };
 
@@ -972,11 +103,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (key === "navo") {
       return mounted ? systemName : "Navo";
     }
-    return translations[language][key] || key;
+    // Fallback to English if language is not available
+    const langTranslations = translations[language] || translations["English"];
+    return langTranslations[key] || key;
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, isRTL }}>
       {children}
     </LanguageContext.Provider>
   );

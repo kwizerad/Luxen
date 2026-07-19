@@ -74,6 +74,13 @@
   }
 }
 
+/* Ensure Sonner toasts are always visible (fallback for CSS injection issues) */
+[data-sonner-toaster] {
+  position: fixed !important;
+  z-index: 999999999 !important;
+  pointer-events: auto;
+}
+
 /* Ensure dialog portals render correctly */
 [data-radix-dialog-portal] {
   position: fixed;

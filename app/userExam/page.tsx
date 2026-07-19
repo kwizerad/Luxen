@@ -15,10 +15,12 @@ import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { useBrandingConfig } from "@/lib/branding-config";
 import type { ExamAttempt } from "@/lib/database.types";
 import { getExamAttempts, getExamAttemptsWithQuestions, deleteExamAttempt } from "@/lib/supabase/queries";
+import { useLanguage } from "@/lib/language-context";
 import Link from "next/link";
 
 export default function UserExamsPage() {
   const { config } = useBrandingConfig();
+  const { t } = useLanguage();
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAttempt, setSelectedAttempt] = useState<ExamAttempt | null>(null);
@@ -41,7 +43,7 @@ export default function UserExamsPage() {
           setAttempts(data.attempts);
         }
       } catch (error: any) {
-        toast.error("Failed to load exam history: " + error.message);
+        toast.error(`${t("failedToLoadExamHistory")}: ${error.message}`);
       } finally {
         setLoading(false);
       }
@@ -83,8 +85,8 @@ export default function UserExamsPage() {
   };
 
   const handleDelete = (attemptId: string, category: string) => {
-    setConfirmTitle("⚠️ Permanent Delete");
-    setConfirmMessage(`You are about to permanently delete your exam attempt for "${category}".\n\nThis will remove:\n• Your score and answers\n• Time spent on the exam\n• All exam history data\n\nThis action cannot be undone.`);
+    setConfirmTitle(t("permanentDeleteTitle"));
+    setConfirmMessage(t("permanentDeleteExamAttemptForCategory").replace("{category}", category));
     setConfirmCallback(() => async () => {
       try {
         setDeletingId(attemptId);
@@ -97,8 +99,8 @@ export default function UserExamsPage() {
         const deleteResult = await deleteExamAttempt(attemptId);
         console.log("Delete result:", deleteResult);
         
-        toast.success("✅ Exam deleted permanently", {
-          description: "The exam record has been permanently removed"
+        toast.success(`✅ ${t("examDeletedPermanently")}`, {
+          description: t("examRecordRemoved")
         });
       } catch (error: any) {
         // If delete failed, refresh the attempts to restore correct state
@@ -111,7 +113,7 @@ export default function UserExamsPage() {
           console.error("Failed to refresh attempts:", refreshError);
         }
         
-        toast.error("❌ Failed to delete exam: " + error.message);
+        toast.error(`❌ ${t("failedToDeleteExam")}: ${error.message}`);
       } finally {
         setDeletingId(null);
       }
@@ -153,7 +155,7 @@ export default function UserExamsPage() {
 
       {/* Exam History */}
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Exam History</h2>
+        <h2 className="text-xl font-semibold">{t("examHistory")}</h2>
         
         {attempts.length === 0 ? (
           <Card className="navo-card-brand">
@@ -161,14 +163,14 @@ export default function UserExamsPage() {
               <div className="text-center py-12">
                 <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">
-                  No exams taken yet. Start your first exam!
+                  {t("noExamsYet")}
                 </p>
                 <Button 
                   className="mt-4" 
                   onClick={() => window.location.href = "/dashboard/exam"}
                 >
                   <Play className="h-4 w-4 mr-2" />
-                  Take Exam
+                  {t("takeExam")}
                 </Button>
               </div>
             </CardContent>
@@ -188,7 +190,7 @@ export default function UserExamsPage() {
                         <span className="truncate">{attempt.category_name}</span>
                       </CardTitle>
                       <CardDescription className="text-xs mt-1 truncate">
-                        {new Date(attempt.started_at).toLocaleDateString()} at {new Date(attempt.started_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        {new Date(attempt.started_at).toLocaleDateString()} {t("at")} {new Date(attempt.started_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </CardDescription>
                     </div>
                     <Badge variant={getScoreBadge(attempt.score_percentage)} className="text-base px-2 py-0.5 flex-shrink-0">
@@ -199,7 +201,7 @@ export default function UserExamsPage() {
                 <CardContent className="flex-1 flex flex-col justify-between space-y-3">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Marks:</span>
+                      <span className="text-muted-foreground">{t("marks")}:</span>
                       <span className={`font-semibold ${getScoreColor(attempt.score_percentage)}`}>
                         {attempt.score_percentage}%
                       </span>
@@ -207,21 +209,21 @@ export default function UserExamsPage() {
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <CheckCircle className="h-3 w-3 text-green-600" />
-                        Correct
+                        {t("correct")}
                       </div>
                       <span className="font-semibold">{attempt.correct_answers}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <XCircle className="h-3 w-3 text-red-600" />
-                        Incorrect
+                        {t("incorrect")}
                       </div>
                       <span className="font-semibold">{attempt.total_questions - attempt.correct_answers}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Clock className="h-3 w-3" />
-                        Duration
+                        {t("duration")}
                       </div>
                       <span className="font-semibold">{formatTime(attempt.duration_seconds)}</span>
                     </div>
@@ -235,7 +237,7 @@ export default function UserExamsPage() {
                       onClick={() => handleViewDetails(attempt)}
                     >
                       <Eye className="h-4 w-4 mr-2" />
-                      View Details
+                      {t("viewDetails")}
                     </Button>
                     <Button 
                       variant="outline" 
@@ -249,7 +251,7 @@ export default function UserExamsPage() {
                       ) : (
                         <Trash2 className="h-4 w-4 mr-2" />
                       )}
-                      Delete
+                      {t("delete")}
                     </Button>
                   </div>
                 </CardContent>
@@ -284,7 +286,7 @@ export default function UserExamsPage() {
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-destructive rounded-full animate-pulse"></div>
               <p className="text-sm font-semibold text-destructive">
-                This action is permanent and cannot be undone
+                {t("actionCannotBeUndone")}
               </p>
             </div>
           </div>
@@ -297,7 +299,7 @@ export default function UserExamsPage() {
               }}
               className="w-full sm:w-auto"
             >
-              Cancel
+              {t("cancel")}
             </Button>
             <Button 
               onClick={() => {
@@ -308,7 +310,7 @@ export default function UserExamsPage() {
               variant="destructive"
               className="w-full sm:w-auto font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
             >
-              Delete Permanently
+              {t("deletePermanently")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { DEFAULT_ADMIN_EMAIL } from "./server-config";
 
 interface BrandingConfig {
   systemName: string;
@@ -25,7 +26,7 @@ const defaultConfig: BrandingConfig = {
   systemName: "Navo",
   logoUrl: null,
   logoText: "N",
-  adminEmail: "admin@example.com",
+  adminEmail: DEFAULT_ADMIN_EMAIL,
 };
 
 const STORAGE_KEY = "navo-branding-config";

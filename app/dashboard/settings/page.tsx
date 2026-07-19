@@ -13,6 +13,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/lib/language-context";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ import {
 
 export default function UserSettingsPage() {
   const { config } = useBrandingConfig();
+  const { t } = useLanguage();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -41,7 +43,7 @@ export default function UserSettingsPage() {
     if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
       return `${user.user_metadata.first_name} ${user.user_metadata.last_name}`;
     }
-    return user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || "User";
+    return user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || t("user");
   };
 
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.google_avatar_url || user?.user_metadata?.picture;
@@ -103,9 +105,9 @@ export default function UserSettingsPage() {
         <div className="max-w-6xl mx-auto">
           <Card className="border border-border rounded-[32px] shadow-sm hover:shadow-lg transition-shadow duration-300">
             <CardHeader>
-              <CardTitle>Personal Settings</CardTitle>
+              <CardTitle>{t("personalSettings")}</CardTitle>
               <CardDescription>
-                Update your profile, password, and account preferences in one place.
+                {t("updateProfileDesc")}
               </CardDescription>
             </CardHeader>
             <CardContent>

@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useBrandingConfig } from "@/lib/branding-config";
+import { useLanguage } from "@/lib/language-context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +61,7 @@ const getTranslation = (value: string, translations: Record<string, string> | un
 
 export default function CourseManagementPage() {
   const { config } = useBrandingConfig();
+  const { t } = useLanguage();
   const router = useRouter();
 
   const [languageCourses, setLanguageCourses] = useState<CourseLanguageCourse[]>([]);
@@ -223,7 +225,7 @@ export default function CourseManagementPage() {
         setLessons([]);
       }
     } catch (error: any) {
-      toast.error("Failed to load data: " + error.message);
+      toast.error(t("failedToLoadData") + ": " + error.message);
     } finally {
       setLoading(false);
     }
@@ -239,9 +241,9 @@ export default function CourseManagementPage() {
       });
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || "Failed to create language course");
+      if (!response.ok) throw new Error(data.error || t("failedToCreateLanguageCourse"));
 
-      toast.success("Language course created successfully");
+      toast.success(t("languageCourseCreatedSuccess"));
       setShowLanguageDialog(false);
       setLanguageForm({ language: "", is_published: false });
       
@@ -265,12 +267,12 @@ export default function CourseManagementPage() {
       });
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || "Failed to update language course");
+      if (!response.ok) throw new Error(data.error || t("failedToUpdateLanguageCourse"));
 
       // Check if language was just published
       const wasJustPublished = !editingLanguageCourse.is_published && languageForm.is_published;
       
-      toast.success("Language course updated successfully");
+      toast.success(t("languageCourseUpdatedSuccess"));
       setShowLanguageDialog(false);
       setEditingLanguageCourse(null);
       setLanguageForm({ language: "", is_published: false });
@@ -285,7 +287,7 @@ export default function CourseManagementPage() {
   };
 
   const handleDeleteLanguage = async (languageId: string) => {
-    if (!confirm("Are you sure you want to delete this language course? This will also delete all associated modules and lessons.")) return;
+    if (!confirm(t("confirmDeleteLanguageCourse"))) return;
     try {
       const headers = await getAuthHeaders();
       const response = await fetch(`/api/course-languages/${languageId}`, {
@@ -294,9 +296,9 @@ export default function CourseManagementPage() {
       });
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || "Failed to delete language course");
+      if (!response.ok) throw new Error(data.error || t("failedToDeleteLanguageCourse"));
 
-      toast.success("Language course deleted successfully");
+      toast.success(t("languageCourseDeletedSuccess"));
       
       // Reload language courses
       const languagesResponse = await fetch("/api/course-languages", { headers });
@@ -322,9 +324,9 @@ export default function CourseManagementPage() {
       });
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || "Failed to create module");
+      if (!response.ok) throw new Error(data.error || t("failedToCreateModule"));
 
-      toast.success("Module created successfully");
+      toast.success(t("moduleCreatedSuccess"));
       setShowModuleDialog(false);
       setModuleForm({
         language_id: "",
@@ -356,12 +358,12 @@ export default function CourseManagementPage() {
       });
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || "Failed to update module");
+      if (!response.ok) throw new Error(data.error || t("failedToUpdateModule"));
 
       // Check if module was just published
       const wasJustPublished = !editingModule.is_published && moduleForm.is_published;
       
-      toast.success("Module updated successfully");
+      toast.success(t("moduleUpdatedSuccess"));
       setShowModuleDialog(false);
       setModuleForm({
         language_id: "",
@@ -387,8 +389,10 @@ export default function CourseManagementPage() {
             method: "POST",
             headers: { "Content-Type": "application/json", ...headers },
             body: JSON.stringify({
-              title: 'New Module Available',
-              message: `A new module "${moduleForm.title}" is now available in ${languageData?.title || 'your course'}!`,
+              title: t("newModuleAvailable"),
+              message: t("newModuleAvailableMessage")
+                .replace("{title}", moduleForm.title)
+                .replace("{course}", languageData?.title || t("yourCourse")),
               type: 'module_published',
               target_role: 'student',
               data: { module_id: editingModule.id, language_id: editingModule.language_id, title: moduleForm.title }
@@ -404,7 +408,7 @@ export default function CourseManagementPage() {
   };
 
   const handleDeleteModule = async (moduleId: string) => {
-    if (!confirm("Are you sure you want to delete this module? This will also delete all associated lessons.")) return;
+    if (!confirm(t("confirmDeleteModule"))) return;
     try {
       const headers = await getAuthHeaders();
       const response = await fetch(`/api/course-modules/${moduleId}`, {
@@ -413,9 +417,9 @@ export default function CourseManagementPage() {
       });
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || "Failed to delete module");
+      if (!response.ok) throw new Error(data.error || t("failedToDeleteModule"));
 
-      toast.success("Module deleted successfully");
+      toast.success(t("moduleDeletedSuccess"));
       
       // Reload modules
       const modulesResponse = await fetch("/api/course-modules", { headers });
@@ -442,9 +446,9 @@ export default function CourseManagementPage() {
       });
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || "Failed to create lesson");
+      if (!response.ok) throw new Error(data.error || t("failedToCreateLesson"));
 
-      toast.success("Lesson created successfully");
+      toast.success(t("lessonCreatedSuccess"));
       setShowLessonDialog(false);
       setLessonForm({
         title: "",
@@ -480,12 +484,12 @@ export default function CourseManagementPage() {
       });
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || "Failed to update lesson");
+      if (!response.ok) throw new Error(data.error || t("failedToUpdateLesson"));
 
       // Check if lesson was just published
       const wasJustPublished = !editingLesson.is_published && lessonForm.is_published;
       
-      toast.success("Lesson updated successfully");
+      toast.success(t("lessonUpdatedSuccess"));
       setShowLessonDialog(false);
       setLessonForm({
         title: "",
@@ -515,8 +519,10 @@ export default function CourseManagementPage() {
             method: "POST",
             headers: { "Content-Type": "application/json", ...headers },
             body: JSON.stringify({
-              title: 'New Lesson Available',
-              message: `A new lesson "${lessonForm.title}" is now available in ${moduleData?.title || 'your course'}!`,
+              title: t("newLessonAvailable"),
+              message: t("newLessonAvailableMessage")
+                .replace("{title}", lessonForm.title)
+                .replace("{module}", moduleData?.title || t("yourCourse")),
               type: 'lesson_published',
               target_role: 'student',
               data: { lesson_id: editingLesson.id, module_id: editingLesson.module_id, title: lessonForm.title }
@@ -532,7 +538,7 @@ export default function CourseManagementPage() {
   };
 
   const handleDeleteLesson = async (lessonId: string) => {
-    if (!confirm("Are you sure you want to delete this lesson?")) return;
+    if (!confirm(t("confirmDeleteLesson"))) return;
     try {
       const headers = await getAuthHeaders();
       const response = await fetch(`/api/course-lessons/${lessonId}`, {
@@ -541,9 +547,9 @@ export default function CourseManagementPage() {
       });
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || "Failed to delete lesson");
+      if (!response.ok) throw new Error(data.error || t("failedToDeleteLesson"));
 
-      toast.success("Lesson deleted successfully");
+      toast.success(t("lessonDeletedSuccess"));
       
       // Reload lessons
       if (activeModule) {
@@ -673,9 +679,9 @@ export default function CourseManagementPage() {
           <CardContent className="flex items-start gap-4 p-6">
             <AlertTriangle className="h-6 w-6 text-destructive mt-0.5" />
             <div>
-              <h3 className="font-semibold text-destructive">Access Denied</h3>
+              <h3 className="font-semibold text-destructive">{t("accessDenied")}</h3>
               <p className="text-destructive/80 mt-1">
-                You don't have permission to manage courses. Please contact the administrator for access.
+                {t("courseManagementNoPermission")}
               </p>
             </div>
           </CardContent>
@@ -690,25 +696,26 @@ export default function CourseManagementPage() {
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Course Management</h1>
+            <h1 className="text-3xl font-bold">{t("courseManagement")}</h1>
             <p className="text-muted-foreground">
               {activeModuleData
-                ? `${activeLanguageData?.title || 'Course'} > ${activeModuleData.title} > Lessons`
+                ? `${activeLanguageData?.title || t("course")} > ${activeModuleData.title} > ${t("lessons")}`
                 : activeLanguageData
-                ? `${activeLanguageData.title} > Modules`
-                : "Select a language course to manage its modules and lessons"}
+                ? `${activeLanguageData.title} > ${t("modules")}`
+                : t("selectLanguageCoursePrompt")}
             </p>
           </div>
           <div className="flex items-center gap-2">
             {activeModule && (
               <Button variant="outline" onClick={() => setActiveModule(null)}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Modules
+                {t("backToModules")}
               </Button>
             )}
-            <Link href="/Admin">
-              <Button variant="outline">Admin</Button>
-            </Link>
+            <Button onClick={() => openLanguageDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t("addLanguageCourse")}
+            </Button>
           </div>
         </div>
 
@@ -732,14 +739,14 @@ export default function CourseManagementPage() {
                     </CardDescription>
                   </div>
                   <Badge variant={lang.is_published ? "default" : "secondary"}>
-                    {lang.is_published ? "Published" : "Draft"}
+                    {lang.is_published ? t("published") : t("draft")}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-muted-foreground">
-                    {modules.filter(m => m.language_id === lang.id).length} modules
+                    {modules.filter(m => m.language_id === lang.id).length} {t("modules")}
                   </div>
                   <Button
                     variant="ghost"
@@ -755,19 +762,6 @@ export default function CourseManagementPage() {
               </CardContent>
             </Card>
           ))}
-          <Card
-            className="cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-dashed"
-            onClick={() => openLanguageDialog()}
-          >
-            <CardHeader>
-              <div className="flex items-center justify-center min-h-[100px]">
-                <div className="text-center">
-                  <Plus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">Add Language Course</p>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
         </div>
 
         {/* Module List for Selected Language */}
@@ -776,22 +770,22 @@ export default function CourseManagementPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Modules</CardTitle>
+                  <CardTitle>{t("modules")}</CardTitle>
                   <CardDescription>
-                    {activeLanguageData ? `Modules for ${activeLanguageData.title}` : "Select a language course first"}
+                    {activeLanguageData ? `${t("modulesFor")} ${activeLanguageData.title}` : t("selectLanguageCourseFirst")}
                   </CardDescription>
                 </div>
                 <Button onClick={() => openModuleDialog()} disabled={!activeLanguage}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Module
+                  {t("addModule")}
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               {!activeLanguage ? (
-                <p className="text-center text-muted-foreground py-8">Please select a language course to view its modules.</p>
+                <p className="text-center text-muted-foreground py-8">{t("selectLanguageToViewModules")}</p>
               ) : modules.filter(m => m.language_id === activeLanguage).length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No modules yet for this language. Create your first module to get started.</p>
+                <p className="text-center text-muted-foreground py-8">{t("noModulesForLanguage")}</p>
               ) : (
                 <Reorder.Group axis="y" values={modules.filter(m => m.language_id === activeLanguage)} onReorder={handleReorderModules}>
                   <div className="space-y-3">
@@ -818,7 +812,7 @@ export default function CourseManagementPage() {
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">{module.title}</span>
                                 <Badge variant={module.is_published ? "default" : "secondary"}>
-                                  {module.is_published ? "Published" : "Draft"}
+                                  {module.is_published ? t("published") : t("draft")}
                                 </Badge>
                               </div>
                               {module.description && (
@@ -837,14 +831,14 @@ export default function CourseManagementPage() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openModuleDialog(module); }}>
                                 <Edit className="h-4 w-4 mr-2" />
-                                Edit
+                                {t("edit")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={(e) => { e.stopPropagation(); handleDeleteModule(module.id); }}
                                 className="text-destructive"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
+                                {t("delete")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -865,21 +859,21 @@ export default function CourseManagementPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>
-                    {activeModuleData.title} - Lessons
+                    {activeModuleData.title} - {t("lessons")}
                   </CardTitle>
                   <CardDescription>
-                    Manage lessons for this module
+                    {t("manageLessonsForModule")}
                   </CardDescription>
                 </div>
                 <Button onClick={() => openLessonDialog()}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Lesson
+                  {t("addLesson")}
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               {lessons.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No lessons yet for this module. Create your first lesson to get started.</p>
+                <p className="text-center text-muted-foreground py-8">{t("noLessonsForModule")}</p>
               ) : (
                 <Reorder.Group axis="y" values={lessons} onReorder={handleReorderLessons}>
                   <div className="space-y-3">
@@ -903,11 +897,11 @@ export default function CourseManagementPage() {
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">{lesson.title}</span>
                                 <Badge variant={lesson.is_published ? "default" : "secondary"}>
-                                  {lesson.is_published ? "Published" : "Draft"}
+                                  {lesson.is_published ? t("published") : t("draft")}
                                 </Badge>
                                 {lesson.content_type !== "text" && (
                                   <Badge variant="outline" className="text-xs">
-                                    {lesson.content_type}
+                                    {t(`contentType.${lesson.content_type}`)}
                                   </Badge>
                                 )}
                               </div>
@@ -927,18 +921,18 @@ export default function CourseManagementPage() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => openLessonPreview(lesson)}>
                                 <Eye className="h-4 w-4 mr-2" />
-                                Preview
+                                {t("preview")}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openLessonDialog(lesson)}>
                                 <Edit className="h-4 w-4 mr-2" />
-                                Edit
+                                {t("edit")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDeleteLesson(lesson.id)}
                                 className="text-destructive"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
+                                {t("delete")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -956,24 +950,24 @@ export default function CourseManagementPage() {
         <Dialog open={showLanguageDialog} onOpenChange={setShowLanguageDialog}>
           <DialogContent className="sm:max-w-[425px] max-w-[95vw] w-full">
             <DialogHeader>
-              <DialogTitle>{editingLanguageCourse ? "Edit Language Course" : "Create Language Course"}</DialogTitle>
+              <DialogTitle>{editingLanguageCourse ? t("editLanguageCourse") : t("createLanguageCourse")}</DialogTitle>
               <DialogDescription>
-                {editingLanguageCourse ? "Update the language course details" : "Create a new language course"}
+                {editingLanguageCourse ? t("editLanguageCourseDescription") : t("createLanguageCourseDescription")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="language-name">Language Name</Label>
+                <Label htmlFor="language-name">{t("languageName")}</Label>
                 <Input
                   id="language-name"
                   value={languageForm.language}
                   onChange={(e) => setLanguageForm({ ...languageForm, language: e.target.value })}
-                  placeholder="e.g., English, Kinyarwanda, French, Spanish..."
+                  placeholder={t("languageNamePlaceholder")}
                   disabled={!!editingLanguageCourse}
                   autoComplete="off"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  {editingLanguageCourse ? "Language name cannot be changed after creation" : "Enter a unique language name"}
+                  {editingLanguageCourse ? t("languageNameCannotChange") : t("enterUniqueLanguageName")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -982,14 +976,14 @@ export default function CourseManagementPage() {
                   checked={languageForm.is_published}
                   onCheckedChange={(checked) => setLanguageForm({ ...languageForm, is_published: checked })}
                 />
-                <Label htmlFor="language-published">Published</Label>
+                <Label htmlFor="language-published">{t("published")}</Label>
               </div>
               <div className="flex gap-2">
                 <Button
                   onClick={editingLanguageCourse ? handleUpdateLanguage : handleCreateLanguage}
                   className="flex-1"
                 >
-                  {editingLanguageCourse ? "Update Language Course" : "Create Language Course"}
+                  {editingLanguageCourse ? t("updateLanguageCourse") : t("createLanguageCourse")}
                 </Button>
                 {editingLanguageCourse && (
                   <Button
@@ -1000,7 +994,7 @@ export default function CourseManagementPage() {
                     }}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
+                    {t("delete")}
                   </Button>
                 )}
               </div>
@@ -1012,28 +1006,28 @@ export default function CourseManagementPage() {
         <Dialog open={showLessonDialog} onOpenChange={setShowLessonDialog}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingLesson ? "Edit Lesson" : "Create Lesson"}</DialogTitle>
+              <DialogTitle>{editingLesson ? t("editLesson") : t("createLesson")}</DialogTitle>
               <DialogDescription>
-                {editingLesson ? "Update the lesson content" : `Create a new lesson for ${activeModuleData?.title || 'selected module'}`}
+                {editingLesson ? t("editLessonDescription") : `${t("createLessonFor")} ${activeModuleData?.title || t("selectedModule")}`}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Language Course</Label>
+                <Label>{t("languageCourse")}</Label>
                 <div className="flex items-center gap-2 p-2 bg-muted rounded">
                   <Layers className="h-4 w-4" />
-                  <span className="font-medium">{activeLanguageData?.title || 'Not selected'}</span>
+                  <span className="font-medium">{activeLanguageData?.title || t("notSelected")}</span>
                 </div>
               </div>
               <div>
-                <Label>Module</Label>
+                <Label>{t("module")}</Label>
                 <div className="flex items-center gap-2 p-2 bg-muted rounded">
                   <BookOpen className="h-4 w-4" />
-                  <span className="font-medium">{activeModuleData?.title || 'Not selected'}</span>
+                  <span className="font-medium">{activeModuleData?.title || t("notSelected")}</span>
                 </div>
               </div>
               <div>
-                <Label htmlFor="lesson-language">Translation Language</Label>
+                <Label htmlFor="lesson-language">{t("translationLanguage")}</Label>
                 <Select value={lessonEditingLanguage} onValueChange={(value) => setLessonEditingLanguage(value as CourseLanguage)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -1048,44 +1042,44 @@ export default function CourseManagementPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="lesson-title">Title ({lessonEditingLanguage})</Label>
+                <Label htmlFor="lesson-title">{t("title")} ({lessonEditingLanguage})</Label>
                 <Input
                   id="lesson-title"
                   value={getLessonTitle()}
                   onChange={(e) => setLessonTitle(e.target.value)}
-                  placeholder="Lesson title..."
+                  placeholder={t("lessonTitlePlaceholder")}
                   autoComplete="off"
                 />
               </div>
               <div>
-                <Label htmlFor="lesson-content">Content ({lessonEditingLanguage})</Label>
+                <Label htmlFor="lesson-content">{t("content")} ({lessonEditingLanguage})</Label>
                 <Textarea
                   id="lesson-content"
                   value={getLessonContent()}
                   onChange={(e) => setLessonContent(e.target.value)}
-                  placeholder="Lesson content..."
+                  placeholder={t("lessonContentPlaceholder")}
                   rows={6}
                   autoComplete="off"
                 />
               </div>
               <div>
-                <Label htmlFor="lesson-content-type">Content Type</Label>
+                <Label htmlFor="lesson-content-type">{t("contentType")}</Label>
                 <Select value={lessonForm.content_type} onValueChange={(value) => setLessonForm({ ...lessonForm, content_type: value as any })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="text">Text</SelectItem>
-                    <SelectItem value="video">Video</SelectItem>
-                    <SelectItem value="image">Image</SelectItem>
-                    <SelectItem value="document">Document</SelectItem>
-                    <SelectItem value="mixed">Mixed</SelectItem>
+                    <SelectItem value="text">{t("contentType.text")}</SelectItem>
+                    <SelectItem value="video">{t("contentType.video")}</SelectItem>
+                    <SelectItem value="image">{t("contentType.image")}</SelectItem>
+                    <SelectItem value="document">{t("contentType.document")}</SelectItem>
+                    <SelectItem value="mixed">{t("contentType.mixed")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               {(lessonForm.content_type === "video" || lessonForm.content_type === "mixed") && (
                 <div>
-                  <Label htmlFor="lesson-media-url">Media URL</Label>
+                  <Label htmlFor="lesson-media-url">{t("mediaUrl")}</Label>
                   <Input
                     id="lesson-media-url"
                     value={lessonForm.media_url}
@@ -1097,7 +1091,7 @@ export default function CourseManagementPage() {
               )}
               {(lessonForm.content_type === "image" || lessonForm.content_type === "mixed") && (
                 <div>
-                  <Label htmlFor="lesson-image-url">Image URL</Label>
+                  <Label htmlFor="lesson-image-url">{t("imageUrl")}</Label>
                   <Input
                     id="lesson-image-url"
                     value={lessonForm.image_url}
@@ -1113,13 +1107,13 @@ export default function CourseManagementPage() {
                   checked={lessonForm.is_published}
                   onCheckedChange={(checked) => setLessonForm({ ...lessonForm, is_published: checked })}
                 />
-                <Label htmlFor="lesson-published">Published</Label>
+                <Label htmlFor="lesson-published">{t("published")}</Label>
               </div>
               <Button
                 onClick={editingLesson ? handleUpdateLesson : handleCreateLesson}
                 className="w-full"
               >
-                {editingLesson ? "Update Lesson" : "Create Lesson"}
+                {editingLesson ? t("updateLesson") : t("createLesson")}
               </Button>
             </div>
           </DialogContent>
@@ -1129,9 +1123,9 @@ export default function CourseManagementPage() {
         <Dialog open={showLessonPreviewDialog} onOpenChange={setShowLessonPreviewDialog}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Lesson Preview</DialogTitle>
+              <DialogTitle>{t("lessonPreview")}</DialogTitle>
               <DialogDescription>
-                Preview of "{previewLesson?.title}"
+                {t("previewOf")} "{previewLesson?.title}"
               </DialogDescription>
             </DialogHeader>
             {previewLesson && (
@@ -1168,21 +1162,21 @@ export default function CourseManagementPage() {
         <Dialog open={showModuleDialog} onOpenChange={setShowModuleDialog}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingModule ? "Edit Module" : "Create Module"}</DialogTitle>
+              <DialogTitle>{editingModule ? t("editModule") : t("createModule")}</DialogTitle>
               <DialogDescription>
-                {editingModule ? "Update the module details" : `Create a new module for ${activeLanguageData?.title || 'selected language'}`}
+                {editingModule ? t("editModuleDescription") : `${t("createModuleFor")} ${activeLanguageData?.title || t("selectedLanguage")}`}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Language Course</Label>
+                <Label>{t("languageCourse")}</Label>
                 <Select 
                   value={moduleForm.language_id} 
                   onValueChange={(value) => setModuleForm({ ...moduleForm, language_id: value })}
                   disabled={!!editingModule}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select language course" />
+                    <SelectValue placeholder={t("selectLanguageCourse")} />
                   </SelectTrigger>
                   <SelectContent>
                     {languageCourses.map((lang) => (
@@ -1194,7 +1188,7 @@ export default function CourseManagementPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="module-language">Translation Language</Label>
+                <Label htmlFor="module-language">{t("translationLanguage")}</Label>
                 <Select value={moduleEditingLanguage} onValueChange={(value) => setModuleEditingLanguage(value as CourseLanguage)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -1209,22 +1203,22 @@ export default function CourseManagementPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="module-title">Title ({moduleEditingLanguage})</Label>
+                <Label htmlFor="module-title">{t("title")} ({moduleEditingLanguage})</Label>
                 <Input
                   id="module-title"
                   value={getModuleTitle()}
                   onChange={(e) => setModuleTitle(e.target.value)}
-                  placeholder="Module title..."
+                  placeholder={t("moduleTitlePlaceholder")}
                   autoComplete="off"
                 />
               </div>
               <div>
-                <Label htmlFor="module-description">Description ({moduleEditingLanguage})</Label>
+                <Label htmlFor="module-description">{t("description")} ({moduleEditingLanguage})</Label>
                 <Textarea
                   id="module-description"
                   value={getModuleDescription()}
                   onChange={(e) => setModuleDescription(e.target.value)}
-                  placeholder="Module description..."
+                  placeholder={t("moduleDescriptionPlaceholder")}
                   rows={3}
                   autoComplete="off"
                 />
@@ -1235,13 +1229,13 @@ export default function CourseManagementPage() {
                   checked={moduleForm.is_published}
                   onCheckedChange={(checked) => setModuleForm({ ...moduleForm, is_published: checked })}
                 />
-                <Label htmlFor="module-published">Published</Label>
+                <Label htmlFor="module-published">{t("published")}</Label>
               </div>
               <Button
                 onClick={editingModule ? handleUpdateModule : handleCreateModule}
                 className="w-full"
               >
-                {editingModule ? "Update Module" : "Create Module"}
+                {editingModule ? t("updateModule") : t("createModule")}
               </Button>
             </div>
           </DialogContent>

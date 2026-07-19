@@ -20,6 +20,7 @@ import {
   FileText,
   ArrowLeft,
   Languages,
+  ChevronDown,
 } from "lucide-react";
 import { Watermark } from "@/components/watermark";
 import { toast } from "sonner";
@@ -47,7 +48,7 @@ type CourseLanguageEnum = (typeof COURSE_LANGUAGES)[number];
 
 export default function CoursePage() {
   const { config } = useBrandingConfig();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
 
@@ -91,6 +92,7 @@ export default function CoursePage() {
   const [loading, setLoading] = useState(true);
   const [activeModule, setActiveModule] = useState<string | null>(null);
   const [activeLesson, setActiveLesson] = useState<CourseLesson | null>(null);
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadUser();
@@ -108,12 +110,13 @@ export default function CoursePage() {
   };
 
   useEffect(() => {
+    // Default lesson language to system language
     setLessonLanguage(language as CourseLanguageEnum);
     // Load user's course language preference
     if (user?.user_metadata?.course_language_id) {
       setUserCourseLanguageId(user.user_metadata.course_language_id);
     }
-  }, [language]);
+  }, [language, user]);
 
   useEffect(() => {
     if (selectedLanguageCourse) {
@@ -133,15 +136,22 @@ export default function CoursePage() {
       // Auto-select the user's preferred language course if none selected
       if (!selectedLanguageCourse && languagesData.languages.length > 0) {
         // First try to find the user's preferred language course by ID
-        const userPreferredCourse = languagesData.languages.find((l: CourseLanguageCourse) => 
+        const userPreferredCourse = languagesData.languages.find((l: CourseLanguageCourse) =>
           l.is_published && l.id === userCourseLanguageId
         );
-        
-        // Fall back to first published course if user preference not found
+
+        // If no user preference, try to match system language
+        const systemLanguageCourse = languagesData.languages.find((l: CourseLanguageCourse) =>
+          l.is_published && l.language === language
+        );
+
+        // Fall back to first published course if neither preference nor system language match found
         const firstPublished = languagesData.languages.find((l: CourseLanguageCourse) => l.is_published);
-        
+
         if (userPreferredCourse) {
           setSelectedLanguageCourse(userPreferredCourse);
+        } else if (systemLanguageCourse) {
+          setSelectedLanguageCourse(systemLanguageCourse);
         } else if (firstPublished) {
           setSelectedLanguageCourse(firstPublished);
         }
@@ -251,6 +261,36 @@ export default function CoursePage() {
     router.push(`/dashboard/course/${moduleId}/exam`);
   };
 
+  const toggleModuleExpansion = (moduleId: string) => {
+    setExpandedModules(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(moduleId)) {
+        newSet.delete(moduleId);
+      } else {
+        newSet.add(moduleId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleCourseLanguageChange = async (courseId: string) => {
+    const selected = publishedCourses.find(c => c.id === courseId);
+    if (selected) {
+      setSelectedLanguageCourse(selected);
+      // Save user's course language preference
+      if (user) {
+        try {
+          const supabase = createClient();
+          await supabase.auth.updateUser({
+            data: { course_language_id: courseId }
+          });
+        } catch (error) {
+          console.error("Failed to save course language preference:", error);
+        }
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -267,7 +307,7 @@ export default function CoursePage() {
           <div className="flex items-center justify-between">
             <Button variant="ghost" onClick={() => setActiveLesson(null)}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Course
+              {t("backToCourse")}
             </Button>
             <div className="flex items-center gap-2">
               <Languages className="h-4 w-4" />
@@ -288,11 +328,11 @@ export default function CoursePage() {
             <CardHeader>
               <CardTitle>{activeLesson ? getLessonTitle(activeLesson) : ""}</CardTitle>
               <CardDescription>
-                {activeLesson.content_type === 'video' && 'Video Lesson'}
-                {activeLesson.content_type === 'image' && 'Image Lesson'}
-                {activeLesson.content_type === 'document' && 'Document Lesson'}
-                {activeLesson.content_type === 'text' && 'Text Lesson'}
-                {activeLesson.content_type === 'mixed' && 'Text + Image Lesson'}
+                {activeLesson.content_type === 'video' && t("lessonType.video")}
+                {activeLesson.content_type === 'image' && t("lessonType.image")}
+                {activeLesson.content_type === 'document' && t("lessonType.document")}
+                {activeLesson.content_type === 'text' && t("lessonType.text")}
+                {activeLesson.content_type === 'mixed' && t("lessonType.mixed")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -330,7 +370,7 @@ export default function CoursePage() {
                     className="flex items-center gap-2 text-primary hover:underline"
                   >
                     <FileText className="h-5 w-5" />
-                    Open Document
+                    {t("openDocument")}
                   </a>
                 </div>
               )}
@@ -347,11 +387,11 @@ export default function CoursePage() {
                     const supabase = createClient();
                     const { markLessonComplete } = await import("@/lib/supabase/queries");
                     await markLessonComplete(activeLesson.id, activeLesson.module_id);
-                    toast.success("Lesson completed!");
+                    toast.success(t("lessonCompleted"));
                     setActiveLesson(null);
                     loadData();
                   } catch (error: any) {
-                    toast.error("Failed to mark lesson as complete: " + error.message);
+                    toast.error(`${t("failedToMarkLessonComplete")}: ${error.message}`);
                   }
                 }}
                 disabled={lessonProgress[activeLesson.id]?.completed}
@@ -360,12 +400,12 @@ export default function CoursePage() {
                 {lessonProgress[activeLesson.id]?.completed ? (
                   <>
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Completed
+                    {t("completed")}
                   </>
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Mark as Complete
+                    {t("markAsComplete")}
                   </>
                 )}
               </Button>
@@ -384,25 +424,45 @@ export default function CoursePage() {
       <div className="max-w-5xl mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Traffic School Course</h1>
+            <h1 className="text-3xl font-bold">{t("trafficSchoolCourse")}</h1>
             <p className="text-muted-foreground mt-1">
               {selectedLanguageCourse
-                ? `${selectedLanguageCourse.title} - Complete all modules and pass the exams to finish the course`
+                ? `${selectedLanguageCourse.title}${t("course.completeModulesToFinish")}`
                 : publishedCourses.length > 0
-                  ? "Loading your course..."
-                  : "Course content will be available soon"
+                  ? t("course.loadingYourCourse")
+                  : t("course.contentAvailableSoon")
               }
             </p>
           </div>
+          {publishedCourses.length > 1 && (
+            <div className="flex items-center gap-2">
+              <Languages className="h-4 w-4" />
+              <Select
+                value={selectedLanguageCourse?.id || ""}
+                onValueChange={handleCourseLanguageChange}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder={t("language")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {publishedCourses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.language}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {publishedCourses.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Course Content Coming Soon</h3>
+              <h3 className="text-lg font-medium mb-2">{t("courseContentComingSoon")}</h3>
               <p className="text-muted-foreground">
-                We're currently preparing our course materials. Please check back later for available language courses and learning modules.
+                {t("courseContentComingSoonDesc")}
               </p>
             </CardContent>
           </Card>
@@ -410,9 +470,9 @@ export default function CoursePage() {
           <Card>
             <CardContent className="p-12 text-center">
               <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No Course Content Available</h3>
+              <h3 className="text-lg font-medium mb-2">{t("noCourseContentAvailable")}</h3>
               <p className="text-muted-foreground">
-                Course modules will appear here once they are published by administrators.
+                {t("courseModulesWillAppear")}
               </p>
             </CardContent>
           </Card>
@@ -426,7 +486,10 @@ export default function CoursePage() {
 
               return (
                 <Card key={module.id} className={!unlocked ? "opacity-60" : ""}>
-                  <CardHeader>
+                  <CardHeader
+                    className="cursor-pointer"
+                    onClick={() => toggleModuleExpansion(module.id)}
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
@@ -434,13 +497,13 @@ export default function CoursePage() {
                           {!unlocked && (
                             <Badge variant="secondary">
                               <Lock className="h-3 w-3 mr-1" />
-                              Locked
+                              {t("locked")}
                             </Badge>
                           )}
                           {progress.examPassed && (
                             <Badge className="bg-green-500">
                               <CheckCircle className="h-3 w-3 mr-1" />
-                              Passed
+                              {t("passed")}
                             </Badge>
                           )}
                         </div>
@@ -448,6 +511,9 @@ export default function CoursePage() {
                           <CardDescription>{getModuleDescription(module)}</CardDescription>
                         )}
                       </div>
+                      <ChevronDown
+                        className={`h-5 w-5 transition-transform ${expandedModules.has(module.id) ? 'rotate-180' : ''}`}
+                      />
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -456,7 +522,7 @@ export default function CoursePage() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">
-                            Lessons: {progress.lessonsCompleted} / {progress.totalLessons}
+                            {t("lessons")}: {progress.lessonsCompleted} / {progress.totalLessons}
                           </span>
                           <span className="font-medium">
                             {Math.round((progress.lessonsCompleted / progress.totalLessons) * 100)}%
@@ -468,10 +534,10 @@ export default function CoursePage() {
                       </div>
                     )}
 
-                    {/* Lessons list */}
-                    {unlocked && moduleLessons.length > 0 && (
+                    {/* Lessons list - shown only when expanded */}
+                    {unlocked && expandedModules.has(module.id) && moduleLessons.length > 0 && (
                       <div className="space-y-2">
-                        <h4 className="font-medium text-sm">Lessons</h4>
+                        <h4 className="font-medium text-sm">{t("lessons")}</h4>
                         {moduleLessons.map((lesson) => {
                           const isCompleted = lessonProgress[lesson.id]?.completed;
                           return (
@@ -504,35 +570,35 @@ export default function CoursePage() {
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <Target className="h-4 w-4 text-primary" />
-                              <span className="font-medium">Module Exam</span>
+                              <span className="font-medium">{t("moduleExam")}</span>
                               {progress.examAttempts > 0 && (
                                 <Badge variant="outline">
-                                  {progress.examAttempts} attempt{progress.examAttempts > 1 ? 's' : ''}
+                                  {progress.examAttempts} {progress.examAttempts > 1 ? t("attempts") : t("attempt")}
                                 </Badge>
                               )}
                             </div>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <FileText className="h-3 w-3" />
-                                {settings?.question_count || 20} questions
+                                {settings?.question_count || 20} {t("questions")}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                {settings?.duration_minutes || 20} minutes
+                                {settings?.duration_minutes || 20} {t("minutes")}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Target className="h-3 w-3" />
-                                {settings?.passing_score || 70}% to pass
+                                {settings?.passing_score || 70}{t("percentToPass")}
                               </span>
                             </div>
                             {progress.bestScore !== undefined && (
                               <p className="text-sm">
-                                Best score: <span className="font-medium">{progress.bestScore}%</span>
+                                {t("bestScoreLabel")} <span className="font-medium">{progress.bestScore}%</span>
                               </p>
                             )}
                           </div>
                           <Button onClick={() => takeExam(module.id)}>
-                            {progress.examPassed ? "Retake Exam" : "Take Exam"}
+                            {progress.examPassed ? t("retakeExam") : t("takeExam")}
                           </Button>
                         </div>
                       </div>
@@ -541,7 +607,7 @@ export default function CoursePage() {
                     {!unlocked && (
                       <div className="pt-4 border-t">
                         <p className="text-sm text-muted-foreground">
-                          Complete the previous module to unlock this one.
+                          {t("completePreviousModuleUnlock")}
                         </p>
                       </div>
                     )}

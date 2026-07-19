@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Loader2, Hash, Infinity, Lock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { updateExamLimit, deleteExamLimit } from "@/lib/supabase/queries";
+import { useLanguage } from "@/lib/language-context";
 
 interface UserExamLimitDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ export function UserExamLimitDialog({
   currentIsLimited = true,
   onSuccess,
 }: UserExamLimitDialogProps) {
+  const { t } = useLanguage();
   const [limit, setLimit] = useState(currentLimit?.toString() || "5");
   const [isLimited, setIsLimited] = useState(currentIsLimited);
   const [loading, setLoading] = useState(false);
@@ -44,7 +46,7 @@ export function UserExamLimitDialog({
     const numLimit = parseInt(limit, 10);
 
     if (isLimited && (isNaN(numLimit) || numLimit < 1 || numLimit > 100)) {
-      toast.error("Please enter a valid number between 1 and 100");
+      toast.error(t("enterValidNumber"));
       return;
     }
 
@@ -52,14 +54,14 @@ export function UserExamLimitDialog({
 
     try {
       await updateExamLimit(userId, isLimited ? numLimit : 5, isLimited);
-      toast.success(isLimited 
-        ? `Exam limit updated to ${numLimit} per day` 
-        : "User now has unlimited exam access"
+      toast.success(isLimited
+        ? t("examLimitUpdated") + numLimit + t("perDay")
+        : t("userNowHasUnlimitedExamAccess")
       );
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
-      toast.error("Failed to update exam limit: " + error.message);
+      toast.error(t("failedToUpdateExamLimit") + error.message);
     } finally {
       setLoading(false);
     }
@@ -70,12 +72,12 @@ export function UserExamLimitDialog({
 
     try {
       await deleteExamLimit(userId);
-      toast.success("Exam limit reset to default (5 per day)");
+      toast.success(t("examLimitResetToDefault"));
       setLimit("5");
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
-      toast.error("Failed to reset exam limit: " + error.message);
+      toast.error(t("failedToResetExamLimit") + error.message);
     } finally {
       setLoading(false);
     }
@@ -87,16 +89,16 @@ export function UserExamLimitDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Hash className="h-5 w-5 text-primary" />
-            Set Exam Limit
+            {t("setExamLimit")}
           </DialogTitle>
           <DialogDescription>
-            Set the maximum number of exams this user can take per day.
+            {t("setExamLimitDesc")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>User</Label>
+            <Label>{t("user")}</Label>
             <div className="p-3 bg-muted rounded-md text-sm font-medium">
               {userEmail}
             </div>
@@ -110,12 +112,12 @@ export function UserExamLimitDialog({
               </div>
               <div>
                 <Label htmlFor="limit-toggle" className="font-medium cursor-pointer">
-                  {isLimited ? "Limited Access" : "Unlimited Access"}
+                  {isLimited ? t("limitedAccess") : t("unlimitedAccess")}
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  {isLimited 
-                    ? "User has daily exam limits" 
-                    : "User can take unlimited exams"}
+                  {isLimited
+                    ? t("userHasDailyExamLimits")
+                    : t("userCanTakeUnlimitedExams")}
                 </p>
               </div>
             </div>
@@ -129,7 +131,7 @@ export function UserExamLimitDialog({
           {/* Limit Input - Only show when limited */}
           {isLimited && (
             <div className="space-y-2">
-              <Label htmlFor="limit">Daily Exam Limit</Label>
+              <Label htmlFor="limit">{t("dailyExamLimit")}</Label>
               <Input
                 id="limit"
                 type="number"
@@ -141,16 +143,16 @@ export function UserExamLimitDialog({
                 className="text-lg"
               />
               <p className="text-xs text-muted-foreground">
-                Enter a number between 1 and 100. Default is 5 exams per day.
+                {t("enterNumberBetween")}
               </p>
             </div>
           )}
 
           <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md p-3">
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              <strong>Note:</strong> {isLimited 
-                ? "The daily limit resets at midnight UTC. Users will see how many exams they have remaining."
-                : "This user will not have any exam restrictions and can take as many exams as they want."}
+              <strong>{t("note")}:</strong> {isLimited
+                ? t("dailyLimitResetsAtMidnight")
+                : t("userNoExamRestrictions")}
             </p>
           </div>
         </div>
@@ -166,21 +168,21 @@ export function UserExamLimitDialog({
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Reset to Default"
+                t("resetToDefault")
               )}
             </Button>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Saving...
+                {t("saving")}
               </>
             ) : (
-              isLimited ? "Save Limit" : "Set Unlimited"
+              isLimited ? t("saveLimit") : t("setUnlimited")
             )}
           </Button>
         </DialogFooter>

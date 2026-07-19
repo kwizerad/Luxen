@@ -56,7 +56,7 @@ export function SignUpForm({
       if (onSuccess) onSuccess();
       router.push("/auth/sign-up-success");
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setError(error instanceof Error ? error.message : t("errorSomethingWentWrong"));
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +75,7 @@ export function SignUpForm({
       });
       if (error) throw error;
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setError(error instanceof Error ? error.message : t("errorSomethingWentWrong"));
       setIsLoading(false);
     }
   };
@@ -95,7 +95,7 @@ export function SignUpForm({
             disabled={isLoading}
           >
             <GoogleIcon className="mr-2 h-4 w-4" />
-            Google
+            {t("google")}
           </Button>
         </div>
 
@@ -117,7 +117,7 @@ export function SignUpForm({
               <Input
                 id="email"
                 type="email"
-                placeholder="m@example.com"
+                placeholder={t("emailPlaceholder")}
                 required
                 value={email}
                 autoComplete="off"

@@ -18,6 +18,7 @@ import { useAuth } from "@/lib/auth-context";
 
 type TextSize = "sm" | "md" | "lg";
 type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
+type LanguageCode = "en" | "rw" | "fr" | "ar";
 
 export function SettingsModal() {
   const [open, setOpen] = useState(false);
@@ -25,10 +26,18 @@ export function SettingsModal() {
   const { user } = useAuth();
   const [textSize, setTextSize] = useState<TextSize>("md");
 
+  // Convert full language name to code for storage
+  const languageToCode: Record<Language, LanguageCode> = {
+    English: "en",
+    Kinyarwanda: "rw",
+    French: "fr",
+    Arabic: "ar"
+  };
+
   const textSizes = [
-    { value: "sm", label: "Small" },
-    { value: "md", label: "Medium" },
-    { value: "lg", label: "Large" },
+    { value: "sm", labelKey: "small" },
+    { value: "md", labelKey: "medium" },
+    { value: "lg", labelKey: "large" },
   ];
 
   useEffect(() => {
@@ -64,13 +73,13 @@ export function SettingsModal() {
 
   const handleLanguageChange = async (newLanguage: Language) => {
     setLanguage(newLanguage);
-    
-    // Save to user metadata if logged in
+
+    // Save to user metadata if logged in (store as language code)
     if (user) {
       try {
         const supabase = createClient();
         await supabase.auth.updateUser({
-          data: { language: newLanguage }
+          data: { language: languageToCode[newLanguage] }
         });
       } catch (error) {
         console.error("Failed to save language:", error);
@@ -102,9 +111,9 @@ export function SettingsModal() {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
+          <DialogTitle>{t("settings")}</DialogTitle>
           <DialogDescription>
-            Customize your experience
+            {t("customizeYourExperience")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-6 py-4">
@@ -113,9 +122,9 @@ export function SettingsModal() {
             <ThemeSwitcher />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Text Size</label>
+            <label className="text-sm font-medium">{t("textSize")}</label>
             <div className="flex gap-2 flex-wrap">
-              {textSizes.map(({ value, label }) => (
+              {textSizes.map(({ value, labelKey }) => (
                 <Button
                   key={value}
                   variant={textSize === value ? "default" : "outline"}
@@ -123,7 +132,7 @@ export function SettingsModal() {
                   onClick={() => handleTextSizeChange(value as TextSize)}
                   className="min-w-[80px]"
                 >
-                  {label}
+                  {t(labelKey)}
                 </Button>
               ))}
             </div>

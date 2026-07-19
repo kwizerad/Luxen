@@ -1,8 +1,10 @@
 // Admin credentials configuration
 // These credentials should be used to create the initial admin user in Supabase
 
+import { DEFAULT_ADMIN_EMAIL } from "./server-config";
+
 export const ADMIN_CREDENTIALS = {
-  email: "Navo@admin.jn",
+  email: DEFAULT_ADMIN_EMAIL,
   password: "adminjohn",
   role: "Admin",
   username: "NavoAdmin",

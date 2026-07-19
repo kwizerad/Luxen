@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useBrandingConfig } from "@/lib/branding-config";
+import { useLanguage } from "@/lib/language-context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,11 +42,13 @@ import {
 } from "@/lib/supabase/queries";
 import { isAdmin, canAddQuestions, canViewQuestions, canManageExamSettings } from "@/lib/permissions";
 import { DEFAULT_EXAM_SETTINGS } from "@/lib/exam-settings";
+import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 
-const ADMIN_EMAIL = "Navo@admin.jn";
+const ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
 
 export default function ExamManagementPage() {
   const { config } = useBrandingConfig();
+  const { t } = useLanguage();
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [filteredQuestions, setFilteredQuestions] = useState<ExamQuestion[]>([]);
@@ -178,7 +181,7 @@ export default function ExamManagementPage() {
         setCategoryQuestionCounts(counts);
       }
     } catch (error: any) {
-      toast.error("Failed to load categories: " + error.message);
+      toast.error(t("failedToLoadCategories") + ": " + error.message);
     } finally {
       setLoading(false);
     }
@@ -197,7 +200,7 @@ export default function ExamManagementPage() {
         }));
       }
     } catch (error: any) {
-      toast.error("Failed to load questions: " + error.message);
+      toast.error(t("failedToLoadQuestions") + ": " + error.message);
     }
   };
 
@@ -275,7 +278,7 @@ export default function ExamManagementPage() {
         });
       }
     } catch (error: any) {
-      toast.error("Failed to load exam settings: " + error.message);
+      toast.error(t("failedToLoadExamSettings") + ": " + error.message);
     } finally {
       setLoadingSettings(false);
     }
@@ -293,10 +296,10 @@ export default function ExamManagementPage() {
         available_to: settingsForm.alwaysAvailable || !settingsForm.available_to ? null : new Date(settingsForm.available_to).toISOString(),
       };
       await updateExamSettings(settingsCategory.id, payload);
-      toast.success("Exam settings saved");
+      toast.success(t("examSettingsSaved"));
       setShowSettingsModal(false);
     } catch (error: any) {
-      toast.error("Failed to save settings: " + error.message);
+      toast.error(t("failedToSaveSettings") + ": " + error.message);
     } finally {
       setSavingSettings(false);
     }
@@ -305,18 +308,18 @@ export default function ExamManagementPage() {
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!categoryName.trim()) {
-      toast.error("Category name is required");
+      toast.error(t("categoryNameRequired"));
       return;
     }
 
     setCreatingCategory(true);
     try {
       const data = await createExamCategory(categoryName);
-      toast.success("Category created successfully");
+      toast.success(t("categoryCreatedSuccess"));
       setCategories([data.category, ...categories]);
       setCategoryName("");
     } catch (error: any) {
-      toast.error("Failed to create category: " + error.message);
+      toast.error(t("failedToCreateCategory") + ": " + error.message);
     } finally {
       setCreatingCategory(false);
     }
@@ -331,32 +334,32 @@ export default function ExamManagementPage() {
   const handleUpdateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCategory || !editCategoryName.trim()) {
-      toast.error("Category name is required");
+      toast.error(t("categoryNameRequired"));
       return;
     }
 
     setCreatingCategory(true);
     try {
       const data = await updateExamCategory(editingCategory.id, editCategoryName);
-      toast.success("Category updated successfully");
+      toast.success(t("categoryUpdatedSuccess"));
       setCategories(categories.map(c => c.id === editingCategory.id ? data.category : c));
       setShowEditCategoryModal(false);
       setEditingCategory(null);
       setEditCategoryName("");
     } catch (error: any) {
-      toast.error("Failed to update category: " + error.message);
+      toast.error(t("failedToUpdateCategory") + ": " + error.message);
     } finally {
       setCreatingCategory(false);
     }
   };
 
   const handleDeleteCategory = async (categoryId: string) => {
-    if (!confirm("Are you sure you want to delete this category? This will also delete all questions in this category.")) return;
+    if (!confirm(t("confirmDeleteCategory"))) return;
 
     setDeletingCategory(categoryId);
     try {
       await deleteExamCategory(categoryId);
-      toast.success("Category deleted successfully");
+      toast.success(t("categoryDeletedSuccess"));
       setCategories(categories.filter(c => c.id !== categoryId));
       if (activeCategory === categoryId) {
         setActiveCategory(null);
@@ -364,7 +367,7 @@ export default function ExamManagementPage() {
         setFilteredQuestions([]);
       }
     } catch (error: any) {
-      toast.error("Failed to delete category: " + error.message);
+      toast.error(t("failedToDeleteCategory") + ": " + error.message);
     } finally {
       setDeletingCategory(null);
     }
@@ -373,7 +376,7 @@ export default function ExamManagementPage() {
   const handleCreateQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeCategory) {
-      toast.error("Please select a category first");
+      toast.error(t("pleaseSelectCategoryFirst"));
       return;
     }
 
@@ -383,7 +386,7 @@ export default function ExamManagementPage() {
         ...questionForm,
         category_id: activeCategory,
       });
-      toast.success("Question added successfully");
+      toast.success(t("questionAddedSuccess"));
       setQuestions([data.question, ...questions]);
       // Update category question count
       setCategoryQuestionCounts(prev => ({
@@ -408,7 +411,7 @@ export default function ExamManagementPage() {
       setShowQuestionImage(false);
       setShowOptionImages({ A: false, B: false, C: false, D: false });
     } catch (error: any) {
-      toast.error("Failed to add question: " + error.message);
+      toast.error(t("failedToAddQuestion") + ": " + error.message);
     } finally {
       setCreatingQuestion(false);
     }
@@ -489,7 +492,7 @@ export default function ExamManagementPage() {
       const data = await updateExamQuestion(editingQuestion, {
         ...questionForm,
       });
-      toast.success("Question updated successfully");
+      toast.success(t("questionUpdatedSuccess"));
       setQuestions(questions.map(q => q.id === editingQuestion ? data.question : q));
       closeQuestionModal();
       // If came from questions page, go back
@@ -497,19 +500,19 @@ export default function ExamManagementPage() {
         router.push("/Admin/questions");
       }
     } catch (error: any) {
-      toast.error("Failed to update question: " + error.message);
+      toast.error(t("failedToUpdateQuestion") + ": " + error.message);
     } finally {
       setCreatingQuestion(false);
     }
   };
 
   const handleDeleteQuestion = async (questionId: string) => {
-    if (!confirm("Are you sure you want to delete this question?")) return;
+    if (!confirm(t("confirmDeleteQuestion"))) return;
 
     setDeletingQuestion(questionId);
     try {
       await deleteExamQuestion(questionId);
-      toast.success("Question deleted successfully");
+      toast.success(t("questionDeletedSuccess"));
       setQuestions(questions.filter(q => q.id !== questionId));
       // Update category question count
       if (activeCategory) {
@@ -519,7 +522,7 @@ export default function ExamManagementPage() {
         }));
       }
     } catch (error: any) {
-      toast.error("Failed to delete question: " + error.message);
+      toast.error(t("failedToDeleteQuestion") + ": " + error.message);
     } finally {
       setDeletingQuestion(null);
     }
@@ -571,7 +574,7 @@ export default function ExamManagementPage() {
         }
       }
     } catch (error: any) {
-      toast.error("Failed to load question for edit: " + error.message);
+      toast.error(t("failedToLoadQuestionForEdit") + ": " + error.message);
     }
   };
 
@@ -583,7 +586,7 @@ export default function ExamManagementPage() {
         setExamAttempts(data.attempts);
       }
     } catch (error: any) {
-      toast.error("Failed to load exam results: " + error.message);
+      toast.error(t("failedToLoadExamResults") + ": " + error.message);
     } finally {
       setLoadingResults(false);
     }
@@ -605,13 +608,13 @@ export default function ExamManagementPage() {
     
     try {
       await toggleCategoryPublishStatus(category.id, newStatus);
-      toast.success(newStatus ? `Category "${category.name}" published` : `Category "${category.name}" unpublished`);
+      toast.success(newStatus ? t("categoryPublished").replace("{name}", category.name) : t("categoryUnpublished").replace("{name}", category.name));
       // Update local state
       setCategories(prev => prev.map(c => 
         c.id === category.id ? { ...c, is_published: newStatus } : c
       ));
     } catch (error: any) {
-      toast.error("Failed to update publish status: " + error.message);
+      toast.error(t("failedToUpdatePublishStatus") + ": " + error.message);
     }
   };
 
@@ -647,9 +650,9 @@ export default function ExamManagementPage() {
             <CardContent className="flex items-start gap-4 p-6">
               <AlertTriangle className="h-6 w-6 text-destructive mt-0.5" />
               <div>
-                <h3 className="font-semibold text-destructive">Access Denied</h3>
+                <h3 className="font-semibold text-destructive">{t("accessDenied")}</h3>
                 <p className="text-destructive/80 mt-1">
-                  You don't have permission to manage exams. Please contact the primary administrator for access.
+                  {t("examManagementNoPermission")}
                 </p>
               </div>
             </CardContent>
@@ -677,27 +680,27 @@ export default function ExamManagementPage() {
       
       <div className="space-y-6 relative">
         <Watermark />
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold brand-protected">Exam Management</h1>
-          <p className="text-muted-foreground mt-1">
-            Create and manage exam categories and questions
+          <h1 className="text-2xl sm:text-3xl font-bold brand-protected">{t("examManagement")}</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+            {t("examManagementDescription")}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canViewQuestionsTab && (
-            <Button variant="outline" onClick={() => router.push("/Admin/questions")}>
+            <Button variant="outline" onClick={() => router.push("/Admin/questions")} className="flex-shrink-0">
               <Settings className="h-4 w-4 mr-2" />
-              Manage Questions
+              <span className="hidden sm:inline">{t("manageQuestions")}</span>
             </Button>
           )}
-          <Button variant="outline" onClick={openResultsModal}>
+          <Button variant="outline" onClick={openResultsModal} className="flex-shrink-0">
             <Trophy className="h-4 w-4 mr-2" />
-            View Results
+            <span className="hidden sm:inline">{t("viewResults")}</span>
           </Button>
           <Button onClick={() => setShowCategoryForm(!showCategoryForm)}>
             <Plus className="h-4 w-4 mr-2" />
-            {showCategoryForm ? "Cancel" : "Add Category"}
+            {showCategoryForm ? t("cancel") : t("addCategory")}
           </Button>
         </div>
       </div>
@@ -709,21 +712,21 @@ export default function ExamManagementPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BookOpen className="h-5 w-5 text-primary" />
-                Create New Category
+                {t("createNewCategory")}
               </CardTitle>
               <CardDescription>
-                Add a new exam category
+                {t("addNewExamCategory")}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleCreateCategory} className="space-y-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="categoryName">Category Name *</Label>
+                  <Label htmlFor="categoryName">{t("categoryName")}</Label>
                   <Input
                     id="categoryName"
                     value={categoryName}
                     onChange={(e) => setCategoryName(e.target.value)}
-                    placeholder="e.g., Mathematics, Science, History"
+                    placeholder={t("categoryNamePlaceholder")}
                     required
                   />
                 </div>
@@ -731,12 +734,12 @@ export default function ExamManagementPage() {
                   {creatingCategory ? (
                     <>
                       <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Creating...
+                      {t("creating")}
                     </>
                   ) : (
                     <>
                       <Plus className="h-4 w-4 mr-2" />
-                      Create Category
+                      {t("createCategory")}
                     </>
                   )}
                 </Button>
@@ -751,20 +754,20 @@ export default function ExamManagementPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Edit className="h-5 w-5 text-primary" />
-                Edit Category
+                {t("editCategory")}
               </DialogTitle>
               <DialogDescription>
-                Update the category name
+                {t("editCategoryDescription")}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleUpdateCategory} className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="editCategoryName">Category Name *</Label>
+                <Label htmlFor="editCategoryName">{t("categoryName")}</Label>
                 <Input
                   id="editCategoryName"
                   value={editCategoryName}
                   onChange={(e) => setEditCategoryName(e.target.value)}
-                  placeholder="e.g., Mathematics, Science, History"
+                  placeholder={t("categoryNamePlaceholder")}
                   required
                 />
               </div>
@@ -773,17 +776,17 @@ export default function ExamManagementPage() {
                   {creatingCategory ? (
                     <>
                       <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Updating...
+                      {t("updating")}
                     </>
                   ) : (
                     <>
                       <Edit className="h-4 w-4 mr-2" />
-                      Update Category
+                      {t("updateCategory")}
                     </>
                   )}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => setShowEditCategoryModal(false)}>
-                  Cancel
+                  {t("cancel")}
                 </Button>
               </div>
             </form>
@@ -791,7 +794,7 @@ export default function ExamManagementPage() {
         </Dialog>
 
         {/* Categories List */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {categories.map((category) => {
             const isPrimaryAdmin = currentUser?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
             
@@ -816,9 +819,9 @@ export default function ExamManagementPage() {
                           className={`text-xs ${category.is_published ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-100'}`}
                         >
                           {category.is_published ? (
-                            <><Globe className="h-3 w-3 mr-1" /> Published</>
+                            <><Globe className="h-3 w-3 mr-1" /> {t("published")}</>
                           ) : (
-                            <><Lock className="h-3 w-3 mr-1" /> Draft</>
+                            <><Lock className="h-3 w-3 mr-1" /> {t("draft")}</>
                           )}
                         </Badge>
                       </div>
@@ -831,7 +834,7 @@ export default function ExamManagementPage() {
                           size="sm"
                           onClick={(e) => togglePublishCategory(category, e)}
                           className={category.is_published ? "text-green-600" : "text-gray-500"}
-                          title={category.is_published ? "Unpublish category" : "Publish category"}
+                          title={category.is_published ? t("unpublishCategory") : t("publishCategory")}
                         >
                           {category.is_published ? (
                             <Globe className="h-4 w-4" />
@@ -850,14 +853,14 @@ export default function ExamManagementPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditCategory(category); }}>
                               <Edit className="h-4 w-4 mr-2" />
-                              Edit
+                              {t("edit")}
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={(e) => { e.stopPropagation(); handleDeleteCategory(category.id); }}
                               className="text-destructive focus:text-destructive"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
+                              {t("delete")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -865,10 +868,10 @@ export default function ExamManagementPage() {
                     </div>
                   </div>
                   <CardDescription className="text-xs flex items-center justify-between mt-2">
-                    <span>Created: {new Date(category.created_at).toLocaleDateString()}</span>
+                    <span>{t("created")}: {new Date(category.created_at).toLocaleDateString()}</span>
                     <span className="flex items-center gap-1">
                       <FileText className="h-3 w-3" />
-                      {categoryQuestionCounts[category.id] || 0} questions
+                      {categoryQuestionCounts[category.id] || 0} {t("questions")}
                     </span>
                   </CardDescription>
                 </CardHeader>
@@ -885,7 +888,7 @@ export default function ExamManagementPage() {
                     }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Questions
+                    {t("addQuestions")}
                   </Button>
                 )}
                 {canManageSettings && (
@@ -899,7 +902,7 @@ export default function ExamManagementPage() {
                     }}
                   >
                     <Settings className="h-4 w-4 mr-2" />
-                    Settings
+                    {t("settings")}
                   </Button>
                 )}
                   </div>
@@ -915,10 +918,10 @@ export default function ExamManagementPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BookOpen className="h-5 w-5 text-primary" />
-                Questions - {categories.find(c => c.id === activeCategory)?.name}
+                {t("questions")} - {categories.find(c => c.id === activeCategory)?.name}
               </CardTitle>
               <CardDescription>
-                {filteredQuestions.length} question{filteredQuestions.length !== 1 ? 's' : ''} found
+                {filteredQuestions.length} {filteredQuestions.length !== 1 ? t("questionsFoundPlural") : t("questionFoundSingular")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -926,7 +929,7 @@ export default function ExamManagementPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
                   <Input
-                    placeholder="Search questions, options, or explanations..."
+                    placeholder={t("searchQuestionsPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
@@ -936,9 +939,9 @@ export default function ExamManagementPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Questions</SelectItem>
-                    <SelectItem value="with">With Images</SelectItem>
-                    <SelectItem value="without">Without Images</SelectItem>
+                    <SelectItem value="all">{t("allQuestions")}</SelectItem>
+                    <SelectItem value="with">{t("withImages")}</SelectItem>
+                    <SelectItem value="without">{t("withoutImages")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select
@@ -951,27 +954,27 @@ export default function ExamManagementPage() {
                 >
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <ArrowUpDown className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Sort by..." />
+                    <SelectValue placeholder={t("sortBy")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="created_at-desc">Newest First</SelectItem>
-                    <SelectItem value="created_at-asc">Oldest First</SelectItem>
-                    <SelectItem value="question-asc">Question (A-Z)</SelectItem>
-                    <SelectItem value="question-desc">Question (Z-A)</SelectItem>
-                    <SelectItem value="correct_answer-asc">Answer (A-D)</SelectItem>
-                    <SelectItem value="correct_answer-desc">Answer (D-A)</SelectItem>
+                    <SelectItem value="created_at-desc">{t("newestFirst")}</SelectItem>
+                    <SelectItem value="created_at-asc">{t("oldestFirst")}</SelectItem>
+                    <SelectItem value="question-asc">{t("questionAZ")}</SelectItem>
+                    <SelectItem value="question-desc">{t("questionZA")}</SelectItem>
+                    <SelectItem value="correct_answer-asc">{t("answerAD")}</SelectItem>
+                    <SelectItem value="correct_answer-desc">{t("answerDA")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button onClick={() => openAddQuestionModal(activeCategory)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Question
+                  {t("addQuestion")}
                 </Button>
               </div>
 
               {/* Questions Grid */}
               {filteredQuestions.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  {searchQuery || filterByImage !== "all" ? "No questions match your filters" : "No questions in this category yet"}
+                  {searchQuery || filterByImage !== "all" ? t("noQuestionsMatchFilters") : t("noQuestionsInCategory")}
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
@@ -980,29 +983,29 @@ export default function ExamManagementPage() {
                       key={question.id}
                       className="p-4 border rounded-lg hover:border-primary/50 transition-colors"
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline">Correct: {question.correct_answer}</Badge>
-                            {(question.question_image || question.option_a_image || question.option_b_image || 
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <Badge variant="outline" className="text-xs">{t("correct")}: {question.correct_answer}</Badge>
+                            {(question.question_image || question.option_a_image || question.option_b_image ||
                               question.option_c_image || question.option_d_image) && (
-                              <Badge variant="secondary" className="flex items-center gap-1">
+                              <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                                 <ImageIcon className="h-3 w-3" />
-                                Has Images
+                                {t("hasImages")}
                               </Badge>
                             )}
                           </div>
                           {question.question && (
-                            <p className="text-sm mb-2">{question.question}</p>
+                            <p className="text-sm mb-2 break-words">{question.question}</p>
                           )}
-                          <div className="text-xs text-muted-foreground grid grid-cols-2 gap-2">
-                            <div>A: {question.option_a || "(image only)"}</div>
-                            <div>B: {question.option_b || "(image only)"}</div>
-                            <div>C: {question.option_c || "(image only)"}</div>
-                            <div>D: {question.option_d || "(image only)"}</div>
+                          <div className="text-xs text-muted-foreground grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>A: {question.option_a || t("imageOnly")}</div>
+                            <div>B: {question.option_b || t("imageOnly")}</div>
+                            <div>C: {question.option_c || t("imageOnly")}</div>
+                            <div>D: {question.option_d || t("imageOnly")}</div>
                           </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 sm:self-start">
                           <Button
                             variant="outline"
                             size="sm"
@@ -1036,23 +1039,23 @@ export default function ExamManagementPage() {
         <Dialog open={showSettingsModal} onOpenChange={setShowSettingsModal}>
           <DialogContent className="sm:max-w-lg max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Exam Settings</DialogTitle>
+              <DialogTitle>{t("examSettings")}</DialogTitle>
               <DialogDescription>
-                {settingsCategory ? `Category: ${settingsCategory.name}` : "Configure exam rules"}
+                {settingsCategory ? `${t("category")}: ${settingsCategory.name}` : t("configureExamRules")}
               </DialogDescription>
             </DialogHeader>
 
             {loadingSettings ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Loading settings...
+                {t("loadingSettings")}
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg border border-border p-3">
                   <div>
-                    <div className="font-medium">Always available</div>
-                    <div className="text-sm text-muted-foreground">If disabled, set an availability window</div>
+                    <div className="font-medium">{t("alwaysAvailable")}</div>
+                    <div className="text-sm text-muted-foreground">{t("alwaysAvailableDescription")}</div>
                   </div>
                   <Switch
                     checked={settingsForm.alwaysAvailable}
@@ -1063,7 +1066,7 @@ export default function ExamManagementPage() {
                 {!settingsForm.alwaysAvailable && (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-2">
-                      <Label htmlFor="available_from">Available from</Label>
+                      <Label htmlFor="available_from">{t("availableFrom")}</Label>
                       <Input
                         id="available_from"
                         type="datetime-local"
@@ -1072,7 +1075,7 @@ export default function ExamManagementPage() {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="available_to">Available to</Label>
+                      <Label htmlFor="available_to">{t("availableTo")}</Label>
                       <Input
                         id="available_to"
                         type="datetime-local"
@@ -1085,7 +1088,7 @@ export default function ExamManagementPage() {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label htmlFor="question_count">Questions number</Label>
+                    <Label htmlFor="question_count">{t("questionsNumber")}</Label>
                     <Input
                       id="question_count"
                       type="number"
@@ -1096,7 +1099,7 @@ export default function ExamManagementPage() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="duration_minutes">Time (minutes)</Label>
+                    <Label htmlFor="duration_minutes">{t("timeMinutes")}</Label>
                     <Input
                       id="duration_minutes"
                       type="number"
@@ -1109,35 +1112,35 @@ export default function ExamManagementPage() {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Question sorting</Label>
+                  <Label>{t("questionSorting")}</Label>
                   <Select
                     value={settingsForm.sorting_mode}
                     onValueChange={(v) => setSettingsForm((p) => ({ ...p, sorting_mode: v as ExamQuestionSortingMode }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select mode" />
+                      <SelectValue placeholder={t("selectMode")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="RANDOM">Random</SelectItem>
-                      <SelectItem value="TEXT_ONLY">Texts only</SelectItem>
-                      <SelectItem value="WITH_PICTURE">With picture</SelectItem>
-                      <SelectItem value="MIXED_50">Mixed 50%</SelectItem>
+                      <SelectItem value="RANDOM">{t("sortingMode.random")}</SelectItem>
+                      <SelectItem value="TEXT_ONLY">{t("sortingMode.textOnly")}</SelectItem>
+                      <SelectItem value="WITH_PICTURE">{t("sortingMode.withPicture")}</SelectItem>
+                      <SelectItem value="MIXED_50">{t("sortingMode.mixed50")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="outline" onClick={() => setShowSettingsModal(false)}>
-                    Cancel
+                    {t("cancel")}
                   </Button>
                   <Button onClick={saveExamSettings} disabled={savingSettings}>
                     {savingSettings ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
+                        {t("saving")}
                       </>
                     ) : (
-                      "Save"
+                      t("save")
                     )}
                   </Button>
                 </div>
@@ -1150,7 +1153,7 @@ export default function ExamManagementPage() {
           <div className="text-center py-12">
             <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">
-              No categories yet. Create your first category above.
+              {t("noCategoriesYet")}
             </p>
           </div>
         )}
@@ -1164,18 +1167,18 @@ export default function ExamManagementPage() {
               {editingQuestion ? (
                 <>
                   <Edit className="h-5 w-5 text-primary" />
-                  Edit Question
+                  {t("editQuestion")}
                 </>
               ) : (
                 <>
                   <Plus className="h-5 w-5 text-primary" />
-                  Add New Question
+                  {t("addNewQuestion")}
                 </>
               )}
             </DialogTitle>
             <DialogDescription>
-              Category: {categories.find(c => c.id === activeCategory)?.name}
-              {editingQuestion && " (Editing mode)"}
+              {t("category")}: {categories.find(c => c.id === activeCategory)?.name}
+              {editingQuestion && ` (${t("editingMode")})`}
             </DialogDescription>
           </DialogHeader>
           
@@ -1183,12 +1186,12 @@ export default function ExamManagementPage() {
             {/* Question */}
             <div className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="question">Question Text *</Label>
+                <Label htmlFor="question">{t("questionText")}</Label>
                 <Textarea
                   id="question"
                   value={questionForm.question}
                   onChange={(e) => setQuestionForm({ ...questionForm, question: e.target.value })}
-                  placeholder="Enter your question text here..."
+                  placeholder={t("questionTextPlaceholder")}
                   rows={3}
                   required
                 />
@@ -1199,7 +1202,7 @@ export default function ExamManagementPage() {
                 <div className="flex items-center gap-2">
                   <ImageIcon className="h-4 w-4 text-muted-foreground" />
                   <Label className="text-sm font-normal cursor-pointer" htmlFor="question-image-toggle">
-                    Add question image
+                    {t("addQuestionImage")}
                   </Label>
                 </div>
                 <Switch
@@ -1211,7 +1214,7 @@ export default function ExamManagementPage() {
               
               {showQuestionImage && (
                 <div className="grid gap-2 animate-in fade-in slide-in-from-top-2">
-                  <Label>Question Image (Optional)</Label>
+                  <Label>{t("questionImageOptional")}</Label>
                   <ImageUpload
                     value={questionForm.question_image}
                     onChange={(url) => setQuestionForm({ ...questionForm, question_image: url || "" })}
@@ -1223,24 +1226,24 @@ export default function ExamManagementPage() {
 
             {/* Options - 2 per row */}
             <div className="space-y-4">
-              <Label className="text-base font-semibold">Options *</Label>
-              
-              <div className="grid md:grid-cols-2 gap-4">
-                {/* Option A */}
+              <Label className="text-base font-semibold">{t("options")}</Label>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* {t("optionA")} */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
                     <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">A</span>
-                    Option A
+                    {t("optionA")}
                   </Label>
                   <Input
                     value={questionForm.option_a}
                     onChange={(e) => setQuestionForm({ ...questionForm, option_a: e.target.value })}
-                    placeholder="Enter option A text..."
+                    placeholder={t("optionAPlaceholder")}
                     required
                   />
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground cursor-pointer" htmlFor="option-a-image-toggle">
-                      Add image
+                      {t("addImage")}
                     </Label>
                     <Switch
                       id="option-a-image-toggle"
@@ -1259,21 +1262,21 @@ export default function ExamManagementPage() {
                   )}
                 </div>
 
-                {/* Option B */}
+                {/* {t("optionB")} */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
                     <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">B</span>
-                    Option B
+                    {t("optionB")}
                   </Label>
                   <Input
                     value={questionForm.option_b}
                     onChange={(e) => setQuestionForm({ ...questionForm, option_b: e.target.value })}
-                    placeholder="Enter option B text..."
+                    placeholder={t("optionBPlaceholder")}
                     required
                   />
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground cursor-pointer" htmlFor="option-b-image-toggle">
-                      Add image
+                      {t("addImage")}
                     </Label>
                     <Switch
                       id="option-b-image-toggle"
@@ -1292,21 +1295,21 @@ export default function ExamManagementPage() {
                   )}
                 </div>
 
-                {/* Option C */}
+                {/* {t("optionC")} */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
                     <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">C</span>
-                    Option C
+                    {t("optionC")}
                   </Label>
                   <Input
                     value={questionForm.option_c}
                     onChange={(e) => setQuestionForm({ ...questionForm, option_c: e.target.value })}
-                    placeholder="Enter option C text..."
+                    placeholder={t("optionCPlaceholder")}
                     required
                   />
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground cursor-pointer" htmlFor="option-c-image-toggle">
-                      Add image
+                      {t("addImage")}
                     </Label>
                     <Switch
                       id="option-c-image-toggle"
@@ -1325,21 +1328,21 @@ export default function ExamManagementPage() {
                   )}
                 </div>
 
-                {/* Option D */}
+                {/* {t("optionD")} */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
                     <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">D</span>
-                    Option D
+                    {t("optionD")}
                   </Label>
                   <Input
                     value={questionForm.option_d}
                     onChange={(e) => setQuestionForm({ ...questionForm, option_d: e.target.value })}
-                    placeholder="Enter option D text..."
+                    placeholder={t("optionDPlaceholder")}
                     required
                   />
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground cursor-pointer" htmlFor="option-d-image-toggle">
-                      Add image
+                      {t("addImage")}
                     </Label>
                     <Switch
                       id="option-d-image-toggle"
@@ -1361,9 +1364,9 @@ export default function ExamManagementPage() {
             </div>
 
             {/* Correct Answer & Explanation Row */}
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="correct-answer">Correct Answer *</Label>
+                <Label htmlFor="correct-answer">{t("correctAnswer")}</Label>
                 <Select
                   value={questionForm.correct_answer}
                   onValueChange={(value: "A" | "B" | "C" | "D") =>
@@ -1371,24 +1374,24 @@ export default function ExamManagementPage() {
                   }
                 >
                   <SelectTrigger id="correct-answer">
-                    <SelectValue placeholder="Select correct answer" />
+                    <SelectValue placeholder={t("selectCorrectAnswer")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="A">Option A</SelectItem>
-                    <SelectItem value="B">Option B</SelectItem>
-                    <SelectItem value="C">Option C</SelectItem>
-                    <SelectItem value="D">Option D</SelectItem>
+                    <SelectItem value="A">{t("optionA")}</SelectItem>
+                    <SelectItem value="B">{t("optionB")}</SelectItem>
+                    <SelectItem value="C">{t("optionC")}</SelectItem>
+                    <SelectItem value="D">{t("optionD")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="explanation">Explanation (Optional)</Label>
+                <Label htmlFor="explanation">{t("explanationOptional")}</Label>
                 <Textarea
                   id="explanation"
                   value={questionForm.explanation}
                   onChange={(e) => setQuestionForm({ ...questionForm, explanation: e.target.value })}
-                  placeholder="Explain why this is the correct answer..."
+                  placeholder={t("explanationPlaceholder")}
                   rows={2}
                 />
               </div>
@@ -1399,20 +1402,20 @@ export default function ExamManagementPage() {
                 {creatingQuestion ? (
                   <>
                     <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    {editingQuestion ? "Updating..." : "Adding..."}
+                    {editingQuestion ? t("updating") : t("adding")}
                   </>
                 ) : (
                   <>
                     {editingQuestion ? (
-                      <><Edit className="h-4 w-4 mr-2" /> Update Question</>
+                      <><Edit className="h-4 w-4 mr-2" /> {t("updateQuestion")}</>
                     ) : (
-                      <><Plus className="h-4 w-4 mr-2" /> Add Question</>
+                      <><Plus className="h-4 w-4 mr-2" /> {t("addQuestion")}</>
                     )}
                   </>
                 )}
               </Button>
               <Button type="button" variant="outline" onClick={handleCancelEdit}>
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           </form>
@@ -1425,10 +1428,10 @@ export default function ExamManagementPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Trophy className="h-5 w-5 text-primary" />
-              Exam Results
+              {t("examResults")}
             </DialogTitle>
             <DialogDescription>
-              View all user exam attempts and results
+              {t("examResultsDescription")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1439,50 +1442,50 @@ export default function ExamManagementPage() {
           ) : selectedAttempt ? (
             <div className="space-y-4">
               <Button variant="outline" onClick={() => setSelectedAttempt(null)}>
-                ← Back to all results
+                {t("backToAllResults")}
               </Button>
               
               <Card className="navo-card-brand">
                 <CardHeader>
                   <CardTitle>{selectedAttempt.category_name}</CardTitle>
                   <CardDescription>
-                    User ID: {selectedAttempt.user_id} · Completed: {new Date(selectedAttempt.completed_at).toLocaleString()}
+                    {t("userId")}: {selectedAttempt.user_id} · {t("completed")}: {new Date(selectedAttempt.completed_at).toLocaleString()}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="text-center p-3 bg-secondary rounded-lg">
                       <div className="text-2xl font-bold text-primary">{selectedAttempt.score_percentage}%</div>
-                      <div className="text-xs text-muted-foreground">Score</div>
+                      <div className="text-xs text-muted-foreground">{t("score")}</div>
                     </div>
                     <div className="text-center p-3 bg-secondary rounded-lg">
                       <div className="text-2xl font-bold text-green-600">{selectedAttempt.correct_answers}</div>
-                      <div className="text-xs text-muted-foreground">Correct</div>
+                      <div className="text-xs text-muted-foreground">{t("correct")}</div>
                     </div>
                     <div className="text-center p-3 bg-secondary rounded-lg">
                       <div className="text-2xl font-bold text-red-600">{selectedAttempt.total_questions - selectedAttempt.correct_answers}</div>
-                      <div className="text-xs text-muted-foreground">Incorrect</div>
+                      <div className="text-xs text-muted-foreground">{t("incorrect")}</div>
                     </div>
                     <div className="text-center p-3 bg-secondary rounded-lg">
                       <div className="text-2xl font-bold">{Math.floor(selectedAttempt.duration_seconds / 60)}:{String(selectedAttempt.duration_seconds % 60).padStart(2, "0")}</div>
-                      <div className="text-xs text-muted-foreground">Time</div>
+                      <div className="text-xs text-muted-foreground">{t("time")}</div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <h4 className="font-semibold">Answer Breakdown</h4>
+                    <h4 className="font-semibold">{t("answerBreakdown")}</h4>
                     {selectedAttempt.answers.map((answer: any, idx: number) => (
                       <div key={answer.question_id} className="p-3 border rounded-lg">
                         <div className="flex items-center gap-2 mb-2">
                           <Badge variant={answer.is_correct ? "default" : "destructive"}>
-                            {answer.is_correct ? "Correct" : "Incorrect"}
+                            {answer.is_correct ? t("correct") : t("incorrect")}
                           </Badge>
-                          <span className="text-sm text-muted-foreground">Question {idx + 1}</span>
+                          <span className="text-sm text-muted-foreground">{t("question")} {idx + 1}</span>
                         </div>
                         <div className="text-sm">
-                          <span className="text-muted-foreground">Selected: </span>
+                          <span className="text-muted-foreground">{t("selected")}: </span>
                           <span className={answer.is_correct ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                            {answer.selected_answer || "Not answered"}
+                            {answer.selected_answer || t("notAnswered")}
                           </span>
                         </div>
                       </div>
@@ -1496,30 +1499,30 @@ export default function ExamManagementPage() {
               {examAttempts.length === 0 ? (
                 <div className="text-center py-12">
                   <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No exam results yet</p>
+                  <p className="text-muted-foreground">{t("noExamResultsYet")}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {examAttempts.map((attempt) => (
                     <Card key={attempt.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => viewAttemptDetails(attempt)}>
                       <CardContent className="pt-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="font-semibold">{attempt.category_name}</div>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold truncate">{attempt.category_name}</div>
                             <div className="text-sm text-muted-foreground">
-                              {new Date(attempt.completed_at).toLocaleString()} · User: {attempt.user_id.slice(0, 8)}...
+                              {new Date(attempt.completed_at).toLocaleDateString()} · {t("user")}: {attempt.user_id.slice(0, 8)}...
                             </div>
                           </div>
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-3 sm:gap-4">
                             <div className="text-right">
                               <div className={`text-lg font-bold ${attempt.score_percentage >= 80 ? 'text-green-600' : attempt.score_percentage >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
                                 {attempt.score_percentage}%
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                {attempt.correct_answers}/{attempt.total_questions} correct
+                                {attempt.correct_answers}/{attempt.total_questions} {t("correct")}
                               </div>
                             </div>
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           </div>
                         </div>
                       </CardContent>

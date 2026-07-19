@@ -17,6 +17,7 @@ import { FileText, Edit, Trash2, Loader2, Search, ArrowLeft, Image as ImageIcon,
 import { toast } from "sonner";
 import { Watermark } from "@/components/watermark";
 import { useBrandingConfig } from "@/lib/branding-config";
+import { useLanguage } from "@/lib/language-context";
 import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { isAdmin, hasReadWriteQuestionAccess, hasReadOnlyQuestionAccess } from "@/lib/permissions";
@@ -24,6 +25,7 @@ import { getExamCategories, getExamQuestions, updateExamQuestion, deleteExamQues
 
 export default function QuestionManagementPage() {
   const { config } = useBrandingConfig();
+  const { t } = useLanguage();
   const router = useRouter();
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
@@ -110,7 +112,7 @@ export default function QuestionManagementPage() {
         setCategories(data.categories);
       }
     } catch (error: any) {
-      toast.error("Failed to load categories: " + error.message);
+      toast.error(t("failedToLoadCategories") + ": " + error.message);
     }
   };
 
@@ -122,22 +124,22 @@ export default function QuestionManagementPage() {
         setQuestions(data.questions);
       }
     } catch (error: any) {
-      toast.error("Failed to load questions: " + error.message);
+      toast.error(t("failedToLoadQuestions") + ": " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteQuestion = async (questionId: string) => {
-    if (!confirm("Are you sure you want to delete this question?")) return;
+    if (!confirm(t("confirmDeleteQuestion"))) return;
 
     setDeletingQuestion(questionId);
     try {
       await deleteExamQuestion(questionId);
-      toast.success("Question deleted successfully");
+      toast.success(t("questionDeletedSuccess"));
       setQuestions(questions.filter(q => q.id !== questionId));
     } catch (error: any) {
-      toast.error("Failed to delete question: " + error.message);
+      toast.error(t("failedToDeleteQuestion") + ": " + error.message);
     } finally {
       setDeletingQuestion(null);
     }
@@ -146,18 +148,18 @@ export default function QuestionManagementPage() {
   const handleChangeCategory = async (questionId: string, newCategoryId: string) => {
     try {
       const data = await updateExamQuestion(questionId, { category_id: newCategoryId });
-      toast.success("Question category updated successfully");
+      toast.success(t("questionCategoryUpdatedSuccess"));
       setQuestions(questions.map(q => q.id === questionId ? data.question : q));
       loadAllQuestions();
     } catch (error: any) {
-      toast.error("Failed to update question category: " + error.message);
+      toast.error(t("failedToUpdateQuestionCategory") + ": " + error.message);
     }
   };
 
   // Helper function defined before use to avoid hoisting issues
   const getCategoryName = (categoryId: string) => {
     const category = categories.find(c => c.id === categoryId);
-    return category?.name || "Unknown";
+    return category?.name || t("unknown");
   };
 
   const filteredQuestions = questions.filter(q => {
@@ -215,17 +217,17 @@ export default function QuestionManagementPage() {
   };
 
   const handleBulkDelete = async () => {
-    if (!confirm(`Are you sure you want to delete ${selectedQuestions.size} questions?`)) return;
+    if (!confirm(t("confirmBulkDeleteQuestions").replace("{count}", String(selectedQuestions.size)))) return;
 
     setBulkDeleting(true);
     try {
       const promises = Array.from(selectedQuestions).map(id => deleteExamQuestion(id));
       await Promise.all(promises);
-      toast.success(`${selectedQuestions.size} questions deleted successfully`);
+      toast.success(t("bulkDeleteQuestionsSuccess").replace("{count}", String(selectedQuestions.size)));
       setSelectedQuestions(new Set());
       loadAllQuestions();
     } catch (error: any) {
-      toast.error("Failed to delete some questions: " + error.message);
+      toast.error(t("failedToDeleteSomeQuestions") + ": " + error.message);
     } finally {
       setBulkDeleting(false);
     }
@@ -238,11 +240,11 @@ export default function QuestionManagementPage() {
         updateExamQuestion(id, { category_id: newCategoryId })
       );
       await Promise.all(promises);
-      toast.success(`${selectedQuestions.size} questions moved successfully`);
+      toast.success(t("bulkMoveQuestionsSuccess").replace("{count}", String(selectedQuestions.size)));
       setSelectedQuestions(new Set());
       loadAllQuestions();
     } catch (error: any) {
-      toast.error("Failed to move some questions: " + error.message);
+      toast.error(t("failedToMoveSomeQuestions") + ": " + error.message);
     } finally {
       setBulkMoving(false);
     }
@@ -324,11 +326,11 @@ export default function QuestionManagementPage() {
     setUpdatingQuestion(true);
     try {
       const data = await updateExamQuestion(editingQuestion, questionForm);
-      toast.success("Question updated successfully");
+      toast.success(t("questionUpdatedSuccess"));
       setQuestions(questions.map(q => q.id === editingQuestion ? data.question : q));
       closeEditModal();
     } catch (error: any) {
-      toast.error("Failed to update question: " + error.message);
+      toast.error(t("failedToUpdateQuestion") + ": " + error.message);
     } finally {
       setUpdatingQuestion(false);
     }
@@ -348,10 +350,10 @@ export default function QuestionManagementPage() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={() => router.push("/Admin")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            {t("back")}
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Question Management</h1>
+            <h1 className="text-3xl font-bold">{t("questionManagement")}</h1>
           </div>
         </div>
         <Card className="border-destructive/20 hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--destructive)/0.3)] hover:-translate-y-1 hover:border-destructive transition-all duration-300">
@@ -359,9 +361,9 @@ export default function QuestionManagementPage() {
             <div className="flex items-start gap-4">
               <AlertTriangle className="h-6 w-6 text-destructive mt-0.5" />
               <div>
-                <h3 className="font-semibold text-destructive">Access Denied</h3>
+                <h3 className="font-semibold text-destructive">{t("accessDenied")}</h3>
                 <p className="text-destructive/80 mt-1">
-                  You don't have permission to view questions. Please contact the primary administrator for access.
+                  {t("questionManagementNoPermission")}
                 </p>
               </div>
             </div>
@@ -391,18 +393,18 @@ export default function QuestionManagementPage() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={() => router.push("/Admin/exams")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            {t("back")}
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Question Management</h1>
+            <h1 className="text-3xl font-bold">{t("questionManagement")}</h1>
           <p className="text-muted-foreground mt-1">
-            {isReadOnly ? "View all exam questions (Read Only)" : "View, edit, delete, and manage all exam questions"}
+            {isReadOnly ? t("viewQuestionsReadOnly") : t("viewQuestionsDescription")}
           </p>
         </div>
         {isReadOnly && (
           <div className="flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded-full text-sm">
             <Eye className="h-4 w-4" />
-            <span>Read Only Mode</span>
+            <span>{t("readOnlyMode")}</span>
           </div>
         )}
       </div>
@@ -413,18 +415,18 @@ export default function QuestionManagementPage() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-primary" />
-                Filter Questions
+                {t("filterQuestions")}
               </CardTitle>
               <CardDescription>
-                Total questions: {filteredQuestions.length}
-                {selectedQuestions.size > 0 && ` • ${selectedQuestions.size} selected`}
+                {t("totalQuestions")}: {filteredQuestions.length}
+                {selectedQuestions.size > 0 && ` • ${selectedQuestions.size} ${t("selected").toLowerCase()}`}
               </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search questions..."
+                  placeholder={t("searchQuestionsPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 w-full sm:w-[250px]"
@@ -435,10 +437,10 @@ export default function QuestionManagementPage() {
                 onValueChange={setSelectedCategory}
               >
                 <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder={t("selectCategory")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Questions</SelectItem>
+                  <SelectItem value="all">{t("allQuestions")}</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
@@ -458,12 +460,12 @@ export default function QuestionManagementPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <CheckSquare className="h-5 w-5 text-primary" />
-                <span className="font-medium">{selectedQuestions.size} questions selected</span>
+                <span className="font-medium">{selectedQuestions.size} {t("questionsSelected")}</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Select onValueChange={handleBulkMove} disabled={bulkMoving}>
                   <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Move to category..." />
+                    <SelectValue placeholder={t("moveToCategory")} />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
@@ -484,14 +486,14 @@ export default function QuestionManagementPage() {
                   ) : (
                     <Trash2 className="h-4 w-4 mr-2" />
                   )}
-                  Delete Selected
+                  {t("deleteSelected")}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setSelectedQuestions(new Set())}
                 >
-                  Clear Selection
+                  {t("clearSelection")}
                 </Button>
               </div>
             </div>
@@ -502,11 +504,11 @@ export default function QuestionManagementPage() {
       {/* Image Modal */}
       <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
         <DialogContent className="sm:max-w-3xl max-w-[95vw] w-full max-h-[90vh] overflow-auto">
-          <DialogTitle>Image Preview</DialogTitle>
+          <DialogTitle>{t("imagePreview")}</DialogTitle>
           {selectedImage && (
             <img
               src={selectedImage}
-              alt="Preview"
+              alt={t("preview")}
               className="w-full h-auto rounded-lg"
             />
           )}
@@ -519,10 +521,10 @@ export default function QuestionManagementPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5 text-primary" />
-              Question Details
+              {t("questionDetails")}
             </DialogTitle>
             <DialogDescription>
-              Category: {viewingQuestion ? getCategoryName(viewingQuestion.category_id) : ""}
+              {t("category")}: {viewingQuestion ? getCategoryName(viewingQuestion.category_id) : ""}
             </DialogDescription>
           </DialogHeader>
           
@@ -531,14 +533,14 @@ export default function QuestionManagementPage() {
               {/* Question Card */}
               <Card className="border-2 border-primary/20">
                 <CardHeader>
-                  <CardTitle className="text-lg">Question</CardTitle>
+                  <CardTitle className="text-lg">{t("question")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {viewingQuestion.question_image && (
                     <div>
                       <img 
                         src={viewingQuestion.question_image} 
-                        alt="Question" 
+                        alt={t("question")} 
                         className="w-full h-auto rounded-lg border cursor-pointer"
                         onClick={() => setSelectedImage(viewingQuestion.question_image!)}
                       />
@@ -551,7 +553,7 @@ export default function QuestionManagementPage() {
               {/* Options Card */}
               <Card className="border-2 border-primary/20">
                 <CardHeader>
-                  <CardTitle className="text-lg">Options</CardTitle>
+                  <CardTitle className="text-lg">{t("options")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {['A', 'B', 'C', 'D'].map((option) => {
@@ -589,7 +591,7 @@ export default function QuestionManagementPage() {
                           </div>
                           {isCorrect && (
                             <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                              ✓ Correct
+                              ✓ {t("correct")}
                             </span>
                           )}
                         </div>
@@ -603,7 +605,7 @@ export default function QuestionManagementPage() {
               {viewingQuestion.explanation && (
                 <Card className="border-2 border-primary/20">
                   <CardHeader>
-                    <CardTitle className="text-lg">Explanation</CardTitle>
+                    <CardTitle className="text-lg">{t("explanation")}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm">{viewingQuestion.explanation}</p>
@@ -622,11 +624,11 @@ export default function QuestionManagementPage() {
                     className="flex-1"
                   >
                     <Edit className="h-4 w-4 mr-2" />
-                    Edit Question
+                    {t("editQuestion")}
                   </Button>
                 )}
                 <Button variant="outline" onClick={() => setShowViewModal(false)} className="flex-1">
-                  Close
+                  {t("close")}
                 </Button>
               </div>
             </div>
@@ -640,10 +642,10 @@ export default function QuestionManagementPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="h-5 w-5 text-primary" />
-              Edit Question
+              {t("editQuestion")}
             </DialogTitle>
             <DialogDescription>
-              Category: {getCategoryName(questionForm.category_id)}
+              {t("category")}: {getCategoryName(questionForm.category_id)}
             </DialogDescription>
           </DialogHeader>
           
@@ -651,12 +653,12 @@ export default function QuestionManagementPage() {
             {/* Question */}
             <div className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="question">Question Text *</Label>
+                <Label htmlFor="question">{t("questionText")}</Label>
                 <Textarea
                   id="question"
                   value={questionForm.question}
                   onChange={(e) => setQuestionForm({ ...questionForm, question: e.target.value })}
-                  placeholder="Enter your question text here..."
+                  placeholder={t("questionTextPlaceholder")}
                   rows={3}
                   required
                 />
@@ -667,7 +669,7 @@ export default function QuestionManagementPage() {
                 <div className="flex items-center gap-2">
                   <ImageIcon className="h-4 w-4 text-muted-foreground" />
                   <Label className="text-sm font-normal cursor-pointer" htmlFor="question-image-toggle">
-                    Add question image
+                    {t("addQuestionImage")}
                   </Label>
                 </div>
                 <Switch
@@ -679,7 +681,7 @@ export default function QuestionManagementPage() {
               
               {showQuestionImage && (
                 <div className="grid gap-2 animate-in fade-in slide-in-from-top-2">
-                  <Label>Question Image (Optional)</Label>
+                  <Label>{t("questionImageOptional")}</Label>
                   <ImageUpload
                     value={questionForm.question_image}
                     onChange={(url) => setQuestionForm({ ...questionForm, question_image: url || "" })}
@@ -691,24 +693,24 @@ export default function QuestionManagementPage() {
 
             {/* Options - 2 per row */}
             <div className="space-y-4">
-              <Label className="text-base font-semibold">Options *</Label>
+              <Label className="text-base font-semibold">{t("options")}</Label>
               
               <div className="grid md:grid-cols-2 gap-4">
                 {/* Option A */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
                     <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">A</span>
-                    Option A
+                    {t("optionA")}
                   </Label>
                   <Input
                     value={questionForm.option_a}
                     onChange={(e) => setQuestionForm({ ...questionForm, option_a: e.target.value })}
-                    placeholder="Enter option A text..."
+                    placeholder={t("optionAPlaceholder")}
                     required
                   />
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground cursor-pointer" htmlFor="option-a-image-toggle">
-                      Add image
+                      {t("addImage")}
                     </Label>
                     <Switch
                       id="option-a-image-toggle"
@@ -731,17 +733,17 @@ export default function QuestionManagementPage() {
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
                     <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">B</span>
-                    Option B
+                    {t("optionB")}
                   </Label>
                   <Input
                     value={questionForm.option_b}
                     onChange={(e) => setQuestionForm({ ...questionForm, option_b: e.target.value })}
-                    placeholder="Enter option B text..."
+                    placeholder={t("optionBPlaceholder")}
                     required
                   />
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground cursor-pointer" htmlFor="option-b-image-toggle">
-                      Add image
+                      {t("addImage")}
                     </Label>
                     <Switch
                       id="option-b-image-toggle"
@@ -764,17 +766,17 @@ export default function QuestionManagementPage() {
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
                     <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">C</span>
-                    Option C
+                    {t("optionC")}
                   </Label>
                   <Input
                     value={questionForm.option_c}
                     onChange={(e) => setQuestionForm({ ...questionForm, option_c: e.target.value })}
-                    placeholder="Enter option C text..."
+                    placeholder={t("optionCPlaceholder")}
                     required
                   />
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground cursor-pointer" htmlFor="option-c-image-toggle">
-                      Add image
+                      {t("addImage")}
                     </Label>
                     <Switch
                       id="option-c-image-toggle"
@@ -797,17 +799,17 @@ export default function QuestionManagementPage() {
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
                     <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">D</span>
-                    Option D
+                    {t("optionD")}
                   </Label>
                   <Input
                     value={questionForm.option_d}
                     onChange={(e) => setQuestionForm({ ...questionForm, option_d: e.target.value })}
-                    placeholder="Enter option D text..."
+                    placeholder={t("optionDPlaceholder")}
                     required
                   />
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground cursor-pointer" htmlFor="option-d-image-toggle">
-                      Add image
+                      {t("addImage")}
                     </Label>
                     <Switch
                       id="option-d-image-toggle"
@@ -831,7 +833,7 @@ export default function QuestionManagementPage() {
             {/* Correct Answer & Explanation Row */}
             <div className="grid md:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="correct-answer">Correct Answer *</Label>
+                <Label htmlFor="correct-answer">{t("correctAnswer")}</Label>
                 <Select
                   value={questionForm.correct_answer}
                   onValueChange={(value: "A" | "B" | "C" | "D") =>
@@ -839,24 +841,24 @@ export default function QuestionManagementPage() {
                   }
                 >
                   <SelectTrigger id="correct-answer">
-                    <SelectValue placeholder="Select correct answer" />
+                    <SelectValue placeholder={t("selectCorrectAnswer")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="A">Option A</SelectItem>
-                    <SelectItem value="B">Option B</SelectItem>
-                    <SelectItem value="C">Option C</SelectItem>
-                    <SelectItem value="D">Option D</SelectItem>
+                    <SelectItem value="A">{t("optionA")}</SelectItem>
+                    <SelectItem value="B">{t("optionB")}</SelectItem>
+                    <SelectItem value="C">{t("optionC")}</SelectItem>
+                    <SelectItem value="D">{t("optionD")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="explanation">Explanation (Optional)</Label>
+                <Label htmlFor="explanation">{t("explanationOptional")}</Label>
                 <Textarea
                   id="explanation"
                   value={questionForm.explanation}
                   onChange={(e) => setQuestionForm({ ...questionForm, explanation: e.target.value })}
-                  placeholder="Explain why this is the correct answer..."
+                  placeholder={t("explanationPlaceholder")}
                   rows={2}
                 />
               </div>
@@ -867,17 +869,17 @@ export default function QuestionManagementPage() {
                 {updatingQuestion ? (
                   <>
                     <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Updating...
+                    {t("updating")}
                   </>
                 ) : (
                   <>
                     <Edit className="h-4 w-4 mr-2" />
-                    Update Question
+                    {t("updateQuestion")}
                   </>
                 )}
               </Button>
               <Button type="button" variant="outline" onClick={closeEditModal}>
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           </form>
@@ -889,8 +891,8 @@ export default function QuestionManagementPage() {
           <CardContent className="py-12">
             <p className="text-muted-foreground text-center">
               {selectedCategory === "all" && searchQuery === ""
-                ? "No questions found" 
-                : `No questions match your filters`}
+                ? t("noQuestionsFound") 
+                : t("noQuestionsMatchFilters")}
             </p>
           </CardContent>
         </Card>
@@ -904,7 +906,7 @@ export default function QuestionManagementPage() {
                     <button
                       onClick={toggleSelectAll}
                       className="flex items-center justify-center"
-                      title={selectedQuestions.size === filteredQuestions.length ? "Deselect all" : "Select all"}
+                      title={selectedQuestions.size === filteredQuestions.length ? t("deselectAll") : t("selectAll")}
                     >
                       {selectedQuestions.size === filteredQuestions.length ? (
                         <CheckSquare className="h-5 w-5 text-primary" />
@@ -915,16 +917,16 @@ export default function QuestionManagementPage() {
                   </TableHead>
                   <TableHead className="w-[40px]">#</TableHead>
                   <TableHead className="min-w-[150px] cursor-pointer" onClick={() => handleSort('question')}>
-                    <div className="flex items-center gap-1">Question {getSortIcon('question')}</div>
+                    <div className="flex items-center gap-1">{t("question")} {getSortIcon('question')}</div>
                   </TableHead>
-                  <TableHead className="min-w-[100px]">Option A</TableHead>
-                  <TableHead className="min-w-[100px]">Option B</TableHead>
-                  <TableHead className="min-w-[100px]">Option C</TableHead>
-                  <TableHead className="min-w-[100px]">Option D</TableHead>
+                  <TableHead className="min-w-[100px]">{t("optionA")}</TableHead>
+                  <TableHead className="min-w-[100px]">{t("optionB")}</TableHead>
+                  <TableHead className="min-w-[100px]">{t("optionC")}</TableHead>
+                  <TableHead className="min-w-[100px]">{t("optionD")}</TableHead>
                   <TableHead className="w-[100px] cursor-pointer" onClick={() => handleSort('correct_answer')}>
-                    <div className="flex items-center gap-1">Answer {getSortIcon('correct_answer')}</div>
+                    <div className="flex items-center gap-1">{t("answer")} {getSortIcon('correct_answer')}</div>
                   </TableHead>
-                  <TableHead className="w-[250px]">Actions</TableHead>
+                  <TableHead className="w-[250px]">{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -934,7 +936,7 @@ export default function QuestionManagementPage() {
                       <button
                         onClick={() => toggleSelectQuestion(q.id)}
                         className="flex items-center justify-center"
-                        title={selectedQuestions.has(q.id) ? "Deselect" : "Select"}
+                        title={selectedQuestions.has(q.id) ? t("deselect") : t("select")}
                       >
                         {selectedQuestions.has(q.id) ? (
                           <CheckSquare className="h-5 w-5 text-primary" />
@@ -952,7 +954,7 @@ export default function QuestionManagementPage() {
                             className="flex items-center gap-1 text-primary hover:underline"
                           >
                             <ImageIcon className="h-4 w-4" />
-                            <span className="text-xs">View Image</span>
+                            <span className="text-xs">{t("viewImage")}</span>
                           </button>
                         ) : (
                           <button
@@ -973,7 +975,7 @@ export default function QuestionManagementPage() {
                             className="flex items-center gap-1 text-primary hover:underline"
                           >
                             <ImageIcon className="h-4 w-4" />
-                            <span className="text-xs">View</span>
+                            <span className="text-xs">{t("view")}</span>
                           </button>
                         ) : (
                           <p className="text-sm truncate max-w-[100px]" title={q.option_a || ""}>
@@ -990,7 +992,7 @@ export default function QuestionManagementPage() {
                             className="flex items-center gap-1 text-primary hover:underline"
                           >
                             <ImageIcon className="h-4 w-4" />
-                            <span className="text-xs">View</span>
+                            <span className="text-xs">{t("view")}</span>
                           </button>
                         ) : (
                           <p className="text-sm truncate max-w-[100px]" title={q.option_b || ""}>
@@ -1007,7 +1009,7 @@ export default function QuestionManagementPage() {
                             className="flex items-center gap-1 text-primary hover:underline"
                           >
                             <ImageIcon className="h-4 w-4" />
-                            <span className="text-xs">View</span>
+                            <span className="text-xs">{t("view")}</span>
                           </button>
                         ) : (
                           <p className="text-sm truncate max-w-[100px]" title={q.option_c || ""}>
@@ -1024,7 +1026,7 @@ export default function QuestionManagementPage() {
                             className="flex items-center gap-1 text-primary hover:underline"
                           >
                             <ImageIcon className="h-4 w-4" />
-                            <span className="text-xs">View</span>
+                            <span className="text-xs">{t("view")}</span>
                           </button>
                         ) : (
                           <p className="text-sm truncate max-w-[100px]" title={q.option_d || ""}>
@@ -1050,7 +1052,7 @@ export default function QuestionManagementPage() {
                                 disabled={deletingQuestion === q.id}
                               >
                                 <Edit className="h-4 w-4 mr-1" />
-                                Edit
+                                {t("edit")}
                               </Button>
                               <Button
                                 variant="destructive"
@@ -1063,7 +1065,7 @@ export default function QuestionManagementPage() {
                                 ) : (
                                   <>
                                     <Trash2 className="h-4 w-4 mr-1" />
-                                    Delete
+                                    {t("delete")}
                                   </>
                                 )}
                               </Button>
@@ -1072,7 +1074,7 @@ export default function QuestionManagementPage() {
                           {isReadOnly && (
                             <div className="flex items-center gap-1 text-muted-foreground text-xs">
                               <Lock className="h-3 w-3" />
-                              <span>Read Only</span>
+                              <span>{t("readOnly")}</span>
                             </div>
                           )}
                         </div>
@@ -1082,7 +1084,7 @@ export default function QuestionManagementPage() {
                             onValueChange={(value) => handleChangeCategory(q.id, value)}
                           >
                             <SelectTrigger className="w-full h-8 text-xs">
-                              <SelectValue placeholder="Switch Category" />
+                              <SelectValue placeholder={t("switchCategory")} />
                             </SelectTrigger>
                             <SelectContent>
                               {categories.map((cat) => (

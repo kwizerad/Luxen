@@ -9,6 +9,7 @@ import { getAdminStats } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/client";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
+import { useLanguage } from "@/lib/language-context";
 
 const ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
 
@@ -34,6 +35,7 @@ interface SystemStatus {
 
 export default function AdminDashboard() {
   const { config } = useBrandingConfig();
+  const { t } = useLanguage();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
@@ -71,8 +73,8 @@ export default function AdminDashboard() {
 
   const statCards = [
     { 
-      title: "Total Users", 
-      value: loading ? "..." : (stats?.totalUsers?.toString() ?? "N/A"), 
+      title: t("totalUsers"), 
+      value: loading ? "..." : (stats?.totalUsers?.toString() ?? t("notAvailable")), 
       icon: GraduationCap,
       href: "/Admin/users",
       color: "text-blue-500",
@@ -80,7 +82,7 @@ export default function AdminDashboard() {
       trend: "+12%",
     },
     { 
-      title: "Exam Categories", 
+      title: t("examCategories"), 
       value: loading ? "..." : (stats?.totalCategories?.toString() ?? "0"), 
       icon: FileText,
       href: "/Admin/exams",
@@ -89,7 +91,7 @@ export default function AdminDashboard() {
       trend: "+5%",
     },
     { 
-      title: "Total Questions", 
+      title: t("totalQuestions"), 
       value: loading ? "..." : (stats?.totalQuestions?.toString() ?? "0"), 
       icon: Activity,
       href: "/Admin/questions",
@@ -98,13 +100,13 @@ export default function AdminDashboard() {
       trend: "+23%",
     },
     { 
-      title: "Total Attempts", 
+      title: t("totalAttempts"), 
       value: loading ? "..." : (stats?.totalAttempts?.toString() ?? "0"), 
       icon: Users,
       href: "/Admin/exams",
       color: "text-orange-500",
       bgColor: "bg-orange-500/10",
-      trend: "Stable",
+      trend: t("stable"),
     },
   ];
 
@@ -125,9 +127,9 @@ export default function AdminDashboard() {
       </div>
       
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
+        <h1 className="text-3xl font-bold text-foreground">{t("adminDashboard")}</h1>
         <p className="text-muted-foreground mt-1">
-          Welcome back! Manage your platform from here.
+          {t("welcomeBackAdmin")}
         </p>
       </div>
 
@@ -150,7 +152,7 @@ export default function AdminDashboard() {
                   <div className="text-2xl font-bold">{stat.value}</div>
                   <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3 text-green-500" />
-                    {stat.trend} from last month
+                    {stat.trend} {t("fromLastMonth")}
                   </p>
                 </CardContent>
               </Card>
@@ -165,9 +167,9 @@ export default function AdminDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
-              Recent Activity
+              {t("recentActivity")}
             </CardTitle>
-            <CardDescription>Latest events across the platform</CardDescription>
+            <CardDescription>{t("latestEvents")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {recentActivity?.categories?.slice(0, 3).map((category: any) => (
@@ -176,7 +178,7 @@ export default function AdminDashboard() {
                   <FileText className="h-4 w-4 text-purple-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">New Category Created</p>
+                  <p className="font-medium text-sm">{t("newCategory")}</p>
                   <p className="text-xs text-muted-foreground truncate">{category.name}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {new Date(category.created_at).toLocaleDateString()}
@@ -190,9 +192,9 @@ export default function AdminDashboard() {
                   <Activity className="h-4 w-4 text-green-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">New Question Added</p>
+                  <p className="font-medium text-sm">{t("newQuestion")}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {question.question || "Image question"}
+                    {question.question || t("imageQuestion")}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {new Date(question.created_at).toLocaleDateString()}
@@ -206,7 +208,7 @@ export default function AdminDashboard() {
                   <Users className="h-4 w-4 text-blue-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">New User Registered</p>
+                  <p className="font-medium text-sm">{t("newUser")}</p>
                   <p className="text-xs text-muted-foreground truncate">{user.username || user.email}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {new Date(user.created_at).toLocaleDateString()}
@@ -222,22 +224,22 @@ export default function AdminDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Zap className="h-5 w-5" />
-              System Status
+              {t("systemStatus")}
             </CardTitle>
-            <CardDescription>Platform health and connectivity</CardDescription>
+            <CardDescription>{t("platformHealth")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
               <div className="flex items-center gap-3">
                 <Database className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">Database</p>
-                  <p className="text-sm text-muted-foreground">Supabase Connection</p>
+                  <p className="font-medium">{t("database")}</p>
+                  <p className="text-sm text-muted-foreground">{t("supabaseConnection")}</p>
                 </div>
               </div>
               <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
                 <CheckCircle className="h-3 w-3 mr-1" />
-                {systemStatus?.database || "Healthy"}
+                {systemStatus?.database || t("healthy")}
               </Badge>
             </div>
             
@@ -245,13 +247,13 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3">
                 <Zap className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">API Service</p>
-                  <p className="text-sm text-muted-foreground">Backend Status</p>
+                  <p className="font-medium">{t("apiService")}</p>
+                  <p className="text-sm text-muted-foreground">{t("backendStatus")}</p>
                 </div>
               </div>
               <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
                 <CheckCircle className="h-3 w-3 mr-1" />
-                {systemStatus?.supabase || "Connected"}
+                {systemStatus?.supabase || t("connected")}
               </Badge>
             </div>
 
@@ -259,14 +261,14 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3">
                 <Clock className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">Last Updated</p>
-                  <p className="text-sm text-muted-foreground">Data refresh time</p>
+                  <p className="font-medium">{t("lastUpdated")}</p>
+                  <p className="text-sm text-muted-foreground">{t("dataRefreshTime")}</p>
                 </div>
               </div>
               <p className="text-sm font-medium">
                 {systemStatus?.lastUpdated 
                   ? new Date(systemStatus.lastUpdated).toLocaleTimeString() 
-                  : "Just now"}
+                  : t("justNow")}
               </p>
             </div>
 
@@ -274,9 +276,9 @@ export default function AdminDashboard() {
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-medium text-amber-500">System Tip</p>
+                  <p className="font-medium text-amber-500">{t("systemTip")}</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Regularly review user activity and update exam questions to maintain platform quality.
+                    {t("systemTipMessage")}
                   </p>
                 </div>
               </div>
@@ -288,8 +290,8 @@ export default function AdminDashboard() {
       {/* Enhanced Quick Actions */}
       <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:border-[var(--hover-border-color)] transition-all duration-300">
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common administrative tasks and operations</CardDescription>
+          <CardTitle>{t("quickActions")}</CardTitle>
+          <CardDescription>{t("commonAdminTasks")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -302,8 +304,8 @@ export default function AdminDashboard() {
                   <Users className="h-5 w-5 text-blue-500" />
                 </div>
                 <div>
-                  <p className="font-medium">Manage Users</p>
-                  <p className="text-sm text-muted-foreground">View and manage accounts</p>
+                  <p className="font-medium">{t("manageUsers")}</p>
+                  <p className="text-sm text-muted-foreground">{t("viewManageAccounts")}</p>
                 </div>
               </div>
             </Link>
@@ -317,8 +319,8 @@ export default function AdminDashboard() {
                   <FileText className="h-5 w-5 text-purple-500" />
                 </div>
                 <div>
-                  <p className="font-medium">Manage Exams</p>
-                  <p className="text-sm text-muted-foreground">Create exam categories</p>
+                  <p className="font-medium">{t("manageExams")}</p>
+                  <p className="text-sm text-muted-foreground">{t("createExamCategories")}</p>
                 </div>
               </div>
             </Link>
@@ -332,8 +334,8 @@ export default function AdminDashboard() {
                   <Activity className="h-5 w-5 text-green-500" />
                 </div>
                 <div>
-                  <p className="font-medium">Manage Questions</p>
-                  <p className="text-sm text-muted-foreground">Add and edit questions</p>
+                  <p className="font-medium">{t("manageQuestions")}</p>
+                  <p className="text-sm text-muted-foreground">{t("addEditQuestions")}</p>
                 </div>
               </div>
             </Link>
@@ -347,8 +349,8 @@ export default function AdminDashboard() {
                   <BookOpen className="h-5 w-5 text-teal-500" />
                 </div>
                 <div>
-                  <p className="font-medium">Course Management</p>
-                  <p className="text-sm text-muted-foreground">Manage modules and lessons</p>
+                  <p className="font-medium">{t("courseManagementNav")}</p>
+                  <p className="text-sm text-muted-foreground">{t("admin.courseManagement.description")}</p>
                 </div>
               </div>
             </Link>
@@ -362,8 +364,8 @@ export default function AdminDashboard() {
                   <Settings className="h-5 w-5 text-orange-500" />
                 </div>
                 <div>
-                  <p className="font-medium">Settings</p>
-                  <p className="text-sm text-muted-foreground">Update credentials</p>
+                  <p className="font-medium">{t("settings")}</p>
+                  <p className="text-sm text-muted-foreground">{t("updateCredentials")}</p>
                 </div>
               </div>
             </Link>
@@ -378,8 +380,8 @@ export default function AdminDashboard() {
                     <UserPlus className="h-5 w-5 text-pink-500" />
                   </div>
                   <div>
-                    <p className="font-medium">Register Admin</p>
-                    <p className="text-sm text-muted-foreground">Create admin accounts</p>
+                    <p className="font-medium">{t("registerAdmin")}</p>
+                    <p className="text-sm text-muted-foreground">{t("createAdminAccounts")}</p>
                   </div>
                 </div>
               </Link>

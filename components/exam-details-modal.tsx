@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Clock, CheckCircle, XCircle, Trophy, TrendingUp, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ExamAttempt, ExamAnswer, ExamQuestion } from "@/lib/database.types";
+import { useLanguage } from "@/lib/language-context";
 
 interface ExamDetailsModalProps {
   attempt: ExamAttempt | null;
@@ -19,6 +20,8 @@ interface ExtendedExamAnswer extends ExamAnswer {
 }
 
 export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalProps) {
+  const { t } = useLanguage();
+
   if (!attempt) return null;
 
   const formatTime = (seconds: number) => {
@@ -113,7 +116,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-primary" />
-            Exam Details - {attempt.category_name}
+            {t("examDetails")} - {attempt.category_name}
           </DialogTitle>
         </DialogHeader>
 
@@ -126,7 +129,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                 size="icon"
                 onClick={previousQuestion}
                 className="rounded-full bg-background shadow-lg h-8 w-8 sm:h-10 sm:w-10"
-                title="Previous Question"
+                title={t("previousQuestion")}
               >
                 <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
@@ -140,7 +143,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                 size="icon"
                 onClick={goToQuestions}
                 className="rounded-full bg-background shadow-lg h-8 w-8 sm:h-10 sm:w-10"
-                title="View Questions"
+                title={t("viewQuestions")}
               >
                 <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
@@ -150,7 +153,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                 size="icon"
                 onClick={nextQuestion}
                 className="rounded-full bg-background shadow-lg h-8 w-8 sm:h-10 sm:w-10"
-                title="Next Question"
+                title={t("nextQuestion")}
               >
                 <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
@@ -165,38 +168,38 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                 <div className="flex-1">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Exam Overview</CardTitle>
+                      <CardTitle className="text-lg">{t("examDetails.overview")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                         <div className="text-center">
                           <div className="text-3xl font-bold text-primary">{attempt.score_percentage}%</div>
-                          <div className="text-sm text-muted-foreground">Score</div>
+                          <div className="text-sm text-muted-foreground">{t("score")}</div>
                         </div>
                         <div className="text-center">
                           <div className="text-3xl font-bold text-green-600">{attempt.correct_answers}</div>
-                          <div className="text-sm text-muted-foreground">Correct</div>
+                          <div className="text-sm text-muted-foreground">{t("correct")}</div>
                         </div>
                         <div className="text-center">
                           <div className="text-3xl font-bold text-red-600">{attempt.total_questions - attempt.correct_answers}</div>
-                          <div className="text-sm text-muted-foreground">Incorrect</div>
+                          <div className="text-sm text-muted-foreground">{t("incorrect")}</div>
                         </div>
                         <div className="text-center">
                           <div className="text-3xl font-bold">{formatTime(attempt.duration_seconds)}</div>
-                          <div className="text-sm text-muted-foreground">Duration</div>
+                          <div className="text-sm text-muted-foreground">{t("duration")}</div>
                         </div>
                       </div>
                       
                       <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
-                        <span>Started: {new Date(attempt.started_at).toLocaleString()}</span>
+                        <span>{t("started")}: {new Date(attempt.started_at).toLocaleString()}</span>
                         {attempt.completed_at && (
-                          <span>Completed: {new Date(attempt.completed_at).toLocaleString()}</span>
+                          <span>{t("completed")}: {new Date(attempt.completed_at).toLocaleString()}</span>
                         )}
                       </div>
 
                       {/* Question Summary */}
                       <div className="mt-6 pt-6 border-t">
-                        <h3 className="text-lg font-semibold mb-4 text-center">Question Summary</h3>
+                        <h3 className="text-lg font-semibold mb-4 text-center">{t("questionSummary")}</h3>
                         <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
                           {answers.map((answer, index) => (
                             <button
@@ -210,7 +213,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                                   ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-600' 
                                   : 'bg-red-100 text-red-700 border border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-600'
                               }`}
-                              title={`Question ${index + 1}: ${answer.is_correct ? 'Correct' : 'Incorrect'}`}
+                              title={`${t("examDetails.question")} ${index + 1}: ${answer.is_correct ? t("correct") : t("incorrect")}`}
                             >
                               {index + 1}
                             </button>
@@ -227,7 +230,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                     className="flex items-center gap-2"
                     size="lg"
                   >
-                    View Questions
+                    {t("viewQuestions")}
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -238,7 +241,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                 {/* Toggle Correct Answers */}
                 <div className="flex-shrink-0 mb-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Question Review</h3>
+                    <h3 className="text-lg font-semibold">{t("examDetails.questionReview")}</h3>
                     <Button
                       variant="outline"
                       size="sm"
@@ -247,12 +250,12 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                       {showCorrectAnswers ? (
                         <>
                           <EyeOff className="h-4 w-4 mr-2" />
-                          Hide Answers
+                          {t("examDetails.hideAnswers")}
                         </>
                       ) : (
                         <>
                           <Eye className="h-4 w-4 mr-2" />
-                          Show Answers
+                          {t("examDetails.showAnswers")}
                         </>
                       )}
                     </Button>
@@ -263,7 +266,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                 <div className="flex-shrink-0">
                   <div className="flex flex-col items-center gap-2 sm:gap-3 mb-4">
                     <span className="text-sm font-medium text-muted-foreground">
-                      Question {currentQuestionIndex + 1} of {answers.length}
+                      {t("examDetails.question")} {currentQuestionIndex + 1} {t("examDetails.of")} {answers.length}
                     </span>
                     <div className="flex flex-wrap justify-center gap-1 sm:gap-2 max-h-24 sm:max-h-32 overflow-y-auto">
                       {answers.map((answer, index) => (
@@ -277,7 +280,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                                 ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-600'
                                 : 'bg-red-100 text-red-700 border border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-600'
                           }`}
-                          aria-label={`Go to question ${index + 1}`}
+                          aria-label={`${t("examDetails.goToQuestion")} ${index + 1}`}
                         >
                           {index + 1}
                         </button>
@@ -310,9 +313,9 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                             {currentQuestionIndex + 1}
                           </div>
                           <div>
-                            <span className="font-semibold text-lg">Question {currentQuestionIndex + 1}</span>
+                            <span className="font-semibold text-lg">{t("examDetails.question")} {currentQuestionIndex + 1}</span>
                             <div className="text-sm text-muted-foreground">
-                              {currentAnswer.is_correct ? 'Correct' : 'Incorrect'}
+                              {currentAnswer.is_correct ? t("correct") : t("incorrect")}
                             </div>
                           </div>
                         </div>
@@ -323,12 +326,12 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                           {currentAnswer.is_correct ? (
                             <>
                               <CheckCircle className="h-4 w-4 mr-1" />
-                              Correct
+                              {t("correct")}
                             </>
                           ) : (
                             <>
                               <XCircle className="h-4 w-4 mr-1" />
-                              Incorrect
+                              {t("incorrect")}
                             </>
                           )}
                         </Badge>
@@ -348,7 +351,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                           <div>
                             <img 
                               src={currentQuestion.question_image} 
-                              alt="Question image" 
+                              alt={t("examDetails.questionImage")} 
                               className="max-w-full h-auto rounded-lg border max-h-48 sm:max-h-64 object-contain"
                             />
                           </div>
@@ -395,19 +398,19 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                                   {optionImage && (
                                     <img 
                                       src={optionImage as string} 
-                                      alt={`Option ${option}`} 
+                                      alt={`${t("examDetails.option")} ${option}`} 
                                       className="mt-2 max-w-full h-auto rounded border max-h-40 object-contain border-border"
                                     />
                                   )}
                                 </div>
                                 {isSelected && (
                                   <Badge variant="outline" className="text-sm ml-2 flex-shrink-0">
-                                    Your answer
+                                    {t("yourAnswer")}
                                   </Badge>
                                 )}
                                 {isCorrect && showCorrectAnswers && !isSelected && (
                                   <Badge variant="default" className="text-sm bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 dark:border-green-600 ml-2 flex-shrink-0">
-                                    Correct
+                                    {t("correct")}
                                   </Badge>
                                 )}
                               </div>
@@ -418,7 +421,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                         {/* Explanation */}
                         {showCorrectAnswers && currentQuestion.explanation && (
                           <div className="bg-blue-500/10 border border-blue-500/30 dark:bg-blue-500/20 dark:border-blue-500/40 rounded-lg p-4">
-                            <div className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">Explanation:</div>
+                            <div className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">{t("examDetails.explanation")}:</div>
                             <div className="text-base text-blue-800 dark:text-blue-200">{currentQuestion.explanation}</div>
                           </div>
                         )}
@@ -427,7 +430,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                         {currentAnswer.time_spent_seconds && (
                           <div className="text-sm text-muted-foreground flex items-center gap-2">
                             <Clock className="h-4 w-4" />
-                            Time spent: {formatTime(currentAnswer.time_spent_seconds)}
+                            {t("examDetails.timeSpent")}: {formatTime(currentAnswer.time_spent_seconds)}
                           </div>
                         )}
                       </div>
@@ -445,7 +448,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                       className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4"
                     >
                       <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="hidden sm:inline">Previous</span>
+                      <span className="hidden sm:inline">{t("previous")}</span>
                     </Button>
                     
                     <div className="text-xs sm:text-sm text-muted-foreground font-medium">
@@ -458,7 +461,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                       disabled={currentQuestionIndex === answers.length - 1}
                       className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4"
                     >
-                      <span className="hidden sm:inline">Next</span>
+                      <span className="hidden sm:inline">{t("next")}</span>
                       <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                   </div>

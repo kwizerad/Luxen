@@ -1,72 +1,46 @@
-import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { isAdmin } from "@/lib/permissions";
+import { NextResponse } from "next/server";
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ attemptId?: string }> }) {
+export async function GET(
+  request: Request,
+  { params }: { params: { attemptId: string } }
+) {
   try {
-    const { attemptId } = await params;
-
-    if (!attemptId) {
-      return NextResponse.json({ error: "Attempt ID is required" }, { status: 400 });
-    }
-
     const supabase = await createClient();
-
-    // Get the authenticated user. Prefer the Authorization header token sent by the client,
-    // and fall back to the cookie-based session.
-    const authHeader = request.headers.get('authorization');
-    const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
-
-    const { data: { user }, error: authError } = accessToken
-      ? await supabase.auth.getUser(accessToken)
-      : await supabase.auth.getUser();
-
-    if (authError) {
-      console.error("Auth error while deleting exam attempt:", authError);
-      return NextResponse.json({ error: "Authentication failed", details: authError.message }, { status: 401 });
-    }
+    const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: attempt, error: fetchError } = await supabase
+    // Check if user is admin
+    const { data: userData } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (userData?.role !== "Admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { attemptId } = params;
+
+    // Get the attempt with questions
+    const { data: attempt, error } = await supabase
       .from("exam_attempts")
-      .select("id, user_id")
+      .select("*")
       .eq("id", attemptId)
       .single();
 
-    if (fetchError) {
-      console.error("Failed to fetch exam attempt before delete:", fetchError);
-      return NextResponse.json({ error: "Failed to fetch exam attempt", details: fetchError.message }, { status: 500 });
+    if (error) {
+      console.error("Failed to fetch exam attempt:", error);
+      return NextResponse.json({ error: "Failed to fetch exam attempt" }, { status: 500 });
     }
 
-    if (!attempt) {
-      return NextResponse.json({ error: "Exam attempt not found" }, { status: 404 });
-    }
-
-    if (attempt.user_id !== user.id && !isAdmin(user)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const adminSupabase = createAdminClient();
-    const { error: deleteError } = await adminSupabase
-      .from("exam_attempts")
-      .delete()
-      .eq("id", attemptId);
-
-    if (deleteError) {
-      console.error("Failed to delete exam attempt with admin client:", deleteError);
-      return NextResponse.json({ error: "Failed to delete exam attempt", details: deleteError.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error("Unexpected error deleting exam attempt:", error);
-    return NextResponse.json(
-      { error: "Failed to delete exam attempt", details: error?.message || "Unknown error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ attempt });
+  } catch (error) {
+    console.error("Attempt details error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

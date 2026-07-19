@@ -17,6 +17,7 @@ import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, d
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { isAdmin } from "@/lib/permissions";
+import { useLanguage } from "@/lib/language-context";
 
 interface Notification {
   id: string;
@@ -78,6 +79,7 @@ function isNotificationForUser(notification: Notification, user: any) {
 }
 
 export function NotificationsDropdown() {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -161,7 +163,7 @@ export function NotificationsDropdown() {
       await markAllNotificationsAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       setUnreadCount(0);
-      toast.success("All notifications marked as read");
+      toast.success(t("notifications.allMarkedRead"));
     } catch (error) {
       console.error("Failed to mark all as read:", error);
     }
@@ -171,7 +173,7 @@ export function NotificationsDropdown() {
     try {
       await deleteNotificationQuery(notificationId);
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
-      toast.success("Notification deleted");
+      toast.success(t("notifications.deleted"));
     } catch (error) {
       console.error("Failed to delete notification:", error);
     }
@@ -194,7 +196,7 @@ export function NotificationsDropdown() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 max-h-[400px] overflow-y-auto">
         <div className="flex items-center justify-between p-3 border-b">
-          <h3 className="font-semibold">Notifications</h3>
+          <h3 className="font-semibold">{t("notifications")}</h3>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
@@ -203,7 +205,7 @@ export function NotificationsDropdown() {
               className="text-xs h-8"
             >
               <Check className="h-3 w-3 mr-1" />
-              Mark all read
+              {t("markAllRead")}
             </Button>
           )}
         </div>
@@ -215,7 +217,7 @@ export function NotificationsDropdown() {
         ) : notifications.length === 0 ? (
           <div className="text-center p-8 text-muted-foreground">
             <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No notifications yet</p>
+            <p className="text-sm">{t("notifications.empty")}</p>
           </div>
         ) : (
           <div className="divide-y">
@@ -240,7 +242,7 @@ export function NotificationsDropdown() {
                           {notification.title}
                         </p>
                         {notification.priority === 'urgent' && (
-                          <span className="text-xs text-red-500 font-semibold">URGENT</span>
+                          <span className="text-xs text-red-500 font-semibold">{t("notifications.urgent")}</span>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2">
@@ -252,7 +254,7 @@ export function NotificationsDropdown() {
                         </span>
                         {!notification.is_read && (
                           <Badge variant="secondary" className="text-xs h-5">
-                            New
+                            {t("new")}
                           </Badge>
                         )}
                       </div>

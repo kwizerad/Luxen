@@ -57,7 +57,7 @@ export function ForgotPasswordForm({
       setResendCooldown(60);
       setCanResend(false);
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setError(error instanceof Error ? error.message : t("errorSomethingWentWrong"));
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +77,7 @@ export function ForgotPasswordForm({
       if (error) throw error;
       setSuccess(true);
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setError(error instanceof Error ? error.message : t("errorSomethingWentWrong"));
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +133,7 @@ export function ForgotPasswordForm({
                   <Input
                     id="email"
                     type="email"
-                    placeholder="m@example.com"
+                    placeholder={t("emailPlaceholder")}
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

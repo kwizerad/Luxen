@@ -11,6 +11,7 @@ import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { getExamCategories, getExamForTaking, createExamAttempt, areViolationMeasuresEnabled } from "@/lib/supabase/queries";
 import { toast } from "sonner";
+import { useLanguage } from "@/lib/language-context";
 import { CheckCircle, XCircle, Clock, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Eye, Shield, Timer, HelpCircle, ChevronRight, FileText, Play, LogOut, Monitor } from "lucide-react";
 import {
   Dialog,
@@ -51,6 +52,7 @@ function formatTime(totalSeconds: number) {
 
 export default function TakeExamPage() {
   const { config } = useBrandingConfig();
+  const { t } = useLanguage();
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string>("");
   const [loadingCategories, setLoadingCategories] = useState(true);
@@ -96,7 +98,7 @@ export default function TakeExamPage() {
         const data = await getExamCategories();
         setCategories(data.categories || []);
       } catch (error: any) {
-        toast.error("Failed to load categories: " + error.message);
+        toast.error(`${t("failedToLoadCategories")}: ${error.message}`);
       } finally {
         setLoadingCategories(false);
       }
@@ -113,6 +115,13 @@ export default function TakeExamPage() {
       }
     };
     loadViolationStatus();
+
+    // Clean up exam-active flag when component unmounts
+    return () => {
+      sessionStorage.removeItem('exam-active');
+      window.dispatchEvent(new CustomEvent('exam-state-change'));
+      console.log('Exam component unmounted - exam-active removed');
+    };
   }, []);
   
   useEffect(() => {
@@ -126,17 +135,17 @@ export default function TakeExamPage() {
         setViolationType("fullscreen");
         setCheatingWarningMessage(
           newCount === 1 
-            ? "You have exited fullscreen mode. This is a violation of exam rules. Please re-enter fullscreen immediately."
+            ? t("fullscreenViolation1")
             : newCount === 2
-            ? "SECOND VIOLATION: You exited fullscreen again! One more violation and your exam will be automatically submitted."
-            : "FINAL VIOLATION: Your exam is being submitted due to repeated fullscreen violations."
+            ? t("fullscreenViolation2")
+            : t("fullscreenViolationFinal")
         );
         setShowCheatingWarning(true);
         
         // Auto-submit exam after 3 attempts
         if (newCount >= 3) {
           setTimeout(() => {
-            toast.error("Exam automatically submitted due to repeated fullscreen violations.");
+            toast.error(t("examAutoSubmitted"));
             handleSubmitExam(true);
           }, 3000);
         } else {
@@ -182,7 +191,7 @@ export default function TakeExamPage() {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (exam && !showResults && !isSubmittingOnExit && violationMeasuresEnabled) {
         e.preventDefault();
-        e.returnValue = 'Leaving the exam will submit your answers. Are you sure?';
+        e.returnValue = t("leaveExamConfirm");
         
         // Auto-submit exam when user tries to close/refresh
         setIsSubmittingOnExit(true);
@@ -196,9 +205,9 @@ export default function TakeExamPage() {
       if (exam && !showResults && violationMeasuresEnabled) {
         e.preventDefault();
         setViolationType("copy");
-        setCheatingWarningMessage("COPY ATTEMPT DETECTED!\n\nCopying content is strictly prohibited during the exam. This incident has been recorded.");
+        setCheatingWarningMessage(t("copyAttemptDetected"));
         setShowCheatingWarning(true);
-        toast.error("Copy is not allowed during the exam!");
+        toast.error(t("copyNotAllowed"));
         return false;
       }
     };
@@ -207,9 +216,9 @@ export default function TakeExamPage() {
       if (exam && !showResults && violationMeasuresEnabled) {
         e.preventDefault();
         setViolationType("paste");
-        setCheatingWarningMessage("PASTE ATTEMPT DETECTED!\n\nPasting content is strictly prohibited during the exam. This incident has been recorded.");
+        setCheatingWarningMessage(t("pasteAttemptDetected"));
         setShowCheatingWarning(true);
-        toast.error("Paste is not allowed during the exam!");
+        toast.error(t("pasteNotAllowed"));
         return false;
       }
     };
@@ -218,9 +227,9 @@ export default function TakeExamPage() {
       if (exam && !showResults && violationMeasuresEnabled) {
         e.preventDefault();
         setViolationType("other");
-        setCheatingWarningMessage("CUT ATTEMPT DETECTED!\n\nCutting content is strictly prohibited during the exam. This incident has been recorded.");
+        setCheatingWarningMessage(t("cutAttemptDetected"));
         setShowCheatingWarning(true);
-        toast.error("Cut is not allowed during the exam!");
+        toast.error(t("cutNotAllowed"));
         return false;
       }
     };
@@ -255,20 +264,20 @@ export default function TakeExamPage() {
         setViolationType("tabswitch");
         setCheatingWarningMessage(
           newCount === 1 
-            ? "TAB SWITCHING DETECTED! (1/3)\n\nYou have switched tabs or minimized the browser. This is considered cheating."
+            ? t("tabSwitchViolation1")
             : newCount === 2
-            ? "TAB SWITCHING DETECTED AGAIN! (2/3)\n\nThis is your SECOND violation. One more attempt and your exam will be submitted automatically!"
-            : "CHEATING DETECTED! (3/3)\n\nYour exam is being submitted due to repeated tab switching violations."
+            ? t("tabSwitchViolation2")
+            : t("tabSwitchViolationFinal")
         );
         setShowCheatingWarning(true);
         
         if (newCount === 1) {
-          toast.error("Warning: Tab switching detected! (1/3)");
+          toast.error(t("tabSwitchWarning1"));
         } else if (newCount === 2) {
-          toast.error("Warning: Tab switching detected again! (2/3) - Final warning!");
+          toast.error(t("tabSwitchWarning2"));
         } else if (newCount >= 3) {
           setTimeout(() => {
-            toast.error("Cheating detected! Exam will be submitted automatically.");
+            toast.error(t("tabSwitchWarningFinal"));
             handleSubmitExam(true);
           }, 3000);
         }
@@ -350,17 +359,17 @@ export default function TakeExamPage() {
         setViolationType("fullscreen");
         setCheatingWarningMessage(
           newCount === 1 
-            ? "You have exited fullscreen mode. This is a violation of exam rules. Please re-enter fullscreen immediately."
+            ? t("fullscreenViolation1")
             : newCount === 2
-            ? "SECOND VIOLATION: You exited fullscreen again! One more violation and your exam will be automatically submitted."
-            : "FINAL VIOLATION: Your exam is being submitted due to repeated fullscreen violations."
+            ? t("fullscreenViolation2")
+            : t("fullscreenViolationFinal")
         );
         setShowCheatingWarning(true);
         
         // Auto-submit exam after 3 attempts
         if (newCount >= 3) {
           setTimeout(() => {
-            toast.error("Exam automatically submitted due to repeated fullscreen violations.");
+            toast.error(t("examAutoSubmitted"));
             handleSubmitExam(true);
           }, 3000);
         } else {
@@ -406,7 +415,7 @@ export default function TakeExamPage() {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (exam && !showResults && !isSubmittingOnExit && violationMeasuresEnabled) {
         e.preventDefault();
-        e.returnValue = 'Leaving the exam will submit your answers. Are you sure?';
+        e.returnValue = t("leaveExamConfirm");
         
         // Auto-submit exam when user tries to close/refresh
         setIsSubmittingOnExit(true);
@@ -420,9 +429,9 @@ export default function TakeExamPage() {
       if (exam && !showResults && violationMeasuresEnabled) {
         e.preventDefault();
         setViolationType("copy");
-        setCheatingWarningMessage("COPY ATTEMPT DETECTED!\n\nCopying content is strictly prohibited during the exam. This incident has been recorded.");
+        setCheatingWarningMessage(t("copyAttemptDetected"));
         setShowCheatingWarning(true);
-        toast.error("Copy is not allowed during the exam!");
+        toast.error(t("copyNotAllowed"));
         return false;
       }
     };
@@ -431,9 +440,9 @@ export default function TakeExamPage() {
       if (exam && !showResults && violationMeasuresEnabled) {
         e.preventDefault();
         setViolationType("paste");
-        setCheatingWarningMessage("PASTE ATTEMPT DETECTED!\n\nPasting content is strictly prohibited during the exam. This incident has been recorded.");
+        setCheatingWarningMessage(t("pasteAttemptDetected"));
         setShowCheatingWarning(true);
-        toast.error("Paste is not allowed during the exam!");
+        toast.error(t("pasteNotAllowed"));
         return false;
       }
     };
@@ -442,9 +451,9 @@ export default function TakeExamPage() {
       if (exam && !showResults && violationMeasuresEnabled) {
         e.preventDefault();
         setViolationType("other");
-        setCheatingWarningMessage("CUT ATTEMPT DETECTED!\n\nCutting content is strictly prohibited during the exam. This incident has been recorded.");
+        setCheatingWarningMessage(t("cutAttemptDetected"));
         setShowCheatingWarning(true);
-        toast.error("Cut is not allowed during the exam!");
+        toast.error(t("cutNotAllowed"));
         return false;
       }
     };
@@ -479,20 +488,20 @@ export default function TakeExamPage() {
         setViolationType("tabswitch");
         setCheatingWarningMessage(
           newCount === 1 
-            ? "TAB SWITCHING DETECTED! (1/3)\n\nYou have switched tabs or minimized the browser. This is considered cheating."
+            ? t("tabSwitchViolation1")
             : newCount === 2
-            ? "TAB SWITCHING DETECTED AGAIN! (2/3)\n\nThis is your SECOND violation. One more attempt and your exam will be submitted automatically!"
-            : "CHEATING DETECTED! (3/3)\n\nYour exam is being submitted due to repeated tab switching violations."
+            ? t("tabSwitchViolation2")
+            : t("tabSwitchViolationFinal")
         );
         setShowCheatingWarning(true);
         
         if (newCount === 1) {
-          toast.error("Warning: Tab switching detected! (1/3)");
+          toast.error(t("tabSwitchWarning1"));
         } else if (newCount === 2) {
-          toast.error("Warning: Tab switching detected again! (2/3) - Final warning!");
+          toast.error(t("tabSwitchWarning2"));
         } else if (newCount >= 3) {
           setTimeout(() => {
-            toast.error("Cheating detected! Exam will be submitted automatically.");
+            toast.error(t("tabSwitchWarningFinal"));
             handleSubmitExam(true);
           }, 3000);
         }
@@ -581,20 +590,20 @@ export default function TakeExamPage() {
       setViolationType('backnavigation');
       setCheatingWarningMessage(
         newCount === 1
-          ? 'BACK NAVIGATION DETECTED! (1/3)\n\nUsing the back button is not allowed during the exam.'
+          ? t("backNavigationViolation1")
           : newCount === 2
-          ? 'BACK NAVIGATION DETECTED AGAIN! (2/3)\n\nThis is your SECOND violation. One more attempt and your exam will be submitted automatically!'
-          : 'CHEATING DETECTED! (3/3)\n\nYour exam is being submitted due to repeated back navigation violations.'
+          ? t("backNavigationViolation2")
+          : t("backNavigationViolationFinal")
       );
       setShowCheatingWarning(true);
 
       if (newCount === 1) {
-        toast.error('Warning: Back navigation detected! (1/3)');
+        toast.error(t("backNavigationWarning1"));
       } else if (newCount === 2) {
-        toast.error('Warning: Back navigation detected again! (2/3) - Final warning!');
+        toast.error(t("backNavigationWarning2"));
       } else if (newCount >= 3) {
         setTimeout(() => {
-          toast.error('Cheating detected! Exam will be submitted automatically.');
+          toast.error(t("backNavigationWarningFinal"));
           handleSubmitExam(true);
         }, 3000);
       }
@@ -670,7 +679,7 @@ export default function TakeExamPage() {
 
   const showExamInstructions = async () => {
     if (!categoryId) {
-      toast.error("Select a category first");
+      toast.error(t("selectCategoryFirst"));
       return;
     }
     setLoadingExam(true);
@@ -679,7 +688,7 @@ export default function TakeExamPage() {
       setExam(data);
       setShowInstructions(true);
     } catch (error: any) {
-      toast.error(error.message || "Failed to load exam");
+      toast.error(error.message || t("failedToLoadExam"));
     } finally {
       setLoadingExam(false);
     }
@@ -687,7 +696,7 @@ export default function TakeExamPage() {
 
   const startExam = async () => {
     if (!instructionsAccepted) {
-      toast.error("Please read and accept the exam instructions");
+      toast.error(t("pleaseAcceptExamInstructions"));
       return;
     }
     setShowInstructions(false);
@@ -729,7 +738,7 @@ export default function TakeExamPage() {
         }
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to start exam");
+      toast.error(error.message || t("failedToStartExam"));
     } finally {
       setLoadingExam(false);
     }
@@ -783,8 +792,8 @@ export default function TakeExamPage() {
 
     // Manual submit requires at least one answer; auto-submit (e.g. exit/back) saves even with no answers
     if (answeredCount === 0 && !isAutoSubmit) {
-      setAlertTitle("No Answers Selected");
-      setAlertMessage("You haven't answered any questions yet. Please select at least one answer before submitting the exam.");
+      setAlertTitle(t("noAnswersSelected"));
+      setAlertMessage(t("noAnswersSelectedMessage"));
       setAlertType("warning");
       setShowAlert(true);
       return;
@@ -807,7 +816,7 @@ export default function TakeExamPage() {
 
       const data = await createExamAttempt({
         category_id: exam.categoryId,
-        category_name: categories.find((c) => c.id === exam.categoryId)?.name || "Unknown",
+        category_name: categories.find((c) => c.id === exam.categoryId)?.name || t("unknown"),
         total_questions: exam.questions.length,
         answers,
         duration_seconds: durationSeconds,
@@ -835,9 +844,9 @@ export default function TakeExamPage() {
         }
       }
       
-      toast.success("Exam submitted successfully!");
+      toast.success(t("examSubmittedSuccess"));
     } catch (error: any) {
-      toast.error("Failed to submit exam: " + error.message);
+      toast.error(`${t("failedToSubmitExam")}: ${error.message}`);
     } finally {
       setSubmittingExam(false);
     }
@@ -881,12 +890,12 @@ export default function TakeExamPage() {
         <Watermark />
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold brand-protected">Exam Results</h1>
-            <p className="text-muted-foreground mt-1">Your performance summary</p>
+            <h1 className="text-3xl font-bold brand-protected">{t("examResults")}</h1>
+            <p className="text-muted-foreground mt-1">{t("yourPerformanceSummary")}</p>
           </div>
           <Button variant="outline" onClick={reset}>
             <Home className="h-4 w-4 mr-2" />
-            Back to Exams
+            {t("backToExams")}
           </Button>
         </div>
 
@@ -897,31 +906,31 @@ export default function TakeExamPage() {
               {examResult.category_name}
             </CardTitle>
             <CardDescription>
-              Completed on {new Date(examResult.completed_at).toLocaleString()}
+              {t("completedOn")} {new Date(examResult.completed_at).toLocaleString()}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-secondary rounded-lg">
                 <div className="text-3xl font-bold text-primary">{examResult.score_percentage}%</div>
-                <div className="text-sm text-muted-foreground mt-1">Score</div>
+                <div className="text-sm text-muted-foreground mt-1">{t("score")}</div>
               </div>
               <div className="text-center p-4 bg-secondary rounded-lg">
                 <div className="text-3xl font-bold text-green-600">{examResult.correct_answers}</div>
-                <div className="text-sm text-muted-foreground mt-1">Correct</div>
+                <div className="text-sm text-muted-foreground mt-1">{t("correct")}</div>
               </div>
               <div className="text-center p-4 bg-secondary rounded-lg">
                 <div className="text-3xl font-bold text-red-600">{examResult.total_questions - examResult.correct_answers}</div>
-                <div className="text-sm text-muted-foreground mt-1">Incorrect</div>
+                <div className="text-sm text-muted-foreground mt-1">{t("incorrect")}</div>
               </div>
               <div className="text-center p-4 bg-secondary rounded-lg">
                 <div className="text-3xl font-bold">{formatTime(examResult.duration_seconds)}</div>
-                <div className="text-sm text-muted-foreground mt-1">Time</div>
+                <div className="text-sm text-muted-foreground mt-1">{t("time")}</div>
               </div>
             </div>
 
             <div className="space-y-3">
-              <h3 className="font-semibold">Answer Breakdown</h3>
+              <h3 className="font-semibold">{t("answerBreakdown")}</h3>
               {examResult.answers.map((answer: any, idx: number) => {
                 const question = exam?.questions?.find((q) => q.id === answer.question_id);
                 if (!question) return null;
@@ -937,27 +946,27 @@ export default function TakeExamPage() {
                             ) : (
                               <XCircle className="h-3 w-3 mr-1" />
                             )}
-                            {answer.is_correct ? "Correct" : "Incorrect"}
+                            {answer.is_correct ? t("correct") : t("incorrect")}
                           </Badge>
-                          <span className="text-sm text-muted-foreground">Question {idx + 1}</span>
+                          <span className="text-sm text-muted-foreground">{t("question")} {idx + 1}</span>
                         </div>
                         {question.question && (
                           <p className="text-sm mb-2">{question.question}</p>
                         )}
                         <div className="text-sm">
-                          <span className="text-muted-foreground">Your answer: </span>
+                          <span className="text-muted-foreground">{t("yourAnswer")}: </span>
                           <span className={answer.is_correct ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                            {answer.selected_answer || "Not answered"}
+                            {answer.selected_answer || t("notAnswered")}
                           </span>
                           {!answer.is_correct && (
                             <span className="text-muted-foreground ml-2">
-                              (Correct: {question.correct_answer})
+                              ({t("correctColon")} {question.correct_answer})
                             </span>
                           )}
                         </div>
                         {question.explanation && (
                           <div className="mt-2 p-2 bg-secondary rounded text-sm">
-                            <span className="font-medium">Explanation: </span>
+                            <span className="font-medium">{t("explanationColon")} </span>
                             {question.explanation}
                           </div>
                         )}
@@ -1007,21 +1016,21 @@ export default function TakeExamPage() {
                   {loadingCategories ? (
                     <>
                       <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto mb-3" />
-                      <p className="text-muted-foreground mb-2">Please wait...</p>
-                      <p className="text-sm text-muted-foreground">Loading exam categories</p>
+                      <p className="text-muted-foreground mb-2">{t("pleaseWait")}</p>
+                      <p className="text-sm text-muted-foreground">{t("loadingExamCategories")}</p>
                     </>
                   ) : (
                     <>
                       <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-muted-foreground mb-2">Please wait...</p>
-                      <p className="text-sm text-muted-foreground">Exams are being prepared</p>
+                      <p className="text-muted-foreground mb-2">{t("pleaseWait")}</p>
+                      <p className="text-sm text-muted-foreground">{t("examsBeingPrepared")}</p>
                     </>
                   )}
                 </div>
               ) : (
                 // Display all exams in consistent grid layout
                 <>
-                  <div className="text-sm font-medium mb-6">Select Exam Category</div>
+                  <div className="text-sm font-medium mb-6">{t("selectExamCategory")}</div>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                     {categories.map((category) => (
                       <Card 
@@ -1040,23 +1049,23 @@ export default function TakeExamPage() {
                               <FileText className="h-6 w-6 text-primary" />
                             </div>
                             <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
-                              Available
+                              {t("available")}
                             </Badge>
                           </div>
                           <CardTitle className="text-xl font-bold mt-3">{category.name}</CardTitle>
                           <CardDescription className="text-sm">
-                            Click to start your exam in this category
+                            {t("clickToStartExamInCategory")}
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="pt-0">
                           <div className="space-y-3">
                             <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">Questions</span>
-                              <span className="font-medium">Multiple Choice</span>
+                              <span className="text-muted-foreground">{t("questions")}</span>
+                              <span className="font-medium">{t("multipleChoice")}</span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">Duration</span>
-                              <span className="font-medium">Timed</span>
+                              <span className="text-muted-foreground">{t("duration")}</span>
+                              <span className="font-medium">{t("timed")}</span>
                             </div>
                             <Button 
                               className="w-full mt-4 group-hover:bg-primary/90 transition-colors"
@@ -1072,12 +1081,12 @@ export default function TakeExamPage() {
                               {loadingExam ? (
                                 <>
                                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
-                                  Starting...
+                                  {t("starting")}
                                 </>
                               ) : (
                                 <>
                                   <Play className="h-4 w-4 mr-2" />
-                                  Start Exam
+                                  {t("startExam")}
                                 </>
                               )}
                             </Button>
@@ -1102,7 +1111,7 @@ export default function TakeExamPage() {
           <div className="flex items-center justify-between gap-4 bg-card border rounded-lg p-4 select-none">
             <div className="flex-1">
               <div className="flex items-center justify-between text-sm mb-2">
-                <span>Progress</span>
+                <span>{t("progress")}</span>
                 <span>{answeredCount} / {exam.questions.length}</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -1113,7 +1122,7 @@ export default function TakeExamPage() {
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-muted-foreground">Time left</div>
+              <div className="text-sm text-muted-foreground">{t("timeLeft")}</div>
               <div className={`text-2xl font-bold tabular-nums ${secondsLeft < 60 ? "text-red-600" : ""}`}>
                 {formatTime(secondsLeft)}
               </div>
@@ -1127,15 +1136,15 @@ export default function TakeExamPage() {
             <Button 
               variant="outline" 
               onClick={() => {
-                setConfirmTitle("Quit Exam?");
-                setConfirmMessage("Are you sure you want to quit? Your exam will be submitted with your current answers. This action cannot be undone.");
+                setConfirmTitle(t("quitExamTitle"));
+                setConfirmMessage(t("quitExamMessage"));
                 setConfirmCallback(() => () => handleSubmitExam(true));
                 setShowConfirm(true);
               }}
               className="gap-2"
             >
               <LogOut className="h-4 w-4" />
-              Quit
+              {t("quit")}
             </Button>
             <Button
               onClick={() => handleSubmitExam()}
@@ -1143,10 +1152,10 @@ export default function TakeExamPage() {
               className="min-w-[120px]"
             >
               {submittingExam ? (
-                "Submitting..."
+                t("submitting")
               ) : (
                 <>
-                  Submit
+                  {t("submit")}
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </>
               )}
@@ -1162,19 +1171,19 @@ export default function TakeExamPage() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between gap-3">
                 <span>
-                  Question {currentIndex + 1} / {exam.questions.length}
+                  {t("question")} {currentIndex + 1} {t("of")} {exam.questions.length}
                 </span>
               </CardTitle>
               <CardDescription>
-                Mode: {exam.settings.sorting_mode} · Duration: {exam.settings.duration_minutes}m · Questions: {exam.questions.length}
-                <span className="md:hidden text-xs text-muted-foreground ml-2">(Swipe to navigate)</span>
+                {t("examModeLabel")}: {exam.settings.sorting_mode} · {t("examDurationLabel")}: {exam.settings.duration_minutes}m · {t("examQuestionsLabel")}: {exam.questions.length}
+                <span className="md:hidden text-xs text-muted-foreground ml-2">{t("swipeToNavigate")}</span>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {activeQuestion ? (
                 <>
                   {activeQuestion.question_image && (
-                    <img src={activeQuestion.question_image} alt="Question" className="w-full max-h-[320px] object-contain rounded-lg border" />
+                    <img src={activeQuestion.question_image} alt={t("question")} className="w-full max-h-[320px] object-contain rounded-lg border" />
                   )}
                   {activeQuestion.question && (
                     <div className="text-base font-medium">{activeQuestion.question}</div>
@@ -1203,7 +1212,7 @@ export default function TakeExamPage() {
                               {opt}
                             </div>
                             <div className="flex-1">
-                              {img && <img src={img} alt={`Option ${opt}`} className="w-full max-h-[240px] object-contain rounded-md border mb-2" />}
+                              {img && <img src={img} alt={`${t("option")} ${opt}`} className="w-full max-h-[240px] object-contain rounded-md border mb-2" />}
                               {text && <div className="text-sm">{text}</div>}
                             </div>
                           </div>
@@ -1218,18 +1227,18 @@ export default function TakeExamPage() {
                       onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
                       disabled={currentIndex === 0}
                     >
-                      Previous
+                      {t("previous")}
                     </Button>
                     <Button
                       onClick={() => setCurrentIndex((i) => Math.min(exam.questions.length - 1, i + 1))}
                       disabled={currentIndex >= exam.questions.length - 1}
                     >
-                      Next
+                      {t("next")}
                     </Button>
                   </div>
                 </>
               ) : (
-                <div className="text-sm text-muted-foreground">No questions returned for this category.</div>
+                <div className="text-sm text-muted-foreground">{t("noQuestionsReturned")}</div>
               )}
             </CardContent>
           </Card>
@@ -1246,10 +1255,10 @@ export default function TakeExamPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl">
               <BookOpen className="h-6 w-6 text-primary" />
-              Exam Instructions
+              {t("examInstructions")}
             </DialogTitle>
             <DialogDescription>
-              Please read the following instructions carefully before starting your exam
+              {t("readInstructionsCarefully")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1258,15 +1267,15 @@ export default function TakeExamPage() {
             <div className="bg-primary/5 rounded-lg p-4 space-y-3">
               <h3 className="font-semibold flex items-center gap-2">
                 <HelpCircle className="h-4 w-4 text-primary" />
-                Exam Overview
+                {t("examOverview")}
               </h3>
               <div className="space-y-2 text-sm">
-                <p>• This exam consists of multiple-choice questions</p>
-                <p>• You will have a limited time to complete all questions</p>
-                <p>• Each question has four possible answers (A, B, C, D)</p>
-                <p>• Select the best answer for each question</p>
-                <p>• You can navigate between questions using the Next/Previous buttons</p>
-                <p>• Your answers are automatically saved</p>
+                <p>• {t("examInstruction.multipleChoice")}</p>
+                <p>• {t("examInstruction.limitedTime")}</p>
+                <p>• {t("examInstruction.fourAnswers")}</p>
+                <p>• {t("examInstruction.selectBestAnswer")}</p>
+                <p>• {t("examInstruction.navigateButtons")}</p>
+                <p>• {t("examInstruction.answersAutoSaved")}</p>
               </div>
             </div>
 
@@ -1274,17 +1283,17 @@ export default function TakeExamPage() {
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 space-y-3">
               <h3 className="font-semibold flex items-center gap-2 text-yellow-700">
                 <AlertTriangle className="h-4 w-4" />
-                Important Rules - READ CAREFULLY
+                {t("examRules.title")}
               </h3>
               <div className="space-y-2 text-sm text-yellow-700">
-                <p>• Do not refresh the page during the exam (will auto-submit)</p>
-                <p>• Do not open multiple tabs or windows (cheating detection active)</p>
-                <p>• Do not switch tabs or minimize the browser (3 strikes = auto-submit)</p>
-                <p>• Complete the exam in one sitting</p>
-                <p>• Make sure you have a stable internet connection</p>
-                <p>• You must remain in fullscreen mode during the entire exam</p>
-                <p>• Exiting fullscreen 3 times will automatically submit your exam</p>
-                <p>• Floating controls are hidden during the exam to reduce distractions</p>
+                <p>• {t("examRules.noRefresh")}</p>
+                <p>• {t("examRules.noMultipleTabs")}</p>
+                <p>• {t("examRules.noTabSwitch")}</p>
+                <p>• {t("examRules.oneSitting")}</p>
+                <p>• {t("examRules.stableInternet")}</p>
+                <p>• {t("examRules.stayFullscreen")}</p>
+                <p>• {t("examRules.fullscreenLimit")}</p>
+                <p>• {t("examRules.hiddenControls")}</p>
               </div>
             </div>
 
@@ -1292,17 +1301,17 @@ export default function TakeExamPage() {
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
               <h3 className="font-semibold flex items-center gap-2 text-red-700">
                 <Shield className="h-4 w-4" />
-                Security Restrictions (Strictly Enforced)
+                {t("examSecurity.title")}
               </h3>
               <div className="space-y-2 text-sm text-red-700">
-                <p>• Copy, Paste, and Cut are disabled during the exam</p>
-                <p>• Text selection is limited to answer options only</p>
-                <p>• Right-click context menu is disabled</p>
-                <p>• Drag and drop is disabled</p>
-                <p>• ESC key and F11 are blocked</p>
-                <p>• Alt+Tab and Ctrl+W are blocked</p>
-                <p>• Any attempt to leave the exam will trigger auto-submit</p>
-                <p>• Clicking "Quit" will submit your exam immediately</p>
+                <p>• {t("examSecurity.copyPasteCutDisabled")}</p>
+                <p>• {t("examSecurity.textSelectionLimited")}</p>
+                <p>• {t("examSecurity.rightClickDisabled")}</p>
+                <p>• {t("examSecurity.dragDropDisabled")}</p>
+                <p>• {t("examSecurity.keysBlocked")}</p>
+                <p>• {t("examSecurity.shortcutsBlocked")}</p>
+                <p>• {t("examSecurity.leaveTriggersSubmit")}</p>
+                <p>• {t("examSecurity.quitSubmits")}</p>
               </div>
             </div>
 
@@ -1310,14 +1319,14 @@ export default function TakeExamPage() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
               <h3 className="font-semibold flex items-center gap-2 text-blue-700">
                 <Monitor className="h-4 w-4" />
-                Technical Requirements
+                {t("examTechnical.title")}
               </h3>
               <div className="space-y-2 text-sm text-blue-700">
-                <p>• Use a modern web browser (Chrome, Firefox, Safari, Edge)</p>
-                <p>• Ensure JavaScript is enabled</p>
-                <p>• Allow popups from this site if needed</p>
-                <p>• Fullscreen mode is required and will be enforced</p>
-                <p>• Do not use browser extensions that may interfere</p>
+                <p>• {t("examTechnical.modernBrowser")}</p>
+                <p>• {t("examTechnical.javascriptEnabled")}</p>
+                <p>• {t("examTechnical.allowPopups")}</p>
+                <p>• {t("examTechnical.fullscreenRequired")}</p>
+                <p>• {t("examTechnical.noExtensions")}</p>
               </div>
             </div>
 
@@ -1332,21 +1341,21 @@ export default function TakeExamPage() {
                 htmlFor="accept"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
               >
-                I have read and understood the exam instructions. I agree to follow all rules and guidelines.
+                {t("acceptExamInstructions")}
               </label>
             </div>
           </div>
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowInstructions(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button
               onClick={startExam}
               disabled={!instructionsAccepted}
               className="min-w-[120px]"
             >
-              {loadingExam ? "Starting..." : "Begin Exam"}
+              {loadingExam ? t("starting") : t("beginExam")}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </DialogFooter>
@@ -1357,48 +1366,48 @@ export default function TakeExamPage() {
       <Dialog open={showFullscreenWarning} onOpenChange={() => {
         // Prevent closing - force user to re-enter fullscreen
         if (showFullscreenWarning) {
-          toast.error("You must re-enter fullscreen to continue the exam!");
+          toast.error(t("reEnterFullscreenToContinue"));
         }
       }}>
         <DialogContent 
           className="max-w-md" 
           onPointerDownOutside={(e) => {
             e.preventDefault();
-            toast.error("Click outside is not allowed! Please re-enter fullscreen.");
+            toast.error(t("clickOutsideNotAllowed"));
           }}
           onEscapeKeyDown={(e) => {
             e.preventDefault();
-            toast.error("ESC is not allowed! Please re-enter fullscreen.");
+            toast.error(t("escNotAllowed"));
           }}
           hideCloseButton={true}
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl text-red-600">
               <AlertCircle className="h-6 w-6" />
-              Fullscreen Required - Action Required!
+              {t("fullscreenRequiredTitle")}
             </DialogTitle>
             <DialogDescription className="text-red-600 font-medium">
-              You MUST re-enter fullscreen mode to continue. Closing this dialog is not allowed.
+              {t("fullscreenRequiredDesc")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <p className="text-sm text-red-700 font-medium">
-                {fullscreenRetryCount === 1 
-                  ? "You have exited fullscreen mode. Please re-enter fullscreen to continue your exam. You cannot close this dialog."
+                {fullscreenRetryCount === 1
+                  ? t("fullscreenWarning.reenter")
                   : fullscreenRetryCount === 2
-                  ? "WARNING: Repeatedly exiting fullscreen may result in exam termination. Click the button below NOW."
-                  : "FINAL WARNING: Exit fullscreen again and your exam will be automatically submitted. Re-enter fullscreen immediately!"
+                  ? t("fullscreenWarning.repeated")
+                  : t("fullscreenWarning.final")
                 }
               </p>
             </div>
             
             <div className="text-sm text-muted-foreground bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-              <p className="font-medium mb-2 text-yellow-800">You MUST click this button:</p>
-              <p className="text-yellow-700">• The X button is hidden</p>
-              <p className="text-yellow-700">• Clicking outside is blocked</p>
-              <p className="text-yellow-700">• Pressing ESC is blocked</p>
+              <p className="font-medium mb-2 text-yellow-800">{t("fullscreenInstruction.mustClick")}</p>
+              <p className="text-yellow-700">• {t("fullscreenInstruction.xHidden")}</p>
+              <p className="text-yellow-700">• {t("fullscreenInstruction.outsideBlocked")}</p>
+              <p className="text-yellow-700">• {t("fullscreenInstruction.escBlocked")}</p>
             </div>
           </div>
 
@@ -1416,14 +1425,14 @@ export default function TakeExamPage() {
                   setShowFullscreenWarning(false);
                 } catch (error) {
                   console.error('Failed to enter fullscreen:', error);
-                  toast.error("Failed to enter fullscreen. Please try again or press F11.");
+                  toast.error(t("failedToEnterFullscreen"));
                 }
               }}
               className="w-full bg-red-600 hover:bg-red-700 text-white"
               size="lg"
             >
               <Monitor className="h-5 w-5 mr-2" />
-              CLICK HERE TO RE-ENTER FULLSCREEN
+              {t("reEnterFullscreenButton")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1437,7 +1446,7 @@ export default function TakeExamPage() {
           if (document.fullscreenElement) {
             setShowCheatingWarning(false);
           } else {
-            toast.error("You must re-enter fullscreen mode first!");
+            toast.error(t("reEnterFullscreenFirst"));
           }
         } else {
           setShowCheatingWarning(false);
@@ -1456,9 +1465,9 @@ export default function TakeExamPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl text-red-600">
               <AlertTriangle className="h-6 w-6" />
-              {violationType === "fullscreen" || violationType === "tabswitch" 
-                ? "⚠️ CHEATING VIOLATION DETECTED!" 
-                : "⚠️ Prohibited Action Detected"}
+              {violationType === "fullscreen" || violationType === "tabswitch"
+                ? t("cheatingViolationDetected")
+                : t("prohibitedActionDetected")}
             </DialogTitle>
             <DialogDescription className="text-red-600 font-medium whitespace-pre-line">
               {cheatingWarningMessage}
@@ -1468,28 +1477,28 @@ export default function TakeExamPage() {
           <div className="space-y-4 py-4">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <p className="text-sm text-red-700 font-semibold">
-                Violation Count:
+                {t("violationCount.title")}
               </p>
               <p className="text-sm text-red-700">
-                • Fullscreen Violations: {fullscreenRetryCount}/3
+                • {t("violationCount.fullscreen")}: {fullscreenRetryCount}/3
               </p>
               <p className="text-sm text-red-700">
-                • Tab Switching Violations: {cheatingAttempts}/3
+                • {t("violationCount.tabSwitch")}: {cheatingAttempts}/3
               </p>
               <p className="text-xs text-red-600 mt-2">
-                3 violations of any type will result in automatic exam submission.
+                {t("violationCount.autoSubmitWarning")}
               </p>
             </div>
             
             {(violationType === "fullscreen" || violationType === "tabswitch") && fullscreenRetryCount < 3 && cheatingAttempts < 3 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-sm text-yellow-800 font-medium">
-                  Action Required:
+                  {t("actionRequired.title")}
                 </p>
                 <p className="text-sm text-yellow-700">
-                  {violationType === "fullscreen" 
-                    ? "Click the button below to re-enter fullscreen mode."
-                    : "Return to this tab immediately and click acknowledge."}
+                  {violationType === "fullscreen"
+                    ? t("actionRequired.reenterFullscreen")
+                    : t("actionRequired.returnToTab")}
                 </p>
               </div>
             )}
@@ -1513,18 +1522,18 @@ export default function TakeExamPage() {
                         setShowFullscreenWarning(false);
                       } catch (error) {
                         console.error('Failed to enter fullscreen:', error);
-                        toast.error("Failed to enter fullscreen. Please try again or press F11.");
+                        toast.error(t("failedToEnterFullscreen"));
                       }
                     }}
                     className="w-full bg-red-600 hover:bg-red-700 text-white"
                     size="lg"
                   >
                     <Monitor className="h-5 w-5 mr-2" />
-                    RE-ENTER FULLSCREEN NOW
+                    {t("reEnterFullscreenNow")}
                   </Button>
                 )}
                 {violationType === "tabswitch" && (
-                  <Button 
+                  <Button
                     onClick={() => {
                       setShowCheatingWarning(false);
                     }}
@@ -1532,19 +1541,19 @@ export default function TakeExamPage() {
                     size="lg"
                   >
                     <Shield className="h-5 w-5 mr-2" />
-                    I ACKNOWLEDGE - STAY ON THIS TAB
+                    {t("acknowledgeStayOnTab")}
                   </Button>
                 )}
               </>
             ) : (
-              <Button 
+              <Button
                 onClick={() => setShowCheatingWarning(false)}
                 className="w-full"
                 variant={fullscreenRetryCount >= 3 || cheatingAttempts >= 3 ? "destructive" : "default"}
               >
-                {fullscreenRetryCount >= 3 || cheatingAttempts >= 3 
-                  ? "Exam Being Submitted..." 
-                  : "I Understand"}
+                {fullscreenRetryCount >= 3 || cheatingAttempts >= 3
+                  ? t("examBeingSubmitted")
+                  : t("iUnderstand")}
               </Button>
             )}
           </DialogFooter>
@@ -1572,7 +1581,7 @@ export default function TakeExamPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button 
+            <Button
               onClick={() => setShowAlert(false)}
               className={`w-full ${
                 alertType === "error" ? "bg-red-600 hover:bg-red-700" :
@@ -1581,7 +1590,7 @@ export default function TakeExamPage() {
                 "bg-blue-600 hover:bg-blue-700"
               } text-white`}
             >
-              OK
+              {t("ok")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1601,11 +1610,11 @@ export default function TakeExamPage() {
           </DialogHeader>
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 my-4">
             <p className="text-sm text-amber-800 font-medium text-center">
-              Please confirm your action
+              {t("pleaseConfirmYourAction")}
             </p>
           </div>
           <DialogFooter className="flex-row gap-3">
-            <Button 
+            <Button
               variant="outline"
               onClick={() => {
                 setShowConfirm(false);
@@ -1613,9 +1622,9 @@ export default function TakeExamPage() {
               }}
               className="flex-1"
             >
-              Cancel
+              {t("cancel")}
             </Button>
-            <Button 
+            <Button
               onClick={() => {
                 setShowConfirm(false);
                 confirmCallback?.();
@@ -1623,7 +1632,7 @@ export default function TakeExamPage() {
               }}
               className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
             >
-              Confirm
+              {t("confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

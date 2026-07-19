@@ -9,9 +9,11 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Loader2, Settings2, Shield, ClipboardList } from "lucide-react";
 import { getSystemConfig, updateSystemConfig } from "@/lib/supabase/queries";
+import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
 
 export function SystemConfigSettings() {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [configs, setConfigs] = useState<Record<string, SystemConfig>>({});
@@ -42,14 +44,14 @@ export function SystemConfigSettings() {
           }
         }
       } catch (error: any) {
-        toast.error("Failed to load system configuration: " + error.message);
+        toast.error(t("failedToLoadSystemConfig") + error.message);
       } finally {
         setLoading(false);
       }
     };
 
     loadConfigs();
-  }, []);
+  }, [t]);
 
   const handleSaveExamLimit = async () => {
     try {
@@ -57,11 +59,11 @@ export function SystemConfigSettings() {
       await updateSystemConfig(
         "universal_exam_limit",
         examLimit.toString(),
-        "Universal daily exam limit applied to all users"
+        t("universalExamLimitDesc")
       );
-      toast.success("Universal exam limit updated successfully");
+      toast.success(t("universalExamLimitUpdated"));
     } catch (error: any) {
-      toast.error("Failed to update exam limit: " + error.message);
+      toast.error(t("failedToUpdateExamLimit") + error.message);
     } finally {
       setSaving(false);
     }
@@ -73,11 +75,11 @@ export function SystemConfigSettings() {
       await updateSystemConfig(
         "violation_measures_enabled",
         violationsEnabled.toString(),
-        "Enable/disable exam security violation measures (fullscreen, copy/paste prevention, etc.)"
+        t("violationMeasuresDesc")
       );
-      toast.success(`Violation measures ${violationsEnabled ? "enabled" : "disabled"} successfully`);
+      toast.success(t(violationsEnabled ? "violationMeasuresEnabled" : "violationMeasuresDisabled"));
     } catch (error: any) {
-      toast.error("Failed to update violation settings: " + error.message);
+      toast.error(t("failedToUpdateViolationSettings") + error.message);
     } finally {
       setSaving(false);
     }
@@ -87,8 +89,8 @@ export function SystemConfigSettings() {
     return (
       <Card className="border border-border rounded-[32px] bg-card shadow-sm">
         <CardHeader>
-          <CardTitle>System Configuration</CardTitle>
-          <CardDescription>Loading configuration...</CardDescription>
+          <CardTitle>{t("systemConfiguration")}</CardTitle>
+          <CardDescription>{t("loadingConfiguration")}</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -104,15 +106,15 @@ export function SystemConfigSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
-            Universal Exam Limit
+            {t("universalExamLimit")}
           </CardTitle>
           <CardDescription>
-            Set the daily exam limit that applies to all users system-wide
+            {t("setDailyExamLimit")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="exam-limit">Daily Exam Limit (per user)</Label>
+            <Label htmlFor="exam-limit">{t("dailyExamLimitPerUser")}</Label>
             <div className="flex items-center gap-4">
               <Input
                 id="exam-limit"
@@ -124,26 +126,26 @@ export function SystemConfigSettings() {
                 className="w-32"
               />
               <span className="text-sm text-muted-foreground">
-                exams per day per user
+                {t("examsPerDayPerUser")}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              This limit will be applied to all users unless they have individual limits set.
+              {t("limitAppliedToAllUsers")}
             </p>
           </div>
-          
-          <Button 
-            onClick={handleSaveExamLimit} 
+
+          <Button
+            onClick={handleSaveExamLimit}
             disabled={saving}
             className="w-full sm:w-auto"
           >
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
+                {t("saving")}
               </>
             ) : (
-              "Save Exam Limit"
+              t("saveExamLimit")
             )}
           </Button>
         </CardContent>
@@ -154,20 +156,20 @@ export function SystemConfigSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            Exam Security Settings
+            {t("examSecuritySettings")}
           </CardTitle>
           <CardDescription>
-            Enable or disable exam security violation measures
+            {t("enableDisableSecurityMeasures")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="violations-toggle" className="text-base">
-                Violation Measures
+                {t("violationMeasures")}
               </Label>
               <p className="text-sm text-muted-foreground">
-                Fullscreen enforcement, copy/paste prevention, tab switching detection
+                {t("securityFeaturesList")}
               </p>
             </div>
             <Switch
@@ -176,33 +178,33 @@ export function SystemConfigSettings() {
               onCheckedChange={setViolationsEnabled}
             />
           </div>
-          
+
           <div className="bg-muted rounded-lg p-3">
             <p className="text-sm text-muted-foreground">
-              Current Status: {" "}
+              {t("currentStatus")}{" "}
               <span className={`font-medium ${violationsEnabled ? "text-green-600" : "text-red-600"}`}>
-                {violationsEnabled ? "ENABLED" : "DISABLED"}
+                {violationsEnabled ? t("enabledUpper") : t("disabledUpper")}
               </span>
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {violationsEnabled 
-                ? "Exam security features are active. Users will be monitored for violations."
-                : "Exam security features are disabled. Users can take exams without restrictions."}
+              {violationsEnabled
+                ? t("securityFeaturesActive")
+                : t("securityFeaturesDisabled")}
             </p>
           </div>
-          
-          <Button 
-            onClick={handleSaveViolations} 
+
+          <Button
+            onClick={handleSaveViolations}
             disabled={saving}
             className="w-full sm:w-auto"
           >
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
+                {t("saving")}
               </>
             ) : (
-              "Save Security Settings"
+              t("saveSecuritySettings")
             )}
           </Button>
         </CardContent>

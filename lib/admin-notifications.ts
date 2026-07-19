@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 
-const PRIMARY_ADMIN_EMAIL = "Navo@admin.jn";
+const PRIMARY_ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
 
 /**
  * Notify the primary admin about actions taken by other admins

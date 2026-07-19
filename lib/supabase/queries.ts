@@ -1324,18 +1324,14 @@ export async function getUsers(type: "students" | "admins" = "students") {
     throw new Error("Unauthorized - Admin access required");
   }
 
-  // Note: Without service role, we can only get users from a profiles table
-  // or use RPC functions. For now, we'll query a user_profiles table.
-  // If no such table exists, this needs to be created in Supabase.
-
-  // Get users from a custom profiles table (you need to create this)
+  // Get users from user_profiles table
   const { data: profiles, error } = await supabase
     .from("user_profiles")
     .select("*")
     .eq(type === "admins" ? "role" : "role", type === "admins" ? "Admin" : "Student");
 
   if (error) {
-    console.error("Note: user_profiles table may not exist. Create it in Supabase.", error);
+    console.error("Failed to fetch users from user_profiles:", error);
     return { users: [] };
   }
 

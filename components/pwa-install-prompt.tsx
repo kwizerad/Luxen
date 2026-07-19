@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { X, Download, Smartphone } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -14,6 +15,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function PWAInstallPrompt() {
+  const { t } = useLanguage();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -128,12 +130,12 @@ export function PWAInstallPrompt() {
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm leading-tight">
-                Install Navo Lite
+                {t("pwa.installNavoLite")}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
                 {isIOS 
-                  ? "Tap the share button and select 'Add to Home Screen' to install."
-                  : "Add Navo Lite to your home screen for quick access, even offline."
+                  ? t("pwa.iosInstallDescription")
+                  : t("pwa.installDescription")
                 }
               </p>
             </div>
@@ -141,7 +143,7 @@ export function PWAInstallPrompt() {
           <button
             onClick={handleDismiss}
             className="text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Dismiss install prompt"
+            aria-label={t("dismissInstallPrompt")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -155,17 +157,17 @@ export function PWAInstallPrompt() {
               className="w-full gap-2"
             >
               <Download className="w-4 h-4" />
-              Install App
+              {t("installApp")}
             </Button>
           </div>
         )}
 
         {isIOS && (
           <div className="mt-3 text-xs text-muted-foreground bg-muted rounded px-3 py-2">
-            <strong>How to install:</strong>
+            <strong>{t("pwa.howToInstall")}</strong>
             <ol className="mt-1 ml-4 list-decimal space-y-0.5">
-              <li>Tap the share button in Safari</li>
-              <li>Scroll down and tap "Add to Home Screen"</li>
+              <li>{t("pwa.iosStepOne")}</li>
+              <li>{t("pwa.iosStepTwo")}</li>
             </ol>
           </div>
         )}

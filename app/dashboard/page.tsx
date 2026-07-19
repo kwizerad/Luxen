@@ -159,22 +159,22 @@ export default function Dashboard() {
 
   const scoreDistributionData = [
     {
-      name: 'Excellent (90-100%)',
+      name: "scoreDistribution.excellent",
       value: examAttempts.filter((a) => a.score_percentage >= 90).length,
       fill: '#10b981',
     },
     {
-      name: 'Good (75-89%)',
+      name: "scoreDistribution.good",
       value: examAttempts.filter((a) => a.score_percentage >= 75 && a.score_percentage < 90).length,
       fill: '#3b82f6',
     },
     {
-      name: 'Fair (50-74%)',
+      name: "scoreDistribution.fair",
       value: examAttempts.filter((a) => a.score_percentage >= 50 && a.score_percentage < 75).length,
       fill: '#f59e0b',
     },
     {
-      name: 'Below 50%',
+      name: "scoreDistribution.below50",
       value: examAttempts.filter((a) => a.score_percentage < 50).length,
       fill: '#ef4444',
     },
@@ -206,13 +206,13 @@ export default function Dashboard() {
 
   // Delete an attempt and refresh
   const handleDeleteAttempt = async (attemptId: string) => {
-    if (!confirm("Delete this attempt? This action cannot be undone.")) return;
+    if (!confirm(t("deleteAttemptConfirm"))) return;
     try {
       await deleteExamAttempt(attemptId);
       await loadExamData();
     } catch (err) {
       console.error("Failed to delete attempt:", err);
-      alert("Failed to delete attempt");
+      alert(t("failedToDeleteAttempt"));
     }
   };
 
@@ -276,7 +276,7 @@ export default function Dashboard() {
     if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
       return `${user.user_metadata.first_name} ${user.user_metadata.last_name}`;
     }
-    return user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || "User";
+    return user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || t("user");
   };
 
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.google_avatar_url || user?.user_metadata?.picture;
@@ -296,8 +296,8 @@ export default function Dashboard() {
       <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-6">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         <div className="text-center space-y-2">
-          <p className="text-lg font-medium text-foreground">Loading your dashboard...</p>
-          <p className="text-sm text-muted-foreground">Please wait while we fetch your data</p>
+          <p className="text-lg font-medium text-foreground">{t("loadingYourDashboard")}</p>
+          <p className="text-sm text-muted-foreground">{t("pleaseWaitFetchingData")}</p>
         </div>
       </div>
     );
@@ -326,46 +326,46 @@ export default function Dashboard() {
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold">{t("welcome")}, {getDisplayName().split(' ')[0]}! 👋</h1>
-              <p className="text-sm text-muted-foreground mt-1">Your learning dashboard overview</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("learningDashboard")}</p>
             </div>
           </div>
 
           {/* Quick Stats Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <KPICard
-              title="Total Exams"
+              title={t("totalExamsTaken")}
               value={examStats.totalExams}
-              unit="taken"
+              unit={t("taken")}
               icon={<Trophy className="h-4 w-4" />}
-              description="All completed exams"
+              description={t("allCompletedExams")}
             />
             <KPICard
-              title="Average Score"
+              title={t("averageScore")}
               value={examStats.averageScore}
               unit="%"
               icon={<BarChart3 className="h-4 w-4" />}
-              description="Your overall performance"
+              description={t("yourOverallPerformance")}
             />
             <KPICard
-              title="Best Score"
+              title={t("bestScore")}
               value={examStats.bestScore}
               unit="%"
               icon={<Award className="h-4 w-4" />}
-              description="Highest score achieved"
+              description={t("highestScoreAchieved")}
             />
             <KPICard
-              title="Pass Rate"
+              title={t("passRate")}
               value={examStats.passRate}
               unit="%"
               icon={<CheckCircle2 className="h-4 w-4" />}
-              description="Exams passed (≥50%)"
+              description={t("examsPassed50")}
             />
           </div>
         </div>
 
         {/* Quick Actions */}
         <div>
-          <h2 className="text-lg font-semibold mb-2">Quick Actions</h2>
+          <h2 className="text-lg font-semibold mb-2">{t("quickActions")}</h2>
           <QuickActions />
         </div>
 
@@ -412,7 +412,7 @@ export default function Dashboard() {
             {/* Score Distribution Chart */}
             {examStats.totalExams > 0 && (
               <div>
-                <h2 className="text-lg font-semibold mb-3">Score Distribution</h2>
+                <h2 className="text-lg font-semibold mb-3">{t("scoreDistribution")}</h2>
                 <Card className="border border-border">
                   <CardContent className="pt-4">
                     <div className="space-y-2">
@@ -420,7 +420,7 @@ export default function Dashboard() {
                         <div key={item.name} className="flex items-center justify-between p-2 rounded bg-secondary/50">
                           <div className="flex items-center gap-2">
                             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.fill }} />
-                            <span className="text-sm">{item.name}</span>
+                            <span className="text-sm">{t(item.name)}</span>
                           </div>
                           <span className="font-semibold">{item.value}</span>
                         </div>
@@ -447,13 +447,13 @@ export default function Dashboard() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Zap className="h-4 w-4 text-yellow-500" />
-                    Daily Limit
+                    {t("dailyLimit")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0 space-y-2">
                   <div>
                     <div className="flex justify-between items-center mb-1 text-xs">
-                      <span className="text-muted-foreground">Used</span>
+                      <span className="text-muted-foreground">{t("used")}</span>
                       <span className="font-semibold">{examLimit.attempts_today}/{examLimit.daily_limit}</span>
                     </div>
                     <div className="bg-secondary rounded-full h-2 overflow-hidden">
@@ -466,7 +466,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {examLimit.remaining_attempts} left
+                    {examLimit.remaining_attempts} {t("remaining")}
                   </p>
                 </CardContent>
               </Card>
@@ -482,7 +482,7 @@ export default function Dashboard() {
             <DialogTitle className="flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Eye className="h-5 w-5 text-primary" />
-                Question Details
+                {t("questionDetails")}
               </span>
               {selectedQuestion && (
                 <Button
@@ -492,12 +492,12 @@ export default function Dashboard() {
                   className="shrink-0"
                 >
                   <Copy className="h-4 w-4 mr-2" />
-                  {copiedText === "Question" ? "Copied!" : "Copy Question"}
+                  {copiedText === "Question" ? t("copied") : t("copyQuestion")}
                 </Button>
               )}
             </DialogTitle>
             <DialogDescription>
-              Category: {examCategories.find(c => c.id === selectedQuestion?.category_id)?.name || "Unknown"}
+              {t("category")}: {examCategories.find(c => c.id === selectedQuestion?.category_id)?.name || t("unknown")}
             </DialogDescription>
           </DialogHeader>
           
@@ -506,13 +506,13 @@ export default function Dashboard() {
               {/* Question */}
               <Card className="border-2 border-primary/20">
                 <CardHeader>
-                  <CardTitle className="text-lg">Question</CardTitle>
+                  <CardTitle className="text-lg">{t("question")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {selectedQuestion.question_image && (
                     <img 
                       src={selectedQuestion.question_image} 
-                      alt="Question" 
+                      alt={t("question")}
                       className="w-full max-h-[200px] object-contain rounded-lg mb-3 border"
                     />
                   )}
@@ -523,7 +523,7 @@ export default function Dashboard() {
               {/* Options */}
               <Card className="border-2 border-primary/20">
                 <CardHeader>
-                  <CardTitle className="text-lg">Options</CardTitle>
+                  <CardTitle className="text-lg">{t("options")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {[
@@ -558,7 +558,7 @@ export default function Dashboard() {
                           onClick={() => copyToClipboard(option.text || "", `Option ${option.key}`)}
                         >
                           <Copy className="h-4 w-4" />
-                          {copiedText === `Option ${option.key}` && <span className="ml-1 text-xs">Copied!</span>}
+                          {copiedText === `Option ${option.key}` && <span className="ml-1 text-xs">{t("copied")}</span>}
                         </Button>
                       </div>
                     );
@@ -570,14 +570,14 @@ export default function Dashboard() {
               {selectedQuestion.explanation && (
                 <Card className="border-2 border-primary/20">
                   <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="text-lg">Explanation</CardTitle>
+                    <CardTitle className="text-lg">{t("explanation")}</CardTitle>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => copyToClipboard(selectedQuestion.explanation || "", "Explanation")}
                     >
                       <Copy className="h-4 w-4 mr-2" />
-                      {copiedText === "Explanation" ? "Copied!" : "Copy"}
+                      {copiedText === "Explanation" ? t("copied") : t("copy")}
                     </Button>
                   </CardHeader>
                   <CardContent>
@@ -588,7 +588,7 @@ export default function Dashboard() {
 
               <div className="flex gap-2 pt-4 border-t">
                 <Button variant="outline" onClick={() => setShowQuestionModal(false)} className="flex-1">
-                  Close
+                  {t("close")}
                 </Button>
               </div>
             </div>

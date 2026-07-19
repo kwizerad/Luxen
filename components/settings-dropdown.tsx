@@ -53,7 +53,7 @@ export function SettingsDropdown() {
         className="relative"
       >
         <Settings className="h-[1.2rem] w-[1.2rem]" />
-        <span className="sr-only">Settings</span>
+        <span className="sr-only">{t("settings")}</span>
       </Button>
 
       {isOpen && (
@@ -81,10 +81,10 @@ export function SettingsDropdown() {
                 onChange={(e) => setLanguage(e.target.value as any)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="English">English</option>
-                <option value="Arabic">Arabic</option>
-                <option value="Kinyarwanda">Kinyarwanda</option>
-                <option value="French">French</option>
+                <option value="English">{t("english")}</option>
+                <option value="Arabic">{t("arabic")}</option>
+                <option value="Kinyarwanda">{t("kinyarwanda")}</option>
+                <option value="French">{t("french")}</option>
               </select>
             </div>
 

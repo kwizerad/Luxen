@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { checkAdminExists, setupAdmin } from "@/lib/supabase/queries";
 import { useBrandingConfig } from "@/lib/branding-config";
+import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import Link from "next/link";
 
 export default function SetupAdminPage() {
@@ -16,6 +17,7 @@ export default function SetupAdminPage() {
   const [adminExists, setAdminExists] = useState(true);
   const [result, setResult] = useState<{ success?: boolean; message?: string; error?: string } | null>(null);
   const router = useRouter();
+  const adminEmail = DEFAULT_ADMIN_EMAIL;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -51,7 +53,7 @@ export default function SetupAdminPage() {
     try {
       // Note: Admin creation via client requires proper setup
       // The setupAdmin function uses Supabase Auth signUp
-      const data = await setupAdmin("Navo@admin.jn", "adminjohn");
+      const data = await setupAdmin(adminEmail, "adminjohn");
       setResult({
         success: true,
         message: "Admin user created successfully. Please check your email to confirm the account."
@@ -133,7 +135,7 @@ export default function SetupAdminPage() {
           </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-muted p-3 rounded-md text-sm">
-            <p><strong>Email:</strong> Navo@admin.jn</p>
+            <p><strong>Email:</strong> {adminEmail}</p>
             <p><strong>Password:</strong> adminjohn</p>
             <p><strong>Role:</strong> Admin</p>
           </div>

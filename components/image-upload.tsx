@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ImageIcon, X, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/language-context";
 
 interface ImageUploadProps {
   value?: string;
@@ -23,6 +24,7 @@ export function ImageUpload({
   folder = "exam-images",
   className,
 }: ImageUploadProps) {
+  const { t } = useLanguage();
   const [isUploading, setIsUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(value || null);
   const [filePath, setFilePath] = useState<string | null>(null);
@@ -31,12 +33,12 @@ export function ImageUpload({
   const handleFileChange = async (file: File) => {
     // Validate file
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+      toast.error(t("imageUpload.selectImageFile"));
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size must be less than 5MB");
+      toast.error(t("imageUpload.fileSizeLimit"));
       return;
     }
 
@@ -86,10 +88,10 @@ export function ImageUpload({
 
       onChange(publicUrl);
       setFilePath(filePathLocal);
-      toast.success("Image uploaded successfully");
+      toast.success(t("imageUploadedSuccess"));
     } catch (error: any) {
       console.error("Upload error:", error);
-      toast.error(error?.message || "Failed to upload image");
+      toast.error(error?.message || t("imageUpload.failed"));
       setPreview(null);
     } finally {
       setIsUploading(false);
@@ -132,7 +134,7 @@ export function ImageUpload({
       <div className={`relative ${className}`}>
         <img
           src={preview}
-          alt="Uploaded"
+          alt={t("imageUpload.uploaded")}
           className="w-full h-48 object-cover rounded-lg border border-border"
         />
         <Button
@@ -175,14 +177,14 @@ export function ImageUpload({
       {isUploading ? (
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Uploading...</p>
+          <p className="text-sm text-muted-foreground">{t("imageUpload.uploading")}</p>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2">
           <Upload className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm font-medium">Click or drag image here</p>
+          <p className="text-sm font-medium">{t("imageUpload.clickOrDrag")}</p>
           <p className="text-xs text-muted-foreground">
-            PNG, JPG, GIF up to 5MB
+            {t("imageUpload.supportedFormats")}
           </p>
         </div>
       )}

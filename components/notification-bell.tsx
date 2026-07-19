@@ -16,8 +16,10 @@ import { Bell, Check, Trash2, X } from "lucide-react";
 import { useNotifications } from "@/lib/notification-context";
 import { formatDistanceToNow } from "date-fns";
 import type { Notification } from "@/lib/database.types";
+import { useLanguage } from "@/lib/language-context";
 
 export function NotificationBell() {
+  const { t } = useLanguage();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
   const [open, setOpen] = useState(false);
 
@@ -102,7 +104,7 @@ export function NotificationBell() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
         <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Notifications</span>
+          <span>{t("notifications")}</span>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
@@ -110,7 +112,7 @@ export function NotificationBell() {
               onClick={handleMarkAllAsRead}
               className="h-auto p-1 text-xs"
             >
-              Mark all read
+              {t("markAllRead")}
             </Button>
           )}
         </DropdownMenuLabel>
@@ -118,7 +120,7 @@ export function NotificationBell() {
         <ScrollArea className="h-96">
           {notifications.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
-              No notifications
+              {t("noNotifications")}
             </div>
           ) : (
             notifications.map((notification) => (
@@ -159,7 +161,7 @@ export function NotificationBell() {
                       className="h-6 px-2 text-xs"
                     >
                       <Check className="h-3 w-3 mr-1" />
-                      Mark read
+                      {t("markRead")}
                     </Button>
                   )}
                   <Button

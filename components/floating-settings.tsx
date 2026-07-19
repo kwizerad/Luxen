@@ -22,6 +22,7 @@ import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { isAdmin } from "@/lib/permissions";
 
 type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
+type LanguageCode = "en" | "rw" | "fr" | "ar";
 
 const languages: { value: Language; label: string; flag: string }[] = [
   { value: "English", label: "English", flag: "🇬🇧" },
@@ -35,6 +36,14 @@ export function FloatingSettings() {
   const { openLogin, openSignUp } = useAuthModals();
   const { theme, setTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
+
+  // Convert full language name to code for storage
+  const languageToCode: Record<Language, LanguageCode> = {
+    English: "en",
+    Kinyarwanda: "rw",
+    French: "fr",
+    Arabic: "ar"
+  };
 
   const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
 
@@ -66,13 +75,13 @@ export function FloatingSettings() {
 
   const handleLanguageChange = async (newLanguage: Language) => {
     setLanguage(newLanguage);
-    
-    // Save to user metadata if logged in
+
+    // Save to user metadata if logged in (store as language code)
     if (user) {
       try {
         const supabase = createClient();
         await supabase.auth.updateUser({
-          data: { language: newLanguage }
+          data: { language: languageToCode[newLanguage] }
         });
       } catch (error) {
         console.error("Failed to save language:", error);
@@ -165,7 +174,7 @@ export function FloatingSettings() {
           {!isInstalled && isInstallable && (
             <DropdownMenuItem onClick={promptInstall} className="cursor-pointer">
               <Download className="mr-2 h-4 w-4" />
-              Install App
+              {t("installApp")}
             </DropdownMenuItem>
           )}
 

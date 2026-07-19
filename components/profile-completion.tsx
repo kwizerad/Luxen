@@ -5,6 +5,7 @@ import { ProgressRing } from './dashboard-widgets';
 import { calculateProfileCompletion } from '@/lib/dashboard-utils';
 import { Button } from '@/components/ui/button';
 import { Edit2, CheckCircle2 } from 'lucide-react';
+import { useLanguage } from '@/lib/language-context';
 
 interface ProfileCompletionProps {
   userMetadata: Record<string, any>;
@@ -13,17 +14,18 @@ interface ProfileCompletionProps {
 }
 
 export function ProfileCompletion({ userMetadata, onEditClick, isLoading = false }: ProfileCompletionProps) {
+  const { t } = useLanguage();
   const completionPercentage = calculateProfileCompletion(userMetadata);
   const isComplete = completionPercentage === 100;
 
   const requiredFields = [
-    { key: 'first_name', label: 'First Name' },
-    { key: 'last_name', label: 'Last Name' },
-    { key: 'email', label: 'Email' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'birthdate', label: 'Date of Birth' },
-    { key: 'nationality', label: 'Nationality' },
-    { key: 'avatar_url', label: 'Profile Picture' },
+    { key: 'first_name', label: t("firstName") },
+    { key: 'last_name', label: t("lastName") },
+    { key: 'email', label: t("email") },
+    { key: 'phone', label: t("phone") },
+    { key: 'birthdate', label: t("dateOfBirth") },
+    { key: 'nationality', label: t("nationality") },
+    { key: 'avatar_url', label: t("profilePicture") },
   ];
 
   const filledFields = requiredFields.filter((field) => userMetadata[field.key] && String(userMetadata[field.key]).trim() !== '');
@@ -47,8 +49,8 @@ export function ProfileCompletion({ userMetadata, onEditClick, isLoading = false
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Profile Completion</CardTitle>
-            <CardDescription>Complete your profile to unlock all features</CardDescription>
+            <CardTitle>{t("profileCompletion")}</CardTitle>
+            <CardDescription>{t("profileCompletion.description")}</CardDescription>
           </div>
           {isComplete && <CheckCircle2 className="h-6 w-6 text-green-500" />}
         </div>
@@ -64,7 +66,7 @@ export function ProfileCompletion({ userMetadata, onEditClick, isLoading = false
                 ></div>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                {filledFields.length} of {requiredFields.length} fields completed
+                {filledFields.length} {t("profileCompletion.of")} {requiredFields.length} {t("profileCompletion.fieldsCompleted")}
               </p>
             </div>
             <span className="text-2xl font-bold ml-4">{completionPercentage}%</span>
@@ -72,7 +74,7 @@ export function ProfileCompletion({ userMetadata, onEditClick, isLoading = false
 
           {!isComplete && (
             <div className="space-y-2">
-              <p className="text-sm font-medium mb-3">Missing fields:</p>
+              <p className="text-sm font-medium mb-3">{t("profileCompletion.missingFields")}</p>
               <div className="grid grid-cols-2 gap-2">
                 {requiredFields
                   .filter((field) => !userMetadata[field.key] || String(userMetadata[field.key]).trim() === '')
@@ -88,7 +90,7 @@ export function ProfileCompletion({ userMetadata, onEditClick, isLoading = false
           {!isComplete && (
             <Button onClick={onEditClick} variant="default" size="sm" className="w-full">
               <Edit2 className="h-4 w-4 mr-2" />
-              Complete Profile
+              {t("profileCompletion.completeProfile")}
             </Button>
           )}
         </div>

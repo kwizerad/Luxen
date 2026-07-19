@@ -17,6 +17,7 @@ import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
 
 type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
+type LanguageCode = "en" | "rw" | "fr" | "ar";
 
 const languages: { value: Language; label: string; flag: string }[] = [
   { value: "English", label: "English", flag: "🇬🇧" },
@@ -24,6 +25,14 @@ const languages: { value: Language; label: string; flag: string }[] = [
   { value: "French", label: "Français", flag: "🇫🇷" },
   { value: "Kinyarwanda", label: "Kinyarwanda", flag: "🇷🇼" },
 ];
+
+// Convert full language name to code for storage
+const languageToCode: Record<Language, LanguageCode> = {
+  English: "en",
+  Kinyarwanda: "rw",
+  French: "fr",
+  Arabic: "ar"
+};
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -130,6 +139,22 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
     router.push("/");
   };
 
+  const handleLanguageChange = async (newLanguage: Language) => {
+    setLanguage(newLanguage);
+
+    // Save to user metadata if logged in (store as language code)
+    if (user) {
+      try {
+        const supabase = createClient();
+        await supabase.auth.updateUser({
+          data: { language: languageToCode[newLanguage] }
+        });
+      } catch (error) {
+        console.error("Failed to save language:", error);
+      }
+    }
+  };
+
   if (onMobile) {
     return (
       <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -168,7 +193,7 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
           {languages.map((lang) => (
             <DropdownMenuItem
               key={lang.value}
-              onClick={() => setLanguage(lang.value)}
+              onClick={() => handleLanguageChange(lang.value)}
               className={language === lang.value ? "bg-accent" : ""}
             >
               <span className="mr-2">{lang.flag}</span>
@@ -224,7 +249,7 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
           {languages.map((lang) => (
             <DropdownMenuItem
               key={lang.value}
-              onClick={() => setLanguage(lang.value)}
+              onClick={() => handleLanguageChange(lang.value)}
               className={language === lang.value ? "bg-accent" : ""}
             >
               <span className="mr-2">{lang.flag}</span>

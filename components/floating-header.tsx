@@ -1,55 +1,41 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { NotificationsDropdown } from "./notifications-dropdown";
 import { FloatingUserSettings } from "./floating-user-settings";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
-import { Menu, X } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
 
 export function FloatingHeader() {
   const { user, loading: authLoading } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isRTL } = useLanguage();
   const pathname = usePathname();
-
-  // Check if we're in exam mode (hide floating header during exam)
-  const isExamPage = pathname === "/dashboard/exam";
   const [isExamActive, setIsExamActive] = useState(false);
-  
-  useEffect(() => {
-    // Check if exam is active by looking for fullscreen state and exam page
-    const checkExamActive = () => {
-      if (typeof window !== 'undefined') {
-        return isExamPage && !!document.fullscreenElement;
-      }
-      return false;
-    };
-    
-    const updateExamState = () => {
-      const examActive = checkExamActive();
-      setIsExamActive(examActive);
-    };
-    
-    updateExamState();
-    
-    // Listen for fullscreen changes if on exam page
-    if (isExamPage) {
-      document.addEventListener('fullscreenchange', updateExamState);
-      document.addEventListener('webkitfullscreenchange', updateExamState);
-      document.addEventListener('mozfullscreenchange', updateExamState);
-      document.addEventListener('MSFullscreenChange', updateExamState);
-      
-      return () => {
-        document.removeEventListener('fullscreenchange', updateExamState);
-        document.removeEventListener('webkitfullscreenchange', updateExamState);
-        document.removeEventListener('mozfullscreenchange', updateExamState);
-        document.removeEventListener('MSFullscreenChange', updateExamState);
-      };
-    }
-  }, [isExamPage]);
 
-  // Don't render on exam page if exam is active
+  // Check if exam is active
+  useEffect(() => {
+    const checkExamActive = () => {
+      const isActive = sessionStorage.getItem('exam-active') === 'true';
+      setIsExamActive(isActive);
+    };
+
+    checkExamActive();
+
+    const handleExamStateChange = () => {
+      checkExamActive();
+    };
+
+    window.addEventListener('exam-state-change', handleExamStateChange);
+    window.addEventListener('storage', handleExamStateChange);
+
+    return () => {
+      window.removeEventListener('exam-state-change', handleExamStateChange);
+      window.removeEventListener('storage', handleExamStateChange);
+    };
+  }, []);
+
+  // Don't render during active exam
   if (isExamActive) {
     return null;
   }
@@ -63,12 +49,12 @@ export function FloatingHeader() {
     <>
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-4 py-3">
-        <div className="flex items-center justify-end gap-2">
+        <div className={`flex items-center ${isRTL ? 'justify-start' : 'justify-end'} gap-2`}>
           {/* Notifications */}
           <div className="bg-background/95 backdrop-blur-sm border rounded-full shadow-lg">
             <NotificationsDropdown />
           </div>
-          
+
           {/* User Settings */}
           <div className="bg-background/95 backdrop-blur-sm border rounded-full shadow-lg">
             <FloatingUserSettings user={user} onMobile />
@@ -76,13 +62,13 @@ export function FloatingHeader() {
         </div>
       </div>
 
-      {/* Desktop Header - Top Right */}
-      <div className="hidden md:flex fixed top-4 right-4 z-50 items-center gap-3">
+      {/* Desktop Header - Top Right/Left based on RTL */}
+      <div className={`hidden md:flex fixed top-4 ${isRTL ? 'left-4' : 'right-4'} z-50 items-center gap-3`}>
         {/* Notifications */}
         <div className="bg-background/95 backdrop-blur-sm border rounded-full shadow-lg">
           <NotificationsDropdown />
         </div>
-        
+
         {/* User Settings */}
         <div className="bg-background/95 backdrop-blur-sm border rounded-full shadow-lg">
           <FloatingUserSettings user={user} />

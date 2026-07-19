@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2, TrendingUp, TrendingDown, Clock, Trophy, Target, Calendar, ChevronRight, Eye } from "lucide-react";
 import { toast } from "sonner";
-import { getExamAttempts, getExamAttemptsWithQuestions } from "@/lib/supabase/queries";
 import type { ExamAttempt } from "@/lib/database.types";
 
 interface UserPerformanceModalProps {
@@ -16,7 +15,11 @@ interface UserPerformanceModalProps {
   user: {
     id: string;
     email: string;
-    user_metadata: {
+    username?: string;
+    first_name?: string;
+    last_name?: string;
+    full_name?: string;
+    user_metadata?: {
       username?: string;
       first_name?: string;
       last_name?: string;
@@ -46,106 +49,43 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   const getDisplayName = () => {
+    if (user.first_name && user.last_name) {
+      return `${user.first_name} ${user.last_name}`;
+    }
     if (user.user_metadata?.first_name && user.user_metadata?.last_name) {
       return `${user.user_metadata.first_name} ${user.user_metadata.last_name}`;
     }
-    return user.user_metadata?.full_name || user.user_metadata?.username || user.email;
+    return user.full_name || user.user_metadata?.full_name || user.username || user.user_metadata?.username || user.email;
   };
 
   const fetchPerformanceData = async () => {
     setLoading(true);
     try {
       console.log("Fetching performance data for user:", user.id);
-      const result = await getExamAttempts(user.id);
-      console.log("Get exam attempts result:", result);
-      
-      const { attempts } = result;
+      const response = await fetch(`/api/users/${user.id}/performance`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch performance data");
+      }
+
+      const { attempts } = data;
       console.log("Attempts:", attempts);
-      
-      // If no real data, use mock data for demonstration
+
+      // If no real data, show empty state
       if (!attempts || attempts.length === 0) {
-        console.log("No attempts found for user, using mock data");
-        const mockAttempts: ExamAttempt[] = [
-          {
-            id: "mock-1",
-            user_id: user.id,
-            category_id: "cat-1",
-            category_name: "Mathematics",
-            started_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-            completed_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 25 * 60 * 1000).toISOString(), // 25 minutes later
-            duration_seconds: 1500,
-            total_questions: 20,
-            correct_answers: 17,
-            score_percentage: 85,
-            answers: [],
-            status: 'completed'
-          },
-          {
-            id: "mock-2",
-            user_id: user.id,
-            category_id: "cat-2",
-            category_name: "Science",
-            started_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-            completed_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(), // 30 minutes later
-            duration_seconds: 1800,
-            total_questions: 25,
-            correct_answers: 20,
-            score_percentage: 80,
-            answers: [],
-            status: 'completed'
-          },
-          {
-            id: "mock-3",
-            user_id: user.id,
-            category_id: "cat-3",
-            category_name: "History",
-            started_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-            completed_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 20 * 60 * 1000).toISOString(), // 20 minutes later
-            duration_seconds: 1200,
-            total_questions: 15,
-            correct_answers: 12,
-            score_percentage: 80,
-            answers: [],
-            status: 'completed'
-          },
-          {
-            id: "mock-4",
-            user_id: user.id,
-            category_id: "cat-4",
-            category_name: "Geography",
-            started_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-            completed_at: null,
-            duration_seconds: 900,
-            total_questions: 20,
-            correct_answers: 10,
-            score_percentage: 50,
-            answers: [],
-            status: 'in_progress'
-          }
-        ];
-        
-        const completed = mockAttempts.filter(a => a.status === 'completed');
-        const totalScore = completed.reduce((sum, a) => sum + a.score_percentage, 0);
-        const totalTime = completed.reduce((sum, a) => sum + a.duration_seconds, 0);
-        const categories = new Set(mockAttempts.map(a => a.category_name)) as Set<string>;
-        
-        const scores = completed.map(a => a.score_percentage);
-        const bestScore = Math.max(...scores, 0);
-        const worstScore = Math.min(...scores, 0);
-        
-        const recentScores = completed.slice(-5).map(a => a.score_percentage);
-        
+        console.log("No attempts found for user");
         setStats({
-          totalAttempts: mockAttempts.length,
-          completedAttempts: completed.length,
-          averageScore: completed.length > 0 ? totalScore / completed.length : 0,
-          bestScore,
-          worstScore,
-          averageTime: completed.length > 0 ? totalTime / completed.length : 0,
-          totalTime,
-          categoriesAttempted: categories,
-          recentAttempts: mockAttempts.slice(0, 10),
-          scoreTrend: recentScores
+          totalAttempts: 0,
+          completedAttempts: 0,
+          averageScore: 0,
+          bestScore: 0,
+          worstScore: 0,
+          averageTime: 0,
+          totalTime: 0,
+          categoriesAttempted: new Set(),
+          recentAttempts: [],
+          scoreTrend: []
         });
         return;
       }
@@ -154,14 +94,14 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
       const totalScore = completed.reduce((sum: number, a: ExamAttempt) => sum + a.score_percentage, 0);
       const totalTime = completed.reduce((sum: number, a: ExamAttempt) => sum + a.duration_seconds, 0);
       const categories = new Set(attempts.map((a: ExamAttempt) => a.category_name)) as Set<string>;
-      
+
       const scores = completed.map((a: ExamAttempt) => a.score_percentage);
       const bestScore = Math.max(...scores, 0);
       const worstScore = Math.min(...scores, 0);
-      
+
       // Calculate trend (last 5 completed attempts)
       const recentScores = completed.slice(-5).map((a: ExamAttempt) => a.score_percentage);
-      
+
       setStats({
         totalAttempts: attempts.length,
         completedAttempts: completed.length,
@@ -185,36 +125,14 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
     setSelectedAttempt(attempt);
     setLoadingDetails(true);
     try {
-      // If it's a mock attempt, use mock details
-      if (attempt.id.startsWith('mock-')) {
-        const mockDetails = {
-          attempt: attempt,
-          questions: [
-            {
-              id: 'q1',
-              question: 'What is 2 + 2?',
-              selected_answer: 'A',
-              is_correct: true
-            },
-            {
-              id: 'q2',
-              question: 'What is the capital of France?',
-              selected_answer: 'B',
-              is_correct: false
-            },
-            {
-              id: 'q3',
-              question: 'What is H2O?',
-              selected_answer: 'C',
-              is_correct: true
-            }
-          ]
-        };
-        setAttemptDetails(mockDetails);
-      } else {
-        const data = await getExamAttemptsWithQuestions(attempt.id);
-        setAttemptDetails(data);
+      const response = await fetch(`/api/exam-attempts/${attempt.id}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch attempt details");
       }
+
+      setAttemptDetails(data);
     } catch (error: any) {
       toast.error("Failed to fetch attempt details: " + error.message);
     } finally {
@@ -272,6 +190,12 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : stats && stats.totalAttempts === 0 ? (
+          <div className="text-center py-12">
+            <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Exam Attempts Yet</h3>
+            <p className="text-muted-foreground">This user hasn't taken any exams yet.</p>
           </div>
         ) : stats ? (
           <div className="space-y-6">

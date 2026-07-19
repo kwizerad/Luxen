@@ -1,10 +1,23 @@
 // Permission types and validation utilities
 
 export interface User {
+  id?: string;
   email?: string | null;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  role?: string;
+  banned?: boolean;
+  last_seen?: string;
+  created_at?: string;
   user_metadata?: {
     role?: string;
     permissions?: AdminPermissions;
+    username?: string;
+    first_name?: string;
+    last_name?: string;
+    full_name?: string;
   } | null;
 }
 

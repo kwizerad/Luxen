@@ -15,9 +15,11 @@ import { ADMIN_CREDENTIALS } from "@/lib/admin-config";
 import Link from "next/link";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useThemeConfig } from "@/lib/theme-config";
+import { useLanguage } from "@/lib/language-context";
 
 export default function AdminSettingsPage() {
   const { config } = useBrandingConfig();
+  const { t } = useLanguage();
   const { setIsAdmin: setThemeIsAdmin } = useThemeConfig();
   const { setIsAdmin: setBrandingIsAdmin } = useBrandingConfig();
   const [user, setUser] = useState<any>(null);
@@ -78,16 +80,16 @@ export default function AdminSettingsPage() {
         <main className="container mx-auto px-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Settings</h1>
+              <h1 className="text-3xl font-bold">{t("settings")}</h1>
               <p className="text-muted-foreground mt-1">
-                Manage your admin account, brand, and appearance.
+                {t("manageAdminAccountBrandAppearance")}
               </p>
             </div>
             {user?.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() && (
             <Button asChild>
               <Link href="/Admin/register">
                 <UserPlus className="mr-2 h-4 w-4" />
-                Register Admin
+                {t("registerAdmin")}
               </Link>
             </Button>
           )}
@@ -97,26 +99,26 @@ export default function AdminSettingsPage() {
           <div className="space-y-6">
             <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader>
-                <CardTitle>Account Overview</CardTitle>
-                <CardDescription>Quick access to account details and profile settings.</CardDescription>
+                <CardTitle>{t("accountOverview")}</CardTitle>
+                <CardDescription>{t("accountOverviewDescription")}</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label className="text-sm text-muted-foreground">Email</Label>
+                  <Label className="text-sm text-muted-foreground">{t("email")}</Label>
                   <div className="rounded-3xl border border-border bg-secondary p-4 text-sm font-medium">
                     {user?.email || "—"}
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label className="text-sm text-muted-foreground">Role</Label>
+                  <Label className="text-sm text-muted-foreground">{t("role")}</Label>
                   <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
-                    {user?.user_metadata?.role || "Admin"}
+                    {user?.user_metadata?.role || t("admin")}
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label className="text-sm text-muted-foreground">Joined</Label>
+                  <Label className="text-sm text-muted-foreground">{t("joined")}</Label>
                   <div className="rounded-3xl border border-border bg-secondary p-4 text-sm">
-                    {user?.created_at ? new Date(user.created_at).toLocaleDateString() : "Unknown"}
+                    {user?.created_at ? new Date(user.created_at).toLocaleDateString() : t("unknown")}
                   </div>
                 </div>
               </CardContent>
@@ -124,8 +126,8 @@ export default function AdminSettingsPage() {
 
             <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader>
-                <CardTitle>Profile Settings</CardTitle>
-                <CardDescription>Update personal settings and account details.</CardDescription>
+                <CardTitle>{t("profileSettings")}</CardTitle>
+                <CardDescription>{t("profileSettingsDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <UserSettings user={user} showPasswordChange={true} />
@@ -138,8 +140,8 @@ export default function AdminSettingsPage() {
           <div className="space-y-6">
             <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader>
-                <CardTitle>Theme Customization</CardTitle>
-                <CardDescription>Customize colors and the app appearance.</CardDescription>
+                <CardTitle>{t("themeCustomization")}</CardTitle>
+                <CardDescription>{t("themeCustomizationDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ThemeCustomizer />
@@ -148,8 +150,8 @@ export default function AdminSettingsPage() {
 
             <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader>
-                <CardTitle>Branding Settings</CardTitle>
-                <CardDescription>Update logo, system name, and identity.</CardDescription>
+                <CardTitle>{t("brandingSettings")}</CardTitle>
+                <CardDescription>{t("brandingSettingsDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <BrandingCustomizer />

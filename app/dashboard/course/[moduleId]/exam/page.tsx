@@ -18,6 +18,7 @@ import {
 import { Watermark } from "@/components/watermark";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/language-context";
 import { getModuleExamForTaking, createModuleExamAttempt } from "@/lib/supabase/queries";
 
 interface UserAnswer {
@@ -27,6 +28,7 @@ interface UserAnswer {
 
 export default function ModuleExamPage() {
   const { config } = useBrandingConfig();
+  const { t } = useLanguage();
   const router = useRouter();
   const params = useParams();
   const moduleId = params.moduleId as string;
@@ -46,6 +48,15 @@ export default function ModuleExamPage() {
   useEffect(() => {
     loadExam();
   }, [moduleId]);
+
+  // Clean up exam-active flag when component unmounts
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem('exam-active');
+      window.dispatchEvent(new CustomEvent('exam-state-change'));
+      console.log('Module exam component unmounted - exam-active removed');
+    };
+  }, []);
 
   useEffect(() => {
     if (secondsLeft === null) return;
@@ -74,6 +85,13 @@ export default function ModuleExamPage() {
   const startExam = () => {
     setExamStartTime(Date.now());
     setShowInstructions(false);
+
+    // Mark exam as active in sessionStorage (for sidebar hiding)
+    sessionStorage.setItem('exam-active', 'true');
+
+    // Dispatch custom event to notify layout
+    window.dispatchEvent(new CustomEvent('exam-state-change'));
+    console.log('Module exam started - exam-active set');
   };
 
   const handleAnswerSelect = (questionId: string, answer: 'A' | 'B' | 'C' | 'D') => {
@@ -91,7 +109,7 @@ export default function ModuleExamPage() {
 
     const answeredCount = Object.keys(userAnswers).length;
     if (answeredCount === 0) {
-      toast.error("Please answer at least one question before submitting.");
+      toast.error(t("answerAtLeastOne"));
       return;
     }
 
@@ -131,8 +149,15 @@ export default function ModuleExamPage() {
         correct_answers: correctAnswers,
       });
       setShowResults(true);
+
+      // Remove exam-active flag
+      sessionStorage.removeItem('exam-active');
+
+      // Dispatch custom event to notify layout
+      window.dispatchEvent(new CustomEvent('exam-state-change'));
+      console.log('Module exam submitted - exam-active removed');
     } catch (error: any) {
-      toast.error("Failed to submit exam: " + error.message);
+      toast.error(`${t("failedToSubmitExam")}: ${error.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -161,7 +186,7 @@ export default function ModuleExamPage() {
           <Link href="/dashboard/course">
             <Button variant="ghost">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Course
+              {t("backToCourse")}
             </Button>
           </Link>
 
@@ -177,37 +202,37 @@ export default function ModuleExamPage() {
                 )}
               </div>
               <CardTitle className="text-2xl">
-                {passed ? "Congratulations!" : "Exam Not Passed"}
+                {passed ? t("congratulations") : t("examNotPassed")}
               </CardTitle>
               <CardDescription>
                 {passed
-                  ? "You have passed this module exam and can proceed to the next module."
-                  : "You did not achieve the passing score. Review the lessons and try again."}
+                  ? t("passedModuleExam")
+                  : t("failedModuleExam")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="p-4 bg-secondary rounded-lg">
                   <div className="text-2xl font-bold text-green-600">{examResult.correct_answers}</div>
-                  <div className="text-sm text-muted-foreground mt-1">Correct</div>
+                  <div className="text-sm text-muted-foreground mt-1">{t("correct")}</div>
                 </div>
                 <div className="p-4 bg-secondary rounded-lg">
                   <div className="text-2xl font-bold text-red-600">
                     {examResult.total_questions - examResult.correct_answers}
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">Incorrect</div>
+                  <div className="text-sm text-muted-foreground mt-1">{t("incorrect")}</div>
                 </div>
                 <div className="p-4 bg-secondary rounded-lg">
                   <div className={`text-2xl font-bold ${passed ? "text-green-600" : "text-red-600"}`}>
                     {examResult.score_percentage}%
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">Score</div>
+                  <div className="text-sm text-muted-foreground mt-1">{t("score")}</div>
                 </div>
               </div>
 
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">
-                  Passing score: {exam.settings.passing_score}%
+                  {t("passingScore")}: {exam.settings.passing_score}%
                 </p>
               </div>
 
@@ -215,7 +240,7 @@ export default function ModuleExamPage() {
                 onClick={() => router.push("/dashboard/course")}
                 className="w-full"
               >
-                {passed ? "Continue to Next Module" : "Review Lessons"}
+                {passed ? t("continueToNextModule") : t("reviewLessons")}
               </Button>
             </CardContent>
           </Card>
@@ -233,29 +258,29 @@ export default function ModuleExamPage() {
         <Link href="/dashboard/course">
           <Button variant="ghost">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Course
+            {t("backToCourse")}
           </Button>
         </Link>
 
         {!instructionsAccepted && (
           <Card>
             <CardHeader>
-              <CardTitle>Exam Instructions</CardTitle>
+              <CardTitle>{t("examInstructions")}</CardTitle>
               <CardDescription>
-                Please read the instructions before starting the exam
+                {t("readInstructionsBeforeExam")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2 text-sm">
-                <p>• This exam consists of {exam?.settings.question_count} questions</p>
-                <p>• You have {exam?.settings.duration_minutes} minutes to complete the exam</p>
-                <p>• You must score at least {exam?.settings.passing_score}% to pass</p>
-                <p>• Questions and answer choices are randomized</p>
-                <p>• Once you submit, you cannot change your answers</p>
-                <p>• If you fail, you can retake the exam after reviewing the lessons</p>
+                <p>• {t("moduleExamInstruction.questionCount").replace("{count}", exam?.settings.question_count)}</p>
+                <p>• {t("moduleExamInstruction.duration").replace("{minutes}", exam?.settings.duration_minutes)}</p>
+                <p>• {t("moduleExamInstruction.passingScore").replace("{score}", exam?.settings.passing_score)}</p>
+                <p>• {t("moduleExamInstruction.randomized")}</p>
+                <p>• {t("moduleExamInstruction.noChangeAfterSubmit")}</p>
+                <p>• {t("moduleExamInstruction.retakeOnFail")}</p>
               </div>
               <Button onClick={() => { setInstructionsAccepted(true); setShowInstructions(false); }} className="w-full">
-                I Understand, Start Exam
+                {t("iUnderstandStartExam")}
               </Button>
             </CardContent>
           </Card>
@@ -273,7 +298,7 @@ export default function ModuleExamPage() {
                     </span>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    Question {currentIndex + 1} of {exam.questions.length}
+                    {t("question")} {currentIndex + 1} {t("of")} {exam.questions.length}
                   </div>
                 </div>
               </CardContent>
@@ -282,14 +307,14 @@ export default function ModuleExamPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-xl">
-                  {activeQuestion.question || "(Image Question)"}
+                  {activeQuestion.question || `(${t("imageQuestion")})`}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {activeQuestion.question_image && (
                   <img
                     src={activeQuestion.question_image}
-                    alt="Question"
+                    alt={t("question")}
                     className="w-full max-h-[320px] object-contain rounded-lg border"
                   />
                 )}
@@ -323,7 +348,7 @@ export default function ModuleExamPage() {
                             {img && (
                               <img
                                 src={img}
-                                alt={`Option ${opt}`}
+                                alt={`${t("option")} ${opt}`}
                                 className="max-h-[120px] object-contain rounded"
                               />
                             )}
@@ -341,17 +366,17 @@ export default function ModuleExamPage() {
                     disabled={currentIndex === 0}
                   >
                     <ChevronLeft className="h-4 w-4 mr-2" />
-                    Previous
+                    {t("previous")}
                   </Button>
                   {currentIndex === exam.questions.length - 1 ? (
                     <Button onClick={handleSubmitExam} disabled={submitting}>
-                      {submitting ? "Submitting..." : "Submit Exam"}
+                      {submitting ? t("submitting") : t("submit")}
                     </Button>
                   ) : (
                     <Button
                       onClick={() => setCurrentIndex((i) => Math.min(exam.questions.length - 1, i + 1))}
                     >
-                      Next
+                      {t("next")}
                       <ChevronRight className="h-4 w-4 ml-2" />
                     </Button>
                   )}
