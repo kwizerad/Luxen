@@ -64,7 +64,7 @@ export function FloatingSettings() {
     }
   };
 
-  const handleLanguageChange = async (newLanguage: string) => {
+  const handleLanguageChange = async (newLanguage: Language) => {
     setLanguage(newLanguage);
     
     // Save to user metadata if logged in
