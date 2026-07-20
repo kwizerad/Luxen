@@ -49,20 +49,20 @@ export default function UserDashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center gap-6">
-        <Avatar className="h-20 w-20 border-2 border-primary">
+    <main className="student-page-narrow">
+      <div className="student-page-header sm:items-center sm:justify-start">
+        <Avatar className="h-20 w-20 border-2 border-primary/30 shadow-lg">
           {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
           <AvatarFallback className="text-lg font-semibold">{initials}</AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-3xl font-bold">{t("welcome")}, {displayName}!</h1>
-          <p className="text-muted-foreground mt-1">{t("userDashboard")}</p>
+          <h1 className="student-page-title">{t("welcome")}, {displayName}!</h1>
+          <p className="student-page-description">{t("userDashboard")}</p>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
@@ -130,7 +130,7 @@ export default function UserDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
@@ -157,6 +157,6 @@ export default function UserDashboard() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </main>
   );
 }

@@ -133,12 +133,15 @@ export default function UserExamsPage() {
   const averageScore = completedAttempts.length > 0 
     ? Math.round(completedAttempts.reduce((sum, a) => sum + a.score_percentage, 0) / completedAttempts.length)
     : 0;
+  const bestScore = completedAttempts.length > 0
+    ? Math.max(...completedAttempts.map(a => a.score_percentage))
+    : 0;
 
   return (
     <>
       {/* Floating Navo Button */}
       <div className="fixed top-4 left-4 z-50 md:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
+        <Link href="/dashboard" className="premium-glass-panel flex items-center gap-2 rounded-full border p-2 overflow-hidden">
           <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
             {config.logoUrl ? (
               <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
@@ -150,12 +153,42 @@ export default function UserExamsPage() {
         </Link>
       </div>
       
-      <div className="container mx-auto px-4 py-4 md:py-8 pt-16 md:pt-8 pb-24 md:pb-8 space-y-6 relative">
+      <main className="student-page">
         <Watermark />
 
+      <div className="student-page-header">
+        <div>
+          <h1 className="student-page-title">{t("results")}</h1>
+          <p className="student-page-description">{t("examHistory")}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="rounded-[14px] bg-primary/10 p-3 text-primary"><Trophy className="h-5 w-5" /></div>
+            <div><p className="text-sm text-muted-foreground">{t("totalExamsTaken")}</p><p className="text-2xl font-bold">{completedAttempts.length}</p></div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="rounded-[14px] bg-primary/10 p-3 text-primary"><TrendingUp className="h-5 w-5" /></div>
+            <div><p className="text-sm text-muted-foreground">{t("averageScore")}</p><p className="text-2xl font-bold">{averageScore}%</p></div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="rounded-[14px] bg-primary/10 p-3 text-primary"><CheckCircle className="h-5 w-5" /></div>
+            <div><p className="text-sm text-muted-foreground">{t("bestScore")}</p><p className="text-2xl font-bold">{bestScore}%</p></div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Exam History */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">{t("examHistory")}</h2>
+      <div className="student-section">
+        <div className="student-section-header">
+          <h2 className="student-section-title">{t("examHistory")}</h2>
+        </div>
         
         {attempts.length === 0 ? (
           <Card className="navo-card-brand">
@@ -176,7 +209,7 @@ export default function UserExamsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {attempts.map((attempt) => (
               <Card 
                 key={attempt.id}
@@ -316,8 +349,8 @@ export default function UserExamsPage() {
         </DialogContent>
       </Dialog>
       
-      <MobileBottomNav />
-      </div>
+      <MobileBottomNav hide />
+      </main>
     </>
   );
 }

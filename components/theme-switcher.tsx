@@ -1,6 +1,6 @@
 "use client";
 
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 
@@ -26,15 +26,6 @@ export function ThemeSwitcher() {
       >
         <Moon className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">Dark</span>
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setTheme("system")}
-        className={theme === "system" ? "bg-background/80 shadow-sm rounded-[10px]" : "rounded-[10px]"}
-      >
-        <Monitor className="h-[1.2rem] w-[1.2rem]" />
-        <span className="sr-only">System</span>
       </Button>
     </div>
   );

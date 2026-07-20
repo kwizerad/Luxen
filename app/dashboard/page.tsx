@@ -307,7 +307,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-transparent">
       {/* Floating Navo Button */}
       <div className="fixed top-4 left-4 z-50 md:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
+        <Link href="/dashboard" className="premium-glass-panel flex items-center gap-2 rounded-full border p-2 overflow-hidden">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-[#3B82F6] text-primary-foreground flex items-center justify-center overflow-hidden shadow-md shadow-primary/25">
             {config.logoUrl ? (
               <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
@@ -319,19 +319,19 @@ export default function Dashboard() {
         </Link>
       </div>
       
-      <main className="container mx-auto px-3 md:px-4 py-3 md:py-6 pt-14 md:pt-6 pb-20 md:pb-6 space-y-4">
+      <main className="student-page">
         
         {/* Enhanced Header with Greeting and Stats */}
-        <div className="space-y-3">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+        <div className="student-section">
+          <div className="student-page-header">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold">{t("welcome")}, {getDisplayName().split(' ')[0]}! 👋</h1>
-              <p className="text-sm text-muted-foreground mt-1">{t("learningDashboard")}</p>
+              <h1 className="student-page-title">{t("welcome")}, {getDisplayName().split(' ')[0]}!</h1>
+              <p className="student-page-description">{t("learningDashboard")}</p>
             </div>
           </div>
 
           {/* Quick Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
             <KPICard
               title={t("totalExamsTaken")}
               value={examStats.totalExams}
@@ -364,26 +364,30 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div>
-          <h2 className="text-lg font-semibold mb-2">{t("quickActions")}</h2>
+        <div className="student-section">
+          <div className="student-section-header">
+            <h2 className="student-section-title">{t("quickActions")}</h2>
+          </div>
           <QuickActions />
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="student-content-grid">
           {/* Left Column - Primary Content */}
-          <div className="lg:col-span-3 space-y-4">
+          <div className="space-y-6 lg:col-span-8">
             {/* Recent Attempts - Compact */}
-            <div>
-              <h2 className="text-lg font-semibold mb-3">{t("recentAttempts")}</h2>
-              <Card className="border border-border">
+            <div className="student-section">
+              <div className="student-section-header">
+                <h2 className="student-section-title">{t("recentAttempts")}</h2>
+              </div>
+              <Card>
                 <CardContent className="p-4">
                   {examAttempts.length === 0 ? (
                     <p className="text-sm text-muted-foreground">{t("noExamsTakenYet")}</p>
                   ) : (
                     <div className="space-y-2">
                       {examAttempts.slice(0, 3).map((a) => (
-                        <div key={a.id} className="flex items-center justify-between p-2 border rounded-md hover:bg-accent transition-colors">
+                        <div key={a.id} className="flex items-center justify-between gap-3 rounded-[16px] border border-white/30 bg-background/25 p-3 transition-colors hover:bg-accent/40 dark:border-white/10">
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-sm">{a.category_name}</div>
                             <div className="text-xs text-muted-foreground">{formatRelativeTime(a.completed_at)} · {formatDuration(a.duration_seconds)}</div>
@@ -411,13 +415,15 @@ export default function Dashboard() {
 
             {/* Score Distribution Chart */}
             {examStats.totalExams > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-3">{t("scoreDistribution")}</h2>
-                <Card className="border border-border">
+              <div className="student-section">
+                <div className="student-section-header">
+                  <h2 className="student-section-title">{t("scoreDistribution")}</h2>
+                </div>
+                <Card>
                   <CardContent className="pt-4">
                     <div className="space-y-2">
                       {scoreDistributionData.map((item) => (
-                        <div key={item.name} className="flex items-center justify-between p-2 rounded bg-secondary/50">
+                        <div key={item.name} className="flex items-center justify-between rounded-[14px] border border-white/25 bg-background/25 p-3 dark:border-white/10">
                           <div className="flex items-center gap-2">
                             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.fill }} />
                             <span className="text-sm">{t(item.name)}</span>
@@ -433,7 +439,7 @@ export default function Dashboard() {
           </div>
 
           {/* Right Column - Sidebar Widgets */}
-          <div className="space-y-4">
+          <div className="space-y-6 lg:col-span-4">
             {/* Profile Completion */}
             <ProfileCompletion
               userMetadata={user?.user_metadata || {}}
@@ -443,7 +449,7 @@ export default function Dashboard() {
 
             {/* Exam Limit Info */}
             {examLimit.is_limited && (
-              <Card className="border border-border">
+              <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Zap className="h-4 w-4 text-yellow-500" />
@@ -649,7 +655,7 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
       
-      <MobileBottomNav />
+      <MobileBottomNav hide />
     </div>
   );
 }

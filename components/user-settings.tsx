@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Lock, Loader2, Globe, Moon, Sun, Monitor, Type, User, Camera, Upload, X, RefreshCw, MoreVertical, Eye, ChevronDown, ChevronUp, Shield, Bell, Smartphone, History, Download, Trash2, CheckCircle, AlertCircle, Info, Mail, Search, BookOpen } from "lucide-react";
+import { Lock, Loader2, Globe, Moon, Sun, Type, User, Camera, Upload, X, RefreshCw, MoreVertical, Eye, ChevronDown, ChevronUp, Shield, Bell, Smartphone, History, Download, Trash2, CheckCircle, AlertCircle, Info, Mail, Search, BookOpen } from "lucide-react";
 import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -25,9 +25,21 @@ interface UserSettingsProps {
   onUserUpdate?: (user: any) => void;
   showUsernameChange?: boolean;
   showPasswordChange?: boolean;
+  /**
+   * "admin" hides student-only or non-functioning settings (course language,
+   * notification toggles, active sessions, delete account).
+   */
+  mode?: "admin" | "user";
 }
 
-export default function UserSettings({ user, onUserUpdate, showUsernameChange = false, showPasswordChange = false }: UserSettingsProps) {
+export default function UserSettings({
+  user,
+  onUserUpdate,
+  showUsernameChange = false,
+  showPasswordChange = false,
+  mode = "user",
+}: UserSettingsProps) {
+  const isAdminMode = mode === "admin";
   const { theme, setTheme } = useTheme();
   const { t, language: contextLanguage, setLanguage: setContextLanguage } = useLanguage();
   const [textSize, setTextSize] = useState<TextSize>("md");
@@ -95,7 +107,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
       }
       
       // Load theme preference
-      if (metadata.theme) {
+      if (!localStorage.getItem("navo-theme") && (metadata.theme === "light" || metadata.theme === "dark")) {
         setTheme(metadata.theme);
       }
       
@@ -116,13 +128,16 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
           fr: "French",
           ar: "Arabic"
         };
-        setContextLanguage(languageMap[metadata.language as LanguageCode]);
+        if (!localStorage.getItem("navo-language")) {
+          setContextLanguage(languageMap[metadata.language as LanguageCode]);
+        }
       }
     }
   }, [user, setContextLanguage]);
 
   const applyTextSize = (size: TextSize) => {
     const root = document.documentElement;
+    root.dataset.textSize = size;
     switch (size) {
       case "sm":
         root.style.fontSize = "14px";
@@ -192,15 +207,15 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
   ];
 
   const languages = [
-    { value: "en", label: t("userSettings.english") },
-    { value: "rw", label: t("userSettings.kinyarwanda") },
-    { value: "fr", label: t("userSettings.french") },
-    { value: "ar", label: t("userSettings.arabic") },
+    { value: "en", label: "English" },
+    { value: "rw", label: "Kinyarwanda" },
+    { value: "fr", label: "Français" },
+    { value: "ar", label: "العربية" },
   ];
 
   const handleTextSizeChange = async (size: TextSize) => {
     setTextSize(size);
-    document.documentElement.style.fontSize = size === "sm" ? "14px" : size === "md" ? "16px" : "18px";
+    applyTextSize(size);
     
     // Save to user metadata
     await saveUserPreferences({ text_size: size });
@@ -550,6 +565,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   {t("download")}
                 </Button>
               </div>
+              {!isAdminMode && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-red-600">{t("userSettings.deleteAccount")}</span>
                 <Button 
@@ -563,6 +579,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   {t("delete")}
                 </Button>
               </div>
+              )}
               <div className="p-3 bg-secondary/50 rounded-lg">
                 <p className="text-xs text-muted-foreground">
                   {t("userSettings.dataRetention")}
@@ -581,6 +598,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
           </h3>
           
           {/* Security Settings */}
+          {!isAdminMode && (
           <Card 
             className={`${cardHoverClass} hover:border-red-500/50 cursor-pointer transition-all duration-300 ease-in-out`}
             onClick={() => handleCardToggle('securityOpen')}
@@ -621,6 +639,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
             </CardContent>
             )}
           </Card>
+          )}
 
           {/* Change Password */}
           {showPasswordChange && (
@@ -719,7 +738,6 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
                   {[
                     { value: "light", icon: Sun, label: t("light") },
                     { value: "dark", icon: Moon, label: t("dark") },
-                    { value: "system", icon: Monitor, label: t("system") },
                   ].map(({ value, icon: Icon, label }) => (
                     <Button
                       key={value}
@@ -771,6 +789,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
           </Card>
 
           {/* Course Language */}
+          {!isAdminMode && (
           <Card 
             className={`${cardHoverClass} hover:border-purple-500/50 cursor-pointer transition-all duration-300 ease-in-out`}
             onClick={() => handleCardToggle('courseLanguageOpen')}
@@ -809,8 +828,10 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
             </CardContent>
             )}
           </Card>
+          )}
 
           {/* Notifications */}
+          {!isAdminMode && (
           <Card 
             className={`${cardHoverClass} hover:border-purple-500/50 cursor-pointer transition-all duration-300 ease-in-out`}
             onClick={() => handleCardToggle('notificationsOpen')}
@@ -865,6 +886,7 @@ export default function UserSettings({ user, onUserUpdate, showUsernameChange = 
             </CardContent>
             )}
           </Card>
+          )}
         </div>
 
       </div>

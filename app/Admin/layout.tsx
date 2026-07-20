@@ -191,7 +191,7 @@ export default function AdminLayout({
       <div className="flex flex-col h-screen">
         {/* Floating Header */}
         {showFloatingHeader && (
-          <div className="fixed top-4 left-4 z-50 bg-card/75 backdrop-blur-[24px] border border-border/20 rounded-[18px] shadow-glass dark:shadow-glass-dark px-4 py-2 flex items-center gap-3 animate-in slide-in-from-top-2 duration-300">
+          <div className="premium-glass-panel fixed top-4 left-4 z-50 border rounded-[18px] px-4 py-2 flex items-center gap-3 animate-in slide-in-from-top-2 duration-300 overflow-hidden">
             <Link href="/Admin" className="flex items-center gap-2">
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-[#3B82F6] rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative">
                 {config.logoUrl ? (
@@ -225,7 +225,7 @@ export default function AdminLayout({
         {/* Desktop Bottom Sidebar */}
         <aside
           data-sidebar="true"
-          className={`hidden lg:flex bg-card/70 backdrop-blur-[24px] border-t border-border/20 flex-row transition-all duration-300 fixed bottom-0 left-0 right-0 z-50 shadow-glass dark:shadow-glass-dark ${
+          className={`premium-glass-panel hidden lg:flex border-t flex-row transition-all duration-300 fixed bottom-0 left-0 right-0 z-50 overflow-hidden ${
             sidebarOpen ? "h-16" : "h-12"
           }`}
         >
@@ -240,7 +240,7 @@ export default function AdminLayout({
                   className={cn(
                     "flex items-center gap-2 px-4 py-2 rounded-[14px] transition-all duration-200",
                     isActive
-                      ? "bg-gradient-to-r from-primary to-[#3B82F6] text-primary-foreground shadow-md shadow-primary/25"
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
                       : "hover:bg-muted/60"
                   )}
                   title={item.label}
@@ -254,7 +254,7 @@ export default function AdminLayout({
         </aside>
 
         {/* Mobile Bottom Sidebar */}
-        <aside className={`lg:hidden fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-[24px] border-t border-border/20 z-50 shadow-glass dark:shadow-glass-dark ${mobileMenuOpen ? 'h-auto' : 'h-16'}`}>
+        <aside className={`premium-glass-panel lg:hidden fixed bottom-0 left-0 right-0 border-t z-50 overflow-hidden ${mobileMenuOpen ? 'h-auto' : 'h-16'}`}>
           {mobileMenuOpen ? (
             <div className="p-4 space-y-2">
               <div className="flex items-center justify-between mb-4">
@@ -277,7 +277,7 @@ export default function AdminLayout({
                     className={cn(
                       "flex items-center gap-3 px-4 py-3 rounded-[14px] transition-all duration-200",
                       isActive
-                        ? "bg-gradient-to-r from-primary to-[#3B82F6] text-primary-foreground shadow-md shadow-primary/25"
+                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
                         : "hover:bg-muted/60"
                     )}
                     onClick={() => setMobileMenuOpen(false)}
@@ -293,7 +293,7 @@ export default function AdminLayout({
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-[14px] transition-all duration-200",
                   pathname === "/Admin/settings"
-                    ? "bg-gradient-to-r from-primary to-[#3B82F6] text-primary-foreground shadow-md shadow-primary/25"
+                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
                     : "hover:bg-muted/60"
                 )}
                 onClick={() => setMobileMenuOpen(false)}

@@ -1,29 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { isPrimaryAdmin } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth-context";
-import { useBrandingConfig } from "@/lib/branding-config";
-import { LayoutDashboard, FileText, Settings, LogOut, Trophy } from "lucide-react";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { FloatingHeader } from "@/components/floating-header";
-import { useLanguage } from "@/lib/language-context";
-import { useTextSize, sidebarLabelClass } from "@/lib/use-text-size";
-import { cn } from "@/lib/utils";
 
 export default function UserExamLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
-  const { t } = useLanguage();
-  const textSize = useTextSize();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
-  const sidebarHideTimeout = useRef<NodeJS.Timeout | null>(null);
-  const { config } = useBrandingConfig();
 
   useEffect(() => {
     if (authLoading) return;
@@ -38,35 +24,6 @@ export default function UserExamLayout({ children }: { children: React.ReactNode
     }
   }, [authLoading, user, router]);
 
-  useEffect(() => {
-    if (!isHoveringSidebar) {
-      if (sidebarHideTimeout.current) {
-        clearTimeout(sidebarHideTimeout.current);
-      }
-
-      sidebarHideTimeout.current = setTimeout(() => {
-        setSidebarOpen(false);
-      }, 300);
-    } else {
-      if (sidebarHideTimeout.current) {
-        clearTimeout(sidebarHideTimeout.current);
-      }
-    }
-
-    return () => {
-      if (sidebarHideTimeout.current) {
-        clearTimeout(sidebarHideTimeout.current);
-      }
-    };
-  }, [isHoveringSidebar]);
-
-  const navItems = useMemo(() => ([
-    { href: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
-    { href: "/dashboard/exam", label: t("takeExam"), icon: FileText },
-    { href: "/userExam", label: t("myExams"), icon: Trophy },
-    { href: "/dashboard/settings", label: t("settings"), icon: Settings },
-  ]), [t]);
-
   if (authLoading || !user || isPrimaryAdmin(user)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-transparent">
@@ -76,76 +33,10 @@ export default function UserExamLayout({ children }: { children: React.ReactNode
   }
 
   return (
-    <div className="min-h-screen flex bg-transparent">
-      <aside
-        className={`hidden md:flex flex-col border-r border-border/20 bg-card/70 backdrop-blur-[24px] transition-all duration-300 sticky top-0 h-screen overflow-hidden shadow-glass dark:shadow-glass-dark ${sidebarOpen ? "w-64" : "w-20"}`}
-        onMouseEnter={() => {
-          setIsHoveringSidebar(true);
-          setSidebarOpen(true);
-        }}
-        onMouseLeave={() => setIsHoveringSidebar(false)}
-      >
-        <div className="w-full h-full p-4 flex flex-col gap-4 overflow-hidden">
-          <div className="flex flex-col gap-3">
-            <Link href="/dashboard" prefetch={true} className="flex items-center gap-3 text-foreground hover:opacity-90 transition-opacity">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[#3B82F6] text-primary-foreground flex items-center justify-center overflow-hidden shadow-md shadow-primary/25">
-                {config.logoUrl ? (
-                  <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-sm font-bold">{config.logoText || "N"}</span>
-                )}
-              </div>
-              <div className={`min-w-0 ${sidebarOpen ? "block" : "hidden"}`}>
-                <p className="text-sm font-bold truncate">{config.systemName}</p>
-                <p className="text-xs text-muted-foreground">{t("userDashboard")}</p>
-              </div>
-            </Link>
-          </div>
-
-          <nav className="flex flex-col gap-1">
-            {navItems.map((item) => {
-              const active = pathname === item.href;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  prefetch={true}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-[14px] transition-all duration-200 group",
-                    active
-                      ? "bg-gradient-to-r from-primary to-[#3B82F6] text-primary-foreground shadow-md shadow-primary/25"
-                      : "hover:bg-muted/60 hover:translate-x-1"
-                  )}
-                >
-                  <Icon className={cn("h-4 w-4", !active && "text-muted-foreground group-hover:text-foreground")} />
-                  <span className={cn(sidebarOpen ? cn(sidebarLabelClass(textSize), "font-medium whitespace-nowrap") : "sr-only")}>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="mt-auto" />
-          
-          {/* Logout Button */}
-          <button
-            onClick={async () => {
-              const supabase = createClient();
-              await supabase.auth.signOut();
-              router.push("/");
-            }}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-[14px] transition-all duration-200 hover:bg-destructive/10 text-muted-foreground hover:text-destructive w-full"
-          >
-            <LogOut className="h-4 w-4 flex-shrink-0" />
-            <span className={cn(sidebarOpen ? cn(sidebarLabelClass(textSize), "font-medium whitespace-nowrap") : "sr-only")}>{t("logout")}</span>
-          </button>
-        </div>
-      </aside>
-
-      <div className="flex-1 min-w-0 overflow-auto">
-        <FloatingHeader />
-        {children}
-      </div>
+    <div className="min-h-screen bg-transparent">
+      <FloatingHeader />
+      <main className="min-w-0">{children}</main>
+      <MobileBottomNav />
     </div>
   );
 }

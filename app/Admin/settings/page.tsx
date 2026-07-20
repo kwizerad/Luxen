@@ -130,7 +130,7 @@ export default function AdminSettingsPage() {
                 <CardDescription>{t("profileSettingsDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
-                <UserSettings user={user} showPasswordChange={true} />
+                <UserSettings user={user} showPasswordChange={true} mode="admin" />
               </CardContent>
             </Card>
 

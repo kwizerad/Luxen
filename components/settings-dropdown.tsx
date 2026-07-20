@@ -17,6 +17,7 @@ export function SettingsDropdown() {
   const handleTextSizeChange = (size: string) => {
     setTextSize(size);
     const root = document.documentElement;
+    root.dataset.textSize = size === "small" ? "sm" : size === "large" ? "lg" : "md";
     if (size === "small") {
       root.style.fontSize = "14px";
     } else if (size === "medium") {
@@ -67,7 +68,6 @@ export function SettingsDropdown() {
                 onChange={(e) => setTheme(e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="system">{t("system")}</option>
                 <option value="light">{t("light")}</option>
                 <option value="dark">{t("dark")}</option>
               </select>
@@ -81,10 +81,10 @@ export function SettingsDropdown() {
                 onChange={(e) => setLanguage(e.target.value as any)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="English">{t("english")}</option>
-                <option value="Arabic">{t("arabic")}</option>
-                <option value="Kinyarwanda">{t("kinyarwanda")}</option>
-                <option value="French">{t("french")}</option>
+                <option value="English">English</option>
+                <option value="Arabic">العربية</option>
+                <option value="Kinyarwanda">Kinyarwanda</option>
+                <option value="French">Français</option>
               </select>
             </div>
 

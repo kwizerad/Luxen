@@ -1,35 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isPrimaryAdmin } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth-context";
 import { useBrandingConfig } from "@/lib/branding-config";
-import { LayoutDashboard, FileText, Settings, LogOut, Trophy, BookOpen } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { FloatingHeader } from "@/components/floating-header";
 import { useLanguage } from "@/lib/language-context";
-import { getCourseLanguages } from "@/lib/supabase/queries";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
 import { Button } from "@/components/ui/button";
-import { useTextSize, sidebarLabelClass } from "@/lib/use-text-size";
-import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
-  const { t, isRTL } = useLanguage();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
-  const sidebarHideTimeout = useRef<NodeJS.Timeout | null>(null);
+  const { isRTL } = useLanguage();
   const { config } = useBrandingConfig();
-  const textSize = useTextSize();
-  const [hasPublishedCourses, setHasPublishedCourses] = useState(false);
-  const [loadingCourses, setLoadingCourses] = useState(true);
-  const [isExamActive, setIsExamActive] = useState(false);
 
   // Track user activity for real-time online status
   useActivityTracker();
@@ -46,83 +35,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push("/Admin");
     }
   }, [authLoading, user, router]);
-
-  // Check for published courses
-  useEffect(() => {
-    const checkPublishedCourses = async () => {
-      if (!user) return;
-
-      try {
-        const data = await getCourseLanguages();
-        setHasPublishedCourses(data.languages && data.languages.length > 0);
-      } catch (error) {
-        console.error("Failed to check published courses:", error);
-      } finally {
-        setLoadingCourses(false);
-      }
-    };
-
-    checkPublishedCourses();
-  }, [user]);
-
-  // Check for active exam
-  useEffect(() => {
-    const checkActiveExam = async () => {
-      if (!user) return;
-
-      try {
-        const supabase = createClient();
-        const { data: activeAttempt } = await supabase
-          .from("exam_attempts")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("status", "in_progress")
-          .single();
-
-        setIsExamActive(!!activeAttempt);
-      } catch (error) {
-        console.error("Failed to check active exam:", error);
-      }
-    };
-
-    checkActiveExam();
-  }, [user]);
-
-  // Listen for exam state changes and hide sidebar when exam starts
-  useEffect(() => {
-    const handleExamStateChange = () => {
-      const isExamActive = sessionStorage.getItem('exam-active') === 'true';
-      if (isExamActive) {
-        setSidebarOpen(false);
-      }
-    };
-
-    // Check on mount
-    handleExamStateChange();
-
-    // Listen for custom event
-    window.addEventListener('exam-state-change', handleExamStateChange);
-
-    return () => {
-      window.removeEventListener('exam-state-change', handleExamStateChange);
-    };
-  }, []);
-
-  // Handle sidebar hover
-  const handleSidebarMouseEnter = () => {
-    if (sidebarHideTimeout.current) {
-      clearTimeout(sidebarHideTimeout.current);
-    }
-    setIsHoveringSidebar(true);
-    setSidebarOpen(true);
-  };
-
-  const handleSidebarMouseLeave = () => {
-    setIsHoveringSidebar(false);
-    sidebarHideTimeout.current = setTimeout(() => {
-      setSidebarOpen(false);
-    }, 300);
-  };
 
   // Floating header on scroll
   useEffect(() => {
@@ -159,19 +71,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const sidebarLinks = [
-    { href: "/dashboard", icon: LayoutDashboard, label: t("dashboard") },
-    ...(hasPublishedCourses ? [{ href: "/dashboard/course", icon: BookOpen, label: t("courses") }] : []),
-    { href: "/dashboard/exam", icon: Trophy, label: t("exams") },
-    { href: "/dashboard/settings", icon: Settings, label: t("settings") },
-  ];
-
   return (
     <div className="min-h-screen bg-transparent" dir={isRTL ? "rtl" : "ltr"}>
       {/* Floating Header */}
       <div
         id="floating-header"
-        className="fixed top-0 left-0 right-0 z-50 bg-card/75 backdrop-blur-[24px] border-b border-border/20 opacity-0 translate-y-[-100%] transition-all duration-300 shadow-glass dark:shadow-glass-dark"
+        className="premium-glass-panel fixed top-0 left-0 right-0 z-50 border-b opacity-0 translate-y-[-100%] transition-all duration-300"
       >
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-3">
@@ -190,65 +95,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
 
-      {/* Desktop Sidebar */}
-      <aside
-        className={`fixed left-0 top-0 h-full bg-card/70 border-r border-border/20 backdrop-blur-[24px] transition-all duration-300 z-40 shadow-glass dark:shadow-glass-dark ${
-          sidebarOpen ? "w-64" : "w-20"
-        }`}
-        onMouseEnter={handleSidebarMouseEnter}
-        onMouseLeave={handleSidebarMouseLeave}
-      >
-        <div className="p-4 border-b border-border/20">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-[#3B82F6] rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative">
-              {config.logoUrl ? (
-                <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-primary-foreground font-bold text-lg">{config.logoText}</span>
-              )}
-            </div>
-            {sidebarOpen && (
-              <span className="font-bold text-lg tracking-tight">{config.systemName}</span>
-            )}
-          </Link>
-        </div>
-
-        <nav className="p-4 space-y-2">
-          {sidebarLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-[14px] transition-all duration-200 group",
-                pathname === link.href
-                  ? "bg-gradient-to-r from-primary to-[#3B82F6] text-primary-foreground shadow-md shadow-primary/25"
-                  : "hover:bg-muted/60 hover:translate-x-1"
-              )}
-            >
-              <link.icon className={cn("h-5 w-5", pathname !== link.href && "text-muted-foreground group-hover:text-foreground")} />
-              {sidebarOpen && <span className={cn(sidebarLabelClass(textSize), "whitespace-nowrap")}>{link.label}</span>}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/20">
-          <Button
-            variant="ghost"
-            className="w-full justify-start rounded-[14px] hover:bg-destructive/10 hover:text-destructive"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-5 w-5 mr-2" />
-            {sidebarOpen && <span className={cn(sidebarLabelClass(textSize), "whitespace-nowrap")}>{t("logout")}</span>}
-          </Button>
-        </div>
-      </aside>
+      <FloatingHeader />
 
       {/* Main Content */}
-      <main className={`transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-20"}`}>
-        <div className="p-6">{children}</div>
+      <main className="min-w-0">
+        {children}
       </main>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Bottom Navigation */}
       <MobileBottomNav />
     </div>
   );

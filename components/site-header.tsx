@@ -20,7 +20,7 @@ export function SiteHeader() {
   }, [router]);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/20 bg-card/60 backdrop-blur-[24px] shadow-glass dark:shadow-glass-dark">
+    <header className="premium-glass-panel sticky top-0 z-50 w-full border-b">
       <div className="container flex h-16 items-center justify-between pl-6 pr-6">
         <div className="flex items-center">
           <Link href="/" prefetch={true} className="flex items-center space-x-2">

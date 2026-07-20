@@ -15,6 +15,9 @@ export function UserPreferencesLoader() {
   const { language, setLanguage } = useLanguage();
 
   useEffect(() => {
+    if (theme === "system") {
+      setTheme("light");
+    }
     if (!user) return;
 
     const loadUserPreferences = async () => {
@@ -26,12 +29,14 @@ export function UserPreferencesLoader() {
           const metadata = currentUser.user_metadata;
 
           // Load theme preference
-          if (metadata.theme && metadata.theme !== theme) {
+          const hasLocalTheme = localStorage.getItem("navo-theme") !== null;
+          if (!hasLocalTheme && (metadata.theme === "light" || metadata.theme === "dark") && metadata.theme !== theme) {
             setTheme(metadata.theme);
           }
 
           // Load language preference
-          if (metadata.language && metadata.language !== language) {
+          const hasLocalLanguage = localStorage.getItem("navo-language") !== null;
+          if (!hasLocalLanguage && metadata.language && metadata.language !== language) {
             // Convert language code to full name for context
             const languageMap: Record<LanguageCode, Language> = {
               en: "English",
@@ -45,6 +50,7 @@ export function UserPreferencesLoader() {
           // Load text size preference
           if (metadata.text_size) {
             const root = document.documentElement;
+            root.dataset.textSize = metadata.text_size;
             switch (metadata.text_size) {
               case "sm":
                 root.style.fontSize = "14px";

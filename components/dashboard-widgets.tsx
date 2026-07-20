@@ -161,7 +161,7 @@ export const EmptyState = memo(function EmptyState({ icon, title, description, a
       {action && (
         <button
           onClick={action.onClick}
-          className="px-5 py-2.5 rounded-[14px] text-sm font-medium bg-gradient-to-br from-primary to-[#3B82F6] text-primary-foreground shadow-md shadow-primary/25 hover:shadow-lg hover:brightness-105 active:scale-[0.97] transition-all"
+          className="px-5 py-2.5 rounded-[14px] text-sm font-medium bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 hover:shadow-lg active:scale-[0.97] transition-all"
         >
           {action.label}
         </button>

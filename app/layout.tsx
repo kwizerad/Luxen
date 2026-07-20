@@ -11,6 +11,7 @@ import { AuthModalsContainer } from "@/components/auth-modals-container";
 import { ClientComponents } from "@/components/client-components";
 import { UserPreferencesLoader } from "@/components/user-preferences-loader";
 import { Toaster } from "@/components/ui/sonner";
+import { GoogleAuthProvider } from "@/components/auth/GoogleAuthProvider";
 import { getSystemName } from "@/lib/server-config";
 import "sonner/dist/styles.css";
 import "./globals.css";
@@ -73,8 +74,8 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased mesh-gradient-bg min-h-screen`}>
         <ThemeProvider
             attribute="class"
-            defaultTheme="system"
-            enableSystem
+            defaultTheme="light"
+            enableSystem={false}
             disableTransitionOnChange
             storageKey="navo-theme"
           >
@@ -82,14 +83,16 @@ export default function RootLayout({
               <BrandingConfigProvider>
                 <LanguageProvider>
                   <AuthProvider>
-                    <AuthModalsProvider>
-                      <Toaster position="top-right" richColors closeButton />
-                      {children}
-                      <FloatingSettings />
-                      <AuthModalsContainer />
-                      <ClientComponents />
-                      <UserPreferencesLoader />
-                    </AuthModalsProvider>
+                    <GoogleAuthProvider lazy>
+                      <AuthModalsProvider>
+                        <Toaster position="top-right" richColors closeButton />
+                        {children}
+                        <FloatingSettings />
+                        <AuthModalsContainer />
+                        <ClientComponents />
+                        <UserPreferencesLoader />
+                      </AuthModalsProvider>
+                    </GoogleAuthProvider>
                   </AuthProvider>
                 </LanguageProvider>
               </BrandingConfigProvider>

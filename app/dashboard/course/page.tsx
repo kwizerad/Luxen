@@ -301,16 +301,16 @@ export default function CoursePage() {
 
   if (activeLesson) {
     return (
-      <div className="min-h-screen bg-transparent">
+      <div className="min-h-screen bg-transparent flex justify-center">
         <Watermark />
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
-          <div className="flex items-center justify-between">
+        <main className="student-page-narrow w-full">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Button variant="ghost" onClick={() => setActiveLesson(null)}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               {t("backToCourse")}
             </Button>
             <div className="flex items-center gap-2">
-              <Languages className="h-4 w-4" />
+              <Languages className="h-4 w-4 text-primary" />
               <Select value={lessonLanguage} onValueChange={(v) => setLessonLanguage(v as CourseLanguageEnum)}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue />
@@ -411,7 +411,7 @@ export default function CoursePage() {
               </Button>
             </CardContent>
           </Card>
-        </div>
+        </main>
       </div>
     );
   }
@@ -419,13 +419,13 @@ export default function CoursePage() {
   const publishedCourses = languageCourses.filter(l => l.is_published);
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-screen bg-transparent flex justify-center">
       <Watermark />
-      <div className="max-w-5xl mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
+      <main className="student-page-narrow w-full">
+        <div className="student-page-header">
           <div>
-            <h1 className="text-3xl font-bold">{t("trafficSchoolCourse")}</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="student-page-title">{t("trafficSchoolCourse")}</h1>
+            <p className="student-page-description">
               {selectedLanguageCourse
                 ? `${selectedLanguageCourse.title}${t("course.completeModulesToFinish")}`
                 : publishedCourses.length > 0
@@ -435,13 +435,13 @@ export default function CoursePage() {
             </p>
           </div>
           {publishedCourses.length > 1 && (
-            <div className="flex items-center gap-2">
-              <Languages className="h-4 w-4" />
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <Languages className="h-4 w-4 shrink-0 text-primary" />
               <Select
                 value={selectedLanguageCourse?.id || ""}
                 onValueChange={handleCourseLanguageChange}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder={t("language")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -477,7 +477,11 @@ export default function CoursePage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <section className="student-section">
+            <div className="student-section-header">
+              <h2 className="student-section-title">{t("modules")}</h2>
+            </div>
+            <div className="space-y-4">
             {modules.map((module, index) => {
               const unlocked = isModuleUnlocked(module, index);
               const progress = getModuleProgress(module.id);
@@ -492,8 +496,11 @@ export default function CoursePage() {
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CardTitle className="text-xl">{getModuleTitle(module)}</CardTitle>
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 text-sm font-bold text-primary">
+                            {index + 1}
+                          </span>
+                          <CardTitle className="text-lg sm:text-xl">{getModuleTitle(module)}</CardTitle>
                           {!unlocked && (
                             <Badge variant="secondary">
                               <Lock className="h-3 w-3 mr-1" />
@@ -566,7 +573,7 @@ export default function CoursePage() {
                     {/* Exam section */}
                     {unlocked && canTakeExam(module.id) && (
                       <div className="pt-4 border-t">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <Target className="h-4 w-4 text-primary" />
@@ -615,9 +622,10 @@ export default function CoursePage() {
                 </Card>
               );
             })}
-          </div>
+            </div>
+          </section>
         )}
-      </div>
+      </main>
     </div>
   );
 }

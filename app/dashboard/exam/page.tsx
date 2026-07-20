@@ -886,7 +886,7 @@ export default function TakeExamPage() {
 
   if (showResults && examResult) {
     return (
-      <main className="max-w-4xl mx-auto space-y-6 relative">
+      <main className="student-page relative">
         <Watermark />
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -989,7 +989,7 @@ export default function TakeExamPage() {
       {/* Floating Navo Button */}
       {!isExamActive && (
         <div className="fixed top-4 left-4 z-50 md:hidden">
-          <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
+          <Link href="/dashboard" className="premium-glass-panel flex items-center gap-2 rounded-full border p-2 overflow-hidden">
             <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
               {config.logoUrl ? (
                 <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
@@ -1003,13 +1003,19 @@ export default function TakeExamPage() {
       )}
       
       
-      <main className="max-w-7xl mx-auto space-y-6 relative p-4 md:p-8">
+      <main className={isExamActive ? "relative w-full max-w-5xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page"}>
         <Watermark />
         
         {/* Exam Categories - Top Left */}
         {!exam && (
-          <div className="flex flex-col lg:flex-row gap-8">
-            <div className="flex-1 lg:max-w-3xl">
+          <section className="student-section">
+            <div className="student-page-header">
+              <div>
+                <h1 className="student-page-title">{t("exams")}</h1>
+                <p className="student-page-description">{t("selectExamCategory")}</p>
+              </div>
+            </div>
+            <div>
               {categories.length === 0 ? (
                 // Loading or no exams
                 <div className="text-center py-8">
@@ -1030,12 +1036,11 @@ export default function TakeExamPage() {
               ) : (
                 // Display all exams in consistent grid layout
                 <>
-                  <div className="text-sm font-medium mb-6">{t("selectExamCategory")}</div>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {categories.map((category) => (
                       <Card 
                         key={category.id}
-                        className="group cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.03] hover:border-primary/60 border border-border/20 bg-card/60 backdrop-blur-[24px] shadow-2xl shadow-black/20"
+                        className="group cursor-pointer h-full"
                         onClick={() => {
                           setCategoryId(category.id);
                           setPendingCategoryId(category.id);
@@ -1100,10 +1105,10 @@ export default function TakeExamPage() {
             </div>
             
             {/* Right side content - can be used for additional info or empty */}
-            <div className="lg:flex-1 lg:max-w-md">
+            <div className="hidden">
               {/* This space can be used for future content like exam tips, statistics, etc. */}
             </div>
-          </div>
+          </section>
         )}
         
         {/* Time Display - Only show during active exam */}
@@ -1247,7 +1252,7 @@ export default function TakeExamPage() {
       </main>
       
       {/* Bottom Navigation - Completely removed during active exam */}
-      {!isExamActive && <MobileBottomNav />}
+      {!isExamActive && <MobileBottomNav hide />}
 
       {/* Exam Instructions Dialog */}
       <Dialog open={showInstructions} onOpenChange={setShowInstructions}>

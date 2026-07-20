@@ -51,12 +51,12 @@ export function FloatingHeader() {
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-4 py-3">
         <div className={`flex items-center ${isRTL ? 'justify-start' : 'justify-end'} gap-2`}>
           {/* Notifications */}
-          <div className="bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark">
+          <div className="premium-glass-panel border rounded-full overflow-hidden">
             <NotificationsDropdown />
           </div>
 
           {/* User Settings */}
-          <div className="bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark">
+          <div className="premium-glass-panel border rounded-full overflow-hidden">
             <FloatingUserSettings user={user} onMobile />
           </div>
         </div>
@@ -65,12 +65,12 @@ export function FloatingHeader() {
       {/* Desktop Header - Top Right/Left based on RTL */}
       <div className={`hidden md:flex fixed top-4 ${isRTL ? 'left-4' : 'right-4'} z-50 items-center gap-3`}>
         {/* Notifications */}
-        <div className="bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark transition-all hover:shadow-glow dark:hover:shadow-glow-dark">
+        <div className="premium-glass-panel border rounded-full overflow-hidden transition-all hover:shadow-glow dark:hover:shadow-glow-dark">
           <NotificationsDropdown />
         </div>
 
         {/* User Settings */}
-        <div className="bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark transition-all hover:shadow-glow dark:hover:shadow-glow-dark">
+        <div className="premium-glass-panel border rounded-full overflow-hidden transition-all hover:shadow-glow dark:hover:shadow-glow-dark">
           <FloatingUserSettings user={user} />
         </div>
       </div>

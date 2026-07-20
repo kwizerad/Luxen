@@ -16,7 +16,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Settings, LogOut, User, LogIn, Moon, Sun, Monitor, Globe, Check, Download } from "lucide-react";
+import { Settings, LogOut, User, LogIn, Moon, Sun, Globe, Check, Download } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { isAdmin } from "@/lib/permissions";
@@ -91,7 +91,7 @@ export function FloatingSettings() {
 
   return (
     <div className="fixed right-5 bottom-5 z-50 hidden md:block">
-      <DropdownMenu>
+      <DropdownMenu dir="rtl">
         <DropdownMenuTrigger asChild>
           <Button
             variant="glass"
@@ -102,7 +102,7 @@ export function FloatingSettings() {
             <span className="sr-only">Settings</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="top" sideOffset={8} className="w-64">
+        <DropdownMenuContent align="end" side="top" sideOffset={8} className="w-64" style={{ direction: "ltr" }}>
           <div className="space-y-2 px-4 py-3">
             {loading ? (
               <p className="text-sm text-muted-foreground">{t("loading")}</p>
@@ -124,11 +124,11 @@ export function FloatingSettings() {
 
           {/* Theme Selector - Available to all users */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="cursor-pointer">
-              {theme === "light" ? <Sun className="mr-2 h-4 w-4" /> : theme === "dark" ? <Moon className="mr-2 h-4 w-4" /> : <Monitor className="mr-2 h-4 w-4" />}
+            <DropdownMenuSubTrigger className="cursor-pointer [&>svg:last-child]:rotate-180">
+              {theme === "dark" ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
               {t("theme")}
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent alignOffset={-8}>
+            <DropdownMenuSubContent sideOffset={8}>
               <DropdownMenuItem onClick={() => handleThemeChange("light")} className={theme === "light" ? "bg-accent" : ""}>
                 <Sun className="mr-2 h-4 w-4" />
                 {t("light")}
@@ -139,21 +139,16 @@ export function FloatingSettings() {
                 {t("dark")}
                 {theme === "dark" && <Check className="ml-auto h-4 w-4" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleThemeChange("system")} className={theme === "system" ? "bg-accent" : ""}>
-                <Monitor className="mr-2 h-4 w-4" />
-                {t("system")}
-                {theme === "system" && <Check className="ml-auto h-4 w-4" />}
-              </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
 
           {/* Language Selector - Available to all users */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="cursor-pointer">
+            <DropdownMenuSubTrigger className="cursor-pointer [&>svg:last-child]:rotate-180">
               <Globe className="mr-2 h-4 w-4" />
               {t("language")}
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent alignOffset={-8}>
+            <DropdownMenuSubContent sideOffset={8}>
               {languages.map((lang) => (
                 <DropdownMenuItem
                   key={lang.value}

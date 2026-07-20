@@ -130,7 +130,7 @@ export function FloatingActionButton({
       <div
         className={`fixed bottom-8 right-8 rounded-full p-4 shadow-glass dark:shadow-glass-dark transition-all duration-300 hover:scale-110 cursor-pointer backdrop-blur-[24px] border border-border/20 ${
           primary
-            ? 'bg-gradient-to-br from-primary to-[#3B82F6] text-primary-foreground hover:shadow-glow dark:hover:shadow-glow-dark'
+            ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-glow dark:hover:shadow-glow-dark'
             : 'bg-card/70 text-foreground hover:bg-card/90'
         }`}
       >

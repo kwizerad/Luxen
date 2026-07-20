@@ -89,6 +89,7 @@ export function SettingsModal() {
 
   const applyTextSize = (size: TextSize) => {
     const root = document.documentElement;
+    root.dataset.textSize = size;
     switch (size) {
       case "sm":
         root.style.fontSize = "14px";
@@ -154,7 +155,7 @@ export function SettingsModal() {
                 onClick={() => handleLanguageChange("Arabic" as Language)}
                 className="min-w-[80px]"
               >
-                Arabic
+                العربية
               </Button>
               <Button
                 variant={language === "French" ? "default" : "outline"}
@@ -162,7 +163,7 @@ export function SettingsModal() {
                 onClick={() => handleLanguageChange("French" as Language)}
                 className="min-w-[80px]"
               >
-                French
+                Français
               </Button>
               <Button
                 variant={language === "Kinyarwanda" ? "default" : "outline"}

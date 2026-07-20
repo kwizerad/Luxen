@@ -86,10 +86,10 @@ export default function UserSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-screen bg-transparent flex justify-center">
       {/* Floating Navo Button */}
       <div className="fixed top-4 left-4 z-50 md:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
+        <Link href="/dashboard" className="premium-glass-panel flex items-center gap-2 rounded-full border p-2 overflow-hidden">
           <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
             {config.logoUrl ? (
               <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
@@ -101,27 +101,25 @@ export default function UserSettingsPage() {
         </Link>
       </div>
       
-      <main className="container mx-auto px-4 py-4 md:py-8 pt-16 md:pt-8 pb-24 md:pb-8">
-        <div className="max-w-6xl mx-auto">
-          <Card className="border border-border rounded-[32px] shadow-sm hover:shadow-lg transition-shadow duration-300">
-            <CardHeader>
-              <CardTitle>{t("personalSettings")}</CardTitle>
-              <CardDescription>
-                {t("updateProfileDesc")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <UserSettings 
-                showPasswordChange={true} 
-                showUsernameChange={true}
-                user={user}
-                onUserUpdate={(updatedUser) => setUser(updatedUser)}
-              />
-            </CardContent>
-          </Card>
+      <main className="student-page-narrow w-full">
+        <div className="student-page-header">
+          <div>
+            <h1 className="student-page-title">{t("personalSettings")}</h1>
+            <p className="student-page-description">{t("updateProfileDesc")}</p>
+          </div>
         </div>
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <UserSettings
+              showPasswordChange={true}
+              showUsernameChange={true}
+              user={user}
+              onUserUpdate={(updatedUser) => setUser(updatedUser)}
+            />
+          </CardContent>
+        </Card>
       </main>
-      <MobileBottomNav />
+      <MobileBottomNav hide />
     </div>
   );
 }

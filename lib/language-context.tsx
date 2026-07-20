@@ -85,9 +85,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       if (e.key === "navo-branding-config") {
         setSystemName(getDefaultSystemName());
       }
-      if (e.key === LANGUAGE_STORAGE_KEY && e.newValue && VALID_LANGUAGES.includes(e.newValue as Language)) {
-        applyLanguage(e.newValue as Language);
-      }
     };
 
     window.addEventListener("storage", handleStorageChange);
@@ -105,9 +102,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (isAdminRoute) return;
     const validLang = VALID_LANGUAGES.includes(lang) ? lang : "English";
     applyLanguage(validLang);
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new StorageEvent("storage", { key: LANGUAGE_STORAGE_KEY, newValue: validLang }));
-    }
   }, [isAdminRoute, applyLanguage]);
 
   const t = useCallback((key: string): string => {
