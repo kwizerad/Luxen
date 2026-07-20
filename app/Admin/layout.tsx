@@ -28,6 +28,8 @@ import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { FloatingHeader } from "@/components/floating-header";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
+import { useTextSize, sidebarLabelClass } from "@/lib/use-text-size";
+import { cn } from "@/lib/utils";
 
 const ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
 
@@ -49,6 +51,7 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { t } = useLanguage();
+  const textSize = useTextSize();
 
   // Track admin activity for real-time online status
   useActivityTracker();
@@ -170,8 +173,8 @@ export default function AdminLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>{t("loading")}</p>
+      <div className="min-h-screen flex items-center justify-center bg-transparent">
+        <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-primary/20 border-t-primary" />
       </div>
     );
   }
@@ -184,13 +187,13 @@ export default function AdminLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-transparent">
       <div className="flex flex-col h-screen">
         {/* Floating Header */}
         {showFloatingHeader && (
-          <div className="fixed top-4 left-4 z-50 bg-background/90 backdrop-blur-md border border-border rounded-lg shadow-lg px-4 py-2 flex items-center gap-3 animate-in slide-in-from-top-2 duration-300">
+          <div className="fixed top-4 left-4 z-50 bg-card/75 backdrop-blur-[24px] border border-border/20 rounded-[18px] shadow-glass dark:shadow-glass-dark px-4 py-2 flex items-center gap-3 animate-in slide-in-from-top-2 duration-300">
             <Link href="/Admin" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md relative">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-[#3B82F6] rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative">
                 {config.logoUrl ? (
                   <Image 
                     src={config.logoUrl} 
@@ -210,7 +213,7 @@ export default function AdminLayout({
 
         {/* Main Content */}
         <main
-          className="flex-1 overflow-auto bg-background relative isolate"
+          className="flex-1 overflow-auto bg-transparent relative isolate"
           style={{ zIndex: 1 }}
         >
           <FloatingHeader />
@@ -222,7 +225,7 @@ export default function AdminLayout({
         {/* Desktop Bottom Sidebar */}
         <aside
           data-sidebar="true"
-          className={`hidden lg:flex bg-card/80 backdrop-blur-md border-t border-border flex-row transition-all duration-300 fixed bottom-0 left-0 right-0 z-50 ${
+          className={`hidden lg:flex bg-card/70 backdrop-blur-[24px] border-t border-border/20 flex-row transition-all duration-300 fixed bottom-0 left-0 right-0 z-50 shadow-glass dark:shadow-glass-dark ${
             sidebarOpen ? "h-16" : "h-12"
           }`}
         >
@@ -234,15 +237,16 @@ export default function AdminLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-[14px] transition-all duration-200",
                     isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-secondary"
-                  }`}
+                      ? "bg-gradient-to-r from-primary to-[#3B82F6] text-primary-foreground shadow-md shadow-primary/25"
+                      : "hover:bg-muted/60"
+                  )}
                   title={item.label}
                 >
                   <Icon className="h-5 w-5 flex-shrink-0" />
-                  {sidebarOpen && <span className="text-sm">{item.label}</span>}
+                  {sidebarOpen && <span className={cn(sidebarLabelClass(textSize), "whitespace-nowrap")}>{item.label}</span>}
                 </Link>
               );
             })}
@@ -250,7 +254,7 @@ export default function AdminLayout({
         </aside>
 
         {/* Mobile Bottom Sidebar */}
-        <aside className={`lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 ${mobileMenuOpen ? 'h-auto' : 'h-16'}`}>
+        <aside className={`lg:hidden fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-[24px] border-t border-border/20 z-50 shadow-glass dark:shadow-glass-dark ${mobileMenuOpen ? 'h-auto' : 'h-16'}`}>
           {mobileMenuOpen ? (
             <div className="p-4 space-y-2">
               <div className="flex items-center justify-between mb-4">
@@ -270,11 +274,12 @@ export default function AdminLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-[14px] transition-all duration-200",
                       isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-secondary"
-                    }`}
+                        ? "bg-gradient-to-r from-primary to-[#3B82F6] text-primary-foreground shadow-md shadow-primary/25"
+                        : "hover:bg-muted/60"
+                    )}
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />
@@ -285,11 +290,12 @@ export default function AdminLayout({
               <div className="border-t border-border my-2" />
               <Link
                 href="/Admin/settings"
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-[14px] transition-all duration-200",
                   pathname === "/Admin/settings"
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-secondary"
-                }`}
+                    ? "bg-gradient-to-r from-primary to-[#3B82F6] text-primary-foreground shadow-md shadow-primary/25"
+                    : "hover:bg-muted/60"
+                )}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <Settings className="h-5 w-5 flex-shrink-0" />
@@ -330,11 +336,11 @@ export default function AdminLayout({
       
       {/* Password Change Modal */}
       {showPasswordChange && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-lg max-w-md w-full p-6 shadow-lg">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-card/85 border border-border/20 rounded-[24px] max-w-md w-full p-6 shadow-glass dark:shadow-glass-dark backdrop-blur-[24px]">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-amber-100 rounded-full">
-                <Lock className="h-5 w-5 text-amber-600" />
+              <div className="p-2 bg-amber-100/20 rounded-full">
+                <Lock className="h-5 w-5 text-amber-500" />
               </div>
               <h2 className="text-xl font-bold">{t("changePasswordRequired")}</h2>
             </div>

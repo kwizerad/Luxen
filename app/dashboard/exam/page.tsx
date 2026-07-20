@@ -985,11 +985,11 @@ export default function TakeExamPage() {
   const isExamActive = exam !== null && secondsLeft !== null;
 
   return (
-    <div className={`min-h-screen bg-background ${isExamActive ? 'select-none' : ''}`}>
+    <div className={`min-h-screen bg-transparent ${isExamActive ? 'select-none' : ''}`}>
       {/* Floating Navo Button */}
       {!isExamActive && (
         <div className="fixed top-4 left-4 z-50 md:hidden">
-          <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+          <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
             <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
               {config.logoUrl ? (
                 <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
@@ -1035,7 +1035,7 @@ export default function TakeExamPage() {
                     {categories.map((category) => (
                       <Card 
                         key={category.id}
-                        className="group cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.03] hover:border-primary/60 border border-border/20 bg-background/80 backdrop-blur-xl shadow-2xl shadow-black/20"
+                        className="group cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.03] hover:border-primary/60 border border-border/20 bg-card/60 backdrop-blur-[24px] shadow-2xl shadow-black/20"
                         onClick={() => {
                           setCategoryId(category.id);
                           setPendingCategoryId(category.id);

@@ -159,8 +159,8 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
     return (
       <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full p-0">
-            <Avatar className="h-8 w-8">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full p-0 hover:bg-transparent">
+            <Avatar className="h-8 w-8 ring-2 ring-primary/20">
               {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
               <AvatarFallback className="text-xs font-semibold">{getInitials()}</AvatarFallback>
             </Avatar>
@@ -194,7 +194,7 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
             <DropdownMenuItem
               key={lang.value}
               onClick={() => handleLanguageChange(lang.value)}
-              className={language === lang.value ? "bg-accent" : ""}
+              className={language === lang.value ? "bg-accent/60" : ""}
             >
               <span className="mr-2">{lang.flag}</span>
               {lang.label}
@@ -202,7 +202,7 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
             <LogOut className="mr-2 h-4 w-4" />
             Logout
           </DropdownMenuItem>
@@ -215,8 +215,8 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
     <div className="flex items-center">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full p-0">
-            <Avatar className="h-8 w-8">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full p-0 hover:bg-transparent">
+            <Avatar className="h-8 w-8 ring-2 ring-primary/20">
               {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
               <AvatarFallback className="text-xs font-semibold">{getInitials()}</AvatarFallback>
             </Avatar>
@@ -250,7 +250,7 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
             <DropdownMenuItem
               key={lang.value}
               onClick={() => handleLanguageChange(lang.value)}
-              className={language === lang.value ? "bg-accent" : ""}
+              className={language === lang.value ? "bg-accent/60" : ""}
             >
               <span className="mr-2">{lang.flag}</span>
               {lang.label}
@@ -258,7 +258,7 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
             <LogOut className="mr-2 h-4 w-4" />
             Logout
           </DropdownMenuItem>

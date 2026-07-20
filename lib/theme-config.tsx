@@ -29,14 +29,14 @@ interface ThemeConfigContextType {
 
 const defaultConfig: ThemeConfig = {
   light: {
-    primaryColor: "#22C55E", // Default green
-    hoverBorderColor: "#22C55E", // Default green
+    primaryColor: "#2563EB", // Premium blue
+    hoverBorderColor: "#3B82F6", // Lighter blue accent
   },
   dark: {
-    primaryColor: "#22C55E", // Default green
-    hoverBorderColor: "#22C55E", // Default green
+    primaryColor: "#2563EB", // Premium blue
+    hoverBorderColor: "#60A5FA", // Soft blue glow
   },
-  glowIntensity: 30, // Default 30px glow
+  glowIntensity: 24, // Premium 24px glow
 };
 
 const STORAGE_KEY = "navo-theme-config";

@@ -94,9 +94,9 @@ export function FloatingSettings() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="secondary"
+            variant="glass"
             size="icon"
-            className="h-12 w-12 rounded-full border shadow-lg shadow-black/10 bg-background text-foreground"
+            className="h-12 w-12 rounded-full border border-border/20 shadow-glass dark:shadow-glass-dark bg-card/70 backdrop-blur-[20px] text-foreground hover:shadow-glow dark:hover:shadow-glow-dark hover:-translate-y-0.5 transition-all"
           >
             <Settings className="h-5 w-5" />
             <span className="sr-only">Settings</span>

@@ -54,7 +54,7 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-transparent">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
@@ -64,7 +64,7 @@ export default function AdminSettingsPage() {
     <>
       {/* Floating Navo Button */}
       <div className="fixed top-4 left-4 z-50 md:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
           <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
             {config.logoUrl ? (
               <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
@@ -76,7 +76,7 @@ export default function AdminSettingsPage() {
         </Link>
       </div>
       
-      <div className="min-h-screen bg-background py-8">
+      <div className="min-h-screen bg-transparent py-8">
         <main className="container mx-auto px-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>

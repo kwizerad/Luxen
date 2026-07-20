@@ -4,81 +4,115 @@
 
 @layer base {
   :root {
-    /* Light Theme - User's Colors */
-    --background: 140 9% 98%; /* #F8FAF9 */
-    --foreground: 215 19% 15%; /* #1F2937 */
+    /* Premium Light Theme - Apple-inspired Glass */
+    --background: 210 40% 98%; /* #F8FAFC */
+    --foreground: 222 47% 11%; /* #0F172A */
     --card: 0 0% 100%; /* #FFFFFF */
-    --card-foreground: 215 19% 15%; /* #1F2937 */
-    --popover: 0 0% 100%; /* #FFFFFF */
-    --popover-foreground: 215 19% 15%; /* #1F2937 */
-    --primary: 142 71% 45%; /* #22C55E */
-    --primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --secondary: 140 9% 96%; /* #F0F4F1 */
-    --secondary-foreground: 215 19% 15%; /* #1F2937 */
-    --muted: 140 9% 96%; /* #F0F4F1 */
-    --muted-foreground: 218 11% 50%; /* #6B7280 */
-    --accent: 142 76% 36%; /* #16A34A */
-    --accent-foreground: 0 0% 100%; /* #FFFFFF */
-    --destructive: 317 88% 59%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 9% 89%; /* #E5E7EB */
-    --input: 220 9% 89%; /* #E5E7EB */
-    --ring: 142 71% 45%; /* #22C55E */
-    --chart-1: 142 71% 45%;
-    --chart-2: 142 76% 36%;
-    --chart-3: 160 60% 45%;
-    --chart-4: 120 50% 50%;
-    --chart-5: 100 40% 40%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%; /* #2563EB */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%; /* #F1F5F9 */
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 213 94% 68%; /* #60A5FA */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%; /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%; /* #22C55E */
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%; /* #F59E0B */
+    --warning-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+    --chart-1: 221 83% 53%;
+    --chart-2: 213 94% 68%;
+    --chart-3: 199 89% 48%;
+    --chart-4: 186 100% 42%;
+    --chart-5: 142 71% 45%;
     --radius: 1.25rem;
-    --site-name: "System"; /* Will be overridden by branding config */
-    
-    /* Dynamic Theme Config - Can be changed by admin */
-    --hover-border-color: #22C55E;
-    --glow-intensity: 30px;
+    --site-name: "System";
+
+    /* Dynamic glow & border accents */
+    --hover-border-color: #3B82F6;
+    --glow-intensity: 24px;
   }
+
   .dark {
-    /* Dark Theme - Dark equivalents */
-    --background: 215 28% 10%; /* #111827 */
-    --foreground: 140 9% 98%; /* #F8FAF9 */
-    --card: 215 25% 14%; /* #1F2937 */
-    --card-foreground: 140 9% 98%; /* #F8FAF9 */
-    --popover: 215 25% 14%; /* #1F2937 */
-    --popover-foreground: 140 9% 98%; /* #F8FAF9 */
-    /* Note: --primary, --primary-foreground, --ring, --accent, --accent-foreground, 
-       and chart colors are set by JavaScript via ThemeConfigProvider to allow admin customization.
-       They are not hardcoded here so customizations work in both light and dark modes. */
-    --secondary: 215 25% 18%;
-    --secondary-foreground: 140 9% 98%;
-    --muted: 215 25% 18%;
-    --muted-foreground: 218 11% 65%;
-    --destructive: 317 88% 59%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 215 25% 22%;
-    --input: 215 25% 22%;
-    /* Note: --ring is set by JavaScript via ThemeConfigProvider */
-    /* Note: chart colors are set by JavaScript via ThemeConfigProvider */
+    /* Premium Dark Glass - Deep navy & blue-black */
+    --background: 217 60% 8%; /* #08111F */
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%; /* #0F172A */
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    /* Primary, accent, ring and chart colors are set by ThemeConfigProvider */
+    --secondary: 217 50% 18%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 60% 16%;
+    --muted-foreground: 215 20% 65%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --border: 217 50% 22%;
+    --input: 217 50% 22%;
   }
 }
-
-/* Dynamic theme overrides - Apply when custom theme is set via inline styles */
-/* Note: JavaScript sets --primary, --primary-foreground, --ring, --accent, 
-   --hover-border-color, and --glow-intensity as inline styles on <html> element.
-   These override the default :root values due to higher specificity. */
 
 @layer base {
   * {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-transparent text-foreground;
   }
 }
 
-/* Ensure Sonner toasts are always visible (fallback for CSS injection issues) */
+/* Mesh gradient background (applied to <body>) */
+.mesh-gradient-bg {
+  background-color: hsl(var(--background));
+  background-image:
+    radial-gradient(at 0% 0%, hsl(221 83% 53% / 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsl(186 100% 42% / 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, hsl(221 83% 53% / 0.15) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsl(213 94% 68% / 0.12) 0px, transparent 50%);
+}
+
+.dark .mesh-gradient-bg {
+  background-color: hsl(217 60% 8%);
+  background-image:
+    radial-gradient(at 20% 10%, hsl(221 83% 53% / 0.22) 0px, transparent 45%),
+    radial-gradient(at 80% 20%, hsl(186 100% 42% / 0.12) 0px, transparent 45%),
+    radial-gradient(at 60% 90%, hsl(221 83% 53% / 0.18) 0px, transparent 45%),
+    radial-gradient(at 10% 80%, hsl(213 94% 68% / 0.10) 0px, transparent 45%),
+    radial-gradient(at 50% 50%, hsl(221 83% 53% / 0.08) 0px, transparent 60%);
+}
+
+/* Ensure Sonner toasts are always visible */
 [data-sonner-toaster] {
   position: fixed !important;
   z-index: 999999999 !important;
   pointer-events: auto;
+}
+
+[data-sonner-toaster][data-theme="dark"] [data-sonner-toast] {
+  background: rgba(15, 23, 42, 0.8) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-sonner-toaster][data-theme="light"] [data-sonner-toast] {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* Ensure dialog portals render correctly */
@@ -93,86 +127,198 @@
   pointer-events: auto;
 }
 
-/* Ensure dialogs are always on top */
 [role="dialog"] {
   z-index: 50;
 }
 
 @layer utilities {
+  /* Premium glass card */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+    transition: transform 300ms ease, box-shadow 300ms ease, border-color 300ms ease;
+  }
+
+  .glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.12);
+    border-color: rgba(37, 99, 235, 0.25);
+  }
+
+  .dark .glass-card {
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  }
+
+  .dark .glass-card:hover {
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35), 0 0 var(--glow-intensity) hsl(221 83% 53% / 0.15);
+    border-color: rgba(96, 165, 250, 0.25);
+  }
+
+  /* Glass panel (less rounded, more general) */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);
+  }
+
+  .dark .glass-panel {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  }
+
   .glassmorphism {
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
   }
-  
+
   .dark .glassmorphism {
-    background: rgba(17, 24, 39, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.12);
   }
-  
+
+  .card-glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+  }
+
+  .dark .card-glass {
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Premium button gradient */
+  .premium-button {
+    background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
+    transition: all 200ms ease;
+  }
+
+  .premium-button:hover {
+    box-shadow: 0 6px 28px rgba(37, 99, 235, 0.45);
+    filter: brightness(1.05);
+  }
+
+  .premium-button:active {
+    transform: scale(0.97);
+  }
+
+  /* Soft glow utility */
+  .glow-blue {
+    box-shadow: 0 0 var(--glow-intensity) hsl(221 83% 53% / 0.25);
+  }
+
+  .dark .glow-blue {
+    box-shadow: 0 0 var(--glow-intensity) hsl(221 83% 53% / 0.35);
+  }
+
+  /* Shimmer effect */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.15),
+      transparent
+    );
+    transform: translateX(-100%);
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Floating animation */
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, #2563EB 0%, #60A5FA 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
   .neumorphic {
     background: hsl(var(--background));
     border-radius: var(--radius);
-    box-shadow: 
+    box-shadow:
       8px 8px 16px hsl(var(--shadow-dark)),
       -8px -8px 16px hsl(var(--shadow-light));
   }
-  
+
   .neumorphic-inset {
     background: hsl(var(--background));
     border-radius: var(--radius);
-    box-shadow: 
+    box-shadow:
       inset 4px 4px 8px hsl(var(--shadow-dark)),
       inset -4px -4px 8px hsl(var(--shadow-light));
   }
-  
+
   .neumorphic-flat {
     background: hsl(var(--background));
     border-radius: var(--radius);
-    box-shadow: 
+    box-shadow:
       4px 4px 8px hsl(var(--shadow-dark)),
       -4px -4px 8px hsl(var(--shadow-light));
     transition: all 0.3s ease;
   }
-  
+
   .neumorphic-flat:hover {
-    box-shadow: 
+    box-shadow:
       6px 6px 12px hsl(var(--shadow-dark)),
       -6px -6px 12px hsl(var(--shadow-light));
   }
-  
+
   .neumorphic-flat:active {
-    box-shadow: 
+    box-shadow:
       inset 2px 2px 4px hsl(var(--shadow-dark)),
       inset -2px -2px 4px hsl(var(--shadow-light));
   }
-  
+
   .soft-shadow {
-    box-shadow: 
+    box-shadow:
       0 4px 6px -1px rgba(0, 0, 0, 0.1),
       0 2px 4px -1px rgba(0, 0, 0, 0.06),
       0 1px 3px -1px rgba(0, 0, 0, 0.05);
   }
-  
+
   .smooth-surface {
     background: hsl(var(--background));
     border-radius: var(--radius);
-  }
-  
-  .card-glass {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 
-      0 8px 32px rgba(0, 0, 0, 0.08),
-      0 2px 8px rgba(0, 0, 0, 0.04);
-  }
-  
-  .dark .card-glass {
-    background: rgba(30, 41, 59, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .brand-no-select {
@@ -208,10 +354,9 @@
 
   .navo-card-brand {
     position: relative;
-    isolation: isolate; /* Create proper stacking context without affecting fixed children */
+    isolation: isolate;
   }
-  
-  /* Ensure fixed positioned elements inside navo-card-brand are positioned relative to viewport */
+
   .navo-card-brand [data-radix-popper-content-wrapper],
   .navo-card-brand [data-radix-dialog-content] {
     position: fixed !important;

@@ -301,7 +301,7 @@ export default function CoursePage() {
 
   if (activeLesson) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-transparent">
         <Watermark />
         <div className="max-w-4xl mx-auto p-6 space-y-6">
           <div className="flex items-center justify-between">
@@ -419,7 +419,7 @@ export default function CoursePage() {
   const publishedCourses = languageCourses.filter(l => l.is_published);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-transparent">
       <Watermark />
       <div className="max-w-5xl mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">

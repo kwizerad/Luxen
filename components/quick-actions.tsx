@@ -64,7 +64,7 @@ export function QuickActions({ actions, isLoading = false }: QuickActionsProps) 
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-gray-200 dark:bg-gray-800 rounded-lg h-32 animate-pulse"></div>
+          <div key={i} className="bg-muted/60 rounded-[24px] h-32 animate-pulse"></div>
         ))}
       </div>
     );
@@ -128,13 +128,13 @@ export function FloatingActionButton({
   return (
     <Link href={href} onClick={onClick}>
       <div
-        className={`fixed bottom-8 right-8 rounded-full p-4 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-110 cursor-pointer ${
+        className={`fixed bottom-8 right-8 rounded-full p-4 shadow-glass dark:shadow-glass-dark transition-all duration-300 hover:scale-110 cursor-pointer backdrop-blur-[24px] border border-border/20 ${
           primary
-            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-            : 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
+            ? 'bg-gradient-to-br from-primary to-[#3B82F6] text-primary-foreground hover:shadow-glow dark:hover:shadow-glow-dark'
+            : 'bg-card/70 text-foreground hover:bg-card/90'
         }`}
       >
-        <div className="flex items-center gap-2 text-white">
+        <div className="flex items-center gap-2">
           {icon}
           <span className="font-semibold text-sm hidden sm:inline">{label}</span>
         </div>

@@ -53,14 +53,14 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-transparent text-foreground">
       <SiteHeader />
       
       {/* Floating Header */}
       {showFloatingHeader && (
-        <div className="fixed top-4 left-4 z-50 bg-background/90 backdrop-blur-md border border-border rounded-lg shadow-lg px-4 py-2 flex items-center gap-3 animate-in slide-in-from-top-2 duration-300">
+        <div className="fixed top-4 left-4 z-50 bg-card/75 backdrop-blur-[24px] border border-border/20 rounded-[18px] shadow-glass dark:shadow-glass-dark px-4 py-2 flex items-center gap-3 animate-in slide-in-from-top-2 duration-300">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md relative">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-[#3B82F6] rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative">
               {config.logoUrl ? (
                 <Image 
                   src={config.logoUrl} 
@@ -78,16 +78,16 @@ export default function Home() {
         </div>
       )}
       
-      <main className="container mx-auto px-4 py-10">
+      <main className="container mx-auto px-4 py-10 md:py-16">
         <div className="grid gap-10 lg:grid-cols-[1.3fr_0.9fr] items-center">
-          <div className="space-y-6">
-            <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+          <div className="space-y-6 animate-fade-in-up">
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary border border-primary/20">
               {t("home")}
             </span>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              {t("welcome")} {t("navo")}
+              {t("welcome")} <span className="gradient-text">{t("navo")}</span>
             </h1>
-            <p className="max-w-2xl text-lg text-muted-foreground">
+            <p className="max-w-2xl text-lg text-muted-foreground leading-relaxed">
               {t("welcome.description")}
             </p>
             <div className="flex flex-wrap gap-4">
@@ -100,10 +100,12 @@ export default function Home() {
           </div>
 
           <div className="grid gap-4">
-            <Card className="border border-border bg-secondary/80 shadow-lg">
+            <Card className="border-border/20 bg-card/50 backdrop-blur-[20px] animate-fade-in-up" style={{ animationDelay: "100ms" }}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-primary" />
+                  <div className="p-2 rounded-[12px] bg-primary/10">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                  </div>
                   {t("secure")}
                 </CardTitle>
               </CardHeader>
@@ -111,10 +113,12 @@ export default function Home() {
                 <CardDescription>{t("secure.description")}</CardDescription>
               </CardContent>
             </Card>
-            <Card className="border border-border bg-secondary/80 shadow-lg">
+            <Card className="border-border/20 bg-card/50 backdrop-blur-[20px] animate-fade-in-up" style={{ animationDelay: "200ms" }}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Rocket className="h-5 w-5 text-primary" />
+                  <div className="p-2 rounded-[12px] bg-primary/10">
+                    <Rocket className="h-5 w-5 text-primary" />
+                  </div>
                   {t("fast")}
                 </CardTitle>
               </CardHeader>
@@ -122,10 +126,12 @@ export default function Home() {
                 <CardDescription>{t("fast.description")}</CardDescription>
               </CardContent>
             </Card>
-            <Card className="border border-border bg-secondary/80 shadow-lg">
+            <Card className="border-border/20 bg-card/50 backdrop-blur-[20px] animate-fade-in-up" style={{ animationDelay: "300ms" }}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
+                  <div className="p-2 rounded-[12px] bg-primary/10">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                  </div>
                   {t("simple")}
                 </CardTitle>
               </CardHeader>

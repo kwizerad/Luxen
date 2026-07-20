@@ -70,7 +70,7 @@ export default function SetupAdminPage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
@@ -83,7 +83,7 @@ export default function SetupAdminPage() {
 
   if (adminExists) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-2xl text-destructive">Access Denied</CardTitle>
@@ -113,7 +113,7 @@ export default function SetupAdminPage() {
     <>
       {/* Floating Navo Button */}
       <div className="fixed top-4 left-4 z-50 md:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
           <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
             {config.logoUrl ? (
               <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
@@ -125,7 +125,7 @@ export default function SetupAdminPage() {
         </Link>
       </div>
       
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-2xl">Setup Admin Account</CardTitle>

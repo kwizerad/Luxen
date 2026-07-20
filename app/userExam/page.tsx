@@ -138,7 +138,7 @@ export default function UserExamsPage() {
     <>
       {/* Floating Navo Button */}
       <div className="fixed top-4 left-4 z-50 md:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
           <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
             {config.logoUrl ? (
               <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />

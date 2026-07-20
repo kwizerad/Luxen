@@ -293,7 +293,7 @@ export default function Dashboard() {
 
   if (authLoading || dataLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-6">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-transparent gap-6">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         <div className="text-center space-y-2">
           <p className="text-lg font-medium text-foreground">{t("loadingYourDashboard")}</p>
@@ -304,11 +304,11 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-transparent">
       {/* Floating Navo Button */}
       <div className="fixed top-4 left-4 z-50 md:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2 bg-background/95 backdrop-blur-sm shadow-lg p-2">
-          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-[#3B82F6] text-primary-foreground flex items-center justify-center overflow-hidden shadow-md shadow-primary/25">
             {config.logoUrl ? (
               <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
             ) : (

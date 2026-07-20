@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/lib/language-context";
 import { ThemeConfigProvider } from "@/lib/theme-config";
@@ -14,7 +15,11 @@ import { getSystemName } from "@/lib/server-config";
 import "sonner/dist/styles.css";
 import "./globals.css";
 
-const fontClass = "font-sans";
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -64,8 +69,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${fontClass} antialiased`}>
+    <html lang="en" suppressHydrationWarning className={inter.variable}>
+      <body className={`${inter.className} antialiased mesh-gradient-bg min-h-screen`}>
         <ThemeProvider
             attribute="class"
             defaultTheme="system"

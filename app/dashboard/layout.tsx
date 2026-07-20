@@ -14,6 +14,8 @@ import { useLanguage } from "@/lib/language-context";
 import { getCourseLanguages } from "@/lib/supabase/queries";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
 import { Button } from "@/components/ui/button";
+import { useTextSize, sidebarLabelClass } from "@/lib/use-text-size";
+import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -24,6 +26,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
   const sidebarHideTimeout = useRef<NodeJS.Timeout | null>(null);
   const { config } = useBrandingConfig();
+  const textSize = useTextSize();
   const [hasPublishedCourses, setHasPublishedCourses] = useState(false);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [isExamActive, setIsExamActive] = useState(false);
@@ -85,6 +88,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     checkActiveExam();
   }, [user]);
 
+  // Listen for exam state changes and hide sidebar when exam starts
+  useEffect(() => {
+    const handleExamStateChange = () => {
+      const isExamActive = sessionStorage.getItem('exam-active') === 'true';
+      if (isExamActive) {
+        setSidebarOpen(false);
+      }
+    };
+
+    // Check on mount
+    handleExamStateChange();
+
+    // Listen for custom event
+    window.addEventListener('exam-state-change', handleExamStateChange);
+
+    return () => {
+      window.removeEventListener('exam-state-change', handleExamStateChange);
+    };
+  }, []);
+
   // Handle sidebar hover
   const handleSidebarMouseEnter = () => {
     if (sidebarHideTimeout.current) {
@@ -130,8 +153,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-screen bg-transparent">
+        <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-primary/20 border-t-primary"></div>
       </div>
     );
   }
@@ -144,11 +167,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ];
 
   return (
-    <div className="min-h-screen bg-background" dir={isRTL ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-transparent" dir={isRTL ? "rtl" : "ltr"}>
       {/* Floating Header */}
       <div
         id="floating-header"
-        className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border opacity-0 translate-y-[-100%] transition-all duration-300"
+        className="fixed top-0 left-0 right-0 z-50 bg-card/75 backdrop-blur-[24px] border-b border-border/20 opacity-0 translate-y-[-100%] transition-all duration-300 shadow-glass dark:shadow-glass-dark"
       >
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-3">
@@ -169,15 +192,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Desktop Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full bg-card border-r border-border transition-all duration-300 z-40 ${
+        className={`fixed left-0 top-0 h-full bg-card/70 border-r border-border/20 backdrop-blur-[24px] transition-all duration-300 z-40 shadow-glass dark:shadow-glass-dark ${
           sidebarOpen ? "w-64" : "w-20"
         }`}
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
       >
-        <div className="p-4 border-b border-border">
+        <div className="p-4 border-b border-border/20">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md relative">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary to-[#3B82F6] rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative">
               {config.logoUrl ? (
                 <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
               ) : (
@@ -195,26 +218,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-[14px] transition-all duration-200 group",
                 pathname === link.href
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              }`}
+                  ? "bg-gradient-to-r from-primary to-[#3B82F6] text-primary-foreground shadow-md shadow-primary/25"
+                  : "hover:bg-muted/60 hover:translate-x-1"
+              )}
             >
-              <link.icon className="h-5 w-5" />
-              {sidebarOpen && <span>{link.label}</span>}
+              <link.icon className={cn("h-5 w-5", pathname !== link.href && "text-muted-foreground group-hover:text-foreground")} />
+              {sidebarOpen && <span className={cn(sidebarLabelClass(textSize), "whitespace-nowrap")}>{link.label}</span>}
             </Link>
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/20">
           <Button
             variant="ghost"
-            className="w-full justify-start"
+            className="w-full justify-start rounded-[14px] hover:bg-destructive/10 hover:text-destructive"
             onClick={handleLogout}
           >
             <LogOut className="h-5 w-5 mr-2" />
-            {sidebarOpen && t("logout")}
+            {sidebarOpen && <span className={cn(sidebarLabelClass(textSize), "whitespace-nowrap")}>{t("logout")}</span>}
           </Button>
         </div>
       </aside>

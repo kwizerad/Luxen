@@ -20,11 +20,11 @@ export function SiteHeader() {
   }, [router]);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/20 bg-background/60 backdrop-blur-xl shadow-lg">
+    <header className="sticky top-0 z-50 w-full border-b border-border/20 bg-card/60 backdrop-blur-[24px] shadow-glass dark:shadow-glass-dark">
       <div className="container flex h-16 items-center justify-between pl-6 pr-6">
         <div className="flex items-center">
           <Link href="/" prefetch={true} className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md relative">
+            <div className="w-9 h-9 bg-gradient-to-br from-primary to-[#3B82F6] rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative">
               {config.logoUrl ? (
                 <Image 
                   src={config.logoUrl} 

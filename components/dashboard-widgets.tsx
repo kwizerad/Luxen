@@ -20,13 +20,13 @@ interface KPICardProps {
 export const KPICard = memo(function KPICard({ title, value, unit, icon, trend, description, onClick }: KPICardProps) {
   return (
     <Card
-      className="hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+      className="hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
       onClick={onClick}
     >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-          <div className="text-primary">{icon}</div>
+          <div className="p-2 rounded-[10px] bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">{icon}</div>
         </div>
       </CardHeader>
       <CardContent>
@@ -161,7 +161,7 @@ export const EmptyState = memo(function EmptyState({ icon, title, description, a
       {action && (
         <button
           onClick={action.onClick}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="px-5 py-2.5 rounded-[14px] text-sm font-medium bg-gradient-to-br from-primary to-[#3B82F6] text-primary-foreground shadow-md shadow-primary/25 hover:shadow-lg hover:brightness-105 active:scale-[0.97] transition-all"
         >
           {action.label}
         </button>

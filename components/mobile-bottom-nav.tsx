@@ -94,7 +94,7 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
   return (
     <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
       {/* Glassmorphism container */}
-      <div className="bg-background/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/10 h-14">
+      <div className="bg-card/70 backdrop-blur-[24px] border border-border/20 rounded-[20px] shadow-glass dark:shadow-glass-dark h-14">
         <div className={`grid ${hasPublishedCourses ? 'grid-cols-5' : 'grid-cols-4'} h-full`}>
           {navItems.map((item) => {
             const isActive = isNavItemActive(item.href);
@@ -123,7 +123,7 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
                   )} />
                 </div>
                 <span className={cn(
-                  "text-[10px] font-medium transition-all duration-200",
+                  "text-xs font-medium transition-all duration-200",
                   isActive && "scale-105"
                 )}>
                   {t(item.labelKey)}

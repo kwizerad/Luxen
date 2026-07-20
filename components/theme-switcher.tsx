@@ -8,12 +8,12 @@ export function ThemeSwitcher() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 p-1 rounded-[14px] bg-muted/60 border border-border/20">
       <Button
         variant="ghost"
         size="icon"
         onClick={() => setTheme("light")}
-        className={theme === "light" ? "bg-accent" : ""}
+        className={theme === "light" ? "bg-background/80 shadow-sm rounded-[10px]" : "rounded-[10px]"}
       >
         <Sun className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">Light</span>
@@ -22,7 +22,7 @@ export function ThemeSwitcher() {
         variant="ghost"
         size="icon"
         onClick={() => setTheme("dark")}
-        className={theme === "dark" ? "bg-accent" : ""}
+        className={theme === "dark" ? "bg-background/80 shadow-sm rounded-[10px]" : "rounded-[10px]"}
       >
         <Moon className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">Dark</span>
@@ -31,7 +31,7 @@ export function ThemeSwitcher() {
         variant="ghost"
         size="icon"
         onClick={() => setTheme("system")}
-        className={theme === "system" ? "bg-accent" : ""}
+        className={theme === "system" ? "bg-background/80 shadow-sm rounded-[10px]" : "rounded-[10px]"}
       >
         <Monitor className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">System</span>

@@ -31,9 +31,9 @@ const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary hover:accent-primary/80 transition-all"
+          className="w-full h-2 rounded-full appearance-none cursor-pointer accent-primary hover:accent-primary/80 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
           style={{
-            background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${(value / max) * 100}%, hsl(var(--secondary)) ${(value / max) * 100}%, hsl(var(--secondary)) 100%)`,
+            background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${(value / max) * 100}%, hsl(var(--muted)) ${(value / max) * 100}%, hsl(var(--muted)) 100%)`,
           }}
         />
       </div>
