@@ -101,6 +101,10 @@ export function useGoogleOneTap({
           cancel_on_tap_outside: false,
           context: "signin",
           ux_mode: "popup",
+          // Opt into FedCM (Federated Credential Management). Google is making
+          // FedCM mandatory for One Tap; without this the gsi/status endpoint
+          // can return 403 and the prompt may not appear.
+          use_fedcm_for_prompt: true,
         });
 
         if (!cancelled) {

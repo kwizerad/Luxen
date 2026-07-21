@@ -36,23 +36,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [authLoading, user, router]);
 
-  // Floating header on scroll
-  useEffect(() => {
-    const handleScroll = () => {
-      const floatingHeader = document.getElementById("floating-header");
-      if (floatingHeader) {
-        if (window.scrollY > 100) {
-          floatingHeader.classList.remove("opacity-0", "translate-y-[-100%]");
-        } else {
-          floatingHeader.classList.add("opacity-0", "translate-y-[-100%]");
-        }
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   const handleLogout = async () => {
     try {
       const supabase = createClient();
@@ -76,7 +59,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Floating Header */}
       <div
         id="floating-header"
-        className="premium-glass-panel fixed top-0 left-0 right-0 z-50 border-b opacity-0 translate-y-[-100%] transition-all duration-300"
+        className="premium-glass-panel sticky top-0 left-0 right-0 z-50 border-b transition-all duration-300"
       >
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-3">

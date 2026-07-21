@@ -32,6 +32,12 @@ declare global {
     itp_support?: boolean;
     login_uri?: string;
     nonce?: string;
+    /**
+     * Opt into FedCM (Federated Credential Management) for the One Tap
+     * prompt. Google is making FedCM mandatory; without this the
+     * gsi/status endpoint can return 403 and the prompt may not appear.
+     */
+    use_fedcm_for_prompt?: boolean;
   }
 
   interface GooglePromptMomentNotification {

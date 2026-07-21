@@ -45,6 +45,14 @@ export async function signInWithGoogleToken(credential: string): Promise<GoogleS
   });
 
   if (error) {
+    // Log the full Supabase error so the root cause is visible in the console
+    // (e.g. "Invalid claim: client_id" means the Google Client ID configured
+    // in Supabase doesn't match NEXT_PUBLIC_GOOGLE_CLIENT_ID).
+    console.error("[signInWithGoogleToken] Supabase rejected the ID token:", {
+      message: error.message,
+      status: error.status,
+      name: error.name,
+    });
     return { user: null, session: null, error };
   }
 
