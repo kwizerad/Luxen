@@ -118,6 +118,10 @@ export function useGoogleOneTap({
           // FedCM mandatory for One Tap; without this the gsi/status endpoint
           // can return 403 and the prompt may not appear.
           use_fedcm_for_prompt: true,
+          // Enable One Tap on browsers with Intelligent Tracking Prevention
+          // (Safari/iOS). Without this, One Tap is silently suppressed on
+          // Safari mobile where ITP blocks third-party cookies.
+          itp_support: true,
         });
 
         if (!cancelled) {
