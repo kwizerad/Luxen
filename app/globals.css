@@ -538,6 +538,45 @@
     -webkit-touch-callout: none;
   }
 
+  /*
+   * Mobile scroll performance optimization.
+   *
+   * backdrop-filter: blur(30-34px) saturate(175-185%) on glass surfaces is
+   * extremely GPU-expensive on mobile devices. Each glass element forces the
+   * browser to re-rasterize the blurred backdrop on every scroll frame, which
+   * causes janky/slow scrolling when multiple glass cards are visible.
+   *
+   * On screens <= 768px we:
+   *  1. Reduce blur radius from 30-34px to 12px (visually similar, far cheaper)
+   *  2. Drop the saturate() filter (biggest single cost saver)
+   *  3. Promote each glass surface to its own compositor layer via
+   *     transform: translateZ(0) so the blur is rasterized once and cached
+   *     instead of recomputed every frame
+   *  4. Add -webkit-overflow-scrolling: touch for iOS momentum scrolling
+   */
+  @media (max-width: 768px) {
+    .premium-glass-card,
+    .glass-card,
+    .card-glass {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transform: translateZ(0);
+    }
+
+    .premium-glass-panel,
+    .glass-panel,
+    .glassmorphism {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transform: translateZ(0);
+    }
+
+    /* Ensure the body itself uses momentum scrolling on iOS */
+    body {
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
   .brand-protected {
     user-select: none;
     -webkit-user-select: none;

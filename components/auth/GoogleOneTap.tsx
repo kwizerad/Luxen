@@ -34,7 +34,6 @@ export function GoogleOneTap({ enabled = true, alwaysPrompt = false }: GoogleOne
     onCredential: signInWithGoogle,
     enabled,
     alwaysPrompt,
-    retryOnSkip: alwaysPrompt,
     promptDelayMs: 1500,
   });
 

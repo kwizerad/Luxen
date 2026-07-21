@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isPrimaryAdmin } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth-context";
@@ -16,9 +16,15 @@ import { Button } from "@/components/ui/button";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
   const { isRTL } = useLanguage();
   const { config } = useBrandingConfig();
+
+  // Pages where the inline header (logo + logout) is hidden; only the
+  // FloatingHeader (notifications + user settings) remains.
+  const HIDE_INLINE_HEADER_PATHS = ["/dashboard", "/dashboard/exam", "/dashboard/settings"];
+  const showInlineHeader = !HIDE_INLINE_HEADER_PATHS.includes(pathname);
 
   // Track user activity for real-time online status
   useActivityTracker();
@@ -56,27 +62,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="bg-transparent" dir={isRTL ? "rtl" : "ltr"}>
-      {/* Floating Header */}
-      <div
-        id="floating-header"
-        className="premium-glass-panel sticky top-0 left-0 right-0 z-50 border-b transition-all duration-300"
-      >
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md relative">
-              {config.logoUrl ? (
-                <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-primary-foreground font-bold text-lg">{config.logoText}</span>
-              )}
-            </div>
-            <span className="font-bold text-lg tracking-tight">{config.systemName}</span>
-          </Link>
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
-            <LogOut className="h-5 w-5" />
-          </Button>
+      {/* Inline Header (hidden on /dashboard, /dashboard/exam, /dashboard/settings) */}
+      {showInlineHeader && (
+        <div
+          id="floating-header"
+          className="premium-glass-panel sticky top-0 left-0 right-0 z-50 border-b transition-all duration-300"
+        >
+          <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+            <Link href="/dashboard" className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md relative">
+                {config.logoUrl ? (
+                  <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-primary-foreground font-bold text-lg">{config.logoText}</span>
+                )}
+              </div>
+              <span className="font-bold text-lg tracking-tight">{config.systemName}</span>
+            </Link>
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       <FloatingHeader />
 

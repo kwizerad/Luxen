@@ -24,14 +24,14 @@ export function useGoogleAuth(options: UseGoogleAuthOptions = {}) {
   const processingRef = useRef(false);
 
   const signInWithGoogle = useCallback(
-    async (credential: string) => {
+    async (credential: string, nonce: string) => {
       if (processingRef.current) return;
       processingRef.current = true;
       setIsLoading(true);
       setError(null);
 
       try {
-        const result = await signInWithGoogleToken(credential);
+        const result = await signInWithGoogleToken(credential, nonce);
 
         if (result.error) {
           throw result.error;

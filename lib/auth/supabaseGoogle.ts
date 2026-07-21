@@ -35,13 +35,49 @@ const REVERSE_LANGUAGE_CODE_MAP: Record<string, SupportedLanguage> = {
  * Authenticate with Supabase using a Google ID token.
  * Supabase validates the token with Google on the server, so the credential
  * is never trusted blindly on the client.
+ *
+ * FedCM-enabled One Tap tokens include a `nonce` claim (the SHA-256 hash of
+ * the raw nonce we passed to `google.accounts.id.initialize`). Supabase
+ * hashes the raw nonce passed here and compares it to the token's claim,
+ * so the caller must forward the SAME raw nonce that was used to initialize
+ * the One Tap prompt. See `useGoogleOneTap` for nonce generation.
  */
-export async function signInWithGoogleToken(credential: string): Promise<GoogleSignInResult> {
+export async function signInWithGoogleToken(
+  credential: string,
+  nonce: string
+): Promise<GoogleSignInResult> {
   const supabase = createClient();
+
+  // Decode the ID token's payload (without verifying) to log the `aud`
+  // (audience) claim. This is the #1 diagnostic for 400 errors from
+  // signInWithIdToken when `aud` doesn't match the Google Client ID
+  // configured in Supabase Auth > Providers > Google. The JWT payload is
+  // base64url-encoded JSON.
+  try {
+    const payloadB64 = credential.split(".")[1];
+    if (payloadB64) {
+      const payloadJson = JSON.parse(
+        atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"))
+      );
+      console.debug("[signInWithGoogleToken] ID token claims:", {
+        aud: payloadJson.aud,
+        iss: payloadJson.iss,
+        exp: payloadJson.exp ? new Date(payloadJson.exp * 1000).toISOString() : null,
+        email: payloadJson.email,
+        hasNonce: Boolean(payloadJson.nonce),
+      });
+    }
+  } catch {
+    // Ignore decode errors — diagnostic only.
+  }
 
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: "google",
     token: credential,
+    // Supabase hashes this raw nonce (SHA-256) and compares it to the
+    // `nonce` claim Google embedded in the token. The raw value must match
+    // the pre-image of the hash we passed to google.accounts.id.initialize.
+    nonce,
   });
 
   if (error) {
