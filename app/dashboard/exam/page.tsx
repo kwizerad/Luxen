@@ -886,74 +886,73 @@ export default function TakeExamPage() {
 
   if (showResults && examResult) {
     return (
-      <main className="student-page relative">
-        <Watermark />
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold brand-protected">{t("examResults")}</h1>
-            <p className="text-muted-foreground mt-1">{t("yourPerformanceSummary")}</p>
+      <main className="student-page student-page-no-nav relative">        <Watermark />
+        <div className="flex items-start justify-between gap-2 sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-3xl font-bold brand-protected">{t("examResults")}</h1>
+            <p className="text-muted-foreground mt-1 text-xs sm:text-sm">{t("yourPerformanceSummary")}</p>
           </div>
-          <Button variant="outline" onClick={reset}>
-            <Home className="h-4 w-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={reset} className="shrink-0">
+            <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
             {t("backToExams")}
           </Button>
         </div>
 
-        <Card className="border-primary/20 navo-card-brand">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-6 w-6 text-primary" />
+        <Card className="border-primary/20 navo-card-brand rounded-[14px] sm:rounded-[24px]">
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+              <Trophy className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
               {examResult.category_name}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-[11px] sm:text-sm">
               {t("completedOn")} {new Date(examResult.completed_at).toLocaleString()}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-secondary rounded-lg">
-                <div className="text-3xl font-bold text-primary">{examResult.score_percentage}%</div>
-                <div className="text-sm text-muted-foreground mt-1">{t("score")}</div>
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-4">
+              <div className="text-center p-2 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
+                <div className="text-base sm:text-3xl font-bold text-primary leading-tight">{examResult.score_percentage}%</div>
+                <div className="text-[9px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("score")}</div>
               </div>
-              <div className="text-center p-4 bg-secondary rounded-lg">
-                <div className="text-3xl font-bold text-green-600">{examResult.correct_answers}</div>
-                <div className="text-sm text-muted-foreground mt-1">{t("correct")}</div>
+              <div className="text-center p-2 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
+                <div className="text-base sm:text-3xl font-bold text-green-600 leading-tight">{examResult.correct_answers}</div>
+                <div className="text-[9px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("correct")}</div>
               </div>
-              <div className="text-center p-4 bg-secondary rounded-lg">
-                <div className="text-3xl font-bold text-red-600">{examResult.total_questions - examResult.correct_answers}</div>
-                <div className="text-sm text-muted-foreground mt-1">{t("incorrect")}</div>
+              <div className="text-center p-2 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
+                <div className="text-base sm:text-3xl font-bold text-red-600 leading-tight">{examResult.total_questions - examResult.correct_answers}</div>
+                <div className="text-[9px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("incorrect")}</div>
               </div>
-              <div className="text-center p-4 bg-secondary rounded-lg">
-                <div className="text-3xl font-bold">{formatTime(examResult.duration_seconds)}</div>
-                <div className="text-sm text-muted-foreground mt-1">{t("time")}</div>
+              <div className="text-center p-2 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
+                <div className="text-base sm:text-3xl font-bold leading-tight">{formatTime(examResult.duration_seconds)}</div>
+                <div className="text-[9px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("time")}</div>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <h3 className="font-semibold">{t("answerBreakdown")}</h3>
+            <div className="space-y-2 sm:space-y-3">
+              <h3 className="font-semibold text-sm sm:text-base">{t("answerBreakdown")}</h3>
               {examResult.answers.map((answer: any, idx: number) => {
                 const question = exam?.questions?.find((q) => q.id === answer.question_id);
                 if (!question) return null;
                 
                 return (
-                  <div key={answer.question_id} className="p-4 border rounded-lg">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge variant={answer.is_correct ? "default" : "destructive"}>
+                  <div key={answer.question_id} className="p-2.5 sm:p-4 border rounded-[10px] sm:rounded-lg">
+                    <div className="flex items-start justify-between gap-2 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5 sm:mb-2 flex-wrap">
+                          <Badge variant={answer.is_correct ? "default" : "destructive"} className="text-[10px] sm:text-xs">
                             {answer.is_correct ? (
-                              <CheckCircle className="h-3 w-3 mr-1" />
+                              <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
                             ) : (
-                              <XCircle className="h-3 w-3 mr-1" />
+                              <XCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
                             )}
                             {answer.is_correct ? t("correct") : t("incorrect")}
                           </Badge>
-                          <span className="text-sm text-muted-foreground">{t("question")} {idx + 1}</span>
+                          <span className="text-[11px] sm:text-sm text-muted-foreground">{t("question")} {idx + 1}</span>
                         </div>
                         {question.question && (
-                          <p className="text-sm mb-2">{question.question}</p>
+                          <p className="text-xs sm:text-sm mb-1.5 sm:mb-2">{question.question}</p>
                         )}
-                        <div className="text-sm">
+                        <div className="text-xs sm:text-sm">
                           <span className="text-muted-foreground">{t("yourAnswer")}: </span>
                           <span className={answer.is_correct ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                             {answer.selected_answer || t("notAnswered")}
@@ -965,7 +964,7 @@ export default function TakeExamPage() {
                           )}
                         </div>
                         {question.explanation && (
-                          <div className="mt-2 p-2 bg-secondary rounded text-sm">
+                          <div className="mt-1.5 sm:mt-2 p-2 bg-secondary rounded text-xs sm:text-sm">
                             <span className="font-medium">{t("explanationColon")} </span>
                             {question.explanation}
                           </div>
@@ -985,7 +984,7 @@ export default function TakeExamPage() {
   const isExamActive = exam !== null && secondsLeft !== null;
 
   return (
-    <div className={`min-h-screen bg-transparent ${isExamActive ? 'select-none' : ''}`}>
+    <div className={`bg-transparent ${isExamActive ? 'select-none' : ''}`}>
       {/* Floating Navo Button */}
       {!isExamActive && (
         <div className="fixed top-4 left-4 z-50 md:hidden">
@@ -1003,7 +1002,7 @@ export default function TakeExamPage() {
       )}
       
       
-      <main className={isExamActive ? "relative w-full max-w-5xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page"}>
+      <main className={isExamActive ? "relative w-full max-w-5xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page student-page-no-nav"}>
         <Watermark />
         
         {/* Exam Categories - Top Left */}
@@ -1040,7 +1039,7 @@ export default function TakeExamPage() {
                     {categories.map((category) => (
                       <Card 
                         key={category.id}
-                        className="group cursor-pointer h-full"
+                        className="group cursor-pointer h-full rounded-[14px] sm:rounded-[24px]"
                         onClick={() => {
                           setCategoryId(category.id);
                           setPendingCategoryId(category.id);
@@ -1048,32 +1047,33 @@ export default function TakeExamPage() {
                           setInstructionsAccepted(false);
                         }}
                       >
-                        <CardHeader className="pb-4">
+                        <CardHeader className="p-3 sm:pb-4 sm:p-6">
                           <div className="flex items-center justify-between">
-                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                              <FileText className="h-6 w-6 text-primary" />
+                            <div className="w-9 h-9 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                              <FileText className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                             </div>
-                            <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
+                            <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 text-[10px] sm:text-xs">
                               {t("available")}
                             </Badge>
                           </div>
-                          <CardTitle className="text-xl font-bold mt-3">{category.name}</CardTitle>
-                          <CardDescription className="text-sm">
+                          <CardTitle className="text-base sm:text-xl font-bold mt-2 sm:mt-3 line-clamp-2">{category.name}</CardTitle>
+                          <CardDescription className="text-[11px] sm:text-sm line-clamp-2">
                             {t("clickToStartExamInCategory")}
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between text-sm">
+                        <CardContent className="pt-0 p-3 sm:p-6 sm:pt-0">
+                          <div className="space-y-2 sm:space-y-3">
+                            <div className="flex items-center justify-between text-[11px] sm:text-sm">
                               <span className="text-muted-foreground">{t("questions")}</span>
                               <span className="font-medium">{t("multipleChoice")}</span>
                             </div>
-                            <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center justify-between text-[11px] sm:text-sm">
                               <span className="text-muted-foreground">{t("duration")}</span>
                               <span className="font-medium">{t("timed")}</span>
                             </div>
                             <Button 
-                              className="w-full mt-4 group-hover:bg-primary/90 transition-colors"
+                              size="sm"
+                              className="w-full mt-3 sm:mt-4 group-hover:bg-primary/90 transition-colors"
                               disabled={loadingExam}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1085,12 +1085,12 @@ export default function TakeExamPage() {
                             >
                               {loadingExam ? (
                                 <>
-                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+                                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
                                   {t("starting")}
                                 </>
                               ) : (
                                 <>
-                                  <Play className="h-4 w-4 mr-2" />
+                                  <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
                                   {t("startExam")}
                                 </>
                               )}
@@ -1113,22 +1113,22 @@ export default function TakeExamPage() {
         
         {/* Time Display - Only show during active exam */}
         {isExamActive && exam && (
-          <div className="flex items-center justify-between gap-4 bg-card border rounded-lg p-4 select-none">
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-sm mb-2">
+          <div className="flex items-center justify-between gap-2 sm:gap-4 bg-card border rounded-[12px] sm:rounded-lg p-2.5 sm:p-4 select-none">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between text-[11px] sm:text-sm mb-1.5 sm:mb-2">
                 <span>{t("progress")}</span>
                 <span>{answeredCount} / {exam.questions.length}</span>
               </div>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+              <div className="h-1.5 sm:h-2 bg-secondary rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-primary transition-all duration-300" 
                   style={{ width: `${progress}%` }}
                 />
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">{t("timeLeft")}</div>
-              <div className={`text-2xl font-bold tabular-nums ${secondsLeft < 60 ? "text-red-600" : ""}`}>
+            <div className="text-right shrink-0">
+              <div className="text-[10px] sm:text-sm text-muted-foreground">{t("timeLeft")}</div>
+              <div className={`text-base sm:text-2xl font-bold tabular-nums leading-tight ${secondsLeft < 60 ? "text-red-600" : ""}`}>
                 {formatTime(secondsLeft)}
               </div>
             </div>
@@ -1137,9 +1137,10 @@ export default function TakeExamPage() {
 
       {exam ? (
         <>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
             <Button 
               variant="outline" 
+              size="sm"
               onClick={() => {
                 setConfirmTitle(t("quitExamTitle"));
                 setConfirmMessage(t("quitExamMessage"));
@@ -1148,53 +1149,54 @@ export default function TakeExamPage() {
               }}
               className="gap-2"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               {t("quit")}
             </Button>
             <Button
+              size="sm"
               onClick={() => handleSubmitExam()}
               disabled={submittingExam || answeredCount === 0}
-              className="min-w-[120px]"
+              className="min-w-[100px] sm:min-w-[120px]"
             >
               {submittingExam ? (
                 t("submitting")
               ) : (
                 <>
                   {t("submit")}
-                  <ArrowRight className="h-4 w-4 ml-2" />
+                  <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-2" />
                 </>
               )}
             </Button>
           </div>
 
           <Card 
-            className="navo-card-brand select-none"
+            className="navo-card-brand select-none rounded-[14px] sm:rounded-[24px]"
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
           >
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between gap-3">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center justify-between gap-3 text-sm sm:text-base">
                 <span>
                   {t("question")} {currentIndex + 1} {t("of")} {exam.questions.length}
                 </span>
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-[11px] sm:text-sm">
                 {t("examModeLabel")}: {exam.settings.sorting_mode} · {t("examDurationLabel")}: {exam.settings.duration_minutes}m · {t("examQuestionsLabel")}: {exam.questions.length}
                 <span className="md:hidden text-xs text-muted-foreground ml-2">{t("swipeToNavigate")}</span>
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 pt-0 sm:p-6 sm:pt-0">
               {activeQuestion ? (
                 <>
                   {activeQuestion.question_image && (
-                    <img src={activeQuestion.question_image} alt={t("question")} className="w-full max-h-[320px] object-contain rounded-lg border" />
+                    <img src={activeQuestion.question_image} alt={t("question")} className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg border" />
                   )}
                   {activeQuestion.question && (
-                    <div className="text-base font-medium">{activeQuestion.question}</div>
+                    <div className="text-sm sm:text-base font-medium">{activeQuestion.question}</div>
                   )}
 
-                  <div className="grid gap-3">
+                  <div className="grid gap-2 sm:gap-3">
                     {(["A", "B", "C", "D"] as const).map((opt) => {
                       const text = activeQuestion[`option_${opt.toLowerCase() as "a" | "b" | "c" | "d"}`];
                       const img = activeQuestion[`option_${opt.toLowerCase() as "a" | "b" | "c" | "d"}_image` as keyof ExamQuestion] as string | undefined;
@@ -1203,22 +1205,22 @@ export default function TakeExamPage() {
                       return (
                         <div 
                           key={opt} 
-                          className={`rounded-lg border p-3 cursor-pointer transition-all select-none ${
+                          className={`rounded-[10px] sm:rounded-lg border p-2.5 sm:p-3 cursor-pointer transition-all select-none ${
                             isSelected 
                               ? "border-primary bg-primary/5" 
                               : "border-border hover:border-primary/50"
                           }`}
                           onClick={() => handleSelectAnswer(opt)}
                         >
-                          <div className="flex items-start gap-3">
-                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
+                          <div className="flex items-start gap-2 sm:gap-3">
+                            <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center text-[10px] sm:text-sm font-medium shrink-0 ${
                               isSelected ? "border-primary bg-primary text-white" : "border-border"
                             }`}>
                               {opt}
                             </div>
-                            <div className="flex-1">
-                              {img && <img src={img} alt={`${t("option")} ${opt}`} className="w-full max-h-[240px] object-contain rounded-md border mb-2" />}
-                              {text && <div className="text-sm">{text}</div>}
+                            <div className="flex-1 min-w-0">
+                              {img && <img src={img} alt={`${t("option")} ${opt}`} className="w-full max-h-[180px] sm:max-h-[240px] object-contain rounded-md border mb-2" />}
+                              {text && <div className="text-xs sm:text-sm">{text}</div>}
                             </div>
                           </div>
                         </div>
@@ -1226,15 +1228,17 @@ export default function TakeExamPage() {
                     })}
                   </div>
 
-                  <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center justify-between pt-1.5 sm:pt-2">
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
                       disabled={currentIndex === 0}
                     >
                       {t("previous")}
                     </Button>
                     <Button
+                      size="sm"
                       onClick={() => setCurrentIndex((i) => Math.min(exam.questions.length - 1, i + 1))}
                       disabled={currentIndex >= exam.questions.length - 1}
                     >

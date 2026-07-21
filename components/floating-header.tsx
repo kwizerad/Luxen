@@ -48,7 +48,7 @@ export function FloatingHeader() {
   return (
     <>
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-4 py-3">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-4 py-2">
         <div className={`flex items-center ${isRTL ? 'justify-start' : 'justify-end'} gap-2`}>
           {/* Notifications */}
           <div className="premium-glass-panel border rounded-full overflow-hidden">

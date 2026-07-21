@@ -1,8 +1,9 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowUpRight, ArrowDownRight, Zap, Trophy, TrendingUp, Target } from 'lucide-react';
-import { memo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import React, { memo } from 'react';
 
 interface KPICardProps {
   title: string;
@@ -20,47 +21,79 @@ interface KPICardProps {
 export const KPICard = memo(function KPICard({ title, value, unit, icon, trend, description, onClick }: KPICardProps) {
   return (
     <Card
-      className="hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
+      className="rounded-[12px] sm:rounded-[16px] lg:rounded-[24px] hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
       onClick={onClick}
     >
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-          <div className="p-2 rounded-[10px] bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">{icon}</div>
+      {/* Mobile: vertical compact layout (4-in-a-row) */}
+      <div className="flex flex-col items-center gap-1 p-2 text-center sm:hidden">
+        <div className="p-1 rounded-[6px] bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+          {React.isValidElement(icon)
+            ? React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
+                className: cn('h-3 w-3', (icon.props as { className?: string }).className),
+              })
+            : icon}
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold">
-              {typeof value === 'number' ? Math.round(value) : value}
-            </span>
-            {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
-          </div>
-          {trend && (
-            <div className="flex items-center gap-1">
-              {trend.direction === 'up' && (
-                <ArrowUpRight className="h-4 w-4 text-green-500" />
-              )}
-              {trend.direction === 'down' && (
-                <ArrowDownRight className="h-4 w-4 text-red-500" />
-              )}
-              <span
-                className={`text-xs font-medium ${
-                  trend.direction === 'up'
-                    ? 'text-green-600'
-                    : trend.direction === 'down'
-                      ? 'text-red-600'
-                      : 'text-muted-foreground'
-                }`}
-              >
-                {trend.percentage > 0 ? '+' : ''}{trend.percentage}%
-              </span>
+        <div className="flex items-baseline gap-0.5">
+          <span className="text-sm font-bold leading-none">
+            {typeof value === 'number' ? Math.round(value) : value}
+          </span>
+          {unit && <span className="text-[9px] text-muted-foreground leading-none">{unit}</span>}
+        </div>
+        <CardTitle className="text-[9px] font-medium text-muted-foreground leading-tight line-clamp-2">
+          {title}
+        </CardTitle>
+      </div>
+
+      {/* Tablet & Desktop: horizontal layout */}
+      <div className="hidden sm:flex sm:flex-col">
+        <CardHeader className="p-3 pb-2 lg:p-4 lg:pb-3">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground lg:text-sm line-clamp-1">{title}</CardTitle>
+            <div className="p-1.5 rounded-[8px] bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0 lg:p-2 lg:rounded-[10px]">
+              {React.isValidElement(icon)
+                ? React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
+                    className: cn(
+                      'h-3.5 w-3.5 lg:h-4 lg:w-4',
+                      (icon.props as { className?: string }).className
+                    ),
+                  })
+                : icon}
             </div>
-          )}
-          {description && <p className="text-xs text-muted-foreground">{description}</p>}
-        </div>
-      </CardContent>
+          </div>
+        </CardHeader>
+        <CardContent className="p-3 pt-0 lg:p-4 lg:pt-0">
+          <div className="space-y-1 lg:space-y-2">
+            <div className="flex items-baseline gap-1.5 lg:gap-2">
+              <span className="text-lg font-bold lg:text-2xl">
+                {typeof value === 'number' ? Math.round(value) : value}
+              </span>
+              {unit && <span className="text-xs text-muted-foreground lg:text-sm">{unit}</span>}
+            </div>
+            {trend && (
+              <div className="flex items-center gap-1">
+                {trend.direction === 'up' && (
+                  <ArrowUpRight className="h-3.5 w-3.5 text-green-500 lg:h-4 lg:w-4" />
+                )}
+                {trend.direction === 'down' && (
+                  <ArrowDownRight className="h-3.5 w-3.5 text-red-500 lg:h-4 lg:w-4" />
+                )}
+                <span
+                  className={`text-[10px] font-medium lg:text-xs ${
+                    trend.direction === 'up'
+                      ? 'text-green-600'
+                      : trend.direction === 'down'
+                        ? 'text-red-600'
+                        : 'text-muted-foreground'
+                  }`}
+                >
+                  {trend.percentage > 0 ? '+' : ''}{trend.percentage}%
+                </span>
+              </div>
+            )}
+            {description && <p className="text-[10px] text-muted-foreground lg:text-xs line-clamp-1">{description}</p>}
+          </div>
+        </CardContent>
+      </div>
     </Card>
   );
 });

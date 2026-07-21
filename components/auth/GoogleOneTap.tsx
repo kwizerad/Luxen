@@ -11,6 +11,12 @@ interface GoogleOneTapProps {
    * prompt should never appear (e.g. authenticated-only routes).
    */
   enabled?: boolean;
+  /**
+   * If true, always attempt to show the prompt on mount, ignoring the
+   * client-side dismissal cooldown, and retry after transient Google skips.
+   * Use on landing pages where the prompt should always appear for visitors.
+   */
+  alwaysPrompt?: boolean;
 }
 
 /**
@@ -21,12 +27,14 @@ interface GoogleOneTapProps {
  * loading spinner so users receive clear feedback while the credential is
  * exchanged for a Supabase session.
  */
-export function GoogleOneTap({ enabled = true }: GoogleOneTapProps) {
+export function GoogleOneTap({ enabled = true, alwaysPrompt = false }: GoogleOneTapProps) {
   const { signInWithGoogle, isLoading } = useGoogleAuth();
 
   useGoogleOneTap({
     onCredential: signInWithGoogle,
     enabled,
+    alwaysPrompt,
+    retryOnSkip: alwaysPrompt,
     promptDelayMs: 1500,
   });
 

@@ -79,14 +79,14 @@ export default function UserSettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-[100dvh] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-transparent flex justify-center">
+    <div className="bg-transparent flex justify-center">
       {/* Floating Navo Button */}
       <div className="fixed top-4 left-4 z-50 md:hidden">
         <Link href="/dashboard" className="premium-glass-panel flex items-center gap-2 rounded-full border p-2 overflow-hidden">
@@ -101,15 +101,15 @@ export default function UserSettingsPage() {
         </Link>
       </div>
       
-      <main className="student-page-narrow w-full">
+      <main className="student-page-narrow student-page-no-nav w-full">
         <div className="student-page-header">
           <div>
             <h1 className="student-page-title">{t("personalSettings")}</h1>
             <p className="student-page-description">{t("updateProfileDesc")}</p>
           </div>
         </div>
-        <Card>
-          <CardContent className="p-4 sm:p-6">
+        <Card className="rounded-[14px] sm:rounded-[24px]">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <UserSettings
               showPasswordChange={true}
               showUsernameChange={true}

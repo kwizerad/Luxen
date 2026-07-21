@@ -7,7 +7,6 @@ import {
   loadGoogleIdentityScript,
   recordOneTapDismissed,
   isOneTapDismissed,
-  removeGoogleIdentityScript,
 } from "@/lib/auth/google";
 
 export interface UseGoogleOneTapOptions {
@@ -23,6 +22,26 @@ export interface UseGoogleOneTapOptions {
    * Delay before prompting, in milliseconds. Allows the page to settle first.
    */
   promptDelayMs?: number;
+  /**
+   * If true, always attempt to show the prompt on mount, ignoring the
+   * client-side dismissal cooldown. Google's own internal cooldown still
+   * applies. Use on landing pages where the prompt should always appear.
+   */
+  alwaysPrompt?: boolean;
+  /**
+   * When true, retry the prompt after Google skips it (e.g. transient
+   * unavailability or warm-up). Up to `maxRetries` times with
+   * `retryDelayMs` between attempts.
+   */
+  retryOnSkip?: boolean;
+  /**
+   * Maximum number of retry attempts after a skip. Default 3.
+   */
+  maxRetries?: number;
+  /**
+   * Delay between retry attempts in milliseconds. Default 2000.
+   */
+  retryDelayMs?: number;
 }
 
 /**
@@ -39,13 +58,16 @@ export function useGoogleOneTap({
   onCredential,
   enabled = true,
   promptDelayMs = 1200,
+  alwaysPrompt = false,
+  retryOnSkip = false,
+  maxRetries = 3,
+  retryDelayMs = 2000,
 }: UseGoogleOneTapOptions) {
   const { user, loading: authLoading } = useAuth();
   const [googleReady, setGoogleReady] = useState(false);
   const [scriptError, setScriptError] = useState<string | null>(null);
   const [isPrompting, setIsPrompting] = useState(false);
   const onCredentialRef = useRef(onCredential);
-  const promptShownRef = useRef(false);
 
   // Keep the callback fresh without re-triggering script initialization.
   useEffect(() => {
@@ -76,7 +98,7 @@ export function useGoogleOneTap({
             }
           },
           auto_select: false,
-          cancel_on_tap_outside: true,
+          cancel_on_tap_outside: false,
           context: "signin",
           ux_mode: "popup",
         });
@@ -100,13 +122,16 @@ export function useGoogleOneTap({
     };
   }, [enabled]);
 
-  // Final cleanup: cancel any visible prompt and remove the injected script.
+  // Final cleanup: cancel any visible prompt. We intentionally do NOT remove
+  // the GIS script here — removing it on every unmount races with React Strict
+  // Mode's mount→unmount→remount cycle in dev and can leave
+  // `window.google.accounts.id` undefined on remount, preventing the prompt.
+  // The script is a singleton that is safe to keep for the page lifetime.
   useEffect(() => {
     return () => {
       if (typeof window !== "undefined" && window.google?.accounts?.id) {
         window.google.accounts.id.cancel();
       }
-      removeGoogleIdentityScript();
     };
   }, []);
 
@@ -114,23 +139,64 @@ export function useGoogleOneTap({
   useEffect(() => {
     if (!enabled || !googleReady || authLoading || user) return;
     if (typeof window === "undefined") return;
-    if (isOneTapDismissed() || promptShownRef.current) return;
+    // In alwaysPrompt mode we ignore our own cooldown; Google's internal
+    // cooldown still applies and will surface as a skip moment.
+    if (!alwaysPrompt && isOneTapDismissed()) return;
 
-    const timer = setTimeout(() => {
-      if (promptShownRef.current || user) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let retryCount = 0;
 
-      window.google!.accounts.id.prompt((notification) => {
-        if (notification.isSkippedMoment() || notification.isDismissedMoment()) {
-          recordOneTapDismissed();
-        }
-      });
+    const schedulePrompt = (delayMs: number) => {
+      timer = setTimeout(() => {
+        if (cancelled || user) return;
 
-      promptShownRef.current = true;
-      setIsPrompting(true);
-    }, promptDelayMs);
+        window.google!.accounts.id.prompt((notification) => {
+          if (cancelled) return;
 
-    return () => clearTimeout(timer);
-  }, [enabled, googleReady, authLoading, user, promptDelayMs]);
+          if (notification.isDismissedMoment()) {
+            // Real user dismissal — record our cooldown so other pages
+            // (and this page on a later visit) respect it.
+            recordOneTapDismissed();
+            setIsPrompting(false);
+            return;
+          }
+
+          // Skipped by Google (transient). Optionally retry; Google's own
+          // cooldown will continue to skip if it's not ready.
+          if (
+            notification.isSkippedMoment() &&
+            retryOnSkip &&
+            retryCount < maxRetries
+          ) {
+            retryCount += 1;
+            schedulePrompt(retryDelayMs);
+          } else {
+            setIsPrompting(false);
+          }
+        });
+
+        setIsPrompting(true);
+      }, delayMs);
+    };
+
+    schedulePrompt(promptDelayMs);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    enabled,
+    googleReady,
+    authLoading,
+    user,
+    promptDelayMs,
+    alwaysPrompt,
+    retryOnSkip,
+    maxRetries,
+    retryDelayMs,
+  ]);
 
   // Cancel the prompt as soon as the user authenticates.
   useEffect(() => {

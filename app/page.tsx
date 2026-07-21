@@ -95,7 +95,7 @@ export default function Home() {
               <Button size="lg" variant="outline" onClick={openSignUp}>{t("signUp")}</Button>
             </div>
             <div className="flex justify-center pt-2">
-              <GoogleOneTap />
+              <GoogleOneTap alwaysPrompt />
             </div>
           </div>
 

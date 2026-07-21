@@ -71,7 +71,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
-      <body className={`${inter.className} antialiased mesh-gradient-bg min-h-screen`}>
+      <body className={`${inter.className} antialiased mesh-gradient-bg min-h-[100dvh]`}>
         <ThemeProvider
             attribute="class"
             defaultTheme="light"

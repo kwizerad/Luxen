@@ -301,7 +301,7 @@ export default function CoursePage() {
 
   if (activeLesson) {
     return (
-      <div className="min-h-screen bg-transparent flex justify-center">
+      <div className="bg-transparent flex justify-center">
         <Watermark />
         <main className="student-page-narrow w-full">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -419,7 +419,7 @@ export default function CoursePage() {
   const publishedCourses = languageCourses.filter(l => l.is_published);
 
   return (
-    <div className="min-h-screen bg-transparent flex justify-center">
+    <div className="bg-transparent flex justify-center">
       <Watermark />
       <main className="student-page-narrow w-full">
         <div className="student-page-header">
@@ -489,45 +489,45 @@ export default function CoursePage() {
               const moduleLessons = lessons[module.id] || [];
 
               return (
-                <Card key={module.id} className={!unlocked ? "opacity-60" : ""}>
+                <Card key={module.id} className={`rounded-[14px] sm:rounded-[24px] ${!unlocked ? "opacity-60" : ""}`}>
                   <CardHeader
-                    className="cursor-pointer"
+                    className="cursor-pointer p-3 sm:p-6"
                     onClick={() => toggleModuleExpansion(module.id)}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 text-sm font-bold text-primary">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="mb-1.5 sm:mb-2 flex flex-wrap items-center gap-1.5 sm:gap-2">
+                          <span className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-[8px] sm:rounded-[10px] bg-primary/10 text-xs sm:text-sm font-bold text-primary">
                             {index + 1}
                           </span>
-                          <CardTitle className="text-lg sm:text-xl">{getModuleTitle(module)}</CardTitle>
+                          <CardTitle className="text-base sm:text-lg lg:text-xl line-clamp-2">{getModuleTitle(module)}</CardTitle>
                           {!unlocked && (
-                            <Badge variant="secondary">
-                              <Lock className="h-3 w-3 mr-1" />
+                            <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                              <Lock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
                               {t("locked")}
                             </Badge>
                           )}
                           {progress.examPassed && (
-                            <Badge className="bg-green-500">
-                              <CheckCircle className="h-3 w-3 mr-1" />
+                            <Badge className="bg-green-500 text-[10px] sm:text-xs">
+                              <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
                               {t("passed")}
                             </Badge>
                           )}
                         </div>
                         {getModuleDescription(module) && (
-                          <CardDescription>{getModuleDescription(module)}</CardDescription>
+                          <CardDescription className="text-[11px] sm:text-sm line-clamp-2">{getModuleDescription(module)}</CardDescription>
                         )}
                       </div>
                       <ChevronDown
-                        className={`h-5 w-5 transition-transform ${expandedModules.has(module.id) ? 'rotate-180' : ''}`}
+                        className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 transition-transform ${expandedModules.has(module.id) ? 'rotate-180' : ''}`}
                       />
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-3 sm:space-y-4 p-3 pt-0 sm:p-6 sm:pt-0">
                     {/* Progress bar */}
                     {moduleLessons.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
+                      <div className="space-y-1.5 sm:space-y-2">
+                        <div className="flex items-center justify-between text-[11px] sm:text-sm">
                           <span className="text-muted-foreground">
                             {t("lessons")}: {progress.lessonsCompleted} / {progress.totalLessons}
                           </span>
@@ -543,27 +543,27 @@ export default function CoursePage() {
 
                     {/* Lessons list - shown only when expanded */}
                     {unlocked && expandedModules.has(module.id) && moduleLessons.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm">{t("lessons")}</h4>
+                      <div className="space-y-1.5 sm:space-y-2">
+                        <h4 className="font-medium text-xs sm:text-sm">{t("lessons")}</h4>
                         {moduleLessons.map((lesson) => {
                           const isCompleted = lessonProgress[lesson.id]?.completed;
                           return (
                             <div
                               key={lesson.id}
-                              className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                              className="flex items-center justify-between p-2 sm:p-3 border rounded-[10px] sm:rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
                               onClick={() => openLesson(lesson)}
                             >
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                                 {isCompleted ? (
-                                  <CheckCircle className="h-5 w-5 text-green-500" />
+                                  <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 shrink-0" />
                                 ) : (
-                                  <Play className="h-5 w-5 text-muted-foreground" />
+                                  <Play className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />
                                 )}
-                                <span className={isCompleted ? "line-through text-muted-foreground" : ""}>
+                                <span className={`text-xs sm:text-sm truncate ${isCompleted ? "line-through text-muted-foreground" : ""}`}>
                                   {getLessonTitle(lesson)}
                                 </span>
                               </div>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
                             </div>
                           );
                         })}
@@ -572,39 +572,39 @@ export default function CoursePage() {
 
                     {/* Exam section */}
                     {unlocked && canTakeExam(module.id) && (
-                      <div className="pt-4 border-t">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Target className="h-4 w-4 text-primary" />
-                              <span className="font-medium">{t("moduleExam")}</span>
+                      <div className="pt-3 sm:pt-4 border-t">
+                        <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
+                              <span className="font-medium text-xs sm:text-sm">{t("moduleExam")}</span>
                               {progress.examAttempts > 0 && (
-                                <Badge variant="outline">
+                                <Badge variant="outline" className="text-[10px] sm:text-xs">
                                   {progress.examAttempts} {progress.examAttempts > 1 ? t("attempts") : t("attempt")}
                                 </Badge>
                               )}
                             </div>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 sm:gap-4 text-[11px] sm:text-sm text-muted-foreground flex-wrap">
                               <span className="flex items-center gap-1">
-                                <FileText className="h-3 w-3" />
+                                <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                                 {settings?.question_count || 20} {t("questions")}
                               </span>
                               <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
+                                <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                                 {settings?.duration_minutes || 20} {t("minutes")}
                               </span>
                               <span className="flex items-center gap-1">
-                                <Target className="h-3 w-3" />
+                                <Target className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                                 {settings?.passing_score || 70}{t("percentToPass")}
                               </span>
                             </div>
                             {progress.bestScore !== undefined && (
-                              <p className="text-sm">
+                              <p className="text-[11px] sm:text-sm">
                                 {t("bestScoreLabel")} <span className="font-medium">{progress.bestScore}%</span>
                               </p>
                             )}
                           </div>
-                          <Button onClick={() => takeExam(module.id)}>
+                          <Button size="sm" className="self-start sm:self-auto" onClick={() => takeExam(module.id)}>
                             {progress.examPassed ? t("retakeExam") : t("takeExam")}
                           </Button>
                         </div>

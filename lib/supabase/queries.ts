@@ -821,10 +821,14 @@ export async function updateExamLimit(user_id: string, daily_limit?: number, is_
     upsertData.is_limited = is_limited;
   }
 
-  // Use admin client to bypass RLS policies
-  const adminClient = createAdminClient();
+  // Use admin client to bypass RLS policies (server only).
+  // In the browser the service role key is unavailable, so fall back to the
+  // anon client and rely on RLS policies. This prevents a hard crash; if RLS
+  // blocks the write it will surface as a PostgREST error instead.
+  const client =
+    typeof window === "undefined" && isAdmin(user) ? createAdminClient() : supabase;
 
-  const { data, error } = await adminClient
+  const { data, error } = await client
     .from("user_exam_limits")
     .upsert(upsertData, { onConflict: "user_id" })
     .select()
@@ -855,10 +859,13 @@ export async function deleteExamLimit(userId: string) {
     throw new Error("userId is required");
   }
 
-  // Use admin client to bypass RLS policies
-  const adminClient = createAdminClient();
+  // Use admin client to bypass RLS policies (server only).
+  // In the browser the service role key is unavailable, so fall back to the
+  // anon client and rely on RLS policies.
+  const client =
+    typeof window === "undefined" && isAdmin(user) ? createAdminClient() : supabase;
 
-  const { error } = await adminClient
+  const { error } = await client
     .from("user_exam_limits")
     .delete()
     .eq("user_id", userId);
@@ -1406,7 +1413,7 @@ export async function getCourseLanguages() {
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
   // Use admin client for admins to bypass RLS issues
-  const client = isUserAdmin ? createAdminClient() : supabase;
+  const client = isUserAdmin && typeof window === "undefined" ? createAdminClient() : supabase;
 
   let query = client
     .from("course_languages")
@@ -1435,7 +1442,7 @@ export async function getCourseModules(languageId?: string) {
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
   // Use admin client for admins to bypass RLS issues
-  const client = isUserAdmin ? createAdminClient() : supabase;
+  const client = isUserAdmin && typeof window === "undefined" ? createAdminClient() : supabase;
 
   let query = client
     .from("course_modules")
@@ -1468,7 +1475,7 @@ export async function getCourseLessons(moduleId: string) {
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
   // Use admin client for admins to bypass RLS issues
-  const client = isUserAdmin ? createAdminClient() : supabase;
+  const client = isUserAdmin && typeof window === "undefined" ? createAdminClient() : supabase;
 
   let query = client
     .from("course_lessons")
@@ -1498,7 +1505,7 @@ export async function getModuleExamSettings(moduleId: string) {
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
   // Use admin client for admins to bypass RLS issues
-  const client = isUserAdmin ? createAdminClient() : supabase;
+  const client = isUserAdmin && typeof window === "undefined" ? createAdminClient() : supabase;
 
   const { data, error } = await client
     .from("module_exam_settings")
@@ -1536,7 +1543,7 @@ export async function getModuleExamQuestions(moduleId: string) {
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
   // Use admin client for admins to bypass RLS issues
-  const client = isUserAdmin ? createAdminClient() : supabase;
+  const client = isUserAdmin && typeof window === "undefined" ? createAdminClient() : supabase;
 
   const { data, error } = await client
     .from("module_exam_questions")
@@ -1560,7 +1567,7 @@ export async function getStudentModuleProgress(userId?: string) {
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
   // Use admin client for admins to bypass RLS issues
-  const client = isUserAdmin ? createAdminClient() : supabase;
+  const client = isUserAdmin && typeof window === "undefined" ? createAdminClient() : supabase;
 
   const targetUserId = userId || user.id;
 
@@ -1584,7 +1591,7 @@ export async function getStudentLessonProgress(userId?: string, moduleId?: strin
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
   // Use admin client for admins to bypass RLS issues
-  const client = isUserAdmin ? createAdminClient() : supabase;
+  const client = isUserAdmin && typeof window === "undefined" ? createAdminClient() : supabase;
 
   const targetUserId = userId || user.id;
 
@@ -1605,7 +1612,6 @@ export async function getStudentLessonProgress(userId?: string, moduleId?: strin
 
 export async function markLessonComplete(lessonId: string, moduleId: string, timeSpentSeconds: number = 0) {
   const supabase = createClient();
-  const adminSupabase = createAdminClient();
   const user = await getAuthUser();
 
   if (!user) {
@@ -1639,7 +1645,14 @@ export async function markLessonComplete(lessonId: string, moduleId: string, tim
       .eq("id", lessonId)
       .single();
 
-    await adminSupabase
+    // Use admin client on the server to bypass RLS on the notifications
+    // table; in the browser fall back to the anon client (RLS may block the
+    // insert, which is acceptable since the notification is best-effort and
+    // this whole block is wrapped in try/catch).
+    const notifClient =
+      typeof window === "undefined" ? createAdminClient() : supabase;
+
+    await notifClient
       .from("notifications")
       .insert({
         user_id: user.id,
@@ -1670,7 +1683,7 @@ async function updateModuleProgress(moduleId: string) {
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
   // Use admin client for admins to bypass RLS issues
-  const client = isUserAdmin ? createAdminClient() : supabase;
+  const client = isUserAdmin && typeof window === "undefined" ? createAdminClient() : supabase;
 
   // Get total lessons for this module
   const { data: totalLessonsData } = await client
@@ -1770,7 +1783,7 @@ async function updateModuleExamProgress(moduleId: string, score: number, passed:
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
   // Use admin client for admins to bypass RLS issues
-  const client = isUserAdmin ? createAdminClient() : supabase;
+  const client = isUserAdmin && typeof window === "undefined" ? createAdminClient() : supabase;
 
   // Get current progress
   const { data: currentProgress } = await client
@@ -1811,7 +1824,7 @@ export async function getModuleExamAttempts(userId?: string, moduleId?: string) 
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
   // Use admin client for admins to bypass RLS issues
-  const client = isUserAdmin ? createAdminClient() : supabase;
+  const client = isUserAdmin && typeof window === "undefined" ? createAdminClient() : supabase;
 
   const targetUserId = userId || user.id;
 
@@ -1841,7 +1854,7 @@ export async function getModuleExamForTaking(moduleId: string) {
   const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
 
   // Use admin client for admins to bypass RLS issues
-  const client = isUserAdmin ? createAdminClient() : supabase;
+  const client = isUserAdmin && typeof window === "undefined" ? createAdminClient() : supabase;
 
   // Get settings
   const { data: settings } = await client

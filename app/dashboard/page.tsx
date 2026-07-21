@@ -293,7 +293,7 @@ export default function Dashboard() {
 
   if (authLoading || dataLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-transparent gap-6">
+      <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-transparent gap-6">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         <div className="text-center space-y-2">
           <p className="text-lg font-medium text-foreground">{t("loadingYourDashboard")}</p>
@@ -304,7 +304,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="bg-transparent">
       {/* Floating Navo Button */}
       <div className="fixed top-4 left-4 z-50 md:hidden">
         <Link href="/dashboard" className="premium-glass-panel flex items-center gap-2 rounded-full border p-2 overflow-hidden">
@@ -331,7 +331,7 @@ export default function Dashboard() {
           </div>
 
           {/* Quick Stats Cards */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-3 lg:gap-4">
             <KPICard
               title={t("totalExamsTaken")}
               value={examStats.totalExams}
@@ -374,34 +374,34 @@ export default function Dashboard() {
         {/* Main Content Grid */}
         <div className="student-content-grid">
           {/* Left Column - Primary Content */}
-          <div className="space-y-6 lg:col-span-8">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-8">
             {/* Recent Attempts - Compact */}
             <div className="student-section">
               <div className="student-section-header">
                 <h2 className="student-section-title">{t("recentAttempts")}</h2>
               </div>
-              <Card>
-                <CardContent className="p-4">
+              <Card className="rounded-[14px] sm:rounded-[24px]">
+                <CardContent className="p-3 sm:p-4">
                   {examAttempts.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">{t("noExamsTakenYet")}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{t("noExamsTakenYet")}</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5 sm:space-y-2">
                       {examAttempts.slice(0, 3).map((a) => (
-                        <div key={a.id} className="flex items-center justify-between gap-3 rounded-[16px] border border-white/30 bg-background/25 p-3 transition-colors hover:bg-accent/40 dark:border-white/10">
+                        <div key={a.id} className="flex items-center justify-between gap-2 sm:gap-3 rounded-[12px] sm:rounded-[16px] border border-white/30 bg-background/25 p-2 sm:p-3 transition-colors hover:bg-accent/40 dark:border-white/10">
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm">{a.category_name}</div>
-                            <div className="text-xs text-muted-foreground">{formatRelativeTime(a.completed_at)} · {formatDuration(a.duration_seconds)}</div>
+                            <div className="font-medium text-xs sm:text-sm truncate">{a.category_name}</div>
+                            <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{formatRelativeTime(a.completed_at)} · {formatDuration(a.duration_seconds)}</div>
                           </div>
-                          <div className="flex items-center gap-2 ml-2">
-                            <span className="text-sm font-semibold text-primary">{a.score_percentage}%</span>
-                            <Button size="sm" variant="ghost" onClick={() => router.push(`/dashboard/exam-attempts/${a.id}`)}>
+                          <div className="flex items-center gap-1.5 sm:gap-2 ml-2 shrink-0">
+                            <span className="text-xs sm:text-sm font-semibold text-primary">{a.score_percentage}%</span>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => router.push(`/dashboard/exam-attempts/${a.id}`)}>
                               {t("view")}
                             </Button>
                           </div>
                         </div>
                       ))}
                       {examAttempts.length > 3 && (
-                        <Button variant="outline" size="sm" className="w-full mt-2">
+                        <Button variant="outline" size="sm" className="w-full mt-1.5 sm:mt-2">
                           {t("viewAll")}
                         </Button>
                       )}
@@ -419,16 +419,16 @@ export default function Dashboard() {
                 <div className="student-section-header">
                   <h2 className="student-section-title">{t("scoreDistribution")}</h2>
                 </div>
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className="space-y-2">
+                <Card className="rounded-[14px] sm:rounded-[24px]">
+                  <CardContent className="p-3 sm:pt-4 sm:p-6">
+                    <div className="space-y-1.5 sm:space-y-2">
                       {scoreDistributionData.map((item) => (
-                        <div key={item.name} className="flex items-center justify-between rounded-[14px] border border-white/25 bg-background/25 p-3 dark:border-white/10">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.fill }} />
-                            <span className="text-sm">{t(item.name)}</span>
+                        <div key={item.name} className="flex items-center justify-between rounded-[10px] sm:rounded-[14px] border border-white/25 bg-background/25 p-2 sm:p-3 dark:border-white/10">
+                          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0" style={{ backgroundColor: item.fill }} />
+                            <span className="text-xs sm:text-sm truncate">{t(item.name)}</span>
                           </div>
-                          <span className="font-semibold">{item.value}</span>
+                          <span className="font-semibold text-xs sm:text-sm shrink-0">{item.value}</span>
                         </div>
                       ))}
                     </div>
@@ -439,7 +439,7 @@ export default function Dashboard() {
           </div>
 
           {/* Right Column - Sidebar Widgets */}
-          <div className="space-y-6 lg:col-span-4">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-4">
             {/* Profile Completion */}
             <ProfileCompletion
               userMetadata={user?.user_metadata || {}}
@@ -449,20 +449,20 @@ export default function Dashboard() {
 
             {/* Exam Limit Info */}
             {examLimit.is_limited && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-yellow-500" />
+              <Card className="rounded-[14px] sm:rounded-[24px]">
+                <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+                  <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
+                    <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-500" />
                     {t("dailyLimit")}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0 space-y-2">
+                <CardContent className="pt-0 space-y-1.5 sm:space-y-2 p-3 pt-0 sm:p-6 sm:pt-0">
                   <div>
-                    <div className="flex justify-between items-center mb-1 text-xs">
+                    <div className="flex justify-between items-center mb-1 text-[10px] sm:text-xs">
                       <span className="text-muted-foreground">{t("used")}</span>
                       <span className="font-semibold">{examLimit.attempts_today}/{examLimit.daily_limit}</span>
                     </div>
-                    <div className="bg-secondary rounded-full h-2 overflow-hidden">
+                    <div className="bg-secondary rounded-full h-1.5 sm:h-2 overflow-hidden">
                       <div
                         className="h-full bg-primary transition-all duration-300"
                         style={{
@@ -471,7 +471,7 @@ export default function Dashboard() {
                       ></div>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">
                     {examLimit.remaining_attempts} {t("remaining")}
                   </p>
                 </CardContent>

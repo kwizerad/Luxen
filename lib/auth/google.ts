@@ -88,7 +88,7 @@ export function removeGoogleIdentityScript(): void {
 }
 
 const DISMISSAL_STORAGE_KEY = "google-one-tap-dismissed-at";
-const DISMISSAL_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+const DISMISSAL_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Determine whether the user recently dismissed One Tap.

@@ -163,23 +163,32 @@ export default function UserExamsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="rounded-[14px] bg-primary/10 p-3 text-primary"><Trophy className="h-5 w-5" /></div>
-            <div><p className="text-sm text-muted-foreground">{t("totalExamsTaken")}</p><p className="text-2xl font-bold">{completedAttempts.length}</p></div>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <Card className="rounded-[12px] sm:rounded-[24px]">
+          <CardContent className="flex items-center gap-2 p-2.5 sm:gap-4 sm:p-5">
+            <div className="rounded-[8px] sm:rounded-[14px] bg-primary/10 p-1.5 sm:p-3 text-primary shrink-0"><Trophy className="h-3.5 w-3.5 sm:h-5 sm:w-5" /></div>
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-sm text-muted-foreground line-clamp-1">{t("totalExamsTaken")}</p>
+              <p className="text-base sm:text-2xl font-bold leading-tight">{completedAttempts.length}</p>
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="rounded-[14px] bg-primary/10 p-3 text-primary"><TrendingUp className="h-5 w-5" /></div>
-            <div><p className="text-sm text-muted-foreground">{t("averageScore")}</p><p className="text-2xl font-bold">{averageScore}%</p></div>
+        <Card className="rounded-[12px] sm:rounded-[24px]">
+          <CardContent className="flex items-center gap-2 p-2.5 sm:gap-4 sm:p-5">
+            <div className="rounded-[8px] sm:rounded-[14px] bg-primary/10 p-1.5 sm:p-3 text-primary shrink-0"><TrendingUp className="h-3.5 w-3.5 sm:h-5 sm:w-5" /></div>
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-sm text-muted-foreground line-clamp-1">{t("averageScore")}</p>
+              <p className="text-base sm:text-2xl font-bold leading-tight">{averageScore}%</p>
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="rounded-[14px] bg-primary/10 p-3 text-primary"><CheckCircle className="h-5 w-5" /></div>
-            <div><p className="text-sm text-muted-foreground">{t("bestScore")}</p><p className="text-2xl font-bold">{bestScore}%</p></div>
+        <Card className="rounded-[12px] sm:rounded-[24px]">
+          <CardContent className="flex items-center gap-2 p-2.5 sm:gap-4 sm:p-5">
+            <div className="rounded-[8px] sm:rounded-[14px] bg-primary/10 p-1.5 sm:p-3 text-primary shrink-0"><CheckCircle className="h-3.5 w-3.5 sm:h-5 sm:w-5" /></div>
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-sm text-muted-foreground line-clamp-1">{t("bestScore")}</p>
+              <p className="text-base sm:text-2xl font-bold leading-tight">{bestScore}%</p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -191,98 +200,99 @@ export default function UserExamsPage() {
         </div>
         
         {attempts.length === 0 ? (
-          <Card className="navo-card-brand">
-            <CardContent className="pt-6">
-              <div className="text-center py-12">
-                <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">
+          <Card className="navo-card-brand rounded-[14px] sm:rounded-[24px]">
+            <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
+              <div className="text-center py-8 sm:py-12">
+                <Trophy className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                <p className="text-muted-foreground text-sm sm:text-base">
                   {t("noExamsYet")}
                 </p>
                 <Button 
-                  className="mt-4" 
+                  size="sm"
+                  className="mt-3 sm:mt-4" 
                   onClick={() => window.location.href = "/dashboard/exam"}
                 >
-                  <Play className="h-4 w-4 mr-2" />
+                  <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   {t("takeExam")}
                 </Button>
               </div>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {attempts.map((attempt) => (
               <Card 
                 key={attempt.id}
-                className="hover:shadow-lg transition-all navo-card-brand flex flex-col"
+                className="hover:shadow-lg transition-all navo-card-brand flex flex-col rounded-[14px] sm:rounded-[24px]"
               >
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base font-semibold truncate flex items-center gap-2">
-                        <Trophy className="h-4 w-4 text-primary flex-shrink-0" />
+                      <CardTitle className="text-sm sm:text-base font-semibold truncate flex items-center gap-1.5 sm:gap-2">
+                        <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
                         <span className="truncate">{attempt.category_name}</span>
                       </CardTitle>
-                      <CardDescription className="text-xs mt-1 truncate">
+                      <CardDescription className="text-[10px] sm:text-xs mt-1 truncate">
                         {new Date(attempt.started_at).toLocaleDateString()} {t("at")} {new Date(attempt.started_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </CardDescription>
                     </div>
-                    <Badge variant={getScoreBadge(attempt.score_percentage)} className="text-base px-2 py-0.5 flex-shrink-0">
+                    <Badge variant={getScoreBadge(attempt.score_percentage)} className="text-xs sm:text-base px-1.5 py-0.5 sm:px-2 flex-shrink-0">
                       {attempt.score_percentage}%
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col justify-between space-y-3">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
+                <CardContent className="flex-1 flex flex-col justify-between space-y-2 sm:space-y-3 p-3 pt-0 sm:p-6 sm:pt-0">
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <div className="flex items-center justify-between text-[11px] sm:text-sm">
                       <span className="text-muted-foreground">{t("marks")}:</span>
                       <span className={`font-semibold ${getScoreColor(attempt.score_percentage)}`}>
                         {attempt.score_percentage}%
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-[11px] sm:text-sm">
                       <div className="flex items-center gap-1 text-muted-foreground">
-                        <CheckCircle className="h-3 w-3 text-green-600" />
+                        <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-green-600" />
                         {t("correct")}
                       </div>
                       <span className="font-semibold">{attempt.correct_answers}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-[11px] sm:text-sm">
                       <div className="flex items-center gap-1 text-muted-foreground">
-                        <XCircle className="h-3 w-3 text-red-600" />
+                        <XCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-red-600" />
                         {t("incorrect")}
                       </div>
                       <span className="font-semibold">{attempt.total_questions - attempt.correct_answers}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-[11px] sm:text-sm">
                       <div className="flex items-center gap-1 text-muted-foreground">
-                        <Clock className="h-3 w-3" />
+                        <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                         {t("duration")}
                       </div>
                       <span className="font-semibold">{formatTime(attempt.duration_seconds)}</span>
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5 sm:gap-2">
                     <Button 
                       variant="outline" 
                       size="sm"
-                      className="flex-1"
+                      className="flex-1 h-7 sm:h-8 text-[11px] sm:text-xs"
                       onClick={() => handleViewDetails(attempt)}
                     >
-                      <Eye className="h-4 w-4 mr-2" />
+                      <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       {t("viewDetails")}
                     </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
-                      className="flex-1 text-destructive hover:text-destructive"
+                      className="flex-1 h-7 sm:h-8 text-[11px] sm:text-xs text-destructive hover:text-destructive"
                       onClick={() => handleDelete(attempt.id, attempt.category_name)}
                       disabled={deletingId === attempt.id}
                     >
                       {deletingId === attempt.id ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-destructive border-t-transparent mr-2" />
+                        <div className="h-3 w-3 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-destructive border-t-transparent mr-1 sm:mr-2" />
                       ) : (
-                        <Trash2 className="h-4 w-4 mr-2" />
+                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       )}
                       {t("delete")}
                     </Button>

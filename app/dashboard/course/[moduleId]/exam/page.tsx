@@ -180,7 +180,7 @@ export default function ModuleExamPage() {
   if (showResults && examResult) {
     const passed = examResult.passed;
     return (
-      <div className="min-h-screen bg-transparent">
+      <div className="bg-transparent">
         <Watermark />
         <main className="student-page-narrow">
           <Link href="/dashboard/course">
@@ -190,48 +190,48 @@ export default function ModuleExamPage() {
             </Button>
           </Link>
 
-          <Card className={passed ? "border-green-500" : "border-red-500"}>
-            <CardHeader className="text-center">
-              <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+          <Card className={`rounded-[14px] sm:rounded-[24px] ${passed ? "border-green-500" : "border-red-500"}`}>
+            <CardHeader className="text-center p-4 sm:p-6">
+              <div className={`mx-auto w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-3 sm:mb-4 ${
                 passed ? "bg-green-500/10" : "bg-red-500/10"
               }`}>
                 {passed ? (
-                  <CheckCircle className="h-8 w-8 text-green-500" />
+                  <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
                 ) : (
-                  <AlertTriangle className="h-8 w-8 text-red-500" />
+                  <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
                 )}
               </div>
-              <CardTitle className="text-2xl">
+              <CardTitle className="text-xl sm:text-2xl">
                 {passed ? t("congratulations") : t("examNotPassed")}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 {passed
                   ? t("passedModuleExam")
                   : t("failedModuleExam")}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="p-4 bg-secondary rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{examResult.correct_answers}</div>
-                  <div className="text-sm text-muted-foreground mt-1">{t("correct")}</div>
+            <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-0">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-4 text-center">
+                <div className="p-2 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
+                  <div className="text-base sm:text-2xl font-bold text-green-600 leading-tight">{examResult.correct_answers}</div>
+                  <div className="text-[9px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("correct")}</div>
                 </div>
-                <div className="p-4 bg-secondary rounded-lg">
-                  <div className="text-2xl font-bold text-red-600">
+                <div className="p-2 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
+                  <div className="text-base sm:text-2xl font-bold text-red-600 leading-tight">
                     {examResult.total_questions - examResult.correct_answers}
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">{t("incorrect")}</div>
+                  <div className="text-[9px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("incorrect")}</div>
                 </div>
-                <div className="p-4 bg-secondary rounded-lg">
-                  <div className={`text-2xl font-bold ${passed ? "text-green-600" : "text-red-600"}`}>
+                <div className="p-2 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
+                  <div className={`text-base sm:text-2xl font-bold leading-tight ${passed ? "text-green-600" : "text-red-600"}`}>
                     {examResult.score_percentage}%
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">{t("score")}</div>
+                  <div className="text-[9px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("score")}</div>
                 </div>
               </div>
 
               <div className="text-center">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-[11px] sm:text-sm text-muted-foreground">
                   {t("passingScore")}: {exam.settings.passing_score}%
                 </p>
               </div>
@@ -239,6 +239,7 @@ export default function ModuleExamPage() {
               <Button
                 onClick={() => router.push("/dashboard/course")}
                 className="w-full"
+                size="sm"
               >
                 {passed ? t("continueToNextModule") : t("reviewLessons")}
               </Button>
@@ -252,7 +253,7 @@ export default function ModuleExamPage() {
   const activeQuestion = exam?.questions[currentIndex];
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-[100dvh] bg-transparent">
       <Watermark />
       <main className="student-page-narrow">
         <Link href="/dashboard/course">
@@ -263,15 +264,15 @@ export default function ModuleExamPage() {
         </Link>
 
         {!instructionsAccepted && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("examInstructions")}</CardTitle>
-              <CardDescription>
+          <Card className="rounded-[14px] sm:rounded-[24px]">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">{t("examInstructions")}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 {t("readInstructionsBeforeExam")}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2 text-sm">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 pt-0 sm:p-6 sm:pt-0">
+              <div className="space-y-1.5 sm:space-y-2 text-[11px] sm:text-sm">
                 <p>• {t("moduleExamInstruction.questionCount").replace("{count}", exam?.settings.question_count)}</p>
                 <p>• {t("moduleExamInstruction.duration").replace("{minutes}", exam?.settings.duration_minutes)}</p>
                 <p>• {t("moduleExamInstruction.passingScore").replace("{score}", exam?.settings.passing_score)}</p>
@@ -279,7 +280,7 @@ export default function ModuleExamPage() {
                 <p>• {t("moduleExamInstruction.noChangeAfterSubmit")}</p>
                 <p>• {t("moduleExamInstruction.retakeOnFail")}</p>
               </div>
-              <Button onClick={() => { setInstructionsAccepted(true); setShowInstructions(false); }} className="w-full">
+              <Button size="sm" onClick={() => { setInstructionsAccepted(true); setShowInstructions(false); }} className="w-full">
                 {t("iUnderstandStartExam")}
               </Button>
             </CardContent>
@@ -288,38 +289,38 @@ export default function ModuleExamPage() {
 
         {instructionsAccepted && examStartTime && (
           <>
-            <Card>
-              <CardContent className="p-4">
+            <Card className="rounded-[14px] sm:rounded-[24px]">
+              <CardContent className="p-2.5 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    <span className="font-mono text-xl font-bold">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="font-mono text-base sm:text-xl font-bold">
                       {formatTime(secondsLeft || 0)}
                     </span>
                   </div>
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-[11px] sm:text-sm text-muted-foreground">
                     {t("question")} {currentIndex + 1} {t("of")} {exam.questions.length}
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">
+            <Card className="rounded-[14px] sm:rounded-[24px]">
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-base sm:text-xl">
                   {activeQuestion.question || `(${t("imageQuestion")})`}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 sm:space-y-4 p-3 pt-0 sm:p-6 sm:pt-0">
                 {activeQuestion.question_image && (
                   <img
                     src={activeQuestion.question_image}
                     alt={t("question")}
-                    className="w-full max-h-[320px] object-contain rounded-lg border"
+                    className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg border"
                   />
                 )}
 
-                <div className="grid gap-3">
+                <div className="grid gap-2 sm:gap-3">
                   {(["A", "B", "C", "D"] as const).map((opt) => {
                     const text = activeQuestion[`option_${opt.toLowerCase()}`];
                     const img = activeQuestion[`option_${opt.toLowerCase()}_image`];
@@ -330,26 +331,26 @@ export default function ModuleExamPage() {
                     return (
                       <div
                         key={opt}
-                        className={`rounded-lg border p-4 cursor-pointer transition-all ${
+                        className={`rounded-[10px] sm:rounded-lg border p-2.5 sm:p-4 cursor-pointer transition-all ${
                           isSelected
                             ? "border-primary bg-primary/10"
                             : "border-border hover:bg-accent/50"
                         }`}
                         onClick={() => handleAnswerSelect(activeQuestion.id, opt)}
                       >
-                        <div className="flex items-start gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                        <div className="flex items-start gap-2 sm:gap-3">
+                          <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm shrink-0 ${
                             isSelected ? "bg-primary text-primary-foreground" : "bg-secondary"
                           }`}>
                             {opt}
                           </div>
-                          <div className="flex-1 space-y-2">
-                            {text && <p>{text}</p>}
+                          <div className="flex-1 space-y-2 min-w-0">
+                            {text && <p className="text-xs sm:text-sm">{text}</p>}
                             {img && (
                               <img
                                 src={img}
                                 alt={`${t("option")} ${opt}`}
-                                className="max-h-[120px] object-contain rounded"
+                                className="max-h-[100px] sm:max-h-[120px] object-contain rounded"
                               />
                             )}
                           </div>
@@ -359,25 +360,27 @@ export default function ModuleExamPage() {
                   })}
                 </div>
 
-                <div className="flex justify-between pt-4">
+                <div className="flex justify-between pt-2 sm:pt-4">
                   <Button
                     variant="outline"
+                    size="sm"
                     onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
                     disabled={currentIndex === 0}
                   >
-                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                     {t("previous")}
                   </Button>
                   {currentIndex === exam.questions.length - 1 ? (
-                    <Button onClick={handleSubmitExam} disabled={submitting}>
+                    <Button size="sm" onClick={handleSubmitExam} disabled={submitting}>
                       {submitting ? t("submitting") : t("submit")}
                     </Button>
                   ) : (
                     <Button
+                      size="sm"
                       onClick={() => setCurrentIndex((i) => Math.min(exam.questions.length - 1, i + 1))}
                     >
                       {t("next")}
-                      <ChevronRight className="h-4 w-4 ml-2" />
+                      <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-1.5 sm:ml-2" />
                     </Button>
                   )}
                 </div>

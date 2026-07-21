@@ -1,7 +1,9 @@
 "use client";
 
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { PlayCircle, FileText, Settings, BarChart3, Trophy, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
@@ -62,51 +64,88 @@ export function QuickActions({ actions, isLoading = false }: QuickActionsProps) 
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="flex sm:hidden gap-1.5 overflow-hidden">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-muted/60 rounded-[24px] h-32 animate-pulse"></div>
+          <div key={i} className="flex-1 bg-muted/60 rounded-full h-8 animate-pulse"></div>
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {displayActions.map((action) => (
-        <Link
-          key={action.id}
-          href={action.href || '#'}
-          onClick={action.onClick}
-          className="no-underline"
-        >
-          <Card
-            className={`h-full hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer ${
-              action.variant === 'primary'
-                ? 'border-primary/50 bg-primary/5 hover:bg-primary/10'
-                : ''
-            }`}
-          >
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center text-center gap-3">
-                <div
-                  className={`p-2 rounded-lg ${
-                    action.variant === 'primary'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary text-secondary-foreground'
-                  }`}
-                >
-                  {action.icon}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm">{action.label}</h3>
-                  <p className="text-xs text-muted-foreground">{action.description}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      ))}
-    </div>
+    <>
+      {/* Mobile: horizontal pill chips (icon + label inline) */}
+      <div className="flex sm:hidden gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+        {displayActions.map((action) => {
+          const isPrimary = action.variant === 'primary';
+          return (
+            <Link
+              key={action.id}
+              href={action.href || '#'}
+              onClick={action.onClick}
+              className={`no-underline shrink-0 flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 transition-all duration-200 active:scale-95 ${
+                isPrimary
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/30'
+                  : 'bg-card/60 text-foreground border-border/40 hover:bg-accent/50'
+              }`}
+            >
+              {React.isValidElement(action.icon)
+                ? React.cloneElement(action.icon as React.ReactElement<{ className?: string }>, {
+                    className: cn(
+                      'h-3.5 w-3.5 shrink-0',
+                      (action.icon.props as { className?: string }).className
+                    ),
+                  })
+                : action.icon}
+              <span className="text-[10px] font-semibold leading-none whitespace-nowrap">
+                {action.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Tablet & Desktop: full card grid */}
+      <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        {displayActions.map((action) => {
+          const isPrimary = action.variant === 'primary';
+          return (
+            <Link
+              key={action.id}
+              href={action.href || '#'}
+              onClick={action.onClick}
+              className="no-underline"
+            >
+              <Card
+                className={`h-full hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer ${
+                  isPrimary
+                    ? 'border-primary/50 bg-primary/5 hover:bg-primary/10'
+                    : ''
+                }`}
+              >
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center text-center gap-3">
+                    <div
+                      className={`p-2 rounded-lg ${
+                        isPrimary
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-secondary text-secondary-foreground'
+                      }`}
+                    >
+                      {action.icon}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-sm">{action.label}</h3>
+                      <p className="text-xs text-muted-foreground">{action.description}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

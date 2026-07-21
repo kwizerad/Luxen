@@ -11,7 +11,6 @@ import {
 import {
   GOOGLE_CLIENT_ID,
   loadGoogleIdentityScript,
-  removeGoogleIdentityScript,
 } from "@/lib/auth/google";
 
 interface GoogleAuthContextType {
@@ -79,8 +78,14 @@ export function GoogleAuthProvider({
     load();
 
     return () => {
-      // Clean up the script on unmount so Strict Mode remounts remain predictable.
-      removeGoogleIdentityScript();
+      // Only cancel the prompt; do not remove the GIS script. Removing the
+      // script on every unmount races with React Strict Mode's
+      // mount→unmount→remount cycle in dev and can leave
+      // `window.google.accounts.id` undefined on remount. The script is a
+      // singleton that is safe to keep for the page lifetime.
+      if (typeof window !== "undefined" && window.google?.accounts?.id) {
+        window.google.accounts.id.cancel();
+      }
     };
   }, [lazy, load]);
 
