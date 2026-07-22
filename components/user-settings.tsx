@@ -768,6 +768,7 @@ export default function UserSettings({
                   ))}
                 </div>
               </div>
+              {!isAdminMode && (
               <div className="space-y-2">
                 <Label className="text-xs">{t("language")}</Label>
                 <div className="flex gap-2 flex-wrap">
@@ -784,6 +785,7 @@ export default function UserSettings({
                   ))}
                 </div>
               </div>
+              )}
             </CardContent>
             )}
           </Card>

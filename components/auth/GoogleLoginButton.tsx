@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import {
   loadGoogleIdentityScript,
+  waitForGisInitialized,
   GOOGLE_CLIENT_ID,
 } from "@/lib/auth/google";
 
@@ -86,6 +87,14 @@ export function GoogleLoginButton({
     const render = async () => {
       try {
         await loadGoogleIdentityScript();
+        if (cancelled || !containerRef.current) return;
+
+        // Wait for useGoogleOneTap to call initialize() with the nonce +
+        // callback before rendering the button. renderButton() uses the
+        // configuration from the last initialize() call, so if we render
+        // before initialize() the button won't trigger the credential
+        // callback. This also ensures the nonce is properly set up.
+        await waitForGisInitialized();
         if (cancelled || !containerRef.current) return;
 
         window.google!.accounts.id.renderButton(containerRef.current, {

@@ -886,7 +886,7 @@ export default function TakeExamPage() {
 
   if (showResults && examResult) {
     return (
-      <main className="student-page student-page-no-nav relative">        <Watermark />
+      <main className="student-page student-page-no-nav relative !mx-auto max-w-5xl">        <Watermark />
         <div className="flex items-start justify-between gap-2 sm:gap-4">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-3xl font-bold brand-protected">{t("examResults")}</h1>
@@ -1002,7 +1002,7 @@ export default function TakeExamPage() {
       )}
       
       
-      <main className={isExamActive ? "relative w-full max-w-5xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page student-page-no-nav"}>
+      <main className={isExamActive ? "relative mx-auto w-full max-w-5xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page student-page-no-nav !mx-auto max-w-5xl"}>
         <Watermark />
         
         {/* Exam Categories - Top Left */}

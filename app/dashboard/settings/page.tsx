@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import UserSettings from "@/components/user-settings";
 import { FloatingUserSettings } from "@/components/floating-user-settings";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { NavAutohideSettings } from "@/components/nav-autohide-settings";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -118,6 +119,10 @@ export default function UserSettingsPage() {
             />
           </CardContent>
         </Card>
+
+        <div className="mt-6">
+          <NavAutohideSettings />
+        </div>
       </main>
       <MobileBottomNav hide />
     </div>

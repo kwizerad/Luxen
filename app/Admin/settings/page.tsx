@@ -10,6 +10,7 @@ import UserSettings from "@/components/user-settings";
 import { ThemeCustomizer } from "@/components/theme-customizer";
 import { BrandingCustomizer } from "@/components/branding-customizer";
 import { SystemConfigSettings } from "@/components/system-config";
+import { NavAutohideSettings } from "@/components/nav-autohide-settings";
 import { Loader2 } from "lucide-react";
 import { ADMIN_CREDENTIALS } from "@/lib/admin-config";
 import Link from "next/link";
@@ -135,6 +136,7 @@ export default function AdminSettingsPage() {
             </Card>
 
             <SystemConfigSettings />
+            <NavAutohideSettings />
           </div>
 
           <div className="space-y-6">

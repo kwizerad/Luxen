@@ -6,29 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useBrandingConfig } from "@/lib/branding-config";
 import {
-  Users, Settings, UserPlus, LogOut, LayoutDashboard,
-  Menu, X, FileText, Lock, BookOpen
+  Users, LayoutDashboard,
+  FileText, Lock, BookOpen
 } from "lucide-react";
 import { toast } from "sonner";
-import { canViewStudents, canAddQuestions, canViewQuestions } from "@/lib/permissions";
+import { canViewStudents, canAddQuestions } from "@/lib/permissions";
 import { useLanguage } from "@/lib/language-context";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { FloatingHeader } from "@/components/floating-header";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
-import { useTextSize, sidebarLabelClass } from "@/lib/use-text-size";
+import { useNavAutohideEnabled } from "@/lib/use-nav-autohide";
 import { cn } from "@/lib/utils";
 
 const ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
@@ -41,17 +33,16 @@ export default function AdminLayout({
   const { config } = useBrandingConfig();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [showFloatingHeader, setShowFloatingHeader] = useState(false);
+  const [navVisible, setNavVisible] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
   const { t } = useLanguage();
-  const textSize = useTextSize();
+  const autohideEnabled = useNavAutohideEnabled();
 
   // Track admin activity for real-time online status
   useActivityTracker();
@@ -93,29 +84,92 @@ export default function AdminLayout({
   }, [router]);
 
   useEffect(() => {
-    // Close mobile menu on route change
-    setMobileMenuOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
+    const scrollEl = document.querySelector('main');
     const handleScroll = () => {
-      setShowFloatingHeader(window.scrollY > 100);
+      const y = scrollEl ? scrollEl.scrollTop : window.scrollY;
+      setShowFloatingHeader(y > 100);
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    if (scrollEl) {
+      scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      if (scrollEl) scrollEl.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/");
-  };
+  // Cursor-proximity auto-hide (large screens only, respects user preference).
+  // Navbar hides after inactivity and reappears when the cursor
+  // approaches the bottom of the viewport.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // If autohide is disabled, always show the navbar
+    if (!autohideEnabled) {
+      setNavVisible(true);
+      return;
+    }
+
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    const REVEAL_ZONE = 100; // px from bottom that reveals the navbar
+    const HIDE_DELAY = 2500; // ms of inactivity before hiding
+
+    const scheduleHide = () => {
+      if (hideTimer) clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        if (window.innerWidth >= 1024) setNavVisible(false);
+      }, HIDE_DELAY);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Always visible on small screens
+      if (window.innerWidth < 1024) {
+        setNavVisible(true);
+        return;
+      }
+
+      const nearBottom = e.clientY > window.innerHeight - REVEAL_ZONE;
+      if (nearBottom) {
+        setNavVisible(true);
+        if (hideTimer) clearTimeout(hideTimer);
+      } else {
+        scheduleHide();
+      }
+    };
+
+    const handleMouseLeave = () => {
+      if (window.innerWidth >= 1024) scheduleHide();
+    };
+
+    // Keep navbar visible when resized to small screen; reschedule on large
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        if (hideTimer) clearTimeout(hideTimer);
+        setNavVisible(true);
+      } else {
+        scheduleHide();
+      }
+    };
+
+    // Start initial hide timer (only if starting on a large screen)
+    if (window.innerWidth >= 1024) scheduleHide();
+
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    document.addEventListener('mouseleave', handleMouseLeave);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+      window.removeEventListener('resize', handleResize);
+      if (hideTimer) clearTimeout(hideTimer);
+    };
+  }, [autohideEnabled]);
 
   const isPrimaryAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
   const canViewStudentsTab = canViewStudents(user);
   const canAddQuestionsTab = canAddQuestions(user);
-  const canViewQuestionsTab = canViewQuestions(user);
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,122 +270,70 @@ export default function AdminLayout({
           className="flex-1 overflow-auto bg-transparent relative isolate"
           style={{ zIndex: 1 }}
         >
-          <FloatingHeader />
+          <FloatingHeader adminMode />
           <div className="p-4 lg:p-8 pb-24 lg:pb-20">
             {children}
           </div>
         </main>
 
-        {/* Desktop Bottom Sidebar */}
-        <aside
-          data-sidebar="true"
-          className={`premium-glass-panel hidden lg:flex border-t flex-row transition-all duration-300 fixed bottom-0 left-0 right-0 z-50 overflow-hidden ${
-            sidebarOpen ? "h-16" : "h-12"
+        {/* Bottom Navigation — floating pill (matches student MobileBottomNav) */}
+        {/* Thin indicator line shown when navbar is hidden (autohide) */}
+        {!navVisible && autohideEnabled && (
+          <div
+            className="fixed bottom-1.5 left-3 right-3 z-40 sm:left-1/2 sm:right-auto sm:w-full sm:max-w-2xl sm:-translate-x-1/2 h-1 rounded-full bg-primary transition-opacity duration-300"
+            style={{ boxShadow: "0 0 12px 2px hsl(var(--primary) / 0.8), 0 0 24px 6px hsl(var(--primary) / 0.4)" }}
+            aria-hidden="true"
+          />
+        )}
+        <div
+          className={`fixed bottom-3 left-3 right-3 z-50 sm:left-1/2 sm:right-auto sm:w-full sm:max-w-2xl sm:-translate-x-1/2 transition-all duration-300 ${
+            navVisible
+              ? "translate-y-0 opacity-100"
+              : "translate-y-[120%] opacity-0 pointer-events-none"
           }`}
         >
-          <div className="flex-1 flex items-center justify-center gap-2 px-4">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-[14px] transition-all duration-200",
-                    isActive
-                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                      : "hover:bg-muted/60"
-                  )}
-                  title={item.label}
-                >
-                  <Icon className="h-5 w-5 flex-shrink-0" />
-                  {sidebarOpen && <span className={cn(sidebarLabelClass(textSize), "whitespace-nowrap")}>{item.label}</span>}
-                </Link>
-              );
-            })}
-          </div>
-        </aside>
-
-        {/* Mobile Bottom Sidebar */}
-        <aside className={`premium-glass-panel lg:hidden fixed bottom-0 left-0 right-0 border-t z-50 overflow-hidden ${mobileMenuOpen ? 'h-auto' : 'h-16'}`}>
-          {mobileMenuOpen ? (
-            <div className="p-4 space-y-2">
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-semibold">{t("menu")}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
+          <div className="premium-glass-panel admin-nav-pill border rounded-[20px] h-14 overflow-hidden shadow-lg">
+            <div className={`grid h-full`} style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}>
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-[14px] transition-all duration-200",
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                        : "hover:bg-muted/60"
-                    )}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-              <div className="border-t border-border my-2" />
-              <Link
-                href="/Admin/settings"
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-[14px] transition-all duration-200",
-                  pathname === "/Admin/settings"
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                    : "hover:bg-muted/60"
-                )}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Settings className="h-5 w-5 flex-shrink-0" />
-                <span>{t("settings")}</span>
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors w-full text-left text-destructive hover:bg-destructive/10"
-              >
-                <LogOut className="h-5 w-5 flex-shrink-0" />
-                <span>{t("logout")}</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-around h-full px-4">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive = item.href === "/Admin"
+                  ? pathname === "/Admin"
+                  : pathname.startsWith(item.href);
                 return (
                   <button
                     key={item.href}
                     onClick={() => router.push(item.href)}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-                      isActive
-                        ? "text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
+                    className={cn(
+                      "admin-nav-btn flex flex-col items-center justify-center gap-0.5 transition-all duration-200 relative rounded-xl mx-1 my-1",
+                      isActive && "admin-nav-active font-semibold"
+                    )}
+                    aria-label={item.label}
+                    aria-current={isActive ? "page" : undefined}
                   >
-                    <Icon className="h-5 w-5" />
-                    <span className="text-xs">{item.label}</span>
+                    <div className={cn(
+                      "admin-nav-icon-wrap p-1.5 rounded-full transition-all duration-200"
+                    )}>
+                      <Icon className={cn(
+                        "h-4 w-4 transition-all duration-200",
+                        isActive && "scale-110"
+                      )} />
+                    </div>
+                    <span className={cn(
+                      "text-xs font-medium transition-all duration-200 truncate max-w-full px-1",
+                      isActive && "scale-105"
+                    )}>
+                      {item.label}
+                    </span>
+                    {/* Active indicator dot */}
+                    {isActive && (
+                      <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
+                    )}
                   </button>
                 );
               })}
             </div>
-          )}
-        </aside>
+          </div>
+        </div>
       </div>
       
       {/* Password Change Modal */}

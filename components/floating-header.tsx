@@ -7,7 +7,7 @@ import { FloatingUserSettings } from "./floating-user-settings";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 
-export function FloatingHeader() {
+export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = {}) {
   const { user, loading: authLoading } = useAuth();
   const { isRTL } = useLanguage();
   const pathname = usePathname();
@@ -57,7 +57,7 @@ export function FloatingHeader() {
 
           {/* User Settings */}
           <div className="premium-glass-panel border rounded-full overflow-hidden">
-            <FloatingUserSettings user={user} onMobile />
+            <FloatingUserSettings user={user} onMobile adminMode={adminMode} />
           </div>
         </div>
       </div>
@@ -71,7 +71,7 @@ export function FloatingHeader() {
 
         {/* User Settings */}
         <div className="premium-glass-panel border rounded-full overflow-hidden transition-all hover:shadow-glow dark:hover:shadow-glow-dark">
-          <FloatingUserSettings user={user} />
+          <FloatingUserSettings user={user} adminMode={adminMode} />
         </div>
       </div>
     </>

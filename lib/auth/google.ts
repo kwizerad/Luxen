@@ -73,6 +73,28 @@ export function loadGoogleIdentityScript(): Promise<void> {
 }
 
 /**
+ * Track whether `google.accounts.id.initialize()` has been called.
+ * `useGoogleOneTap` sets this after initializing with the nonce + callback.
+ * `GoogleLoginButton` waits for this before calling `renderButton()`, so
+ * the button uses the same initialization (and nonce) as One Tap.
+ */
+let gisInitialized = false;
+const gisInitWaiters: Array<() => void> = [];
+
+export function markGisInitialized(): void {
+  gisInitialized = true;
+  for (const waiter of gisInitWaiters) waiter();
+  gisInitWaiters.length = 0;
+}
+
+export function waitForGisInitialized(): Promise<void> {
+  if (gisInitialized) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    gisInitWaiters.push(resolve);
+  });
+}
+
+/**
  * Remove the injected Google script. Useful when the provider unmounts
  * and we want a clean state on the next mount (e.g. React Strict Mode).
  */

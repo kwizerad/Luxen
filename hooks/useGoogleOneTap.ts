@@ -7,6 +7,7 @@ import {
   loadGoogleIdentityScript,
   recordOneTapDismissed,
   isOneTapDismissed,
+  markGisInitialized,
 } from "@/lib/auth/google";
 
 export interface UseGoogleOneTapOptions {
@@ -126,6 +127,8 @@ export function useGoogleOneTap({
 
         if (!cancelled) {
           setGoogleReady(true);
+          // Let GoogleLoginButton know it can now call renderButton().
+          markGisInitialized();
         }
       } catch (err: unknown) {
         if (!cancelled) {

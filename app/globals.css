@@ -285,6 +285,112 @@
       linear-gradient(110deg, rgba(255, 255, 255, 0.07), transparent 38%);
   }
 
+  /* Student nav pill — solid dark background so it stands out from content */
+  .student-nav-pill {
+    background:
+      linear-gradient(145deg, rgba(15, 23, 42, 0.62), rgba(30, 41, 59, 0.62)) !important;
+    border-color: rgba(15, 23, 42, 0.5) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 10px 38px rgba(15, 23, 42, 0.28),
+      0 2px 10px rgba(15, 23, 42, 0.16) !important;
+  }
+
+  .student-nav-pill::before {
+    background:
+      radial-gradient(circle at 12% 4%, rgba(255, 255, 255, 0.18), transparent 32%),
+      linear-gradient(110deg, rgba(255, 255, 255, 0.1), transparent 42%) !important;
+  }
+
+  .dark .student-nav-pill {
+    background:
+      linear-gradient(145deg, hsl(var(--primary) / 0.55), hsl(221 70% 38% / 0.6)) !important;
+    border-color: hsl(var(--primary) / 0.4) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 12px 42px hsl(var(--primary) / 0.32),
+      0 2px 12px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .dark .student-nav-pill::before {
+    background:
+      radial-gradient(circle at 12% 4%, rgba(255, 255, 255, 0.14), transparent 34%),
+      linear-gradient(110deg, rgba(255, 255, 255, 0.08), transparent 44%) !important;
+  }
+
+  /* Student nav buttons — high contrast on the solid primary background */
+  .student-nav-pill .student-nav-btn {
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .student-nav-pill .student-nav-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .student-nav-pill .student-nav-btn.student-nav-active {
+    color: #ffffff;
+    background: hsl(var(--primary));
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+  }
+
+  .student-nav-pill .student-nav-btn.student-nav-active .student-nav-icon-wrap {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Admin nav pill — solid dark background so it stands out from content */
+  .admin-nav-pill {
+    background:
+      linear-gradient(145deg, rgba(15, 23, 42, 0.62), rgba(30, 41, 59, 0.62)) !important;
+    border-color: rgba(15, 23, 42, 0.5) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 10px 38px rgba(15, 23, 42, 0.28),
+      0 2px 10px rgba(15, 23, 42, 0.16) !important;
+  }
+
+  .admin-nav-pill::before {
+    background:
+      radial-gradient(circle at 12% 4%, rgba(255, 255, 255, 0.18), transparent 32%),
+      linear-gradient(110deg, rgba(255, 255, 255, 0.1), transparent 42%) !important;
+  }
+
+  .dark .admin-nav-pill {
+    background:
+      linear-gradient(145deg, hsl(var(--primary) / 0.55), hsl(221 70% 38% / 0.6)) !important;
+    border-color: hsl(var(--primary) / 0.4) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 12px 42px hsl(var(--primary) / 0.32),
+      0 2px 12px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .dark .admin-nav-pill::before {
+    background:
+      radial-gradient(circle at 12% 4%, rgba(255, 255, 255, 0.14), transparent 34%),
+      linear-gradient(110deg, rgba(255, 255, 255, 0.08), transparent 44%) !important;
+  }
+
+  /* Admin nav buttons — high contrast on the solid primary background */
+  .admin-nav-pill .admin-nav-btn {
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .admin-nav-pill .admin-nav-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .admin-nav-pill .admin-nav-btn.admin-nav-active {
+    color: #ffffff;
+    background: hsl(var(--primary));
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+  }
+
+  .admin-nav-pill .admin-nav-btn.admin-nav-active .admin-nav-icon-wrap {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
   /* Premium button gradient */
   .premium-button {
     background: hsl(var(--primary));

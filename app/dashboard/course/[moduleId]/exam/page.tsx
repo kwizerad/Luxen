@@ -182,7 +182,7 @@ export default function ModuleExamPage() {
     return (
       <div className="bg-transparent">
         <Watermark />
-        <main className="student-page-narrow">
+        <main className="student-page-narrow !mx-auto">
           <Link href="/dashboard/course">
             <Button variant="ghost">
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -255,7 +255,7 @@ export default function ModuleExamPage() {
   return (
     <div className="min-h-[100dvh] bg-transparent">
       <Watermark />
-      <main className="student-page-narrow">
+      <main className="student-page-narrow !mx-auto">
         <Link href="/dashboard/course">
           <Button variant="ghost">
             <ArrowLeft className="h-4 w-4 mr-2" />

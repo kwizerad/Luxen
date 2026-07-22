@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { GoogleOneTap } from "@/components/google-one-tap";
-import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 import { useLanguage } from "@/lib/language-context";
 import { useAuthModals } from "@/lib/auth-modals-context";
 import { useBrandingConfig } from "@/lib/branding-config";
@@ -97,14 +96,6 @@ export default function Home() {
             </div>
             <div className="flex justify-center pt-2">
               <GoogleOneTap alwaysPrompt />
-            </div>
-
-            {/* Fallback Google Sign-In button — visible on all screens.
-                One Tap may not appear on mobile (FedCM requires Chrome 117+,
-                Safari needs ITP support) so this button ensures Google sign-in
-                is always available. */}
-            <div className="flex justify-center pt-2 max-w-[280px] mx-auto">
-              <GoogleLoginButton text="signin_with" shape="pill" />
             </div>
           </div>
 

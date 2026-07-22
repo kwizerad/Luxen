@@ -46,9 +46,10 @@ interface BeforeInstallPromptEvent extends Event {
 interface FloatingUserSettingsProps {
   user: any;
   onMobile?: boolean;
+  adminMode?: boolean;
 }
 
-export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSettingsProps) {
+export function FloatingUserSettings({ user, onMobile = false, adminMode = false }: FloatingUserSettingsProps) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -167,9 +168,9 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
-            <User className="mr-2 h-4 w-4" />
-            Account Info
+          <DropdownMenuItem onClick={() => router.push(adminMode ? "/Admin/settings" : "/dashboard/settings")}>
+            {adminMode ? <Settings className="mr-2 h-4 w-4" /> : <User className="mr-2 h-4 w-4" />}
+            {adminMode ? "Settings" : "Account Info"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {!isInstalled && (
@@ -188,19 +189,23 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
             {theme === "light" ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
             {theme === "light" ? "Dark Mode" : "Light Mode"}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {/* Language Selector */}
-          {languages.map((lang) => (
-            <DropdownMenuItem
-              key={lang.value}
-              onClick={() => handleLanguageChange(lang.value)}
-              className={language === lang.value ? "bg-accent/60" : ""}
-            >
-              <span className="mr-2">{lang.flag}</span>
-              {lang.label}
-              {language === lang.value && <Check className="ml-auto h-4 w-4" />}
-            </DropdownMenuItem>
-          ))}
+          {/* Language Selector — hidden in admin mode */}
+          {!adminMode && (
+            <>
+              <DropdownMenuSeparator />
+              {languages.map((lang) => (
+                <DropdownMenuItem
+                  key={lang.value}
+                  onClick={() => handleLanguageChange(lang.value)}
+                  className={language === lang.value ? "bg-accent/60" : ""}
+                >
+                  <span className="mr-2">{lang.flag}</span>
+                  {lang.label}
+                  {language === lang.value && <Check className="ml-auto h-4 w-4" />}
+                </DropdownMenuItem>
+              ))}
+            </>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
             <LogOut className="mr-2 h-4 w-4" />
@@ -223,9 +228,9 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
-            <User className="mr-2 h-4 w-4" />
-            Account Settings
+          <DropdownMenuItem onClick={() => router.push(adminMode ? "/Admin/settings" : "/dashboard/settings")}>
+            {adminMode ? <Settings className="mr-2 h-4 w-4" /> : <User className="mr-2 h-4 w-4" />}
+            {adminMode ? "Settings" : "Account Settings"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {!isInstalled && (
@@ -244,19 +249,23 @@ export function FloatingUserSettings({ user, onMobile = false }: FloatingUserSet
             {theme === "light" ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
             {theme === "light" ? "Dark Mode" : "Light Mode"}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {/* Language Selector */}
-          {languages.map((lang) => (
-            <DropdownMenuItem
-              key={lang.value}
-              onClick={() => handleLanguageChange(lang.value)}
-              className={language === lang.value ? "bg-accent/60" : ""}
-            >
-              <span className="mr-2">{lang.flag}</span>
-              {lang.label}
-              {language === lang.value && <Check className="ml-auto h-4 w-4" />}
-            </DropdownMenuItem>
-          ))}
+          {/* Language Selector — hidden in admin mode */}
+          {!adminMode && (
+            <>
+              <DropdownMenuSeparator />
+              {languages.map((lang) => (
+                <DropdownMenuItem
+                  key={lang.value}
+                  onClick={() => handleLanguageChange(lang.value)}
+                  className={language === lang.value ? "bg-accent/60" : ""}
+                >
+                  <span className="mr-2">{lang.flag}</span>
+                  {lang.label}
+                  {language === lang.value && <Check className="ml-auto h-4 w-4" />}
+                </DropdownMenuItem>
+              ))}
+            </>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
             <LogOut className="mr-2 h-4 w-4" />
