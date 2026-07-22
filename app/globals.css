@@ -69,6 +69,10 @@
   * {
     border-color: hsl(var(--border));
   }
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
   body {
     background-color: transparent;
     color: hsl(var(--foreground));
@@ -659,6 +663,13 @@
    *     transform: translateZ(0) so the blur is rasterized once and cached
    *     instead of recomputed every frame
    *  4. Add -webkit-overflow-scrolling: touch for iOS momentum scrolling
+   *  5. Add overscroll-behavior to prevent scroll chaining to parent
+   *  6. Add content-visibility:auto on card-heavy sections so off-screen
+   *     content is skipped during layout/paint, dramatically speeding up
+   *     scrolling on long pages
+   *  7. Add touch-action: pan-y to let the browser handle vertical scrolling
+   *     natively without waiting for JS event listeners
+   *  8. Use text-rendering: optimizeSpeed for faster text paint
    */
   @media (max-width: 768px) {
     .premium-glass-card,
@@ -680,6 +691,38 @@
     /* Ensure the body itself uses momentum scrolling on iOS */
     body {
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: none;
+      text-rendering: optimizeSpeed;
+      -webkit-text-rendering: optimizeSpeed;
+    }
+
+    /* Let the browser handle vertical panning natively for smoother scrolling */
+    .student-page,
+    .student-page-narrow,
+    .student-section {
+      touch-action: pan-y;
+      overscroll-behavior-y: contain;
+    }
+
+    /* Skip layout/paint for off-screen cards in grid/list sections */
+    .student-content-grid > *,
+    .student-section > Card {
+      content-visibility: auto;
+      contain-intrinsic-size: auto 120px;
+    }
+
+    /* Promote scrollable containers to their own compositor layer */
+    .overflow-y-auto,
+    .overflow-auto,
+    [class*="overflow-y"] {
+      -webkit-overflow-scrolling: touch;
+      transform: translateZ(0);
+      overscroll-behavior-y: contain;
+    }
+
+    /* Reduce box-shadow paint cost on scroll */
+    .navo-card-brand {
+      will-change: transform;
     }
   }
 
