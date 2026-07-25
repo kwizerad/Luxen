@@ -1,10 +1,8 @@
 "use client";
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { PlayCircle, FileText, Settings, BarChart3, Trophy, BookOpen } from 'lucide-react';
+import { PlayCircle, FileText, Settings, BarChart3, Trophy, BookOpen, ArrowUpRight, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
 
@@ -16,6 +14,7 @@ interface QuickAction {
   href?: string;
   onClick?: () => void;
   variant?: 'default' | 'primary' | 'secondary';
+  iconVariant?: 'blue' | 'purple' | 'green' | 'orange' | 'pink' | 'teal';
 }
 
 interface QuickActionsProps {
@@ -31,6 +30,7 @@ const getDefaultActions = (t: (key: string) => string): QuickAction[] => [
     icon: <PlayCircle className="h-5 w-5" />,
     href: '/dashboard/exam',
     variant: 'primary',
+    iconVariant: 'blue',
   },
   {
     id: 'view-results',
@@ -39,6 +39,7 @@ const getDefaultActions = (t: (key: string) => string): QuickAction[] => [
     icon: <Trophy className="h-5 w-5" />,
     href: '/userExam',
     variant: 'secondary',
+    iconVariant: 'orange',
   },
   {
     id: 'analytics',
@@ -47,6 +48,7 @@ const getDefaultActions = (t: (key: string) => string): QuickAction[] => [
     icon: <BarChart3 className="h-5 w-5" />,
     href: '/dashboard',
     variant: 'secondary',
+    iconVariant: 'purple',
   },
   {
     id: 'settings',
@@ -55,6 +57,7 @@ const getDefaultActions = (t: (key: string) => string): QuickAction[] => [
     icon: <Settings className="h-5 w-5" />,
     href: '/dashboard/settings',
     variant: 'secondary',
+    iconVariant: 'teal',
   },
 ];
 
@@ -105,42 +108,45 @@ export function QuickActions({ actions, isLoading = false }: QuickActionsProps) 
         })}
       </div>
 
-      {/* Tablet & Desktop: full card grid */}
-      <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      {/* Tablet & Desktop: premium glass card grid */}
+      <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-4 gap-4">
         {displayActions.map((action) => {
           const isPrimary = action.variant === 'primary';
+          const iconVariant = action.iconVariant || 'blue';
           return (
             <Link
               key={action.id}
               href={action.href || '#'}
               onClick={action.onClick}
-              className="no-underline"
+              className="no-underline group"
             >
-              <Card
-                className={`h-full hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer ${
-                  isPrimary
-                    ? 'border-primary/50 bg-primary/5 hover:bg-primary/10'
-                    : ''
-                }`}
+              <div
+                className={cn(
+                  'premium-quick-action h-full p-6 flex flex-col items-center text-center gap-4',
+                  isPrimary && 'premium-quick-action-primary'
+                )}
               >
-                <CardContent className="pt-6">
-                  <div className="flex flex-col items-center text-center gap-3">
-                    <div
-                      className={`p-2 rounded-lg ${
-                        isPrimary
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-secondary text-secondary-foreground'
-                      }`}
-                    >
-                      {action.icon}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-sm">{action.label}</h3>
-                      <p className="text-xs text-muted-foreground">{action.description}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Icon in soft circular gradient background */}
+                <div className={cn('premium-dash-icon !w-12 !h-12 !rounded-2xl', `premium-icon-${iconVariant}`)}>
+                  {React.isValidElement(action.icon)
+                    ? React.cloneElement(action.icon as React.ReactElement<{ className?: string }>, {
+                        className: cn('h-5 w-5', (action.icon.props as { className?: string }).className),
+                      })
+                    : action.icon}
+                </div>
+
+                {/* Label + description */}
+                <div className="flex-1">
+                  <h3 className="font-semibold text-sm mb-1">{action.label}</h3>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{action.description}</p>
+                </div>
+
+                {/* Arrow reveal on hover */}
+                <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <span>Open</span>
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </div>
+              </div>
             </Link>
           );
         })}

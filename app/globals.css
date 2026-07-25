@@ -156,31 +156,15 @@
     isolation: isolate;
     overflow: hidden;
     background:
-      radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.95), transparent 34%),
       linear-gradient(135deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.42));
     backdrop-filter: blur(30px) saturate(175%);
     -webkit-backdrop-filter: blur(30px) saturate(175%);
     border: 1px solid rgba(255, 255, 255, 0.72);
     border-radius: 24px;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.95),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.2),
       0 24px 60px rgba(15, 23, 42, 0.11),
       0 6px 18px rgba(15, 23, 42, 0.06);
     transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms ease, border-color 300ms ease;
-  }
-
-  .premium-glass-card::before,
-  .glass-card::before,
-  .card-glass::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background:
-      linear-gradient(115deg, rgba(255, 255, 255, 0.38), transparent 32%),
-      radial-gradient(circle at 100% 100%, hsl(var(--primary) / 0.09), transparent 38%);
   }
 
   .premium-glass-card > *,
@@ -195,7 +179,6 @@
     transform: translateY(-3px);
     border-color: rgba(255, 255, 255, 0.92);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 1),
       0 30px 75px rgba(15, 23, 42, 0.15),
       0 0 0 1px hsl(var(--primary) / 0.08),
       0 0 32px hsl(var(--primary) / 0.1);
@@ -205,29 +188,17 @@
   .dark .glass-card,
   .dark .card-glass {
     background:
-      radial-gradient(circle at 0% 0%, rgba(96, 165, 250, 0.13), transparent 34%),
-      linear-gradient(135deg, rgba(20, 34, 58, 0.72), rgba(8, 17, 31, 0.5));
+      linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(8, 17, 31, 0.78));
     border-color: rgba(255, 255, 255, 0.14);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.15),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.03),
       0 28px 70px rgba(0, 0, 0, 0.42),
       0 8px 24px rgba(0, 0, 0, 0.24);
-  }
-
-  .dark .premium-glass-card::before,
-  .dark .glass-card::before,
-  .dark .card-glass::before {
-    background:
-      linear-gradient(115deg, rgba(255, 255, 255, 0.09), transparent 30%),
-      radial-gradient(circle at 100% 100%, hsl(var(--primary) / 0.16), transparent 42%);
   }
 
   .dark .premium-glass-card:hover,
   .dark .glass-card:hover {
     border-color: rgba(147, 197, 253, 0.28);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.2),
       0 34px 80px rgba(0, 0, 0, 0.5),
       0 0 0 1px hsl(var(--primary) / 0.12),
       0 0 38px hsl(var(--primary) / 0.18);
@@ -244,22 +215,8 @@
     -webkit-backdrop-filter: blur(34px) saturate(185%);
     border-color: rgba(255, 255, 255, 0.68);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.95),
       18px 0 55px rgba(15, 23, 42, 0.1),
       0 12px 35px rgba(15, 23, 42, 0.07);
-  }
-
-  .premium-glass-panel::before,
-  .glass-panel::before,
-  .glassmorphism::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background:
-      radial-gradient(circle at 12% 4%, hsl(var(--primary) / 0.12), transparent 28%),
-      linear-gradient(110deg, rgba(255, 255, 255, 0.28), transparent 38%);
   }
 
   .premium-glass-panel > *,
@@ -273,20 +230,11 @@
   .dark .glass-panel,
   .dark .glassmorphism {
     background:
-      linear-gradient(145deg, rgba(18, 32, 54, 0.76), rgba(7, 15, 28, 0.56));
+      linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(8, 17, 31, 0.72));
     border-color: rgba(255, 255, 255, 0.13);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.14),
       20px 0 65px rgba(0, 0, 0, 0.42),
       0 16px 45px rgba(0, 0, 0, 0.25);
-  }
-
-  .dark .premium-glass-panel::before,
-  .dark .glass-panel::before,
-  .dark .glassmorphism::before {
-    background:
-      radial-gradient(circle at 12% 4%, hsl(var(--primary) / 0.2), transparent 30%),
-      linear-gradient(110deg, rgba(255, 255, 255, 0.07), transparent 38%);
   }
 
   /* Student nav pill — solid dark background so it stands out from content */
@@ -295,15 +243,8 @@
       linear-gradient(145deg, rgba(15, 23, 42, 0.62), rgba(30, 41, 59, 0.62)) !important;
     border-color: rgba(15, 23, 42, 0.5) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
       0 10px 38px rgba(15, 23, 42, 0.28),
       0 2px 10px rgba(15, 23, 42, 0.16) !important;
-  }
-
-  .student-nav-pill::before {
-    background:
-      radial-gradient(circle at 12% 4%, rgba(255, 255, 255, 0.18), transparent 32%),
-      linear-gradient(110deg, rgba(255, 255, 255, 0.1), transparent 42%) !important;
   }
 
   .dark .student-nav-pill {
@@ -311,15 +252,8 @@
       linear-gradient(145deg, hsl(var(--primary) / 0.55), hsl(221 70% 38% / 0.6)) !important;
     border-color: hsl(var(--primary) / 0.4) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.18),
       0 12px 42px hsl(var(--primary) / 0.32),
       0 2px 12px rgba(0, 0, 0, 0.3) !important;
-  }
-
-  .dark .student-nav-pill::before {
-    background:
-      radial-gradient(circle at 12% 4%, rgba(255, 255, 255, 0.14), transparent 34%),
-      linear-gradient(110deg, rgba(255, 255, 255, 0.08), transparent 44%) !important;
   }
 
   /* Student nav buttons — high contrast on the solid primary background */
@@ -348,15 +282,8 @@
       linear-gradient(145deg, rgba(15, 23, 42, 0.62), rgba(30, 41, 59, 0.62)) !important;
     border-color: rgba(15, 23, 42, 0.5) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
       0 10px 38px rgba(15, 23, 42, 0.28),
       0 2px 10px rgba(15, 23, 42, 0.16) !important;
-  }
-
-  .admin-nav-pill::before {
-    background:
-      radial-gradient(circle at 12% 4%, rgba(255, 255, 255, 0.18), transparent 32%),
-      linear-gradient(110deg, rgba(255, 255, 255, 0.1), transparent 42%) !important;
   }
 
   .dark .admin-nav-pill {
@@ -364,15 +291,8 @@
       linear-gradient(145deg, hsl(var(--primary) / 0.55), hsl(221 70% 38% / 0.6)) !important;
     border-color: hsl(var(--primary) / 0.4) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.18),
       0 12px 42px hsl(var(--primary) / 0.32),
       0 2px 12px rgba(0, 0, 0, 0.3) !important;
-  }
-
-  .dark .admin-nav-pill::before {
-    background:
-      radial-gradient(circle at 12% 4%, rgba(255, 255, 255, 0.14), transparent 34%),
-      linear-gradient(110deg, rgba(255, 255, 255, 0.08), transparent 44%) !important;
   }
 
   /* Admin nav buttons — high contrast on the solid primary background */
@@ -799,4 +719,1405 @@
   .google-one-tap-card .google-login-button:active {
     background: #f1f3f4;
   }
+}
+
+/* ============================================================= */
+/*  ADMIN PORTAL — Premium Dark Glassmorphism Design System      */
+/*  Scoped under .admin-portal so student pages are unaffected   */
+/* ============================================================= */
+
+/* Force dark navy background for the admin portal */
+.admin-portal {
+  --admin-bg: #0B1020;
+  --admin-bg-2: #0F172A;
+  --admin-card: rgba(255, 255, 255, 0.06);
+  --admin-card-hover: rgba(255, 255, 255, 0.09);
+  --admin-border: rgba(255, 255, 255, 0.08);
+  --admin-border-hover: var(--hover-border-color, rgba(255, 255, 255, 0.14));
+  --admin-text: #F8FAFC;
+  --admin-muted: #94A3B8;
+  --admin-primary: hsl(var(--primary, 221 83% 53%));
+  --admin-secondary: hsl(var(--primary, 221 83% 53%));
+  --admin-success: #22C55E;
+  --admin-warning: #F59E0B;
+  --admin-danger: #EF4444;
+  --admin-glass-bg: rgba(255, 255, 255, 0.05);
+  --admin-glass-bg-hover: rgba(255, 255, 255, 0.04);
+  --admin-glass-border: rgba(255, 255, 255, 0.08);
+  --admin-shadow: rgba(0, 0, 0, 0.35);
+  --admin-shadow-soft: rgba(0, 0, 0, 0.25);
+  --admin-input-bg: rgba(255, 255, 255, 0.04);
+  --admin-input-bg-focus: rgba(255, 255, 255, 0.06);
+  --admin-hover-bg: rgba(255, 255, 255, 0.06);
+  --admin-overlay-bg: rgba(15, 23, 42, 0.85);
+  --admin-overlay-bg-strong: rgba(15, 23, 42, 0.9);
+  background-color: var(--admin-bg);
+  color: var(--admin-text);
+  min-height: 100vh;
+}
+
+/* ---------- Light theme overrides for admin portal ---------- */
+:root:not(.dark) .admin-portal {
+  --admin-bg: #F1F5F9;
+  --admin-bg-2: #E2E8F0;
+  --admin-card: rgba(255, 255, 255, 0.72);
+  --admin-card-hover: rgba(255, 255, 255, 0.85);
+  --admin-border: rgba(15, 23, 42, 0.10);
+  --admin-border-hover: var(--hover-border-color, rgba(15, 23, 42, 0.18));
+  --admin-text: #0F172A;
+  --admin-muted: #64748B;
+  --admin-primary: hsl(var(--primary, 221 83% 53%));
+  --admin-secondary: hsl(var(--primary, 221 83% 53%));
+  --admin-success: #16A34A;
+  --admin-warning: #D97706;
+  --admin-danger: #DC2626;
+  --admin-glass-bg: rgba(255, 255, 255, 0.72);
+  --admin-glass-bg-hover: rgba(255, 255, 255, 0.85);
+  --admin-glass-border: rgba(15, 23, 42, 0.10);
+  --admin-shadow: rgba(15, 23, 42, 0.10);
+  --admin-shadow-soft: rgba(15, 23, 42, 0.06);
+  --admin-input-bg: rgba(255, 255, 255, 0.6);
+  --admin-input-bg-focus: rgba(255, 255, 255, 0.85);
+  --admin-hover-bg: rgba(15, 23, 42, 0.04);
+  --admin-overlay-bg: rgba(255, 255, 255, 0.92);
+  --admin-overlay-bg-strong: rgba(255, 255, 255, 0.95);
+}
+
+/* Aurora mesh gradient — soft blue/purple/indigo, low opacity */
+.admin-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--admin-bg);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 15% 10%, rgba(37, 99, 235, 0.18) 0, transparent 55%),
+    radial-gradient(ellipse 70% 55% at 85% 15%, rgba(99, 102, 241, 0.16) 0, transparent 55%),
+    radial-gradient(ellipse 75% 60% at 75% 85%, rgba(139, 92, 246, 0.14) 0, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 20% 80%, rgba(59, 130, 246, 0.12) 0, transparent 55%);
+  background-attachment: fixed;
+  background-size: 100% 100%;
+}
+
+/* Light mode aurora — softer, lighter tints */
+:root:not(.dark) .admin-aurora {
+  background-image:
+    radial-gradient(ellipse 80% 60% at 15% 10%, rgba(37, 99, 235, 0.10) 0, transparent 55%),
+    radial-gradient(ellipse 70% 55% at 85% 15%, rgba(99, 102, 241, 0.09) 0, transparent 55%),
+    radial-gradient(ellipse 75% 60% at 75% 85%, rgba(139, 92, 246, 0.08) 0, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 20% 80%, rgba(59, 130, 246, 0.07) 0, transparent 55%);
+}
+
+/* Animated aurora drift */
+@keyframes admin-aurora-drift {
+  0%, 100% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%; }
+  50% { background-position: 10% 5%, -8% 3%, 6% -4%, -6% -3%; }
+}
+.admin-aurora {
+  animation: admin-aurora-drift 24s ease-in-out infinite;
+}
+
+/* ---------- Floating Sidebar ---------- */
+.admin-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  border-radius: 24px;
+  background: var(--admin-glass-bg);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid var(--admin-border);
+  box-shadow: 0 20px 60px var(--admin-shadow);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.admin-sidebar::-webkit-scrollbar { width: 4px; }
+.admin-sidebar::-webkit-scrollbar-thumb { background: var(--admin-hover-bg); border-radius: 4px; }
+.admin-sidebar::-webkit-scrollbar-track { background: transparent; }
+
+/* Sidebar nav pill buttons */
+.admin-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--admin-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: transform 250ms ease, background 250ms ease, color 250ms ease, box-shadow 250ms ease;
+  text-align: left;
+  width: 100%;
+  position: relative;
+}
+
+.admin-sidebar-item:hover {
+  background: var(--admin-hover-bg);
+  color: var(--admin-text);
+  transform: translateX(6px);
+}
+
+.admin-sidebar-item.active {
+  background: linear-gradient(90deg, var(--admin-primary), var(--admin-secondary));
+  color: #ffffff;
+  box-shadow: 0 8px 24px hsl(var(--primary, 221 83% 53%) / 0.35), 0 0 0 1px rgba(255,255,255,0.08) inset;
+}
+
+.admin-sidebar-item.active:hover {
+  transform: translateX(6px);
+  box-shadow: 0 10px 30px hsl(var(--primary, 221 83% 53%) / 0.45), 0 0 0 1px rgba(255,255,255,0.12) inset;
+}
+
+.admin-sidebar-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Sidebar section label */
+.admin-sidebar-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+  opacity: 0.6;
+  padding: 0 16px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+/* ---------- Top Navigation Bar ---------- */
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  border-radius: 20px;
+  background: var(--admin-glass-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--admin-border);
+  box-shadow: 0 12px 40px var(--admin-shadow-soft);
+  position: sticky;
+  top: 16px;
+  z-index: 30;
+}
+
+.admin-topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-radius: 14px;
+  background: var(--admin-input-bg);
+  border: 1px solid var(--admin-border);
+  transition: border-color 200ms ease, background 200ms ease;
+  min-width: 200px;
+  flex: 1;
+  max-width: 420px;
+}
+
+.admin-topbar-search:focus-within {
+  border-color: hsl(var(--primary, 221 83% 53%) / 0.4);
+  background: var(--admin-input-bg-focus);
+}
+
+.admin-topbar-search input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--admin-text);
+  font-size: 14px;
+  width: 100%;
+}
+
+.admin-topbar-search input::placeholder {
+  color: var(--admin-muted);
+}
+
+.admin-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--admin-input-bg);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-muted);
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.admin-icon-btn:hover {
+  background: var(--admin-hover-bg);
+  color: var(--admin-text);
+  border-color: var(--admin-border-hover);
+  transform: scale(1.05);
+}
+
+.admin-icon-btn svg { width: 20px; height: 20px; }
+
+/* ---------- Admin Cards ---------- */
+.admin-card {
+  border-radius: 20px;
+  background: var(--admin-glass-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--admin-glass-border);
+  box-shadow: 0 12px 40px var(--admin-shadow);
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 250ms ease,
+              border-color 250ms ease;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.admin-card > * { position: relative; z-index: 1; }
+
+.admin-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--admin-border-hover);
+  box-shadow:
+    0 20px 50px var(--admin-shadow),
+    0 0 24px rgba(37, 99, 235, 0.12),
+    0 0 48px rgba(99, 102, 241, 0.08);
+}
+
+/* Stat card variant */
+.admin-stat-card {
+  border-radius: 20px;
+  background: var(--admin-glass-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--admin-glass-border);
+  box-shadow: 0 12px 40px var(--admin-shadow);
+  padding: 24px;
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 250ms ease,
+              border-color 250ms ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.admin-stat-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--admin-border-hover);
+  box-shadow:
+    0 20px 50px var(--admin-shadow),
+    0 0 24px rgba(37, 99, 235, 0.12),
+    0 0 48px rgba(99, 102, 241, 0.08);
+}
+
+.admin-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 250ms ease;
+}
+
+.admin-stat-card:hover .admin-stat-icon { transform: scale(1.1); }
+
+/* ---------- Admin Buttons ---------- */
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 200ms ease;
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+}
+
+.admin-btn-primary {
+  background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary));
+  color: #ffffff;
+  box-shadow: 0 4px 20px hsl(var(--primary, 221 83% 53%) / 0.3);
+}
+
+.admin-btn-primary:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 28px hsl(var(--primary, 221 83% 53%) / 0.45);
+}
+
+.admin-btn-secondary {
+  background: var(--admin-hover-bg);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-btn-secondary:hover {
+  background: var(--admin-card-hover);
+  transform: scale(1.02);
+}
+
+.admin-btn-ghost {
+  background: transparent;
+  color: var(--admin-muted);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-btn-ghost:hover {
+  color: var(--admin-text);
+  border-color: var(--admin-border-hover);
+  background: var(--admin-input-bg);
+  transform: scale(1.02);
+}
+
+/* ---------- Admin Tables ---------- */
+.admin-table-wrap {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-glass-bg);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--admin-hover-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 14px 18px;
+  text-align: left;
+  border-bottom: 1px solid var(--admin-border);
+  z-index: 2;
+}
+
+.admin-table tbody td {
+  padding: 14px 18px;
+  font-size: 14px;
+  color: var(--admin-text);
+  border-bottom: 1px solid var(--admin-border);
+  transition: background 200ms ease;
+}
+
+.admin-table tbody tr:last-child td { border-bottom: none; }
+
+.admin-table tbody tr {
+  transition: background 200ms ease;
+}
+
+.admin-table tbody tr:hover {
+  background: var(--admin-hover-bg);
+}
+
+/* ---------- Admin Badges ---------- */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-badge-success { background: rgba(34, 197, 94, 0.12); color: var(--admin-success); border: 1px solid rgba(34,197,94,0.2); }
+.admin-badge-warning { background: rgba(245, 158, 11, 0.12); color: var(--admin-warning); border: 1px solid rgba(245,158,11,0.2); }
+.admin-badge-danger  { background: rgba(239, 68, 68, 0.12); color: var(--admin-danger); border: 1px solid rgba(239,68,68,0.2); }
+.admin-badge-info    { background: hsl(var(--primary, 221 83% 53%) / 0.12); color: var(--admin-primary); border: 1px solid hsl(var(--primary, 221 83% 53%) / 0.2); }
+.admin-badge-purple  { background: hsl(var(--primary, 221 83% 53%) / 0.12); color: var(--admin-secondary); border: 1px solid hsl(var(--primary, 221 83% 53%) / 0.2); }
+
+/* ---------- Admin Progress Ring ---------- */
+.admin-progress-ring {
+  transform: rotate(-90deg);
+}
+
+.admin-progress-ring circle {
+  transition: stroke-dashoffset 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- Admin Skeleton ---------- */
+.admin-skeleton {
+  background: linear-gradient(90deg, var(--admin-input-bg) 25%, var(--admin-hover-bg) 50%, var(--admin-input-bg) 75%);
+  background-size: 200% 100%;
+  animation: admin-skeleton-shimmer 1.5s infinite;
+  border-radius: 12px;
+}
+
+@keyframes admin-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---------- Admin Inputs ---------- */
+.admin-input {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: var(--admin-input-bg);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  font-size: 14px;
+  transition: border-color 200ms ease, background 200ms ease;
+  outline: none;
+}
+
+.admin-input::placeholder { color: var(--admin-muted); }
+
+.admin-input:focus {
+  border-color: hsl(var(--primary, 221 83% 53%) / 0.4);
+  background: var(--admin-input-bg-focus);
+}
+
+/* ---------- Admin Section Title ---------- */
+.admin-page-title {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--admin-text);
+}
+
+.admin-page-subtitle {
+  font-size: 14px;
+  color: var(--admin-muted);
+  margin-top: 4px;
+}
+
+.admin-section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.admin-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+/* ---------- Admin Layout Shell ---------- */
+.admin-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 24px;
+  padding: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+.admin-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ---------- Admin Mobile Bottom Nav (small screens) ---------- */
+@media (max-width: 1023px) {
+  .admin-sidebar { display: none; }
+  .admin-shell { padding: 16px; }
+}
+
+/* ---------- Admin scrollbar styling ---------- */
+.admin-portal ::-webkit-scrollbar { width: 8px; height: 8px; }
+.admin-portal ::-webkit-scrollbar-track { background: transparent; }
+.admin-portal ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }
+.admin-portal ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+
+/* ---------- Admin chart tooltip ---------- */
+.admin-chart-tooltip {
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--admin-border);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--admin-text);
+}
+
+/* ---------- Admin shadcn component overrides ---------- */
+/* Restyle shadcn Card/Table/Button/Input/Badge inside admin-portal so all
+   admin sub-pages inherit the premium dark glass look without page rewrites.
+   The shadcn Card component applies the `premium-glass-card` class, so we
+   override that directly (the [data-slot] selector never matched because
+   Card has no data-slot attribute). */
+
+/* Override premium-glass-card inside admin portal to match dashboard cards */
+.admin-portal .premium-glass-card,
+.admin-portal .glass-card,
+.admin-portal .card-glass {
+  border-radius: 20px !important;
+  background: var(--admin-glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid var(--admin-glass-border) !important;
+  box-shadow: 0 12px 40px var(--admin-shadow) !important;
+  color: var(--admin-text) !important;
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 250ms ease,
+              border-color 250ms ease !important;
+  isolation: isolate;
+}
+
+.admin-portal .premium-glass-card:hover,
+.admin-portal .glass-card:hover,
+.admin-portal .card-glass:hover {
+  transform: translateY(-4px) !important;
+  border-color: var(--admin-border-hover) !important;
+  box-shadow:
+    0 20px 50px var(--admin-shadow),
+    0 0 var(--glow-intensity, 24px) hsl(var(--primary, 221 83% 53%) / 0.12),
+    0 0 48px hsl(var(--primary, 221 83% 53%) / 0.08) !important;
+}
+
+/* Dark mode is the default look for admin portal — same values apply.
+   Override the .dark premium-glass-card dark variant too so it doesn't
+   override our admin values. */
+.dark .admin-portal .premium-glass-card,
+.dark .admin-portal .glass-card,
+.dark .admin-portal .card-glass {
+  background: var(--admin-glass-bg) !important;
+  border-color: var(--admin-glass-border) !important;
+  box-shadow: 0 12px 40px var(--admin-shadow) !important;
+}
+
+.dark .admin-portal .premium-glass-card:hover,
+.dark .admin-portal .glass-card:hover,
+.dark .admin-portal .card-glass:hover {
+  transform: translateY(-4px) !important;
+  border-color: var(--admin-border-hover) !important;
+  box-shadow:
+    0 20px 50px var(--admin-shadow),
+    0 0 var(--glow-intensity, 24px) hsl(var(--primary, 221 83% 53%) / 0.12),
+    0 0 48px hsl(var(--primary, 221 83% 53%) / 0.08) !important;
+}
+
+/* Card text colors — shadcn Card renders CardTitle/CardDescription with
+   these utility classes. The [data-slot] selectors never matched because
+   this version of shadcn/ui doesn't use data-slot attributes. */
+.admin-portal .text-lg.font-semibold,
+.admin-portal .text-2xl.font-semibold,
+.admin-portal .text-xl.font-semibold,
+.admin-portal .font-semibold.leading-none {
+  color: var(--admin-text) !important;
+}
+
+.admin-portal .text-sm.text-muted-foreground,
+.admin-portal .text-muted-foreground {
+  color: var(--admin-muted) !important;
+}
+
+/* Admin Buttons — shadcn Button renders a <button> with cva variant classes.
+   Target by the actual Tailwind utility classes each variant applies. */
+.admin-portal button {
+  border-radius: 14px !important;
+  font-weight: 600 !important;
+  transition: all 200ms ease !important;
+}
+
+/* Default variant: bg-primary text-primary-foreground */
+.admin-portal button.bg-primary {
+  background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary)) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 20px hsl(var(--primary, 221 83% 53%) / 0.3) !important;
+}
+
+.admin-portal button.bg-primary:hover {
+  transform: scale(1.02) !important;
+  box-shadow: 0 6px 28px hsl(var(--primary, 221 83% 53%) / 0.45) !important;
+}
+
+/* Destructive variant: bg-destructive */
+.admin-portal button.bg-destructive {
+  background: linear-gradient(135deg, #EF4444, #F87171) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Secondary variant: bg-secondary */
+.admin-portal button.bg-secondary {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-text) !important;
+  border: 1px solid var(--admin-border) !important;
+}
+
+/* Outline variant: border border-input bg-background/50 */
+.admin-portal button.border.border-input,
+.admin-portal button.border-input {
+  background: transparent !important;
+  color: var(--admin-muted) !important;
+  border: 1px solid var(--admin-border) !important;
+}
+
+.admin-portal button.border.border-input:hover,
+.admin-portal button.border-input:hover {
+  color: var(--admin-text) !important;
+  border-color: var(--admin-border-hover) !important;
+  background: var(--admin-input-bg) !important;
+}
+
+/* Ghost variant: hover:bg-accent */
+.admin-portal button.hover\:bg-accent {
+  background: transparent !important;
+  color: var(--admin-muted) !important;
+}
+
+.admin-portal button.hover\:bg-accent:hover {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Admin Inputs — shadcn Input renders <input> with bg-background/60 border-input */
+.admin-portal input[type="text"],
+.admin-portal input[type="email"],
+.admin-portal input[type="password"],
+.admin-portal input[type="number"],
+.admin-portal input[type="search"],
+.admin-portal input[type="tel"],
+.admin-portal input[type="url"],
+.admin-portal input:not([type]),
+.admin-portal textarea {
+  border-radius: 14px !important;
+  background: var(--admin-input-bg) !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+  transition: border-color 200ms ease, background 200ms ease !important;
+}
+
+.admin-portal input:focus,
+.admin-portal textarea:focus {
+  border-color: hsl(var(--primary, 221 83% 53%) / 0.4) !important;
+  background: var(--admin-input-bg-focus) !important;
+  outline: none !important;
+}
+
+.admin-portal input::placeholder,
+.admin-portal textarea::placeholder {
+  color: var(--admin-muted) !important;
+}
+
+/* Admin Labels */
+.admin-portal label {
+  color: var(--admin-text) !important;
+}
+
+/* Admin Tables — shadcn Table renders a wrapper div + <table>/<thead>/<tr>/<th>/<td>.
+   Target the actual HTML elements inside .admin-portal. */
+.admin-portal table {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.admin-portal thead {
+  background: var(--admin-hover-bg) !important;
+}
+
+.admin-portal th {
+  color: var(--admin-muted) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--admin-border) !important;
+}
+
+.admin-portal tr {
+  transition: background 200ms ease;
+  border-bottom: 1px solid var(--admin-border) !important;
+}
+
+.admin-portal tbody tr:hover {
+  background: var(--admin-hover-bg) !important;
+}
+
+.admin-portal td {
+  color: var(--admin-text) !important;
+  border-bottom: 1px solid var(--admin-border) !important;
+}
+
+/* Table wrapper div — has rounded-[20px] border-border/20 bg-card/40 */
+.admin-portal .relative.w-full.overflow-hidden.rounded-\[20px\] {
+  background: var(--admin-glass-bg) !important;
+  border-color: var(--admin-border) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Admin Badges — shadcn Badge renders a <div> with rounded-full border classes.
+   Target by the rounded-full + border-transparent pattern. */
+.admin-portal .rounded-full.border-transparent {
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+/* Default badge: from-primary gradient */
+.admin-portal .rounded-full.border-transparent.bg-gradient-to-br.from-primary {
+  background: hsl(var(--primary, 221 83% 53%) / 0.12) !important;
+  color: var(--admin-primary) !important;
+  border: 1px solid hsl(var(--primary, 221 83% 53%) / 0.2) !important;
+}
+
+/* Secondary badge: bg-secondary */
+.admin-portal .rounded-full.border-transparent.bg-secondary {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-muted) !important;
+  border: 1px solid var(--admin-border) !important;
+}
+
+/* Outline badge: bg-background/50 backdrop-blur-sm */
+.admin-portal .rounded-full.bg-background\/50 {
+  background: transparent !important;
+  color: var(--admin-muted) !important;
+  border: 1px solid var(--admin-border) !important;
+}
+
+/* Destructive badge: from-destructive gradient */
+.admin-portal .rounded-full.border-transparent.bg-gradient-to-br.from-destructive {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: var(--admin-danger) !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Success badge: from-[#22C55E] */
+.admin-portal .rounded-full.border-transparent.bg-gradient-to-br.from-\[\#22C55E\] {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: var(--admin-success) !important;
+  border: 1px solid rgba(34, 197, 94, 0.2) !important;
+}
+
+/* Warning badge: from-[#F59E0B] */
+.admin-portal .rounded-full.border-transparent.bg-gradient-to-br.from-\[\#F59E0B\] {
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: var(--admin-warning) !important;
+  border: 1px solid rgba(245, 158, 11, 0.2) !important;
+}
+
+/* Admin Dialog — portaled to body, use body.admin-portal-active scope.
+   shadcn DialogContent has role="dialog" (via Radix) + bg-card/80 class. */
+body.admin-portal-active [role="dialog"] {
+  border-radius: 22px !important;
+  background: var(--admin-overlay-bg) !important;
+  backdrop-filter: blur(24px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+  border: 1px solid var(--admin-border) !important;
+  box-shadow: 0 24px 60px var(--admin-shadow) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="dialog"] .text-lg.font-semibold,
+body.admin-portal-active [role="dialog"] .font-semibold {
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="dialog"] .text-sm.text-muted-foreground,
+body.admin-portal-active [role="dialog"] .text-muted-foreground {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-portal-active [role="dialog"] label {
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="dialog"] input,
+body.admin-portal-active [role="dialog"] textarea {
+  border-radius: 14px !important;
+  background: var(--admin-input-bg) !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="dialog"] input:focus,
+body.admin-portal-active [role="dialog"] textarea:focus {
+  border-color: hsl(var(--primary, 221 83% 53%) / 0.4) !important;
+  background: var(--admin-input-bg-focus) !important;
+  outline: none !important;
+}
+
+body.admin-portal-active [role="dialog"] input::placeholder,
+body.admin-portal-active [role="dialog"] textarea::placeholder {
+  color: var(--admin-muted) !important;
+}
+
+/* Dialog overlay */
+body.admin-portal-active .fixed.inset-0.z-50.bg-black\/60 {
+  background: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Admin Dropdown menus — portaled to body, Radix sets role="menu" */
+body.admin-portal-active [role="menu"] {
+  border-radius: 16px !important;
+  background: var(--admin-overlay-bg-strong) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid var(--admin-border) !important;
+  box-shadow: 0 16px 48px var(--admin-shadow) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="menuitem"] {
+  color: var(--admin-muted) !important;
+  border-radius: 10px !important;
+}
+
+body.admin-portal-active [role="menuitem"]:hover,
+body.admin-portal-active [role="menuitem"]:focus {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Admin Select — trigger is inside .admin-portal, content is portaled.
+   SelectTrigger renders a <button> with bg-background/60 border-input. */
+.admin-portal button[role="combobox"] {
+  border-radius: 14px !important;
+  background: var(--admin-input-bg) !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Select content — portaled, Radix sets role="listbox" */
+body.admin-portal-active [role="listbox"] {
+  border-radius: 16px !important;
+  background: var(--admin-overlay-bg-strong) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="option"] {
+  color: var(--admin-muted) !important;
+  border-radius: 10px !important;
+}
+
+body.admin-portal-active [role="option"]:hover,
+body.admin-portal-active [role="option"][data-highlighted],
+body.admin-portal-active [role="option"]:focus {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Admin Textarea */
+.admin-portal textarea {
+  border-radius: 14px !important;
+  background: var(--admin-input-bg) !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Admin Switch — Radix renders button[role="switch"] */
+.admin-portal button[role="switch"] {
+  background: var(--admin-hover-bg) !important;
+  border: none !important;
+}
+
+.admin-portal button[role="switch"][data-state="checked"] {
+  background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary)) !important;
+}
+
+/* Admin Tabs — Radix renders button[role="tab"] inside [role="tablist"] */
+.admin-portal [role="tablist"] {
+  background: var(--admin-input-bg) !important;
+  border-radius: 14px !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.admin-portal [role="tab"] {
+  border-radius: 10px !important;
+  color: var(--admin-muted) !important;
+  transition: all 200ms ease !important;
+}
+
+.admin-portal [role="tab"][data-state="active"] {
+  background: var(--admin-card-hover) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-portal [role="tab"]:hover {
+  color: var(--admin-text) !important;
+}
+
+/* Admin text utility overrides */
+.admin-portal .text-foreground { color: var(--admin-text) !important; }
+.admin-portal .bg-secondary { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-muted { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-muted\/40 { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-muted\/70 { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-card { background: var(--admin-glass-bg) !important; }
+.admin-portal .bg-card\/40 { background: var(--admin-glass-bg) !important; }
+.admin-portal .bg-card\/80 { background: var(--admin-overlay-bg) !important; }
+.admin-portal .bg-card\/70 { background: var(--admin-overlay-bg) !important; }
+.admin-portal .border-border { border-color: var(--admin-border) !important; }
+.admin-portal .border-border\/20 { border-color: var(--admin-border) !important; }
+.admin-portal .border-border\/30 { border-color: var(--admin-border) !important; }
+.admin-portal .border-input { border-color: var(--admin-border) !important; }
+.admin-portal .bg-background\/50 { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-background\/60 { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-background\/80 { background: var(--admin-glass-bg) !important; }
+.admin-portal .bg-popover\/85 { background: var(--admin-overlay-bg-strong) !important; }
+.admin-portal .bg-accent\/80 { background: var(--admin-hover-bg) !important; }
+.admin-portal .bg-accent { background: var(--admin-hover-bg) !important; }
+.admin-portal .text-popover-foreground { color: var(--admin-text) !important; }
+.admin-portal .text-card-foreground { color: var(--admin-text) !important; }
+.admin-portal .text-primary-foreground { color: #ffffff !important; }
+.admin-portal .text-accent-foreground { color: var(--admin-text) !important; }
+
+/* Admin scrollbar */
+.admin-portal ::-webkit-scrollbar { width: 6px; height: 6px; }
+.admin-portal ::-webkit-scrollbar-thumb { background: var(--admin-hover-bg); border-radius: 6px; }
+.admin-portal ::-webkit-scrollbar-track { background: transparent; }
+
+/* ============================================================= */
+/*  PREMIUM DASHBOARD CARDS — Dark Glassmorphism                 */
+/*  Used by student dashboard components (KPICard, etc.)         */
+/*  Works in dark mode; degrades gracefully in light mode        */
+/* ============================================================= */
+
+/* Base premium dashboard card */
+.premium-dash-card {
+  position: relative;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 250ms ease,
+              border-color 250ms ease;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.premium-dash-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.premium-dash-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(37, 99, 235, 0.12),
+    0 0 48px rgba(99, 102, 241, 0.08);
+}
+
+/* Dark mode — proper dark glass */
+.dark .premium-dash-card {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(8, 17, 31, 0.78));
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.dark .premium-dash-card:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(37, 99, 235, 0.12),
+    0 0 48px rgba(99, 102, 241, 0.08);
+}
+
+/* Light mode fallback — subtle frosted glass */
+:not(.dark) .premium-dash-card {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+:not(.dark) .premium-dash-card:hover {
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow:
+    0 20px 50px rgba(15, 23, 42, 0.1),
+    0 0 24px rgba(37, 99, 235, 0.08);
+}
+
+/* Premium KPI stat card — spacious, with icon in gradient circle */
+.premium-kpi-card {
+  position: relative;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 250ms ease,
+              border-color 250ms ease;
+  overflow: hidden;
+  isolation: isolate;
+  cursor: pointer;
+}
+
+.premium-kpi-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.premium-kpi-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(37, 99, 235, 0.12),
+    0 0 48px rgba(99, 102, 241, 0.08);
+}
+
+/* Dark mode — proper dark glass */
+.dark .premium-kpi-card {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(8, 17, 31, 0.78));
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.dark .premium-kpi-card:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(37, 99, 235, 0.12),
+    0 0 48px rgba(99, 102, 241, 0.08);
+}
+
+:not(.dark) .premium-kpi-card {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+:not(.dark) .premium-kpi-card:hover {
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.1), 0 0 24px rgba(37, 99, 235, 0.08);
+}
+
+/* Icon in soft circular gradient background */
+.premium-dash-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 250ms ease;
+}
+
+.premium-kpi-card:hover .premium-dash-icon {
+  transform: scale(1.1);
+}
+
+/* Premium sparkline container */
+.premium-sparkline {
+  width: 100%;
+  height: 32px;
+  opacity: 0.8;
+}
+
+/* Premium progress bar */
+.premium-progress-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+/* Dark mode — visible track */
+.dark .premium-progress-track {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+:not(.dark) .premium-progress-track {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.premium-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2563EB, #6366F1);
+  transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Premium card text styles */
+.premium-dash-value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.premium-dash-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #94A3B8;
+}
+
+:not(.dark) .premium-dash-label {
+  color: #64748B;
+}
+
+.premium-dash-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.premium-dash-subtitle {
+  font-size: 13px;
+  color: #94A3B8;
+}
+
+:not(.dark) .premium-dash-subtitle {
+  color: #64748B;
+}
+
+/* Premium trend badge */
+.premium-trend-up {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4ADE80;
+}
+
+.premium-trend-down {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #F87171;
+}
+
+.premium-trend-stable {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94A3B8;
+}
+
+/* Premium empty state */
+.premium-empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 0 auto 16px;
+}
+
+/* Dark mode — visible dark glass */
+.dark .premium-empty-icon {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+:not(.dark) .premium-empty-icon {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+/* Premium quick action card */
+.premium-quick-action {
+  position: relative;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 250ms ease,
+              border-color 250ms ease;
+  overflow: hidden;
+  isolation: isolate;
+  cursor: pointer;
+}
+
+.premium-quick-action > * {
+  position: relative;
+  z-index: 1;
+}
+
+.premium-quick-action:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(37, 99, 235, 0.12);
+}
+
+/* Dark mode — proper dark glass */
+.dark .premium-quick-action {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(8, 17, 31, 0.78));
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.dark .premium-quick-action:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(37, 99, 235, 0.12);
+}
+
+:not(.dark) .premium-quick-action {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+:not(.dark) .premium-quick-action:hover {
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.1), 0 0 24px rgba(37, 99, 235, 0.08);
+}
+
+/* Premium quick action primary variant */
+.premium-quick-action-primary {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(99, 102, 241, 0.08));
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.premium-quick-action-primary:hover {
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.4),
+    0 0 32px rgba(37, 99, 235, 0.2);
+}
+
+/* Premium list item (for recent attempts, score distribution rows) */
+.premium-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 200ms ease, border-color 200ms ease;
+}
+
+.premium-list-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Dark mode — visible dark glass */
+.dark .premium-list-item {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark .premium-list-item:hover {
+  background: rgba(30, 44, 68, 0.7);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+:not(.dark) .premium-list-item {
+  background: rgba(15, 23, 42, 0.02);
+  border-color: rgba(15, 23, 42, 0.04);
+}
+
+:not(.dark) .premium-list-item:hover {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+/* Premium circular gradient icon backgrounds */
+.premium-icon-blue {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(59, 130, 246, 0.08));
+  color: #60A5FA;
+}
+
+.premium-icon-purple {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.08));
+  color: #A5B4FC;
+}
+
+.premium-icon-green {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(74, 222, 128, 0.08));
+  color: #4ADE80;
+}
+
+.premium-icon-orange {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.08));
+  color: #FBBF24;
+}
+
+.premium-icon-pink {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(244, 114, 182, 0.08));
+  color: #F472B6;
+}
+
+.premium-icon-teal {
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.15), rgba(45, 212, 191, 0.08));
+  color: #2DD4BF;
+}
+
+/* Premium progress ring (SVG) */
+.premium-ring-bg {
+  stroke: rgba(255, 255, 255, 0.08);
+}
+
+/* Dark mode — visible ring track */
+.dark .premium-ring-bg {
+  stroke: rgba(255, 255, 255, 0.10);
+}
+
+:not(.dark) .premium-ring-bg {
+  stroke: rgba(15, 23, 42, 0.08);
+}
+
+.premium-ring-fill {
+  stroke: url(#premium-ring-gradient);
+  transition: stroke-dashoffset 600ms cubic-bezier(0.16, 1, 0.3, 1);
 }

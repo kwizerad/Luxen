@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
+  HelpCircle,
 } from "lucide-react";
 import { Watermark } from "@/components/watermark";
 import { toast } from "sonner";
@@ -44,6 +45,7 @@ export default function ModuleExamPage() {
   const [examResult, setExamResult] = useState<any>(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [instructionsAccepted, setInstructionsAccepted] = useState(false);
+  const [showQuestionPalette, setShowQuestionPalette] = useState(false);
 
   useEffect(() => {
     loadExam();
@@ -211,22 +213,22 @@ export default function ModuleExamPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-0">
-              <div className="grid grid-cols-3 gap-1.5 sm:gap-4 text-center">
-                <div className="p-2 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
-                  <div className="text-base sm:text-2xl font-bold text-green-600 leading-tight">{examResult.correct_answers}</div>
-                  <div className="text-[9px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("correct")}</div>
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
+                <div className="p-3 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
+                  <div className="text-xl sm:text-2xl font-bold text-green-600 leading-tight">{examResult.correct_answers}</div>
+                  <div className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("correct")}</div>
                 </div>
-                <div className="p-2 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
-                  <div className="text-base sm:text-2xl font-bold text-red-600 leading-tight">
+                <div className="p-3 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
+                  <div className="text-xl sm:text-2xl font-bold text-red-600 leading-tight">
                     {examResult.total_questions - examResult.correct_answers}
                   </div>
-                  <div className="text-[9px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("incorrect")}</div>
+                  <div className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("incorrect")}</div>
                 </div>
-                <div className="p-2 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
-                  <div className={`text-base sm:text-2xl font-bold leading-tight ${passed ? "text-green-600" : "text-red-600"}`}>
+                <div className="p-3 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
+                  <div className={`text-xl sm:text-2xl font-bold leading-tight ${passed ? "text-green-600" : "text-red-600"}`}>
                     {examResult.score_percentage}%
                   </div>
-                  <div className="text-[9px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("score")}</div>
+                  <div className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("score")}</div>
                 </div>
               </div>
 
@@ -289,21 +291,73 @@ export default function ModuleExamPage() {
 
         {instructionsAccepted && examStartTime && (
           <>
-            <Card className="rounded-[14px] sm:rounded-[24px]">
-              <CardContent className="p-2.5 sm:p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span className="font-mono text-base sm:text-xl font-bold">
-                      {formatTime(secondsLeft || 0)}
-                    </span>
+            {/* Sticky timer + progress bar */}
+            <div className="sticky top-0 z-30 -mx-4 sm:mx-0 px-4 sm:px-0 py-2.5 sm:py-0 bg-background/80 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border-b sm:border-0">
+              <Card className="rounded-[12px] sm:rounded-[24px] sm:shadow-none">
+                <CardContent className="p-2.5 sm:p-4">
+                  <div className="flex items-center justify-between gap-3 sm:gap-4">
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                      <Clock className={`h-4 w-4 sm:h-5 sm:w-5 ${secondsLeft !== null && secondsLeft < 60 ? "text-red-600" : "text-primary"}`} />
+                      <span className={`font-mono text-base sm:text-xl font-bold tabular-nums ${secondsLeft !== null && secondsLeft < 60 ? "text-red-600" : ""}`}>
+                        {formatTime(secondsLeft || 0)}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0 hidden sm:block">
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-medium">{t("progress")}</span>
+                        <span className="text-muted-foreground tabular-nums">{Object.keys(userAnswers).length} / {exam.questions.length}</span>
+                      </div>
+                      <div className="h-1.5 sm:h-2 bg-secondary rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all duration-300"
+                          style={{ width: `${(Object.keys(userAnswers).length / exam.questions.length) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="text-[11px] sm:text-sm text-muted-foreground shrink-0">
+                      {t("question")} {currentIndex + 1} / {exam.questions.length}
+                    </div>
+                    {/* Question palette toggle (mobile only) */}
+                    <button
+                      type="button"
+                      onClick={() => setShowQuestionPalette((v) => !v)}
+                      className="sm:hidden flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-secondary/60"
+                      aria-label="Toggle question palette"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" />
+                      <span>{Object.keys(userAnswers).length}/{exam.questions.length}</span>
+                    </button>
                   </div>
-                  <div className="text-[11px] sm:text-sm text-muted-foreground">
-                    {t("question")} {currentIndex + 1} {t("of")} {exam.questions.length}
+
+                  {/* Question palette — always visible on sm+, collapsible on mobile */}
+                  <div className={`${showQuestionPalette ? "block" : "hidden"} sm:block mt-2.5 sm:mt-3`}>
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      {exam.questions.map((q: any, i: number) => {
+                        const isAnswered = !!userAnswers[q.id]?.selectedAnswer;
+                        const isCurrent = i === currentIndex;
+                        return (
+                          <button
+                            key={q.id}
+                            type="button"
+                            onClick={() => setCurrentIndex(i)}
+                            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold transition-all ${
+                              isCurrent
+                                ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-1 ring-offset-background"
+                                : isAnswered
+                                ? "bg-primary/15 text-primary hover:bg-primary/25"
+                                : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                            }`}
+                            aria-label={`Question ${i + 1}${isAnswered ? " (answered)" : ""}`}
+                          >
+                            {i + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
 
             <Card className="rounded-[14px] sm:rounded-[24px]">
               <CardHeader className="p-3 sm:p-6">

@@ -338,6 +338,9 @@ export default function Dashboard() {
               unit={t("taken")}
               icon={<Trophy className="h-4 w-4" />}
               description={t("allCompletedExams")}
+              iconVariant="orange"
+              sparklineData={examAttempts.slice(0, 7).map((_, i) => Math.max(1, examStats.totalExams - i))}
+              sparklineColor="#FBBF24"
             />
             <KPICard
               title={t("averageScore")}
@@ -345,6 +348,9 @@ export default function Dashboard() {
               unit="%"
               icon={<BarChart3 className="h-4 w-4" />}
               description={t("yourOverallPerformance")}
+              iconVariant="blue"
+              progressPercentage={examStats.averageScore}
+              progressColor="#2563EB"
             />
             <KPICard
               title={t("bestScore")}
@@ -352,6 +358,9 @@ export default function Dashboard() {
               unit="%"
               icon={<Award className="h-4 w-4" />}
               description={t("highestScoreAchieved")}
+              iconVariant="purple"
+              progressPercentage={examStats.bestScore}
+              progressColor="#6366F1"
             />
             <KPICard
               title={t("passRate")}
@@ -359,6 +368,9 @@ export default function Dashboard() {
               unit="%"
               icon={<CheckCircle2 className="h-4 w-4" />}
               description={t("examsPassed50")}
+              iconVariant="green"
+              progressPercentage={examStats.passRate}
+              progressColor="#22C55E"
             />
           </div>
         </div>
@@ -380,35 +392,41 @@ export default function Dashboard() {
               <div className="student-section-header">
                 <h2 className="student-section-title">{t("recentAttempts")}</h2>
               </div>
-              <Card className="rounded-[14px] sm:rounded-[24px]">
-                <CardContent className="p-3 sm:p-4">
-                  {examAttempts.length === 0 ? (
-                    <p className="text-xs sm:text-sm text-muted-foreground">{t("noExamsTakenYet")}</p>
-                  ) : (
-                    <div className="space-y-1.5 sm:space-y-2">
-                      {examAttempts.slice(0, 3).map((a) => (
-                        <div key={a.id} className="flex items-center justify-between gap-2 sm:gap-3 rounded-[12px] sm:rounded-[16px] border border-white/30 bg-background/25 p-2 sm:p-3 transition-colors hover:bg-accent/40 dark:border-white/10">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-xs sm:text-sm truncate">{a.category_name}</div>
-                            <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{formatRelativeTime(a.completed_at)} · {formatDuration(a.duration_seconds)}</div>
+              <div className="premium-dash-card p-4 sm:p-6">
+                {examAttempts.length === 0 ? (
+                  <p className="text-xs sm:text-sm text-muted-foreground py-4 text-center">{t("noExamsTakenYet")}</p>
+                ) : (
+                  <div className="space-y-2 sm:space-y-3">
+                    {examAttempts.slice(0, 3).map((a) => {
+                      const scoreColor = a.score_percentage >= 75 ? '#4ADE80' : a.score_percentage >= 50 ? '#FBBF24' : '#F87171';
+                      return (
+                        <div key={a.id} className="premium-list-item">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div
+                              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-sm"
+                              style={{ background: `${scoreColor}1a`, color: scoreColor }}
+                            >
+                              {a.score_percentage}%
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">{a.category_name}</div>
+                              <div className="text-xs text-muted-foreground truncate">{formatRelativeTime(a.completed_at)} · {formatDuration(a.duration_seconds)}</div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1.5 sm:gap-2 ml-2 shrink-0">
-                            <span className="text-xs sm:text-sm font-semibold text-primary">{a.score_percentage}%</span>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => router.push(`/dashboard/exam-attempts/${a.id}`)}>
-                              {t("view")}
-                            </Button>
-                          </div>
+                          <Button size="sm" variant="ghost" className="h-8 px-3 text-xs shrink-0" onClick={() => router.push(`/dashboard/exam-attempts/${a.id}`)}>
+                            {t("view")}
+                          </Button>
                         </div>
-                      ))}
-                      {examAttempts.length > 3 && (
-                        <Button variant="outline" size="sm" className="w-full mt-1.5 sm:mt-2">
-                          {t("viewAll")}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                      );
+                    })}
+                    {examAttempts.length > 3 && (
+                      <Button variant="outline" size="sm" className="w-full mt-2">
+                        {t("viewAll")}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Activity Feed - Removed: read-only, no functionality */}
@@ -419,21 +437,31 @@ export default function Dashboard() {
                 <div className="student-section-header">
                   <h2 className="student-section-title">{t("scoreDistribution")}</h2>
                 </div>
-                <Card className="rounded-[14px] sm:rounded-[24px]">
-                  <CardContent className="p-3 sm:pt-4 sm:p-6">
-                    <div className="space-y-1.5 sm:space-y-2">
-                      {scoreDistributionData.map((item) => (
-                        <div key={item.name} className="flex items-center justify-between rounded-[10px] sm:rounded-[14px] border border-white/25 bg-background/25 p-2 sm:p-3 dark:border-white/10">
-                          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0" style={{ backgroundColor: item.fill }} />
-                            <span className="text-xs sm:text-sm truncate">{t(item.name)}</span>
+                <div className="premium-dash-card p-4 sm:p-6">
+                  <div className="space-y-2 sm:space-y-3">
+                    {scoreDistributionData.map((item) => {
+                      const maxVal = Math.max(...scoreDistributionData.map(d => d.value), 1);
+                      const pct = (item.value / maxVal) * 100;
+                      return (
+                        <div key={item.name} className="premium-list-item flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fill }} />
+                              <span className="text-sm truncate">{t(item.name)}</span>
+                            </div>
+                            <span className="font-semibold text-sm shrink-0">{item.value}</span>
                           </div>
-                          <span className="font-semibold text-xs sm:text-sm shrink-0">{item.value}</span>
+                          <div className="premium-progress-track sm:max-w-[120px]">
+                            <div
+                              className="premium-progress-fill"
+                              style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${item.fill}, ${item.fill}aa)` }}
+                            />
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -449,33 +477,37 @@ export default function Dashboard() {
 
             {/* Exam Limit Info */}
             {examLimit.is_limited && (
-              <Card className="rounded-[14px] sm:rounded-[24px]">
-                <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
-                  <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
-                    <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-500" />
-                    {t("dailyLimit")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-1.5 sm:space-y-2 p-3 pt-0 sm:p-6 sm:pt-0">
+              <div className="premium-dash-card p-4 sm:p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="premium-dash-icon premium-icon-orange !w-10 !h-10">
+                    <Zap className="h-5 w-5" />
+                  </div>
                   <div>
-                    <div className="flex justify-between items-center mb-1 text-[10px] sm:text-xs">
+                    <h3 className="premium-dash-title">{t("dailyLimit")}</h3>
+                    <p className="premium-dash-subtitle">{t("used")} today</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between items-center mb-2 text-xs">
                       <span className="text-muted-foreground">{t("used")}</span>
                       <span className="font-semibold">{examLimit.attempts_today}/{examLimit.daily_limit}</span>
                     </div>
-                    <div className="bg-secondary rounded-full h-1.5 sm:h-2 overflow-hidden">
+                    <div className="premium-progress-track">
                       <div
-                        className="h-full bg-primary transition-all duration-300"
+                        className="premium-progress-fill"
                         style={{
                           width: `${(examLimit.attempts_today / examLimit.daily_limit) * 100}%`,
+                          background: 'linear-gradient(90deg, #F59E0B, #FBBF24)',
                         }}
-                      ></div>
+                      />
                     </div>
                   </div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {examLimit.remaining_attempts} {t("remaining")}
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
           </div>
         </div>

@@ -1,8 +1,44 @@
 # Luxen — Project Notes
 
 ## Build / Verify
-- `npm run build` — production build (passes 2026-07-21)
+- `npm run build` — production build (passes 2026-07-22)
 - No test runner configured.
+
+## Admin Portal — Premium Dark Glassmorphism Design (2026-07-22)
+
+The admin portal (`/Admin/*`) uses a dedicated design system scoped under
+the `.admin-portal` CSS class in `app/globals.css`. Student-facing pages
+are **not** affected.
+
+### Architecture
+- **Layout** (`app/Admin/layout.tsx`): floating 280px glass sidebar
+  (desktop `lg+`) + sticky top nav bar (search, language, theme, notifications,
+  profile). Mobile keeps the bottom floating pill nav.
+- **Dashboard** (`app/Admin/page.tsx`): analytics stat cards with animated
+  counters, recharts area chart (traffic), radial pass-rate ring, donut
+  distribution chart, recent activity feed, system status, quick actions.
+  Uses Framer Motion for staggered fade-up entrance animations.
+- **Sub-pages** (users, exams, questions, course-management, settings,
+  register): no rewrite needed — shadcn `Card`/`Table`/`Button`/`Input`/
+  `Badge`/`Dialog`/`DropdownMenu`/`Select`/`Switch`/`Tabs` are restyled
+  via scoped CSS overrides inside `.admin-portal`.
+
+### Design tokens (CSS custom properties in `.admin-portal`)
+- Background: `#0B1020` (dark navy, not pure black)
+- Aurora mesh gradient: soft blue/purple/indigo radial gradients, low
+  opacity, animated drift (`.admin-aurora`)
+- Card: `rgba(255,255,255,0.06)`, blur 20px, radius 22px, hover lift -4px
+- Border: `rgba(255,255,255,0.08)`, hover `rgba(255,255,255,0.14)`
+- Primary gradient: `linear-gradient(90deg, #2563EB, #6366F1)`
+- Text: `#F8FAFC`, Muted: `#94A3B8`
+- Success `#22C55E`, Warning `#F59E0B`, Danger `#EF4444`
+
+### Custom CSS classes available
+`.admin-card`, `.admin-stat-card`, `.admin-sidebar`, `.admin-sidebar-item`,
+`.admin-topbar`, `.admin-btn` (`-primary`/`-secondary`/`-ghost`),
+`.admin-table`, `.admin-badge` (`-success`/`-warning`/`-danger`/`-info`/
+`-purple`), `.admin-input`, `.admin-skeleton`, `.admin-page-title`,
+`.admin-section-title`, `.admin-card-title`, `.admin-shell`, `.admin-content`.
 
 ## Admin Data-Source Refactor — Plan (not yet implemented)
 
