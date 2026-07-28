@@ -6,7 +6,14 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { useNavAutohideEnabled } from "@/lib/use-nav-autohide";
+import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
+
+const LEARNING_LANGUAGES = ["English", "French", "Kinyarwanda"] as const;
+type LearningLanguage = (typeof LEARNING_LANGUAGES)[number];
+
+const isLearningLanguage = (language: string | null | undefined): language is LearningLanguage =>
+  !!language && LEARNING_LANGUAGES.includes(language as LearningLanguage);
 
 interface NavItem {
   href: string;
@@ -21,11 +28,52 @@ interface MobileBottomNavProps {
 export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language: interfaceLanguage } = useLanguage();
   const { user } = useAuth();
   const [isExamActive, setIsExamActive] = useState(false);
   const [navVisible, setNavVisible] = useState(true);
+  const [hasPublishedCourse, setHasPublishedCourse] = useState<boolean | null>(null);
   const autohideEnabled = useNavAutohideEnabled();
+
+  // Hide the Courses tab when no published course is available for the student.
+  useEffect(() => {
+    if (typeof window === "undefined" || !user) return;
+
+    const checkPublishedCourse = async () => {
+      const supabase = createClient();
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("learning_language")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const savedLanguage = profile?.learning_language;
+      const effectiveLanguage = isLearningLanguage(savedLanguage)
+        ? savedLanguage
+        : isLearningLanguage(interfaceLanguage)
+        ? interfaceLanguage
+        : null;
+
+      const languagesToCheck = effectiveLanguage ? [effectiveLanguage] : LEARNING_LANGUAGES;
+      const { data: courses, error } = await supabase
+        .from("course_languages")
+        .select("id")
+        .in("language", languagesToCheck)
+        .eq("status", "published")
+        .is("deleted_at", null)
+        .limit(1);
+
+      if (error) {
+        console.error("Failed to check published courses:", error);
+        setHasPublishedCourse(true); // fail open so the tab remains reachable
+        return;
+      }
+
+      setHasPublishedCourse((courses?.length ?? 0) > 0);
+    };
+
+    void checkPublishedCourse();
+  }, [user, interfaceLanguage]);
 
   // Check if exam is active
   useEffect(() => {
@@ -122,6 +170,10 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
     { href: "/dashboard/settings", labelKey: "settings", icon: Settings },
   ];
 
+  const visibleNavItems = hasPublishedCourse === false
+    ? navItems.filter((item) => item.href !== "/dashboard/course")
+    : navItems;
+
   if (hide) return null;
 
   // Hide during any active exam
@@ -156,8 +208,8 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
     >
       {/* Glassmorphism container */}
       <div className="premium-glass-panel student-nav-pill border rounded-[20px] h-14 overflow-hidden shadow-lg">
-        <div className="grid grid-cols-5 h-full">
-          {navItems.map((item) => {
+        <div className={cn("grid h-full", visibleNavItems.length === 4 ? "grid-cols-4" : "grid-cols-5")}>
+          {visibleNavItems.map((item) => {
             const isActive = isNavItemActive(item.href);
             const Icon = item.icon;
 
