@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { isAdmin } from "@/lib/permissions";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,19 +25,29 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const folder = formData.get("folder") as string || "exam-images";
+    const isLessonAsset = folder.startsWith("lesson-");
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
-      return NextResponse.json({ error: "File must be an image" }, { status: 400 });
+    if (isLessonAsset && !isAdmin(user)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: "File size must be less than 5MB" }, { status: 400 });
+    const allowedLessonTypes = [
+      "application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/zip",
+      "video/mp4", "video/webm", "audio/mpeg", "audio/wav", "audio/ogg"
+    ];
+    if (!file.type.startsWith("image/") && (!isLessonAsset || !allowedLessonTypes.includes(file.type))) {
+      return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
+    }
+
+    const maxSize = isLessonAsset ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      return NextResponse.json({ error: `File size must be less than ${isLessonAsset ? 50 : 5}MB` }, { status: 400 });
     }
 
     // Generate unique filename

@@ -1,21 +1,38 @@
 "use client";
 
 import { useEffect } from "react";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 
 export function useActivityTracker() {
   useEffect(() => {
+    const supabase = createClient();
+    let isAuthenticated = false;
+
     const trackActivity = async () => {
+      if (!isAuthenticated) return;
       try {
         await fetch("/api/users/track-activity", {
           method: "POST",
         });
-      } catch (error) {
+      } catch {
         // Silently fail - this is non-critical
       }
     };
 
-    // Track activity on mount
-    trackActivity();
+    const initialize = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      isAuthenticated = Boolean(session);
+      if (isAuthenticated) await trackActivity();
+    };
+
+    initialize();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+      isAuthenticated = Boolean(session);
+    });
 
     // Track activity on user interactions
     const events = ["mousedown", "keydown", "scroll", "touchstart"];
@@ -39,6 +56,7 @@ export function useActivityTracker() {
       });
       clearTimeout(timeoutId);
       clearInterval(intervalId);
+      authListener.subscription.unsubscribe();
     };
   }, []);
 }

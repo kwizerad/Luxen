@@ -1189,6 +1189,34 @@
   100% { background-position: -200% 0; }
 }
 
+/* ---------- Generic Skeleton Shimmer (student / public surfaces) ---------- */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted) / 0.45) 25%,
+    hsl(var(--muted) / 0.7) 50%,
+    hsl(var(--muted) / 0.45) 75%
+  );
+  background-size: 200% 100%;
+  animation: generic-skeleton-shimmer 1.5s infinite;
+  border-radius: 12px;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06) 25%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.06) 75%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes generic-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* ---------- Admin Inputs ---------- */
 .admin-input {
   width: 100%;
@@ -2212,4 +2240,28 @@ body.admin-portal-active [role="option"]:focus {
 .premium-ring-fill {
   stroke: url(#premium-ring-gradient);
   transition: stroke-dashoffset 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Tiptap editor styles */
+.ProseMirror {
+  outline: none;
+}
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: var(--admin-muted);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.ProseMirror .resize-cursor {
+  cursor: col-resize;
+}
+.ProseMirror img,
+.ProseMirror video {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+}
+.ProseMirror iframe {
+  max-width: 100%;
 }

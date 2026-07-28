@@ -6,6 +6,7 @@ import { isPrimaryAdmin } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth-context";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { FloatingHeader } from "@/components/floating-header";
+import { StudentLayoutSkeleton } from "@/components/skeletons";
 
 export default function UserExamLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -25,11 +26,7 @@ export default function UserExamLayout({ children }: { children: React.ReactNode
   }, [authLoading, user, router]);
 
   if (authLoading || !user || isPrimaryAdmin(user)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-transparent">
-        <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-primary/20 border-t-primary" />
-      </div>
-    );
+    return <StudentLayoutSkeleton />;
   }
 
   return (

@@ -5,8 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, TrendingUp, TrendingDown, Clock, Trophy, Target, Calendar, ChevronRight, Eye } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Trophy, Target, Calendar, ChevronRight, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { CardSkeleton } from "@/components/skeletons";
 import type { ExamAttempt } from "@/lib/database.types";
 
 interface UserPerformanceModalProps {
@@ -188,9 +189,7 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
         </DialogHeader>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
+          <CardSkeleton lines={5} />
         ) : stats && stats.totalAttempts === 0 ? (
           <div className="text-center py-12">
             <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -359,9 +358,7 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
               </DialogHeader>
               
               {loadingDetails ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
+                <CardSkeleton lines={4} />
               ) : attemptDetails ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">

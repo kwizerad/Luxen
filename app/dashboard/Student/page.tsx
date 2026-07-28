@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { User, Mail, Calendar, GraduationCap } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/lib/language-context";
+import { ProfileSkeleton } from "@/components/skeletons";
 
 export default function UserDashboard() {
   const [user, setUser] = useState<any>(null);
@@ -41,11 +42,7 @@ export default function UserDashboard() {
     .slice(0, 2);
 
   if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <p>{t("loading")}</p>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   return (

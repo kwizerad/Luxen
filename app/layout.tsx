@@ -31,7 +31,7 @@ const systemName = getSystemName();
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
   title: `${systemName} Lite - Modern Learning Platform`,
-  description: `${systemName} Lite - Your lightweight modern learning platform. Access courses, exams, and learning materials even offline.`,
+  description: `${systemName} Lite - Your lightweight modern learning platform. Access exams and learning materials even offline.`,
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

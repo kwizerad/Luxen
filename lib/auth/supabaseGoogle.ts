@@ -15,18 +15,16 @@ export interface GoogleSignInResult {
   error: Error | null;
 }
 
-export type SupportedLanguage = "English" | "Arabic" | "Kinyarwanda" | "French";
+export type SupportedLanguage = "English" | "Kinyarwanda" | "French";
 
 const LANGUAGE_CODE_MAP: Record<string, string> = {
   English: "en",
-  Arabic: "ar",
   Kinyarwanda: "rw",
   French: "fr",
 };
 
 const REVERSE_LANGUAGE_CODE_MAP: Record<string, SupportedLanguage> = {
   en: "English",
-  ar: "Arabic",
   rw: "Kinyarwanda",
   fr: "French",
 };

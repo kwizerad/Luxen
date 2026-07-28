@@ -17,6 +17,7 @@ import type { ExamAttempt } from "@/lib/database.types";
 import { getExamAttempts, getExamAttemptsWithQuestions, deleteExamAttempt } from "@/lib/supabase/queries";
 import { useLanguage } from "@/lib/language-context";
 import Link from "next/link";
+import { TableSkeleton, Skeleton } from "@/components/skeletons";
 
 export default function UserExamsPage() {
   const { config } = useBrandingConfig();
@@ -123,9 +124,18 @@ export default function UserExamsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
+      <main className="student-page">
+        <div className="student-page-header">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-[12px] sm:rounded-[24px]" />
+          ))}
+        </div>
+        <TableSkeleton rows={5} columns={4} hasSearch={false} hasFilters={false} />
+      </main>
     );
   }
 

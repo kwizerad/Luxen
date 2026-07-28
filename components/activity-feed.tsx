@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { formatRelativeTime, ActivityItem } from '@/lib/dashboard-utils';
 import { CheckCircle2, Medal, Star, Zap, Trophy, Calendar } from 'lucide-react';
 import { useLanguage } from '@/lib/language-context';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ActivityFeedProps {
   activities: ActivityItem[];
@@ -50,16 +51,17 @@ export function ActivityFeed({ activities, loading = false, maxItems = 5, onActi
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">{t("recentActivity")}</CardTitle>
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-4 w-56 mt-2" />
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-4 animate-pulse">
-                <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              <div key={i} className="flex gap-4 p-3 rounded-lg border border-border/40">
+                <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
                 </div>
               </div>
             ))}

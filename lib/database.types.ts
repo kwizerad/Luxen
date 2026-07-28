@@ -97,13 +97,24 @@ export interface SystemConfig {
 // ============================================================================
 
 export type CourseLanguage = 'English' | 'Kinyarwanda' | 'French';
+export type CourseStatus = 'draft' | 'published' | 'archived';
+export type ModuleStatus = 'draft' | 'published' | 'archived';
+export type LessonContentType = 'text' | 'rich_text' | 'video' | 'audio' | 'image' | 'document' | 'mixed';
+export type ModuleExamQuestionType = 'multiple_choice' | 'multiple_select' | 'true_false' | 'matching' | 'short_answer';
 
 export interface CourseLanguageCourse {
   id: string;
   language: CourseLanguage;
   title: string;
   description?: string;
+  thumbnail_url?: string;
+  banner_url?: string;
+  category?: string;
+  estimated_completion_minutes?: number;
+  status: CourseStatus;
+  archived_at?: string | null;
   is_published: boolean;
+  deleted_at?: string | null;
   order_index: number;
   created_at: string;
   updated_at?: string;
@@ -116,14 +127,26 @@ export interface CourseModule {
   language_id?: string;
   title: string;
   description?: string;
+  objectives?: string;
+  completion_requirements?: Record<string, unknown>;
+  estimated_study_minutes?: number;
+  is_locked?: boolean;
+  status: CourseStatus;
   title_translations?: Record<string, string>;
   description_translations?: Record<string, string>;
   order_index: number;
   is_published: boolean;
+  deleted_at?: string | null;
   created_at: string;
   updated_at?: string;
   created_by?: string;
   updated_by?: string;
+}
+
+export interface CourseLessonResource {
+  name: string;
+  url: string;
+  type?: 'attachment' | 'download';
 }
 
 export interface CourseLesson {
@@ -131,36 +154,77 @@ export interface CourseLesson {
   module_id: string;
   title: string;
   content: string;
+  content_json?: Record<string, unknown> | null;
+  content_json_translations?: Record<string, Record<string, unknown>>;
+  short_description?: string;
+  thumbnail_url?: string;
+  tags?: string[];
+  estimated_reading_minutes?: number;
+  is_preview?: boolean;
+  status: CourseStatus;
+  resources?: CourseLessonResource[];
   title_translations?: Record<string, string>;
   content_translations?: Record<string, string>;
-  content_type: 'text' | 'video' | 'image' | 'document' | 'mixed';
+  content_type: LessonContentType;
   media_url?: string;
+  audio_url?: string;
   image_url?: string;
   order_index: number;
   is_published: boolean;
+  deleted_at?: string | null;
   created_at: string;
   updated_at?: string;
   created_by?: string;
   updated_by?: string;
 }
 
+export type CourseContentNodeType = 'quiz' | 'assignment' | 'resource' | 'certificate';
+export type CourseContentNodeStatus = 'draft' | 'published' | 'scheduled' | 'hidden' | 'archived';
+
+export interface CourseContentNode {
+  id: string;
+  course_id: string;
+  module_id?: string | null;
+  parent_id?: string | null;
+  type: CourseContentNodeType;
+  title: string;
+  description?: string | null;
+  status: CourseContentNodeStatus;
+  order_index: number;
+  metadata: Record<string, unknown>;
+  permissions: Record<string, unknown>;
+  created_at: string;
+  updated_at?: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+}
+
 export interface ModuleExamSettings {
   id: string;
   module_id: string;
+  title: string;
+  status: CourseStatus;
   question_count: number;
   duration_minutes: number;
-  passing_score: number;
+  passing_percentage: number;
   randomize_questions: boolean;
   randomize_answers: boolean;
-  max_attempts: number;
+  max_attempts?: number | null;
+  time_limit_minutes?: number | null;
+  show_results_immediately: boolean;
+  show_explanations: boolean;
+  allow_review: boolean;
+  deleted_at?: string | null;
   created_at: string;
   updated_at?: string;
+  created_by?: string;
   updated_by?: string;
 }
 
 export interface ModuleExamQuestion {
   id: string;
   module_id: string;
+  type: ModuleExamQuestionType;
   question?: string;
   question_image?: string;
   option_a?: string;
@@ -171,10 +235,30 @@ export interface ModuleExamQuestion {
   option_c_image?: string;
   option_d?: string;
   option_d_image?: string;
-  correct_answer: 'A' | 'B' | 'C' | 'D';
+  correct_answer?: 'A' | 'B' | 'C' | 'D';
   explanation?: string;
+  points: number;
   order_index: number;
   is_published: boolean;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+  randomize_answer_order: boolean;
+  deleted_at?: string | null;
+  created_at: string;
+  updated_at?: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+export interface LessonAttachment {
+  id: string;
+  lesson_id: string;
+  file_name: string;
+  file_type: string;
+  file_url: string;
+  file_size?: number;
+  order_index: number;
+  deleted_at?: string | null;
   created_at: string;
   updated_at?: string;
   created_by?: string;

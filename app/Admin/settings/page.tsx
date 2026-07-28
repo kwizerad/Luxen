@@ -13,6 +13,7 @@ import { SystemConfigSettings } from "@/components/system-config";
 import { NavAutohideSettings } from "@/components/nav-autohide-settings";
 import { Loader2 } from "lucide-react";
 import { ADMIN_CREDENTIALS } from "@/lib/admin-config";
+import { ProfileSkeleton } from "@/components/skeletons";
 import Link from "next/link";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useThemeConfig } from "@/lib/theme-config";
@@ -54,11 +55,7 @@ export default function AdminSettingsPage() {
   }, [setThemeIsAdmin, setBrandingIsAdmin]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-transparent">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <ProfileSkeleton variant="admin" />;
   }
 
   return (

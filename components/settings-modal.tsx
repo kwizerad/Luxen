@@ -17,8 +17,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 
 type TextSize = "sm" | "md" | "lg";
-type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
-type LanguageCode = "en" | "rw" | "fr" | "ar";
+type Language = "English" | "Kinyarwanda" | "French";
+type LanguageCode = "en" | "rw" | "fr";
 
 export function SettingsModal() {
   const [open, setOpen] = useState(false);
@@ -31,7 +31,6 @@ export function SettingsModal() {
     English: "en",
     Kinyarwanda: "rw",
     French: "fr",
-    Arabic: "ar"
   };
 
   const textSizes = [
@@ -148,14 +147,6 @@ export function SettingsModal() {
                 className="min-w-[80px]"
               >
                 English
-              </Button>
-              <Button
-                variant={language === "Arabic" ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleLanguageChange("Arabic" as Language)}
-                className="min-w-[80px]"
-              >
-                العربية
               </Button>
               <Button
                 variant={language === "French" ? "default" : "outline"}

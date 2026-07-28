@@ -9,6 +9,7 @@ import { checkAdminExists, setupAdmin } from "@/lib/supabase/queries";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SetupAdminPage() {
   const { config } = useBrandingConfig();
@@ -71,11 +72,10 @@ export default function SetupAdminPage() {
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Checking system status...</p>
-          </CardContent>
+        <Card className="w-full max-w-md p-8 space-y-4 text-center">
+          <Skeleton className="h-6 w-3/4 mx-auto" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3 mx-auto" />
         </Card>
       </div>
     );

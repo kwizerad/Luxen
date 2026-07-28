@@ -23,6 +23,7 @@ import {
 import { FileText, Plus, BookOpen, CheckCircle, Image as ImageIcon, X, Edit, Trash2, Loader2, ChevronDown, Settings, Eye, EyeOff, AlertTriangle, Trophy, Users, Globe, Lock, ArrowUpDown } from "lucide-react";
 import { Watermark } from "@/components/watermark";
 import { toast } from "sonner";
+import { AdminDashboardSkeleton, CardSkeleton } from "@/components/skeletons";
 import type { ExamCategory, ExamQuestion, ExamQuestionSortingMode } from "@/lib/database.types";
 import { ImageUpload } from "@/components/image-upload";
 import { createClient } from "@/lib/supabase/client";
@@ -621,11 +622,7 @@ export default function ExamManagementPage() {
   const cardHoverClass = "hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300";
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <AdminDashboardSkeleton />;
   }
 
   if (!hasPermission) {
@@ -1046,10 +1043,7 @@ export default function ExamManagementPage() {
             </DialogHeader>
 
             {loadingSettings ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t("loadingSettings")}
-              </div>
+              <CardSkeleton lines={4} variant="admin" />
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg border border-border p-3">
@@ -1436,9 +1430,7 @@ export default function ExamManagementPage() {
           </DialogHeader>
 
           {loadingResults ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
+            <CardSkeleton lines={6} variant="admin" />
           ) : selectedAttempt ? (
             <div className="space-y-4">
               <Button variant="outline" onClick={() => setSelectedAttempt(null)}>

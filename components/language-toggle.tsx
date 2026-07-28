@@ -6,7 +6,6 @@ const languages = [
   { value: "English", label: "EN" },
   { value: "French", label: "FR" },
   { value: "Kinyarwanda", label: "RW" },
-  { value: "Arabic", label: "AR" },
 ] as const;
 
 export function LanguageToggle() {

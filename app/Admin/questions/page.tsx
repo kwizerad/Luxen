@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { Watermark } from "@/components/watermark";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useLanguage } from "@/lib/language-context";
+import { TableSkeleton } from "@/components/skeletons";
 import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { isAdmin, hasReadWriteQuestionAccess, hasReadOnlyQuestionAccess } from "@/lib/permissions";
@@ -337,11 +338,7 @@ export default function QuestionManagementPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <TableSkeleton variant="admin" rows={6} columns={5} hasSearch hasFilters />;
   }
 
   if (!hasPermission) {

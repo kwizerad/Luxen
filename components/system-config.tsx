@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Loader2, Settings2, Shield, ClipboardList } from "lucide-react";
 import { getSystemConfig, updateSystemConfig } from "@/lib/supabase/queries";
+import { CardSkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
 
@@ -86,17 +87,7 @@ export function SystemConfigSettings() {
   };
 
   if (loading) {
-    return (
-      <Card className="border border-border rounded-[32px] bg-card shadow-sm">
-        <CardHeader>
-          <CardTitle>{t("systemConfiguration")}</CardTitle>
-          <CardDescription>{t("loadingConfiguration")}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </CardContent>
-      </Card>
-    );
+    return <CardSkeleton hasAction lines={5} />;
   }
 
   return (

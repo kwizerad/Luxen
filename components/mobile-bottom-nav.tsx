@@ -5,7 +5,6 @@ import { LayoutDashboard, FileText, Trophy, Settings, Home, BookOpen } from "luc
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
-import { getCourseLanguages } from "@/lib/supabase/queries";
 import { useNavAutohideEnabled } from "@/lib/use-nav-autohide";
 import { useEffect, useState } from "react";
 
@@ -24,26 +23,9 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
   const router = useRouter();
   const { t } = useLanguage();
   const { user } = useAuth();
-  const [hasPublishedCourses, setHasPublishedCourses] = useState(false);
   const [isExamActive, setIsExamActive] = useState(false);
   const [navVisible, setNavVisible] = useState(true);
   const autohideEnabled = useNavAutohideEnabled();
-
-  useEffect(() => {
-    const checkPublishedCourses = async () => {
-      if (!user) return;
-
-      try {
-        const data = await getCourseLanguages();
-        setHasPublishedCourses(data.languages && data.languages.length > 0);
-      } catch (error) {
-        console.error("Failed to check published courses:", error);
-        setHasPublishedCourses(false);
-      }
-    };
-
-    checkPublishedCourses();
-  }, [user]);
 
   // Check if exam is active
   useEffect(() => {
@@ -134,15 +116,11 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
 
   const navItems: NavItem[] = [
     { href: "/dashboard", labelKey: "home", icon: LayoutDashboard },
+    { href: "/dashboard/course", labelKey: "courses", icon: BookOpen },
     { href: "/dashboard/exam", labelKey: "takeExam", icon: FileText },
     { href: "/userExam", labelKey: "results", icon: Trophy },
     { href: "/dashboard/settings", labelKey: "settings", icon: Settings },
   ];
-
-  // Add courses tab if there are published courses
-  if (hasPublishedCourses) {
-    navItems.splice(1, 0, { href: "/dashboard/course", labelKey: "courses", icon: BookOpen });
-  }
 
   if (hide) return null;
 
@@ -178,7 +156,7 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
     >
       {/* Glassmorphism container */}
       <div className="premium-glass-panel student-nav-pill border rounded-[20px] h-14 overflow-hidden shadow-lg">
-        <div className={`grid ${hasPublishedCourses ? 'grid-cols-5' : 'grid-cols-4'} h-full`}>
+        <div className="grid grid-cols-5 h-full">
           {navItems.map((item) => {
             const isActive = isNavItemActive(item.href);
             const Icon = item.icon;

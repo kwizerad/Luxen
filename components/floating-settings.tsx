@@ -21,12 +21,11 @@ import { useLanguage } from "@/lib/language-context";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { isAdmin } from "@/lib/permissions";
 
-type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
-type LanguageCode = "en" | "rw" | "fr" | "ar";
+type Language = "English" | "Kinyarwanda" | "French";
+type LanguageCode = "en" | "rw" | "fr";
 
 const languages: { value: Language; label: string; flag: string }[] = [
   { value: "English", label: "English", flag: "🇬🇧" },
-  { value: "Arabic", label: "العربية", flag: "🇸🇦" },
   { value: "French", label: "Français", flag: "🇫🇷" },
   { value: "Kinyarwanda", label: "Kinyarwanda", flag: "🇷🇼" },
 ];
@@ -42,7 +41,6 @@ export function FloatingSettings() {
     English: "en",
     Kinyarwanda: "rw",
     French: "fr",
-    Arabic: "ar"
   };
 
   const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
@@ -91,7 +89,7 @@ export function FloatingSettings() {
 
   return (
     <div className="fixed right-5 bottom-5 z-50 hidden md:block">
-      <DropdownMenu dir="rtl">
+      <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="glass"

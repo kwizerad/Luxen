@@ -10,15 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Lock, Loader2, Globe, Moon, Sun, Type, User, Camera, Upload, X, RefreshCw, MoreVertical, Eye, ChevronDown, ChevronUp, Shield, Bell, Smartphone, History, Download, Trash2, CheckCircle, AlertCircle, Info, Mail, Search, BookOpen } from "lucide-react";
+import { Lock, Loader2, Globe, Moon, Sun, Type, User, Camera, Upload, X, RefreshCw, MoreVertical, Eye, ChevronDown, ChevronUp, Shield, Bell, Smartphone, History, Download, Trash2, CheckCircle, AlertCircle, Info, Mail, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 
 type TextSize = "sm" | "md" | "lg";
-type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
-type LanguageCode = "en" | "rw" | "fr" | "ar";
+type Language = "English" | "Kinyarwanda" | "French";
+type LanguageCode = "en" | "rw" | "fr";
 
 interface UserSettingsProps {
   user: any;
@@ -76,13 +76,11 @@ export default function UserSettings({
   const [securityOpen, setSecurityOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
-  const [courseLanguageOpen, setCourseLanguageOpen] = useState(false);
 
   // Additional state for new features
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
   const [notificationPreferences, setNotificationPreferences] = useState({
-    courses: true,
     exams: true,
     announcements: true,
     grades: true,
@@ -97,15 +95,7 @@ export default function UserSettings({
       if (metadata.notification_preferences) {
         setNotificationPreferences(metadata.notification_preferences);
       }
-      
-      // Load course language
-      if (metadata.course_language) {
-        setCourseLanguage(metadata.course_language);
-      }
-      if (metadata.course_language_id) {
-        setCourseLanguageId(metadata.course_language_id);
-      }
-      
+
       // Load theme preference
       if (!localStorage.getItem("navo-theme") && (metadata.theme === "light" || metadata.theme === "dark")) {
         setTheme(metadata.theme);
@@ -126,7 +116,6 @@ export default function UserSettings({
           en: "English",
           rw: "Kinyarwanda",
           fr: "French",
-          ar: "Arabic"
         };
         if (!localStorage.getItem("navo-language")) {
           setContextLanguage(languageMap[metadata.language as LanguageCode]);
@@ -169,30 +158,7 @@ export default function UserSettings({
     }
   };
 
-  // Load available published course languages
-  useEffect(() => {
-    loadAvailableCourseLanguages();
-  }, []);
-
-  const loadAvailableCourseLanguages = async () => {
-    try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('course_language_courses')
-        .select('*')
-        .eq('is_published', true);
-
-      if (error) throw error;
-      setAvailableCourseLanguages(data || []);
-    } catch (error) {
-      console.error('Failed to load course languages:', error);
-    }
-  };
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
-  const [courseLanguage, setCourseLanguage] = useState("English");
-  const [courseLanguageId, setCourseLanguageId] = useState<string | null>(null);
-  const [availableCourseLanguages, setAvailableCourseLanguages] = useState<any[]>([]);
-  const [showCourseLanguageDialog, setShowCourseLanguageDialog] = useState(false);
   const [loginHistory, setLoginHistory] = useState<any[]>([]);
   const [activeSessions, setActiveSessions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -229,7 +195,6 @@ export default function UserSettings({
       en: "English",
       rw: "Kinyarwanda",
       fr: "French",
-      ar: "Arabic"
     };
     setContextLanguage(languageMap[newLanguage]);
 
@@ -252,7 +217,6 @@ export default function UserSettings({
       changePasswordOpen: setChangePasswordOpen,
       appearanceLanguageOpen: setAppearanceLanguageOpen,
       notificationsOpen: setNotificationsOpen,
-      courseLanguageOpen: setCourseLanguageOpen,
     };
 
     // Close all cards first
@@ -790,48 +754,6 @@ export default function UserSettings({
             )}
           </Card>
 
-          {/* Course Language */}
-          {!isAdminMode && (
-          <Card 
-            className={`${cardHoverClass} hover:border-purple-500/50 cursor-pointer transition-all duration-300 ease-in-out`}
-            onClick={() => handleCardToggle('courseLanguageOpen')}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{t("userSettings.courseSelection")}</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCardToggle('courseLanguageOpen');
-                  }}
-                >
-                  <ChevronDown className={`h-4 w-4 transition-transform ${courseLanguageOpen ? 'rotate-180' : ''}`} />
-                </Button>
-              </div>
-              <CardDescription className="text-xs">{t("userSettings.chooseLearningCourse")}</CardDescription>
-            </CardHeader>
-            {courseLanguageOpen && (
-            <CardContent className="pt-0 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden transition-all duration-300 ease-in-out max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">{t("userSettings.currentCourse")}</span>
-                <Badge variant="default" className="text-xs">{courseLanguage}</Badge>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full"
-                onClick={() => setShowCourseLanguageDialog(true)}
-              >
-                {t("userSettings.changeCourse")}
-              </Button>
-            </CardContent>
-            )}
-          </Card>
-          )}
-
           {/* Notifications */}
           {!isAdminMode && (
           <Card 
@@ -1121,90 +1043,6 @@ export default function UserSettings({
         </DialogContent>
       </Dialog>
 
-      {/* Course Language Dialog */}
-      <Dialog open={showCourseLanguageDialog} onOpenChange={setShowCourseLanguageDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("userSettings.chooseCourse")}</DialogTitle>
-            <DialogDescription>
-              {t("userSettings.chooseCourseDescription")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {availableCourseLanguages.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>{t("userSettings.noPublishedCourses")}</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {availableCourseLanguages.map((course) => (
-                  <div
-                    key={course.id}
-                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                      courseLanguageId === course.id
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "hover:bg-secondary"
-                    }`}
-                    onClick={() => {
-                      setCourseLanguage(course.title);
-                      setCourseLanguageId(course.id);
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{course.title}</div>
-                        {course.description && (
-                          <div className={`text-xs mt-1 ${courseLanguageId === course.id ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                            {course.description}
-                          </div>
-                        )}
-                      </div>
-                      {courseLanguageId === course.id && (
-                        <CheckCircle className="h-5 w-5" />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowCourseLanguageDialog(false)}>
-                {t("cancel")}
-              </Button>
-              <Button 
-                onClick={async () => {
-                  try {
-                    const supabase = createClient();
-                    const { error } = await supabase.auth.updateUser({
-                      data: { 
-                        course_language: courseLanguage,
-                        course_language_id: courseLanguageId
-                      }
-                    });
-
-                    if (error) throw error;
-
-                    toast.success(t("userSettings.courseSelectionSaved"));
-                    setShowCourseLanguageDialog(false);
-
-                    if (onUserUpdate) {
-                      const { data: { user: updatedUser } } = await supabase.auth.getUser();
-                      if (updatedUser) onUserUpdate(updatedUser);
-                    }
-                  } catch (error: any) {
-                    toast.error(`${t("userSettings.failedToSave")}: ${error.message}`);
-                  }
-                }}
-                disabled={!courseLanguageId}
-              >
-                {t("userSettings.saveSelection")}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Notification Preferences Dialog */}
       <Dialog open={showNotificationDialog} onOpenChange={setShowNotificationDialog}>
         <DialogContent>
@@ -1216,16 +1054,6 @@ export default function UserSettings({
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="courses"
-                  checked={notificationPreferences.courses}
-                  onChange={(e) => setNotificationPreferences({...notificationPreferences, courses: e.target.checked})}
-                  className="rounded"
-                />
-                <label htmlFor="courses" className="text-sm cursor-pointer">{t("userSettings.newCoursesLessons")}</label>
-              </div>
             </div>
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div className="flex items-center gap-3">

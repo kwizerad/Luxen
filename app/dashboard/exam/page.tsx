@@ -11,6 +11,7 @@ import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { getExamCategories, getExamForTaking, createExamAttempt, areViolationMeasuresEnabled } from "@/lib/supabase/queries";
 import { toast } from "sonner";
+import { CardSkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
 import { CheckCircle, XCircle, Clock, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Eye, Shield, Timer, HelpCircle, ChevronRight, FileText, Play, LogOut, Monitor } from "lucide-react";
 import {
@@ -1020,11 +1021,9 @@ export default function TakeExamPage() {
                 // Loading or no exams
                 <div className="text-center py-8">
                   {loadingCategories ? (
-                    <>
-                      <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto mb-3" />
-                      <p className="text-muted-foreground mb-2">{t("pleaseWait")}</p>
-                      <p className="text-sm text-muted-foreground">{t("loadingExamCategories")}</p>
-                    </>
+                    <div className="max-w-md mx-auto">
+                      <CardSkeleton lines={4} />
+                    </div>
                   ) : (
                     <>
                       <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />

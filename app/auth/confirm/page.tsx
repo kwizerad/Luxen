@@ -3,8 +3,9 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Loader2 } from "lucide-react";
 import type { EmailOtpType } from "@supabase/supabase-js";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function ConfirmContent() {
   const router = useRouter();
@@ -48,11 +49,12 @@ function ConfirmContent() {
   }, [router, searchParams]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-transparent">
-      <div className="text-center">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-        <p className="text-muted-foreground">Verifying your email...</p>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+      <Card className="w-full max-w-md p-8 space-y-4">
+        <Skeleton className="h-6 w-3/4 mx-auto" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3 mx-auto" />
+      </Card>
     </div>
   );
 }
@@ -60,11 +62,12 @@ function ConfirmContent() {
 export default function ConfirmPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-transparent">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+        <Card className="w-full max-w-md p-8 space-y-4">
+          <Skeleton className="h-6 w-3/4 mx-auto" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3 mx-auto" />
+        </Card>
       </div>
     }>
       <ConfirmContent />

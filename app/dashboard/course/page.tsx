@@ -1,631 +1,161 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { useBrandingConfig } from "@/lib/branding-config";
+import { useCallback, useEffect, useState } from "react";
 import { useLanguage } from "@/lib/language-context";
-import {
-  BookOpen,
-  Lock,
-  CheckCircle,
-  Play,
-  Clock,
-  Target,
-  ChevronRight,
-  FileText,
-  ArrowLeft,
-  Languages,
-  ChevronDown,
-} from "lucide-react";
-import { Watermark } from "@/components/watermark";
-import { toast } from "sonner";
-import type { CourseModule, CourseLesson, StudentModuleProgress, StudentLessonProgress, CourseLanguageCourse } from "@/lib/database.types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import {
-  getCourseLanguages,
-  getCourseModules,
-  getCourseLessons,
-  getStudentModuleProgress,
-  getStudentLessonProgress,
-  getModuleExamSettings,
-  createNotification,
-} from "@/lib/supabase/queries";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { BookOpen, Layers, FileText, GraduationCap } from "lucide-react";
+import type { CourseLanguage, CourseLanguageCourse, CourseModule, CourseLesson } from "@/lib/database.types";
 
-const COURSE_LANGUAGES = ["English", "Kinyarwanda", "French"] as const;
-type CourseLanguageEnum = (typeof COURSE_LANGUAGES)[number];
+const LEARNING_LANGUAGES = ["English", "French", "Kinyarwanda"] as const;
+type LearningLanguage = (typeof LEARNING_LANGUAGES)[number];
 
-export default function CoursePage() {
-  const { config } = useBrandingConfig();
-  const { language, t } = useLanguage();
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+interface ModuleWithLessons extends CourseModule {
+  lessons: CourseLesson[];
+}
 
-  const [selectedLanguageCourse, setSelectedLanguageCourse] = useState<CourseLanguageCourse | null>(null);
-  const [lessonLanguage, setLessonLanguage] = useState<CourseLanguageEnum>(language as CourseLanguageEnum);
-  const [userCourseLanguageId, setUserCourseLanguageId] = useState<string | null>(null);
+interface CourseWithModules extends CourseLanguageCourse {
+  modules: ModuleWithLessons[];
+}
 
-  const getLocalized = (value: string, translations: Record<string, string> | undefined | null, lang: string) => {
-    if (lang === "English") return value;
-    return translations?.[lang] || value;
-  };
+const isLearningLanguage = (language: string): language is LearningLanguage =>
+  LEARNING_LANGUAGES.includes(language as LearningLanguage);
 
-  const getModuleTitle = (module: CourseModule) => getLocalized(module.title, module.title_translations, language);
-  const getModuleDescription = (module: CourseModule) =>
-    module.description ? getLocalized(module.description, module.description_translations, language) : undefined;
-  const getLessonTitle = (lesson: CourseLesson) => getLocalized(lesson.title, lesson.title_translations, lessonLanguage);
-  const getLessonContent = (lesson: CourseLesson) => getLocalized(lesson.content, lesson.content_translations, lessonLanguage);
-
-  // Get available languages for a lesson (languages that have translations)
-  const getAvailableLanguages = (lesson: CourseLesson): CourseLanguageEnum[] => {
-    const available: CourseLanguageEnum[] = ['English']; // English is always available as default
-    
-    COURSE_LANGUAGES.forEach(lang => {
-      if (lang === 'English') return;
-      const hasTitleTranslation = lesson.title_translations?.[lang];
-      const hasContentTranslation = lesson.content_translations?.[lang];
-      if (hasTitleTranslation || hasContentTranslation) {
-        available.push(lang);
-      }
-    });
-    
-    return available;
-  };
-
-  const [languageCourses, setLanguageCourses] = useState<CourseLanguageCourse[]>([]);
-  const [modules, setModules] = useState<CourseModule[]>([]);
-  const [lessons, setLessons] = useState<Record<string, CourseLesson[]>>({});
-  const [moduleProgress, setModuleProgress] = useState<Record<string, StudentModuleProgress>>({});
-  const [lessonProgress, setLessonProgress] = useState<Record<string, StudentLessonProgress>>({});
-  const [examSettings, setExamSettings] = useState<Record<string, any>>({});
+export default function StudentCoursePage() {
+  const { t, language: interfaceLanguage } = useLanguage();
+  const [course, setCourse] = useState<CourseWithModules | null>(null);
+  const [learningLanguage, setLearningLanguage] = useState<LearningLanguage | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeModule, setActiveModule] = useState<string | null>(null);
-  const [activeLesson, setActiveLesson] = useState<CourseLesson | null>(null);
-  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+  const [savingLanguage, setSavingLanguage] = useState(false);
 
-  useEffect(() => {
-    loadUser();
-    loadData();
+  const loadCourse = useCallback(async (selectedLanguage: LearningLanguage | null) => {
+    if (!selectedLanguage) {
+      setCourse(null);
+      setLoading(false);
+      return;
+    }
+
+    const supabase = createClient();
+    setLoading(true);
+    const { data: courseData, error: courseError } = await supabase
+      .from("course_languages")
+      .select("*")
+      .eq("language", selectedLanguage)
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .order("order_index", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (courseError || !courseData) {
+      setCourse(null);
+      setLoading(false);
+      return;
+    }
+
+    const { data: modulesData, error: modulesError } = await supabase
+      .from("course_modules")
+      .select("*, lessons:course_lessons(*)")
+      .eq("language_id", courseData.id)
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .order("order_index", { ascending: true });
+    if (modulesError || !modulesData) {
+      setCourse(null);
+      setLoading(false);
+      return;
+    }
+
+    const modules = (modulesData as Array<CourseModule & { lessons: CourseLesson[] }>).map((module) => {
+      const lessons = (module.lessons || [])
+        .filter((lesson) => !lesson.deleted_at)
+        .sort((a, b) => a.order_index - b.order_index);
+      return { ...module, lessons } as ModuleWithLessons;
+    });
+    setCourse({ ...courseData, modules } as CourseWithModules);
+    setLoading(false);
   }, []);
 
-  const loadUser = async () => {
-    try {
-      const supabase = createClient();
-      const { data: { user: userData } } = await supabase.auth.getUser();
-      setUser(userData);
-    } catch (error) {
-      console.error("Failed to load user:", error);
-    }
-  };
-
   useEffect(() => {
-    // Default lesson language to system language
-    setLessonLanguage(language as CourseLanguageEnum);
-    // Load user's course language preference
-    if (user?.user_metadata?.course_language_id) {
-      setUserCourseLanguageId(user.user_metadata.course_language_id);
-    }
-  }, [language, user]);
-
-  useEffect(() => {
-    if (selectedLanguageCourse) {
-      loadData();
-    }
-  }, [selectedLanguageCourse]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const supabase = createClient();
-
-      // Load published language courses
-      const languagesData = await getCourseLanguages();
-      setLanguageCourses(languagesData.languages);
-
-      // Auto-select the user's preferred language course if none selected
-      if (!selectedLanguageCourse && languagesData.languages.length > 0) {
-        // First try to find the user's preferred language course by ID
-        const userPreferredCourse = languagesData.languages.find((l: CourseLanguageCourse) =>
-          l.is_published && l.id === userCourseLanguageId
-        );
-
-        // If no user preference, try to match system language
-        const systemLanguageCourse = languagesData.languages.find((l: CourseLanguageCourse) =>
-          l.is_published && l.language === language
-        );
-
-        // Fall back to first published course if neither preference nor system language match found
-        const firstPublished = languagesData.languages.find((l: CourseLanguageCourse) => l.is_published);
-
-        if (userPreferredCourse) {
-          setSelectedLanguageCourse(userPreferredCourse);
-        } else if (systemLanguageCourse) {
-          setSelectedLanguageCourse(systemLanguageCourse);
-        } else if (firstPublished) {
-          setSelectedLanguageCourse(firstPublished);
-        }
+    const loadLearningLanguage = async () => {
+      const matchingLanguage = isLearningLanguage(interfaceLanguage) ? interfaceLanguage : null;
+      if (matchingLanguage) {
+        setLearningLanguage(matchingLanguage);
+        await loadCourse(matchingLanguage);
+        return;
       }
 
-      // Load modules for selected language course
-      if (selectedLanguageCourse) {
-        const modulesData = await getCourseModules(selectedLanguageCourse.id);
-        setModules(modulesData.modules);
-
-        // Load lessons for each module
-        const lessonsData: Record<string, CourseLesson[]> = {};
-        for (const module of modulesData.modules) {
-          const moduleLessons = await getCourseLessons(module.id);
-          lessonsData[module.id] = moduleLessons.lessons;
-        }
-        setLessons(lessonsData);
-
-        // Load module progress
-        const progressData = await getStudentModuleProgress();
-        const progressMap: Record<string, StudentModuleProgress> = {};
-        progressData.progress.forEach((p: StudentModuleProgress) => {
-          progressMap[p.module_id] = p;
-        });
-        setModuleProgress(progressMap);
-
-        // Load lesson progress
-        const lessonProgressData = await getStudentLessonProgress();
-        const lessonProgressMap: Record<string, StudentLessonProgress> = {};
-        lessonProgressData.progress.forEach((p: StudentLessonProgress) => {
-          lessonProgressMap[p.lesson_id] = p;
-        });
-        setLessonProgress(lessonProgressMap);
-
-        // Load exam settings for each module
-        const settingsMap: Record<string, any> = {};
-        for (const module of modulesData.modules) {
-          try {
-            const settings = await getModuleExamSettings(module.id);
-            settingsMap[module.id] = settings.settings;
-          } catch {
-            // Use defaults if settings not found
-            settingsMap[module.id] = {
-              question_count: 20,
-              duration_minutes: 20,
-              passing_score: 70,
-            };
-          }
-        }
-        setExamSettings(settingsMap);
-      } else {
-        setModules([]);
-        setLessons({});
-        setModuleProgress({});
-        setLessonProgress({});
-        setExamSettings({});
-      }
-    } catch (error: any) {
-      toast.error("Failed to load course data: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const isModuleUnlocked = (module: CourseModule, index: number) => {
-    // First module is always unlocked
-    if (index === 0) return true;
-
-    // Module is unlocked if the previous module's exam is passed
-    const previousModule = modules[index - 1];
-    const previousProgress = moduleProgress[previousModule.id];
-    return previousProgress?.exam_passed || false;
-  };
-
-  const canTakeExam = (moduleId: string) => {
-    const progress = moduleProgress[moduleId];
-    const moduleLessons = lessons[moduleId] || [];
-    const completedLessons = moduleLessons.filter(
-      (l) => lessonProgress[l.id]?.completed
-    ).length;
-
-    // Can take exam if all lessons are completed OR if lessons were completed before
-    return progress?.lessons_completed === moduleLessons.length && moduleLessons.length > 0;
-  };
-
-  const getModuleProgress = (moduleId: string) => {
-    const progress = moduleProgress[moduleId];
-    const moduleLessons = lessons[moduleId] || [];
-    const completedLessons = moduleLessons.filter(
-      (l) => lessonProgress[l.id]?.completed
-    ).length;
-
-    return {
-      lessonsCompleted: completedLessons,
-      totalLessons: moduleLessons.length,
-      examPassed: progress?.exam_passed || false,
-      examAttempts: progress?.exam_attempts || 0,
-      bestScore: progress?.best_score,
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = user
+        ? await supabase.from("user_profiles").select("learning_language").eq("id", user.id).maybeSingle()
+        : { data: null };
+      const savedLanguage = profile?.learning_language;
+      const selectedLanguage = isLearningLanguage(savedLanguage || "") ? savedLanguage : null;
+      setLearningLanguage(selectedLanguage);
+      await loadCourse(selectedLanguage);
     };
-  };
 
-  const openLesson = (lesson: CourseLesson) => {
-    setActiveLesson(lesson);
-  };
+    void loadLearningLanguage();
+  }, [interfaceLanguage, loadCourse]);
 
-  const takeExam = (moduleId: string) => {
-    router.push(`/dashboard/course/${moduleId}/exam`);
-  };
-
-  const toggleModuleExpansion = (moduleId: string) => {
-    setExpandedModules(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(moduleId)) {
-        newSet.delete(moduleId);
-      } else {
-        newSet.add(moduleId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleCourseLanguageChange = async (courseId: string) => {
-    const selected = publishedCourses.find(c => c.id === courseId);
-    if (selected) {
-      setSelectedLanguageCourse(selected);
-      // Save user's course language preference
-      if (user) {
-        try {
-          const supabase = createClient();
-          await supabase.auth.updateUser({
-            data: { course_language_id: courseId }
-          });
-        } catch (error) {
-          console.error("Failed to save course language preference:", error);
-        }
-      }
+  const selectLearningLanguage = async (selectedLanguage: LearningLanguage) => {
+    const supabase = createClient();
+    setSavingLanguage(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setSavingLanguage(false);
+      return;
     }
+
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({ learning_language: selectedLanguage })
+      .eq("id", user.id);
+    if (!error) {
+      setLearningLanguage(selectedLanguage);
+      await loadCourse(selectedLanguage);
+    }
+    setSavingLanguage(false);
   };
+
+  const totalLessons = (selectedCourse: CourseWithModules) =>
+    selectedCourse.modules.reduce((sum, module) => sum + module.lessons.length, 0);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    );
+    return <div className="text-center py-16 border border-dashed rounded-2xl bg-muted/40"><BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-40 animate-pulse" /><p className="text-lg font-medium">{t("loading") || "Loading..."}</p></div>;
   }
 
-  if (activeLesson) {
+  if (!learningLanguage) {
     return (
-      <div className="bg-transparent flex justify-center">
-        <Watermark />
-        <main className="student-page-narrow w-full">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Button variant="ghost" onClick={() => setActiveLesson(null)}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {t("backToCourse")}
+      <div className="max-w-xl mx-auto rounded-2xl border bg-card p-6 sm:p-8 space-y-6">
+        <div className="text-center space-y-2">
+          <BookOpen className="h-10 w-10 mx-auto text-primary" />
+          <h1 className="text-2xl font-bold">Choose the language you want to study in</h1>
+          <p className="text-sm text-muted-foreground">Your learning language is separate from the application interface language.</p>
+        </div>
+        <div className="grid gap-3">
+          {LEARNING_LANGUAGES.map((option) => (
+            <Button key={option} type="button" variant="outline" className="h-12 justify-start" disabled={savingLanguage} onClick={() => void selectLearningLanguage(option)}>
+              {option === "English" ? "English" : option === "French" ? "Français" : "Kinyarwanda"}
             </Button>
-            <div className="flex items-center gap-2">
-              <Languages className="h-4 w-4 text-primary" />
-              <Select value={lessonLanguage} onValueChange={(v) => setLessonLanguage(v as CourseLanguageEnum)}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {getAvailableLanguages(activeLesson).map((lang) => (
-                    <SelectItem key={lang} value={lang}>{lang}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{activeLesson ? getLessonTitle(activeLesson) : ""}</CardTitle>
-              <CardDescription>
-                {activeLesson.content_type === 'video' && t("lessonType.video")}
-                {activeLesson.content_type === 'image' && t("lessonType.image")}
-                {activeLesson.content_type === 'document' && t("lessonType.document")}
-                {activeLesson.content_type === 'text' && t("lessonType.text")}
-                {activeLesson.content_type === 'mixed' && t("lessonType.mixed")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {activeLesson.content_type === 'video' && activeLesson.media_url && (
-                <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                  <video controls className="w-full h-full">
-                    <source src={activeLesson.media_url} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
-                </div>
-              )}
-
-              {activeLesson.content_type === 'image' && activeLesson.media_url && (
-                <img
-                  src={activeLesson.media_url}
-                  alt={activeLesson ? getLessonTitle(activeLesson) : ""}
-                  className="w-full rounded-lg"
-                />
-              )}
-
-              {activeLesson.content_type === 'mixed' && activeLesson.image_url && (
-                <img
-                  src={activeLesson.image_url}
-                  alt={activeLesson ? getLessonTitle(activeLesson) : ""}
-                  className="w-full rounded-lg"
-                />
-              )}
-
-              {activeLesson.content_type === 'document' && activeLesson.media_url && (
-                <div className="p-4 border rounded-lg">
-                  <a
-                    href={activeLesson.media_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-primary hover:underline"
-                  >
-                    <FileText className="h-5 w-5" />
-                    {t("openDocument")}
-                  </a>
-                </div>
-              )}
-
-              {(activeLesson.content_type === 'text' || activeLesson.content_type === 'mixed') && (
-                <div className="prose prose-sm max-w-none">
-                  <p className="whitespace-pre-wrap">{activeLesson ? getLessonContent(activeLesson) : ""}</p>
-                </div>
-              )}
-
-              <Button
-                onClick={async () => {
-                  try {
-                    const supabase = createClient();
-                    const { markLessonComplete } = await import("@/lib/supabase/queries");
-                    await markLessonComplete(activeLesson.id, activeLesson.module_id);
-                    toast.success(t("lessonCompleted"));
-                    setActiveLesson(null);
-                    loadData();
-                  } catch (error: any) {
-                    toast.error(`${t("failedToMarkLessonComplete")}: ${error.message}`);
-                  }
-                }}
-                disabled={lessonProgress[activeLesson.id]?.completed}
-                className="w-full"
-              >
-                {lessonProgress[activeLesson.id]?.completed ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    {t("completed")}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    {t("markAsComplete")}
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        </main>
+          ))}
+        </div>
       </div>
     );
   }
 
-  const publishedCourses = languageCourses.filter(l => l.is_published);
+  if (!course) {
+    return <div className="text-center py-16 border border-dashed rounded-2xl bg-muted/40"><BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-40" /><p className="text-lg font-medium">{t("noCoursesAvailable") || "No courses available"}</p><p className="text-sm text-muted-foreground mt-1">There is no published {learningLanguage} course right now.</p></div>;
+  }
 
   return (
-    <div className="bg-transparent flex justify-center">
-      <Watermark />
-      <main className="student-page-narrow w-full">
-        <div className="student-page-header">
-          <div>
-            <h1 className="student-page-title">{t("trafficSchoolCourse")}</h1>
-            <p className="student-page-description">
-              {selectedLanguageCourse
-                ? `${selectedLanguageCourse.title}${t("course.completeModulesToFinish")}`
-                : publishedCourses.length > 0
-                  ? t("course.loadingYourCourse")
-                  : t("course.contentAvailableSoon")
-              }
-            </p>
-          </div>
-          {publishedCourses.length > 1 && (
-            <div className="flex w-full items-center gap-2 sm:w-auto">
-              <Languages className="h-4 w-4 shrink-0 text-primary" />
-              <Select
-                value={selectedLanguageCourse?.id || ""}
-                onValueChange={handleCourseLanguageChange}
-              >
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder={t("language")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {publishedCourses.map((course) => (
-                    <SelectItem key={course.id} value={course.id}>
-                      {course.language}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-
-        {publishedCourses.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">{t("courseContentComingSoon")}</h3>
-              <p className="text-muted-foreground">
-                {t("courseContentComingSoonDesc")}
-              </p>
-            </CardContent>
-          </Card>
-        ) : modules.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">{t("noCourseContentAvailable")}</h3>
-              <p className="text-muted-foreground">
-                {t("courseModulesWillAppear")}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <section className="student-section">
-            <div className="student-section-header">
-              <h2 className="student-section-title">{t("modules")}</h2>
-            </div>
-            <div className="space-y-4">
-            {modules.map((module, index) => {
-              const unlocked = isModuleUnlocked(module, index);
-              const progress = getModuleProgress(module.id);
-              const settings = examSettings[module.id];
-              const moduleLessons = lessons[module.id] || [];
-
-              return (
-                <Card key={module.id} className={`rounded-[14px] sm:rounded-[24px] ${!unlocked ? "opacity-60" : ""}`}>
-                  <CardHeader
-                    className="cursor-pointer p-3 sm:p-6"
-                    onClick={() => toggleModuleExpansion(module.id)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="mb-1.5 sm:mb-2 flex flex-wrap items-center gap-1.5 sm:gap-2">
-                          <span className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-[8px] sm:rounded-[10px] bg-primary/10 text-xs sm:text-sm font-bold text-primary">
-                            {index + 1}
-                          </span>
-                          <CardTitle className="text-base sm:text-lg lg:text-xl line-clamp-2">{getModuleTitle(module)}</CardTitle>
-                          {!unlocked && (
-                            <Badge variant="secondary" className="text-[10px] sm:text-xs">
-                              <Lock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                              {t("locked")}
-                            </Badge>
-                          )}
-                          {progress.examPassed && (
-                            <Badge className="bg-green-500 text-[10px] sm:text-xs">
-                              <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                              {t("passed")}
-                            </Badge>
-                          )}
-                        </div>
-                        {getModuleDescription(module) && (
-                          <CardDescription className="text-[11px] sm:text-sm line-clamp-2">{getModuleDescription(module)}</CardDescription>
-                        )}
-                      </div>
-                      <ChevronDown
-                        className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 transition-transform ${expandedModules.has(module.id) ? 'rotate-180' : ''}`}
-                      />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3 sm:space-y-4 p-3 pt-0 sm:p-6 sm:pt-0">
-                    {/* Progress bar */}
-                    {moduleLessons.length > 0 && (
-                      <div className="space-y-1.5 sm:space-y-2">
-                        <div className="flex items-center justify-between text-[11px] sm:text-sm">
-                          <span className="text-muted-foreground">
-                            {t("lessons")}: {progress.lessonsCompleted} / {progress.totalLessons}
-                          </span>
-                          <span className="font-medium">
-                            {Math.round((progress.lessonsCompleted / progress.totalLessons) * 100)}%
-                          </span>
-                        </div>
-                        <Progress
-                          value={(progress.lessonsCompleted / progress.totalLessons) * 100}
-                        />
-                      </div>
-                    )}
-
-                    {/* Lessons list - shown only when expanded */}
-                    {unlocked && expandedModules.has(module.id) && moduleLessons.length > 0 && (
-                      <div className="space-y-1.5 sm:space-y-2">
-                        <h4 className="font-medium text-xs sm:text-sm">{t("lessons")}</h4>
-                        {moduleLessons.map((lesson) => {
-                          const isCompleted = lessonProgress[lesson.id]?.completed;
-                          return (
-                            <div
-                              key={lesson.id}
-                              className="flex items-center justify-between p-2 sm:p-3 border rounded-[10px] sm:rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
-                              onClick={() => openLesson(lesson)}
-                            >
-                              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                                {isCompleted ? (
-                                  <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 shrink-0" />
-                                ) : (
-                                  <Play className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />
-                                )}
-                                <span className={`text-xs sm:text-sm truncate ${isCompleted ? "line-through text-muted-foreground" : ""}`}>
-                                  {getLessonTitle(lesson)}
-                                </span>
-                              </div>
-                              <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Exam section */}
-                    {unlocked && canTakeExam(module.id) && (
-                      <div className="pt-3 sm:pt-4 border-t">
-                        <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="space-y-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
-                              <span className="font-medium text-xs sm:text-sm">{t("moduleExam")}</span>
-                              {progress.examAttempts > 0 && (
-                                <Badge variant="outline" className="text-[10px] sm:text-xs">
-                                  {progress.examAttempts} {progress.examAttempts > 1 ? t("attempts") : t("attempt")}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 sm:gap-4 text-[11px] sm:text-sm text-muted-foreground flex-wrap">
-                              <span className="flex items-center gap-1">
-                                <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                {settings?.question_count || 20} {t("questions")}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                {settings?.duration_minutes || 20} {t("minutes")}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Target className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                {settings?.passing_score || 70}{t("percentToPass")}
-                              </span>
-                            </div>
-                            {progress.bestScore !== undefined && (
-                              <p className="text-[11px] sm:text-sm">
-                                {t("bestScoreLabel")} <span className="font-medium">{progress.bestScore}%</span>
-                              </p>
-                            )}
-                          </div>
-                          <Button size="sm" className="self-start sm:self-auto" onClick={() => takeExam(module.id)}>
-                            {progress.examPassed ? t("retakeExam") : t("takeExam")}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {!unlocked && (
-                      <div className="pt-4 border-t">
-                        <p className="text-sm text-muted-foreground">
-                          {t("completePreviousModuleUnlock")}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-            </div>
-          </section>
-        )}
-      </main>
+    <div className="space-y-6">
+      <div className="space-y-1"><h1 className="text-2xl font-bold flex items-center gap-3"><BookOpen className="h-7 w-7 text-primary" />{t("courses") || "Courses"}</h1><p className="text-muted-foreground text-sm">Showing the published {learningLanguage} course.</p></div>
+      <div className="rounded-2xl border bg-card p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h2 className="text-xl font-semibold">{course.title}</h2><p className="text-muted-foreground text-sm">{course.description}</p></div><div className="flex items-center gap-2 flex-shrink-0"><Badge variant="secondary" className="flex items-center gap-1"><Layers className="h-3.5 w-3.5" />{course.modules.length} {t("modules") || "modules"}</Badge><Badge variant="outline" className="flex items-center gap-1"><GraduationCap className="h-3.5 w-3.5" />{totalLessons(course)} {t("lessons") || "lessons"}</Badge></div></div>
+        <div className="space-y-4">{course.modules.map((module) => <div key={module.id} className="rounded-xl border bg-muted/30 p-4 space-y-3"><h3 className="text-base font-medium flex items-center gap-2"><Layers className="h-4 w-4 text-primary" />{module.title}</h3>{module.lessons.length === 0 ? <p className="text-sm text-muted-foreground">{t("noLessonsYet") || "No lessons yet."}</p> : <div className="space-y-3 pl-6">{module.lessons.map((lesson) => <div key={lesson.id} className="rounded-xl border bg-background p-3"><h4 className="font-medium text-sm flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground" />{lesson.title}</h4><p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">{lesson.content || t("noContent") || "No content yet."}</p></div>)}</div>}</div>)}</div>
+      </div>
     </div>
   );
 }

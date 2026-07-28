@@ -4,7 +4,8 @@ import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isPrimaryAdmin } from "@/lib/permissions";
-import { Loader2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function AuthCallbackContent() {
   const router = useRouter();
@@ -97,11 +98,12 @@ function AuthCallbackContent() {
   }, [router, searchParams]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-transparent">
-      <div className="text-center">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-        <p className="text-muted-foreground">Completing authentication...</p>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+      <Card className="w-full max-w-md p-8 space-y-4">
+        <Skeleton className="h-6 w-3/4 mx-auto" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3 mx-auto" />
+      </Card>
     </div>
   );
 }
@@ -109,11 +111,12 @@ function AuthCallbackContent() {
 export default function AuthCallbackPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-transparent">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+        <Card className="w-full max-w-md p-8 space-y-4">
+          <Skeleton className="h-6 w-3/4 mx-auto" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3 mx-auto" />
+        </Card>
       </div>
     }>
       <AuthCallbackContent />

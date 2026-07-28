@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { PlayCircle, FileText, Settings, BarChart3, Trophy, BookOpen, ArrowUpRight, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface QuickAction {
   id: string;
@@ -67,11 +68,22 @@ export function QuickActions({ actions, isLoading = false }: QuickActionsProps) 
 
   if (isLoading) {
     return (
-      <div className="flex sm:hidden gap-1.5 overflow-hidden">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="flex-1 bg-muted/60 rounded-full h-8 animate-pulse"></div>
-        ))}
-      </div>
+      <>
+        <div className="flex sm:hidden gap-1.5 overflow-hidden -mx-1 px-1">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="flex-1 h-8 rounded-full" />
+          ))}
+        </div>
+        <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="premium-quick-action p-6 min-h-[160px]">
+              <Skeleton className="h-12 w-12 rounded-2xl mx-auto mb-4" />
+              <Skeleton className="h-4 w-24 mx-auto mb-2" />
+              <Skeleton className="h-3 w-32 mx-auto" />
+            </div>
+          ))}
+        </div>
+      </>
     );
   }
 

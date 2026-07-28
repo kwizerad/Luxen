@@ -5,9 +5,8 @@ import { usePathname } from "next/navigation";
 import en from "./translations/en";
 import rw from "./translations/rw";
 import fr from "./translations/fr";
-import ar from "./translations/ar";
 
-type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
+type Language = string;
 
 interface LanguageContextType {
   language: Language;
@@ -22,10 +21,7 @@ const translations: Record<Language, Record<string, string>> = {
   English: en,
   Kinyarwanda: rw,
   French: fr,
-  Arabic: ar,
 };
-
-const RTL_LANGUAGES: Language[] = ["Arabic"];
 
 // Get default system name from localStorage or fallback to "Navo"
 const getDefaultSystemName = (): string => {
@@ -44,8 +40,6 @@ const getDefaultSystemName = (): string => {
 
 const LANGUAGE_STORAGE_KEY = "navo-language";
 
-const VALID_LANGUAGES: Language[] = ["English", "Arabic", "Kinyarwanda", "French"];
-
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>("English");
   const [systemName, setSystemName] = useState<string>("Navo");
@@ -54,17 +48,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isAdminRoute = typeof pathname === "string" && pathname.startsWith("/Admin");
 
-  const isRTL = RTL_LANGUAGES.includes(language);
-
   // Admin panel is English-only; other areas use the selected language
   const effectiveLanguage: Language = isAdminRoute ? "English" : language;
-  const effectiveIsRTL = isAdminRoute ? false : isRTL;
+  const effectiveIsRTL = false;
 
   const applyLanguage = useCallback((lang: Language) => {
-    const validLang = VALID_LANGUAGES.includes(lang) ? lang : "English";
-    setLanguageState(validLang);
+    setLanguageState(lang || "English");
     if (typeof window !== "undefined") {
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, validLang);
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, lang || "English");
     }
   }, []);
 
@@ -72,8 +63,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return;
 
     const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (savedLanguage && VALID_LANGUAGES.includes(savedLanguage as Language)) {
-      applyLanguage(savedLanguage as Language);
+    if (savedLanguage) {
+      applyLanguage(savedLanguage);
     } else {
       applyLanguage("English");
     }
@@ -95,13 +86,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     document.documentElement.dir = effectiveIsRTL ? "rtl" : "ltr";
-    document.documentElement.lang = effectiveLanguage === "English" ? "en" : effectiveLanguage === "Arabic" ? "ar" : effectiveLanguage === "French" ? "fr" : "rw";
+    document.documentElement.lang = effectiveLanguage === "English" ? "en" : effectiveLanguage === "French" ? "fr" : "rw";
   }, [effectiveLanguage, effectiveIsRTL]);
 
   const setLanguage = useCallback((lang: Language) => {
     if (isAdminRoute) return;
-    const validLang = VALID_LANGUAGES.includes(lang) ? lang : "English";
-    applyLanguage(validLang);
+    applyLanguage(lang);
   }, [isAdminRoute, applyLanguage]);
 
   const t = useCallback((key: string): string => {

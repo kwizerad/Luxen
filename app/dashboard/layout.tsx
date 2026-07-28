@@ -13,6 +13,7 @@ import { FloatingHeader } from "@/components/floating-header";
 import { useLanguage } from "@/lib/language-context";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
 import { Button } from "@/components/ui/button";
+import { StudentLayoutSkeleton } from "@/components/skeletons";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -53,11 +54,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-transparent">
-        <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-primary/20 border-t-primary"></div>
-      </div>
-    );
+    return <StudentLayoutSkeleton />;
   }
 
   return (

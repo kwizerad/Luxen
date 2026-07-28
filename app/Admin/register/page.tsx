@@ -19,6 +19,7 @@ import { useLanguage } from "@/lib/language-context";
 import { getUsers } from "@/lib/supabase/queries";
 import { toast } from "sonner";
 import Link from "next/link";
+import { FormSkeleton, CardSkeleton, Skeleton, TableSkeleton } from "@/components/skeletons";
 
 export default function RegisterAdminPage() {
   const { config } = useBrandingConfig();
@@ -222,8 +223,12 @@ export default function RegisterAdminPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="space-y-6">
+        <Skeleton variant="admin" className="h-9 w-48" />
+        <div className="grid lg:grid-cols-2 gap-6">
+          <FormSkeleton fields={6} variant="admin" />
+          <CardSkeleton variant="admin" header lines={5} />
+        </div>
       </div>
     );
   }
@@ -576,9 +581,7 @@ export default function RegisterAdminPage() {
         </CardHeader>
         <CardContent>
           {loadingAdmins ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
+            <TableSkeleton variant="admin" rows={4} columns={4} hasSearch={false} hasFilters={false} />
           ) : admins.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               {t("noAdminAccountsFound")}

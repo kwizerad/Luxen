@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import {
   Users, Settings, UserPlus, GraduationCap, FileText, Activity,
-  CheckCircle, AlertCircle, TrendingUp, Clock, Database, Zap, BookOpen,
-  ArrowUpRight, type LucideIcon,
+  CheckCircle, AlertCircle, TrendingUp, Clock, Database, Zap,
+  ArrowUpRight, type LucideIcon, BookOpen, Layers,
 } from "lucide-react";
 import { getAdminStats } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/client";
+import { AdminDashboardSkeleton } from "@/components/skeletons";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import { useLanguage } from "@/lib/language-context";
@@ -68,19 +69,6 @@ function AnimatedCounter({ value, duration = 1200 }: { value: number; duration?:
   return <>{display.toLocaleString()}</>;
 }
 
-/* Skeleton card for loading state */
-function StatSkeleton() {
-  return (
-    <div className="admin-stat-card">
-      <div className="flex items-start justify-between mb-4">
-        <div className="admin-skeleton h-4 w-24" />
-        <div className="admin-skeleton h-11 w-11 rounded-xl" />
-      </div>
-      <div className="admin-skeleton h-8 w-20 mb-2" />
-      <div className="admin-skeleton h-3 w-28" />
-    </div>
-  );
-}
 
 export default function AdminDashboard() {
   const { t } = useLanguage();
@@ -191,6 +179,7 @@ export default function AdminDashboard() {
     { href: "/Admin/exams", icon: FileText, label: t("manageExams"), desc: t("createExamCategories"), color: "#A5B4FC", bg: "rgba(99,102,241,0.12)" },
     { href: "/Admin/questions", icon: Activity, label: t("manageQuestions"), desc: t("addEditQuestions"), color: "#4ADE80", bg: "rgba(34,197,94,0.12)" },
     { href: "/Admin/course-management", icon: BookOpen, label: t("courseManagementNav"), desc: t("admin.courseManagement.description"), color: "#2DD4BF", bg: "rgba(45,212,191,0.12)" },
+    { href: "/Admin/course-studio", icon: Layers, label: t("courseStudioNav") || "Course Studio", desc: t("admin.courseStudio.description") || "Build modules and lessons for courses.", color: "#A78BFA", bg: "rgba(167,139,250,0.12)" },
     { href: "/Admin/settings", icon: Settings, label: t("settings"), desc: t("updateCredentials"), color: "#FBBF24", bg: "rgba(245,158,11,0.12)" },
     ...(isPrimaryAdmin ? [{ href: "/Admin/register", icon: UserPlus, label: t("registerAdmin"), desc: t("createAdminAccounts"), color: "#F472B6", bg: "rgba(244,114,182,0.12)" }] : []),
   ];
@@ -202,6 +191,10 @@ export default function AdminDashboard() {
       transition: { duration: 0.4, delay: i * 0.06, ease: [0.16, 1, 0.3, 1] as any },
     }),
   };
+
+  if (loading) {
+    return <AdminDashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-6">
@@ -217,9 +210,7 @@ export default function AdminDashboard() {
 
       {/* Statistics Cards */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {loading
-          ? Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
-          : statCards.map((stat, i) => {
+        {statCards.map((stat, i) => {
               const Icon = stat.icon;
               return (
                 <motion.div

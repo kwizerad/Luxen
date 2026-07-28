@@ -82,7 +82,6 @@ export function SettingsDropdown() {
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="English">English</option>
-                <option value="Arabic">العربية</option>
                 <option value="Kinyarwanda">Kinyarwanda</option>
                 <option value="French">Français</option>
               </select>

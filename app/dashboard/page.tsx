@@ -28,6 +28,7 @@ import { KPICard, EmptyState } from "@/components/dashboard-widgets";
 import { QuickActions } from "@/components/quick-actions";
 import { ActivityFeed } from "@/components/activity-feed";
 import { ProfileCompletion } from "@/components/profile-completion";
+import { StudentDashboardSkeleton } from "@/components/skeletons";
 import { calculateExamStats, groupByCategory, formatDuration, formatRelativeTime, generateActivityFeed, calculateStreak } from "@/lib/dashboard-utils";
 
 // Dynamic imports for heavy components
@@ -292,15 +293,7 @@ export default function Dashboard() {
   };
 
   if (authLoading || dataLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-transparent gap-6">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <div className="text-center space-y-2">
-          <p className="text-lg font-medium text-foreground">{t("loadingYourDashboard")}</p>
-          <p className="text-sm text-muted-foreground">{t("pleaseWaitFetchingData")}</p>
-        </div>
-      </div>
-    );
+    return <StudentDashboardSkeleton />;
   }
 
   return (

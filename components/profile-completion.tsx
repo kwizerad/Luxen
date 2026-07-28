@@ -5,6 +5,7 @@ import { calculateProfileCompletion } from '@/lib/dashboard-utils';
 import { Button } from '@/components/ui/button';
 import { Edit2, CheckCircle2, UserCircle2 } from 'lucide-react';
 import { useLanguage } from '@/lib/language-context';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ProfileCompletionProps {
   userMetadata: Record<string, any>;
@@ -31,10 +32,16 @@ export function ProfileCompletion({ userMetadata, onEditClick, isLoading = false
 
   if (isLoading) {
     return (
-      <div className="premium-dash-card p-6 animate-pulse">
-        <div className="h-5 bg-white/10 rounded w-1/3 mb-2" />
-        <div className="h-3 bg-white/10 rounded w-1/2 mb-6" />
-        <div className="h-24 bg-white/10 rounded" />
+      <div className="premium-dash-card p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <Skeleton className="h-10 w-10 rounded-xl" />
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </div>
+        </div>
+        <Skeleton className="h-2 w-full rounded-full mb-3" />
+        <Skeleton className="h-24 w-full rounded-2xl" />
       </div>
     );
   }

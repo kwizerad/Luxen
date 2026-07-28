@@ -17,6 +17,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { CategoryPerformance } from '@/lib/dashboard-utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PerformanceChartsProps {
   categoryPerformance?: CategoryPerformance[];
@@ -37,12 +38,13 @@ export function PerformanceCharts({
     return (
       <div className="grid md:grid-cols-2 gap-6">
         {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="animate-pulse">
+          <Card key={i} className="premium-dash-card">
             <CardHeader>
-              <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-4 w-56 mt-2" />
             </CardHeader>
             <CardContent>
-              <div className="h-64 bg-gray-200 rounded"></div>
+              <Skeleton className="h-64 w-full rounded-2xl" />
             </CardContent>
           </Card>
         ))}

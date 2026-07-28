@@ -1018,6 +1018,15 @@ const fr: Record<string, string> = {
   "userSettings.alertChoicesSaved": "Choix d'alertes enregistrés",
   "userSettings.typeDeleteToConfirm": "Tapez \"DELETE\" pour confirmer",
   "userSettings.accountDeleted": "Compte supprimé avec succès",
+  "unsavedChangesTitle": "Modifications non enregistrées",
+  "unsavedChangesMessage": "Vous avez des modifications non enregistrées. Voulez-vous les enregistrer avant de changer de cours ?",
+  "discardChanges": "Ignorer les modifications",
+  "saveContinue": "Enregistrer et continuer",
+  "noModulesYet": "Aucun module n'a encore été ajouté.",
+  "courseOverview": "Aperçu du cours",
+  "courseSettings": "Paramètres du cours",
+  "courseStudioNav": "Studio de cours",
+  "courseTitle": "Titre du cours",
 };
 
 export default fr;

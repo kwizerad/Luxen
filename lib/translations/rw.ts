@@ -996,6 +996,15 @@ const rw: Record<string, string> = {
   "userSettings.alertChoicesSaved": "Amahitamo y'ibisobanura yahinduwe",
   "userSettings.typeDeleteToConfirm": "Tandika \"DELETE\" kugira ngo wemeze",
   "userSettings.accountDeleted": "Konti yasibwe neza",
+  "unsavedChangesTitle": "Impinduka zitabitswe",
+  "unsavedChangesMessage": "Ufite impinduka zitabitswe. Ushaka kuzibika mbere yo guhindura amasomo?",
+  "discardChanges": "Rengagiza impinduka",
+  "saveContinue": "Bika ukomeze",
+  "noModulesYet": "Nta modul zigeze zongerwamo.",
+  "courseOverview": "Incamake y'amasomo",
+  "courseSettings": "Igenamiterere ry'amasomo",
+  "courseStudioNav": "Sitidiyo y'amasomo",
+  "courseTitle": "Umutwe w'amasomo",
 };
 
 export default rw;

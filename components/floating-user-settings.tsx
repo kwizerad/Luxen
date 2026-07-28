@@ -16,12 +16,11 @@ import { User, Settings, Download, LogOut, Menu, Home, Plus, Moon, Sun, Monitor,
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
 
-type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
-type LanguageCode = "en" | "rw" | "fr" | "ar";
+type Language = "English" | "Kinyarwanda" | "French";
+type LanguageCode = "en" | "rw" | "fr";
 
 const languages: { value: Language; label: string; flag: string }[] = [
   { value: "English", label: "English", flag: "🇬🇧" },
-  { value: "Arabic", label: "العربية", flag: "🇸🇦" },
   { value: "French", label: "Français", flag: "🇫🇷" },
   { value: "Kinyarwanda", label: "Kinyarwanda", flag: "🇷🇼" },
 ];
@@ -31,7 +30,6 @@ const languageToCode: Record<Language, LanguageCode> = {
   English: "en",
   Kinyarwanda: "rw",
   French: "fr",
-  Arabic: "ar"
 };
 
 interface BeforeInstallPromptEvent extends Event {

@@ -45,10 +45,6 @@ export function NotificationBell() {
         return '📚';
       case 'exam_result':
         return '📝';
-      case 'module_completed':
-        return '✅';
-      case 'course_updated':
-        return '🔄';
       case 'system_update':
         return '⚙️';
       case 'announcement':
@@ -64,16 +60,8 @@ export function NotificationBell() {
 
   const getNotificationColor = (type: string) => {
     switch (type) {
-      case 'language_published':
-      case 'module_published':
-      case 'lesson_published':
-        return 'text-green-600';
       case 'exam_result':
         return 'text-blue-600';
-      case 'module_completed':
-        return 'text-emerald-600';
-      case 'course_updated':
-        return 'text-purple-600';
       case 'system_update':
         return 'text-orange-600';
       case 'announcement':

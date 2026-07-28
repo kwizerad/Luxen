@@ -21,6 +21,7 @@ import { Watermark } from "@/components/watermark";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useLanguage } from "@/lib/language-context";
 import { getUsers, getExamLimits } from "@/lib/supabase/queries";
+import { TableSkeleton, Skeleton } from "@/components/skeletons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -429,6 +430,29 @@ export default function UsersPage() {
       toast.error(error.message || "Failed to export users");
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton variant="admin" className="h-8 w-48" />
+            <Skeleton variant="admin" className="h-4 w-64" />
+          </div>
+          <Skeleton variant="admin" className="h-10 w-32 rounded-xl" />
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton variant="admin" className="h-5 w-32" />
+            <Skeleton variant="admin" className="h-3 w-48" />
+          </CardHeader>
+          <CardContent>
+            <TableSkeleton rows={6} columns={5} variant="admin" hasSearch hasFilters />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!hasPermission) {
     return (

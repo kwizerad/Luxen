@@ -6,8 +6,8 @@ import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
 import { createClient } from "@/lib/supabase/client";
 
-type LanguageCode = "en" | "rw" | "fr" | "ar";
-type Language = "English" | "Arabic" | "Kinyarwanda" | "French";
+type LanguageCode = "en" | "rw" | "fr";
+type Language = "English" | "Kinyarwanda" | "French";
 
 export function UserPreferencesLoader() {
   const { user } = useAuth();
@@ -42,7 +42,6 @@ export function UserPreferencesLoader() {
               en: "English",
               rw: "Kinyarwanda",
               fr: "French",
-              ar: "Arabic"
             };
             setLanguage(languageMap[metadata.language as LanguageCode] || "English");
           }

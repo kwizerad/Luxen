@@ -1327,6 +1327,15 @@ const en: Record<string, string> = {
   "withImages": "With images",
   "withoutImages": "Without images",
   "yourCourse": "your course",
+  "unsavedChangesTitle": "Unsaved Changes",
+  "unsavedChangesMessage": "You have unsaved changes. Do you want to save them before switching courses?",
+  "discardChanges": "Discard Changes",
+  "saveContinue": "Save & Continue",
+  "noModulesYet": "No modules have been added yet.",
+  "courseOverview": "Course Overview",
+  "courseSettings": "Course Settings",
+  "courseStudioNav": "Course Studio",
+  "courseTitle": "Course Title",
 };
 
 export default en;
