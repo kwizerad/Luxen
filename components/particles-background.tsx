@@ -23,9 +23,15 @@ export function ParticlesBackground() {
     return () => observer.disconnect();
   }, []);
 
-  if (!mounted || !isDark) return null;
+  if (!mounted) return null;
 
   if (config.backgroundEnabled === false) return null;
+
+  // In solid background mode, the background is always dark (hsl(240 6% 4%)),
+  // so show particles regardless of light/dark theme.
+  // In gradient mode, only show in dark mode (legacy behavior).
+  const backgroundMode = config.backgroundMode || 'solid';
+  if (backgroundMode === 'gradient' && !isDark) return null;
 
   const effect = config.backgroundEffect || "particles";
 

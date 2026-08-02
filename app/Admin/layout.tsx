@@ -16,6 +16,7 @@ import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
 import { FloatingHeader } from "@/components/floating-header";
 import { AdminDockNav } from "@/components/admin-dock-nav";
+import { useThemeConfig } from "@/lib/theme-config";
 
 const ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
 
@@ -32,6 +33,7 @@ export default function AdminLayout({
   const [changingPassword, setChangingPassword] = useState(false);
   const router = useRouter();
   const { t } = useLanguage();
+  const { config } = useThemeConfig();
 
   // Track admin activity for real-time online status
   useActivityTracker();
@@ -134,9 +136,11 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="admin-portal">
-      {/* Aurora mesh gradient background */}
-      <div className="admin-aurora" />
+    <div className={`admin-portal ${config.backgroundMode === 'gradient' ? 'admin-bg-gradient' : 'admin-bg-solid'}`}>
+      {/* Aurora mesh gradient background — only in gradient mode */}
+      {config.backgroundMode === 'gradient' && config.backgroundEnabled !== false && (
+        <div className="admin-aurora" />
+      )}
 
       {/* Floating header (profile avatar + notifications) */}
       <FloatingHeader adminMode />

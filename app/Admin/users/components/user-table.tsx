@@ -25,13 +25,13 @@ import {
 import {
   MoreHorizontal,
   Eye,
-  Edit,
   Ban,
   CheckCircle,
   Trash2,
   Trophy,
   Hash,
   ArrowUpDown,
+  Shield,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import type { UserWithStatus } from "./types";
@@ -47,7 +47,6 @@ interface UserTableProps {
   onSelect: (userId: string, checked: boolean) => void;
   onSelectAll: (checked: boolean) => void;
   onView: (user: UserWithStatus) => void;
-  onEdit: (user: UserWithStatus) => void;
   onPerformance: (user: UserWithStatus) => void;
   onExamLimit: (user: UserWithStatus) => void;
   onSuspend: (user: UserWithStatus) => void;
@@ -61,7 +60,6 @@ export function UserTable({
   onSelect,
   onSelectAll,
   onView,
-  onEdit,
   onPerformance,
   onExamLimit,
   onSuspend,
@@ -260,37 +258,45 @@ export function UserTable({
                           <Eye className="h-4 w-4 mr-2" />
                           {t("viewProfile")}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEdit(user)}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          {t("editUser")}
-                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onPerformance(user)}>
                           <Trophy className="h-4 w-4 mr-2" />
                           {t("performance")}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onExamLimit(user)}>
-                          <Hash className="h-4 w-4 mr-2" />
-                          {t("setExamLimit")}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {user.banned ? (
-                          <DropdownMenuItem onClick={() => onActivate(user)}>
-                            <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                            {t("activate")}
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onClick={() => onSuspend(user)}>
-                            <Ban className="h-4 w-4 mr-2 text-orange-600" />
-                            {t("suspend")}
+                        {user.role === "Student" && (
+                          <DropdownMenuItem onClick={() => onExamLimit(user)}>
+                            <Hash className="h-4 w-4 mr-2" />
+                            {t("setExamLimit")}
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem
-                          onClick={() => onDelete(user)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          {t("delete")}
-                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {user.role === "Student" && (
+                          <>
+                            {user.banned ? (
+                              <DropdownMenuItem onClick={() => onActivate(user)}>
+                                <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                                {t("activate")}
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => onSuspend(user)}>
+                                <Ban className="h-4 w-4 mr-2 text-orange-600" />
+                                {t("suspend")}
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => onDelete(user)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {t("delete")}
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {user.role === "Admin" && (
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground flex items-center gap-2">
+                            <Shield className="h-3 w-3" />
+                            Admin actions restricted
+                          </div>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

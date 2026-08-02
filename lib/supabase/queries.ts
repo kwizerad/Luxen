@@ -1,7 +1,6 @@
 "use client";
 
 import { createClient } from "./client";
-import { createAdminClient } from "./admin";
 import { isAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
 import type { ExamQuestion, ExamAnswer, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
@@ -821,14 +820,8 @@ export async function updateExamLimit(user_id: string, daily_limit?: number, is_
     upsertData.is_limited = is_limited;
   }
 
-  // Use admin client to bypass RLS policies (server only).
-  // In the browser the service role key is unavailable, so fall back to the
-  // anon client and rely on RLS policies. This prevents a hard crash; if RLS
-  // blocks the write it will surface as a PostgREST error instead.
-  const client =
-    typeof window === "undefined" && isAdmin(user) ? createAdminClient() : supabase;
-
-  const { data, error } = await client
+  // Use the regular client; RLS policies allow admins to manage exam limits.
+  const { data, error } = await supabase
     .from("user_exam_limits")
     .upsert(upsertData, { onConflict: "user_id" })
     .select()
@@ -859,13 +852,8 @@ export async function deleteExamLimit(userId: string) {
     throw new Error("userId is required");
   }
 
-  // Use admin client to bypass RLS policies (server only).
-  // In the browser the service role key is unavailable, so fall back to the
-  // anon client and rely on RLS policies.
-  const client =
-    typeof window === "undefined" && isAdmin(user) ? createAdminClient() : supabase;
-
-  const { error } = await client
+  // Use the regular client; RLS policies allow admins to manage exam limits.
+  const { error } = await supabase
     .from("user_exam_limits")
     .delete()
     .eq("user_id", userId);
@@ -1983,7 +1971,12 @@ export async function getStudentRetakeRequests(): Promise<ExamRetakeRequest[]> {
 export async function getAllRetakeRequests(
   statusFilter?: ExamRetakeStatus
 ): Promise<(ExamRetakeRequest & { user_email?: string; user_name?: string })[]> {
-  const supabase = createAdminClient();
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized");
+  }
 
   let query = supabase
     .from("exam_retake_requests")
@@ -1998,37 +1991,41 @@ export async function getAllRetakeRequests(
   if (error) throw error;
 
   // Fetch user emails
-  const requests = data || [];
-  const userIds = [...new Set(requests.map((r) => r.user_id).filter(Boolean))] as string[];
-  if (userIds.length === 0) return requests as any;
+  const requests = (data || []) as ExamRetakeRequest[];
+  const userIds = [...new Set(requests.map((r: ExamRetakeRequest) => r.user_id).filter(Boolean))] as string[];
+  if (userIds.length === 0) return requests as (ExamRetakeRequest & { user_email?: string; user_name?: string })[];
 
   const { data: profiles } = await supabase
     .from("user_profiles")
     .select("id, email, full_name, username")
     .in("id", userIds);
 
-  const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+  type ProfileInfo = { id: string; email: string; full_name: string | null; username: string | null };
+  const profileMap = new Map<string, ProfileInfo>((profiles || []).map((p: ProfileInfo) => [p.id, p]));
 
-  return requests.map((r) => ({
+  return requests.map((r: ExamRetakeRequest) => ({
     ...r,
     user_email: profileMap.get(r.user_id)?.email,
-    user_name: profileMap.get(r.user_id)?.full_name || profileMap.get(r.user_id)?.username,
-  })) as any;
+    user_name: profileMap.get(r.user_id)?.full_name || profileMap.get(r.user_id)?.username || undefined,
+  }));
 }
 
 export async function approveRetakeRequest(
   requestId: string,
   adminNote?: string
 ): Promise<void> {
-  const supabase = createAdminClient();
-  const { data: adminUser } = await supabase.auth.getUser();
-  const adminId = adminUser?.user?.id;
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized");
+  }
 
   const { error } = await supabase
     .from("exam_retake_requests")
     .update({
       status: "approved",
-      admin_id: adminId,
+      admin_id: user.id,
       admin_note: adminNote,
       updated_at: new Date().toISOString(),
     })
@@ -2041,15 +2038,18 @@ export async function denyRetakeRequest(
   requestId: string,
   adminNote?: string
 ): Promise<void> {
-  const supabase = createAdminClient();
-  const { data: adminUser } = await supabase.auth.getUser();
-  const adminId = adminUser?.user?.id;
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized");
+  }
 
   const { error } = await supabase
     .from("exam_retake_requests")
     .update({
       status: "denied",
-      admin_id: adminId,
+      admin_id: user.id,
       admin_note: adminNote,
       updated_at: new Date().toISOString(),
     })
@@ -2059,7 +2059,13 @@ export async function denyRetakeRequest(
 }
 
 export async function getPendingRetakeCount(): Promise<number> {
-  const supabase = createAdminClient();
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    return 0;
+  }
+
   const { count, error } = await supabase
     .from("exam_retake_requests")
     .select("*", { count: "exact", head: true })

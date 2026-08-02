@@ -76,7 +76,7 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    background-color: transparent;
+    background-color: hsl(240 6% 4%);
     color: hsl(var(--foreground));
   }
 }
@@ -174,7 +174,7 @@
     display: none;
   }
 
-  /* Premium glass surfaces — reflect background animations */
+  /* Premium glass surfaces — Apple-inspired glassmorphism in light mode */
   .premium-glass-card,
   .glass-card,
   .card-glass {
@@ -190,7 +190,7 @@
     transition: border-color 300ms ease, backdrop-filter 300ms ease;
   }
 
-  /* Reflective sheen overlay */
+  /* Reflective sheen overlay — light mode only */
   .premium-glass-card::before,
   .glass-card::before,
   .card-glass::before {
@@ -226,28 +226,21 @@
   .dark .premium-glass-card,
   .dark .glass-card,
   .dark .card-glass {
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(8, 17, 31, 0.85));
+    background: rgba(15, 23, 42, 0.92);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.10);
   }
 
-  /* Dark mode reflective sheen */
   .dark .premium-glass-card::before,
   .dark .glass-card::before,
   .dark .card-glass::before {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.08) 0%,
-      transparent 40%,
-      transparent 60%,
-      rgba(255, 255, 255, 0.03) 100%
-    );
+    display: none;
   }
 
   .dark .premium-glass-card:hover,
   .dark .glass-card:hover {
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(8, 17, 31, 0.92));
+    background: rgba(15, 23, 42, 0.98);
     border-color: var(--hover-border-color, rgba(255, 255, 255, 0.18));
     backdrop-filter: blur(14px) saturate(200%);
     -webkit-backdrop-filter: blur(14px) saturate(200%);
@@ -268,7 +261,7 @@
       0 12px 35px rgba(15, 23, 42, 0.07);
   }
 
-  /* Reflective sheen for panels */
+  /* Reflective sheen for panels — light mode only */
   .premium-glass-panel::before,
   .glass-panel::before,
   .glassmorphism::before {
@@ -303,17 +296,10 @@
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-  /* Dark mode reflective sheen for panels */
   .dark .premium-glass-panel::before,
   .dark .glass-panel::before,
   .dark .glassmorphism::before {
-    background: linear-gradient(
-      145deg,
-      rgba(255, 255, 255, 0.06) 0%,
-      transparent 40%,
-      transparent 60%,
-      rgba(255, 255, 255, 0.02) 100%
-    );
+    display: none;
   }
 
   /* Student nav pill — solid dark background so it stands out from content */
@@ -800,6 +786,16 @@
   background-color: var(--admin-bg);
   color: var(--admin-text);
   min-height: 100vh;
+}
+
+/* Solid background mode — transparent so body's hsl(240 6% 4%) + particles show through */
+.admin-portal.admin-bg-solid {
+  background-color: transparent;
+}
+
+/* Gradient background mode — keep the admin's own background color */
+.admin-portal.admin-bg-gradient {
+  background-color: var(--admin-bg);
 }
 
 /* ---------- Light theme overrides for admin portal ---------- */
@@ -1771,9 +1767,9 @@ body.admin-portal-active [role="option"]:focus {
   border-color: rgba(255, 255, 255, 0.14);
 }
 
-/* Dark mode — proper dark glass */
+/* Dark mode */
 .dark .premium-dash-card {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 17, 31, 0.90));
+  background: rgba(15, 23, 42, 0.95);
   border-color: rgba(255, 255, 255, 0.10);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
@@ -1786,9 +1782,9 @@ body.admin-portal-active [role="option"]:focus {
     0 0 48px rgba(34, 197, 94, 0.08);
 }
 
-/* Light mode fallback — subtle frosted glass */
+/* Light mode — Apple-inspired frosted glass */
 :not(.dark) .premium-dash-card {
-  background: rgba(255, 255, 255, 0.6);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
   border-color: rgba(15, 23, 42, 0.08);
   box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
 }
@@ -1826,9 +1822,9 @@ body.admin-portal-active [role="option"]:focus {
   border-color: rgba(255, 255, 255, 0.14);
 }
 
-/* Dark mode — proper dark glass */
+/* Dark mode */
 .dark .premium-kpi-card {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 17, 31, 0.90));
+  background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   border-color: rgba(255, 255, 255, 0.10);
@@ -1839,7 +1835,7 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 .dark .premium-kpi-card:hover {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(8, 17, 31, 0.95));
+  background: rgba(15, 23, 42, 0.98);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow:
     0 28px 60px rgba(0, 0, 0, 0.4),
@@ -1849,7 +1845,7 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 :not(.dark) .premium-kpi-card {
-  background: rgba(255, 255, 255, 0.6);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
   border-color: rgba(15, 23, 42, 0.08);
   box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
 }
@@ -2042,9 +2038,9 @@ body.admin-portal-active [role="option"]:focus {
   border-color: rgba(255, 255, 255, 0.14);
 }
 
-/* Dark mode — proper dark glass */
+/* Dark mode */
 .dark .premium-quick-action {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 17, 31, 0.90));
+  background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   border-color: rgba(255, 255, 255, 0.10);
@@ -2055,7 +2051,7 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 .dark .premium-quick-action:hover {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(8, 17, 31, 0.95));
+  background: rgba(15, 23, 42, 0.98);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow:
     0 28px 60px rgba(0, 0, 0, 0.4),
@@ -2065,7 +2061,7 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 :not(.dark) .premium-quick-action {
-  background: rgba(255, 255, 255, 0.6);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
   border-color: rgba(15, 23, 42, 0.08);
   box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
 }
@@ -2076,8 +2072,13 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 /* Premium quick action primary variant */
-.premium-quick-action-primary {
+:not(.dark) .premium-quick-action-primary {
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.08));
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.dark .premium-quick-action-primary {
+  background: rgba(34, 197, 94, 0.12);
   border-color: rgba(34, 197, 94, 0.2);
 }
 

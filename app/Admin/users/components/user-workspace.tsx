@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Search,
-  Plus,
   RefreshCw,
   Download,
   Users,
@@ -38,7 +37,6 @@ import { ActivityTab } from "./activity-tab";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { UserExamLimitDialog } from "@/components/user-exam-limit-dialog";
 import { UserPerformanceModal } from "@/components/user-performance-modal";
-import { UserDetailsModal } from "@/components/user-details-modal";
 import { getAllUsers, getUserStats, getUserGrowth } from "../../actions/users";
 
 function getErrorMessage(error: unknown): string {
@@ -116,7 +114,6 @@ export function UserWorkspace({
     user: UserWithStatus;
   } | null>(null);
   const [performanceUser, setPerformanceUser] = useState<UserWithStatus | null>(null);
-  const [detailsUser, setDetailsUser] = useState<UserWithStatus | null>(null);
 
   const refresh = useCallback(() => {
     startRefresh(async () => {
@@ -126,12 +123,28 @@ export function UserWorkspace({
         setStats(s);
         setGrowth(g);
         setSelectedRows(new Set());
-        toast.success(t("dataRefreshed"));
       } catch (err) {
         toast.error(t("failedToLoadUsers") + ": " + getErrorMessage(err));
       }
     });
   }, [t]);
+
+  // Realtime: refresh stats every 30 seconds for live online count
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+      try {
+        const s = await getUserStats();
+        setStats(s);
+        // Only refresh user list if no modal/dialog is open (to avoid disrupting UI)
+        const u = await getAllUsers();
+        setUsers(u);
+      } catch {
+        // Silently fail
+      }
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -329,10 +342,6 @@ export function UserWorkspace({
             <Download className="h-4 w-4 mr-2" />
             {t("export")}
           </Button>
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            {t("addUser")}
-          </Button>
         </div>
       </div>
 
@@ -495,7 +504,6 @@ export function UserWorkspace({
               onSelect={handleSelect}
               onSelectAll={handleSelectAll}
               onView={setDrawerUser}
-              onEdit={(u: UserWithStatus) => setDetailsUser(u)}
               onPerformance={setPerformanceUser}
               onExamLimit={(u: UserWithStatus) => setExamLimitDialog({ open: true, user: u })}
               onSuspend={(u: UserWithStatus) => setConfirm({ action: "suspend", user: u })}
@@ -512,7 +520,6 @@ export function UserWorkspace({
         onSuspend={(u: UserWithStatus) => setConfirm({ action: "suspend", user: u })}
         onActivate={(u: UserWithStatus) => setConfirm({ action: "activate", user: u })}
         onDelete={(u: UserWithStatus) => setConfirm({ action: "delete", user: u })}
-        onEdit={(u: UserWithStatus) => setDetailsUser(u)}
         onPerformance={(u: UserWithStatus) => setPerformanceUser(u)}
         onExamLimit={(u: UserWithStatus) => setExamLimitDialog({ open: true, user: u })}
       />
@@ -568,14 +575,6 @@ export function UserWorkspace({
               full_name: performanceUser.full_name,
             },
           }}
-        />
-      )}
-
-      {detailsUser && (
-        <UserDetailsModal
-          open={!!detailsUser}
-          onOpenChange={(open) => !open && setDetailsUser(null)}
-          user={detailsUser}
         />
       )}
     </div>

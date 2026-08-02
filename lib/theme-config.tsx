@@ -15,6 +15,7 @@ interface ThemeConfig {
   backgroundEffect?: 'particles' | 'lightrays';
   clickSparkEnabled?: boolean;
   backgroundEnabled?: boolean;
+  backgroundMode?: 'solid' | 'gradient';
 }
 
 interface ThemeConfigContextType {
@@ -27,6 +28,7 @@ interface ThemeConfigContextType {
   setBackgroundEffect: (effect: 'particles' | 'lightrays') => void;
   setClickSparkEnabled: (enabled: boolean) => void;
   setBackgroundEnabled: (enabled: boolean) => void;
+  setBackgroundMode: (mode: 'solid' | 'gradient') => void;
   saveConfig: (newConfig: ThemeConfig) => void;
   resetToDefault: () => void;
   isAdmin: boolean;
@@ -46,6 +48,7 @@ const defaultConfig: ThemeConfig = {
   backgroundEffect: 'particles', // Default background effect
   clickSparkEnabled: true, // Click spark enabled by default
   backgroundEnabled: true, // Background effect enabled by default
+  backgroundMode: 'solid', // Default to solid dark background
 };
 
 const STORAGE_KEY = "navo-theme-config";
@@ -365,6 +368,17 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  const setBackgroundMode = (mode: 'solid' | 'gradient') => {
+    const newConfig = { ...config, backgroundMode: mode };
+    setConfig(newConfig);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+    }
+    if (isAdmin) {
+      saveToDatabase(newConfig);
+    }
+  };
+
   const saveConfig = (newConfig: ThemeConfig) => {
     setConfig(newConfig);
     if (typeof window !== "undefined") {
@@ -399,6 +413,7 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
         setBackgroundEffect,
         setClickSparkEnabled,
         setBackgroundEnabled,
+        setBackgroundMode,
         saveConfig,
         resetToDefault,
         isAdmin,

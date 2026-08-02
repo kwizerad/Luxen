@@ -19,6 +19,7 @@ export function ThemeCustomizer() {
     setBackgroundEffect,
     setClickSparkEnabled,
     setBackgroundEnabled,
+    setBackgroundMode,
     saveConfig,
     resetToDefault,
   } = useThemeConfig();
@@ -38,6 +39,7 @@ export function ThemeCustomizer() {
       backgroundEffect: config.backgroundEffect || 'particles',
       clickSparkEnabled: config.clickSparkEnabled ?? true,
       backgroundEnabled: config.backgroundEnabled ?? true,
+      backgroundMode: config.backgroundMode || 'solid',
     });
     setHasChanges(false);
   }, [config]);
@@ -158,6 +160,7 @@ export function ThemeCustomizer() {
       backgroundEffect: config.backgroundEffect || 'particles',
       clickSparkEnabled: config.clickSparkEnabled ?? true,
       backgroundEnabled: config.backgroundEnabled ?? true,
+      backgroundMode: config.backgroundMode || 'solid',
     });
     setHasChanges(false);
     toast.success("Theme reset to default");
@@ -336,6 +339,67 @@ export function ThemeCustomizer() {
         </CardContent>
       </Card>
 
+      {/* Background Mode */}
+      <Card className={cardHoverClass}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <RectangleHorizontal className="h-3 w-3 text-primary" />
+            Background Style
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Choose between a solid dark background or the default gradient
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setBackgroundMode('solid');
+                const newConfig = { ...previewConfig, backgroundMode: 'solid' as const };
+                setPreviewConfig(newConfig);
+                setHasChanges(true);
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 text-xs font-medium transition-all ${
+                (previewConfig.backgroundMode || 'solid') === 'solid'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border bg-secondary/50 text-muted-foreground hover:border-primary/50'
+              }`
+            }
+              style={(previewConfig.backgroundMode || 'solid') === 'solid' ? {
+                background: 'hsl(240 6% 4%)',
+                color: '#fff',
+                borderColor: 'hsl(var(--primary))',
+              } : undefined}
+            >
+              <span className="text-base">■</span>
+              Solid Dark
+            </button>
+            <button
+              onClick={() => {
+                setBackgroundMode('gradient');
+                const newConfig = { ...previewConfig, backgroundMode: 'gradient' as const };
+                setPreviewConfig(newConfig);
+                setHasChanges(true);
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 text-xs font-medium transition-all ${
+                previewConfig.backgroundMode === 'gradient'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border bg-secondary/50 text-muted-foreground hover:border-primary/50'
+              }`
+            }
+              style={previewConfig.backgroundMode === 'gradient' ? {
+                background: 'linear-gradient(135deg, hsl(142 71% 95%), hsl(142 60% 96%))',
+                color: 'hsl(var(--foreground))',
+                borderColor: 'hsl(var(--primary))',
+              } : undefined}
+            >
+              <span className="text-base">◐</span>
+              Gradient
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Background Effect */}
       <Card className={cardHoverClass}>
         <CardHeader className="pb-2">
@@ -344,7 +408,7 @@ export function ThemeCustomizer() {
             Background Effect
           </CardTitle>
           <CardDescription className="text-xs">
-            Choose the animated background effect for dark mode
+            Choose the animated background effect
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -433,7 +497,7 @@ export function ThemeCustomizer() {
               <Eye className="h-4 w-4 text-primary" />
               <div>
                 <p className="text-xs font-medium">Background Effect</p>
-                <p className="text-[10px] text-muted-foreground">Animated particles or light rays in dark mode</p>
+                <p className="text-[10px] text-muted-foreground">Animated particles or light rays</p>
               </div>
             </div>
             <button

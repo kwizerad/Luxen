@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 import {
   Users, Settings, GraduationCap, FileText, Activity,
   CheckCircle, AlertCircle, TrendingUp, Clock, Database, Zap,
-  ArrowUpRight, type LucideIcon, BookOpen, Layers,
+  ArrowUpRight, type LucideIcon, BookOpen, Layers, Trophy, Award, Timer,
 } from "lucide-react";
 import { getAdminStats } from "@/app/Admin/actions/stats";
+import type { AdminStats } from "@/app/Admin/actions/stats";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useLanguage } from "@/lib/language-context";
 import { Loading } from "@/components/skeletons";
@@ -22,9 +23,14 @@ import {
 interface DashboardStats {
   totalUsers?: number;
   totalAdmins?: number;
+  totalStudents?: number;
   totalCategories: number;
   totalQuestions: number;
   totalAttempts?: number;
+  passedAttempts?: number;
+  failedAttempts?: number;
+  averageScore?: number;
+  passRate?: number;
 }
 
 interface RecentActivity {
@@ -44,6 +50,9 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [weeklyActivity, setWeeklyActivity] = useState<AdminStats["weeklyActivity"]>([]);
+  const [topPerformers, setTopPerformers] = useState<AdminStats["topPerformers"]>([]);
+  const [recentAttempts, setRecentAttempts] = useState<AdminStats["recentAttempts"]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -60,6 +69,9 @@ export default function AdminDashboard() {
         if (data.stats) setStats(data.stats);
         if (data.recentActivity) setRecentActivity(data.recentActivity);
         if (data.systemStatus) setSystemStatus(data.systemStatus);
+        if (data.weeklyActivity) setWeeklyActivity(data.weeklyActivity);
+        if (data.topPerformers) setTopPerformers(data.topPerformers);
+        if (data.recentAttempts) setRecentAttempts(data.recentAttempts);
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
       } finally {
@@ -74,6 +86,10 @@ export default function AdminDashboard() {
   const totalCategories = stats?.totalCategories ?? 0;
   const totalQuestions = stats?.totalQuestions ?? 0;
   const totalAttempts = stats?.totalAttempts ?? 0;
+  const passedAttempts = stats?.passedAttempts ?? 0;
+  const failedAttempts = stats?.failedAttempts ?? 0;
+  const averageScore = stats?.averageScore ?? 0;
+  const passRate = stats?.passRate ?? 0;
 
   const statCards: {
     title: string; value: number; icon: LucideIcon; href: string;
@@ -117,16 +133,18 @@ export default function AdminDashboard() {
     },
   ];
 
-  // Chart data — derived from real stats where possible, with sensible fallbacks
-  const trafficData = [
-    { name: "Mon", users: Math.max(1, Math.round(totalUsers * 0.08)), attempts: Math.max(1, Math.round(totalAttempts * 0.1)) },
-    { name: "Tue", users: Math.max(1, Math.round(totalUsers * 0.12)), attempts: Math.max(1, Math.round(totalAttempts * 0.14)) },
-    { name: "Wed", users: Math.max(1, Math.round(totalUsers * 0.15)), attempts: Math.max(1, Math.round(totalAttempts * 0.18)) },
-    { name: "Thu", users: Math.max(1, Math.round(totalUsers * 0.1)), attempts: Math.max(1, Math.round(totalAttempts * 0.12)) },
-    { name: "Fri", users: Math.max(1, Math.round(totalUsers * 0.18)), attempts: Math.max(1, Math.round(totalAttempts * 0.22)) },
-    { name: "Sat", users: Math.max(1, Math.round(totalUsers * 0.22)), attempts: Math.max(1, Math.round(totalAttempts * 0.16)) },
-    { name: "Sun", users: Math.max(1, Math.round(totalUsers * 0.14)), attempts: Math.max(1, Math.round(totalAttempts * 0.08)) },
-  ];
+  // Chart data — real weekly activity from the server
+  const trafficData = weeklyActivity.length > 0
+    ? weeklyActivity.map((d) => ({ name: d.day, users: d.users, attempts: d.attempts }))
+    : [
+        { name: "Mon", users: 0, attempts: 0 },
+        { name: "Tue", users: 0, attempts: 0 },
+        { name: "Wed", users: 0, attempts: 0 },
+        { name: "Thu", users: 0, attempts: 0 },
+        { name: "Fri", users: 0, attempts: 0 },
+        { name: "Sat", users: 0, attempts: 0 },
+        { name: "Sun", users: 0, attempts: 0 },
+      ];
 
   const distributionData = [
     { name: "Users", value: totalUsers, color: "#2563EB" },
@@ -135,7 +153,6 @@ export default function AdminDashboard() {
     { name: "Attempts", value: totalAttempts, color: "#F59E0B" },
   ].filter(d => d.value > 0);
 
-  const passRate = totalAttempts > 0 ? Math.round(totalAttempts * 0.68) : 0;
   const passRateData = [{ name: "Pass Rate", value: passRate, fill: "#22C55E" }];
 
   const quickActions = [
@@ -307,13 +324,13 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div className="text-center p-3 rounded-xl bg-[var(--admin-hover-bg)]">
               <p className="text-lg font-bold text-[#4ADE80]">
-                {loading ? "…" : <AnimatedCounter value={passRate} />}
+                {loading ? "…" : <AnimatedCounter value={passedAttempts} />}
               </p>
               <p className="text-[11px] text-[var(--admin-muted)]">Passed</p>
             </div>
             <div className="text-center p-3 rounded-xl bg-[var(--admin-hover-bg)]">
               <p className="text-lg font-bold text-[#F87171]">
-                {loading ? "…" : <AnimatedCounter value={Math.max(0, (totalAttempts || 0) - passRate)} />}
+                {loading ? "…" : <AnimatedCounter value={failedAttempts} />}
               </p>
               <p className="text-[11px] text-[var(--admin-muted)]">Failed</p>
             </div>
@@ -457,12 +474,187 @@ export default function AdminDashboard() {
         </motion.div>
       </div>
 
+      {/* Student Performance */}
+      <div className="grid lg:grid-cols-3 gap-5">
+        {/* Average Score + Pass Rate Summary */}
+        <motion.div
+          className="admin-card p-6"
+          custom={8}
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+        >
+          <div className="mb-4">
+            <h3 className="admin-card-title flex items-center gap-2">
+              <Award className="w-5 h-5 text-[var(--admin-muted)]" />
+              Student Performance
+            </h3>
+            <p className="text-xs text-[var(--admin-muted)] mt-1">Overall exam metrics</p>
+          </div>
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-[var(--admin-input-bg)]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-[var(--admin-muted)]">Average Score</span>
+                <Trophy className="w-4 h-4 text-[#FBBF24]" />
+              </div>
+              <p className="text-3xl font-bold text-[var(--admin-text)]">
+                {loading ? "…" : <AnimatedCounter value={averageScore} />}%
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-[var(--admin-input-bg)]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-[var(--admin-muted)]">Pass Rate</span>
+                <CheckCircle className="w-4 h-4 text-[#4ADE80]" />
+              </div>
+              <p className="text-3xl font-bold text-[#4ADE80]">
+                {loading ? "…" : <AnimatedCounter value={passRate} />}%
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-xl bg-[var(--admin-input-bg)] text-center">
+                <p className="text-xl font-bold text-[var(--admin-text)]">
+                  {loading ? "…" : <AnimatedCounter value={passedAttempts} />}
+                </p>
+                <p className="text-[11px] text-[var(--admin-muted)]">Passed</p>
+              </div>
+              <div className="p-3 rounded-xl bg-[var(--admin-input-bg)] text-center">
+                <p className="text-xl font-bold text-[var(--admin-text)]">
+                  {loading ? "…" : <AnimatedCounter value={failedAttempts} />}
+                </p>
+                <p className="text-[11px] text-[var(--admin-muted)]">Failed</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Top Performers */}
+        <motion.div
+          className="admin-card p-6 lg:col-span-2"
+          custom={9}
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+        >
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="admin-card-title flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-[#FBBF24]" />
+                Top Performers
+              </h3>
+              <p className="text-xs text-[var(--admin-muted)] mt-1">Students with highest average scores (min 3 attempts)</p>
+            </div>
+          </div>
+          {loading ? (
+            <div className="text-center py-8 text-[var(--admin-muted)]">{t("loading") || "Loading..."}</div>
+          ) : topPerformers.length === 0 ? (
+            <div className="text-center py-8 text-sm text-[var(--admin-muted)]">No performance data yet</div>
+          ) : (
+            <div className="space-y-3">
+              {topPerformers.map((performer, index) => (
+                <div key={performer.id} className="flex items-center gap-3 p-3 rounded-xl bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] transition-colors">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm" style={{
+                    background: index === 0 ? "rgba(251,191,36,0.15)" : index === 1 ? "rgba(165,180,252,0.15)" : index === 2 ? "rgba(217,119,6,0.15)" : "rgba(255,255,255,0.05)",
+                    color: index === 0 ? "#FBBF24" : index === 1 ? "#A5B4FC" : index === 2 ? "#D97706" : "var(--admin-muted)",
+                  }}>
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-[var(--admin-text)] truncate">
+                      {performer.full_name || performer.username || performer.email}
+                    </p>
+                    <p className="text-xs text-[var(--admin-muted)]">{performer.total_attempts} attempts</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-lg font-bold text-[#4ADE80]">{performer.avg_score}%</p>
+                    <p className="text-[11px] text-[var(--admin-muted)]">avg score</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      </div>
+
+      {/* Recent Exam Attempts */}
+      <motion.div
+        className="admin-card p-6"
+        custom={10}
+        variants={fadeUp}
+        initial="hidden"
+        animate="visible"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="admin-card-title flex items-center gap-2">
+              <Activity className="w-5 h-5 text-[var(--admin-muted)]" />
+              Recent Exam Attempts
+            </h3>
+            <p className="text-xs text-[var(--admin-muted)] mt-1">Latest student exam activity</p>
+          </div>
+        </div>
+        {loading ? (
+          <div className="text-center py-8 text-[var(--admin-muted)]">{t("loading") || "Loading..."}</div>
+        ) : recentAttempts.length === 0 ? (
+          <div className="text-center py-8 text-sm text-[var(--admin-muted)]">No exam attempts yet</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[var(--admin-muted)] border-b border-[var(--admin-border)]">
+                  <th className="pb-3 pr-4 font-medium">Student</th>
+                  <th className="pb-3 pr-4 font-medium">Exam</th>
+                  <th className="pb-3 pr-4 font-medium">Score</th>
+                  <th className="pb-3 pr-4 font-medium">Status</th>
+                  <th className="pb-3 pr-4 font-medium">Date</th>
+                  <th className="pb-3 font-medium">Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentAttempts.map((attempt) => {
+                  const formatDuration = (secs: number) => {
+                    const m = Math.floor(secs / 60);
+                    const s = secs % 60;
+                    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+                  };
+                  return (
+                    <tr key={attempt.id} className="border-b border-[var(--admin-border)] hover:bg-[var(--admin-hover-bg)] transition-colors">
+                      <td className="py-3 pr-4">
+                        <p className="font-medium text-[var(--admin-text)]">
+                          {attempt.full_name || attempt.username || attempt.email || "Unknown"}
+                        </p>
+                      </td>
+                      <td className="py-3 pr-4 text-[var(--admin-muted)]">{attempt.category_name}</td>
+                      <td className="py-3 pr-4">
+                        <span className={`font-bold ${attempt.score_percentage >= 80 ? "text-[#4ADE80]" : attempt.score_percentage >= 50 ? "text-[#FBBF24]" : "text-[#F87171]"}`}>
+                          {attempt.score_percentage}%
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span className={`admin-badge ${attempt.status === "completed" ? "admin-badge-success" : attempt.status === "in_progress" ? "admin-badge-warning" : "admin-badge-danger"}`}>
+                          {attempt.status.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4 text-[var(--admin-muted)]">
+                        {new Date(attempt.started_at).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 text-[var(--admin-muted)]">
+                        {formatDuration(attempt.duration_seconds)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </motion.div>
+
       {/* System Status + Quick Actions */}
       <div className="grid lg:grid-cols-3 gap-5">
         {/* System Status */}
         <motion.div
           className="admin-card p-6"
-          custom={8}
+          custom={11}
           variants={fadeUp}
           initial="hidden"
           animate="visible"
@@ -533,7 +725,7 @@ export default function AdminDashboard() {
         {/* Quick Actions */}
         <motion.div
           className="admin-card p-6 lg:col-span-2"
-          custom={9}
+          custom={12}
           variants={fadeUp}
           initial="hidden"
           animate="visible"

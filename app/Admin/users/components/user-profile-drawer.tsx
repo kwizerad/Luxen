@@ -22,7 +22,6 @@ import {
   Trophy,
   Activity,
   Clock,
-  Edit,
   Trash2,
   Key,
   Send,
@@ -38,7 +37,6 @@ interface UserProfileDrawerProps {
   onSuspend: (user: UserWithStatus) => void;
   onActivate: (user: UserWithStatus) => void;
   onDelete: (user: UserWithStatus) => void;
-  onEdit: (user: UserWithStatus) => void;
   onPerformance: (user: UserWithStatus) => void;
   onExamLimit: (user: UserWithStatus) => void;
 }
@@ -49,7 +47,6 @@ export function UserProfileDrawer({
   onSuspend,
   onActivate,
   onDelete,
-  onEdit,
   onPerformance,
   onExamLimit,
 }: UserProfileDrawerProps) {
@@ -141,33 +138,39 @@ export function UserProfileDrawer({
               </div>
 
               <div className="flex gap-2 flex-wrap">
-                <Button size="sm" onClick={() => onEdit(user)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  {t("editUser")}
-                </Button>
                 <Button size="sm" variant="outline" onClick={() => onPerformance(user)}>
                   <Trophy className="h-4 w-4 mr-2" />
                   {t("performance")}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => onExamLimit(user)}>
-                  <Hash className="h-4 w-4 mr-2" />
-                  {t("setExamLimit")}
-                </Button>
-                {user.banned ? (
-                  <Button size="sm" variant="outline" onClick={() => onActivate(user)}>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    {t("activate")}
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={() => onSuspend(user)}>
-                    <Ban className="h-4 w-4 mr-2" />
-                    {t("suspend")}
-                  </Button>
+                {user.role === "Student" && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={() => onExamLimit(user)}>
+                      <Hash className="h-4 w-4 mr-2" />
+                      {t("setExamLimit")}
+                    </Button>
+                    {user.banned ? (
+                      <Button size="sm" variant="outline" onClick={() => onActivate(user)}>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        {t("activate")}
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => onSuspend(user)}>
+                        <Ban className="h-4 w-4 mr-2" />
+                        {t("suspend")}
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => onDelete(user)}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {t("delete")}
+                    </Button>
+                  </>
                 )}
-                <Button size="sm" variant="outline" onClick={() => onDelete(user)}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {t("delete")}
-                </Button>
+                {user.role === "Admin" && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground px-2">
+                    <Shield className="h-4 w-4" />
+                    Admin actions restricted
+                  </div>
+                )}
               </div>
             </SheetHeader>
 
@@ -274,11 +277,13 @@ export function UserProfileDrawer({
                       label={t("sendNotification")}
                       onClick={() => toast.info(t("sendNotificationNotImplemented"))}
                     />
-                    <SecurityItem
-                      icon={<Ban className="h-4 w-4" />}
-                      label={user.banned ? t("activate") : t("suspend")}
-                      onClick={() => (user.banned ? onActivate(user) : onSuspend(user))}
-                    />
+                    {user.role === "Student" && (
+                      <SecurityItem
+                        icon={<Ban className="h-4 w-4" />}
+                        label={user.banned ? t("activate") : t("suspend")}
+                        onClick={() => (user.banned ? onActivate(user) : onSuspend(user))}
+                      />
+                    )}
                   </div>
                 </TabsContent>
               </AnimatePresence>
