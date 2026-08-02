@@ -850,15 +850,6 @@ export default function StudentCoursePage() {
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              {/* Vertical progress bar */}
-              <div className="flex-1 flex flex-col items-center py-2">
-                <div className="relative w-1.5 flex-1 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="absolute bottom-0 left-0 right-0 bg-green-500 transition-all duration-500 rounded-full"
-                    style={{ height: `${progressPercent}%` }}
-                  />
-                </div>
-              </div>
               {/* Checkpoint icons - collapsed */}
               <div className="flex flex-col items-center gap-1 pb-1">
                 {flatList.map((item, idx) => {
