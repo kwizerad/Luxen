@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
+import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Highlight from "@tiptap/extension-highlight";
@@ -12,6 +12,28 @@ import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import ImageResize from "tiptap-extension-resize-image";
 import Youtube from "@tiptap/extension-youtube";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+import { CustomYouTubePlayer } from "./custom-youtube-player";
+
+const CustomYouTube = Youtube.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      textAlign: {
+        default: null,
+        renderHTML: (attrs: any) => {
+          if (attrs.textAlign === "center") return { style: "margin-left: auto; margin-right: auto" };
+          if (attrs.textAlign === "right") return { style: "margin-left: auto" };
+          if (attrs.textAlign === "left") return { style: "margin-right: auto" };
+          return {};
+        },
+      },
+    };
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(CustomYouTubePlayer);
+  },
+});
 import Table from "@tiptap/extension-table";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
@@ -19,6 +41,9 @@ import TableRow from "@tiptap/extension-table-row";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Placeholder from "@tiptap/extension-placeholder";
+import Color from "@tiptap/extension-color";
+import TextStyle from "@tiptap/extension-text-style";
+import { Extension } from "@tiptap/core";
 import { uploadCourseFile } from "@/lib/course-storage";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -48,13 +73,89 @@ import {
   Redo,
   Superscript as SuperscriptIcon,
   Subscript as SubscriptIcon,
+  Plus,
+  Palette,
+  Type,
 } from "lucide-react";
 
 interface RichEditorProps {
   content: string; // Tiptap JSON string
   onChange: (content: string) => void;
   placeholder?: string;
+  onEditorReady?: (editor: import("@tiptap/core").Editor | null) => void;
+  stickyToolbar?: boolean;
 }
+
+// --- Custom extensions for font size and font family ---
+const FontSize = Extension.create({
+  name: "fontSize",
+  addOptions() {
+    return { types: ["textStyle"] };
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (el: any) => el.style.fontSize || null,
+            renderHTML: (attrs: any) => attrs.fontSize ? { style: `font-size: ${attrs.fontSize}` } : {},
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontSize: (size: string) => ({ chain }: any) => chain().setMark("textStyle", { fontSize: size }).run(),
+      unsetFontSize: () => ({ chain }: any) => chain().setMark("textStyle", { fontSize: null }).removeEmptyTextStyle().run(),
+    } as any;
+  },
+});
+
+const FontFamily = Extension.create({
+  name: "fontFamily",
+  addOptions() {
+    return { types: ["textStyle"] };
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontFamily: {
+            default: null,
+            parseHTML: (el: any) => el.style.fontFamily?.replace(/["']/g, "") || null,
+            renderHTML: (attrs: any) => attrs.fontFamily ? { style: `font-family: ${attrs.fontFamily}` } : {},
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontFamily: (family: string) => ({ chain }: any) => chain().setMark("textStyle", { fontFamily: family }).run(),
+      unsetFontFamily: () => ({ chain }: any) => chain().setMark("textStyle", { fontFamily: null }).removeEmptyTextStyle().run(),
+    } as any;
+  },
+});
+
+const TEXT_COLORS = [
+  "#ffffff", "#f87171", "#fbbf24", "#34d399", "#60a5fa", "#a78bfa", "#f472b6", "#9ca3af", "#1f2937",
+];
+const HIGHLIGHT_COLORS = [
+  "#fef08a", "#bbf7d0", "#bfdbfe", "#fbcfe8", "#fed7aa", "#ddd6fe", "#a7f3d0", "#fecaca",
+];
+const FONT_SIZES = ["12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px"];
+const FONT_FAMILIES = [
+  { label: "Default", value: "" },
+  { label: "Sans", value: "Inter, sans-serif" },
+  { label: "Serif", value: "Georgia, serif" },
+  { label: "Mono", value: "monospace" },
+  { label: "Arial", value: "Arial, sans-serif" },
+  { label: "Courier", value: "Courier New, monospace" },
+];
 
 interface SlashCommand {
   id: string;
@@ -63,26 +164,34 @@ interface SlashCommand {
   run: (editor: import("@tiptap/core").Editor) => void;
 }
 
-export function RichEditor({ content, onChange, placeholder }: RichEditorProps) {
+export function RichEditor({ content, onChange, placeholder, onEditorReady, stickyToolbar = false }: RichEditorProps) {
   const [showSlash, setShowSlash] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
   const [slashIndex, setSlashIndex] = useState(0);
   const [linkUrl, setLinkUrl] = useState("");
   const [showLink, setShowLink] = useState(false);
+  const [showTextColor, setShowTextColor] = useState(false);
+  const [showHighlight, setShowHighlight] = useState(false);
+  const [showFontSize, setShowFontSize] = useState(false);
+  const [showFontFamily, setShowFontFamily] = useState(false);
+  const [showYouTube, setShowYouTube] = useState(false);
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const slashMenuRef = useRef<HTMLDivElement>(null);
+  const onEditorReadyRef = useRef(onEditorReady);
+  onEditorReadyRef.current = onEditorReady;
 
   const editor = useEditor({
     extensions: [
       StarterKit,
       Underline,
-      Highlight,
+      Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Superscript,
       Subscript,
       Link.configure({ openOnClick: false }),
       Image,
       ImageResize,
-      Youtube.configure({ width: 640, height: 360 }),
+      CustomYouTube.configure({ width: 640, height: 360 }),
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,
@@ -90,6 +199,10 @@ export function RichEditor({ content, onChange, placeholder }: RichEditorProps) 
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: placeholder || "Start typing..." }),
+      TextStyle,
+      Color,
+      FontSize,
+      FontFamily,
     ],
     content: safeJSON(content),
     onUpdate: ({ editor }) => {
@@ -146,10 +259,24 @@ export function RichEditor({ content, onChange, placeholder }: RichEditorProps) 
       },
       attributes: {
         class:
-          "prose prose-invert max-w-none min-h-[200px] outline-none p-3 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-hover-bg)]/20 focus-within:border-[var(--admin-primary)] focus-within:ring-1 focus-within:ring-[var(--admin-primary)]/30 transition-all",
+          "prose max-w-none mx-0 min-h-[200px] outline-none p-3 border border-[var(--admin-border)] bg-[var(--admin-card)] rounded-b focus-within:border-[var(--admin-primary)] focus-within:ring-1 focus-within:ring-[var(--admin-primary)]/30 transition-all",
       },
     },
   });
+
+  useEffect(() => {
+    const ed = editor;
+    onEditorReadyRef.current?.(ed);
+    if (ed) {
+      const handler = () => onEditorReadyRef.current?.(ed);
+      ed.on("selectionUpdate", handler);
+      return () => {
+        ed.off("selectionUpdate", handler);
+        onEditorReadyRef.current?.(null);
+      };
+    }
+    return () => onEditorReadyRef.current?.(null);
+  }, [editor]);
 
   useEffect(() => {
     if (!editor) return;
@@ -183,6 +310,13 @@ export function RichEditor({ content, onChange, placeholder }: RichEditorProps) 
     [editor]
   );
 
+  const addYouTube = useCallback(() => {
+    if (!editor || !youtubeUrl.trim()) return;
+    editor.chain().focus().setYoutubeVideo({ src: youtubeUrl.trim() }).run();
+    setShowYouTube(false);
+    setYoutubeUrl("");
+  }, [editor, youtubeUrl]);
+
   const commands = useMemo<SlashCommand[]>(
     () => [
       { id: "heading1", label: "Heading 1", icon: <Heading1 className="h-4 w-4" />, run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run() },
@@ -212,8 +346,8 @@ export function RichEditor({ content, onChange, placeholder }: RichEditorProps) 
         label: "YouTube",
         icon: <Video className="h-4 w-4" />,
         run: (e) => {
-          const url = window.prompt("YouTube URL");
-          if (url) e.chain().focus().setYoutubeVideo({ src: url }).run();
+          setYoutubeUrl("");
+          setShowYouTube(true);
         },
       },
     ],
@@ -250,27 +384,84 @@ export function RichEditor({ content, onChange, placeholder }: RichEditorProps) 
 
   return (
     <div className="relative">
-      <div className="flex flex-wrap items-center gap-1 p-2 mb-2 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-hover-bg)]/20">
-        <ToolbarButton editor={editor} command="toggleBold" icon={<Bold className="h-4 w-4" />} active="bold" />
-        <ToolbarButton editor={editor} command="toggleItalic" icon={<Italic className="h-4 w-4" />} active="italic" />
-        <ToolbarButton editor={editor} command="toggleUnderline" icon={<UnderlineIcon className="h-4 w-4" />} active="underline" />
-        <ToolbarButton editor={editor} command="toggleStrike" icon={<Strikethrough className="h-4 w-4" />} active="strike" />
-        <ToolbarButton editor={editor} command="toggleHighlight" icon={<Highlighter className="h-4 w-4" />} active="highlight" />
-        <ToolbarButton editor={editor} command="toggleSuperscript" icon={<SuperscriptIcon className="h-4 w-4" />} active="superscript" />
-        <ToolbarButton editor={editor} command="toggleSubscript" icon={<SubscriptIcon className="h-4 w-4" />} active="subscript" />
+      <div className={`rich-editor-toolbar relative z-10 flex flex-wrap items-center gap-1.5 p-2 mb-2 min-h-[44px] h-auto border border-[var(--admin-border)] bg-[var(--admin-card)] rounded-t ${stickyToolbar ? "sticky top-[88px] z-20" : ""}`}>
+        <ToolbarButton editor={editor} command="toggleBold" icon={<Bold className="h-4 w-4" />} active="bold" title="Bold" />
+        <ToolbarButton editor={editor} command="toggleItalic" icon={<Italic className="h-4 w-4" />} active="italic" title="Italic" />
+        <ToolbarButton editor={editor} command="toggleUnderline" icon={<UnderlineIcon className="h-4 w-4" />} active="underline" title="Underline" />
+        <ToolbarButton editor={editor} command="toggleStrike" icon={<Strikethrough className="h-4 w-4" />} active="strike" title="Strikethrough" />
+        <ToolbarButton editor={editor} command="toggleHighlight" icon={<Highlighter className="h-4 w-4" />} active="highlight" title="Highlight" />
+        <div className="relative">
+          <Button type="button" size="icon" variant="ghost" title="Text Color" onClick={() => { setShowTextColor(!showTextColor); setShowHighlight(false); setShowFontSize(false); setShowFontFamily(false); }} className="h-8 w-8 text-[var(--admin-text)]">
+            <Palette className="h-4 w-4" />
+          </Button>
+          {showTextColor && (
+            <div className="absolute z-30 top-9 left-0 p-2 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-card)] shadow-lg">
+              <div className="grid grid-cols-3 gap-1">
+                {TEXT_COLORS.map((color) => (
+                  <button key={color} type="button" onClick={() => { editor.chain().focus().setColor(color).run(); setShowTextColor(false); }} className="w-6 h-6 rounded-md border border-[var(--admin-border)] hover:scale-110 transition-transform" style={{ background: color }} title={color} />
+                ))}
+              </div>
+              <button type="button" onClick={() => { editor.chain().focus().unsetColor().run(); setShowTextColor(false); }} className="mt-1.5 w-full text-xs text-[var(--admin-muted)] hover:text-[var(--admin-text)]">Reset</button>
+            </div>
+          )}
+        </div>
+        <div className="relative">
+          <Button type="button" size="icon" variant="ghost" title="Highlight Color" onClick={() => { setShowHighlight(!showHighlight); setShowTextColor(false); setShowFontSize(false); setShowFontFamily(false); }} className="h-8 w-8 text-[var(--admin-text)]">
+            <span className="flex items-center"><Highlighter className="h-4 w-4" /><span className="ml-0.5 text-[10px]">▾</span></span>
+          </Button>
+          {showHighlight && (
+            <div className="absolute z-30 top-9 left-0 p-2 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-card)] shadow-lg">
+              <div className="grid grid-cols-4 gap-1">
+                {HIGHLIGHT_COLORS.map((color) => (
+                  <button key={color} type="button" onClick={() => { editor.chain().focus().toggleHighlight({ color }).run(); setShowHighlight(false); }} className="w-6 h-6 rounded-md border border-[var(--admin-border)] hover:scale-110 transition-transform" style={{ background: color }} title={color} />
+                ))}
+              </div>
+              <button type="button" onClick={() => { editor.chain().focus().unsetHighlight().run(); setShowHighlight(false); }} className="mt-1.5 w-full text-xs text-[var(--admin-muted)] hover:text-[var(--admin-text)]">Reset</button>
+            </div>
+          )}
+        </div>
+        <div className="relative">
+          <Button type="button" size="icon" variant="ghost" title="Font Size" onClick={() => { setShowFontSize(!showFontSize); setShowTextColor(false); setShowHighlight(false); setShowFontFamily(false); }} className="h-8 w-8 text-[var(--admin-text)]">
+            <Type className="h-4 w-4" />
+          </Button>
+          {showFontSize && (
+            <div className="absolute z-30 top-9 left-0 p-1.5 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-card)] shadow-lg min-w-[80px]">
+              {FONT_SIZES.map((size) => (
+                <button key={size} type="button" onClick={() => { (editor.chain().focus() as any).setFontSize(size).run(); setShowFontSize(false); }} className="w-full px-2 py-1 text-left text-xs text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)] rounded" style={{ fontSize: size }}>{size}</button>
+              ))}
+              <button type="button" onClick={() => { (editor.chain().focus() as any).unsetFontSize().run(); setShowFontSize(false); }} className="mt-0.5 w-full px-2 py-1 text-left text-xs text-[var(--admin-muted)] hover:text-[var(--admin-text)]">Reset</button>
+            </div>
+          )}
+        </div>
+        <div className="relative">
+          <Button type="button" variant="ghost" title="Font Family" onClick={() => { setShowFontFamily(!showFontFamily); setShowTextColor(false); setShowHighlight(false); setShowFontSize(false); }} className="h-8 px-2 text-[var(--admin-text)] text-xs gap-1">
+            <span className="font-sans">A</span>
+            <span className="text-[10px]">▾</span>
+          </Button>
+          {showFontFamily && (
+            <div className="absolute z-30 top-9 left-0 p-1.5 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-card)] shadow-lg min-w-[120px]">
+              {FONT_FAMILIES.map((font) => (
+                <button key={font.label} type="button" onClick={() => { if (font.value) { (editor.chain().focus() as any).setFontFamily(font.value).run(); } else { (editor.chain().focus() as any).unsetFontFamily().run(); } setShowFontFamily(false); }} className="w-full px-2 py-1 text-left text-xs text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)] rounded" style={{ fontFamily: font.value || "inherit" }}>{font.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="w-px h-5 bg-[var(--admin-border)] mx-1" />
-        <ToolbarButton editor={editor} command={() => editor.chain().focus().setTextAlign("left").run()} icon={<AlignLeft className="h-4 w-4" />} active={{ textAlign: "left" }} />
-        <ToolbarButton editor={editor} command={() => editor.chain().focus().setTextAlign("center").run()} icon={<AlignCenter className="h-4 w-4" />} active={{ textAlign: "center" }} />
-        <ToolbarButton editor={editor} command={() => editor.chain().focus().setTextAlign("right").run()} icon={<AlignRight className="h-4 w-4" />} active={{ textAlign: "right" }} />
+        <ToolbarButton editor={editor} command="toggleSubscript" icon={<SubscriptIcon className="h-4 w-4" />} active="subscript" title="Subscript" />
         <div className="w-px h-5 bg-[var(--admin-border)] mx-1" />
-        <ToolbarButton editor={editor} command="toggleBulletList" icon={<List className="h-4 w-4" />} active="bulletList" />
-        <ToolbarButton editor={editor} command="toggleOrderedList" icon={<ListOrdered className="h-4 w-4" />} active="orderedList" />
-        <ToolbarButton editor={editor} command="toggleTaskList" icon={<CheckSquare className="h-4 w-4" />} active="taskList" />
+        <ToolbarButton editor={editor} command={() => editor.chain().focus().setTextAlign("left").run()} icon={<AlignLeft className="h-4 w-4" />} active={{ textAlign: "left" }} title="Align Left" />
+        <ToolbarButton editor={editor} command={() => editor.chain().focus().setTextAlign("center").run()} icon={<AlignCenter className="h-4 w-4" />} active={{ textAlign: "center" }} title="Align Center" />
+        <ToolbarButton editor={editor} command={() => editor.chain().focus().setTextAlign("right").run()} icon={<AlignRight className="h-4 w-4" />} active={{ textAlign: "right" }} title="Align Right" />
+        <div className="w-px h-5 bg-[var(--admin-border)] mx-1" />
+        <ToolbarButton editor={editor} command="toggleBulletList" icon={<List className="h-4 w-4" />} active="bulletList" title="Bullet List" />
+        <ToolbarButton editor={editor} command="toggleOrderedList" icon={<ListOrdered className="h-4 w-4" />} active="orderedList" title="Numbered List" />
+        <ToolbarButton editor={editor} command="toggleTaskList" icon={<CheckSquare className="h-4 w-4" />} active="taskList" title="Task List" />
         <div className="w-px h-5 bg-[var(--admin-border)] mx-1" />
         <Button
           type="button"
           size="icon"
           variant="ghost"
+          title="Insert Link"
           onClick={() => {
             const url = editor.getAttributes("link").href || "";
             setLinkUrl(url);
@@ -284,6 +475,7 @@ export function RichEditor({ content, onChange, placeholder }: RichEditorProps) 
           type="button"
           size="icon"
           variant="ghost"
+          title="Upload Image"
           onClick={() => {
             const input = document.createElement("input");
             input.type = "file";
@@ -302,9 +494,10 @@ export function RichEditor({ content, onChange, placeholder }: RichEditorProps) 
           type="button"
           size="icon"
           variant="ghost"
+          title="Insert YouTube Video"
           onClick={() => {
-            const url = window.prompt("YouTube URL");
-            if (url) editor.chain().focus().setYoutubeVideo({ src: url }).run();
+            setYoutubeUrl("");
+            setShowYouTube(true);
           }}
           className="h-8 w-8 text-[var(--admin-text)]"
         >
@@ -314,16 +507,17 @@ export function RichEditor({ content, onChange, placeholder }: RichEditorProps) 
           type="button"
           size="icon"
           variant="ghost"
+          title="Insert Table"
           onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
           className="h-8 w-8 text-[var(--admin-text)]"
         >
           <TableIcon className="h-4 w-4" />
         </Button>
         <div className="w-px h-5 bg-[var(--admin-border)] mx-1" />
-        <Button type="button" size="icon" variant="ghost" onClick={() => editor.chain().focus().undo().run()} className="h-8 w-8 text-[var(--admin-text)]">
+        <Button type="button" size="icon" variant="ghost" title="Undo" onClick={() => editor.chain().focus().undo().run()} className="h-8 w-8 text-[var(--admin-text)]">
           <Undo className="h-4 w-4" />
         </Button>
-        <Button type="button" size="icon" variant="ghost" onClick={() => editor.chain().focus().redo().run()} className="h-8 w-8 text-[var(--admin-text)]">
+        <Button type="button" size="icon" variant="ghost" title="Redo" onClick={() => editor.chain().focus().redo().run()} className="h-8 w-8 text-[var(--admin-text)]">
           <Redo className="h-4 w-4" />
         </Button>
       </div>
@@ -343,49 +537,39 @@ export function RichEditor({ content, onChange, placeholder }: RichEditorProps) 
         </div>
       )}
 
-      <EditorContent editor={editor} />
-
-      {editor && (
-        <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }} shouldShow={({ editor }) => editor.isActive("image") || editor.isActive("youtube")}>
-          <div className="flex items-center gap-1 p-1 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-card)] shadow-lg">
-            <Button size="sm" variant="ghost" onClick={() => editor.chain().focus().setTextAlign("left").run()} className="h-7 px-2 text-[var(--admin-text)]">
-              Left
+      {showYouTube && (
+        <div className="absolute z-20 top-12 left-0 w-80 p-4 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] shadow-xl">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center">
+              <Video className="h-4 w-4 text-red-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-[var(--admin-text)]">Embed YouTube Video</p>
+              <p className="text-xs text-[var(--admin-muted)]">Paste a YouTube URL or video ID</p>
+            </div>
+          </div>
+          <input
+            type="text"
+            value={youtubeUrl}
+            onChange={(e) => setYoutubeUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addYouTube(); } }}
+            placeholder="https://www.youtube.com/watch?v=..."
+            className="admin-input h-9 text-sm w-full"
+            autoFocus
+          />
+          <div className="flex justify-end gap-2 mt-3">
+            <Button size="sm" variant="ghost" onClick={() => { setShowYouTube(false); setYoutubeUrl(""); }} className="text-[var(--admin-muted)]">
+              Cancel
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => editor.chain().focus().setTextAlign("center").run()} className="h-7 px-2 text-[var(--admin-text)]">
-              Center
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => editor.chain().focus().setTextAlign("right").run()} className="h-7 px-2 text-[var(--admin-text)]">
-              Right
-            </Button>
-            <div className="w-px h-4 bg-[var(--admin-border)] mx-1" />
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                if (editor.isActive("image")) {
-                  const attrs = editor.getAttributes("image");
-                  const url = window.prompt("Replace image URL", attrs.src);
-                  if (url) editor.chain().focus().updateAttributes("image", { src: url }).run();
-                }
-              }}
-              className="h-7 px-2 text-[var(--admin-text)]"
-            >
-              Replace
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                if (editor.isActive("image")) editor.chain().focus().deleteNode("image").run();
-                if (editor.isActive("youtube")) editor.chain().focus().deleteNode("youtube").run();
-              }}
-              className="h-7 px-2 text-red-400 hover:text-red-300"
-            >
-              Delete
+            <Button size="sm" onClick={addYouTube} disabled={!youtubeUrl.trim()} className="admin-btn-primary">
+              <Video className="h-3.5 w-3.5 mr-1" />
+              Embed
             </Button>
           </div>
-        </BubbleMenu>
+        </div>
       )}
+
+      <EditorContent editor={editor} />
 
       {showSlash && filteredCommands.length > 0 && (
         <div
@@ -416,11 +600,13 @@ function ToolbarButton({
   command,
   icon,
   active,
+  title,
 }: {
   editor: import("@tiptap/core").Editor;
   command: string | (() => void);
   icon: React.ReactNode;
   active: string | Record<string, string>;
+  title: string;
 }) {
   const isActive = typeof active === "string" ? editor.isActive(active) : editor.isActive(active);
   return (
@@ -428,6 +614,7 @@ function ToolbarButton({
       type="button"
       size="icon"
       variant="ghost"
+      title={title}
       onClick={() => (typeof command === "string" ? (editor.chain().focus() as unknown as Record<string, () => { run: () => void }>)[command]().run() : command())}
       className={`h-8 w-8 ${isActive ? "text-[var(--admin-primary)] bg-[var(--admin-primary)]/10" : "text-[var(--admin-text)]"}`}
     >

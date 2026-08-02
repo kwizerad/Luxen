@@ -1,19 +1,19 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Watermark } from "@/components/watermark";
-import { cn } from "@/lib/utils";
-import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { useBrandingConfig } from "@/lib/branding-config";
-import { getExamCategories, getExamForTaking, createExamAttempt, areViolationMeasuresEnabled } from "@/lib/supabase/queries";
+import { getExamCategories, getExamForTaking, createExamAttempt, isStandaloneExamEnabled } from "@/lib/supabase/queries";
+import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings } from "@/lib/security-config";
 import { toast } from "sonner";
 import { CardSkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
-import { CheckCircle, XCircle, Clock, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Eye, Shield, Timer, HelpCircle, ChevronRight, FileText, Play, LogOut, Monitor } from "lucide-react";
+import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, HelpCircle, FileText, Play, LogOut, Monitor } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
-import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
+import type { ExamCategory, ExamQuestion, ExamAttempt, ExamAnswer } from "@/lib/database.types";
 
 type TakeResponse = {
   categoryId: string;
@@ -51,12 +51,35 @@ function formatTime(totalSeconds: number) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+interface FullscreenElement extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+  msRequestFullscreen?: () => Promise<void> | void;
+}
+
+interface FullscreenDocument extends Document {
+  webkitExitFullscreen?: () => Promise<void> | void;
+  msExitFullscreen?: () => Promise<void> | void;
+}
+
 export default function TakeExamPage() {
   const { config } = useBrandingConfig();
   const { t } = useLanguage();
+  const router = useRouter();
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string>("");
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [accessChecked, setAccessChecked] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    void isStandaloneExamEnabled().then((enabled) => {
+      if (!enabled) {
+        router.replace("/dashboard/course");
+        return;
+      }
+      setAccessChecked(true);
+    });
+  }, [router]);
 
   const [loadingExam, setLoadingExam] = useState(false);
   const [submittingExam, setSubmittingExam] = useState(false);
@@ -66,10 +89,9 @@ export default function TakeExamPage() {
   const [examStartTime, setExamStartTime] = useState<number | null>(null);
   const [userAnswers, setUserAnswers] = useState<Record<string, UserAnswer>>({});
   const [showResults, setShowResults] = useState(false);
-  const [examResult, setExamResult] = useState<any>(null);
+  const [examResult, setExamResult] = useState<ExamAttempt | null>(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [instructionsAccepted, setInstructionsAccepted] = useState(false);
-  const [pendingCategoryId, setPendingCategoryId] = useState<string>("");
   const [showFullscreenWarning, setShowFullscreenWarning] = useState(false);
   const [fullscreenRetryCount, setFullscreenRetryCount] = useState(0);
   const [cheatingAttempts, setCheatingAttempts] = useState(0);
@@ -77,8 +99,8 @@ export default function TakeExamPage() {
   const [showCheatingWarning, setShowCheatingWarning] = useState(false);
   const [cheatingWarningMessage, setCheatingWarningMessage] = useState("");
   const [violationType, setViolationType] = useState<"fullscreen" | "tabswitch" | "copy" | "paste" | "backnavigation" | "other">("other");
-  const [violationMeasuresEnabled, setViolationMeasuresEnabled] = useState(true);
-  
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(DEFAULT_SECURITY_SETTINGS);
+
   // Custom alert/confirm dialog states
   const [showAlert, setShowAlert] = useState(false);
   const [alertTitle, setAlertTitle] = useState("");
@@ -91,32 +113,38 @@ export default function TakeExamPage() {
   const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
   const [showQuestionPalette, setShowQuestionPalette] = useState(false);
 
+  const cheatingAttemptsRef = useRef(cheatingAttempts);
+  const fullscreenRetryCountRef = useRef(fullscreenRetryCount);
+  const isSubmittingOnExitRef = useRef(isSubmittingOnExit);
+  const handleSubmitExamRef = useRef<((isAutoSubmit?: boolean) => Promise<void>) | null>(null);
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !accessChecked) return;
     
     const load = async () => {
       setLoadingCategories(true);
       try {
         const data = await getExamCategories();
         setCategories(data.categories || []);
-      } catch (error: any) {
-        toast.error(`${t("failedToLoadCategories")}: ${error.message}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        toast.error(`${t("failedToLoadCategories")}: ${message}`);
       } finally {
         setLoadingCategories(false);
       }
     };
     load();
     
-    // Load violation measures status
-    const loadViolationStatus = async () => {
+    // Load security settings
+    const loadSecuritySettings = async () => {
       try {
-        const enabled = await areViolationMeasuresEnabled();
-        setViolationMeasuresEnabled(enabled);
+        const settings = await getSecuritySettings();
+        setSecuritySettings(settings);
       } catch (error) {
-        console.error("Failed to load violation measures status:", error);
+        console.error("Failed to load security settings:", error);
       }
     };
-    loadViolationStatus();
+    loadSecuritySettings();
 
     // Clean up exam-active flag when component unmounts
     return () => {
@@ -124,31 +152,32 @@ export default function TakeExamPage() {
       window.dispatchEvent(new CustomEvent('exam-state-change'));
       console.log('Exam component unmounted - exam-active removed');
     };
-  }, []);
+  }, [accessChecked, t]);
   
   useEffect(() => {
     const handleFullscreenChange = () => {
       // If user tries to exit full screen during exam, show warning and prevent
-      if (exam && !document.fullscreenElement && !showResults && violationMeasuresEnabled) {
-        const newCount = fullscreenRetryCount + 1;
+      if (exam && !document.fullscreenElement && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled) {
+        const newCount = fullscreenRetryCountRef.current + 1;
+        fullscreenRetryCountRef.current = newCount;
         setFullscreenRetryCount(newCount);
         
         // Show cheating warning modal
         setViolationType("fullscreen");
         setCheatingWarningMessage(
-          newCount === 1 
+          newCount === 1
             ? t("fullscreenViolation1")
-            : newCount === 2
+            : newCount < securitySettings.maxViolations
             ? t("fullscreenViolation2")
             : t("fullscreenViolationFinal")
         );
         setShowCheatingWarning(true);
-        
-        // Auto-submit exam after 3 attempts
-        if (newCount >= 3) {
+
+        // Auto-submit exam after max violation attempts
+        if (newCount >= securitySettings.maxViolations) {
           setTimeout(() => {
             toast.error(t("examAutoSubmitted"));
-            handleSubmitExam(true);
+            handleSubmitExamRef.current?.(true);
           }, 3000);
         } else {
           // Show fullscreen warning too
@@ -158,53 +187,63 @@ export default function TakeExamPage() {
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent ESC key and other fullscreen exit keys during exam
-      if (exam && !showResults && violationMeasuresEnabled) {
-        if (e.key === 'Escape' || e.key === 'F11') {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          return false;
-        }
-        
-        // Prevent other common exit shortcuts
-        if (e.ctrlKey && e.key === 'w') {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        }
-        
-        if (e.altKey && e.key === 'Tab') {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        }
+      if (!exam || showResults || !securitySettings.violationMeasuresEnabled) return;
+
+      if (securitySettings.fullscreenEnabled && (e.key === 'Escape' || e.key === 'F11')) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
+
+      if (securitySettings.tabSwitchEnabled && e.ctrlKey && e.key === 'w') {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+
+      if (securitySettings.tabSwitchEnabled && e.altKey && e.key === 'Tab') {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+
+      if (securitySettings.aiDetectionEnabled && (
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'G' || e.key === 'g' || e.key === 'B' || e.key === 'b' || e.key === 'Y' || e.key === 'y')) ||
+        (e.altKey && (e.key === 'i' || e.key === 'I'))
+      )) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        toast.error(t("aiShortcutBlocked"));
+        return false;
       }
     };
 
     const handleContextMenu = (e: MouseEvent) => {
       // Prevent right-click context menu during exam
-      if (exam && !showResults && violationMeasuresEnabled) {
+      if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.rightClickEnabled) {
         e.preventDefault();
         e.stopPropagation();
       }
     };
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (exam && !showResults && !isSubmittingOnExit && violationMeasuresEnabled) {
+      if (exam && !showResults && !isSubmittingOnExitRef.current && securitySettings.violationMeasuresEnabled && securitySettings.tabSwitchEnabled) {
         e.preventDefault();
         e.returnValue = t("leaveExamConfirm");
         
         // Auto-submit exam when user tries to close/refresh
+        isSubmittingOnExitRef.current = true;
         setIsSubmittingOnExit(true);
-        handleSubmitExam(true);
+        handleSubmitExamRef.current?.(true);
         return e.returnValue;
       }
     };
 
     // Prevent copy, paste, cut, and select during exam
     const handleCopy = (e: ClipboardEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
+      if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.copyPasteEnabled) {
         e.preventDefault();
         setViolationType("copy");
         setCheatingWarningMessage(t("copyAttemptDetected"));
@@ -215,7 +254,7 @@ export default function TakeExamPage() {
     };
 
     const handlePaste = (e: ClipboardEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
+      if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.copyPasteEnabled) {
         e.preventDefault();
         setViolationType("paste");
         setCheatingWarningMessage(t("pasteAttemptDetected"));
@@ -226,7 +265,7 @@ export default function TakeExamPage() {
     };
 
     const handleCut = (e: ClipboardEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
+      if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.copyPasteEnabled) {
         e.preventDefault();
         setViolationType("other");
         setCheatingWarningMessage(t("cutAttemptDetected"));
@@ -238,7 +277,7 @@ export default function TakeExamPage() {
 
     // Prevent ALL text selection during exam
     const handleSelectStart = (e: Event) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
+      if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.textSelectionEnabled) {
         e.preventDefault();
         e.stopPropagation();
         return false;
@@ -247,7 +286,7 @@ export default function TakeExamPage() {
 
     // Prevent double/triple click selection
     const handleMouseDown = (e: MouseEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
+      if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.textSelectionEnabled) {
         // Prevent text selection via double/triple click
         if (e.detail > 1) {
           e.preventDefault();
@@ -258,29 +297,30 @@ export default function TakeExamPage() {
 
     // Track tab visibility changes (cheating detection)
     const handleVisibilityChange = () => {
-      if (exam && !showResults && document.hidden && violationMeasuresEnabled) {
-        const newCount = cheatingAttempts + 1;
+      if (exam && !showResults && document.hidden && securitySettings.violationMeasuresEnabled && securitySettings.tabSwitchEnabled) {
+        const newCount = cheatingAttemptsRef.current + 1;
+        cheatingAttemptsRef.current = newCount;
         setCheatingAttempts(newCount);
         
         // Show cheating warning modal
         setViolationType("tabswitch");
         setCheatingWarningMessage(
-          newCount === 1 
+          newCount === 1
             ? t("tabSwitchViolation1")
-            : newCount === 2
+            : newCount < securitySettings.maxViolations
             ? t("tabSwitchViolation2")
             : t("tabSwitchViolationFinal")
         );
         setShowCheatingWarning(true);
-        
+
         if (newCount === 1) {
           toast.error(t("tabSwitchWarning1"));
-        } else if (newCount === 2) {
+        } else if (newCount < securitySettings.maxViolations) {
           toast.error(t("tabSwitchWarning2"));
-        } else if (newCount >= 3) {
+        } else if (newCount >= securitySettings.maxViolations) {
           setTimeout(() => {
             toast.error(t("tabSwitchWarningFinal"));
-            handleSubmitExam(true);
+            handleSubmitExamRef.current?.(true);
           }, 3000);
         }
       }
@@ -288,14 +328,14 @@ export default function TakeExamPage() {
 
     // Prevent drag and drop
     const handleDragStart = (e: DragEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
+      if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.dragDropEnabled) {
         e.preventDefault();
         return false;
       }
     };
 
     const handleDrop = (e: DragEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
+      if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.dragDropEnabled) {
         e.preventDefault();
         return false;
       }
@@ -348,238 +388,14 @@ export default function TakeExamPage() {
       document.removeEventListener('dragstart', handleDragStart, true);
       document.removeEventListener('drop', handleDrop, true);
     };
-  }, [exam, showResults, violationMeasuresEnabled]);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      // If user tries to exit full screen during exam, show warning and prevent
-      if (exam && !document.fullscreenElement && !showResults && violationMeasuresEnabled) {
-        const newCount = fullscreenRetryCount + 1;
-        setFullscreenRetryCount(newCount);
-        
-        // Show cheating warning modal
-        setViolationType("fullscreen");
-        setCheatingWarningMessage(
-          newCount === 1 
-            ? t("fullscreenViolation1")
-            : newCount === 2
-            ? t("fullscreenViolation2")
-            : t("fullscreenViolationFinal")
-        );
-        setShowCheatingWarning(true);
-        
-        // Auto-submit exam after 3 attempts
-        if (newCount >= 3) {
-          setTimeout(() => {
-            toast.error(t("examAutoSubmitted"));
-            handleSubmitExam(true);
-          }, 3000);
-        } else {
-          // Show fullscreen warning too
-          setShowFullscreenWarning(true);
-        }
-      }
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent ESC key and other fullscreen exit keys during exam
-      if (exam && !showResults && violationMeasuresEnabled) {
-        if (e.key === 'Escape' || e.key === 'F11') {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          return false;
-        }
-        
-        // Prevent other common exit shortcuts
-        if (e.ctrlKey && e.key === 'w') {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        }
-        
-        if (e.altKey && e.key === 'Tab') {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        }
-      }
-    };
-
-    const handleContextMenu = (e: MouseEvent) => {
-      // Prevent right-click context menu during exam
-      if (exam && !showResults && violationMeasuresEnabled) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (exam && !showResults && !isSubmittingOnExit && violationMeasuresEnabled) {
-        e.preventDefault();
-        e.returnValue = t("leaveExamConfirm");
-        
-        // Auto-submit exam when user tries to close/refresh
-        setIsSubmittingOnExit(true);
-        handleSubmitExam(true);
-        return e.returnValue;
-      }
-    };
-
-    // Prevent copy, paste, cut, and select during exam
-    const handleCopy = (e: ClipboardEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
-        e.preventDefault();
-        setViolationType("copy");
-        setCheatingWarningMessage(t("copyAttemptDetected"));
-        setShowCheatingWarning(true);
-        toast.error(t("copyNotAllowed"));
-        return false;
-      }
-    };
-
-    const handlePaste = (e: ClipboardEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
-        e.preventDefault();
-        setViolationType("paste");
-        setCheatingWarningMessage(t("pasteAttemptDetected"));
-        setShowCheatingWarning(true);
-        toast.error(t("pasteNotAllowed"));
-        return false;
-      }
-    };
-
-    const handleCut = (e: ClipboardEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
-        e.preventDefault();
-        setViolationType("other");
-        setCheatingWarningMessage(t("cutAttemptDetected"));
-        setShowCheatingWarning(true);
-        toast.error(t("cutNotAllowed"));
-        return false;
-      }
-    };
-
-    // Prevent ALL text selection during exam
-    const handleSelectStart = (e: Event) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      }
-    };
-
-    // Prevent double/triple click selection
-    const handleMouseDown = (e: MouseEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
-        // Prevent text selection via double/triple click
-        if (e.detail > 1) {
-          e.preventDefault();
-          return false;
-        }
-      }
-    };
-
-    // Track tab visibility changes (cheating detection)
-    const handleVisibilityChange = () => {
-      if (exam && !showResults && document.hidden && violationMeasuresEnabled) {
-        const newCount = cheatingAttempts + 1;
-        setCheatingAttempts(newCount);
-        
-        // Show cheating warning modal
-        setViolationType("tabswitch");
-        setCheatingWarningMessage(
-          newCount === 1 
-            ? t("tabSwitchViolation1")
-            : newCount === 2
-            ? t("tabSwitchViolation2")
-            : t("tabSwitchViolationFinal")
-        );
-        setShowCheatingWarning(true);
-        
-        if (newCount === 1) {
-          toast.error(t("tabSwitchWarning1"));
-        } else if (newCount === 2) {
-          toast.error(t("tabSwitchWarning2"));
-        } else if (newCount >= 3) {
-          setTimeout(() => {
-            toast.error(t("tabSwitchWarningFinal"));
-            handleSubmitExam(true);
-          }, 3000);
-        }
-      }
-    };
-
-    // Prevent drag and drop
-    const handleDragStart = (e: DragEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
-        e.preventDefault();
-        return false;
-      }
-    };
-
-    const handleDrop = (e: DragEvent) => {
-      if (exam && !showResults && violationMeasuresEnabled) {
-        e.preventDefault();
-        return false;
-      }
-    };
-
-    // Add event listeners
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-    document.addEventListener('keydown', handleKeyDown, true); // Use capture phase
-    document.addEventListener('contextmenu', handleContextMenu);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    // Clipboard protection
-    document.addEventListener('copy', handleCopy, true);
-    document.addEventListener('paste', handlePaste, true);
-    document.addEventListener('cut', handleCut, true);
-    document.addEventListener('selectstart', handleSelectStart, true);
-    document.addEventListener('mousedown', handleMouseDown, true);
-    
-    // Tab visibility tracking
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Drag and drop prevention
-    document.addEventListener('dragstart', handleDragStart, true);
-    document.addEventListener('drop', handleDrop, true);
-
-    return () => {
-      // Clean up event listeners
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-      document.removeEventListener('keydown', handleKeyDown, true);
-      document.removeEventListener('contextmenu', handleContextMenu);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      
-      // Remove clipboard protection
-      document.removeEventListener('copy', handleCopy, true);
-      document.removeEventListener('paste', handlePaste, true);
-      document.removeEventListener('cut', handleCut, true);
-      document.removeEventListener('selectstart', handleSelectStart, true);
-      document.removeEventListener('mousedown', handleMouseDown, true);
-      
-      // Remove visibility tracking
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      
-      // Remove drag prevention
-      document.removeEventListener('dragstart', handleDragStart, true);
-      document.removeEventListener('drop', handleDrop, true);
-    };
-  }, [exam, showResults, violationMeasuresEnabled]);
+  }, [exam, showResults, securitySettings, t]);
 
   // Prevent back button / smartphone back gesture during exam
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!exam || showResults || !violationMeasuresEnabled) return;
+    if (!exam || showResults || !securitySettings.violationMeasuresEnabled || !securitySettings.tabSwitchEnabled) return;
 
-    const handlePopState = (e: PopStateEvent) => {
+    const handlePopState = () => {
       // Push multiple history states back so the user cannot navigate away
       if (typeof window !== 'undefined') {
         for (let i = 0; i < 3; i++) {
@@ -587,13 +403,14 @@ export default function TakeExamPage() {
         }
       }
 
-      const newCount = cheatingAttempts + 1;
+      const newCount = cheatingAttemptsRef.current + 1;
+      cheatingAttemptsRef.current = newCount;
       setCheatingAttempts(newCount);
       setViolationType('backnavigation');
       setCheatingWarningMessage(
         newCount === 1
           ? t("backNavigationViolation1")
-          : newCount === 2
+          : newCount < securitySettings.maxViolations
           ? t("backNavigationViolation2")
           : t("backNavigationViolationFinal")
       );
@@ -601,24 +418,24 @@ export default function TakeExamPage() {
 
       if (newCount === 1) {
         toast.error(t("backNavigationWarning1"));
-      } else if (newCount === 2) {
+      } else if (newCount < securitySettings.maxViolations) {
         toast.error(t("backNavigationWarning2"));
-      } else if (newCount >= 3) {
+      } else if (newCount >= securitySettings.maxViolations) {
         setTimeout(() => {
           toast.error(t("backNavigationWarningFinal"));
-          handleSubmitExam(true);
+          handleSubmitExamRef.current?.(true);
         }, 3000);
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [exam, showResults, violationMeasuresEnabled, cheatingAttempts]);
+  }, [exam, showResults, securitySettings, t]);
 
   // Prevent keyboard navigation shortcuts (Alt+Left/Right, Cmd+[/]) during exam
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!exam || showResults || !violationMeasuresEnabled) return;
+    if (!exam || showResults || !securitySettings.violationMeasuresEnabled || !securitySettings.tabSwitchEnabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Alt + Left/Right arrow (browser back/forward in many browsers)
@@ -640,7 +457,7 @@ export default function TakeExamPage() {
 
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [exam, showResults, violationMeasuresEnabled]);
+  }, [exam, showResults, securitySettings]);
 
   // Navigate questions with Left/Right arrow keys
   useEffect(() => {
@@ -672,29 +489,12 @@ export default function TakeExamPage() {
   useEffect(() => {
     if (secondsLeft === null) return;
     if (secondsLeft <= 0) {
-      handleSubmitExam(true);
+      handleSubmitExamRef.current?.(true);
       return;
     }
     const id = setInterval(() => setSecondsLeft((s) => (s === null ? s : Math.max(0, s - 1))), 1000);
     return () => clearInterval(id);
   }, [secondsLeft]);
-
-  const showExamInstructions = async () => {
-    if (!categoryId) {
-      toast.error(t("selectCategoryFirst"));
-      return;
-    }
-    setLoadingExam(true);
-    try {
-      const data = await getExamForTaking(categoryId);
-      setExam(data);
-      setShowInstructions(true);
-    } catch (error: any) {
-      toast.error(error.message || t("failedToLoadExam"));
-    } finally {
-      setLoadingExam(false);
-    }
-  };
 
   const startExam = async () => {
     if (!instructionsAccepted) {
@@ -714,15 +514,20 @@ export default function TakeExamPage() {
       setExamResult(null);
       setShowFullscreenWarning(false);
       setFullscreenRetryCount(0);
+      setCheatingAttempts(0);
+      cheatingAttemptsRef.current = 0;
+      setIsSubmittingOnExit(false);
+      isSubmittingOnExitRef.current = false;
       
-      // Enter full screen mode only if violation measures are enabled
-      if (violationMeasuresEnabled) {
-        if (document.documentElement.requestFullscreen) {
-          await document.documentElement.requestFullscreen();
-        } else if ((document.documentElement as any).webkitRequestFullscreen) {
-          await (document.documentElement as any).webkitRequestFullscreen();
-        } else if ((document.documentElement as any).msRequestFullscreen) {
-          await (document.documentElement as any).msRequestFullscreen();
+      // Enter full screen mode only if violation measures and fullscreen are enabled
+      if (securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled) {
+        const el = document.documentElement as FullscreenElement;
+        if (el.requestFullscreen) {
+          await el.requestFullscreen();
+        } else if (el.webkitRequestFullscreen) {
+          await el.webkitRequestFullscreen();
+        } else if (el.msRequestFullscreen) {
+          await el.msRequestFullscreen();
         }
       }
       
@@ -739,8 +544,8 @@ export default function TakeExamPage() {
           window.history.pushState({ exam: true, index: i }, '', window.location.href);
         }
       }
-    } catch (error: any) {
-      toast.error(error.message || t("failedToStartExam"));
+    } catch (error) {
+      toast.error((error instanceof Error ? error.message : String(error)) || t("failedToStartExam"));
     } finally {
       setLoadingExam(false);
     }
@@ -825,7 +630,7 @@ export default function TakeExamPage() {
         status: answeredCount > 0 ? 'completed' : 'abandoned',
       });
 
-      setExamResult(data.attempt);
+      setExamResult(data.attempt as ExamAttempt);
       setShowResults(true);
       
       // Remove exam-active flag
@@ -837,22 +642,25 @@ export default function TakeExamPage() {
       
       // Exit full screen mode when exam is completed
       if (document.fullscreenElement) {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
-          await (document as any).webkitExitFullscreen();
-        } else if ((document as any).msExitFullscreen) {
-          await (document as any).msExitFullscreen();
+        const doc = document as FullscreenDocument;
+        if (doc.exitFullscreen) {
+          await doc.exitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+          await doc.webkitExitFullscreen();
+        } else if (doc.msExitFullscreen) {
+          await doc.msExitFullscreen();
         }
       }
       
       toast.success(t("examSubmittedSuccess"));
-    } catch (error: any) {
-      toast.error(`${t("failedToSubmitExam")}: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`${t("failedToSubmitExam")}: ${message}`);
     } finally {
       setSubmittingExam(false);
     }
   };
+  handleSubmitExamRef.current = handleSubmitExam;
 
   const reset = () => {
     setExam(null);
@@ -865,7 +673,9 @@ export default function TakeExamPage() {
     setShowFullscreenWarning(false);
     setFullscreenRetryCount(0);
     setCheatingAttempts(0);
+    cheatingAttemptsRef.current = 0;
     setIsSubmittingOnExit(false);
+    isSubmittingOnExitRef.current = false;
     setShowCheatingWarning(false);
     setCheatingWarningMessage("");
     setViolationType("other");
@@ -885,6 +695,8 @@ export default function TakeExamPage() {
 
   const answeredCount = Object.keys(userAnswers).length;
   const progress = exam ? (answeredCount / exam.questions.length) * 100 : 0;
+
+  if (!accessChecked) return null;
 
   if (showResults && examResult) {
     return (
@@ -907,7 +719,7 @@ export default function TakeExamPage() {
               {examResult.category_name}
             </CardTitle>
             <CardDescription className="text-[11px] sm:text-sm">
-              {t("completedOn")} {new Date(examResult.completed_at).toLocaleString()}
+              {t("completedOn")} {examResult.completed_at ? new Date(examResult.completed_at).toLocaleString() : "—"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 sm:space-y-6">
@@ -932,7 +744,7 @@ export default function TakeExamPage() {
 
             <div className="space-y-2 sm:space-y-3">
               <h3 className="font-semibold text-sm sm:text-base">{t("answerBreakdown")}</h3>
-              {examResult.answers.map((answer: any, idx: number) => {
+              {examResult.answers.map((answer: ExamAnswer, idx: number) => {
                 const question = exam?.questions?.find((q) => q.id === answer.question_id);
                 if (!question) return null;
                 
@@ -991,9 +803,9 @@ export default function TakeExamPage() {
       {!isExamActive && (
         <div className="fixed top-4 left-4 z-50 md:hidden">
           <Link href="/dashboard" className="premium-glass-panel flex items-center gap-2 rounded-full border p-2 overflow-hidden">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden relative">
               {config.logoUrl ? (
-                <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+                <Image src={config.logoUrl} alt={config.systemName} fill unoptimized className="object-cover" sizes="32px" />
               ) : (
                 <span className="text-xs font-bold">{config.logoText || "N"}</span>
               )}
@@ -1042,7 +854,6 @@ export default function TakeExamPage() {
                         className="group cursor-pointer h-full rounded-[14px] sm:rounded-[24px]"
                         onClick={() => {
                           setCategoryId(category.id);
-                          setPendingCategoryId(category.id);
                           setShowInstructions(true);
                           setInstructionsAccepted(false);
                         }}
@@ -1078,7 +889,6 @@ export default function TakeExamPage() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setCategoryId(category.id);
-                                setPendingCategoryId(category.id);
                                 setShowInstructions(true);
                                 setInstructionsAccepted(false);
                               }}
@@ -1121,11 +931,16 @@ export default function TakeExamPage() {
                   <span className="font-medium">{t("progress")}</span>
                   <span className="text-muted-foreground tabular-nums">{answeredCount} / {exam.questions.length}</span>
                 </div>
-                <div className="h-1.5 sm:h-2 bg-secondary rounded-full overflow-hidden">
+                <div className="relative h-2 sm:h-2.5 rounded-full overflow-hidden border border-white/10 dark:border-white/5 bg-white/30 dark:bg-white/5 backdrop-blur-md shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),inset_0_-1px_2px_rgba(15,23,42,0.08)] dark:shadow-[inset_0_1px_2px_rgba(255,255,255,0.08),inset_0_-1px_2px_rgba(0,0,0,0.4)]">
                   <div
-                    className="h-full bg-primary transition-all duration-300"
+                    className="relative h-full rounded-full transition-all duration-300 bg-gradient-to-r from-primary/80 via-primary to-primary/90 shadow-[0_0_12px_rgba(0,0,0,0.15)] overflow-hidden"
                     style={{ width: `${progress}%` }}
-                  />
+                  >
+                    {/* Glass sheen overlay */}
+                    <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/40 via-transparent to-white/10" />
+                    {/* Animated shimmer */}
+                    <span className="pointer-events-none absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+                  </div>
                 </div>
               </div>
               {/* Timer (right) */}
@@ -1149,7 +964,7 @@ export default function TakeExamPage() {
               onClick={() => {
                 setConfirmTitle(t("quitExamTitle"));
                 setConfirmMessage(t("quitExamMessage"));
-                setConfirmCallback(() => () => handleSubmitExam(true));
+                setConfirmCallback(() => () => handleSubmitExamRef.current?.(true));
                 setShowConfirm(true);
               }}
               className="gap-2"
@@ -1159,7 +974,7 @@ export default function TakeExamPage() {
             </Button>
             <Button
               size="sm"
-              onClick={() => handleSubmitExam()}
+              onClick={() => handleSubmitExamRef.current?.()}
               disabled={submittingExam || answeredCount === 0}
               className="min-w-[100px] sm:min-w-[120px]"
             >
@@ -1197,7 +1012,7 @@ export default function TakeExamPage() {
                 </button>
               </div>
               <CardDescription className="text-[11px] sm:text-sm">
-                {t("examModeLabel")}: {exam.settings.sorting_mode} · {t("examDurationLabel")}: {exam.settings.duration_minutes}m · {t("examQuestionsLabel")}: {exam.questions.length}
+                {t("examDurationLabel")}: {exam.settings.duration_minutes}m · {t("examQuestionsLabel")}: {exam.questions.length}
                 <span className="md:hidden text-xs text-muted-foreground ml-2">{t("swipeToNavigate")}</span>
               </CardDescription>
 
@@ -1232,7 +1047,7 @@ export default function TakeExamPage() {
               {activeQuestion ? (
                 <>
                   {activeQuestion.question_image && (
-                    <img src={activeQuestion.question_image} alt={t("question")} className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg border" />
+                    <Image src={activeQuestion.question_image} alt={t("question")} width={800} height={600} unoptimized className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg border" />
                   )}
                   {activeQuestion.question && (
                     <div className="text-sm sm:text-base font-medium">{activeQuestion.question}</div>
@@ -1261,7 +1076,7 @@ export default function TakeExamPage() {
                               {opt}
                             </div>
                             <div className="flex-1 min-w-0">
-                              {img && <img src={img} alt={`${t("option")} ${opt}`} className="w-full max-h-[180px] sm:max-h-[240px] object-contain rounded-md border mb-2" />}
+                              {img && <Image src={img} alt={`${t("option")} ${opt}`} width={800} height={600} unoptimized className="w-full max-h-[180px] sm:max-h-[240px] object-contain rounded-md border mb-2" />}
                               {text && <div className="text-xs sm:text-sm">{text}</div>}
                             </div>
                           </div>
@@ -1297,9 +1112,6 @@ export default function TakeExamPage() {
       ) : null}
       </main>
       
-      {/* Bottom Navigation - Completely removed during active exam */}
-      {!isExamActive && <MobileBottomNav hide />}
-
       {/* Exam Instructions Dialog */}
       <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
         <DialogContent className="max-w-2xl sm:max-w-3xl max-h-[calc(100dvh-6rem)] sm:max-h-[90vh] overflow-y-auto">
@@ -1447,7 +1259,7 @@ export default function TakeExamPage() {
               <p className="text-xs sm:text-sm text-red-700 dark:text-red-300 font-medium">
                 {fullscreenRetryCount === 1
                   ? t("fullscreenWarning.reenter")
-                  : fullscreenRetryCount === 2
+                  : fullscreenRetryCount < securitySettings.maxViolations
                   ? t("fullscreenWarning.repeated")
                   : t("fullscreenWarning.final")
                 }
@@ -1466,12 +1278,13 @@ export default function TakeExamPage() {
             <Button
               onClick={async () => {
                 try {
-                  if (document.documentElement.requestFullscreen) {
-                    await document.documentElement.requestFullscreen();
-                  } else if ((document.documentElement as any).webkitRequestFullscreen) {
-                    await (document.documentElement as any).webkitRequestFullscreen();
-                  } else if ((document.documentElement as any).msRequestFullscreen) {
-                    await (document.documentElement as any).msRequestFullscreen();
+                  const el = document.documentElement as FullscreenElement;
+                  if (el.requestFullscreen) {
+                    await el.requestFullscreen();
+                  } else if (el.webkitRequestFullscreen) {
+                    await el.webkitRequestFullscreen();
+                  } else if (el.msRequestFullscreen) {
+                    await el.msRequestFullscreen();
                   }
                   setShowFullscreenWarning(false);
                 } catch (error) {
@@ -1492,7 +1305,7 @@ export default function TakeExamPage() {
       {/* Cheating Warning Modal - Shows after any violation */}
       <Dialog open={showCheatingWarning} onOpenChange={() => {
         // Prevent closing if it's a serious violation (fullscreen or tabswitch)
-        if ((violationType === "fullscreen" || violationType === "tabswitch") && fullscreenRetryCount < 3 && cheatingAttempts < 3) {
+        if ((violationType === "fullscreen" || violationType === "tabswitch") && fullscreenRetryCount < securitySettings.maxViolations && cheatingAttempts < securitySettings.maxViolations) {
           // Allow closing only if user is re-entering fullscreen
           if (document.fullscreenElement) {
             setShowCheatingWarning(false);
@@ -1531,17 +1344,17 @@ export default function TakeExamPage() {
                 {t("violationCount.title")}
               </p>
               <p className="text-xs sm:text-sm text-red-700 dark:text-red-300">
-                • {t("violationCount.fullscreen")}: {fullscreenRetryCount}/3
+                • {t("violationCount.fullscreen")}: {fullscreenRetryCount}/{securitySettings.maxViolations}
               </p>
               <p className="text-xs sm:text-sm text-red-700 dark:text-red-300">
-                • {t("violationCount.tabSwitch")}: {cheatingAttempts}/3
+                • {t("violationCount.tabSwitch")}: {cheatingAttempts}/{securitySettings.maxViolations}
               </p>
               <p className="text-[11px] sm:text-xs text-red-600 dark:text-red-400 mt-1.5 sm:mt-2">
                 {t("violationCount.autoSubmitWarning")}
               </p>
             </div>
 
-            {(violationType === "fullscreen" || violationType === "tabswitch") && fullscreenRetryCount < 3 && cheatingAttempts < 3 && (
+            {(violationType === "fullscreen" || violationType === "tabswitch") && fullscreenRetryCount < securitySettings.maxViolations && cheatingAttempts < securitySettings.maxViolations && (
               <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900 rounded-lg p-2.5 sm:p-3">
                 <p className="text-xs sm:text-sm text-yellow-800 dark:text-yellow-400 font-medium">
                   {t("actionRequired.title")}
@@ -1556,18 +1369,19 @@ export default function TakeExamPage() {
           </div>
 
           <DialogFooter className="flex-col gap-2">
-            {(violationType === "fullscreen" || violationType === "tabswitch") && fullscreenRetryCount < 3 && cheatingAttempts < 3 ? (
+            {(violationType === "fullscreen" || violationType === "tabswitch") && fullscreenRetryCount < securitySettings.maxViolations && cheatingAttempts < securitySettings.maxViolations ? (
               <>
                 {violationType === "fullscreen" && (
                   <Button
                     onClick={async () => {
                       try {
-                        if (document.documentElement.requestFullscreen) {
-                          await document.documentElement.requestFullscreen();
-                        } else if ((document.documentElement as any).webkitRequestFullscreen) {
-                          await (document.documentElement as any).webkitRequestFullscreen();
-                        } else if ((document.documentElement as any).msRequestFullscreen) {
-                          await (document.documentElement as any).msRequestFullscreen();
+                        const el = document.documentElement as FullscreenElement;
+                        if (el.requestFullscreen) {
+                          await el.requestFullscreen();
+                        } else if (el.webkitRequestFullscreen) {
+                          await el.webkitRequestFullscreen();
+                        } else if (el.msRequestFullscreen) {
+                          await el.msRequestFullscreen();
                         }
                         setShowCheatingWarning(false);
                         setShowFullscreenWarning(false);
@@ -1601,9 +1415,9 @@ export default function TakeExamPage() {
                 onClick={() => setShowCheatingWarning(false)}
                 className="w-full"
                 size="sm"
-                variant={fullscreenRetryCount >= 3 || cheatingAttempts >= 3 ? "destructive" : "default"}
+                variant={fullscreenRetryCount >= securitySettings.maxViolations || cheatingAttempts >= securitySettings.maxViolations ? "destructive" : "default"}
               >
-                {fullscreenRetryCount >= 3 || cheatingAttempts >= 3
+                {fullscreenRetryCount >= securitySettings.maxViolations || cheatingAttempts >= securitySettings.maxViolations
                   ? t("examBeingSubmitted")
                   : t("iUnderstand")}
               </Button>

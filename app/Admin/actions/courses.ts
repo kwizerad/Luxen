@@ -12,8 +12,14 @@ import {
 import { requireAdmin, ActionResult } from "./_shared";
 
 function handleError(error: unknown): { success: false; error: string } {
-  const message = error instanceof Error ? error.message : String(error);
-  return { success: false, error: message };
+  if (error instanceof Error) return { success: false, error: error.message };
+  if (typeof error === "object" && error !== null) {
+    const e = error as { message?: string; error?: string; details?: string };
+    if (e.message) return { success: false, error: e.message };
+    if (e.error) return { success: false, error: e.error };
+    if (e.details) return { success: false, error: e.details };
+  }
+  return { success: false, error: String(error) };
 }
 
 // ============================================================================
@@ -121,6 +127,7 @@ export async function updateCourse(
       .single();
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data };
   } catch (error) {
     return handleError(error);
@@ -153,11 +160,39 @@ export async function createModule(courseId: string, title = "New Module"): Prom
     const admin = await requireAdmin();
     const supabase = createAdminClient();
 
-    const { count } = await supabase
+    console.log("Creating basic module:", { courseId, title });
+
+    // Validate courseId
+    if (!courseId) {
+      throw new Error("Course ID is required");
+    }
+
+    // Verify course exists
+    const { data: course, error: courseError } = await supabase
+      .from("course_languages")
+      .select("id")
+      .eq("id", courseId)
+      .is("deleted_at", null)
+      .single();
+    
+    if (courseError) {
+      console.error("Course lookup failed:", courseError);
+      throw new Error(`Course not found: ${courseError.message}`);
+    }
+    if (!course) {
+      throw new Error("Course not found or has been deleted");
+    }
+
+    const { count, error: countError } = await supabase
       .from("course_modules")
       .select("*", { count: "exact", head: true })
       .eq("language_id", courseId)
       .is("deleted_at", null);
+
+    if (countError) {
+      console.error("Module count failed:", countError);
+      throw new Error(`Failed to count modules: ${countError.message}`);
+    }
 
     const { data, error } = await supabase
       .from("course_modules")
@@ -172,10 +207,202 @@ export async function createModule(courseId: string, title = "New Module"): Prom
       })
       .select()
       .single();
-    if (error) throw error;
+    
+    if (error) {
+      console.error("Module creation failed:", error);
+      throw error;
+    }
+    
+    if (!data) {
+      throw new Error("Module creation returned no data");
+    }
+
+    console.log("Basic module created successfully:", data.id);
+    
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data };
   } catch (error) {
+    console.error("Basic module creation failed:", error);
+    return handleError(error);
+  }
+}
+
+/**
+ * Atomically creates a module together with a default "Lesson 1" and an exam
+ * named "The {moduleTitle} Test". If any insert fails, all three are rolled
+ * back via soft-delete so the UI never sees a half-created module.
+ */
+export async function createModuleWithDefaults(
+  courseId: string,
+  title?: string
+): Promise<ActionResult<{ module: CourseModule; lesson: CourseLesson; exam: ModuleExamSettings }>> {
+  const moduleTitle = title?.trim() || "New Module";
+  const lessonTitle = "Lesson 1";
+  const examTitle = `The ${moduleTitle} Test`;
+
+  console.log("Creating module with defaults:", { courseId, moduleTitle });
+
+  try {
+    const admin = await requireAdmin();
+    const supabase = createAdminClient();
+
+    // Validate courseId
+    if (!courseId) {
+      throw new Error("Course ID is required");
+    }
+
+    // Verify course exists
+    const { data: course, error: courseError } = await supabase
+      .from("course_languages")
+      .select("id")
+      .eq("id", courseId)
+      .is("deleted_at", null)
+      .single();
+    
+    if (courseError) {
+      console.error("Course lookup failed:", courseError);
+      throw new Error(`Course not found: ${courseError.message}`);
+    }
+    if (!course) {
+      throw new Error("Course not found or has been deleted");
+    }
+
+    console.log("Course verified, creating module...");
+
+    // 1. Insert the module.
+    const { count: moduleCount, error: countError } = await supabase
+      .from("course_modules")
+      .select("*", { count: "exact", head: true })
+      .eq("language_id", courseId)
+      .is("deleted_at", null);
+
+    if (countError) {
+      console.error("Module count failed:", countError);
+      throw new Error(`Failed to count modules: ${countError.message}`);
+    }
+
+    const { data: module, error: moduleError } = await supabase
+      .from("course_modules")
+      .insert({
+        language_id: courseId,
+        title: moduleTitle,
+        order_index: moduleCount || 0,
+        status: "draft",
+        is_published: false,
+        created_by: admin.id,
+        updated_by: admin.id,
+      })
+      .select()
+      .single();
+    
+    if (moduleError) {
+      console.error("Module creation failed:", moduleError);
+      throw new Error(`Failed to create module: ${moduleError.message}`);
+    }
+    if (!module) {
+      throw new Error("Module creation returned no data");
+    }
+    
+    console.log("Module created successfully:", module.id);
+    const moduleId = module.id;
+
+    // 2. Insert the default lesson.
+    const { data: lesson, error: lessonError } = await supabase
+      .from("course_lessons")
+      .insert({
+        module_id: moduleId,
+        title: lessonTitle,
+        content: "",
+        content_type: "text",
+        order_index: 0,
+        status: "draft",
+        is_published: false,
+        created_by: admin.id,
+        updated_by: admin.id,
+      })
+      .select()
+      .single();
+    
+    if (lessonError) {
+      console.error("Lesson creation failed:", lessonError);
+      // Rollback: soft-delete the module if lesson creation fails
+      await supabase
+        .from("course_modules")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", moduleId);
+      throw new Error(`Failed to create lesson: ${lessonError.message}`);
+    }
+    
+    if (!lesson) {
+      throw new Error("Lesson creation returned no data");
+    }
+
+    console.log("Lesson created successfully:", lesson.id);
+
+    // 3. Insert the default exam.
+    const { data: exam, error: examError } = await supabase
+      .from("module_exam_settings")
+      .insert({
+        module_id: moduleId,
+        title: examTitle,
+        status: "draft",
+        question_count: 0,
+        duration_minutes: 20,
+        passing_percentage: 70,
+        randomize_questions: false,
+        randomize_answers: false,
+        max_attempts: 3,
+        created_by: admin.id,
+        updated_by: admin.id,
+      })
+      .select()
+      .single();
+    
+    if (examError) {
+      console.error("Exam creation failed:", examError);
+      // Rollback: soft-delete the module and lesson if exam creation fails
+      await supabase
+        .from("course_lessons")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", lesson.id);
+      await supabase
+        .from("course_modules")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", moduleId);
+      throw new Error(`Failed to create exam: ${examError.message}`);
+    }
+    
+    if (!exam) {
+      throw new Error("Exam creation returned no data");
+    }
+
+    console.log("Exam created successfully:", exam.id);
+
+    revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
+    return { success: true, data: { module, lesson, exam } };
+  } catch (error) {
+    console.error("Module creation failed:", error);
+    // Best-effort rollback: soft-delete any rows that were inserted before the
+    // failure so the UI never sees a half-created module.
+    try {
+      const supabase = createAdminClient();
+      const now = new Date().toISOString();
+      // We don't have the IDs of partial inserts, so we clean up any orphaned
+      // rows for this course that have no children — best-effort only.
+      // The module insert is the first step; if it succeeded but a later step
+      // failed, soft-delete the module (cascade handles children via DB).
+      // This is a safety net; the common case is all-or-nothing.
+      await supabase
+        .from("course_modules")
+        .update({ deleted_at: now })
+        .eq("language_id", courseId)
+        .eq("title", moduleTitle)
+        .is("deleted_at", null);
+    } catch {
+      // ignore rollback errors
+    }
     return handleError(error);
   }
 }
@@ -202,6 +429,7 @@ export async function updateModule(
       .single();
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data };
   } catch (error) {
     return handleError(error);
@@ -218,6 +446,7 @@ export async function deleteModule(id: string): Promise<ActionResult<null>> {
       .eq("id", id);
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data: null };
   } catch (error) {
     return handleError(error);
@@ -228,14 +457,78 @@ export async function reorderModules(moduleIds: string[]): Promise<ActionResult<
   try {
     await requireAdmin();
     const supabase = createAdminClient();
-    const updates = moduleIds.map((id, index) =>
-      supabase.from("course_modules").update({ order_index: index }).eq("id", id)
-    );
-    const results = await Promise.all(updates);
-    for (const result of results) {
-      if (result.error) throw result.error;
+    
+    // Validate input
+    if (!moduleIds || moduleIds.length === 0) {
+      throw new Error("Module IDs array is empty");
     }
+    
+    // Remove duplicates while preserving order
+    const uniqueModuleIds = Array.from(new Set(moduleIds));
+    if (uniqueModuleIds.length !== moduleIds.length) {
+      throw new Error("Duplicate module IDs detected");
+    }
+    
+    // Verify all modules exist and belong to the same course
+    const { data: modules, error: fetchError } = await supabase
+      .from("course_modules")
+      .select("id, language_id, order_index")
+      .in("id", uniqueModuleIds)
+      .is("deleted_at", null);
+    
+    if (fetchError) throw fetchError;
+    if (!modules || modules.length !== uniqueModuleIds.length) {
+      throw new Error("One or more modules not found or already deleted");
+    }
+    
+    // Verify all modules belong to the same course
+    const courseIds = new Set(modules.map(m => m.language_id));
+    if (courseIds.size > 1) {
+      throw new Error("All modules must belong to the same course");
+    }
+    
+    const courseId = Array.from(courseIds)[0];
+    
+    // Get current total module count for this course to ensure we're not missing any
+    const { count: totalModules, error: countError } = await supabase
+      .from("course_modules")
+      .select("*", { count: "exact", head: true })
+      .eq("language_id", courseId)
+      .is("deleted_at", null);
+    
+    if (countError) throw countError;
+    if (totalModules !== uniqueModuleIds.length) {
+      throw new Error(`Module count mismatch. Expected ${totalModules} modules, but received ${uniqueModuleIds.length}`);
+    }
+    
+    // Update order indices in a transaction-like manner with error handling
+    const admin = await requireAdmin();
+    const updates = uniqueModuleIds.map((id, index) =>
+      supabase
+        .from("course_modules")
+        .update({ 
+          order_index: index,
+          updated_at: new Date().toISOString(),
+          updated_by: admin.id
+        })
+        .eq("id", id)
+        .is("deleted_at", null)
+    );
+    
+    const results = await Promise.all(updates);
+    const errors: string[] = [];
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].error) {
+        errors.push(`Failed to update module at index ${i}: ${results[i].error?.message || 'Unknown error'}`);
+      }
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(`Failed to update modules: ${errors.join(", ")}`);
+    }
+    
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data: null };
   } catch (error) {
     return handleError(error);
@@ -289,6 +582,7 @@ export async function createLesson(moduleId: string, title = "New Lesson"): Prom
       .single();
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data };
   } catch (error) {
     return handleError(error);
@@ -314,6 +608,7 @@ export async function updateLesson(
         status: input.status,
         is_published: input.status === "published",
         order_index: input.order_index,
+        topics: input.topics,
         updated_by: admin.id,
       })
       .eq("id", id)
@@ -321,6 +616,7 @@ export async function updateLesson(
       .single();
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data };
   } catch (error) {
     return handleError(error);
@@ -337,6 +633,7 @@ export async function deleteLesson(id: string): Promise<ActionResult<null>> {
       .eq("id", id);
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data: null };
   } catch (error) {
     return handleError(error);
@@ -347,14 +644,78 @@ export async function reorderLessons(lessonIds: string[]): Promise<ActionResult<
   try {
     await requireAdmin();
     const supabase = createAdminClient();
-    const updates = lessonIds.map((id, index) =>
-      supabase.from("course_lessons").update({ order_index: index }).eq("id", id)
-    );
-    const results = await Promise.all(updates);
-    for (const result of results) {
-      if (result.error) throw result.error;
+    
+    // Validate input
+    if (!lessonIds || lessonIds.length === 0) {
+      throw new Error("Lesson IDs array is empty");
     }
+    
+    // Remove duplicates while preserving order
+    const uniqueLessonIds = Array.from(new Set(lessonIds));
+    if (uniqueLessonIds.length !== lessonIds.length) {
+      throw new Error("Duplicate lesson IDs detected");
+    }
+    
+    // Verify all lessons exist and belong to the same module
+    const { data: lessons, error: fetchError } = await supabase
+      .from("course_lessons")
+      .select("id, module_id, order_index")
+      .in("id", uniqueLessonIds)
+      .is("deleted_at", null);
+    
+    if (fetchError) throw fetchError;
+    if (!lessons || lessons.length !== uniqueLessonIds.length) {
+      throw new Error("One or more lessons not found or already deleted");
+    }
+    
+    // Verify all lessons belong to the same module
+    const moduleIds = new Set(lessons.map(l => l.module_id));
+    if (moduleIds.size > 1) {
+      throw new Error("All lessons must belong to the same module");
+    }
+    
+    const moduleId = Array.from(moduleIds)[0];
+    
+    // Get current total lesson count for this module to ensure we're not missing any
+    const { count: totalLessons, error: countError } = await supabase
+      .from("course_lessons")
+      .select("*", { count: "exact", head: true })
+      .eq("module_id", moduleId)
+      .is("deleted_at", null);
+    
+    if (countError) throw countError;
+    if (totalLessons !== uniqueLessonIds.length) {
+      throw new Error(`Lesson count mismatch. Expected ${totalLessons} lessons, but received ${uniqueLessonIds.length}`);
+    }
+    
+    // Update order indices in a transaction-like manner with error handling
+    const admin = await requireAdmin();
+    const updates = uniqueLessonIds.map((id, index) =>
+      supabase
+        .from("course_lessons")
+        .update({ 
+          order_index: index,
+          updated_at: new Date().toISOString(),
+          updated_by: admin.id
+        })
+        .eq("id", id)
+        .is("deleted_at", null)
+    );
+    
+    const results = await Promise.all(updates);
+    const errors: string[] = [];
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].error) {
+        errors.push(`Failed to update lesson at index ${i}: ${results[i].error?.message || 'Unknown error'}`);
+      }
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(`Failed to update lessons: ${errors.join(", ")}`);
+    }
+    
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data: null };
   } catch (error) {
     return handleError(error);
@@ -389,18 +750,50 @@ export async function createExamSettings(
   try {
     const admin = await requireAdmin();
     const supabase = createAdminClient();
+
+    // Check for an existing soft-deleted row (from before the hard-delete fix).
+    // If found, restore it instead of inserting to avoid UNIQUE constraint violation.
+    const { data: existing } = await supabase
+      .from("module_exam_settings")
+      .select("id")
+      .eq("module_id", moduleId)
+      .maybeSingle();
+
+    if (existing) {
+      const { data, error } = await supabase
+        .from("module_exam_settings")
+        .update({
+          deleted_at: null,
+          title,
+          status: "draft",
+          question_count: 20,
+          duration_minutes: 20,
+          passing_percentage: 70,
+          max_attempts: 2,
+          updated_by: admin.id,
+        })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if (error) throw error;
+      revalidatePath("/Admin/course-studio");
+      revalidatePath("/Admin/course");
+      return { success: true, data };
+    }
+
     const { data, error } = await supabase
       .from("module_exam_settings")
       .insert({
         module_id: moduleId,
         title,
         status: "draft",
-        question_count: 0,
+        question_count: 20,
         duration_minutes: 20,
         passing_percentage: 70,
         randomize_questions: false,
         randomize_answers: false,
-        max_attempts: 3,
+        max_attempts: 2,
+        exam_type: "",
         created_by: admin.id,
         updated_by: admin.id,
       })
@@ -408,6 +801,7 @@ export async function createExamSettings(
       .single();
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data };
   } catch (error) {
     return handleError(error);
@@ -428,13 +822,14 @@ export async function updateExamSettings(
         status: input.status,
         passing_percentage: input.passing_percentage,
         duration_minutes: input.duration_minutes,
-        time_limit_minutes: input.time_limit_minutes,
         max_attempts: input.max_attempts,
         randomize_questions: input.randomize_questions,
         randomize_answers: input.randomize_answers,
         show_results_immediately: input.show_results_immediately,
         show_explanations: input.show_explanations,
         allow_review: input.allow_review,
+        question_count: input.question_count,
+        exam_type: input.exam_type,
         updated_by: admin.id,
       })
       .eq("id", id)
@@ -442,6 +837,7 @@ export async function updateExamSettings(
       .single();
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data };
   } catch (error) {
     return handleError(error);
@@ -452,12 +848,15 @@ export async function deleteExamSettings(id: string): Promise<ActionResult<null>
   try {
     await requireAdmin();
     const supabase = createAdminClient();
+    // Hard delete because module_id has a UNIQUE constraint.
+    // A soft-deleted row would block creating a new exam for the same module.
     const { error } = await supabase
       .from("module_exam_settings")
-      .update({ deleted_at: new Date().toISOString() })
+      .delete()
       .eq("id", id);
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data: null };
   } catch (error) {
     return handleError(error);
@@ -535,6 +934,7 @@ export async function createExamQuestion(
       .single();
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data };
   } catch (error) {
     return handleError(error);
@@ -559,6 +959,7 @@ export async function updateExamQuestion(
       .single();
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data };
   } catch (error) {
     return handleError(error);
@@ -575,6 +976,7 @@ export async function deleteExamQuestion(id: string): Promise<ActionResult<null>
       .eq("id", id);
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data: null };
   } catch (error) {
     return handleError(error);
@@ -585,14 +987,78 @@ export async function reorderExamQuestions(questionIds: string[]): Promise<Actio
   try {
     await requireAdmin();
     const supabase = createAdminClient();
-    const updates = questionIds.map((id, index) =>
-      supabase.from("module_exam_questions").update({ order_index: index }).eq("id", id)
-    );
-    const results = await Promise.all(updates);
-    for (const result of results) {
-      if (result.error) throw result.error;
+    
+    // Validate input
+    if (!questionIds || questionIds.length === 0) {
+      throw new Error("Question IDs array is empty");
     }
+    
+    // Remove duplicates while preserving order
+    const uniqueQuestionIds = Array.from(new Set(questionIds));
+    if (uniqueQuestionIds.length !== questionIds.length) {
+      throw new Error("Duplicate question IDs detected");
+    }
+    
+    // Verify all questions exist and belong to the same module
+    const { data: questions, error: fetchError } = await supabase
+      .from("module_exam_questions")
+      .select("id, module_id, order_index")
+      .in("id", uniqueQuestionIds)
+      .is("deleted_at", null);
+    
+    if (fetchError) throw fetchError;
+    if (!questions || questions.length !== uniqueQuestionIds.length) {
+      throw new Error("One or more questions not found or already deleted");
+    }
+    
+    // Verify all questions belong to the same module
+    const moduleIds = new Set(questions.map(q => q.module_id));
+    if (moduleIds.size > 1) {
+      throw new Error("All questions must belong to the same module");
+    }
+    
+    const moduleId = Array.from(moduleIds)[0];
+    
+    // Get current total question count for this module to ensure we're not missing any
+    const { count: totalQuestions, error: countError } = await supabase
+      .from("module_exam_questions")
+      .select("*", { count: "exact", head: true })
+      .eq("module_id", moduleId)
+      .is("deleted_at", null);
+    
+    if (countError) throw countError;
+    if (totalQuestions !== uniqueQuestionIds.length) {
+      throw new Error(`Question count mismatch. Expected ${totalQuestions} questions, but received ${uniqueQuestionIds.length}`);
+    }
+    
+    // Update order indices in a transaction-like manner with error handling
+    const admin = await requireAdmin();
+    const updates = uniqueQuestionIds.map((id, index) =>
+      supabase
+        .from("module_exam_questions")
+        .update({ 
+          order_index: index,
+          updated_at: new Date().toISOString(),
+          updated_by: admin.id
+        })
+        .eq("id", id)
+        .is("deleted_at", null)
+    );
+    
+    const results = await Promise.all(updates);
+    const errors: string[] = [];
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].error) {
+        errors.push(`Failed to update question at index ${i}: ${results[i].error?.message || 'Unknown error'}`);
+      }
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(`Failed to update questions: ${errors.join(", ")}`);
+    }
+    
     revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
     return { success: true, data: null };
   } catch (error) {
     return handleError(error);

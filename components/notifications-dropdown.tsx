@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Bell, Check, Trash2, Info, CheckCircle, AlertTriangle, XCircle, FileText, UserPlus, Trophy, Settings, Star } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification as deleteNotificationQuery } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -212,16 +212,8 @@ export function NotificationsDropdown() {
         </div>
 
         {loading ? (
-          <div className="p-4 space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-3 p-3 rounded-lg border border-border/40">
-                <Skeleton className="h-9 w-9 rounded-lg shrink-0" />
-                <div className="flex-1 min-w-0 space-y-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/3" />
-                </div>
-              </div>
-            ))}
+          <div className="p-4 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : notifications.length === 0 ? (
           <div className="text-center p-8 text-muted-foreground">

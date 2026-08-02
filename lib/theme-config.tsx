@@ -12,6 +12,9 @@ interface ThemeConfig {
     hoverBorderColor: string;
   };
   glowIntensity: number;
+  backgroundEffect?: 'particles' | 'lightrays';
+  clickSparkEnabled?: boolean;
+  backgroundEnabled?: boolean;
 }
 
 interface ThemeConfigContextType {
@@ -21,6 +24,9 @@ interface ThemeConfigContextType {
   setDarkPrimaryColor: (color: string) => void;
   setDarkHoverBorderColor: (color: string) => void;
   setGlowIntensity: (intensity: number) => void;
+  setBackgroundEffect: (effect: 'particles' | 'lightrays') => void;
+  setClickSparkEnabled: (enabled: boolean) => void;
+  setBackgroundEnabled: (enabled: boolean) => void;
   saveConfig: (newConfig: ThemeConfig) => void;
   resetToDefault: () => void;
   isAdmin: boolean;
@@ -29,14 +35,17 @@ interface ThemeConfigContextType {
 
 const defaultConfig: ThemeConfig = {
   light: {
-    primaryColor: "#2563EB", // Premium blue
-    hoverBorderColor: "#3B82F6", // Lighter blue accent
+    primaryColor: "#22C55E", // Premium green
+    hoverBorderColor: "#22C55E", // Green accent
   },
   dark: {
-    primaryColor: "#2563EB", // Premium blue
-    hoverBorderColor: "#60A5FA", // Soft blue glow
+    primaryColor: "#22C55E", // Premium green
+    hoverBorderColor: "#4ADE80", // Soft green glow
   },
   glowIntensity: 24, // Premium 24px glow
+  backgroundEffect: 'particles', // Default background effect
+  clickSparkEnabled: true, // Click spark enabled by default
+  backgroundEnabled: true, // Background effect enabled by default
 };
 
 const STORAGE_KEY = "navo-theme-config";
@@ -161,6 +170,18 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
         // Light primary color → dark text
         root.style.setProperty("--primary-foreground", "0 0% 0%");
       }
+      
+      // Auto-adjust primary-readable: darken light primary colors for text visibility
+      // If primary is too light (l > 55), create a readable darker version
+      let readableL = hsl.l;
+      let readableS = hsl.s;
+      if (hsl.l > 55) {
+        // Darken the color for text usage — scale from 55→100% down to 40→25%
+        readableL = Math.max(25, 55 - (hsl.l - 55) * 0.6);
+        // Boost saturation slightly for better visibility
+        readableS = Math.min(100, hsl.s + 10);
+      }
+      root.style.setProperty("--primary-readable", `${hsl.h} ${readableS}% ${readableL}%`);
       
       // Set ring to match primary
       root.style.setProperty("--ring", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
@@ -311,6 +332,39 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  const setBackgroundEffect = (effect: 'particles' | 'lightrays') => {
+    const newConfig = { ...config, backgroundEffect: effect };
+    setConfig(newConfig);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+    }
+    if (isAdmin) {
+      saveToDatabase(newConfig);
+    }
+  };
+
+  const setClickSparkEnabled = (enabled: boolean) => {
+    const newConfig = { ...config, clickSparkEnabled: enabled };
+    setConfig(newConfig);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+    }
+    if (isAdmin) {
+      saveToDatabase(newConfig);
+    }
+  };
+
+  const setBackgroundEnabled = (enabled: boolean) => {
+    const newConfig = { ...config, backgroundEnabled: enabled };
+    setConfig(newConfig);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+    }
+    if (isAdmin) {
+      saveToDatabase(newConfig);
+    }
+  };
+
   const saveConfig = (newConfig: ThemeConfig) => {
     setConfig(newConfig);
     if (typeof window !== "undefined") {
@@ -342,6 +396,9 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
         setDarkPrimaryColor,
         setDarkHoverBorderColor,
         setGlowIntensity,
+        setBackgroundEffect,
+        setClickSparkEnabled,
+        setBackgroundEnabled,
         saveConfig,
         resetToDefault,
         isAdmin,

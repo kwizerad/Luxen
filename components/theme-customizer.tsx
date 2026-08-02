@@ -5,7 +5,7 @@ import { useThemeConfig } from "@/lib/theme-config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Palette, Sparkles, RectangleHorizontal, RotateCcw, Save, Sun, Moon, Check, X, Star } from "lucide-react";
+import { Palette, Sparkles, RectangleHorizontal, RotateCcw, Save, Sun, Moon, Check, X, Star, Wand2, MousePointer2, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 export function ThemeCustomizer() {
@@ -16,6 +16,9 @@ export function ThemeCustomizer() {
     setDarkPrimaryColor,
     setDarkHoverBorderColor,
     setGlowIntensity,
+    setBackgroundEffect,
+    setClickSparkEnabled,
+    setBackgroundEnabled,
     saveConfig,
     resetToDefault,
   } = useThemeConfig();
@@ -32,6 +35,9 @@ export function ThemeCustomizer() {
       light: { ...config.light },
       dark: { ...config.dark },
       glowIntensity: config.glowIntensity,
+      backgroundEffect: config.backgroundEffect || 'particles',
+      clickSparkEnabled: config.clickSparkEnabled ?? true,
+      backgroundEnabled: config.backgroundEnabled ?? true,
     });
     setHasChanges(false);
   }, [config]);
@@ -149,6 +155,9 @@ export function ThemeCustomizer() {
       light: { ...config.light },
       dark: { ...config.dark },
       glowIntensity: config.glowIntensity,
+      backgroundEffect: config.backgroundEffect || 'particles',
+      clickSparkEnabled: config.clickSparkEnabled ?? true,
+      backgroundEnabled: config.backgroundEnabled ?? true,
     });
     setHasChanges(false);
     toast.success("Theme reset to default");
@@ -324,6 +333,129 @@ export function ThemeCustomizer() {
             step={1}
             label="Glow Radius"
           />
+        </CardContent>
+      </Card>
+
+      {/* Background Effect */}
+      <Card className={cardHoverClass}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Wand2 className="h-3 w-3 text-primary" />
+            Background Effect
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Choose the animated background effect for dark mode
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setBackgroundEffect('particles');
+                const newConfig = { ...previewConfig, backgroundEffect: 'particles' as const };
+                setPreviewConfig(newConfig);
+                setHasChanges(true);
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 text-xs font-medium transition-all ${
+                (previewConfig.backgroundEffect || 'particles') === 'particles'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border bg-secondary/50 text-muted-foreground hover:border-primary/50'
+              }`}
+            >
+              <span className="text-base">✦</span>
+              Particles
+            </button>
+            <button
+              onClick={() => {
+                setBackgroundEffect('lightrays');
+                const newConfig = { ...previewConfig, backgroundEffect: 'lightrays' as const };
+                setPreviewConfig(newConfig);
+                setHasChanges(true);
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 text-xs font-medium transition-all ${
+                previewConfig.backgroundEffect === 'lightrays'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border bg-secondary/50 text-muted-foreground hover:border-primary/50'
+              }`}
+            >
+              <span className="text-base">☀</span>
+              Light Rays
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Effects Toggles */}
+      <Card className={cardHoverClass}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Sparkles className="h-3 w-3 text-primary" />
+            Visual Effects
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Enable or disable cursor and background effects
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Click Spark Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+            <div className="flex items-center gap-2">
+              <MousePointer2 className="h-4 w-4 text-primary" />
+              <div>
+                <p className="text-xs font-medium">Click Spark</p>
+                <p className="text-[10px] text-muted-foreground">Spark burst effect on click</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const newValue = !(previewConfig.clickSparkEnabled ?? true);
+                setClickSparkEnabled(newValue);
+                setPreviewConfig({ ...previewConfig, clickSparkEnabled: newValue });
+                setHasChanges(true);
+              }}
+              className={`relative w-11 h-6 rounded-full transition-all ${
+                (previewConfig.clickSparkEnabled ?? true)
+                  ? 'bg-primary'
+                  : 'bg-muted-foreground/30'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all ${
+                  (previewConfig.clickSparkEnabled ?? true) ? 'translate-x-5' : ''
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Background Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+            <div className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-primary" />
+              <div>
+                <p className="text-xs font-medium">Background Effect</p>
+                <p className="text-[10px] text-muted-foreground">Animated particles or light rays in dark mode</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const newValue = !(previewConfig.backgroundEnabled ?? true);
+                setBackgroundEnabled(newValue);
+                setPreviewConfig({ ...previewConfig, backgroundEnabled: newValue });
+                setHasChanges(true);
+              }}
+              className={`relative w-11 h-6 rounded-full transition-all ${
+                (previewConfig.backgroundEnabled ?? true)
+                  ? 'bg-primary'
+                  : 'bg-muted-foreground/30'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all ${
+                  (previewConfig.backgroundEnabled ?? true) ? 'translate-x-5' : ''
+                }`}
+              />
+            </button>
+          </div>
         </CardContent>
       </Card>
 

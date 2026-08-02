@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,6 @@ import { toast } from "sonner";
 import { Watermark } from "@/components/watermark";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useLanguage } from "@/lib/language-context";
-import { TableSkeleton } from "@/components/skeletons";
 import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { isAdmin, hasReadWriteQuestionAccess, hasReadOnlyQuestionAccess } from "@/lib/permissions";
@@ -163,7 +163,7 @@ export default function QuestionManagementPage() {
     return category?.name || t("unknown");
   };
 
-  const filteredQuestions = questions.filter(q => {
+  const filteredQuestions = useMemo(() => questions.filter(q => {
     // Category filter
     const matchesCategory = selectedCategory === "all" || q.category_id === selectedCategory;
     // Search filter - safely check each field
@@ -176,10 +176,10 @@ export default function QuestionManagementPage() {
       (q.option_d && q.option_d.toLowerCase().includes(searchLower)) ||
       getCategoryName(q.category_id).toLowerCase().includes(searchLower);
     return matchesCategory && matchesSearch;
-  });
+  }), [questions, selectedCategory, searchQuery, categories, t]);
 
   // Sort questions
-  const sortedQuestions = [...filteredQuestions].sort((a, b) => {
+  const sortedQuestions = useMemo(() => [...filteredQuestions].sort((a, b) => {
     let comparison = 0;
     switch (sortField) {
       case 'question':
@@ -196,7 +196,7 @@ export default function QuestionManagementPage() {
         break;
     }
     return sortDirection === 'asc' ? comparison : -comparison;
-  });
+  }), [filteredQuestions, sortField, sortDirection, categories, t]);
 
   // Bulk selection handlers
   const toggleSelectAll = () => {
@@ -338,7 +338,7 @@ export default function QuestionManagementPage() {
   };
 
   if (loading) {
-    return <TableSkeleton variant="admin" rows={6} columns={5} hasSearch hasFilters />;
+    return null;
   }
 
   if (!hasPermission) {
@@ -377,7 +377,7 @@ export default function QuestionManagementPage() {
         <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
           <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
             {config.logoUrl ? (
-              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+              <Image src={config.logoUrl} alt={config.systemName} width={32} height={32} unoptimized className="w-full h-full object-cover" />
             ) : (
               <span className="text-xs font-bold">{config.logoText || "N"}</span>
             )}
@@ -503,9 +503,12 @@ export default function QuestionManagementPage() {
         <DialogContent className="sm:max-w-3xl max-w-[95vw] w-full max-h-[90vh] overflow-auto">
           <DialogTitle>{t("imagePreview")}</DialogTitle>
           {selectedImage && (
-            <img
+            <Image
               src={selectedImage}
               alt={t("preview")}
+              width={1200}
+              height={800}
+              unoptimized
               className="w-full h-auto rounded-lg"
             />
           )}
@@ -535,9 +538,12 @@ export default function QuestionManagementPage() {
                 <CardContent className="space-y-4">
                   {viewingQuestion.question_image && (
                     <div>
-                      <img 
+                      <Image 
                         src={viewingQuestion.question_image} 
                         alt={t("question")} 
+                        width={800}
+                        height={600}
+                        unoptimized
                         className="w-full h-auto rounded-lg border cursor-pointer"
                         onClick={() => setSelectedImage(viewingQuestion.question_image!)}
                       />
@@ -571,15 +577,18 @@ export default function QuestionManagementPage() {
                           <span className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
                             isCorrect 
                               ? "bg-green-500 text-white" 
-                              : "bg-primary text-white"
+                              : "bg-primary text-primary-foreground"
                           }`}>
                             {option}
                           </span>
                           <div className="flex-1 space-y-2">
                             {optionImage && (
-                              <img 
+                              <Image 
                                 src={optionImage as string} 
                                 alt={`Option ${option}`} 
+                                width={800}
+                                height={600}
+                                unoptimized
                                 className="w-full h-auto rounded border cursor-pointer"
                                 onClick={() => setSelectedImage(optionImage as string)}
                               />
@@ -696,7 +705,7 @@ export default function QuestionManagementPage() {
                 {/* Option A */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
-                    <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">A</span>
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center">A</span>
                     {t("optionA")}
                   </Label>
                   <Input
@@ -729,7 +738,7 @@ export default function QuestionManagementPage() {
                 {/* Option B */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
-                    <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">B</span>
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center">B</span>
                     {t("optionB")}
                   </Label>
                   <Input
@@ -762,7 +771,7 @@ export default function QuestionManagementPage() {
                 {/* Option C */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
-                    <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">C</span>
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center">C</span>
                     {t("optionC")}
                   </Label>
                   <Input
@@ -795,7 +804,7 @@ export default function QuestionManagementPage() {
                 {/* Option D */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
-                    <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">D</span>
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center">D</span>
                     {t("optionD")}
                   </Label>
                   <Input

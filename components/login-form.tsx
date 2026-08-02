@@ -53,6 +53,13 @@ export function LoginForm({
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check internet connection first to avoid misleading credential errors
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      toast.error(t("login.noInternetConnection"));
+      return;
+    }
+
     const supabase = createClient();
     setIsLoading(true);
 
@@ -67,6 +74,16 @@ export function LoginForm({
       });
       if (error) {
         console.error("Supabase auth error:", error.message, error.status);
+        // Detect network/offline failures (Supabase surfaces these as fetch errors)
+        if (
+          error.message.toLowerCase().includes("failed to fetch") ||
+          error.message.toLowerCase().includes("network") ||
+          error.message.toLowerCase().includes("fetch")
+        ) {
+          toast.error(t("login.noInternetConnection"));
+          setIsLoading(false);
+          return;
+        }
         // Show toast for invalid credentials instead of throwing
         if (error.message.includes("Invalid login credentials")) {
           toast.error(t("login.invalidCredentials"));
@@ -81,15 +98,22 @@ export function LoginForm({
       const isPrimary = isPrimaryAdmin({ email: trimmedEmail });
       const role = data.user?.user_metadata?.role;
 
-      if (isPrimary || role === "Admin") {
-        router.push("/Admin");
-      } else {
-        router.push("/dashboard");
-      }
+      const destination = isPrimary || role === "Admin" ? "/Admin" : "/dashboard";
+      router.prefetch(destination);
+      router.push(destination);
     } catch (error: unknown) {
       console.error("Login error:", error);
       if (error instanceof Error) {
-        if (error.message.includes("Email not confirmed")) {
+        const message = error.message.toLowerCase();
+        // Network/offline errors should not be reported as wrong credentials
+        if (
+          message.includes("failed to fetch") ||
+          message.includes("network") ||
+          message.includes("fetch") ||
+          (typeof navigator !== "undefined" && navigator.onLine === false)
+        ) {
+          toast.error(t("login.noInternetConnection"));
+        } else if (error.message.includes("Email not confirmed")) {
           toast.error(t("login.confirmEmailBeforeLogin"));
         } else {
           toast.error(error.message);

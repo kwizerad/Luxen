@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Clock, Trophy, Target, Calendar, ChevronRight, Eye } from "lucide-react";
 import { toast } from "sonner";
-import { CardSkeleton } from "@/components/skeletons";
+import { Loader2 } from "lucide-react";
 import type { ExamAttempt } from "@/lib/database.types";
 
 interface UserPerformanceModalProps {
@@ -180,7 +180,7 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-primary" />
+            <Trophy className="h-5 w-5 text-primary-readable" />
             {getDisplayName()}'s Performance
           </DialogTitle>
           <DialogDescription>
@@ -189,7 +189,9 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
         </DialogHeader>
 
         {loading ? (
-          <CardSkeleton lines={5} />
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
         ) : stats && stats.totalAttempts === 0 ? (
           <div className="text-center py-12">
             <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -358,7 +360,9 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
               </DialogHeader>
               
               {loadingDetails ? (
-                <CardSkeleton lines={4} />
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
               ) : attemptDetails ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">

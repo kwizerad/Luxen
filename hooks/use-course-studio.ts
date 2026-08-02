@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { mutate } from "swr";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/language-context";
 import {
   Course,
   Lesson,
@@ -25,7 +26,7 @@ import { Selection } from "@/app/Admin/course-studio/components/course-tree";
 import {
   listCourses,
   loadFullCourse,
-  createModule,
+  createModuleWithDefaults,
   updateModule,
   deleteModule,
   reorderModules,
@@ -50,13 +51,19 @@ const courseKey = (id: string) => `admin/course/${id}`;
 
 async function fetchCourses(): Promise<Course[]> {
   const result = await listCourses();
-  if (!result.success) throw new Error(result.error);
+  if (!result.success) {
+    console.error("Failed to fetch courses:", result.error);
+    throw new Error(result.error);
+  }
   return result.data.map(dbCourseToUI);
 }
 
 async function fetchFullCourse(courseId: string): Promise<Course> {
   const result = await loadFullCourse(courseId);
-  if (!result.success) throw new Error(result.error);
+  if (!result.success) {
+    console.error("Failed to fetch full course:", result.error);
+    throw new Error(result.error);
+  }
   return fullCourseToUI(result.data);
 }
 
@@ -116,19 +123,20 @@ function courseDirtyKey(): DirtyKey {
   return "course";
 }
 function moduleDirtyKey(id: string): DirtyKey {
-  return `module:${id}`;
+  return `modules:${id}`;
 }
 function lessonDirtyKey(id: string): DirtyKey {
-  return `lesson:${id}`;
+  return `lessons:${id}`;
 }
 function examDirtyKey(id: string): DirtyKey {
-  return `exam:${id}`;
+  return `exams:${id}`;
 }
 function questionDirtyKey(id: string): DirtyKey {
-  return `question:${id}`;
+  return `questions:${id}`;
 }
 
 export function useCourseStudio(initialCourseId?: string) {
+  const { t } = useLanguage();
   const supabase = useMemo(() => createClient(), []);
   const [selectedCourseId, setSelectedCourseId] = useState<string>(initialCourseId || "");
   const [selection, setSelection] = useState<Selection>({ type: "course" });
@@ -137,6 +145,7 @@ export function useCourseStudio(initialCourseId?: string) {
   const [isSaving, setIsSaving] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
 
   const {
     data: courses,
@@ -182,7 +191,7 @@ export function useCourseStudio(initialCourseId?: string) {
   const selectedModule = useMemo(() => {
     if (!course) return null;
     if (selection.type === "module") return course.modules.find((m) => m.id === selection.moduleId) || null;
-    if (selection.type === "lesson") {
+    if (selection.type === "lesson" || selection.type === "topic") {
       for (const mod of course.modules) {
         if (mod.lessons.some((l) => l.id === selection.lessonId)) return mod;
       }
@@ -194,7 +203,8 @@ export function useCourseStudio(initialCourseId?: string) {
   }, [course, selection]);
 
   const selectedLesson = useMemo(() => {
-    if (!selectedModule || selection.type !== "lesson") return null;
+    if (!selectedModule) return null;
+    if (selection.type !== "lesson" && selection.type !== "topic") return null;
     return selectedModule.lessons.find((l) => l.id === selection.lessonId) || null;
   }, [selectedModule, selection]);
 
@@ -215,8 +225,9 @@ export function useCourseStudio(initialCourseId?: string) {
           return { ...prev, course: { ...(prev.course || {}), ...patch } as Partial<Course> };
         }
         const id = parts[1];
-        const current = (prev[field] as Record<string, Partial<T>>)[id] || {};
-        return { ...prev, [field]: { ...prev[field], [id]: { ...current, ...patch } } };
+        const bucket = (prev[field] as Record<string, Partial<T>> | undefined) || {};
+        const current = bucket[id] || {};
+        return { ...prev, [field]: { ...bucket, [id]: { ...current, ...patch } } };
       });
       setDirty((prev) => new Set(prev).add(key));
     },
@@ -269,13 +280,13 @@ export function useCourseStudio(initialCourseId?: string) {
         if (parts.length !== 2) continue;
         const type = parts[0];
         const id = parts[1];
-        if (type === "module" && drafts.modules[id]) {
+        if (type === "modules" && drafts.modules[id]) {
           operations.push({ key, promise: updateModule(id, uiModuleToDB(drafts.modules[id] as Module)) });
-        } else if (type === "lesson" && drafts.lessons[id]) {
+        } else if (type === "lessons" && drafts.lessons[id]) {
           operations.push({ key, promise: updateLesson(id, uiLessonToDB(drafts.lessons[id] as Lesson)) });
-        } else if (type === "exam" && drafts.exams[id]) {
+        } else if (type === "exams" && drafts.exams[id]) {
           operations.push({ key, promise: updateExamSettings(id, uiExamToDBSettings(drafts.exams[id] as ModuleExam)) });
-        } else if (type === "question" && drafts.questions[id]) {
+        } else if (type === "questions" && drafts.questions[id]) {
           operations.push({ key, promise: updateExamQuestion(id, uiQuestionToDB(drafts.questions[id] as ModuleExamQuestionUI)) });
         }
       }
@@ -292,7 +303,6 @@ export function useCourseStudio(initialCourseId?: string) {
 
       clearDirtyKeys(operations.map((op) => op.key));
       mutateCourse();
-      mutate(COURSES_KEY);
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 2000);
       return true;
@@ -305,14 +315,80 @@ export function useCourseStudio(initialCourseId?: string) {
     }
   }, [serverCourse, dirty, drafts, clearDirtyKeys, mutateCourse]);
 
-  const withLoading = useCallback(async <T>(fn: () => Promise<T>): Promise<T> => {
+  // Silent save for autosave — no toast, no isSaving state, no justSaved flash
+  const silentSave = useCallback(async (): Promise<boolean> => {
+    if (!serverCourse || dirty.size === 0) return true;
+    setIsAutoSaving(true);
+    try {
+      const operations: { key: DirtyKey; promise: Promise<unknown> }[] = [];
+
+      if (dirty.has(courseDirtyKey()) && drafts.course) {
+        operations.push({
+          key: courseDirtyKey(),
+          promise: updateCourse(serverCourse.id, uiCourseToDB(drafts.course as Course)),
+        });
+      }
+
+      for (const key of dirty) {
+        const parts = key.split(":");
+        if (parts.length !== 2) continue;
+        const type = parts[0];
+        const id = parts[1];
+        if (type === "modules" && drafts.modules[id]) {
+          operations.push({ key, promise: updateModule(id, uiModuleToDB(drafts.modules[id] as Module)) });
+        } else if (type === "lessons" && drafts.lessons[id]) {
+          operations.push({ key, promise: updateLesson(id, uiLessonToDB(drafts.lessons[id] as Lesson)) });
+        } else if (type === "exams" && drafts.exams[id]) {
+          operations.push({ key, promise: updateExamSettings(id, uiExamToDBSettings(drafts.exams[id] as ModuleExam)) });
+        } else if (type === "questions" && drafts.questions[id]) {
+          operations.push({ key, promise: updateExamQuestion(id, uiQuestionToDB(drafts.questions[id] as ModuleExamQuestionUI)) });
+        }
+      }
+
+      const results = await Promise.all(operations.map((op) => op.promise));
+      const failed = results
+        .map((r, idx) => ({ result: r as { success: boolean; error?: string }, op: operations[idx] }))
+        .filter((item) => !item.result.success);
+
+      if (failed.length > 0) {
+        return false;
+      }
+
+      clearDirtyKeys(operations.map((op) => op.key));
+      mutateCourse();
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [serverCourse, dirty, drafts, clearDirtyKeys, mutateCourse]);
+
+  // Keep a ref to the latest silentSave so the interval always calls the current one
+  const silentSaveRef = useRef(silentSave);
+  silentSaveRef.current = silentSave;
+
+  // Autosave every 30 seconds — runs silently in the background
+  useEffect(() => {
+    const interval = setInterval(() => {
+      silentSaveRef.current();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const withLoading = useCallback(async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
     setIsMutating(true);
     try {
       return await fn();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null
+            ? (error as { message?: string }).message || String(error)
+            : String(error);
       toast.error(message || "Unable to update the course.");
-      throw error;
+      return undefined;
     } finally {
       setIsMutating(false);
     }
@@ -353,14 +429,25 @@ export function useCourseStudio(initialCourseId?: string) {
   );
 
   // Structural operations happen immediately but update local cache optimistically.
-  const addModule = useCallback(async () => {
-    if (!selectedCourseId) return;
+  const addModule = useCallback(async (title?: string) => {
+    if (!selectedCourseId) {
+      toast.error("No course selected. Please select a course first.");
+      return;
+    }
     await withLoading(async () => {
-      const result = await createModule(selectedCourseId);
+      const result = await createModuleWithDefaults(selectedCourseId, title);
       if (!result.success) throw new Error(result.error);
+      // Force revalidation of both course and courses cache
       await mutateCourse();
+      // Also invalidate the courses list cache by forcing a revalidation
+      mutate(COURSES_KEY, async () => {
+        const result = await listCourses();
+        if (!result.success) throw new Error(result.error);
+        return result.data.map(dbCourseToUI);
+      });
+      toast.success(t("moduleCreated") || "Module created successfully.");
     });
-  }, [selectedCourseId, withLoading, mutateCourse]);
+  }, [selectedCourseId, withLoading, mutateCourse, t]);
 
   const removeModule = useCallback(
     async (id: string) => {
@@ -405,9 +492,9 @@ export function useCourseStudio(initialCourseId?: string) {
   );
 
   const removeLesson = useCallback(
-    async (id: string) => {
+    async (moduleId: string, lessonId: string) => {
       await withLoading(async () => {
-        const result = await deleteLesson(id);
+        const result = await deleteLesson(lessonId);
         if (!result.success) throw new Error(result.error);
         await mutateCourse();
       });
@@ -461,19 +548,17 @@ export function useCourseStudio(initialCourseId?: string) {
   );
 
   const addQuestion = useCallback(
-    async (moduleId: string, type: ModuleExamQuestionType) => {
-      return await withLoading(async () => {
+    async (moduleId: string, type: ModuleExamQuestionType): Promise<string | null> => {
+      return (await withLoading(async () => {
         const initial: Partial<import("@/lib/database.types").ModuleExamQuestion> =
           type === "true_false"
             ? { type, question: "", correct_answer: "A", points: 1 }
-            : type === "multiple_select"
-            ? { type, question: "", correct_answer: undefined, points: 1 }
-            : { type, question: "", correct_answer: "A" as const, points: 1 };
+            : { type, question: "", correct_answer: "A", points: 1 };
         const result = await createExamQuestion(moduleId, initial);
         if (!result.success) throw new Error(result.error);
         await mutateCourse();
         return result.data.id;
-      });
+      })) ?? null;
     },
     [withLoading, mutateCourse]
   );
@@ -490,8 +575,8 @@ export function useCourseStudio(initialCourseId?: string) {
   );
 
   const duplicateQuestion = useCallback(
-    async (questionId: string) => {
-      return await withLoading(async () => {
+    async (questionId: string): Promise<string | null> => {
+      return (await withLoading(async () => {
         const source = serverCourse?.modules
           .flatMap((m) => m.exam?.questions || [])
           .find((q) => q.id === questionId);
@@ -501,7 +586,7 @@ export function useCourseStudio(initialCourseId?: string) {
         if (!result.success) throw new Error(result.error);
         await mutateCourse();
         return result.data.id;
-      });
+      })) ?? null;
     },
     [serverCourse, withLoading, mutateCourse]
   );
@@ -548,8 +633,10 @@ export function useCourseStudio(initialCourseId?: string) {
     hasUnsavedChanges,
     isSaving,
     isMutating,
+    isAutoSaving,
     justSaved,
     save,
+    silentSave,
     discardDirty,
     actions: {
       updateCourse: updateCourseData,

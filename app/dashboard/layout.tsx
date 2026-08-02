@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isPrimaryAdmin } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth-context";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { LogOut } from "lucide-react";
-import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { DockNav } from "@/components/dock-nav";
 import { FloatingHeader } from "@/components/floating-header";
 import { useLanguage } from "@/lib/language-context";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
 import { Button } from "@/components/ui/button";
-import { StudentLayoutSkeleton } from "@/components/skeletons";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -21,10 +21,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, loading: authLoading } = useAuth();
   const { isRTL } = useLanguage();
   const { config } = useBrandingConfig();
+  const [isExamActive, setIsExamActive] = useState(false);
+
+  // Check if exam is active (to hide dock nav during exam)
+  useEffect(() => {
+    const checkExamActive = () => {
+      setIsExamActive(sessionStorage.getItem('exam-active') === 'true');
+    };
+    checkExamActive();
+    const handleExamStateChange = () => checkExamActive();
+    window.addEventListener('exam-state-change', handleExamStateChange);
+    window.addEventListener('storage', handleExamStateChange);
+    return () => {
+      window.removeEventListener('exam-state-change', handleExamStateChange);
+      window.removeEventListener('storage', handleExamStateChange);
+    };
+  }, []);
 
   // Pages where the inline header (logo + logout) is hidden; only the
   // FloatingHeader (notifications + user settings) remains.
-  const HIDE_INLINE_HEADER_PATHS = ["/dashboard", "/dashboard/exam", "/dashboard/settings"];
+  const HIDE_INLINE_HEADER_PATHS = ["/dashboard", "/dashboard/exam", "/dashboard/settings", "/dashboard/course"];
   const showInlineHeader = !HIDE_INLINE_HEADER_PATHS.includes(pathname);
 
   // Track user activity for real-time online status
@@ -54,7 +70,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   if (authLoading) {
-    return <StudentLayoutSkeleton />;
+    return null;
   }
 
   return (
@@ -69,7 +85,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link href="/dashboard" className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md relative">
                 {config.logoUrl ? (
-                  <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+                  <Image
+                    src={config.logoUrl}
+                    alt={config.systemName}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                    sizes="40px"
+                  />
                 ) : (
                   <span className="text-primary-foreground font-bold text-lg">{config.logoText}</span>
                 )}
@@ -90,8 +113,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {children}
       </main>
 
-      {/* Bottom Navigation */}
-      <MobileBottomNav />
+      {/* Bottom Navigation (hidden during active exam) */}
+      {!isExamActive && <DockNav />}
     </div>
   );
 }

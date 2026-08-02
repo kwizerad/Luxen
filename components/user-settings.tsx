@@ -333,7 +333,7 @@ export default function UserSettings({
   return (
     <div className="space-y-6">
       {/* Profile Summary Card */}
-      <Card className={`${cardHoverClass} bg-gradient-to-r from-primary/10 to-primary/5`}>
+      <Card className={`${cardHoverClass} bg-primary/5`}>
         <CardContent className="p-6">
           <div className="flex items-center gap-6">
             <Avatar className="h-20 w-20 border-4 border-primary/30">

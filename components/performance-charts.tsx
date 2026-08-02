@@ -17,7 +17,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { CategoryPerformance } from '@/lib/dashboard-utils';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2 } from 'lucide-react';
 
 interface PerformanceChartsProps {
   categoryPerformance?: CategoryPerformance[];
@@ -36,18 +36,8 @@ export function PerformanceCharts({
 }: PerformanceChartsProps) {
   if (loading) {
     return (
-      <div className="grid md:grid-cols-2 gap-6">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="premium-dash-card">
-            <CardHeader>
-              <Skeleton className="h-6 w-40" />
-              <Skeleton className="h-4 w-56 mt-2" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-64 w-full rounded-2xl" />
-            </CardContent>
-          </Card>
-        ))}
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }

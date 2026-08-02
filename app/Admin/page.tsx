@@ -1,26 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
-  Users, Settings, UserPlus, GraduationCap, FileText, Activity,
+  Users, Settings, GraduationCap, FileText, Activity,
   CheckCircle, AlertCircle, TrendingUp, Clock, Database, Zap,
   ArrowUpRight, type LucideIcon, BookOpen, Layers,
 } from "lucide-react";
-import { getAdminStats } from "@/lib/supabase/queries";
-import { createClient } from "@/lib/supabase/client";
-import { AdminDashboardSkeleton } from "@/components/skeletons";
+import { getAdminStats } from "@/app/Admin/actions/stats";
 import { useBrandingConfig } from "@/lib/branding-config";
-import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import { useLanguage } from "@/lib/language-context";
+import { Loading } from "@/components/skeletons";
+import { AnimatedCounter } from "@/components/animated-counter";
 import { motion } from "framer-motion";
 import {
   AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   RadialBarChart, RadialBar,
 } from "recharts";
-
-const ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
 
 interface DashboardStats {
   totalUsers?: number;
@@ -42,57 +39,24 @@ interface SystemStatus {
   lastUpdated: string;
 }
 
-/* Animated counter that eases from 0 to the target value */
-function AnimatedCounter({ value, duration = 1200 }: { value: number; duration?: number }) {
-  const [display, setDisplay] = useState(0);
-  const ref = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (value <= 0) {
-      setDisplay(0);
-      return;
-    }
-    const start = performance.now();
-    const animate = (now: number) => {
-      const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(Math.round(value * eased));
-      if (progress < 1) {
-        ref.current = requestAnimationFrame(animate);
-      }
-    };
-    ref.current = requestAnimationFrame(animate);
-    return () => { if (ref.current) cancelAnimationFrame(ref.current); };
-  }, [value, duration]);
-
-  return <>{display.toLocaleString()}</>;
-}
-
-
 export default function AdminDashboard() {
   const { t } = useLanguage();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const loadData = async () => {
       try {
-        const supabase = createClient();
-        const [userResult, data] = await Promise.all([
-          supabase.auth.getUser(),
-          getAdminStats()
-        ]);
-
-        if (userResult.data.user) {
-          setIsPrimaryAdmin(userResult.data.user.email === ADMIN_EMAIL);
+        const result = await getAdminStats();
+        if (!result.success) {
+          console.error("Failed to load dashboard data:", result.error);
+          return;
         }
-
+        const data = result.data;
         if (data.stats) setStats(data.stats);
         if (data.recentActivity) setRecentActivity(data.recentActivity);
         if (data.systemStatus) setSystemStatus(data.systemStatus);
@@ -120,8 +84,8 @@ export default function AdminDashboard() {
       value: totalUsers,
       icon: GraduationCap,
       href: "/Admin/users",
-      color: "#60A5FA",
-      bg: "rgba(37, 99, 235, 0.12)",
+      color: "#22C55E",
+      bg: "rgba(34, 197, 94, 0.12)",
       trend: "+12%",
     },
     {
@@ -178,10 +142,9 @@ export default function AdminDashboard() {
     { href: "/Admin/users", icon: Users, label: t("manageUsers"), desc: t("viewManageAccounts"), color: "#60A5FA", bg: "rgba(37,99,235,0.12)" },
     { href: "/Admin/exams", icon: FileText, label: t("manageExams"), desc: t("createExamCategories"), color: "#A5B4FC", bg: "rgba(99,102,241,0.12)" },
     { href: "/Admin/questions", icon: Activity, label: t("manageQuestions"), desc: t("addEditQuestions"), color: "#4ADE80", bg: "rgba(34,197,94,0.12)" },
-    { href: "/Admin/course-management", icon: BookOpen, label: t("courseManagementNav"), desc: t("admin.courseManagement.description"), color: "#2DD4BF", bg: "rgba(45,212,191,0.12)" },
-    { href: "/Admin/course-studio", icon: Layers, label: t("courseStudioNav") || "Course Studio", desc: t("admin.courseStudio.description") || "Build modules and lessons for courses.", color: "#A78BFA", bg: "rgba(167,139,250,0.12)" },
+    { href: "/Admin/course?tab=management", icon: BookOpen, label: t("courseManagementNav") || "Course Management", desc: t("admin.courseManagement.description") || "Overview of courses and their status.", color: "#2DD4BF", bg: "rgba(45,212,191,0.12)" },
+    { href: "/Admin/course?tab=studio", icon: Layers, label: t("courseStudioNav") || "Course Studio", desc: t("admin.courseStudio.description") || "Build modules and lessons for courses.", color: "#A78BFA", bg: "rgba(167,139,250,0.12)" },
     { href: "/Admin/settings", icon: Settings, label: t("settings"), desc: t("updateCredentials"), color: "#FBBF24", bg: "rgba(245,158,11,0.12)" },
-    ...(isPrimaryAdmin ? [{ href: "/Admin/register", icon: UserPlus, label: t("registerAdmin"), desc: t("createAdminAccounts"), color: "#F472B6", bg: "rgba(244,114,182,0.12)" }] : []),
   ];
 
   const fadeUp = {
@@ -193,7 +156,7 @@ export default function AdminDashboard() {
   };
 
   if (loading) {
-    return <AdminDashboardSkeleton />;
+    return <Loading message={t("loading") || "Loading..."} />;
   }
 
   return (
@@ -438,15 +401,7 @@ export default function AdminDashboard() {
           </div>
           <div className="space-y-3">
             {loading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-[var(--admin-input-bg)]">
-                  <div className="admin-skeleton h-10 w-10 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <div className="admin-skeleton h-3 w-32" />
-                    <div className="admin-skeleton h-3 w-48" />
-                  </div>
-                </div>
-              ))
+              <div className="text-center py-8 text-[var(--admin-muted)]">{t("loading") || "Loading..."}</div>
             ) : (
               <>
                 {recentActivity?.categories?.slice(0, 3).map((category: any) => (

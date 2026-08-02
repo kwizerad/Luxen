@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,6 @@ import {
 import { FileText, Plus, BookOpen, CheckCircle, Image as ImageIcon, X, Edit, Trash2, Loader2, ChevronDown, Settings, Eye, EyeOff, AlertTriangle, Trophy, Users, Globe, Lock, ArrowUpDown } from "lucide-react";
 import { Watermark } from "@/components/watermark";
 import { toast } from "sonner";
-import { AdminDashboardSkeleton, CardSkeleton } from "@/components/skeletons";
 import type { ExamCategory, ExamQuestion, ExamQuestionSortingMode } from "@/lib/database.types";
 import { ImageUpload } from "@/components/image-upload";
 import { createClient } from "@/lib/supabase/client";
@@ -622,7 +622,7 @@ export default function ExamManagementPage() {
   const cardHoverClass = "hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300";
 
   if (loading) {
-    return <AdminDashboardSkeleton />;
+    return null;
   }
 
   if (!hasPermission) {
@@ -633,7 +633,7 @@ export default function ExamManagementPage() {
           <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
             <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
               {config.logoUrl ? (
-                <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+                <Image src={config.logoUrl} alt={config.systemName} width={32} height={32} unoptimized className="w-full h-full object-cover" />
               ) : (
                 <span className="text-xs font-bold">{config.logoText || "N"}</span>
               )}
@@ -666,7 +666,7 @@ export default function ExamManagementPage() {
         <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
           <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
             {config.logoUrl ? (
-              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+              <Image src={config.logoUrl} alt={config.systemName} width={32} height={32} unoptimized className="w-full h-full object-cover" />
             ) : (
               <span className="text-xs font-bold">{config.logoText || "N"}</span>
             )}
@@ -1043,7 +1043,7 @@ export default function ExamManagementPage() {
             </DialogHeader>
 
             {loadingSettings ? (
-              <CardSkeleton lines={4} variant="admin" />
+              <div className="text-center py-8 text-muted-foreground">{t("loading") || "Loading..."}</div>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg border border-border p-3">
@@ -1226,7 +1226,7 @@ export default function ExamManagementPage() {
                 {/* {t("optionA")} */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
-                    <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">A</span>
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center">A</span>
                     {t("optionA")}
                   </Label>
                   <Input
@@ -1259,7 +1259,7 @@ export default function ExamManagementPage() {
                 {/* {t("optionB")} */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
-                    <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">B</span>
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center">B</span>
                     {t("optionB")}
                   </Label>
                   <Input
@@ -1292,7 +1292,7 @@ export default function ExamManagementPage() {
                 {/* {t("optionC")} */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
-                    <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">C</span>
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center">C</span>
                     {t("optionC")}
                   </Label>
                   <Input
@@ -1325,7 +1325,7 @@ export default function ExamManagementPage() {
                 {/* {t("optionD")} */}
                 <div className="grid gap-3 p-4 bg-secondary rounded-lg border border-border">
                   <Label className="flex items-center gap-2 text-primary font-semibold">
-                    <span className="w-6 h-6 rounded-full bg-primary text-white text-sm flex items-center justify-center">D</span>
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center">D</span>
                     {t("optionD")}
                   </Label>
                   <Input
@@ -1430,7 +1430,7 @@ export default function ExamManagementPage() {
           </DialogHeader>
 
           {loadingResults ? (
-            <CardSkeleton lines={6} variant="admin" />
+            <div className="text-center py-8 text-muted-foreground">{t("loading") || "Loading..."}</div>
           ) : selectedAttempt ? (
             <div className="space-y-4">
               <Button variant="outline" onClick={() => setSelectedAttempt(null)}>

@@ -123,9 +123,9 @@ export function PWAInstallPrompt() {
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               {isIOS ? (
-                <Smartphone className="w-5 h-5 text-primary" />
+                <Smartphone className="w-5 h-5 text-primary-readable" />
               ) : (
-                <Download className="w-5 h-5 text-primary" />
+                <Download className="w-5 h-5 text-primary-readable" />
               )}
             </div>
             <div className="flex-1 min-w-0">

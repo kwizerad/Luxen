@@ -4,7 +4,7 @@ import { createClient } from "./client";
 import { createAdminClient } from "./admin";
 import { isAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
-import type { ExamQuestion, ExamAnswer, ExamQuestionSortingMode } from "@/lib/database.types";
+import type { ExamQuestion, ExamAnswer, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
 
 // Helper function to handle Supabase auth lock errors
 async function getAuthUser() {
@@ -1345,59 +1345,6 @@ export async function getUsers(type: "students" | "admins" = "students") {
   return { users: profiles || [] };
 }
 
-// ============================================================================
-// SETUP ADMIN QUERIES
-// ============================================================================
-
-export async function checkAdminExists() {
-  const supabase = createClient();
-  
-  // Check if admin exists by trying to sign in with a known admin
-  // or check from a setup status table
-  // This is a simplified version - in production you might want to use RPC
-  
-  const { data, error } = await supabase
-    .from("admin_setup_status")
-    .select("admin_exists")
-    .single();
-
-  if (error) {
-    // If table doesn't exist, assume setup is needed
-    return { adminExists: false };
-  }
-
-  return { adminExists: data?.admin_exists ?? false };
-}
-
-export async function setupAdmin(email: string, password: string) {
-  const supabase = createClient();
-  
-  // Create admin user using signUp (will be confirmed via email or auto-confirm)
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        role: "Admin",
-        username: "NavoAdmin",
-      },
-    },
-  });
-
-  if (error) throw error;
-
-  // Mark setup as complete
-  await supabase
-    .from("admin_setup_status")
-    .upsert({ id: 1, admin_exists: true });
-
-  return {
-    success: true,
-    message: "Admin user created successfully",
-    user: data.user,
-  };
-}
-
 // SYSTEM CONFIGURATION QUERIES
 // ============================================================================
 
@@ -1513,4 +1460,611 @@ export async function areViolationMeasuresEnabled(): Promise<boolean> {
   }
 
   return data.value === "true";
+}
+
+export async function isStandaloneExamEnabled(): Promise<boolean> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", "standalone_exam_enabled")
+    .single();
+
+  if (error || !data) {
+    return false;
+  }
+
+  return data.value === "true";
+}
+
+// ============================================================================
+// MODULE EXAM QUERIES (Module Journey System)
+// ============================================================================
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export interface ModuleExamTakeData {
+  settings: ModuleExamSettings;
+  questions: ModuleExamQuestion[];
+}
+
+export async function getModuleExamForTaking(
+  moduleId: string
+): Promise<ModuleExamTakeData> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: settings, error: settingsError } = await supabase
+    .from("module_exam_settings")
+    .select("*")
+    .eq("module_id", moduleId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (settingsError) throw settingsError;
+  if (!settings) throw new Error("No exam found for this module");
+
+  const { data: questions, error: questionsError } = await supabase
+    .from("module_exam_questions")
+    .select("*")
+    .eq("module_id", moduleId)
+    .is("deleted_at", null)
+    .eq("is_published", true)
+    .order("order_index", { ascending: true });
+
+  if (questionsError) throw questionsError;
+
+  let finalQuestions = questions || [];
+  if ((settings as ModuleExamSettings).randomize_questions) {
+    finalQuestions = shuffleArray(finalQuestions);
+  }
+  const questionCount = (settings as ModuleExamSettings).question_count;
+  if (questionCount && finalQuestions.length > questionCount) {
+    finalQuestions = finalQuestions.slice(0, questionCount);
+  }
+
+  return {
+    settings: settings as ModuleExamSettings,
+    questions: finalQuestions as ModuleExamQuestion[],
+  };
+}
+
+export async function getMidtermExamForTaking(
+  completedModuleIds: string[],
+  questionCount: number,
+  durationMinutes: number
+): Promise<{ questions: ModuleExamQuestion[]; durationMinutes: number; questionCount: number }> {
+  if (completedModuleIds.length === 0) {
+    return { questions: [], durationMinutes, questionCount };
+  }
+
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: questions, error } = await supabase
+    .from("module_exam_questions")
+    .select("*")
+    .in("module_id", completedModuleIds)
+    .is("deleted_at", null)
+    .eq("is_published", true);
+
+  if (error) throw error;
+
+  const shuffled = shuffleArray(questions || []);
+  const sliced = shuffled.slice(0, questionCount);
+
+  return {
+    questions: sliced as ModuleExamQuestion[],
+    durationMinutes,
+    questionCount,
+  };
+}
+
+export async function getFinalExamForTaking(
+  allModuleIds: string[],
+  questionCount: number,
+  durationMinutes: number
+): Promise<{ questions: ModuleExamQuestion[]; durationMinutes: number; questionCount: number }> {
+  if (allModuleIds.length === 0) {
+    return { questions: [], durationMinutes, questionCount };
+  }
+
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: questions, error } = await supabase
+    .from("module_exam_questions")
+    .select("*")
+    .in("module_id", allModuleIds)
+    .is("deleted_at", null)
+    .eq("is_published", true);
+
+  if (error) throw error;
+
+  const shuffled = shuffleArray(questions || []);
+  const sliced = shuffled.slice(0, questionCount);
+
+  return {
+    questions: sliced as ModuleExamQuestion[],
+    durationMinutes,
+    questionCount,
+  };
+}
+
+export async function createModuleExamAttempt(
+  attemptData: {
+    module_id: string | null;
+    module_title: string | null;
+    exam_type: "module" | "midterm" | "final";
+    total_questions: number;
+    correct_answers: number;
+    score_percentage: number;
+    passed: boolean;
+    duration_seconds: number;
+    answers: ModuleExamAnswer[];
+    status: "completed" | "abandoned";
+  }
+): Promise<ModuleExamAttempt> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("module_exam_attempts")
+    .insert({
+      user_id: user.id,
+      module_id: attemptData.module_id,
+      module_title: attemptData.module_title,
+      exam_type: attemptData.exam_type,
+      started_at: new Date(Date.now() - attemptData.duration_seconds * 1000).toISOString(),
+      completed_at: new Date().toISOString(),
+      duration_seconds: attemptData.duration_seconds,
+      total_questions: attemptData.total_questions,
+      correct_answers: attemptData.correct_answers,
+      score_percentage: attemptData.score_percentage,
+      passed: attemptData.passed,
+      answers: attemptData.answers,
+      status: attemptData.status,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+
+  // Update student_module_progress for module exams
+  if (attemptData.exam_type === "module" && attemptData.module_id) {
+    await updateModuleProgressAfterExam(attemptData.module_id, attemptData.passed, attemptData.score_percentage);
+  }
+
+  return data as ModuleExamAttempt;
+}
+
+async function updateModuleProgressAfterExam(
+  moduleId: string,
+  passed: boolean,
+  scorePercentage: number
+): Promise<void> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) return;
+
+  // Get existing progress
+  const { data: existing } = await supabase
+    .from("student_module_progress")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("module_id", moduleId)
+    .maybeSingle();
+
+  const attempts = (existing?.exam_attempts || 0) + 1;
+  const bestScore = Math.max(existing?.best_score || 0, scorePercentage);
+  const examPassed = passed || existing?.exam_passed || false;
+
+  if (existing) {
+    await supabase
+      .from("student_module_progress")
+      .update({
+        exam_attempts: attempts,
+        best_score: bestScore,
+        exam_passed: examPassed,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+  } else {
+    await supabase.from("student_module_progress").insert({
+      user_id: user.id,
+      module_id: moduleId,
+      lessons_completed: 0,
+      total_lessons: 0,
+      exam_passed: examPassed,
+      exam_attempts: attempts,
+      best_score: bestScore,
+      time_spent_seconds: 0,
+      completed_at: new Date().toISOString(),
+    });
+  }
+}
+
+export async function getModuleExamAttempts(
+  moduleId?: string,
+  examType?: "module" | "midterm" | "final"
+): Promise<ModuleExamAttempt[]> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  let query = supabase
+    .from("module_exam_attempts")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (moduleId) {
+    query = query.eq("module_id", moduleId);
+  }
+  if (examType) {
+    query = query.eq("exam_type", examType);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []) as ModuleExamAttempt[];
+}
+
+export async function getStudentModuleProgress(moduleIds: string[]) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) return [];
+
+  if (moduleIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("student_module_progress")
+    .select("*")
+    .eq("user_id", user.id)
+    .in("module_id", moduleIds);
+
+  if (error) return [];
+  return data || [];
+}
+
+export async function getStudentLessonProgress(moduleIds: string[]) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) return [];
+
+  if (moduleIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("student_lesson_progress")
+    .select("*")
+    .eq("user_id", user.id)
+    .in("module_id", moduleIds);
+
+  if (error) return [];
+  return data || [];
+}
+
+export async function upsertLessonProgress(
+  lessonId: string,
+  moduleId: string,
+  completed: boolean,
+  timeSpentSeconds: number
+): Promise<void> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) return;
+
+  const { data: existing } = await supabase
+    .from("student_lesson_progress")
+    .select("id, time_spent_seconds")
+    .eq("user_id", user.id)
+    .eq("lesson_id", lessonId)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("student_lesson_progress")
+      .update({
+        completed,
+        completed_at: completed ? new Date().toISOString() : null,
+        time_spent_seconds: (existing.time_spent_seconds || 0) + timeSpentSeconds,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+  } else {
+    await supabase.from("student_lesson_progress").insert({
+      user_id: user.id,
+      lesson_id: lessonId,
+      module_id: moduleId,
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+      time_spent_seconds: timeSpentSeconds,
+    });
+  }
+}
+
+export async function updateModuleTimeSpent(
+  moduleId: string,
+  additionalSeconds: number
+): Promise<void> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) return;
+
+  const { data: existing } = await supabase
+    .from("student_module_progress")
+    .select("id, time_spent_seconds")
+    .eq("user_id", user.id)
+    .eq("module_id", moduleId)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("student_module_progress")
+      .update({
+        time_spent_seconds: (existing.time_spent_seconds || 0) + additionalSeconds,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+  } else {
+    // Need total_lessons — fetch from course_lessons
+    const { count } = await supabase
+      .from("course_lessons")
+      .select("*", { count: "exact", head: true })
+      .eq("module_id", moduleId)
+      .is("deleted_at", null);
+
+    await supabase.from("student_module_progress").insert({
+      user_id: user.id,
+      module_id: moduleId,
+      lessons_completed: 0,
+      total_lessons: count || 0,
+      exam_passed: false,
+      exam_attempts: 0,
+      time_spent_seconds: additionalSeconds,
+    });
+  }
+}
+
+export async function canRetakeExam(
+  moduleId: string,
+  examType: ExamRetakeType
+): Promise<{ canRetake: boolean; needsApproval: boolean; reason?: string }> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  // Midterm and final exams have no retake limit
+  if (examType === "midterm") {
+    return { canRetake: true, needsApproval: false };
+  }
+
+  // For module exams, check retake_limit from exam settings
+  if (examType === "module") {
+    const { data: settings } = await supabase
+      .from("module_exam_settings")
+      .select("retake_limit, max_attempts")
+      .eq("module_id", moduleId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    const retakeLimit = settings?.retake_limit ?? settings?.max_attempts ?? 2;
+
+    // Count completed attempts
+    const { count } = await supabase
+      .from("module_exam_attempts")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("module_id", moduleId)
+      .eq("exam_type", "module")
+      .eq("status", "completed");
+
+    const attempts = count || 0;
+
+    if (attempts <= retakeLimit) {
+      return { canRetake: true, needsApproval: false };
+    }
+
+    // Over limit — check for approved retake request
+    const { data: approvedRequest } = await supabase
+      .from("exam_retake_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("module_id", moduleId)
+      .eq("exam_type", "module")
+      .eq("status", "approved")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (approvedRequest) {
+      return { canRetake: true, needsApproval: false };
+    }
+
+    // Check if there's already a pending request
+    const { data: pendingRequest } = await supabase
+      .from("exam_retake_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("module_id", moduleId)
+      .eq("exam_type", "module")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pendingRequest) {
+      return { canRetake: false, needsApproval: true, reason: "pending" };
+    }
+
+    return { canRetake: false, needsApproval: true, reason: "over_limit" };
+  }
+
+  // Final exam — similar to module exam but no module_id
+  return { canRetake: true, needsApproval: false };
+}
+
+// ============================================================================
+// RETAKE REQUEST QUERIES
+// ============================================================================
+
+export async function requestExamRetake(
+  moduleId: string | null,
+  examType: ExamRetakeType,
+  reason: string
+): Promise<ExamRetakeRequest> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  // Check for existing pending request
+  let query = supabase
+    .from("exam_retake_requests")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("exam_type", examType)
+    .eq("status", "pending");
+
+  if (moduleId) {
+    query = query.eq("module_id", moduleId);
+  } else {
+    query = query.is("module_id", null);
+  }
+
+  const { data: existing } = await query.maybeSingle();
+  if (existing) {
+    throw new Error("You already have a pending retake request");
+  }
+
+  const { data, error } = await supabase
+    .from("exam_retake_requests")
+    .insert({
+      user_id: user.id,
+      module_id: moduleId,
+      exam_type: examType,
+      reason,
+      status: "pending",
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data as ExamRetakeRequest;
+}
+
+export async function getStudentRetakeRequests(): Promise<ExamRetakeRequest[]> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("exam_retake_requests")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as ExamRetakeRequest[];
+}
+
+export async function getAllRetakeRequests(
+  statusFilter?: ExamRetakeStatus
+): Promise<(ExamRetakeRequest & { user_email?: string; user_name?: string })[]> {
+  const supabase = createAdminClient();
+
+  let query = supabase
+    .from("exam_retake_requests")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (statusFilter) {
+    query = query.eq("status", statusFilter);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  // Fetch user emails
+  const requests = data || [];
+  const userIds = [...new Set(requests.map((r) => r.user_id).filter(Boolean))] as string[];
+  if (userIds.length === 0) return requests as any;
+
+  const { data: profiles } = await supabase
+    .from("user_profiles")
+    .select("id, email, full_name, username")
+    .in("id", userIds);
+
+  const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+
+  return requests.map((r) => ({
+    ...r,
+    user_email: profileMap.get(r.user_id)?.email,
+    user_name: profileMap.get(r.user_id)?.full_name || profileMap.get(r.user_id)?.username,
+  })) as any;
+}
+
+export async function approveRetakeRequest(
+  requestId: string,
+  adminNote?: string
+): Promise<void> {
+  const supabase = createAdminClient();
+  const { data: adminUser } = await supabase.auth.getUser();
+  const adminId = adminUser?.user?.id;
+
+  const { error } = await supabase
+    .from("exam_retake_requests")
+    .update({
+      status: "approved",
+      admin_id: adminId,
+      admin_note: adminNote,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", requestId);
+
+  if (error) throw error;
+}
+
+export async function denyRetakeRequest(
+  requestId: string,
+  adminNote?: string
+): Promise<void> {
+  const supabase = createAdminClient();
+  const { data: adminUser } = await supabase.auth.getUser();
+  const adminId = adminUser?.user?.id;
+
+  const { error } = await supabase
+    .from("exam_retake_requests")
+    .update({
+      status: "denied",
+      admin_id: adminId,
+      admin_note: adminNote,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", requestId);
+
+  if (error) throw error;
+}
+
+export async function getPendingRetakeCount(): Promise<number> {
+  const supabase = createAdminClient();
+  const { count, error } = await supabase
+    .from("exam_retake_requests")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending");
+
+  if (error) return 0;
+  return count || 0;
 }

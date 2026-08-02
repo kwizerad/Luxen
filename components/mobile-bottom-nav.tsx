@@ -5,8 +5,8 @@ import { LayoutDashboard, FileText, Trophy, Settings, Home, BookOpen } from "luc
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
-import { useNavAutohideEnabled } from "@/lib/use-nav-autohide";
 import { createClient } from "@/lib/supabase/client";
+import { isStandaloneExamEnabled } from "@/lib/supabase/queries";
 import { useEffect, useState } from "react";
 
 const LEARNING_LANGUAGES = ["English", "French", "Kinyarwanda"] as const;
@@ -31,9 +31,8 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
   const { t, language: interfaceLanguage } = useLanguage();
   const { user } = useAuth();
   const [isExamActive, setIsExamActive] = useState(false);
-  const [navVisible, setNavVisible] = useState(true);
   const [hasPublishedCourse, setHasPublishedCourse] = useState<boolean | null>(null);
-  const autohideEnabled = useNavAutohideEnabled();
+  const [examEnabled, setExamEnabled] = useState<boolean>(false);
 
   // Hide the Courses tab when no published course is available for the student.
   useEffect(() => {
@@ -75,6 +74,11 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
     void checkPublishedCourse();
   }, [user, interfaceLanguage]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    void isStandaloneExamEnabled().then(setExamEnabled);
+  }, []);
+
   // Check if exam is active
   useEffect(() => {
     const checkExamActive = () => {
@@ -97,76 +101,10 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
     };
   }, []);
 
-  // Cursor-proximity auto-hide (large screens only, respects user preference).
-  // Navbar hides after inactivity and reappears when the cursor
-  // approaches the bottom of the viewport.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // If autohide is disabled, always show the navbar
-    if (!autohideEnabled) {
-      setNavVisible(true);
-      return;
-    }
-
-    let hideTimer: ReturnType<typeof setTimeout> | null = null;
-    const REVEAL_ZONE = 100; // px from bottom that reveals the navbar
-    const HIDE_DELAY = 2500; // ms of inactivity before hiding
-
-    const scheduleHide = () => {
-      if (hideTimer) clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => {
-        if (window.innerWidth >= 1024) setNavVisible(false);
-      }, HIDE_DELAY);
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (window.innerWidth < 1024) {
-        setNavVisible(true);
-        return;
-      }
-
-      const nearBottom = e.clientY > window.innerHeight - REVEAL_ZONE;
-      if (nearBottom) {
-        setNavVisible(true);
-        if (hideTimer) clearTimeout(hideTimer);
-      } else {
-        scheduleHide();
-      }
-    };
-
-    const handleMouseLeave = () => {
-      if (window.innerWidth >= 1024) scheduleHide();
-    };
-
-    // Keep navbar visible when resized to small screen; reschedule on large
-    const handleResize = () => {
-      if (window.innerWidth < 1024) {
-        if (hideTimer) clearTimeout(hideTimer);
-        setNavVisible(true);
-      } else {
-        scheduleHide();
-      }
-    };
-
-    if (window.innerWidth >= 1024) scheduleHide();
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    document.addEventListener('mouseleave', handleMouseLeave);
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseleave', handleMouseLeave);
-      window.removeEventListener('resize', handleResize);
-      if (hideTimer) clearTimeout(hideTimer);
-    };
-  }, [autohideEnabled]);
-
   const navItems: NavItem[] = [
     { href: "/dashboard", labelKey: "home", icon: LayoutDashboard },
     { href: "/dashboard/course", labelKey: "courses", icon: BookOpen },
-    { href: "/dashboard/exam", labelKey: "takeExam", icon: FileText },
-    { href: "/userExam", labelKey: "results", icon: Trophy },
+    ...(examEnabled ? [{ href: "/dashboard/exam", labelKey: "exam", icon: Trophy }] : []),
     { href: "/dashboard/settings", labelKey: "settings", icon: Settings },
   ];
 
@@ -190,21 +128,8 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
   };
 
   return (
-    <>
-    {/* Thin indicator line shown when navbar is hidden (autohide) */}
-    {!navVisible && autohideEnabled && (
-      <div
-        className="fixed bottom-1.5 left-3 right-3 z-40 sm:left-1/2 sm:right-auto sm:w-full sm:max-w-2xl sm:-translate-x-1/2 h-1 rounded-full bg-primary transition-opacity duration-300"
-        style={{ boxShadow: "0 0 12px 2px hsl(var(--primary) / 0.8), 0 0 24px 6px hsl(var(--primary) / 0.4)" }}
-        aria-hidden="true"
-      />
-    )}
     <div
-      className={`fixed bottom-3 left-3 right-3 z-50 sm:left-1/2 sm:right-auto sm:w-full sm:max-w-2xl sm:-translate-x-1/2 transition-all duration-300 ${
-        navVisible
-          ? "translate-y-0 opacity-100"
-          : "translate-y-[120%] opacity-0 pointer-events-none"
-      }`}
+      className="fixed bottom-3 left-3 right-3 z-50 sm:left-1/2 sm:right-auto sm:w-full sm:max-w-2xl sm:-translate-x-1/2"
     >
       {/* Glassmorphism container */}
       <div className="premium-glass-panel student-nav-pill border rounded-[20px] h-14 overflow-hidden shadow-lg">
@@ -248,6 +173,5 @@ export function MobileBottomNav({ hide = false }: MobileBottomNavProps) {
         </div>
       </div>
     </div>
-    </>
   );
 }

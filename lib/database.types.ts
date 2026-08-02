@@ -100,7 +100,7 @@ export type CourseLanguage = 'English' | 'Kinyarwanda' | 'French';
 export type CourseStatus = 'draft' | 'published' | 'archived';
 export type ModuleStatus = 'draft' | 'published' | 'archived';
 export type LessonContentType = 'text' | 'rich_text' | 'video' | 'audio' | 'image' | 'document' | 'mixed';
-export type ModuleExamQuestionType = 'multiple_choice' | 'multiple_select' | 'true_false' | 'matching' | 'short_answer';
+export type ModuleExamQuestionType = 'multiple_choice' | 'multiple_select' | 'true_false' | 'matching';
 
 export interface CourseLanguageCourse {
   id: string;
@@ -116,6 +116,10 @@ export interface CourseLanguageCourse {
   is_published: boolean;
   deleted_at?: string | null;
   order_index: number;
+  midterm_enabled: boolean;
+  midterm_interval: number;
+  midterm_question_count: number;
+  midterm_duration_minutes: number;
   created_at: string;
   updated_at?: string;
   created_by?: string;
@@ -159,6 +163,7 @@ export interface CourseLesson {
   short_description?: string;
   thumbnail_url?: string;
   tags?: string[];
+  topics?: any[];
   estimated_reading_minutes?: number;
   is_preview?: boolean;
   status: CourseStatus;
@@ -210,10 +215,11 @@ export interface ModuleExamSettings {
   randomize_questions: boolean;
   randomize_answers: boolean;
   max_attempts?: number | null;
-  time_limit_minutes?: number | null;
+  retake_limit?: number | null;
   show_results_immediately: boolean;
   show_explanations: boolean;
   allow_review: boolean;
+  exam_type: string;
   deleted_at?: string | null;
   created_at: string;
   updated_at?: string;
@@ -274,6 +280,7 @@ export interface StudentModuleProgress {
   exam_passed: boolean;
   exam_attempts: number;
   best_score?: number;
+  time_spent_seconds: number;
   completed_at?: string;
   created_at: string;
   updated_at?: string;
@@ -294,8 +301,9 @@ export interface StudentLessonProgress {
 export interface ModuleExamAttempt {
   id: string;
   user_id: string;
-  module_id: string;
-  module_title: string;
+  module_id: string | null;
+  module_title: string | null;
+  exam_type: 'module' | 'midterm' | 'final';
   started_at: string;
   completed_at?: string;
   duration_seconds: number;
@@ -342,4 +350,24 @@ export interface Notification {
   is_read: boolean;
   read_at?: string;
   created_at: string;
+}
+
+// ============================================================================
+// EXAM RETAKE REQUEST TYPES
+// ============================================================================
+
+export type ExamRetakeStatus = 'pending' | 'approved' | 'denied';
+export type ExamRetakeType = 'module' | 'midterm' | 'final';
+
+export interface ExamRetakeRequest {
+  id: string;
+  user_id: string;
+  module_id: string | null;
+  exam_type: ExamRetakeType;
+  reason?: string;
+  status: ExamRetakeStatus;
+  admin_id?: string | null;
+  admin_note?: string;
+  created_at: string;
+  updated_at?: string;
 }

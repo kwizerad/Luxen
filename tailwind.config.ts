@@ -84,8 +84,8 @@ export default {
       boxShadow: {
         glass: "0 20px 50px rgba(0, 0, 0, 0.08)",
         "glass-dark": "0 20px 50px rgba(0, 0, 0, 0.25)",
-        glow: "0 0 24px rgba(37, 99, 235, 0.25)",
-        "glow-dark": "0 0 24px rgba(37, 99, 235, 0.4)",
+        glow: "0 0 24px rgba(34, 197, 94, 0.25)",
+        "glow-dark": "0 0 24px rgba(34, 197, 94, 0.4)",
       },
       keyframes: {
         shimmer: {

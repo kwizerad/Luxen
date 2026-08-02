@@ -28,6 +28,7 @@ import {
   extractTextFromTiptapJSON,
 } from "@/lib/courses-store";
 import { RichEditor } from "./rich-editor";
+import { MatchingInteraction } from "./matching-interaction";
 import {
   GripVertical,
   Trash2,
@@ -44,16 +45,22 @@ import {
   AlertCircle,
   X,
   ListOrdered,
+  ListChecks,
+  ToggleLeft,
+  ArrowLeftRight,
 } from "lucide-react";
 
 interface ExamStudioProps {
   exam: ModuleExam;
+  activeQuestionId?: string | null;
+  onActiveQuestionChange?: (id: string | null) => void;
   onAddQuestion: (type: ModuleExamQuestionType) => Promise<string | null>;
   onUpdateQuestion: (questionId: string, partial: Partial<ModuleExamQuestionUI>) => void;
   onDeleteQuestion: (questionId: string) => void;
   onDuplicateQuestion: (questionId: string) => Promise<string | null>;
   onMoveQuestion: (questionId: string, direction: "up" | "down") => void;
   onReorderQuestions?: (questionIds: string[]) => void;
+  onTitleChange?: (title: string) => void;
 }
 
 type FilterType = "all" | ModuleExamQuestionType;
@@ -61,19 +68,28 @@ type FilterType = "all" | ModuleExamQuestionType;
 const QUESTION_TYPE_LABELS: Record<ModuleExamQuestionType, string> = {
   multiple_choice: "Multiple Choice",
   multiple_select: "Multiple Select",
-  true_false: "True / False",
+  true_false: "T/F",
   matching: "Matching",
-  short_answer: "Short Answer",
+};
+
+const QUESTION_TYPE_ICONS: Record<ModuleExamQuestionType, typeof CheckCircle2> = {
+  multiple_choice: CheckCircle2,
+  multiple_select: ListChecks,
+  true_false: ToggleLeft,
+  matching: ArrowLeftRight,
 };
 
 export function ExamStudio({
   exam,
-  onAddQuestion,
+  activeQuestionId,
+  onActiveQuestionChange,
+  onAddQuestion: _onAddQuestion,
   onUpdateQuestion,
   onDeleteQuestion,
   onDuplicateQuestion,
   onMoveQuestion,
   onReorderQuestions,
+  onTitleChange,
 }: ExamStudioProps) {
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
@@ -131,95 +147,185 @@ export function ExamStudio({
     setDraggedId(null);
   };
 
+  const activeIndex = activeQuestionId
+    ? filteredQuestions.findIndex(({ q }) => q.id === activeQuestionId)
+    : -1;
+  const activeQuestion = activeIndex >= 0 ? filteredQuestions[activeIndex] : null;
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-[var(--admin-text)]">
-            {t("examStudio") || "Exam Studio"}
-          </h2>
+        <div className="space-y-1 flex-1 min-w-0">
+          {onTitleChange ? (
+            <input
+              type="text"
+              value={exam.title}
+              onChange={(e) => onTitleChange(e.target.value)}
+              placeholder={t("examTitle") || "Exam Title"}
+              className="text-lg font-semibold text-[var(--admin-text)] bg-transparent border-none outline-none w-full truncate placeholder:text-[var(--admin-muted)] focus:ring-1 focus:ring-[var(--admin-primary)]/30 rounded px-1 -ml-1"
+            />
+          ) : (
+            <h2 className="text-lg font-semibold text-[var(--admin-text)]">
+              {exam.title || t("examStudio") || "Exam Studio"}
+            </h2>
+          )}
           <p className="text-sm text-[var(--admin-muted)]">
             {exam.questions.length} {t("questions") || "questions"} · {totalPoints} {t("points") || "points"}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value="multiple_choice"
-            onValueChange={(value) => onAddQuestion(value as ModuleExamQuestionType)}
-          >
-            <SelectTrigger className="admin-input w-44">
-              <Plus className="h-4 w-4 mr-1.5" />
-              <SelectValue placeholder={t("addQuestion") || "Add question"} />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(QUESTION_TYPE_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--admin-muted)]" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("searchQuestions") || "Search questions..."}
-            className="admin-input pl-9"
-          />
-        </div>
-        <Select value={filter} onValueChange={(value) => setFilter(value as FilterType)}>
-          <SelectTrigger className="admin-input w-full sm:w-44">
-            <SelectValue placeholder={t("allTypes") || "All types"} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allTypes") || "All types"}</SelectItem>
-            {Object.entries(QUESTION_TYPE_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>{label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-3">
-        {filteredQuestions.length === 0 && (
-          <div className="text-center py-12 border border-dashed border-[var(--admin-border)] rounded-2xl">
-            <ListOrdered className="h-10 w-10 mx-auto mb-3 text-[var(--admin-muted)] opacity-40" />
-            <p className="text-[var(--admin-muted)]">
-              {search || filter !== "all"
-                ? t("noQuestionsMatch") || "No questions match your filters."
-                : t("noQuestionsYet") || "No questions yet. Add one to get started."}
-            </p>
+      {/* === LIST VIEW: all questions (no active question) === */}
+      {!activeQuestion && (
+        <>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--admin-muted)]" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("searchQuestions") || "Search questions..."}
+                className="admin-input pl-9"
+              />
+            </div>
+            <Select value={filter} onValueChange={(value) => setFilter(value as FilterType)}>
+              <SelectTrigger className="admin-input w-full sm:w-44">
+                <SelectValue placeholder={t("allTypes") || "All types"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("allTypes") || "All types"}</SelectItem>
+                {Object.entries(QUESTION_TYPE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        )}
 
-        {filteredQuestions.map(({ q, index }) => (
+          <div className="space-y-3">
+            {filteredQuestions.length === 0 && (
+              <div className="text-center py-12 border border-dashed border-[var(--admin-border)] rounded-2xl">
+                <ListOrdered className="h-10 w-10 mx-auto mb-3 text-[var(--admin-muted)] opacity-40" />
+                <p className="text-[var(--admin-muted)]">
+                  {search || filter !== "all"
+                    ? t("noQuestionsMatch") || "No questions match your filters."
+                    : t("noQuestionsYet") || "No questions yet. Add one to get started."}
+                </p>
+              </div>
+            )}
+
+            {filteredQuestions.map(({ q, index }) => {
+              const Icon = QUESTION_TYPE_ICONS[q.type];
+              const text = extractTextFromTiptapJSON(q.text);
+              const isValid = validateQuestion(q);
+              return (
+                <div
+                  key={q.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, q.id)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, q.id)}
+                  onClick={() => onActiveQuestionChange?.(q.id)}
+                  className={cn(
+                    "rounded-xl border bg-[var(--admin-card)] p-3 flex items-center gap-3 cursor-pointer transition-all",
+                    draggedId === q.id ? "opacity-50 border-dashed border-[var(--admin-primary)]" : "border-[var(--admin-border)] hover:border-[var(--admin-border-hover)] hover:bg-[var(--admin-hover-bg)]/30"
+                  )}
+                >
+                  <div className="pt-0.5 cursor-grab active:cursor-grabbing text-[var(--admin-muted)]">
+                    <GripVertical className="h-4 w-4" />
+                  </div>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--admin-primary)]/15 text-[var(--admin-primary)] text-xs font-semibold flex-shrink-0">
+                    {index + 1}
+                  </span>
+                  <Icon className="h-4 w-4 text-[var(--admin-muted)] flex-shrink-0" />
+                  <span className="text-sm text-[var(--admin-text)] truncate flex-1 min-w-0">
+                    {text.trim() || <span className="text-[var(--admin-muted)] italic">{t("untitledQuestion") || "Untitled question"}</span>}
+                  </span>
+                  <span className="text-xs text-[var(--admin-muted)] flex-shrink-0">{QUESTION_TYPE_LABELS[q.type]}</span>
+                  <span className="text-xs text-[var(--admin-muted)] flex-shrink-0">{q.points || 1} pts</span>
+                  {!isValid && (
+                    <Badge className="admin-badge-danger flex items-center gap-1 flex-shrink-0">
+                      <AlertCircle className="h-3 w-3" />
+                    </Badge>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* === SINGLE QUESTION EDITOR VIEW === */}
+      {activeQuestion && (
+        <div className="space-y-3">
+          {/* Back to list + navigation */}
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => onActiveQuestionChange?.(null)}
+              className="flex items-center gap-1.5 text-sm text-[var(--admin-muted)] hover:text-[var(--admin-text)] transition-colors"
+            >
+              <ChevronDown className="h-4 w-4 rotate-90" />
+              {t("allQuestions") || "All Questions"}
+            </button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={activeIndex <= 0}
+                onClick={() => onActiveQuestionChange?.(filteredQuestions[activeIndex - 1].q.id)}
+                className="border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+              >
+                <ChevronUp className="h-4 w-4 mr-1" />
+                {t("previous") || "Previous"}
+              </Button>
+              <span className="text-xs text-[var(--admin-muted)]">
+                {activeIndex + 1} / {filteredQuestions.length}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={activeIndex >= filteredQuestions.length - 1}
+                onClick={() => onActiveQuestionChange?.(filteredQuestions[activeIndex + 1].q.id)}
+                className="border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+              >
+                {t("next") || "Next"}
+                <ChevronDown className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Single question card */}
           <QuestionCard
-            key={q.id}
-            q={q}
-            number={index + 1}
-            isCollapsed={collapsed.has(q.id)}
-            isPreview={previewId === q.id}
-            isDragged={draggedId === q.id}
-            onToggleCollapse={() => toggleCollapse(q.id)}
-            onTogglePreview={() => setPreviewId((id) => (id === q.id ? null : q.id))}
-            onUpdate={(partial) => onUpdateQuestion(q.id, partial)}
+            q={activeQuestion.q}
+            number={activeIndex + 1}
+            isActive={true}
+            isCollapsed={collapsed.has(activeQuestion.q.id)}
+            isPreview={previewId === activeQuestion.q.id}
+            isDragged={draggedId === activeQuestion.q.id}
+            onToggleCollapse={() => toggleCollapse(activeQuestion.q.id)}
+            onTogglePreview={() => setPreviewId((id) => (id === activeQuestion.q.id ? null : activeQuestion.q.id))}
+            onActivate={() => {}}
+            onUpdate={(partial) => onUpdateQuestion(activeQuestion.q.id, partial)}
             onDelete={() => {
               if (confirm(t("confirmDeleteQuestion") || "Delete this question?")) {
-                onDeleteQuestion(q.id);
+                onDeleteQuestion(activeQuestion.q.id);
+                onActiveQuestionChange?.(null);
               }
             }}
-            onDuplicate={() => onDuplicateQuestion(q.id)}
-            onMoveUp={() => onMoveQuestion(q.id, "up")}
-            onMoveDown={() => onMoveQuestion(q.id, "down")}
-            onDragStart={(e) => handleDragStart(e, q.id)}
+            onDuplicate={async () => {
+              const newId = await onDuplicateQuestion(activeQuestion.q.id);
+              if (newId) onActiveQuestionChange?.(newId);
+            }}
+            onMoveUp={() => onMoveQuestion(activeQuestion.q.id, "up")}
+            onMoveDown={() => onMoveQuestion(activeQuestion.q.id, "down")}
+            onDragStart={(e) => handleDragStart(e, activeQuestion.q.id)}
             onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, q.id)}
+            onDrop={(e) => handleDrop(e, activeQuestion.q.id)}
           />
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -227,11 +333,13 @@ export function ExamStudio({
 interface QuestionCardProps {
   q: ModuleExamQuestionUI;
   number: number;
+  isActive: boolean;
   isCollapsed: boolean;
   isPreview: boolean;
   isDragged: boolean;
   onToggleCollapse: () => void;
   onTogglePreview: () => void;
+  onActivate: () => void;
   onUpdate: (partial: Partial<ModuleExamQuestionUI>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -245,11 +353,13 @@ interface QuestionCardProps {
 function QuestionCard({
   q,
   number,
+  isActive,
   isCollapsed,
   isPreview,
   isDragged,
   onToggleCollapse,
   onTogglePreview,
+  onActivate,
   onUpdate,
   onDelete,
   onDuplicate,
@@ -262,6 +372,9 @@ function QuestionCard({
   const { t } = useLanguage();
   const typeLabel = QUESTION_TYPE_LABELS[q.type];
   const isValid = validateQuestion(q);
+  const isQuestionEmpty = !extractTextFromTiptapJSON(q.text).trim();
+  const hasExplanation = !!extractTextFromTiptapJSON(q.explanation).trim();
+  const [showExplanation, setShowExplanation] = useState(hasExplanation);
 
   return (
     <div
@@ -269,9 +382,10 @@ function QuestionCard({
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
+      onClick={onActivate}
       className={cn(
-        "rounded-2xl border bg-[var(--admin-card)] transition-all",
-        isDragged ? "opacity-50 border-dashed border-[var(--admin-primary)]" : "border-[var(--admin-border)] hover:border-[var(--admin-border-hover)]"
+        "rounded-2xl border bg-[var(--admin-card)] transition-all cursor-pointer",
+        isDragged ? "opacity-50 border-dashed border-[var(--admin-primary)]" : isActive ? "border-[var(--admin-primary)] ring-1 ring-[var(--admin-primary)]/20" : "border-[var(--admin-border)] hover:border-[var(--admin-border-hover)]"
       )}
     >
       <div className="p-4 flex items-start gap-3">
@@ -336,6 +450,41 @@ function QuestionCard({
 
           {!isCollapsed && (
             <div className="space-y-4 pt-2">
+              {isQuestionEmpty && (
+                <div className="space-y-3">
+                  <Label className="text-[var(--admin-text)]">{t("chooseQuestionType") || "Choose question type"}</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {(Object.keys(QUESTION_TYPE_LABELS) as ModuleExamQuestionType[]).map((type) => {
+                      const Icon = QUESTION_TYPE_ICONS[type];
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => {
+                            const next = createModuleExamQuestion(type, {
+                              id: q.id,
+                              text: q.text,
+                              explanation: q.explanation,
+                              points: q.points,
+                              tags: q.tags,
+                            });
+                            onUpdate(next);
+                          }}
+                          className={cn(
+                            "flex flex-col items-center gap-2 p-3 rounded-xl border transition-all",
+                            q.type === type
+                              ? "border-[var(--admin-primary)] bg-[var(--admin-primary)]/10 text-[var(--admin-primary)]"
+                              : "border-[var(--admin-border)] text-[var(--admin-muted)] hover:border-[var(--admin-border-hover)] hover:text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+                          )}
+                        >
+                          <Icon className="h-5 w-5" />
+                          <span className="text-xs font-medium">{QUESTION_TYPE_LABELS[type]}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label className="text-[var(--admin-text)]">{t("question") || "Question"}</Label>
                 <RichEditor
@@ -347,14 +496,38 @@ function QuestionCard({
 
               <QuestionTypeFields q={q} onUpdate={onUpdate} />
 
-              <div className="space-y-2">
-                <Label className="text-[var(--admin-text)]">{t("explanation") || "Explanation (optional)"}</Label>
-                <RichEditor
-                  content={q.explanation}
-                  onChange={(explanation) => onUpdate({ explanation })}
-                  placeholder={t("explainAnswer") || "Explain why this is the correct answer..."}
-                />
-              </div>
+              {showExplanation ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[var(--admin-text)]">{t("explanation") || "Explanation (optional)"}</Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowExplanation(false);
+                        onUpdate({ explanation: "" });
+                      }}
+                      className="text-xs text-[var(--admin-muted)] hover:text-red-400 transition-colors"
+                    >
+                      {t("remove") || "Remove"}
+                    </button>
+                  </div>
+                  <RichEditor
+                    content={q.explanation}
+                    onChange={(explanation) => onUpdate({ explanation })}
+                    placeholder={t("explainAnswer") || "Explain why this is the correct answer..."}
+                    stickyToolbar={false}
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowExplanation(true)}
+                  className="flex items-center gap-2 text-sm text-[var(--admin-muted)] hover:text-[var(--admin-text)] transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("addExplanation") || "Add Explanation"}
+                </button>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="space-y-2">
@@ -411,7 +584,7 @@ function QuestionTypeFields({
   if (q.type === "matching") {
     return <MatchingFields q={q} onUpdate={onUpdate} />;
   }
-  return <ShortAnswerFields q={q} onUpdate={onUpdate} />;
+  return null;
 }
 
 function ChoiceOptions({
@@ -426,19 +599,20 @@ function ChoiceOptions({
   const { t } = useLanguage();
   const isMulti = q.type === "multiple_select";
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const options = q.options || [];
 
   const addOption = () => {
-    if (maxOptions && q.options.length >= maxOptions) return;
-    const nextLetter = letters[q.options.length] || String(q.options.length + 1);
-    onUpdate({ options: [...q.options, { id: nextLetter, text: "" }] });
+    if (maxOptions && options.length >= maxOptions) return;
+    const nextLetter = letters[options.length] || String(options.length + 1);
+    onUpdate({ options: [...options, { id: nextLetter, text: "" }] });
   };
 
   const updateOption = (id: string, patch: Partial<ModuleExamOption>) => {
-    onUpdate({ options: q.options.map((o) => (o.id === id ? { ...o, ...patch } : o)) });
+    onUpdate({ options: options.map((o) => (o.id === id ? { ...o, ...patch } : o)) });
   };
 
   const removeOption = (id: string) => {
-    const next = q.options.filter((o) => o.id !== id);
+    const next = options.filter((o) => o.id !== id);
     if (isMulti) {
       onUpdate({
         options: next,
@@ -478,13 +652,13 @@ function ChoiceOptions({
           </div>
         )}
       </div>
-      {q.options.map((option) => (
+      {options.map((option) => (
         <div key={option.id} className="flex items-start gap-2">
           <button type="button" onClick={() => toggleCorrect(option.id)} className="mt-2.5 flex-shrink-0">
             {isMulti ? (
               <Checkbox checked={q.correctOptionIds.includes(option.id)} className="border-[var(--admin-border)] data-[state=checked]:bg-[var(--admin-primary)] data-[state=checked]:border-[var(--admin-primary)]" />
             ) : q.correctOptionId === option.id ? (
-              <CheckCircle2 className="h-5 w-5 text-green-400" />
+              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
             ) : (
               <Circle className="h-5 w-5 text-[var(--admin-muted)]" />
             )}
@@ -503,14 +677,14 @@ function ChoiceOptions({
             onClear={() => updateOption(option.id, { image: undefined })}
             folder={`exams/questions/${q.id}/options`}
           />
-          {q.options.length > 2 && (
+          {options.length > 2 && (
             <Button type="button" size="icon" variant="ghost" onClick={() => removeOption(option.id)} className="h-10 w-10 text-red-400 hover:text-red-300 hover:bg-red-500/10">
               <X className="h-4 w-4" />
             </Button>
           )}
         </div>
       ))}
-      {(!maxOptions || q.options.length < maxOptions) && (
+      {(!maxOptions || options.length < maxOptions) && (
         <Button type="button" variant="outline" size="sm" onClick={addOption} className="border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]">
           <Plus className="h-4 w-4 mr-1.5" />
           {t("addOption") || "Add option"}
@@ -559,69 +733,6 @@ function MatchingFields({ q, onUpdate }: { q: ModuleExamQuestionUI; onUpdate: (p
         <Plus className="h-4 w-4 mr-1.5" />
         {t("addPair") || "Add pair"}
       </Button>
-    </div>
-  );
-}
-
-function ShortAnswerFields({ q, onUpdate }: { q: ModuleExamQuestionUI; onUpdate: (partial: Partial<ModuleExamQuestionUI>) => void }) {
-  const { t } = useLanguage();
-  const sa = q.shortAnswer;
-
-  const updateSA = (patch: Partial<typeof sa>) => onUpdate({ shortAnswer: { ...sa, ...patch } });
-
-  return (
-    <div className="space-y-3">
-      <Label className="text-[var(--admin-text)]">{t("acceptedAnswers") || "Accepted Answers"}</Label>
-      {sa.acceptedAnswers.map((answer, idx) => (
-        <div key={idx} className="flex items-center gap-2">
-          <Input
-            value={answer}
-            onChange={(e) => {
-              const next = [...sa.acceptedAnswers];
-              next[idx] = e.target.value;
-              updateSA({ acceptedAnswers: next });
-            }}
-            placeholder={t("acceptedAnswer") || "Accepted answer"}
-            className="admin-input"
-          />
-          {sa.acceptedAnswers.length > 1 && (
-            <Button type="button" size="icon" variant="ghost" onClick={() => updateSA({ acceptedAnswers: sa.acceptedAnswers.filter((_, i) => i !== idx) })} className="h-10 w-10 text-red-400 hover:text-red-300 hover:bg-red-500/10">
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      ))}
-      <Button type="button" variant="outline" size="sm" onClick={() => updateSA({ acceptedAnswers: [...sa.acceptedAnswers, ""] })} className="border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]">
-        <Plus className="h-4 w-4 mr-1.5" />
-        {t("addAcceptedAnswer") || "Add accepted answer"}
-      </Button>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-        <div className="flex items-center gap-2">
-          <Switch checked={sa.caseSensitive} onCheckedChange={(checked) => updateSA({ caseSensitive: checked })} />
-          <Label className="text-sm text-[var(--admin-text)]">{t("caseSensitive") || "Case sensitive"}</Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch checked={sa.ignorePunctuation} onCheckedChange={(checked) => updateSA({ ignorePunctuation: checked })} />
-          <Label className="text-sm text-[var(--admin-text)]">{t("ignorePunctuation") || "Ignore punctuation"}</Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch checked={sa.ignoreWhitespace} onCheckedChange={(checked) => updateSA({ ignoreWhitespace: checked })} />
-          <Label className="text-sm text-[var(--admin-text)]">{t("ignoreWhitespace") || "Ignore whitespace"}</Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch checked={sa.keywordMatching} onCheckedChange={(checked) => updateSA({ keywordMatching: checked })} />
-          <Label className="text-sm text-[var(--admin-text)]">{t("keywordMatching") || "Keyword matching"}</Label>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-[var(--admin-muted)]">{t("minChars") || "Min characters"}</Label>
-          <Input type="number" min={0} value={sa.minChars ?? ""} onChange={(e) => updateSA({ minChars: e.target.value ? parseInt(e.target.value) : undefined })} className="admin-input h-8" />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-[var(--admin-muted)]">{t("maxChars") || "Max characters"}</Label>
-          <Input type="number" min={0} value={sa.maxChars ?? ""} onChange={(e) => updateSA({ maxChars: e.target.value ? parseInt(e.target.value) : undefined })} className="admin-input h-8" />
-        </div>
-      </div>
     </div>
   );
 }
@@ -714,37 +825,17 @@ function QuestionPreview({ q }: { q: ModuleExamQuestionUI }) {
 
   if (q.type === "matching") {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          {q.matchingPairs.map((pair) => (
-            <div key={pair.id} className="p-2 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-card)] text-[var(--admin-text)]">{pair.left || "—"}</div>
-          ))}
-        </div>
-        <div className="space-y-2">
-          {q.matchingPairs.map((pair) => (
-            <div key={pair.id} className="p-2 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-card)] text-[var(--admin-text)]">{pair.right || "—"}</div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (q.type === "short_answer") {
-    return (
-      <div className="space-y-2">
-        <Input disabled placeholder={t("shortAnswerPlaceholder") || "Type your answer..."} className="admin-input" />
-        {q.shortAnswer.acceptedAnswers.length > 0 && (
-          <p className="text-sm text-[var(--admin-muted)]">
-            {t("acceptedAnswers") || "Accepted"}: {q.shortAnswer.acceptedAnswers.join(", ")}
-          </p>
-        )}
-      </div>
+      <MatchingInteraction
+        pairs={q.matchingPairs}
+        checked={false}
+        readOnly
+      />
     );
   }
 
   return (
     <div className="space-y-2">
-      {q.options.map((option) => {
+      {(q.options || []).map((option) => {
         const isCorrect = q.type === "multiple_select" ? q.correctOptionIds.includes(option.id) : q.correctOptionId === option.id;
         return (
           <div
@@ -752,11 +843,11 @@ function QuestionPreview({ q }: { q: ModuleExamQuestionUI }) {
             className={cn(
               "flex items-center gap-2 p-2 rounded-lg border text-sm",
               isCorrect
-                ? "border-green-500/40 bg-green-500/10 text-green-300"
+                ? "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-300"
                 : "border-[var(--admin-border)] text-[var(--admin-text)]"
             )}
           >
-            {isCorrect ? <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0" /> : <Circle className="h-4 w-4 text-[var(--admin-muted)] flex-shrink-0" />}
+            {isCorrect ? <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" /> : <Circle className="h-4 w-4 text-[var(--admin-muted)] flex-shrink-0" />}
             <span>{option.text || option.id}</span>
           </div>
         );
@@ -769,6 +860,5 @@ function validateQuestion(q: ModuleExamQuestionUI): boolean {
   if (q.type === "multiple_select" && q.correctOptionIds.length < 2) return false;
   if ((q.type === "multiple_choice" || q.type === "true_false") && !q.correctOptionId) return false;
   if (q.type === "matching" && q.matchingPairs.some((p) => !p.left.trim() || !p.right.trim())) return false;
-  if (q.type === "short_answer" && q.shortAnswer.acceptedAnswers.some((a) => !a.trim())) return false;
   return true;
 }

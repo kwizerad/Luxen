@@ -1,0 +1,10 @@
+﻿
+C:\Users\Coding\Desktop\Projects\Luxen\app\dashboard\course\LessonContentView.tsx
+  22:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  58:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  59:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  79:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  80:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Γ£û 5 problems (5 errors, 0 warnings)
+

@@ -1,0 +1,13 @@
+﻿
+C:\Users\Coding\Desktop\Projects\Luxen\hooks\use-exam-security.ts
+   96:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   97:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   98:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   99:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  114:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  116:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  117:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Γ£û 8 problems (8 errors, 0 warnings)
+

@@ -24,7 +24,7 @@ export function SiteHeader() {
       <div className="container flex h-16 items-center justify-between pl-6 pr-6">
         <div className="flex items-center">
           <Link href="/" prefetch={true} className="flex items-center space-x-2">
-            <div className="w-9 h-9 bg-gradient-to-br from-primary to-[#3B82F6] rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative">
+            <div className="w-9 h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative">
               {config.logoUrl ? (
                 <Image 
                   src={config.logoUrl} 

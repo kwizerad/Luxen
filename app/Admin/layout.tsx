@@ -5,21 +5,17 @@ import { getCurrentUser } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Users, LayoutDashboard,
-  FileText, Lock,
-  Settings, LogOut, BookOpen, Layers,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
-import { canViewStudents, canAddQuestions } from "@/lib/permissions";
 import { useLanguage } from "@/lib/language-context";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
-import { useNavAutohideEnabled } from "@/lib/use-nav-autohide";
-import { cn } from "@/lib/utils";
-import { AdminLayoutSkeleton } from "@/components/skeletons";
+import { FloatingHeader } from "@/components/floating-header";
+import { AdminDockNav } from "@/components/admin-dock-nav";
 
 const ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
 
@@ -34,11 +30,8 @@ export default function AdminLayout({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
-  const [navVisible, setNavVisible] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
   const { t } = useLanguage();
-  const autohideEnabled = useNavAutohideEnabled();
 
   // Track admin activity for real-time online status
   useActivityTracker();
@@ -82,64 +75,7 @@ export default function AdminLayout({
     checkAdmin();
   }, [router]);
 
-  // Cursor-proximity auto-hide (large screens only, respects user preference).
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    if (!autohideEnabled) {
-      setNavVisible(true);
-      return;
-    }
-
-    let hideTimer: ReturnType<typeof setTimeout> | null = null;
-    const REVEAL_ZONE = 100;
-    const HIDE_DELAY = 2500;
-
-    const scheduleHide = () => {
-      if (hideTimer) clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => {
-        if (window.innerWidth < 1024) setNavVisible(false);
-      }, HIDE_DELAY);
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (window.innerWidth >= 1024) {
-        setNavVisible(true);
-        return;
-      }
-
-      const nearBottom = e.clientY > window.innerHeight - REVEAL_ZONE;
-      if (nearBottom) {
-        setNavVisible(true);
-        if (hideTimer) clearTimeout(hideTimer);
-      } else {
-        scheduleHide();
-      }
-    };
-
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        if (hideTimer) clearTimeout(hideTimer);
-        setNavVisible(true);
-      } else {
-        scheduleHide();
-      }
-    };
-
-    if (window.innerWidth < 1024) scheduleHide();
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('resize', handleResize);
-      if (hideTimer) clearTimeout(hideTimer);
-    };
-  }, [autohideEnabled]);
-
   const isPrimaryAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-  const canViewStudentsTab = canViewStudents(user);
-  const canAddQuestionsTab = canAddQuestions(user);
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,33 +130,16 @@ export default function AdminLayout({
   };
 
   if (loading) {
-    return <AdminLayoutSkeleton />;
+    return null;
   }
-
-  const navItems = [
-    { href: "/Admin", icon: LayoutDashboard, label: t("dashboard") },
-    { href: "/Admin/course-management", icon: BookOpen, label: t("courseManagementNav") },
-    { href: "/Admin/course-studio", icon: Layers, label: t("courseStudioNav") || "Studio" },
-    ...(canViewStudentsTab ? [{ href: "/Admin/users", icon: Users, label: t("users") }] : []),
-    ...(canAddQuestionsTab ? [{ href: "/Admin/exams", icon: FileText, label: t("examManagementNav") }] : []),
-    { href: "/Admin/settings", icon: Settings, label: t("settings") },
-    ...(isPrimaryAdmin ? [{ href: "/Admin/register", icon: Users, label: t("registerAdmin") }] : []),
-  ];
-
-  const handleLogout = async () => {
-    try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      router.push("/");
-    } catch (error) {
-      router.push("/");
-    }
-  };
 
   return (
     <div className="admin-portal">
       {/* Aurora mesh gradient background */}
       <div className="admin-aurora" />
+
+      {/* Floating header (profile avatar + notifications) */}
+      <FloatingHeader adminMode />
 
       {/* Admin layout: bottom nav only */}
       <div className="admin-shell">
@@ -233,66 +152,8 @@ export default function AdminLayout({
         </div>
       </div>
 
-      {/* Bottom navigation — floating pill */}
-      {!navVisible && autohideEnabled && (
-        <div
-          className="fixed bottom-1.5 left-3 right-3 z-40 h-1 rounded-full bg-[var(--admin-primary)] transition-opacity duration-300"
-          style={{ boxShadow: "0 0 12px 2px rgba(37,99,235,0.8), 0 0 24px 6px rgba(37,99,235,0.4)" }}
-          aria-hidden="true"
-        />
-      )}
-      <div
-        className={`fixed bottom-3 left-3 right-3 z-50 transition-all duration-300 ${
-          navVisible
-            ? "translate-y-0 opacity-100"
-            : "translate-y-[120%] opacity-0 pointer-events-none"
-        }`}
-      >
-        <div className="admin-nav-pill premium-glass-panel border rounded-[20px] h-14 overflow-hidden shadow-lg">
-          <div className={`grid h-full`} style={{ gridTemplateColumns: `repeat(${navItems.length + 1}, minmax(0, 1fr))` }}>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.href === "/Admin"
-                ? pathname === "/Admin"
-                : pathname.startsWith(item.href);
-              return (
-                <button
-                  key={item.href}
-                  onClick={() => router.push(item.href)}
-                  className={cn(
-                    "admin-nav-btn flex flex-col items-center justify-center gap-0.5 transition-all duration-200 relative rounded-xl mx-1 my-1",
-                    isActive && "admin-nav-active font-semibold"
-                  )}
-                  aria-label={item.label}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <div className="admin-nav-icon-wrap p-1.5 rounded-full transition-all duration-200">
-                    <Icon className={cn("h-4 w-4 transition-all duration-200", isActive && "scale-110")} />
-                  </div>
-                  <span className={cn("hidden sm:inline text-xs font-medium transition-all duration-200 truncate max-w-full px-1", isActive && "scale-105")}>
-                    {item.label}
-                  </span>
-                  {isActive && (
-                    <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-[var(--admin-primary)] rounded-full" />
-                  )}
-                </button>
-              );
-            })}
-            <button
-              onClick={handleLogout}
-              className="admin-nav-btn flex flex-col items-center justify-center gap-0.5 transition-all duration-200 relative rounded-xl mx-1 my-1"
-              aria-label="Logout"
-            >
-              <div className="admin-nav-icon-wrap p-1.5 rounded-full transition-all duration-200">
-                <LogOut className="h-4 w-4" />
-              </div>
-              <span className="hidden sm:inline text-xs font-medium transition-all duration-200 truncate max-w-full px-1">
-                {t("logout")}
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Bottom navigation — Dock */}
+      <AdminDockNav user={user} isPrimaryAdmin={isPrimaryAdmin} />
 
       {/* Password Change Modal */}
       {showPasswordChange && (

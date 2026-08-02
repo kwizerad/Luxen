@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { PlayCircle, FileText, Settings, BarChart3, Trophy, BookOpen, ArrowUpRight, type LucideIcon } from 'lucide-react';
+import { PlayCircle, FileText, Settings, BarChart3, BookOpen, ArrowUpRight, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/language-context';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2 } from 'lucide-react';
 
 interface QuickAction {
   id: string;
@@ -25,22 +25,13 @@ interface QuickActionsProps {
 
 const getDefaultActions = (t: (key: string) => string): QuickAction[] => [
   {
-    id: 'take-exam',
-    label: t("takeExam"),
+    id: 'take-course',
+    label: t("courses") || "Courses",
     description: t("quickActions.startNewExam"),
     icon: <PlayCircle className="h-5 w-5" />,
-    href: '/dashboard/exam',
+    href: '/dashboard/course',
     variant: 'primary',
     iconVariant: 'blue',
-  },
-  {
-    id: 'view-results',
-    label: t("quickActions.myResults"),
-    description: t("quickActions.viewExamHistory"),
-    icon: <Trophy className="h-5 w-5" />,
-    href: '/userExam',
-    variant: 'secondary',
-    iconVariant: 'orange',
   },
   {
     id: 'analytics',
@@ -68,22 +59,9 @@ export function QuickActions({ actions, isLoading = false }: QuickActionsProps) 
 
   if (isLoading) {
     return (
-      <>
-        <div className="flex sm:hidden gap-1.5 overflow-hidden -mx-1 px-1">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="flex-1 h-8 rounded-full" />
-          ))}
-        </div>
-        <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="premium-quick-action p-6 min-h-[160px]">
-              <Skeleton className="h-12 w-12 rounded-2xl mx-auto mb-4" />
-              <Skeleton className="h-4 w-24 mx-auto mb-2" />
-              <Skeleton className="h-3 w-32 mx-auto" />
-            </div>
-          ))}
-        </div>
-      </>
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
     );
   }
 

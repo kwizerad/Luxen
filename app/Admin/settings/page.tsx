@@ -4,17 +4,16 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, User, Palette, UserPlus, ImageIcon } from "lucide-react";
+import { Mail, User, Palette, ImageIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import UserSettings from "@/components/user-settings";
 import { ThemeCustomizer } from "@/components/theme-customizer";
 import { BrandingCustomizer } from "@/components/branding-customizer";
 import { SystemConfigSettings } from "@/components/system-config";
-import { NavAutohideSettings } from "@/components/nav-autohide-settings";
 import { Loader2 } from "lucide-react";
 import { ADMIN_CREDENTIALS } from "@/lib/admin-config";
-import { ProfileSkeleton } from "@/components/skeletons";
 import Link from "next/link";
+import Image from "next/image";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useThemeConfig } from "@/lib/theme-config";
 import { useLanguage } from "@/lib/language-context";
@@ -55,7 +54,7 @@ export default function AdminSettingsPage() {
   }, [setThemeIsAdmin, setBrandingIsAdmin]);
 
   if (loading) {
-    return <ProfileSkeleton variant="admin" />;
+    return null;
   }
 
   return (
@@ -65,7 +64,7 @@ export default function AdminSettingsPage() {
         <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
           <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
             {config.logoUrl ? (
-              <img src={config.logoUrl} alt={config.systemName} className="w-full h-full object-cover" />
+              <Image src={config.logoUrl} alt={config.systemName} width={32} height={32} unoptimized className="w-full h-full object-cover" />
             ) : (
               <span className="text-xs font-bold">{config.logoText || "N"}</span>
             )}
@@ -83,14 +82,6 @@ export default function AdminSettingsPage() {
                 {t("manageAdminAccountBrandAppearance")}
               </p>
             </div>
-            {user?.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() && (
-            <Button asChild>
-              <Link href="/Admin/register">
-                <UserPlus className="mr-2 h-4 w-4" />
-                {t("registerAdmin")}
-              </Link>
-            </Button>
-          )}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.8fr_1fr] mt-8">
@@ -133,7 +124,6 @@ export default function AdminSettingsPage() {
             </Card>
 
             <SystemConfigSettings />
-            <NavAutohideSettings />
           </div>
 
           <div className="space-y-6">

@@ -56,7 +56,7 @@ export function GoogleOneTap({ enabled = true, alwaysPrompt = false }: GoogleOne
             transition={{ duration: 0.2 }}
             className="flex flex-col items-center gap-3 rounded-2xl bg-card p-6 shadow-xl border"
           >
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary-readable" />
             <p className="text-sm font-medium text-muted-foreground">
               Signing you in...
             </p>

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { X, Clock, CheckCircle, XCircle, Trophy, TrendingUp, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
+import { Clock, CheckCircle, XCircle, Trophy, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ExamAttempt, ExamAnswer, ExamQuestion } from "@/lib/database.types";
 import { useLanguage } from "@/lib/language-context";
 
@@ -22,7 +22,22 @@ interface ExtendedExamAnswer extends ExamAnswer {
 export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalProps) {
   const { t } = useLanguage();
 
-  if (!attempt) return null;
+  const [showCorrectAnswers, setShowCorrectAnswers] = useState(true);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [currentView, setCurrentView] = useState<'overview' | 'questions'>('overview');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    if (open) {
+      setCurrentQuestionIndex(0);
+      setCurrentView('overview');
+    }
+  }, [open]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -30,23 +45,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
     return `${m}:${String(s).padStart(2, "0")}`;
   };
 
-  const getScoreColor = (percentage: number) => {
-    if (percentage >= 80) return "text-green-600";
-    if (percentage >= 60) return "text-yellow-600";
-    return "text-red-600";
-  };
-
-  const getScoreBadge = (percentage: number) => {
-    if (percentage >= 80) return "default";
-    if (percentage >= 60) return "secondary";
-    return "destructive";
-  };
-
-  const [showCorrectAnswers, setShowCorrectAnswers] = useState(true);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const [currentView, setCurrentView] = useState<'overview' | 'questions'>('overview');
+  if (!attempt) return null;
 
   const answers = attempt.answers as ExtendedExamAnswer[];
   const currentAnswer = answers[currentQuestionIndex];
@@ -70,10 +69,6 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
 
   const goToQuestions = () => {
     setCurrentView('questions');
-  };
-
-  const goToOverview = () => {
-    setCurrentView('overview');
   };
 
   // Swipe gesture handlers
@@ -100,22 +95,13 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
     }
   };
 
-  // Reset state when modal opens
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    
-    if (open) {
-      setCurrentQuestionIndex(0);
-      setCurrentView('overview');
-    }
-  }, [open]);
-
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl w-[95vw] sm:w-full h-[90vh] max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
         <DialogHeader className="px-3 py-3 sm:px-6 sm:py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-sm sm:text-base">
-            <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-primary-readable" />
             {t("examDetails")} - {attempt.category_name}
           </DialogTitle>
         </DialogHeader>
@@ -173,7 +159,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                     <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                       <div className="grid grid-cols-4 gap-2 sm:gap-4 md:gap-6">
                         <div className="text-center">
-                          <div className="text-lg sm:text-2xl md:text-3xl font-bold text-primary leading-tight">{attempt.score_percentage}%</div>
+                          <div className="text-lg sm:text-2xl md:text-3xl font-bold text-primary-readable leading-tight">{attempt.score_percentage}%</div>
                           <div className="text-[10px] sm:text-sm text-muted-foreground line-clamp-1">{t("score")}</div>
                         </div>
                         <div className="text-center">
@@ -359,65 +345,134 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                         )}
                         
                         {/* Options */}
-                        <div className="space-y-2 sm:space-y-3">
-                          {['A', 'B', 'C', 'D'].map((option) => {
-                            const optionText = currentQuestion[`option_${option.toLowerCase()}` as keyof ExamQuestion];
-                            const optionImage = currentQuestion[`option_${option.toLowerCase()}_image` as keyof ExamQuestion];
-                            const isSelected = currentAnswer.selected_answer === option;
-                            const isCorrect = currentQuestion.correct_answer === option;
-                            
-                            if (!optionText && !optionImage) return null;
-                            
+                        {(() => {
+                          const opts = ['A', 'B', 'C', 'D'].map((option) => ({
+                            option,
+                            optionText: currentQuestion[`option_${option.toLowerCase()}` as keyof ExamQuestion] as string | undefined,
+                            optionImage: currentQuestion[`option_${option.toLowerCase()}_image` as keyof ExamQuestion] as string | undefined,
+                          }));
+                          const hasImageOptions = opts.some((o) => o.optionImage);
+
+                          if (hasImageOptions) {
                             return (
-                              <div 
-                                key={option}
-                                className={`flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-[10px] sm:rounded-lg border ${
-                                  isSelected 
-                                    ? isCorrect 
-                                      ? 'bg-green-500/10 border-green-500/30 dark:bg-green-500/20 dark:border-green-500/40' 
-                                      : 'bg-red-500/10 border-red-500/30 dark:bg-red-500/20 dark:border-red-500/40'
-                                    : isCorrect && showCorrectAnswers
-                                      ? 'bg-green-500/5 border-green-500/20 dark:bg-green-500/10 dark:border-green-500/30'
-                                      : 'bg-muted/50 border-border'
-                                }`}
-                              >
-                                <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border flex items-center justify-center text-[10px] sm:text-sm font-bold flex-shrink-0 mt-0.5 ${
-                                  isSelected 
-                                    ? isCorrect 
-                                      ? 'bg-green-600 text-white border-green-600' 
-                                      : 'bg-red-600 text-white border-red-600'
-                                    : isCorrect && showCorrectAnswers
-                                      ? 'bg-green-600 text-white border-green-600'
-                                    : 'bg-muted-foreground/20 text-muted-foreground border-muted-foreground/30'
-                                }`}>
-                                  {option}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  {optionText && (
-                                    <div className="text-xs sm:text-base break-words">{optionText}</div>
-                                  )}
-                                  {optionImage && (
-                                    <img 
-                                      src={optionImage as string} 
-                                      alt={`${t("examDetails.option")} ${option}`} 
-                                      className="mt-1.5 sm:mt-2 max-w-full h-auto rounded border max-h-32 sm:max-h-40 object-contain border-border"
-                                    />
-                                  )}
-                                </div>
-                                {isSelected && (
-                                  <Badge variant="outline" className="text-[10px] sm:text-sm ml-1.5 sm:ml-2 flex-shrink-0">
-                                    {t("yourAnswer")}
-                                  </Badge>
-                                )}
-                                {isCorrect && showCorrectAnswers && !isSelected && (
-                                  <Badge variant="default" className="text-[10px] sm:text-sm bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 dark:border-green-600 ml-1.5 sm:ml-2 flex-shrink-0">
-                                    {t("correct")}
-                                  </Badge>
-                                )}
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+                                {opts.map(({ option, optionText, optionImage }) => {
+                                  const isSelected = currentAnswer.selected_answer === option;
+                                  const isCorrect = currentQuestion.correct_answer === option;
+                                  if (!optionText && !optionImage) return null;
+
+                                  return (
+                                    <div
+                                      key={option}
+                                      className={`relative rounded-[10px] sm:rounded-lg border p-2 flex flex-col ${
+                                        isSelected
+                                          ? isCorrect
+                                            ? 'bg-green-500/10 border-green-500/30 dark:bg-green-500/20 dark:border-green-500/40'
+                                            : 'bg-red-500/10 border-red-500/30 dark:bg-red-500/20 dark:border-red-500/40'
+                                          : isCorrect && showCorrectAnswers
+                                            ? 'bg-green-500/5 border-green-500/20 dark:bg-green-500/10 dark:border-green-500/30'
+                                            : 'bg-muted/50 border-border'
+                                      }`}
+                                    >
+                                      <div className={`absolute top-1.5 left-1.5 z-10 w-5 h-5 sm:w-6 sm:h-6 rounded-full border flex items-center justify-center text-[10px] sm:text-sm font-bold flex-shrink-0 ${
+                                        isSelected
+                                          ? isCorrect
+                                            ? 'bg-green-600 text-white border-green-600'
+                                            : 'bg-red-600 text-white border-red-600'
+                                          : isCorrect && showCorrectAnswers
+                                            ? 'bg-green-600 text-white border-green-600'
+                                            : 'bg-muted-foreground/20 text-muted-foreground border-muted-foreground/30'
+                                      }`}>
+                                        {option}
+                                      </div>
+                                      {optionImage && (
+                                        <img
+                                          src={optionImage}
+                                          alt={`${t("examDetails.option")} ${option}`}
+                                          className="w-full h-24 sm:h-32 object-cover rounded-md border mb-2 cursor-zoom-in"
+                                          onClick={() => setPreviewImage(optionImage)}
+                                        />
+                                      )}
+                                      {optionText && (
+                                        <div className="text-xs sm:text-sm text-center break-words">{optionText}</div>
+                                      )}
+                                      {isSelected && (
+                                        <Badge variant="outline" className="text-[10px] sm:text-sm mt-1.5 self-center flex-shrink-0">
+                                          {t("yourAnswer")}
+                                        </Badge>
+                                      )}
+                                      {isCorrect && showCorrectAnswers && !isSelected && (
+                                        <Badge variant="default" className="text-[10px] sm:text-sm bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 dark:border-green-600 mt-1.5 self-center flex-shrink-0">
+                                          {t("correct")}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             );
-                          })}
-                        </div>
+                          }
+
+                          return (
+                            <div className="space-y-2 sm:space-y-3">
+                              {opts.map(({ option, optionText, optionImage }) => {
+                                const isSelected = currentAnswer.selected_answer === option;
+                                const isCorrect = currentQuestion.correct_answer === option;
+                                if (!optionText && !optionImage) return null;
+
+                                return (
+                                  <div
+                                    key={option}
+                                    className={`flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-[10px] sm:rounded-lg border ${
+                                      isSelected
+                                        ? isCorrect
+                                          ? 'bg-green-500/10 border-green-500/30 dark:bg-green-500/20 dark:border-green-500/40'
+                                          : 'bg-red-500/10 border-red-500/30 dark:bg-red-500/20 dark:border-red-500/40'
+                                        : isCorrect && showCorrectAnswers
+                                          ? 'bg-green-500/5 border-green-500/20 dark:bg-green-500/10 dark:border-green-500/30'
+                                          : 'bg-muted/50 border-border'
+                                    }`}
+                                  >
+                                    <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border flex items-center justify-center text-[10px] sm:text-sm font-bold flex-shrink-0 mt-0.5 ${
+                                      isSelected
+                                        ? isCorrect
+                                          ? 'bg-green-600 text-white border-green-600'
+                                          : 'bg-red-600 text-white border-red-600'
+                                        : isCorrect && showCorrectAnswers
+                                          ? 'bg-green-600 text-white border-green-600'
+                                        : 'bg-muted-foreground/20 text-muted-foreground border-muted-foreground/30'
+                                    }`}>
+                                      {option}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      {optionText && (
+                                        <div className="text-xs sm:text-base break-words">{optionText}</div>
+                                      )}
+                                      {optionImage && (
+                                        <img
+                                          src={optionImage}
+                                          alt={`${t("examDetails.option")} ${option}`}
+                                          className="mt-1.5 sm:mt-2 max-w-full h-auto rounded border max-h-32 sm:max-h-40 object-contain border-border cursor-zoom-in"
+                                          onClick={() => setPreviewImage(optionImage)}
+                                        />
+                                      )}
+                                    </div>
+                                    {isSelected && (
+                                      <Badge variant="outline" className="text-[10px] sm:text-sm ml-1.5 sm:ml-2 flex-shrink-0">
+                                        {t("yourAnswer")}
+                                      </Badge>
+                                    )}
+                                    {isCorrect && showCorrectAnswers && !isSelected && (
+                                      <Badge variant="default" className="text-[10px] sm:text-sm bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 dark:border-green-600 ml-1.5 sm:ml-2 flex-shrink-0">
+                                        {t("correct")}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                         
                         {/* Explanation */}
                         {showCorrectAnswers && currentQuestion.explanation && (
@@ -473,5 +528,18 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Image preview lightbox */}
+    <Dialog open={!!previewImage} onOpenChange={(open) => { if (!open) setPreviewImage(null); }}>
+      <DialogContent className="max-w-3xl p-2 sm:p-4">
+        <DialogHeader>
+          <DialogTitle className="sr-only">{t("preview") || "Preview"}</DialogTitle>
+        </DialogHeader>
+        {previewImage && (
+          <img src={previewImage} alt={t("preview") || "Preview"} className="w-full h-auto rounded-lg" />
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

@@ -88,7 +88,7 @@ export function UserExamLimitDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Hash className="h-5 w-5 text-primary" />
+            <Hash className="h-5 w-5 text-primary-readable" />
             {t("setExamLimit")}
           </DialogTitle>
           <DialogDescription>

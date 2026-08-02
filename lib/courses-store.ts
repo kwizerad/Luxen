@@ -15,14 +15,21 @@ export type ModuleExamQuestionType =
   | "multiple_choice"
   | "multiple_select"
   | "true_false"
-  | "matching"
-  | "short_answer";
+  | "matching";
+
+export interface LessonTopic {
+  id: string;
+  title: string;
+  content: string; // Tiptap JSON string
+  estimated_minutes?: number;
+}
 
 export interface Lesson {
   id: string;
   title: string;
   content: string; // Tiptap JSON string
   status: CourseStatus;
+  topics: LessonTopic[];
 }
 
 export interface ModuleExamOption {
@@ -69,12 +76,15 @@ export interface ModuleExamQuestionUI {
 export interface ModuleExamSettingsUI {
   passingPercentage: number;
   maxAttempts: number | null;
-  timeLimitMinutes: number | null;
+  retakeLimit: number | null;
+  durationMinutes: number;
   randomizeQuestionOrder: boolean;
   randomizeAnswerChoices: boolean;
   showResultsImmediately: boolean;
   showExplanations: boolean;
   allowReview: boolean;
+  questionCount: number;
+  examType: string[];
 }
 
 export interface ModuleExam {
@@ -102,17 +112,24 @@ export interface Course {
   language: CourseLanguage;
   status: CourseStatus;
   modules: Module[];
+  midtermEnabled: boolean;
+  midtermInterval: number;
+  midtermQuestionCount: number;
+  midtermDurationMinutes: number;
 }
 
 export const defaultExamSettings = (): ModuleExamSettingsUI => ({
   passingPercentage: 70,
-  maxAttempts: null,
-  timeLimitMinutes: null,
+  maxAttempts: 2,
+  retakeLimit: 2,
+  durationMinutes: 20,
   randomizeQuestionOrder: false,
   randomizeAnswerChoices: false,
   showResultsImmediately: true,
   showExplanations: true,
   allowReview: true,
+  questionCount: 20,
+  examType: [],
 });
 
 export const createModuleExam = (title = "Module Exam"): ModuleExam => ({
@@ -260,7 +277,7 @@ export function dbQuestionToUI(q: ModuleExamQuestion): ModuleExamQuestionUI {
 
 export function uiQuestionToDB(q: ModuleExamQuestionUI): Partial<ModuleExamQuestion> {
   const optionMap: Record<string, { text?: string; image?: string }> = {};
-  for (const opt of q.options) {
+  for (const opt of q.options || []) {
     optionMap[opt.id] = { text: opt.text, image: opt.image };
   }
   return {
@@ -281,7 +298,7 @@ export function uiQuestionToDB(q: ModuleExamQuestionUI): Partial<ModuleExamQuest
     randomize_answer_order: q.randomizeAnswerOrder,
     tags: q.tags,
     metadata: {
-      options: q.options,
+      options: q.options || [],
       correctOptionIds: q.correctOptionIds,
       partialScoring: q.partialScoring,
       matchingPairs: q.matchingPairs,
@@ -297,13 +314,16 @@ export function dbExamSettingsToUI(s: ModuleExamSettings): ModuleExam {
     status: s.status,
     settings: {
       passingPercentage: s.passing_percentage ?? 70,
-      maxAttempts: s.max_attempts ?? null,
-      timeLimitMinutes: s.time_limit_minutes ?? null,
+      maxAttempts: s.max_attempts ?? 2,
+      retakeLimit: s.retake_limit ?? 2,
+      durationMinutes: s.duration_minutes ?? 20,
       randomizeQuestionOrder: s.randomize_questions ?? false,
       randomizeAnswerChoices: s.randomize_answers ?? false,
       showResultsImmediately: s.show_results_immediately ?? true,
       showExplanations: s.show_explanations ?? true,
       allowReview: s.allow_review ?? true,
+      questionCount: s.question_count ?? 20,
+      examType: s.exam_type ? s.exam_type.split(",") : [],
     },
     questions: [],
   };
@@ -314,22 +334,36 @@ export function uiExamToDBSettings(exam: ModuleExam): Partial<ModuleExamSettings
     title: exam.title,
     status: exam.status,
     passing_percentage: exam.settings.passingPercentage,
+    duration_minutes: exam.settings.durationMinutes,
     max_attempts: exam.settings.maxAttempts,
-    time_limit_minutes: exam.settings.timeLimitMinutes,
+    retake_limit: exam.settings.retakeLimit,
     randomize_questions: exam.settings.randomizeQuestionOrder,
     randomize_answers: exam.settings.randomizeAnswerChoices,
     show_results_immediately: exam.settings.showResultsImmediately,
     show_explanations: exam.settings.showExplanations,
     allow_review: exam.settings.allowReview,
+    question_count: exam.settings.questionCount,
+    exam_type: exam.settings.examType.join(","),
   };
 }
 
 export function dbLessonToUI(l: CourseLesson): Lesson {
+  const rawTopics = l.topics;
+  let topics: LessonTopic[] = [];
+  if (Array.isArray(rawTopics)) {
+    // Support both old format (string[]) and new format (LessonTopic[])
+    topics = rawTopics.map((t: any) =>
+      typeof t === "string"
+        ? { id: crypto.randomUUID(), title: t, content: tiptapEmptyDoc(), estimated_minutes: 0 }
+        : { id: t.id || crypto.randomUUID(), title: t.title || "", content: t.content || tiptapEmptyDoc(), estimated_minutes: t.estimated_minutes || 0 }
+    );
+  }
   return {
     id: l.id,
     title: l.title,
     content: l.content || tiptapEmptyDoc(),
     status: l.status || "draft",
+    topics,
   };
 }
 
@@ -338,6 +372,7 @@ export function uiLessonToDB(l: Lesson): Partial<CourseLesson> {
     title: l.title,
     content: l.content,
     status: l.status,
+    topics: l.topics as any,
   };
 }
 
@@ -367,6 +402,10 @@ export function dbCourseToUI(c: CourseLanguageCourse): Course {
     language: c.language,
     status: c.status || "draft",
     modules: [],
+    midtermEnabled: c.midterm_enabled ?? false,
+    midtermInterval: c.midterm_interval ?? 3,
+    midtermQuestionCount: c.midterm_question_count ?? 30,
+    midtermDurationMinutes: c.midterm_duration_minutes ?? 30,
   };
 }
 
@@ -377,5 +416,9 @@ export function uiCourseToDB(c: Course): Partial<CourseLanguageCourse> {
     thumbnail_url: c.thumbnailUrl,
     banner_url: c.bannerUrl,
     status: c.status,
+    midterm_enabled: c.midtermEnabled,
+    midterm_interval: c.midtermInterval,
+    midterm_question_count: c.midtermQuestionCount,
+    midterm_duration_minutes: c.midtermDurationMinutes,
   };
 }

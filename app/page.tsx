@@ -60,7 +60,7 @@ export default function Home() {
       {showFloatingHeader && (
         <div className="fixed top-4 left-4 z-50 bg-card/75 backdrop-blur-[24px] border border-border/20 rounded-[18px] shadow-glass dark:shadow-glass-dark px-4 py-2 flex items-center gap-3 animate-in slide-in-from-top-2 duration-300">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-[#3B82F6] rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative">
+            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative">
               {config.logoUrl ? (
                 <Image 
                   src={config.logoUrl} 
@@ -81,11 +81,11 @@ export default function Home() {
       <main className="container mx-auto px-4 py-10 md:py-16">
         <div className="grid gap-10 lg:grid-cols-[1.3fr_0.9fr] items-center">
           <div className="space-y-6 animate-fade-in-up">
-            <span className="inline-flex items-center rounded-full bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary border border-primary/20">
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary-readable border border-primary/20">
               {t("home")}
             </span>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              {t("welcome")} <span className="gradient-text">{t("navo")}</span>
+              {t("welcome")} <span className="text-primary-readable">{t("navo")}</span>
             </h1>
             <p className="max-w-2xl text-lg text-muted-foreground leading-relaxed">
               {t("welcome.description")}
@@ -104,7 +104,7 @@ export default function Home() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <div className="p-2 rounded-[12px] bg-primary/10">
-                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    <ShieldCheck className="h-5 w-5 text-primary-readable" />
                   </div>
                   {t("secure")}
                 </CardTitle>
@@ -117,7 +117,7 @@ export default function Home() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <div className="p-2 rounded-[12px] bg-primary/10">
-                    <Rocket className="h-5 w-5 text-primary" />
+                    <Rocket className="h-5 w-5 text-primary-readable" />
                   </div>
                   {t("fast")}
                 </CardTitle>
@@ -130,7 +130,7 @@ export default function Home() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <div className="p-2 rounded-[12px] bg-primary/10">
-                    <Sparkles className="h-5 w-5 text-primary" />
+                    <Sparkles className="h-5 w-5 text-primary-readable" />
                   </div>
                   {t("simple")}
                 </CardTitle>
