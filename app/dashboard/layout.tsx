@@ -40,7 +40,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Pages where the inline header (logo + logout) is hidden; only the
   // FloatingHeader (notifications + user settings) remains.
-  const HIDE_INLINE_HEADER_PATHS = ["/dashboard", "/dashboard/exam", "/dashboard/settings", "/dashboard/course"];
+  const HIDE_INLINE_HEADER_PATHS = ["/dashboard", "/dashboard/exam", "/dashboard/settings", "/dashboard/course", "/dashboard/services"];
   const showInlineHeader = !HIDE_INLINE_HEADER_PATHS.includes(pathname);
 
   // Track user activity for real-time online status

@@ -75,4 +75,7 @@ extracted_text.txt
 # Resources
 resources/
 
+# Live-exam standalone project (source, not part of main app)
+/Live-exam
+
 .vercel

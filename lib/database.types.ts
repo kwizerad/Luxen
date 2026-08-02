@@ -81,6 +81,7 @@ export interface UserProfile {
   birthdate?: string;
   last_seen?: string;
   banned?: boolean;
+  national_id?: string;
   created_at: string;
   updated_at?: string;
 }

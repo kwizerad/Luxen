@@ -25,6 +25,7 @@ import {
   Filter,
   Check,
   Trash2,
+  IdCard,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { createClient } from "@/lib/supabase/client";
@@ -34,6 +35,7 @@ import { UserProfileDrawer } from "./user-profile-drawer";
 import { OverviewTab } from "./overview-tab";
 import { AnalyticsTab } from "./analytics-tab";
 import { ActivityTab } from "./activity-tab";
+import { UsersWithIdTab } from "./users-with-id-tab";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { UserExamLimitDialog } from "@/components/user-exam-limit-dialog";
 import { UserPerformanceModal } from "@/components/user-performance-modal";
@@ -51,6 +53,7 @@ type TabId =
   | "online"
   | "suspended"
   | "verification"
+  | "users-with-id"
   | "activity"
   | "analytics";
 
@@ -77,6 +80,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "online", label: "Online", icon: <Wifi className="h-4 w-4" /> },
   { id: "suspended", label: "Suspended", icon: <Ban className="h-4 w-4" /> },
   { id: "verification", label: "Verification", icon: <AlertCircle className="h-4 w-4" /> },
+  { id: "users-with-id", label: "Users with ID", icon: <IdCard className="h-4 w-4" /> },
   { id: "activity", label: "Activity", icon: <Activity className="h-4 w-4" /> },
   { id: "analytics", label: "Analytics", icon: <BarChart3 className="h-4 w-4" /> },
 ];
@@ -385,7 +389,7 @@ export function UserWorkspace({
 
       {/* Search & Filters */}
       <AnimatePresence mode="wait">
-        {activeTab !== "overview" && activeTab !== "analytics" && activeTab !== "activity" && (
+        {activeTab !== "overview" && activeTab !== "analytics" && activeTab !== "activity" && activeTab !== "users-with-id" && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -492,6 +496,7 @@ export function UserWorkspace({
           {activeTab === "overview" && <OverviewTab stats={stats} growth={growth} />}
           {activeTab === "analytics" && <AnalyticsTab users={users} growth={growth} />}
           {activeTab === "activity" && <ActivityTab users={users} />}
+          {activeTab === "users-with-id" && <UsersWithIdTab users={users} />}
           {(activeTab === "all" ||
             activeTab === "students" ||
             activeTab === "administrators" ||
