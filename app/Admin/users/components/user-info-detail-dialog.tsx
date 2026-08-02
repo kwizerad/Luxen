@@ -271,11 +271,11 @@ export function UserInfoDetailDialog({
                                   className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30"
                                 >
                                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-sm">
-                                    {cat.category}
+                                    {cat.category.charAt(0).toUpperCase()}
                                   </div>
                                   <div className="min-w-0">
                                     <p className="font-medium text-sm">
-                                      {cat.category}
+                                      {cat.category.charAt(0).toUpperCase()}
                                     </p>
                                     {cat.description && (
                                       <p className="text-xs text-muted-foreground mt-0.5">

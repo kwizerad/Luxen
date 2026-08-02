@@ -42,8 +42,8 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
     list.sort((a, b) => {
       const order = sortOrder === "asc" ? 1 : -1;
       if (sortBy === "full_name") {
-        const aName = a.full_name || a.username || a.email || "";
-        const bName = b.full_name || b.username || b.email || "";
+        const aName = [a.first_name, a.last_name].filter(Boolean).join(" ") || a.full_name || a.username || a.email || "";
+        const bName = [b.first_name, b.last_name].filter(Boolean).join(" ") || b.full_name || b.username || b.email || "";
         return aName.localeCompare(bName) * order;
       }
       if (sortBy === "national_id") {
@@ -88,8 +88,16 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
     </TableHead>
   );
 
+  const getDisplayName = (user: UserWithStatus) => {
+    if (user.full_name) return user.full_name;
+    if (user.first_name || user.last_name) {
+      return [user.first_name, user.last_name].filter(Boolean).join(" ");
+    }
+    return user.username || user.email || "—";
+  };
+
   const getInitials = (user: UserWithStatus) => {
-    const name = user.full_name || user.username || user.email || "?";
+    const name = getDisplayName(user);
     return name
       .split(" ")
       .map((n) => n[0])
@@ -107,9 +115,9 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
             {usersWithId.length} {t("usersWithId")}
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10">
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <SortHeader sortKey="full_name" label={t("fullName")} className="min-w-[200px]" />
                 <SortHeader sortKey="national_id" label={t("liveExamNationalId")} className="min-w-[180px]" />
@@ -139,12 +147,12 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={user.avatar_url} alt={user.full_name || user.email} />
+                          <AvatarImage src={user.avatar_url} alt={getDisplayName(user)} />
                           <AvatarFallback>{getInitials(user)}</AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="font-medium text-sm">
-                            {user.full_name || user.username || user.email}
+                            {getDisplayName(user)}
                           </div>
                           {user.email && (
                             <div className="text-xs text-muted-foreground">{user.email}</div>
