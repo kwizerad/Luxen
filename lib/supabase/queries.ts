@@ -3,7 +3,7 @@
 import { createClient } from "./client";
 import { isAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
-import type { ExamQuestion, ExamAnswer, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
+import type { ExamCategory, ExamQuestion, ExamAnswer, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
 
 // Helper function to handle Supabase auth lock errors
 async function getAuthUser() {
@@ -43,7 +43,28 @@ export async function getExamCategories() {
   const { data: categories, error } = await query;
 
   if (error) throw error;
-  return { categories: categories || [], is_admin: isUserAdmin };
+
+  // Fetch exam settings for all categories to get duration and question count
+  const { data: settingsData, error: settingsError } = await supabase
+    .from("exam_settings")
+    .select("category_id,duration_minutes,question_count");
+
+  if (settingsError && !settingsError.message.toLowerCase().includes("does not exist")) {
+    console.error("Error fetching exam settings:", settingsError);
+  }
+
+  const settingsMap = new Map<string, { duration_minutes?: number; question_count?: number }>();
+  for (const s of settingsData || []) {
+    settingsMap.set(s.category_id, { duration_minutes: s.duration_minutes, question_count: s.question_count });
+  }
+
+  const categoriesWithSettings = (categories || []).map((c: ExamCategory) => ({
+    ...c,
+    duration_minutes: settingsMap.get(c.id)?.duration_minutes ?? undefined,
+    question_count: settingsMap.get(c.id)?.question_count ?? undefined,
+  }));
+
+  return { categories: categoriesWithSettings, is_admin: isUserAdmin };
 }
 
 export async function createExamCategory(name: string, is_published = false) {

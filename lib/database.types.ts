@@ -5,6 +5,8 @@ export interface ExamCategory {
   created_by: string;
   is_published?: boolean;
   updated_at?: string;
+  duration_minutes?: number;
+  question_count?: number;
 }
 
 export interface ExamQuestion {

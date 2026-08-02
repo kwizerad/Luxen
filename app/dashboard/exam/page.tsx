@@ -13,7 +13,7 @@ import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings }
 import { toast } from "sonner";
 import { CardSkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
-import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, HelpCircle, FileText, Play, LogOut, Monitor } from "lucide-react";
+import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, HelpCircle, FileText, Play, LogOut, Monitor, Clock, Hash } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -875,12 +875,18 @@ export default function TakeExamPage() {
                         <CardContent className="pt-0 p-3 sm:p-6 sm:pt-0">
                           <div className="space-y-2 sm:space-y-3">
                             <div className="flex items-center justify-between text-[11px] sm:text-sm">
-                              <span className="text-muted-foreground">{t("questions")}</span>
-                              <span className="font-medium">{t("multipleChoice")}</span>
+                              <span className="text-muted-foreground flex items-center gap-1.5">
+                                <Hash className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                {t("questions")}
+                              </span>
+                              <span className="font-medium">{category.question_count ?? "—"}</span>
                             </div>
                             <div className="flex items-center justify-between text-[11px] sm:text-sm">
-                              <span className="text-muted-foreground">{t("duration")}</span>
-                              <span className="font-medium">{t("timed")}</span>
+                              <span className="text-muted-foreground flex items-center gap-1.5">
+                                <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                {t("duration")}
+                              </span>
+                              <span className="font-medium">{category.duration_minutes ? `${category.duration_minutes} ${t("minutes")}` : t("timed")}</span>
                             </div>
                             <Button 
                               size="sm"

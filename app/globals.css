@@ -76,8 +76,11 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    background-color: hsl(240 6% 4%);
+    background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+  }
+  .dark body {
+    background-color: hsl(240 6% 4%);
   }
 }
 
