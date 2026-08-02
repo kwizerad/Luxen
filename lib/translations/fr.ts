@@ -937,9 +937,9 @@ const fr: Record<string, string> = {
   "notifications.deleted": "Notification supprimée",
   "notifications.empty": "Aucune notification pour le moment",
   "notifications.urgent": "URGENT",
-  "pwa.installNavoLite": "Installer Navo Lite",
+  "pwa.installNavoLite": "Installer Navo",
   "pwa.iosInstallDescription": "Appuyez sur le bouton de partage et sélectionnez 'Ajouter à l'écran d'accueil' pour installer.",
-  "pwa.installDescription": "Ajoutez Navo Lite à votre écran d'accueil pour un accès rapide, même hors ligne.",
+  "pwa.installDescription": "Ajoutez Navo à votre écran d'accueil pour un accès rapide, même hors ligne.",
   "pwa.howToInstall": "Comment installer :",
   "pwa.iosStepOne": "Appuyez sur le bouton de partage dans Safari",
   "pwa.iosStepTwo": "Faites défiler et appuyez sur \"Ajouter à l'écran d'accueil\"",
@@ -1152,6 +1152,16 @@ const fr: Record<string, string> = {
   "standaloneExamEnabled": "Page d'examen autonome activée",
   "standaloneExamDisabled": "Page d'examen autonome désactivée",
   "failedToUpdateStandaloneExam": "Échec de la mise à jour du paramètre d'examen autonome : ",
+
+  "lessonCompletedTitle": "Leçon terminée !",
+  "lessonCompletedMsg": "Vous avez terminé cette leçon. Continuez ou faites une pause.",
+  "continueToNextLesson": "Continuer à la leçon suivante",
+  "backToHome": "Retour à l'accueil",
+  "nextLesson": "Leçon suivante",
+  "checkpoint": "Point de contrôle",
+  "lessonCheckpoint": "Leçon",
+  "topicCheckpoint": "Sujet",
+  "examCheckpoint": "Examen",
 };
 
 export default fr;

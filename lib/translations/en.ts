@@ -1024,9 +1024,9 @@ const en: Record<string, string> = {
   "notifications.deleted": "Notification deleted",
   "notifications.empty": "No notifications yet",
   "notifications.urgent": "URGENT",
-  "pwa.installNavoLite": "Install Navo Lite",
+  "pwa.installNavoLite": "Install Navo",
   "pwa.iosInstallDescription": "Tap the share button and select 'Add to Home Screen' to install.",
-  "pwa.installDescription": "Add Navo Lite to your home screen for quick access, even offline.",
+  "pwa.installDescription": "Add Navo to your home screen for quick access, even offline.",
   "pwa.howToInstall": "How to install:",
   "pwa.iosStepOne": "Tap the share button in Safari",
   "pwa.iosStepTwo": "Scroll down and tap \"Add to Home Screen\"",
@@ -1613,6 +1613,19 @@ const en: Record<string, string> = {
   "userLoggedIn": "User logged in",
   "userRegistered": "User registered",
   "signup": "Sign up",
+
+  // ──────────────────────────────────────────────
+  // Course Journey Sidebar
+  // ──────────────────────────────────────────────
+  "lessonCompletedTitle": "Lesson Completed!",
+  "lessonCompletedMsg": "You've finished this lesson. Keep going or take a break.",
+  "continueToNextLesson": "Continue to Next Lesson",
+  "backToHome": "Back to Home",
+  "nextLesson": "Next Lesson",
+  "checkpoint": "Checkpoint",
+  "lessonCheckpoint": "Lesson",
+  "topicCheckpoint": "Topic",
+  "examCheckpoint": "Exam",
 };
 
 export default en;

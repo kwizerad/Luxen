@@ -23,7 +23,7 @@ export default function OfflinePage() {
             You are offline
           </h1>
           <p className="text-muted-foreground text-lg">
-            Navo Lite is unable to connect to the internet. Some features may be unavailable.
+            Navo is unable to connect to the internet. Some features may be unavailable.
           </p>
         </div>
 

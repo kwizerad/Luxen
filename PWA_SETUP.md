@@ -1,7 +1,7 @@
-# Navo Lite PWA Setup Guide
+# Navo PWA Setup Guide
 
 ## Overview
-This project has been configured as a Progressive Web App (PWA) called "Navo Lite" with the following features:
+This project has been configured as a Progressive Web App (PWA) called "Navo" with the following features:
 
 - **Offline support** with intelligent caching
 - **Install prompt** for Android (Chrome) and iOS (Safari)
@@ -19,7 +19,7 @@ This project has been configured as a Progressive Web App (PWA) called "Navo Lit
 ```
 
 ### 2. `public/manifest.json` (Created)
-- App metadata (name: "Navo Lite", short_name: "Navo")
+- App metadata (name: "Navo", short_name: "Navo")
 - Display mode: standalone
 - Theme colors (blue: #3b82f6)
 - Icons configuration (192x192, 512x512, and Apple touch icons)

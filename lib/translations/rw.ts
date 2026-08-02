@@ -915,9 +915,9 @@ const rw: Record<string, string> = {
   "notifications.deleted": "Ibisobanura yasibwe",
   "notifications.empty": "Nta ibisobanura bihari",
   "notifications.urgent": "URGENT",
-  "pwa.installNavoLite": "Shyiramo Navo Lite",
+  "pwa.installNavoLite": "Shyiramo Navo",
   "pwa.iosInstallDescription": "Kanda kuri buto y'igurwa na hitamo 'Shyiramo kuri Ahabanza' kugira shyiramo.",
-  "pwa.installDescription": "Shyiramo Navo Lite kuri Ahabanza yawe kugira nziza, hatariwe hari nta interineti.",
+  "pwa.installDescription": "Shyiramo Navo kuri Ahabanza yawe kugira nziza, hatariwe hari nta interineti.",
   "pwa.howToInstall": "Bishyiramo shyiramo:",
   "pwa.iosStepOne": "Kanda kuri buto y'igurwa muri Safari",
   "pwa.iosStepTwo": "Fyitse hanyuma kanda \"Shyiramo kuri Ahabanza\"",
@@ -1440,6 +1440,16 @@ const rw: Record<string, string> = {
   "standaloneExamEnabled": "Paji y'ikizamini cyiteguye yemewe",
   "standaloneExamDisabled": "Paji y'ikizamini cyiteguye yanenzwe",
   "failedToUpdateStandaloneExam": "Byanze kuvugurura igenamiterere ry'ikizamini cyiteguye: ",
+
+  "lessonCompletedTitle": "Isomo Byarangiye!",
+  "lessonCompletedMsg": "Wasoje iri somo. Komereze cyangwa uhuhare.",
+  "continueToNextLesson": "Komeza ku Somo Ikurikira",
+  "backToHome": "Subira Ku Ntangiriro",
+  "nextLesson": "Isomo ikurikira",
+  "checkpoint": "Akadandaro",
+  "lessonCheckpoint": "Isomo",
+  "topicCheckpoint": "Ingingo",
+  "examCheckpoint": "Ikizamini",
 };
 
 export default rw;

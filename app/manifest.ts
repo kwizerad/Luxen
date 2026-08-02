@@ -2,9 +2,9 @@ import { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Navo Lite",
+    name: "Navo",
     short_name: "Navo",
-    description: "Navo Lite - Your lightweight modern learning platform. Access exams and learning materials offline.",
+    description: "Navo - Your lightweight modern learning platform. Access exams and learning materials offline.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

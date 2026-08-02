@@ -13,6 +13,7 @@ import { ClientComponents } from "@/components/client-components";
 import { UserPreferencesLoader } from "@/components/user-preferences-loader";
 import { Toaster } from "@/components/ui/sonner";
 import { GoogleAuthProvider } from "@/components/auth/GoogleAuthProvider";
+import { ServiceWorkerRegistration } from "@/components/sw-registration";
 import { ParticlesBackground } from "@/components/particles-background";
 import { GlobalClickSpark } from "@/components/global-click-spark";
 import { BackgroundManager } from "@/components/background-manager";
@@ -34,25 +35,36 @@ const systemName = getSystemName();
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: `${systemName} Lite - Modern Learning Platform`,
-  description: `${systemName} Lite - Your lightweight modern learning platform. Access exams and learning materials even offline.`,
+  title: `${systemName} - Modern Learning Platform`,
+  description: `${systemName} - Your lightweight modern learning platform. Access exams and learning materials even offline.`,
   manifest: "/manifest.json",
+  applicationName: `${systemName}`,
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
-    title: `${systemName} Lite`,
+    statusBarStyle: "black-translucent",
+    title: `${systemName}`,
+    startupImage: [
+      { url: "/icons/icon-192x192.png", media: "(device-width: 320px)" },
+      { url: "/icons/icon-180x180.png", media: "(device-width: 375px)" },
+    ],
+  },
+  formatDetection: {
+    telephone: false,
   },
   icons: {
     icon: [
       { url: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
-      { url: "/icons/icon-192x192.svg", sizes: "192x192", type: "image/svg+xml" },
-      { url: "/icons/icon-512x512.svg", sizes: "512x512", type: "image/svg+xml" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: [
+      { url: "/icons/icon-96x96.png", sizes: "96x96", type: "image/png" },
     ],
     apple: [
-      { url: "/icons/icon-192x192.svg", sizes: "192x192" },
-      { url: "/icons/icon-180x180.svg", sizes: "180x180" },
-      { url: "/icons/icon-120x120.svg", sizes: "120x120" },
-      { url: "/icons/icon-76x76.svg", sizes: "76x76" },
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-120x120.png", sizes: "120x120", type: "image/png" },
+      { url: "/icons/icon-76x76.png", sizes: "76x76", type: "image/png" },
     ],
   },
 };
@@ -63,6 +75,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: "#22c55e",
+  viewportFit: "cover",
 };
 
 // Font configuration for static export (no Google Fonts network dependency)
@@ -94,6 +107,7 @@ export default function RootLayout({
                 <LanguageProvider>
                   <AuthProvider>
                     <GoogleAuthProvider lazy>
+                      <ServiceWorkerRegistration />
                       <AuthModalsProvider>
                         <Toaster position="top-right" richColors closeButton />
                         {children}

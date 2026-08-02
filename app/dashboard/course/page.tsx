@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useLanguage } from "@/lib/language-context";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { BookOpen, ChevronRight, ChevronLeft, Clock, CheckCircle2, Circle, Layers, ArrowRight, Play, FileText, Lock, Trophy, Shield } from "lucide-react";
+import { BookOpen, ChevronRight, ChevronLeft, Clock, CheckCircle2, Circle, Layers, ArrowRight, Play, FileText, Lock, Trophy, Shield, Home } from "lucide-react";
 import type { CourseLanguageCourse, CourseModule, CourseLesson, ModuleExamSettings } from "@/lib/database.types";
 import { LessonContentView } from "./LessonContentView";
 import { TopicCarousel, type CarouselTopic } from "@/components/topic-carousel";
@@ -185,8 +185,12 @@ export default function StudentCoursePage() {
   const [activeExam, setActiveExam] = useState<{ type: ExamType; moduleId?: string; moduleTitle?: string } | null>(null);
   const [moduleProgress, setModuleProgress] = useState<Map<string, ModuleProgress>>(new Map());
   const [lessonProgress, setLessonProgress] = useState<Map<string, LessonProgress>>(new Map());
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [showLessonComplete, setShowLessonComplete] = useState(false);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
+  const sidebarHoverRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const lessonStartTimeRef = useRef<number>(Date.now());
 
@@ -383,17 +387,23 @@ export default function StudentCoursePage() {
     }
 
     if (currentItemIndex < flatList.length - 1) {
-      setShowCompletion(true);
-      setTimeout(() => {
-        setShowCompletion(false);
-        setCurrentItemIndex(currentItemIndex + 1);
-      }, 1200);
+      // Show lesson completion card if this was the last item in a lesson
+      if (isLastItemInLesson(currentItem)) {
+        setShowLessonComplete(true);
+      } else {
+        setShowCompletion(true);
+        setTimeout(() => {
+          setShowCompletion(false);
+          setCurrentItemIndex(currentItemIndex + 1);
+        }, 1200);
+      }
     }
   };
 
   const goToPrevious = () => {
     if (currentItemIndex > 0) {
       setCurrentItemIndex(currentItemIndex - 1);
+      setShowLessonComplete(false);
     }
   };
 
@@ -402,8 +412,53 @@ export default function StudentCoursePage() {
       const nextIndex = currentItemIndex + 1;
       if (isItemUnlocked(nextIndex)) {
         setCurrentItemIndex(nextIndex);
+        setShowLessonComplete(false);
       }
     }
+  };
+
+  const continueToNextLesson = () => {
+    setShowLessonComplete(false);
+    if (currentItemIndex < flatList.length - 1) {
+      setCurrentItemIndex(currentItemIndex + 1);
+    }
+  };
+
+  const backToHomeFromLesson = () => {
+    setShowLessonComplete(false);
+    backToOverview();
+  };
+
+  // Swipe handlers for mobile navigation
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEndX(null);
+    setTouchStartX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEndX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX || !touchEndX) return;
+    const distance = touchStartX - touchEndX;
+    const minSwipeDistance = 50;
+    if (distance > minSwipeDistance) {
+      goToNext();
+    } else if (distance < -minSwipeDistance) {
+      goToPrevious();
+    }
+  };
+
+  // Auto-expand sidebar on cursor hover (desktop only)
+  const handleSidebarMouseEnter = () => {
+    if (sidebarHoverRef.current) clearTimeout(sidebarHoverRef.current);
+    setIsSidebarOpen(true);
+  };
+
+  const handleSidebarMouseLeave = () => {
+    if (sidebarHoverRef.current) clearTimeout(sidebarHoverRef.current);
+    sidebarHoverRef.current = setTimeout(() => setIsSidebarOpen(false), 300);
   };
 
   const startModule = (moduleId: string) => {
@@ -697,7 +752,7 @@ export default function StudentCoursePage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] pb-24">
+    <div className="min-h-[calc(100vh-4rem)] pb-24" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       {showCelebration && (
         <div className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center">
           <div className="absolute inset-0 bg-black/20 animate-[fadeIn_0.3s_ease-out]" />
@@ -723,6 +778,48 @@ export default function StudentCoursePage() {
         </div>
       )}
 
+      {/* Lesson Completion Card */}
+      {showLessonComplete && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+          <div className="relative max-w-md w-full rounded-[24px] border-2 border-green-500/30 bg-card shadow-2xl p-8 space-y-6 animate-[scaleIn_0.3s_ease-out]">
+            <div className="text-center space-y-3">
+              <div className="w-20 h-20 mx-auto rounded-full bg-green-500/10 flex items-center justify-center">
+                <CheckCircle2 className="h-12 w-12 text-green-500" />
+              </div>
+              <h2 className="text-2xl font-bold">{t("lessonCompletedTitle")}</h2>
+              <p className="text-sm text-muted-foreground">{t("lessonCompletedMsg")}</p>
+            </div>
+            {(() => {
+              const nextItem = flatList[currentItemIndex + 1];
+              if (nextItem) {
+                return (
+                  <div className="rounded-[14px] border bg-secondary/50 p-4 space-y-1">
+                    <div className="text-[11px] text-muted-foreground font-medium">{t("nextLesson")}</div>
+                    <div className="flex items-center gap-2">
+                      {nextItem.type === "exam" ? <Trophy className="h-4 w-4 text-amber-500" /> : <BookOpen className="h-4 w-4 text-blue-500" />}
+                      <span className="font-semibold text-sm truncate">{nextItem.type === "topic" ? nextItem.topicTitle : nextItem.type === "exam" ? nextItem.lessonTitle : nextItem.lessonTitle}</span>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+            <div className="flex flex-col gap-2.5">
+              {currentItemIndex < flatList.length - 1 && (
+                <Button size="lg" className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white" onClick={continueToNextLesson}>
+                  <ArrowRight className="h-4 w-4" />
+                  {t("continueToNextLesson")}
+                </Button>
+              )}
+              <Button size="lg" variant="outline" className="w-full gap-2" onClick={backToHomeFromLesson}>
+                <Home className="h-4 w-4" />
+                {t("backToHome")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex min-h-[calc(100dvh-4rem)] relative">
         {isMobileSidebarOpen && (
           <div
@@ -731,178 +828,227 @@ export default function StudentCoursePage() {
           />
         )}
         <aside
+          onMouseEnter={handleSidebarMouseEnter}
+          onMouseLeave={handleSidebarMouseLeave}
           className={cn(
             "fixed lg:sticky top-0 left-0 z-50 h-dvh lg:h-[calc(100dvh-4rem)] border-r bg-card transition-all duration-300 overflow-hidden flex flex-col",
-            "max-lg:translate-x-[-100%] max-lg:w-64",
-            isMobileSidebarOpen && "max-lg:translate-x-0",
-            isSidebarOpen ? "lg:w-64" : "lg:w-14"
+            "max-lg:translate-x-[-100%] max-lg:w-64 hidden lg:flex",
+            isMobileSidebarOpen && "max-lg:translate-x-0 max-lg:flex",
+            isSidebarOpen ? "lg:w-64" : "lg:w-12"
           )}
         >
-          <div className="flex items-center p-2 border-b h-12">
-            <span className={cn("text-xs font-semibold px-1 truncate flex-1", !isSidebarOpen && "lg:hidden")}>{t("courseContent") || "Course Content"}</span>
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen((s) => !s)}
-              className={cn("hidden lg:inline-flex p-1.5 rounded-md hover:bg-muted transition-colors", isSidebarOpen ? "ml-auto" : "mx-auto")}
-              aria-label={t("collapseSidebar") || "Collapse sidebar"}
-            >
-              {isSidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsMobileSidebarOpen(false)}
-              className="lg:hidden p-1.5 rounded-md hover:bg-muted transition-colors ml-auto"
-              aria-label={t("closeSidebar") || "Close sidebar"}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-          </div>
-          <div className={cn("flex-1 overflow-y-auto p-3 space-y-3", !isSidebarOpen && "lg:hidden")}>
-            <Button type="button" variant="outline" size="sm" onClick={backToOverview} className="w-full gap-1.5">
-              <ChevronLeft className="h-4 w-4" />
-              {t("break") || "Break"}
-            </Button>
-
-            {currentItem && (
-              <div className="rounded-[14px] sm:rounded-[20px] border bg-card p-3 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-primary-readable flex-shrink-0" />
-                  <h3 className="font-semibold text-sm truncate">{currentItem.moduleTitle}</h3>
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>{t("progress") || "Progress"}</span>
-                    <span>{(() => {
-                      const modItems = flatList.filter((f) => f.moduleId === currentItem.moduleId);
-                      const modDone = modItems.filter((f) => completedItems.has(itemKey(f))).length;
-                      return `${modDone}/${modItems.length}`;
-                    })()}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-green-500 transition-all duration-500 rounded-full" style={{ width: `${(() => {
-                      const modItems = flatList.filter((f) => f.moduleId === currentItem.moduleId);
-                      const modDone = modItems.filter((f) => completedItems.has(itemKey(f))).length;
-                      return modItems.length > 0 ? (modDone / modItems.length) * 100 : 0;
-                    })()}%` }} />
-                  </div>
-                </div>
-
-                <div className="space-y-0.5">
-                  {course.modules.find((m) => m.id === currentItem.moduleId)?.lessons.map((lesson) => {
-                    const lessonTopics = parseTopics(lesson.topics);
-                    const lessonMainPage = flatList.find((f) => f.type === "lesson" && f.lessonId === lesson.id);
-                    const lessonFlatItems = lessonTopics.length > 0
-                      ? [...(lessonMainPage ? [lessonMainPage] : []), ...lessonTopics.map((tp) => flatList.find((f) => f.type === "topic" && f.lessonId === lesson.id && f.topicId === tp.id))]
-                      : [lessonMainPage || flatList.find((f) => f.type === "lesson" && f.lessonId === lesson.id)];
-                    const lessonDone = lessonFlatItems.filter((f) => f && completedItems.has(itemKey(f))).length;
-                    const lessonTotal = lessonFlatItems.filter(Boolean).length;
-                    const isLessonComplete = lessonDone === lessonTotal && lessonTotal > 0;
-                    const isLessonCurrent = currentItem.lessonId === lesson.id && currentItem.type !== "exam";
-                    const firstItemIdx = lessonFlatItems.find(Boolean) ? flatList.indexOf(lessonFlatItems.find(Boolean)!) : -1;
-                    const isLessonUnlocked = firstItemIdx >= 0 && isItemUnlocked(firstItemIdx);
-
-                    return (
-                      <div key={lesson.id} className="space-y-0.5">
-                        <button
-                          type="button"
-                          onClick={() => isLessonUnlocked && firstItemIdx >= 0 && setCurrentItemIndex(firstItemIdx)}
-                          disabled={!isLessonUnlocked}
-                          className={cn("w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-all text-left", isLessonCurrent && "bg-primary text-primary-foreground", !isLessonCurrent && isLessonComplete && "text-green-600 dark:text-green-400", !isLessonCurrent && !isLessonComplete && isLessonUnlocked && "hover:bg-muted", !isLessonUnlocked && "opacity-40 cursor-not-allowed")}
-                        >
-                          {isLessonComplete ? <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" /> : isLessonCurrent ? <Play className="h-3.5 w-3.5 flex-shrink-0" /> : isLessonUnlocked ? <FileText className="h-3.5 w-3.5 flex-shrink-0" /> : <Lock className="h-3.5 w-3.5 flex-shrink-0" />}
-                          <span className="flex-1 truncate">{lesson.title}</span>
-                          {lessonTotal > 1 && <span className={cn("text-[9px] flex-shrink-0", isLessonCurrent ? "text-primary-foreground/70" : "text-muted-foreground")}>{lessonDone}/{lessonTotal}</span>}
-                        </button>
-
-                        {isLessonCurrent && lessonTopics.length > 0 && (
-                          <div className="ml-4 space-y-0.5 border-l pl-1.5">
-                            {lessonMainPage && (() => {
-                              const mainIdxInFlat = flatList.indexOf(lessonMainPage);
-                              const mainDone = completedItems.has(itemKey(lessonMainPage));
-                              const mainCurrent = currentItem.type === "lesson" && currentItem.lessonId === lesson.id;
-                              const mainUnlocked = mainIdxInFlat >= 0 && isItemUnlocked(mainIdxInFlat);
-                              return (
-                                <button type="button" onClick={() => mainUnlocked && mainIdxInFlat >= 0 && setCurrentItemIndex(mainIdxInFlat)} disabled={!mainUnlocked} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left", mainCurrent && "bg-primary/20 text-primary-readable font-medium", !mainCurrent && mainDone && "text-green-600 dark:text-green-400", !mainCurrent && !mainDone && mainUnlocked && "hover:bg-muted", !mainUnlocked && "opacity-40 cursor-not-allowed")}>
-                                  {mainDone ? <CheckCircle2 className="h-3 w-3 flex-shrink-0" /> : mainCurrent ? <Circle className="h-3 w-3 flex-shrink-0 fill-primary/30" /> : mainUnlocked ? <FileText className="h-3 w-3 flex-shrink-0" /> : <Lock className="h-3 w-3 flex-shrink-0" />}
-                                  <span className="flex-1 truncate">{t("introduction") || "Introduction"}</span>
-                                </button>
-                              );
-                            })()}
-                            {lessonTopics.map((tp) => {
-                              const tpFlat = flatList.find((f) => f.type === "topic" && f.lessonId === lesson.id && f.topicId === tp.id);
-                              const tpIdxInFlat = tpFlat ? flatList.indexOf(tpFlat) : -1;
-                              const tpDone = tpFlat && completedItems.has(itemKey(tpFlat));
-                              const tpCurrent = currentItem.type === "topic" && currentItem.topicId === tp.id;
-                              const tpUnlocked = tpIdxInFlat >= 0 && isItemUnlocked(tpIdxInFlat);
-                              return (
-                                <button key={tp.id} type="button" onClick={() => tpUnlocked && tpIdxInFlat >= 0 && setCurrentItemIndex(tpIdxInFlat)} disabled={!tpUnlocked} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left", tpCurrent && "bg-primary/20 text-primary-readable font-medium", !tpCurrent && tpDone && "text-green-600 dark:text-green-400", !tpCurrent && !tpDone && tpUnlocked && "hover:bg-muted", !tpUnlocked && "opacity-40 cursor-not-allowed")}>
-                                  {tpDone ? <CheckCircle2 className="h-3 w-3 flex-shrink-0" /> : tpCurrent ? <Circle className="h-3 w-3 flex-shrink-0 fill-primary/30" /> : tpUnlocked ? <Circle className="h-3 w-3 flex-shrink-0" /> : <Lock className="h-3 w-3 flex-shrink-0" />}
-                                  <span className="flex-1 truncate">{tp.title}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {(() => {
-                    const mod = course.modules.find((m) => m.id === currentItem.moduleId);
-                    if (!mod?.examSettings) return null;
-                    const examFlat = flatList.find((f) => f.type === "exam" && f.moduleId === mod.id);
-                    const examIdx = examFlat ? flatList.indexOf(examFlat) : -1;
-                    const examDone = examFlat && completedItems.has(itemKey(examFlat));
-                    const examCurrent = currentItem.type === "exam" && currentItem.moduleId === mod.id;
-                    const examUnlocked = examIdx >= 0 && isItemUnlocked(examIdx);
-                    const mp = moduleProgress.get(mod.id);
-                    const attempts = mp?.exam_attempts || 0;
-                    return (
-                      <div className="pt-1 border-t mt-1">
-                        <button type="button" onClick={() => examUnlocked && examIdx >= 0 && setCurrentItemIndex(examIdx)} disabled={!examUnlocked} className={cn("w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-all text-left", examCurrent && "bg-primary text-primary-foreground", !examCurrent && examDone && "text-green-600 dark:text-green-400", !examCurrent && !examDone && examUnlocked && "hover:bg-muted", !examUnlocked && "opacity-40 cursor-not-allowed")}>
-                          {examDone ? <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" /> : examCurrent ? <FileText className="h-3.5 w-3.5 flex-shrink-0" /> : examUnlocked ? <FileText className="h-3.5 w-3.5 flex-shrink-0" /> : <Lock className="h-3.5 w-3.5 flex-shrink-0" />}
-                          <span className="flex-1 truncate">{mod.examSettings.title || (t("moduleExam") || "Module Exam")}</span>
-                          {attempts > 0 && <span className={cn("text-[9px] flex-shrink-0", examCurrent ? "text-primary-foreground/70" : "text-muted-foreground")}>{attempts}</span>}
-                        </button>
-                      </div>
-                    );
-                  })()}
+          {/* Collapsed: vertical progress bar */}
+          {!isSidebarOpen && (
+            <div className="flex flex-col items-center pt-3 pb-3 h-full gap-2">
+              {/* Break button - collapsed */}
+              <button
+                type="button"
+                onClick={backToOverview}
+                className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                aria-label={t("break") || "Break"}
+                title={t("break") || "Break"}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              {/* Vertical progress bar */}
+              <div className="flex-1 flex flex-col items-center py-2">
+                <div className="relative w-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="absolute bottom-0 left-0 right-0 bg-green-500 transition-all duration-500 rounded-full"
+                    style={{ height: `${progressPercent}%` }}
+                  />
                 </div>
               </div>
-            )}
-          </div>
+              {/* Checkpoint icons - collapsed */}
+              <div className="flex flex-col items-center gap-1 pb-1">
+                {flatList.map((item, idx) => {
+                  const isDone = completedItems.has(itemKey(item));
+                  const isCurrent = idx === currentItemIndex;
+                  const isUnlocked = isItemUnlocked(idx);
+                  return (
+                    <div
+                      key={idx}
+                      className={cn(
+                        "w-2 h-2 rounded-full transition-all",
+                        isDone ? "bg-green-500" : isCurrent ? "bg-primary ring-2 ring-primary/30" : isUnlocked ? "bg-muted-foreground/40" : "bg-muted-foreground/15"
+                      )}
+                      title={item.type === "topic" ? item.topicTitle : item.type === "exam" ? item.lessonTitle : item.lessonTitle}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Expanded: full sidebar content */}
+          {isSidebarOpen && (
+            <>
+              <div className="flex items-center p-2 border-b h-12">
+                <span className="text-xs font-semibold px-1 truncate flex-1">{t("courseContent") || "Course Content"}</span>
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="hidden lg:inline-flex p-1.5 rounded-md hover:bg-muted transition-colors ml-auto"
+                  aria-label={t("collapseSidebar") || "Collapse sidebar"}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="lg:hidden p-1.5 rounded-md hover:bg-muted transition-colors ml-auto"
+                  aria-label={t("closeSidebar") || "Close sidebar"}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                <Button type="button" variant="outline" size="sm" onClick={backToOverview} className="w-full gap-1.5">
+                  <ChevronLeft className="h-4 w-4" />
+                  {t("break") || "Break"}
+                </Button>
+
+                {currentItem && (
+                  <div className="rounded-[14px] sm:rounded-[20px] border bg-card p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-primary-readable flex-shrink-0" />
+                      <h3 className="font-semibold text-sm truncate">{currentItem.moduleTitle}</h3>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>{t("progress") || "Progress"}</span>
+                        <span>{(() => {
+                          const modItems = flatList.filter((f) => f.moduleId === currentItem.moduleId);
+                          const modDone = modItems.filter((f) => completedItems.has(itemKey(f))).length;
+                          return `${modDone}/${modItems.length}`;
+                        })()}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-green-500 transition-all duration-500 rounded-full" style={{ width: `${(() => {
+                          const modItems = flatList.filter((f) => f.moduleId === currentItem.moduleId);
+                          const modDone = modItems.filter((f) => completedItems.has(itemKey(f))).length;
+                          return modItems.length > 0 ? (modDone / modItems.length) * 100 : 0;
+                        })()}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Checkpoint-style list with colored icons */}
+                    <div className="space-y-0.5">
+                      {course.modules.find((m) => m.id === currentItem.moduleId)?.lessons.map((lesson) => {
+                        const lessonTopics = parseTopics(lesson.topics);
+                        const lessonMainPage = flatList.find((f) => f.type === "lesson" && f.lessonId === lesson.id);
+                        const lessonFlatItems = lessonTopics.length > 0
+                          ? [...(lessonMainPage ? [lessonMainPage] : []), ...lessonTopics.map((tp) => flatList.find((f) => f.type === "topic" && f.lessonId === lesson.id && f.topicId === tp.id))]
+                          : [lessonMainPage || flatList.find((f) => f.type === "lesson" && f.lessonId === lesson.id)];
+                        const lessonDone = lessonFlatItems.filter((f) => f && completedItems.has(itemKey(f))).length;
+                        const lessonTotal = lessonFlatItems.filter(Boolean).length;
+                        const isLessonComplete = lessonDone === lessonTotal && lessonTotal > 0;
+                        const isLessonCurrent = currentItem.lessonId === lesson.id && currentItem.type !== "exam";
+                        const firstItemIdx = lessonFlatItems.find(Boolean) ? flatList.indexOf(lessonFlatItems.find(Boolean)!) : -1;
+                        const isLessonUnlocked = firstItemIdx >= 0 && isItemUnlocked(firstItemIdx);
+
+                        return (
+                          <div key={lesson.id} className="space-y-0.5">
+                            <button
+                              type="button"
+                              onClick={() => isLessonUnlocked && firstItemIdx >= 0 && setCurrentItemIndex(firstItemIdx)}
+                              disabled={!isLessonUnlocked}
+                              className={cn("w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-all text-left", isLessonCurrent && "bg-primary text-primary-foreground", !isLessonCurrent && isLessonComplete && "text-green-600 dark:text-green-400", !isLessonCurrent && !isLessonComplete && isLessonUnlocked && "hover:bg-muted", !isLessonUnlocked && "opacity-40 cursor-not-allowed")}
+                            >
+                              {isLessonComplete ? <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-green-500" /> : isLessonCurrent ? <BookOpen className="h-3.5 w-3.5 flex-shrink-0 text-blue-500" /> : isLessonUnlocked ? <BookOpen className="h-3.5 w-3.5 flex-shrink-0 text-blue-400" /> : <Lock className="h-3.5 w-3.5 flex-shrink-0" />}
+                              <span className="flex-1 truncate">{lesson.title}</span>
+                              {lessonTotal > 1 && <span className={cn("text-[9px] flex-shrink-0", isLessonCurrent ? "text-primary-foreground/70" : "text-muted-foreground")}>{lessonDone}/{lessonTotal}</span>}
+                            </button>
+
+                            {isLessonCurrent && lessonTopics.length > 0 && (
+                              <div className="ml-4 space-y-0.5 border-l pl-1.5 border-purple-200 dark:border-purple-900">
+                                {lessonMainPage && (() => {
+                                  const mainIdxInFlat = flatList.indexOf(lessonMainPage);
+                                  const mainDone = completedItems.has(itemKey(lessonMainPage));
+                                  const mainCurrent = currentItem.type === "lesson" && currentItem.lessonId === lesson.id;
+                                  const mainUnlocked = mainIdxInFlat >= 0 && isItemUnlocked(mainIdxInFlat);
+                                  return (
+                                    <button type="button" onClick={() => mainUnlocked && mainIdxInFlat >= 0 && setCurrentItemIndex(mainIdxInFlat)} disabled={!mainUnlocked} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left", mainCurrent && "bg-primary/20 text-primary-readable font-medium", !mainCurrent && mainDone && "text-green-600 dark:text-green-400", !mainCurrent && !mainDone && mainUnlocked && "hover:bg-muted", !mainUnlocked && "opacity-40 cursor-not-allowed")}>
+                                      {mainDone ? <CheckCircle2 className="h-3 w-3 flex-shrink-0 text-green-500" /> : mainCurrent ? <FileText className="h-3 w-3 flex-shrink-0 text-blue-500" /> : mainUnlocked ? <FileText className="h-3 w-3 flex-shrink-0 text-blue-400" /> : <Lock className="h-3 w-3 flex-shrink-0" />}
+                                      <span className="flex-1 truncate">{t("introduction") || "Introduction"}</span>
+                                    </button>
+                                  );
+                                })()}
+                                {lessonTopics.map((tp) => {
+                                  const tpFlat = flatList.find((f) => f.type === "topic" && f.lessonId === lesson.id && f.topicId === tp.id);
+                                  const tpIdxInFlat = tpFlat ? flatList.indexOf(tpFlat) : -1;
+                                  const tpDone = tpFlat && completedItems.has(itemKey(tpFlat));
+                                  const tpCurrent = currentItem.type === "topic" && currentItem.topicId === tp.id;
+                                  const tpUnlocked = tpIdxInFlat >= 0 && isItemUnlocked(tpIdxInFlat);
+                                  return (
+                                    <button key={tp.id} type="button" onClick={() => tpUnlocked && tpIdxInFlat >= 0 && setCurrentItemIndex(tpIdxInFlat)} disabled={!tpUnlocked} className={cn("w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left", tpCurrent && "bg-purple-500/20 text-purple-600 dark:text-purple-400 font-medium", !tpCurrent && tpDone && "text-green-600 dark:text-green-400", !tpCurrent && !tpDone && tpUnlocked && "hover:bg-muted", !tpUnlocked && "opacity-40 cursor-not-allowed")}>
+                                      {tpDone ? <CheckCircle2 className="h-3 w-3 flex-shrink-0 text-green-500" /> : tpCurrent ? <Circle className="h-3 w-3 flex-shrink-0 fill-purple-500/30 text-purple-500" /> : tpUnlocked ? <Circle className="h-3 w-3 flex-shrink-0 text-purple-400" /> : <Lock className="h-3 w-3 flex-shrink-0" />}
+                                      <span className="flex-1 truncate">{tp.title}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {(() => {
+                        const mod = course.modules.find((m) => m.id === currentItem.moduleId);
+                        if (!mod?.examSettings) return null;
+                        const examFlat = flatList.find((f) => f.type === "exam" && f.moduleId === mod.id);
+                        const examIdx = examFlat ? flatList.indexOf(examFlat) : -1;
+                        const examDone = examFlat && completedItems.has(itemKey(examFlat));
+                        const examCurrent = currentItem.type === "exam" && currentItem.moduleId === mod.id;
+                        const examUnlocked = examIdx >= 0 && isItemUnlocked(examIdx);
+                        const mp = moduleProgress.get(mod.id);
+                        const attempts = mp?.exam_attempts || 0;
+                        return (
+                          <div className="pt-1 border-t mt-1 border-amber-200 dark:border-amber-900">
+                            <button type="button" onClick={() => examUnlocked && examIdx >= 0 && setCurrentItemIndex(examIdx)} disabled={!examUnlocked} className={cn("w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-all text-left", examCurrent && "bg-amber-500/20 text-amber-600 dark:text-amber-400 font-medium", !examCurrent && examDone && "text-green-600 dark:text-green-400", !examCurrent && !examDone && examUnlocked && "hover:bg-muted", !examUnlocked && "opacity-40 cursor-not-allowed")}>
+                              {examDone ? <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-green-500" /> : examCurrent ? <Trophy className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" /> : examUnlocked ? <Trophy className="h-3.5 w-3.5 flex-shrink-0 text-amber-400" /> : <Lock className="h-3.5 w-3.5 flex-shrink-0" />}
+                              <span className="flex-1 truncate">{mod.examSettings.title || (t("moduleExam") || "Module Exam")}</span>
+                              {attempts > 0 && <span className={cn("text-[9px] flex-shrink-0", examCurrent ? "text-amber-600/70" : "text-muted-foreground")}>{attempts}</span>}
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </aside>
 
-        <main className="flex-1 min-w-0 p-4 sm:p-6 space-y-6">
+        <main className="flex-1 min-w-0 p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
+          {/* Mobile: only Break button, no course content sidebar toggle */}
           <div className="flex items-center gap-2 lg:hidden">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsMobileSidebarOpen(true)} className="gap-1.5">
-              <ChevronRight className="h-4 w-4" />
-              {t("courseContent") || "Course Content"}
-            </Button>
             <Button type="button" variant="outline" size="sm" onClick={backToOverview} className="gap-1.5">
               <ChevronLeft className="h-4 w-4" />
               {t("break") || "Break"}
             </Button>
+            <span className="text-[10px] text-muted-foreground ml-auto">{t("swipeToNavigate")}</span>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary-readable" />
-              <h1 className="text-xl font-bold flex-1 truncate">{currentItem?.moduleTitle || course.title}</h1>
+              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary-readable flex-shrink-0" />
+              <h1 className="text-base sm:text-xl font-bold flex-1 truncate">{currentItem?.moduleTitle || course.title}</h1>
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{t("progress") || "Progress"}{currentItem && currentItem.type !== "exam" ? ` : ${currentItem.lessonTitle}` : ""}</span>
-                <span className="font-semibold">{progressPercent}%</span>
+            <div className="space-y-1.5 sm:space-y-2">
+              <div className="flex items-center justify-between text-[11px] sm:text-xs">
+                <span className="text-muted-foreground truncate">{t("progress") || "Progress"}{currentItem && currentItem.type !== "exam" ? ` : ${currentItem.lessonTitle}` : ""}</span>
+                <span className="font-semibold flex-shrink-0">{progressPercent}%</span>
               </div>
-              <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div className="h-1.5 sm:h-2 rounded-full bg-muted overflow-hidden">
                 <div className="h-full bg-green-500 transition-all duration-500 ease-out rounded-full" style={{ width: `${progressPercent}%` }} />
               </div>
-              <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-3 sm:gap-4 text-[10px] sm:text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-500" />{completedCount} {t("completed") || "completed"}</span>
                 <span className="flex items-center gap-1"><Circle className="h-3 w-3" />{totalItems - completedCount} {t("remaining") || "remaining"}</span>
-                <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatMinutes(courseTime(course))}</span>
+                <span className="hidden sm:flex items-center gap-1"><Clock className="h-3 w-3" />{formatMinutes(courseTime(course))}</span>
               </div>
             </div>
           </div>
@@ -917,29 +1063,29 @@ export default function StudentCoursePage() {
               const passed = mp?.exam_passed;
               return (
                 <div className="rounded-[14px] sm:rounded-[24px] border bg-card shadow-sm overflow-hidden">
-                  <div className="p-5 sm:p-8 space-y-4">
+                  <div className="p-4 sm:p-5 md:p-8 space-y-4">
                     <div className="flex items-start gap-3">
-                      <div className="flex items-center justify-center h-12 w-12 rounded-[10px] bg-primary/10">
-                        <FileText className="h-6 w-6 text-primary-readable" />
+                      <div className="flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 rounded-[10px] bg-amber-500/10 flex-shrink-0">
+                        <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" />
                       </div>
-                      <div className="flex-1">
-                        <h2 className="text-2xl font-bold tracking-tight">{mod.examSettings.title || (t("moduleExam") || "Module Exam")}</h2>
-                        <p className="text-sm text-muted-foreground mt-1">{mod.examSettings.question_count} {t("questions") || "questions"} · {mod.examSettings.duration_minutes} min · {t("passingScore") || "Passing"}: {mod.examSettings.passing_percentage}%</p>
+                      <div className="flex-1 min-w-0">
+                        <h2 className="text-lg sm:text-2xl font-bold tracking-tight truncate">{mod.examSettings.title || (t("moduleExam") || "Module Exam")}</h2>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">{mod.examSettings.question_count} {t("questions") || "questions"} · {mod.examSettings.duration_minutes} min · {t("passingScore") || "Passing"}: {mod.examSettings.passing_percentage}%</p>
                       </div>
                     </div>
                     {attempts > 0 && (
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="text-center p-3 bg-secondary rounded-lg">
-                          <div className="text-lg font-bold">{attempts}</div>
-                          <div className="text-xs text-muted-foreground">{t("attempts") || "Attempts"}</div>
+                      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                        <div className="text-center p-2 sm:p-3 bg-secondary rounded-lg">
+                          <div className="text-base sm:text-lg font-bold">{attempts}</div>
+                          <div className="text-[10px] sm:text-xs text-muted-foreground">{t("attempts") || "Attempts"}</div>
                         </div>
-                        <div className="text-center p-3 bg-secondary rounded-lg">
-                          <div className="text-lg font-bold">{bestScore !== undefined ? `${bestScore}%` : "--"}</div>
-                          <div className="text-xs text-muted-foreground">{t("bestScore") || "Best Score"}</div>
+                        <div className="text-center p-2 sm:p-3 bg-secondary rounded-lg">
+                          <div className="text-base sm:text-lg font-bold">{bestScore !== undefined ? `${bestScore}%` : "--"}</div>
+                          <div className="text-[10px] sm:text-xs text-muted-foreground">{t("bestScore") || "Best Score"}</div>
                         </div>
-                        <div className="text-center p-3 bg-secondary rounded-lg">
-                          <div className={`text-lg font-bold ${passed ? "text-green-600" : "text-red-600"}`}>{passed ? (t("passed") || "Passed") : (t("notYet") || "Not Yet")}</div>
-                          <div className="text-xs text-muted-foreground">{t("status") || "Status"}</div>
+                        <div className="text-center p-2 sm:p-3 bg-secondary rounded-lg">
+                          <div className={`text-base sm:text-lg font-bold ${passed ? "text-green-600" : "text-red-600"}`}>{passed ? (t("passed") || "Passed") : (t("notYet") || "Not Yet")}</div>
+                          <div className="text-[10px] sm:text-xs text-muted-foreground">{t("status") || "Status"}</div>
                         </div>
                       </div>
                     )}
@@ -969,16 +1115,16 @@ export default function StudentCoursePage() {
                 }
                 return (
                   <div className="rounded-[14px] sm:rounded-[24px] border bg-card shadow-sm overflow-hidden">
-                    <div className="p-5 sm:p-8 space-y-4">
+                    <div className="p-4 sm:p-5 md:p-8 space-y-4">
                       <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-0">
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             {currentEstimatedTime > 0 && <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{formatMinutes(currentEstimatedTime)}</span>}
                           </div>
-                          <h2 className="text-2xl font-bold tracking-tight">{currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle}</h2>
+                          <h2 className="text-lg sm:text-2xl font-bold tracking-tight truncate">{currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle}</h2>
                         </div>
                       </div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <div className="prose prose-sm dark:prose-invert max-w-none overflow-x-hidden">
                         {currentContent ? <LessonContentView content={currentContent} /> : <p className="text-muted-foreground italic">{t("noContent") || "No content yet."}</p>}
                       </div>
                     </div>
@@ -986,30 +1132,31 @@ export default function StudentCoursePage() {
                 );
               })()}
 
-              <div className="flex items-center justify-between gap-3">
-                <Button variant="outline" onClick={goToPrevious} disabled={currentItemIndex === 0} className="gap-1.5">
+              <div className="flex items-center justify-between gap-2 sm:gap-3">
+                <Button variant="outline" size="sm" onClick={goToPrevious} disabled={currentItemIndex === 0} className="gap-1.5">
                   <ChevronLeft className="h-4 w-4" />
-                  {t("previous") || "Previous"}
+                  <span className="hidden sm:inline">{t("previous") || "Previous"}</span>
                 </Button>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">{currentItemIndex + 1} / {totalItems}</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">{currentItemIndex + 1} / {totalItems}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {currentItem && !completedItems.has(itemKey(currentItem)) && isLastItemInLesson(currentItem) && (
-                    <Button onClick={() => void markCompleteAndAdvance()} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white">
+                    <Button size="sm" onClick={() => void markCompleteAndAdvance()} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white">
                       <CheckCircle2 className="h-4 w-4" />
-                      {currentItemIndex < totalItems - 1 ? (t("completeAndContinue") || "Complete & Continue") : (t("finishCourse") || "Finish Course")}
+                      <span className="hidden sm:inline">{currentItemIndex < totalItems - 1 ? (t("completeAndContinue") || "Complete & Continue") : (t("finishCourse") || "Finish Course")}</span>
+                      <span className="sm:hidden">{currentItemIndex < totalItems - 1 ? (t("next") || "Next") : "✓"}</span>
                     </Button>
                   )}
                   {currentItem && completedItems.has(itemKey(currentItem)) && currentItemIndex < totalItems - 1 && (
-                    <Button onClick={goToNext} className="gap-1.5">
-                      {t("next") || "Next"}
+                    <Button size="sm" onClick={goToNext} className="gap-1.5">
+                      <span className="hidden sm:inline">{t("next") || "Next"}</span>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   )}
                   {currentItem && !completedItems.has(itemKey(currentItem)) && !isLastItemInLesson(currentItem) && currentItemIndex < totalItems - 1 && (
-                    <Button onClick={goToNext} className="gap-1.5">
-                      {t("next") || "Next"}
+                    <Button size="sm" onClick={goToNext} className="gap-1.5">
+                      <span className="hidden sm:inline">{t("next") || "Next"}</span>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   )}
