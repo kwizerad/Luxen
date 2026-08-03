@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchDLInfoByNationalId } from "@/lib/live-exam/irembo";
+import { fetchTheoryExamDLInfo } from "@/lib/live-exam/irembo";
 import { saveNationalIdRecord } from "@/lib/live-exam/save-record";
 import { createClient } from "@/lib/supabase/server";
-import type { DLInfoAPIResponse } from "@/lib/live-exam/types";
+import type { TheoryExamDLInfoAPIResponse } from "@/lib/live-exam/types";
 
 export async function POST(request: NextRequest) {
   let body: { national_id?: string };
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json<DLInfoAPIResponse>(
+    return NextResponse.json<TheoryExamDLInfoAPIResponse>(
       {
         status: "error",
         message:
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   const nationalId = body.national_id;
   if (!nationalId || nationalId.length !== 16) {
-    return NextResponse.json<DLInfoAPIResponse>(
+    return NextResponse.json<TheoryExamDLInfoAPIResponse>(
       {
         status: "error",
         message: "Invalid National ID. Please enter a valid 16-digit ID.",
@@ -40,10 +40,10 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
     const userId = user?.id;
 
-    const response = await fetchDLInfoByNationalId(nationalId);
+    const response = await fetchTheoryExamDLInfo(nationalId);
 
     if (!response.status || !response.data) {
-      return NextResponse.json<DLInfoAPIResponse>(
+      return NextResponse.json<TheoryExamDLInfoAPIResponse>(
         {
           status: "error",
           message: response.message || "No data found for this National ID.",
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { license, document, categoriesAllowed } = response.data;
+    const { document, categoriesAllowed } = response.data;
 
     const sanitizedDocument = includeFull
       ? document
@@ -61,17 +61,16 @@ export async function POST(request: NextRequest) {
     // Save to database
     await saveNationalIdRecord(nationalId, userId);
 
-    return NextResponse.json<DLInfoAPIResponse>({
+    return NextResponse.json<TheoryExamDLInfoAPIResponse>({
       status: "success",
-      license,
       document: sanitizedDocument,
       categoriesAllowed: categoriesAllowed || [],
-      categoryCount: categoriesAllowed?.length || 0,
+      hasCategories: (categoriesAllowed?.length || 0) > 0,
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Failed to fetch DL info.";
-    return NextResponse.json<DLInfoAPIResponse>(
+      error instanceof Error ? error.message : "Failed to fetch theory exam DL info.";
+    return NextResponse.json<TheoryExamDLInfoAPIResponse>(
       {
         status: "error",
         message,

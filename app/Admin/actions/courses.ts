@@ -10,6 +10,7 @@ import {
   ModuleExamQuestion,
 } from "@/lib/database.types";
 import { requireAdmin, ActionResult } from "./_shared";
+import { sendNotificationToRole } from "./notifications";
 
 function handleError(error: unknown): { success: false; error: string } {
   if (error instanceof Error) return { success: false, error: error.message };
@@ -128,6 +129,23 @@ export async function updateCourse(
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
     revalidatePath("/Admin/course");
+
+    if (input.status === "published" && data.title) {
+      try {
+        await sendNotificationToRole("student", {
+          type: "course_updated",
+          title: "New Course Available",
+          message: `The course "${data.title}" is now available.`,
+          priority: "normal",
+          action_url: "/dashboard/course",
+          related_entity_type: "course",
+          related_entity_id: id,
+        });
+      } catch (notifyError) {
+        console.error("Failed to notify students about published course:", notifyError);
+      }
+    }
+
     return { success: true, data };
   } catch (error) {
     return handleError(error);
@@ -430,6 +448,23 @@ export async function updateModule(
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
     revalidatePath("/Admin/course");
+
+    if (input.status === "published" && data.title) {
+      try {
+        await sendNotificationToRole("student", {
+          type: "module_published",
+          title: "New Module Available",
+          message: `A new module "${data.title}" has been published.`,
+          priority: "normal",
+          action_url: "/dashboard/course",
+          related_entity_type: "module",
+          related_entity_id: id,
+        });
+      } catch (notifyError) {
+        console.error("Failed to notify students about published module:", notifyError);
+      }
+    }
+
     return { success: true, data };
   } catch (error) {
     return handleError(error);
@@ -617,6 +652,23 @@ export async function updateLesson(
     if (error) throw error;
     revalidatePath("/Admin/course-studio");
     revalidatePath("/Admin/course");
+
+    if (input.status === "published" && data.title) {
+      try {
+        await sendNotificationToRole("student", {
+          type: "lesson_published",
+          title: "New Lesson Available",
+          message: `A new lesson "${data.title}" has been published.`,
+          priority: "low",
+          action_url: "/dashboard/course",
+          related_entity_type: "lesson",
+          related_entity_id: id,
+        });
+      } catch (notifyError) {
+        console.error("Failed to notify students about published lesson:", notifyError);
+      }
+    }
+
     return { success: true, data };
   } catch (error) {
     return handleError(error);

@@ -583,13 +583,16 @@ export default function TakeExamPage() {
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
-    
+
     if (isLeftSwipe && exam && currentIndex < exam.questions.length - 1) {
       setCurrentIndex((i) => Math.min(exam.questions.length - 1, i + 1));
     }
     if (isRightSwipe && currentIndex > 0) {
       setCurrentIndex((i) => Math.max(0, i - 1));
     }
+    // reset after handling
+    setTouchStart(null);
+    setTouchEnd(null);
   }, [touchStart, touchEnd, exam, currentIndex]);
 
   const handleSubmitExam = async (isAutoSubmit = false) => {
@@ -632,7 +635,31 @@ export default function TakeExamPage() {
 
       setExamResult(data.attempt as ExamAttempt);
       setShowResults(true);
-      
+
+      // Notify admins about the exam submission
+      try {
+        await fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "exam_submitted",
+            title: t("examSubmittedNotificationTitle"),
+            message:
+              t("examSubmittedNotificationMessage") +
+              " " +
+              (categories.find((c) => c.id === exam.categoryId)?.name || t("unknown")),
+            target_role: "admin",
+            data: {
+              attempt_id: data.attempt?.id,
+              category_id: exam.categoryId,
+              category_name: categories.find((c) => c.id === exam.categoryId)?.name,
+            },
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to notify admins about exam submission:", error);
+      }
+
       // Remove exam-active flag
       sessionStorage.removeItem('exam-active');
       
@@ -997,9 +1024,6 @@ export default function TakeExamPage() {
 
           <Card
             className="navo-card-brand select-none rounded-[14px] sm:rounded-[24px]"
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
           >
             <CardHeader className="p-3 sm:p-6">
               <div className="flex items-center justify-between gap-3">
@@ -1052,29 +1076,35 @@ export default function TakeExamPage() {
             <CardContent className="space-y-3 sm:space-y-4 p-3 pt-0 sm:p-6 sm:pt-0">
               {activeQuestion ? (
                 <>
-                  {activeQuestion.question_image && (
-                    <Image src={activeQuestion.question_image} alt={t("question")} width={800} height={600} unoptimized className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg border" />
-                  )}
-                  {activeQuestion.question && (
-                    <div className="text-sm sm:text-base font-medium">{activeQuestion.question}</div>
-                  )}
+                  <div
+                    className="touch-pan-y"
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
+                  >
+                    {activeQuestion.question_image && (
+                      <Image src={activeQuestion.question_image} alt={t("question")} width={800} height={600} unoptimized className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg border" />
+                    )}
+                    {activeQuestion.question && (
+                      <div className="text-sm sm:text-base font-medium">{activeQuestion.question}</div>
+                    )}
 
-                  <div className="grid gap-2 sm:gap-3">
-                    {(["A", "B", "C", "D"] as const).map((opt) => {
-                      const text = activeQuestion[`option_${opt.toLowerCase() as "a" | "b" | "c" | "d"}`];
-                      const img = activeQuestion[`option_${opt.toLowerCase() as "a" | "b" | "c" | "d"}_image` as keyof ExamQuestion] as string | undefined;
-                      const isSelected = userAnswers[activeQuestion.id]?.selectedAnswer === opt;
+                    <div className="grid gap-2 sm:gap-3">
+                      {(["A", "B", "C", "D"] as const).map((opt) => {
+                        const text = activeQuestion[`option_${opt.toLowerCase() as "a" | "b" | "c" | "d"}`];
+                        const img = activeQuestion[`option_${opt.toLowerCase() as "a" | "b" | "c" | "d"}_image` as keyof ExamQuestion] as string | undefined;
+                        const isSelected = userAnswers[activeQuestion.id]?.selectedAnswer === opt;
 
-                      return (
-                        <div
-                          key={opt}
-                          className={`rounded-[10px] sm:rounded-lg border p-2.5 sm:p-3 cursor-pointer transition-all select-none ${
-                            isSelected
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                          onClick={() => handleSelectAnswer(opt)}
-                        >
+                        return (
+                          <div
+                            key={opt}
+                            className={`rounded-[10px] sm:rounded-lg border p-2.5 sm:p-3 cursor-pointer transition-all select-none ${
+                              isSelected
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-primary/50"
+                            }`}
+                            onClick={() => handleSelectAnswer(opt)}
+                          >
                           <div className="flex items-start gap-2 sm:gap-3">
                             <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center text-[10px] sm:text-sm font-medium shrink-0 ${
                               isSelected ? "border-primary bg-primary text-white" : "border-border"
@@ -1090,29 +1120,32 @@ export default function TakeExamPage() {
                       );
                     })}
                   </div>
+                </div>
 
-                  <div className="flex items-center justify-between pt-1.5 sm:pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-                      disabled={currentIndex === 0}
-                    >
-                      {t("previous")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setCurrentIndex((i) => Math.min(exam.questions.length - 1, i + 1))}
-                      disabled={currentIndex >= exam.questions.length - 1}
-                    >
-                      {t("next")}
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="text-sm text-muted-foreground">{t("noQuestionsReturned")}</div>
-              )}
-            </CardContent>
+                <div className="flex items-center justify-between pt-1.5 sm:pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                    disabled={currentIndex === 0}
+                  >
+                    {t("previous")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setCurrentIndex((i) => Math.min(exam.questions.length - 1, i + 1))}
+                    disabled={currentIndex >= exam.questions.length - 1}
+                  >
+                    {t("next")}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">{t("noQuestionsReturned")}</div>
+            )}
+          </CardContent>
           </Card>
         </>
       ) : null}

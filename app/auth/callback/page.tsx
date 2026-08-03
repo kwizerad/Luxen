@@ -66,6 +66,27 @@ function AuthCallbackContent() {
           
           await supabase.auth.updateUser({ data: metadata });
           role = "Student";
+
+          // Notify admins about the new user
+          try {
+            await fetch("/api/notifications", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "user_joined",
+                title: "New User Joined",
+                message: `${fullName || user.email || "A new user"} just signed up.`,
+                target_role: "admin",
+                data: {
+                  user_id: user.id,
+                  email: user.email,
+                  full_name: fullName,
+                },
+              }),
+            });
+          } catch (notifyError) {
+            console.error("Failed to notify admins about new user:", notifyError);
+          }
         }
 
         // Wait a bit more for session to be fully propagated

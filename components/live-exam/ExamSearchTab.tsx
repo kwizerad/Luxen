@@ -1,11 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { IdCard, Search, Loader2, BookOpen, Wrench } from "lucide-react";
+import {
+  IdCard,
+  Search,
+  Loader2,
+  BookOpen,
+  Wrench,
+  AlertCircle,
+} from "lucide-react";
 import CodeItem from "./CodeItem";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
-import type { ExamResultDetails } from "@/lib/live-exam/types";
+import type {
+  ExamResultDetails,
+} from "@/lib/live-exam/types";
 
 interface ExamSearchTabProps {
   resultCache: Record<string, ExamResultDetails>;
@@ -24,6 +33,29 @@ interface CodesResponse {
   results?: Record<string, ExamResultDetails>;
 }
 
+const EXAM_CACHE_PREFIX = "luxen:exam-codes:";
+
+function getCachedExamData(id: string): CodesResponse | null {
+  try {
+    const raw = localStorage.getItem(EXAM_CACHE_PREFIX + id);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed._ts && Date.now() - parsed._ts > 10 * 60 * 1000) return null;
+    return parsed.data as CodesResponse;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedExamData(id: string, data: CodesResponse): void {
+  try {
+    localStorage.setItem(EXAM_CACHE_PREFIX + id, JSON.stringify({ _ts: Date.now(), data }));
+  } catch {
+    // storage full or unavailable — silently skip
+  }
+}
+
+
 export default function ExamSearchTab({
   resultCache,
   onViewResult,
@@ -37,6 +69,7 @@ export default function ExamSearchTab({
   const [codesLoading, setCodesLoading] = useState(false);
   const [theoryCodes, setTheoryCodes] = useState<string[]>([]);
   const [practicalCodes, setPracticalCodes] = useState<string[]>([]);
+  const [noCodesMessage, setNoCodesMessage] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +90,32 @@ export default function ExamSearchTab({
     setShowCodes(true);
     setTheoryCodes([]);
     setPracticalCodes([]);
+    setNoCodesMessage(false);
+
+    // Check browser cache first
+    const cached = getCachedExamData(searchValue);
+    if (cached) {
+      if (cached.status === "success") {
+        const tCodes = cached.theory_codes || [];
+        const pCodes = cached.practical_codes || [];
+        if (cached.results) onResultsLoaded(cached.results);
+        setTheoryCodes(tCodes);
+        setPracticalCodes(pCodes);
+        if (tCodes.length === 0 && pCodes.length === 0) {
+          toast.error(t("liveExamNoCategory"));
+          setNoCodesMessage(true);
+        } else {
+          toast.success(t("liveExamCodesFound").replace("{count}", String(tCodes.length + pCodes.length)));
+        }
+      } else {
+        toast.error(t("liveExamNoCategory"));
+        setShowCodes(false);
+        setNoCodesMessage(true);
+      }
+      setLoading(false);
+      setCodesLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch("/api/check-marks", {
@@ -67,6 +126,7 @@ export default function ExamSearchTab({
       const data: CodesResponse = await response.json();
 
       if (data.status === "success") {
+        setCachedExamData(searchValue, data);
         fetch("/api/save-national-id", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -83,13 +143,16 @@ export default function ExamSearchTab({
         setPracticalCodes(pCodes);
 
         if (tCodes.length === 0 && pCodes.length === 0) {
-          toast.error(t("liveExamNoCodes"));
+          toast.error(t("liveExamNoCategory"));
+          setNoCodesMessage(true);
         } else {
           toast.success(t("liveExamCodesFound").replace("{count}", String(tCodes.length + pCodes.length)));
         }
       } else if (data.status === "error") {
-        toast.error(data.message || t("liveExamNoRecords"));
+        setCachedExamData(searchValue, data);
+        toast.error(t("liveExamNoCategory"));
         setShowCodes(false);
+        setNoCodesMessage(true);
       } else {
         toast.error(t("liveExamUnexpectedResponse"));
       }
@@ -199,6 +262,16 @@ export default function ExamSearchTab({
               {renderCodeList(practicalCodes, "practical")}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* No codes message */}
+      {noCodesMessage && (
+        <div className="mt-5 flex items-center gap-3 rounded-xl border-2 border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+          <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+            {t("liveExamNoCategory")}
+          </p>
         </div>
       )}
     </div>

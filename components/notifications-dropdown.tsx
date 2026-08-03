@@ -1,42 +1,32 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Bell, Check, Trash2, Info, CheckCircle, AlertTriangle, XCircle, FileText, UserPlus, Trophy, Settings, Star } from "lucide-react";
+import { Bell, Check, Trash2, Info, CheckCircle, AlertTriangle, XCircle, FileText, UserPlus, Trophy, Settings } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Loader2 } from "lucide-react";
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification as deleteNotificationQuery } from "@/lib/supabase/queries";
+import {
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification as deleteNotificationQuery,
+  type Notification,
+} from "@/lib/notifications";
 import { createClient } from "@/lib/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useAuth } from "@/lib/auth-context";
 import { isAdmin } from "@/lib/permissions";
 import { useLanguage } from "@/lib/language-context";
 
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: "info" | "success" | "warning" | "error" | "exam" | "system" | "user_joined" | "exam_submitted" | "admin_update";
-  priority: "urgent" | "normal" | "low";
-  created_at: string;
-  is_read: boolean;
-  sender_name?: string;
-  related_entity_type?: string;
-  related_entity_id?: string;
-  action_url?: string;
-  target_user_id?: string;
-  target_role?: string;
-}
-
-const typeIcons = {
+const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   info: Info,
   success: CheckCircle,
   warning: AlertTriangle,
@@ -46,9 +36,17 @@ const typeIcons = {
   user_joined: UserPlus,
   exam_submitted: Trophy,
   admin_update: Settings,
+  announcement: Info,
+  language_published: Info,
+  module_published: Info,
+  lesson_published: Info,
+  exam_result: Trophy,
+  course_updated: Info,
+  reminder: Info,
+  admin_message: Info,
 };
 
-const typeColors = {
+const typeColors: Record<string, string> = {
   info: "text-blue-500 bg-blue-50",
   success: "text-green-500 bg-green-50",
   warning: "text-amber-500 bg-amber-50",
@@ -58,6 +56,8 @@ const typeColors = {
   user_joined: "text-cyan-500 bg-cyan-50",
   exam_submitted: "text-orange-500 bg-orange-50",
   admin_update: "text-indigo-500 bg-indigo-50",
+  announcement: "text-red-500 bg-red-50",
+  admin_message: "text-blue-500 bg-blue-50",
 };
 
 const priorityColors = {
@@ -66,16 +66,13 @@ const priorityColors = {
   low: "border-l-4 border-gray-300",
 };
 
-function isNotificationForUser(notification: Notification, user: any) {
+function isNotificationForUser(notification: Notification, user: { id: string; role?: string } | null) {
   if (!user?.id) return false;
-
   const userIsAdmin = isAdmin(user);
-
   if (notification.target_user_id && notification.target_user_id === user.id) return true;
   if (notification.target_role === "all") return true;
   if (notification.target_role === "student" && !userIsAdmin) return true;
   if (notification.target_role === "admin" && userIsAdmin) return true;
-
   return false;
 }
 
@@ -86,11 +83,7 @@ export function NotificationsDropdown() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const channelRef = useRef<any>(null);
-  const isSetupRef = useRef(false);
-  const supabaseRef = useRef<any>(null);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       console.log('Fetching notifications...');
       const data = await getNotifications();
@@ -106,35 +99,103 @@ export function NotificationsDropdown() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // Just fetch notifications on mount and when user changes
-    // Disable real-time for now to fix the subscription error
-    console.log('Fetching notifications for user:', user?.id);
     fetchNotifications();
+  }, [fetchNotifications]);
+
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const channelNameRef = useRef<string>("");
+  const userRef = useRef(user);
+
+  useEffect(() => {
+    userRef.current = user;
   }, [user]);
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") return;
+    if (channelRef.current) return;
+
+    channelNameRef.current = `notifications-channel-${user.id}-${Date.now()}`;
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel(channelNameRef.current)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+        },
+        (payload: any) => {
+          const currentUser = userRef.current;
+          if (!currentUser?.id) return;
+
+          if (payload.eventType === "INSERT") {
+            const newNotification = payload.new as Notification;
+            if (!isNotificationForUser(newNotification, currentUser)) return;
+
+            setNotifications((prev) => {
+              if (prev.some((n) => n.id === newNotification.id)) return prev;
+              return [newNotification, ...prev];
+            });
+            setUnreadCount((prev) => prev + 1);
+
+            playNotificationSound();
+            toast.success(newNotification.title, {
+              description: newNotification.message,
+            });
+          } else if (payload.eventType === "UPDATE") {
+            const updated = payload.new as Notification;
+            setNotifications((prev) =>
+              prev.map((n) => (n.id === updated.id ? { ...n, ...updated } : n))
+            );
+          } else if (payload.eventType === "DELETE") {
+            const deleted = payload.old as Notification;
+            setNotifications((prev) => prev.filter((n) => n.id !== deleted.id));
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+          }
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      channelRef.current = null;
+      channelNameRef.current = "";
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const playNotificationSound = () => {
     try {
-      // Create a simple beep sound using Web Audio API
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const audioContext = new AudioCtx();
+      const now = audioContext.currentTime;
+
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-      
+
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
-      
-      oscillator.frequency.value = 800;
-      oscillator.type = 'sine';
-      gainNode.gain.value = 0.1;
-      
-      oscillator.start();
-      oscillator.stop(audioContext.currentTime + 0.2);
-    } catch (error) {
-      // Silently fail if audio not supported
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(523.25, now); // C5
+      oscillator.frequency.setValueAtTime(659.25, now + 0.08); // E5
+      oscillator.frequency.setValueAtTime(783.99, now + 0.16); // G5
+
+      gainNode.gain.setValueAtTime(0.08, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.35);
+    } catch {
+      // Audio not supported or blocked; ignore silently
     }
   };
 
@@ -223,8 +284,9 @@ export function NotificationsDropdown() {
         ) : (
           <div className="divide-y">
             {notifications.map((notification) => {
-              const Icon = typeIcons[notification.type];
+              const Icon = typeIcons[notification.type] || Info;
               const priorityClass = priorityColors[notification.priority] || priorityColors.normal;
+              const colorClass = typeColors[notification.type] || typeColors.info;
               return (
                 <DropdownMenuItem
                   key={notification.id}
@@ -234,7 +296,7 @@ export function NotificationsDropdown() {
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex items-start gap-3 w-full">
-                    <div className={`p-2 rounded-full ${typeColors[notification.type]}`}>
+                    <div className={`p-2 rounded-full ${colorClass}`}>
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">

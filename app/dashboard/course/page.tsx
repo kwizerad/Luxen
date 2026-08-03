@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useLanguage } from "@/lib/language-context";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -298,6 +299,19 @@ export default function StudentCoursePage() {
     void loadLearningLanguage();
   }, [interfaceLanguage, loadCourse]);
 
+  // Deep-linking: jump to a specific lesson via ?lesson=<id>
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const lessonId = searchParams.get("lesson");
+    if (!lessonId || flatList.length === 0) return;
+    const idx = flatList.findIndex((f) => f.lessonId === lessonId);
+    if (idx >= 0) {
+      setCurrentItemIndex(idx);
+      setViewMode("journey");
+      lessonStartTimeRef.current = Date.now();
+    }
+  }, [searchParams, flatList]);
+
   const selectLearningLanguage = async (selectedLanguage: LearningLanguage) => {
     const supabase = createClient();
     setSavingLanguage(true);
@@ -444,7 +458,11 @@ export default function StudentCoursePage() {
     const distance = touchStartX - touchEndX;
     const minSwipeDistance = 50;
     if (distance > minSwipeDistance) {
-      goToNext();
+      if (currentItem && !completedItems.has(itemKey(currentItem)) && currentItemIndex < flatList.length - 1) {
+        void markCompleteAndAdvance();
+      } else {
+        goToNext();
+      }
     } else if (distance < -minSwipeDistance) {
       goToPrevious();
     }
@@ -1102,7 +1120,7 @@ export default function StudentCoursePage() {
                     return { id: tp.id, title: tp.title, content: tp.content, estimated_minutes: tp.estimated_minutes, flatIndex: tpIdxInFlat, isCompleted: tpFlat ? completedItems.has(itemKey(tpFlat)) : false, isUnlocked: tpIdxInFlat >= 0 && isItemUnlocked(tpIdxInFlat), isCurrent: currentItem.topicId === tp.id };
                   });
                   const activeCarouselIndex = carouselTopics.findIndex((tp) => tp.isCurrent);
-                  return <TopicCarousel topics={carouselTopics} currentIndex={activeCarouselIndex >= 0 ? activeCarouselIndex : 0} onSelectTopic={(flatIdx) => setCurrentItemIndex(flatIdx)} formatMinutes={formatMinutes} noContentText={t("noContent") || "No content yet."} lessonTitle={currentItem.lessonTitle} />;
+                  return <TopicCarousel topics={carouselTopics} currentIndex={activeCarouselIndex >= 0 ? activeCarouselIndex : 0} onSelectTopic={(flatIdx) => setCurrentItemIndex(flatIdx)} onNext={() => void markCompleteAndAdvance()} formatMinutes={formatMinutes} noContentText={t("noContent") || "No content yet."} lessonTitle={currentItem.lessonTitle} />;
                 }
                 return (
                   <div className="rounded-[14px] sm:rounded-[24px] border bg-card shadow-sm overflow-hidden">
@@ -1146,7 +1164,7 @@ export default function StudentCoursePage() {
                     </Button>
                   )}
                   {currentItem && !completedItems.has(itemKey(currentItem)) && !isLastItemInLesson(currentItem) && currentItemIndex < totalItems - 1 && (
-                    <Button size="sm" onClick={goToNext} className="gap-1.5">
+                    <Button size="sm" onClick={() => void markCompleteAndAdvance()} className="gap-1.5">
                       <span className="hidden sm:inline">{t("next") || "Next"}</span>
                       <ChevronRight className="h-4 w-4" />
                     </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import {
@@ -14,8 +14,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { IdCard, ArrowUpDown, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { IdCard, ArrowUpDown, RefreshCw, Search, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
+import { toast } from "sonner";
 import type { UserWithStatus } from "./types";
 import { UserInfoDetailDialog } from "./user-info-detail-dialog";
 
@@ -31,14 +33,65 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
   const [sortBy, setSortBy] = useState<SortKey>("created_at");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [selectedUser, setSelectedUser] = useState<UserWithStatus | null>(null);
+  const [manualId, setManualId] = useState("");
+  const [manualLoading, setManualLoading] = useState(false);
+  const [savedIds, setSavedIds] = useState<{
+    national_id: string;
+    created_at: string;
+    user_id: string | null;
+    user_profiles: {
+      full_name: string | null;
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+      avatar_url: string | null;
+      username: string | null;
+    } | null;
+  }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/national-id-records")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.records) setSavedIds(data.records);
+      })
+      .catch(() => {});
+  }, []);
 
   const usersWithId = useMemo(
     () => users.filter((u) => u.national_id && u.national_id.length > 0),
     [users]
   );
 
+  const allIdEntries = useMemo(() => {
+    const existingIds = new Set(
+      users.filter((u) => u.national_id).map((u) => u.national_id)
+    );
+    const extraRecords: UserWithStatus[] = savedIds
+      .filter((r) => !existingIds.has(r.national_id))
+      .map((r) => {
+        const profile = r.user_profiles;
+        const fullName = profile?.full_name ||
+          [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+          null;
+        return {
+          id: `saved-${r.national_id}`,
+          national_id: r.national_id,
+          full_name: fullName || "—",
+          first_name: profile?.first_name || undefined,
+          last_name: profile?.last_name || undefined,
+          email: profile?.email || undefined,
+          avatar_url: profile?.avatar_url || undefined,
+          username: profile?.username || undefined,
+          created_at: r.created_at,
+          is_online: false,
+        } as UserWithStatus;
+      });
+    return [...usersWithId, ...extraRecords];
+  }, [usersWithId, savedIds]);
+
   const sortedUsers = useMemo(() => {
-    const list = [...usersWithId];
+    const list = [...allIdEntries];
     list.sort((a, b) => {
       const order = sortOrder === "asc" ? 1 : -1;
       if (sortBy === "full_name") {
@@ -57,7 +110,7 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
       return 0;
     });
     return list;
-  }, [usersWithId, sortBy, sortOrder]);
+  }, [allIdEntries, sortBy, sortOrder]);
 
   const handleSort = (key: SortKey) => {
     if (sortBy === key) {
@@ -106,13 +159,74 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
       .slice(0, 2);
   };
 
+  const handleManualLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = manualId.trim();
+    if (!id) {
+      toast.error(t("liveExamEnterId"));
+      return;
+    }
+    if (!/^\d{16}$/.test(id)) {
+      toast.error(t("liveExamInvalidId"));
+      return;
+    }
+
+    setManualLoading(true);
+
+    const existingUser = users.find((u) => u.national_id === id);
+    if (existingUser) {
+      setSelectedUser(existingUser);
+      setManualId("");
+      setManualLoading(false);
+      return;
+    }
+
+    const syntheticUser: UserWithStatus = {
+      id: `manual-${id}`,
+      national_id: id,
+      full_name: t("liveExamNationalId") + ": " + id,
+      created_at: new Date().toISOString(),
+      is_online: false,
+    };
+
+    setSelectedUser(syntheticUser);
+    setManualId("");
+    setManualLoading(false);
+  };
+
   return (
     <>
+      {/* Manual ID lookup */}
+      <Card className="mb-4 border">
+        <div className="p-4">
+          <form onSubmit={handleManualLookup} className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t("adminManualIdPlaceholder")}
+                value={manualId}
+                onChange={(e) => setManualId(e.target.value)}
+                maxLength={16}
+                className="pl-9 font-mono"
+              />
+            </div>
+            <Button type="submit" disabled={manualLoading} size="sm">
+              {manualLoading ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4 mr-1.5" />
+              )}
+              {t("adminLookupId")}
+            </Button>
+          </form>
+        </div>
+      </Card>
+
       <Card className="overflow-hidden border">
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <IdCard className="h-4 w-4" />
-            {usersWithId.length} {t("usersWithId")}
+            {allIdEntries.length} {t("usersWithId")}
           </div>
         </div>
         <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>

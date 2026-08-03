@@ -231,3 +231,30 @@ export async function getStudentProgressSummary(userId: string): Promise<UserPro
     bestScore: p.best_score,
   }));
 }
+
+export interface NationalIdRecord {
+  id: number;
+  national_id: string;
+  user_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getUserNationalIdRecords(userId: string): Promise<NationalIdRecord[]> {
+  const supabase = await createClient();
+  await requireAdmin();
+
+  const { data, error } = await supabase
+    .from("national_id_records")
+    .select("id, national_id, user_id, created_at, updated_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error("getUserNationalIdRecords error:", error);
+    return [];
+  }
+
+  return data || [];
+}

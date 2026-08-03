@@ -6,9 +6,20 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Mail,
   User,
@@ -25,11 +36,14 @@ import {
   Trash2,
   Key,
   Send,
+  Monitor,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
 import type { UserWithStatus, UserProgressSummary } from "./types";
-import { getUserActivity, getStudentProgressSummary } from "../../actions/users";
+import { getUserActivity, getStudentProgressSummary, getUserNationalIdRecords, type NationalIdRecord } from "../../actions/users";
+import { DeviceInfoTab } from "./device-info-tab";
+import { sendPasswordReset } from "@/app/Admin/actions/devices";
 
 interface UserProfileDrawerProps {
   user: UserWithStatus | null;
@@ -53,16 +67,27 @@ export function UserProfileDrawer({
   const { t } = useLanguage();
   const [activity, setActivity] = useState<Awaited<ReturnType<typeof getUserActivity>>>([]);
   const [progress, setProgress] = useState<UserProgressSummary[]>([]);
+  const [nationalIdRecords, setNationalIdRecords] = useState<NationalIdRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const [notifyTitle, setNotifyTitle] = useState("");
+  const [notifyMessage, setNotifyMessage] = useState("");
+  const [notifyLoading, setNotifyLoading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    Promise.all([getUserActivity(user.id), getStudentProgressSummary(user.id)])
-      .then(([a, p]) => {
+    Promise.all([
+      getUserActivity(user.id),
+      getStudentProgressSummary(user.id),
+      getUserNationalIdRecords(user.id),
+    ])
+      .then(([a, p, records]) => {
         setActivity(a);
         setProgress(p);
+        setNationalIdRecords(records);
       })
       .catch((err) => toast.error(t("failedToLoadActivity") + (err instanceof Error ? err.message : String(err))))
       .finally(() => setLoading(false));
@@ -88,6 +113,49 @@ export function UserProfileDrawer({
       return new Date(date).toLocaleString();
     } catch {
       return t("notAvailable");
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!user) return;
+    setResetLoading(true);
+    try {
+      await sendPasswordReset(user.id);
+      toast.success(t("passwordResetEmailSent"));
+    } catch (error) {
+      toast.error(t("failedToSendPasswordReset") + (error instanceof Error ? error.message : ""));
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleSendNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !notifyTitle.trim() || !notifyMessage.trim()) return;
+    setNotifyLoading(true);
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "admin_message",
+          title: notifyTitle.trim(),
+          message: notifyMessage.trim(),
+          target_user_id: user.id,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to send notification");
+      }
+      toast.success(t("notificationSent"));
+      setNotifyTitle("");
+      setNotifyMessage("");
+      setNotifyOpen(false);
+    } catch (error) {
+      toast.error(t("failedToSendNotification") + (error instanceof Error ? error.message : ""));
+    } finally {
+      setNotifyLoading(false);
     }
   };
 
@@ -182,6 +250,8 @@ export function UserProfileDrawer({
                   { id: "progress", label: t("learningProgress"), icon: <Trophy className="h-4 w-4" /> },
                   { id: "activity", label: t("activity"), icon: <Activity className="h-4 w-4" /> },
                   { id: "security", label: t("security"), icon: <Shield className="h-4 w-4" /> },
+                  { id: "device", label: t("deviceInfo"), icon: <Monitor className="h-4 w-4" /> },
+                  { id: "nationalIds", label: t("nationalIds"), icon: <Hash className="h-4 w-4" /> },
                 ].map((tab) => (
                   <TabsTrigger key={tab.id} value={tab.id} className="gap-1 rounded-lg">
                     {tab.icon}
@@ -269,13 +339,14 @@ export function UserProfileDrawer({
                   <div className="grid gap-3">
                     <SecurityItem
                       icon={<Key className="h-4 w-4" />}
-                      label={t("resetPassword")}
-                      onClick={() => toast.info(t("resetPasswordNotImplemented"))}
+                      label={resetLoading ? t("sending") : t("resetPassword")}
+                      onClick={handleResetPassword}
+                      disabled={resetLoading}
                     />
                     <SecurityItem
                       icon={<Send className="h-4 w-4" />}
                       label={t("sendNotification")}
-                      onClick={() => toast.info(t("sendNotificationNotImplemented"))}
+                      onClick={() => setNotifyOpen(true)}
                     />
                     {user.role === "Student" && (
                       <SecurityItem
@@ -286,10 +357,87 @@ export function UserProfileDrawer({
                     )}
                   </div>
                 </TabsContent>
+
+                <TabsContent value="device" className="space-y-4 mt-4">
+                  <DeviceInfoTab user={user} />
+                </TabsContent>
+
+                <TabsContent value="nationalIds" className="space-y-4 mt-4">
+                  <div className="rounded-xl border bg-muted/30 p-4">
+                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <Hash className="h-4 w-4 text-muted-foreground" />
+                      {t("nationalIds")}
+                    </h3>
+                    {nationalIdRecords.length === 0 ? (
+                      <div className="text-sm text-muted-foreground text-center py-6">
+                        {t("noNationalIdRecords")}
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {nationalIdRecords.map((record) => (
+                          <div
+                            key={record.id}
+                            className="flex items-center justify-between p-3 rounded-lg border bg-background"
+                          >
+                            <span className="font-mono text-sm">{record.national_id}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(record.created_at)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
               </AnimatePresence>
             </Tabs>
           </div>
         </ScrollArea>
+
+        {/* Send Notification Dialog */}
+        <Dialog open={notifyOpen} onOpenChange={setNotifyOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t("sendNotification")}</DialogTitle>
+              <DialogDescription>
+                {t("sendNotificationDesc")}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSendNotification} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="notify-title">{t("title")}</Label>
+                <Input
+                  id="notify-title"
+                  value={notifyTitle}
+                  onChange={(e) => setNotifyTitle(e.target.value)}
+                  placeholder={t("notificationTitlePlaceholder")}
+                  required
+                  disabled={notifyLoading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="notify-message">{t("message")}</Label>
+                <Textarea
+                  id="notify-message"
+                  value={notifyMessage}
+                  onChange={(e) => setNotifyMessage(e.target.value)}
+                  placeholder={t("notificationMessagePlaceholder")}
+                  rows={4}
+                  required
+                  disabled={notifyLoading}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setNotifyOpen(false)} disabled={notifyLoading}>
+                  {t("cancel")}
+                </Button>
+                <Button type="submit" disabled={notifyLoading || !notifyTitle.trim() || !notifyMessage.trim()}>
+                  {notifyLoading ? t("sending") : t("send")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </SheetContent>
     </Sheet>
   );
@@ -323,13 +471,15 @@ function SecurityItem({
   icon,
   label,
   onClick,
+  disabled,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
-    <Button variant="outline" className="w-full justify-start gap-2" onClick={onClick}>
+    <Button variant="outline" className="w-full justify-start gap-2" onClick={onClick} disabled={disabled}>
       {icon}
       {label}
     </Button>

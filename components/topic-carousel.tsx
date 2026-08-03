@@ -20,6 +20,7 @@ interface TopicCarouselProps {
   topics: CarouselTopic[];
   currentIndex: number;
   onSelectTopic: (flatIndex: number) => void;
+  onNext: () => void;
   formatMinutes: (mins: number) => string;
   noContentText: string;
   lessonTitle: string;
@@ -29,13 +30,14 @@ export function TopicCarousel({
   topics,
   currentIndex,
   onSelectTopic,
+  onNext,
   formatMinutes,
   noContentText,
   lessonTitle,
 }: TopicCarouselProps) {
   const currentTopic = topics[currentIndex];
-  const canGoPrev = currentIndex > 0 && topics[currentIndex - 1]?.isUnlocked;
-  const canGoNext = currentIndex < topics.length - 1 && topics[currentIndex + 1]?.isUnlocked;
+  const canGoPrev = currentIndex > 0;
+  const canGoNext = currentIndex < topics.length - 1;
 
   const goToPrev = () => {
     if (canGoPrev) {
@@ -45,7 +47,7 @@ export function TopicCarousel({
 
   const goToNext = () => {
     if (canGoNext) {
-      onSelectTopic(topics[currentIndex + 1].flatIndex);
+      onNext();
     }
   };
 

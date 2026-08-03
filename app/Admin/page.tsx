@@ -6,6 +6,7 @@ import {
   Users, Settings, GraduationCap, FileText, Activity,
   CheckCircle, AlertCircle, TrendingUp, Clock, Database, Zap,
   ArrowUpRight, type LucideIcon, BookOpen, Layers, Trophy, Award, Timer,
+  Send,
 } from "lucide-react";
 import { getAdminStats } from "@/app/Admin/actions/stats";
 import type { AdminStats } from "@/app/Admin/actions/stats";
@@ -161,6 +162,7 @@ export default function AdminDashboard() {
     { href: "/Admin/questions", icon: Activity, label: t("manageQuestions"), desc: t("addEditQuestions"), color: "#4ADE80", bg: "rgba(34,197,94,0.12)" },
     { href: "/Admin/course?tab=management", icon: BookOpen, label: t("courseManagementNav") || "Course Management", desc: t("admin.courseManagement.description") || "Overview of courses and their status.", color: "#2DD4BF", bg: "rgba(45,212,191,0.12)" },
     { href: "/Admin/course?tab=studio", icon: Layers, label: t("courseStudioNav") || "Course Studio", desc: t("admin.courseStudio.description") || "Build modules and lessons for courses.", color: "#A78BFA", bg: "rgba(167,139,250,0.12)" },
+    { href: "/Admin/notifications", icon: Send, label: t("notifications") || "Notifications", desc: t("sendNotificationsToUsers") || "Send in-app notifications to users.", color: "#F472B6", bg: "rgba(244,114,182,0.12)" },
     { href: "/Admin/settings", icon: Settings, label: t("settings"), desc: t("updateCredentials"), color: "#FBBF24", bg: "rgba(245,158,11,0.12)" },
   ];
 

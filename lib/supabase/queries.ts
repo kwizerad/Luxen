@@ -611,6 +611,23 @@ export async function createExamAttempt(attemptData: {
     .single();
 
   if (error) throw error;
+
+  // Notify the student that their exam result is available
+  try {
+    await createNotification({
+      type: "exam_result",
+      title: "Exam Result Available",
+      message: `Your ${category_name} exam result is now available. Score: ${scorePercentage}%`,
+      priority: scorePercentage >= 50 ? "normal" : "urgent",
+      target_user_id: user.id,
+      related_entity_type: "exam_attempt",
+      related_entity_id: data.id,
+      action_url: "/dashboard",
+    });
+  } catch (notifyError) {
+    console.error("Failed to send exam result notification:", notifyError);
+  }
+
   return { attempt: data };
 }
 

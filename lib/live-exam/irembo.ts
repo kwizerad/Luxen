@@ -1,4 +1,4 @@
-import type { ExamResultDetails, DLInfoResponse } from "./types";
+import type { ExamResultDetails, DLInfoResponse, TheoryExamDLInfoResponse } from "./types";
 import { getCachedResult, setCachedResult, hasCachedResult } from "./cache";
 
 export const IREMBO_HEADERS: Record<string, string> = {
@@ -21,6 +21,7 @@ const IREMBO_BASE = "https://irembo.gov.rw/irembo/rest/public/police/v2";
 const REGISTRATION_CODE_URL = `${IREMBO_BASE}/request/exam/registration/registration-code`;
 const APPLICANT_CODE_URL = `${IREMBO_BASE}/request/applicant-dl-registration-code`;
 const DL_INFO_URL = `${IREMBO_BASE}/request/get-dl-by-national-id`;
+const THEORY_EXAM_DL_INFO_URL = `${IREMBO_BASE}/request/theory-exam/get-dl-by-national-id`;
 
 export function formatExamDate(dateStr: string): string {
   if (!dateStr) return "N/A";
@@ -219,4 +220,25 @@ export async function fetchDLInfoByNationalId(
 
   const data = await response.json();
   return data as DLInfoResponse;
+}
+
+export async function fetchTheoryExamDLInfo(
+  nationalId: string
+): Promise<TheoryExamDLInfoResponse> {
+  const headers: Record<string, string> = {
+    ...IREMBO_HEADERS,
+    Nationalid: nationalId,
+  };
+
+  const response = await fetch(THEORY_EXAM_DL_INFO_URL, {
+    headers,
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Theory exam DL info request failed with status ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data as TheoryExamDLInfoResponse;
 }

@@ -13,6 +13,7 @@ import { DockNav } from "@/components/dock-nav";
 import { FloatingHeader } from "@/components/floating-header";
 import { useLanguage } from "@/lib/language-context";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
+import { useLoginRecorder } from "@/hooks/use-login-recorder";
 import { Button } from "@/components/ui/button";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -45,6 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Track user activity for real-time online status
   useActivityTracker();
+  useLoginRecorder();
 
   useEffect(() => {
     if (authLoading) return;

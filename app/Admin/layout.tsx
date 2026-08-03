@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
+import { useLoginRecorder } from "@/hooks/use-login-recorder";
 import { FloatingHeader } from "@/components/floating-header";
 import { AdminDockNav } from "@/components/admin-dock-nav";
 import { useThemeConfig } from "@/lib/theme-config";
@@ -37,6 +38,7 @@ export default function AdminLayout({
 
   // Track admin activity for real-time online status
   useActivityTracker();
+  useLoginRecorder();
 
   useEffect(() => {
     if (typeof window === "undefined") return;

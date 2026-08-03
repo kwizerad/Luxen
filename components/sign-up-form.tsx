@@ -52,6 +52,24 @@ export function SignUpForm({
         },
       });
       if (error) throw error;
+
+      // Notify admins about the new user (best-effort)
+      try {
+        await fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "user_joined",
+            title: "New User Joined",
+            message: `${email} just signed up.`,
+            target_role: "admin",
+            data: { email },
+          }),
+        });
+      } catch (notifyError) {
+        console.error("Failed to notify admins about new user:", notifyError);
+      }
+
       // Call onSuccess callback if provided
       if (onSuccess) onSuccess();
       router.push("/auth/sign-up-success");

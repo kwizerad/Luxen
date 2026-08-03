@@ -1,49 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Notification } from "@/lib/database.types";
+import { isAdmin } from "@/lib/permissions";
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
-    // Get the authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    console.log('Fetching notifications for user:', user.id);
-
     const { searchParams } = new URL(request.url);
-    const unreadOnly = searchParams.get('unread_only') === 'true';
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const userIsAdmin = isAdmin(user);
 
-    // Query notifications where target_user_id matches current user OR target_role applies
-    let query = supabase
+    const orConditions = [
+      `target_user_id.eq.${user.id}`,
+      "target_role.eq.all",
+      ...(userIsAdmin ? ["target_role.eq.admin"] : ["target_role.eq.student"]),
+    ];
+
+    const { data: notifications, error } = await supabase
       .from("notifications")
       .select("*")
-      .or(`target_user_id.eq.${user.id},target_role.eq.all`)
+      .or(`or(${orConditions.join(",")})`)
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (unreadOnly) {
-      query = query.eq("is_read", false);
+    if (error) throw error;
+
+    const { data: readStatuses, error: readError } = await supabase
+      .from("notification_reads")
+      .select("notification_id")
+      .eq("user_id", user.id)
+      .in(
+        "notification_id",
+        notifications?.map((n: { id: string }) => n.id) || []
+      );
+
+    if (readError) {
+      console.error("Error fetching read statuses:", readError);
     }
 
-    const { data: notifications, error } = await query;
+    const readIds = new Set(readStatuses?.map((r) => r.notification_id) || []);
 
-    if (error) {
-      console.error('Error fetching notifications:', error);
-      throw error;
-    }
+    const enriched =
+      notifications?.map((n: { id: string } & Record<string, unknown>) => ({
+        ...n,
+        is_read: readIds.has(n.id),
+      })) || [];
 
-    console.log('Notifications fetched:', notifications?.length || 0);
-
-    return NextResponse.json({ 
-      notifications: notifications || [],
-      unread_count: notifications?.filter(n => !n.is_read).length || 0
+    return NextResponse.json({
+      notifications: enriched,
+      unread_count: enriched.filter((n: { is_read: boolean }) => !n.is_read).length,
     });
   } catch (error: any) {
     console.error("Error fetching notifications:", error);
@@ -55,108 +66,65 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const adminSupabase = createAdminClient();
-    
-    // Get the authenticated user
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { type, title, message, data: notificationData, target_user_id, target_role } = body;
+    if (!isAdmin(user)) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
 
-    if (!type || !title || !message) {
+    const body = await request.json();
+    const {
+      type = "info",
+      title,
+      message,
+      data: notificationData,
+      target_user_id,
+      target_role = target_user_id ? undefined : "all",
+      priority = "normal",
+      action_url,
+      related_entity_type,
+      related_entity_id,
+      expires_at,
+    } = body;
+
+    if (!title || !message) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    console.log('Creating notification:', { type, title, target_role, target_user_id });
+    // Build a single notification row (broadcasts use target_role)
+    const insertData: Record<string, unknown> = {
+      type,
+      title,
+      message,
+      data: notificationData || {},
+      sender_id: user.id,
+      sender_name: user.user_metadata?.full_name || user.email,
+      priority,
+      action_url,
+      related_entity_type,
+      related_entity_id,
+      expires_at,
+    };
 
-    // If target_role is 'student', get all students and create individual notifications
-    if (target_role === 'student') {
-      // Get all users from user_profiles table instead of auth
-      const { data: profiles, error: profilesError } = await adminSupabase
-        .from("user_profiles")
-        .select("user_id, role")
-        .eq("role", "student");
-      
-      if (profilesError) {
-        console.error("Error fetching students:", profilesError);
-        return NextResponse.json({ error: "Failed to fetch students" }, { status: 500 });
-      }
-
-      console.log(`Creating notifications for ${profiles?.length || 0} students`);
-
-      // Create notification for each student
-      const notifications = [];
-      for (const profile of profiles || []) {
-        const { data: notification, error } = await adminSupabase
-          .from("notifications")
-          .insert({
-            target_user_id: profile.user_id,
-            type,
-            title,
-            message,
-            data: notificationData || {},
-            sender_id: user.id,
-            sender_name: user.user_metadata?.full_name || user.email,
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error("Error creating notification for user:", profile.user_id, error);
-        } else {
-          notifications.push(notification);
-        }
-      }
-
-      return NextResponse.json({ 
-        success: true, 
-        message: `Created ${notifications.length} notifications`,
-        count: notifications.length 
-      }, { status: 201 });
-    }
-
-    // If target_user_id is provided, create notification for specific user
     if (target_user_id) {
-      const { data: notification, error } = await adminSupabase
-        .from("notifications")
-        .insert({
-          target_user_id,
-          type,
-          title,
-          message,
-          data: notificationData || {},
-          sender_id: user.id,
-          sender_name: user.user_metadata?.full_name || user.email,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return NextResponse.json({ notification }, { status: 201 });
+      insertData.target_user_id = target_user_id;
+    } else {
+      insertData.target_role = target_role;
     }
 
-    // Otherwise, create notification for the current user
     const { data: notification, error } = await adminSupabase
       .from("notifications")
-      .insert({
-        target_user_id: user.id,
-        type,
-        title,
-        message,
-        data: notificationData || {},
-        sender_id: user.id,
-        sender_name: user.user_metadata?.full_name || user.email,
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (error) throw error;
 
-    return NextResponse.json({ notification }, { status: 201 });
+    return NextResponse.json({ success: true, notification }, { status: 201 });
   } catch (error: any) {
     console.error("Error creating notification:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

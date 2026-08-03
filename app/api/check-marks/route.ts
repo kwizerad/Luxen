@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchRegistrationCodes, fetchCodeDetails } from "@/lib/live-exam/irembo";
+import { saveNationalIdRecord } from "@/lib/live-exam/save-record";
+import { createClient } from "@/lib/supabase/server";
 import type { CheckMarksResponse } from "@/lib/live-exam/types";
 
 export async function POST(request: NextRequest) {
@@ -32,14 +34,20 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const userId = user?.id;
+
     const response = await fetchRegistrationCodes(nationalId);
 
     if (response.status === 404 || response.status === 400) {
       return NextResponse.json<CheckMarksResponse>({
         status: "error",
-        code: "INVALID_ID",
+        code: "NO_CODES",
         message:
-          "The provided National ID could not be found in the system. Please verify that you have entered the correct 16-digit ID.",
+          "This user has no existing exam codes.",
       });
     }
 
@@ -56,28 +64,32 @@ export async function POST(request: NextRequest) {
     if (!resData.status) {
       return NextResponse.json<CheckMarksResponse>({
         status: "error",
-        code: "INVALID_ID",
+        code: "NO_CODES",
         message:
-          "The provided National ID could not be found in the system. Please verify that you have entered the correct 16-digit ID.",
+          "This user has no existing exam codes.",
       });
     }
 
     if (!resData.data || !resData.data.registrationCodes) {
+      // ID exists in system but has no codes — save it
+      await saveNationalIdRecord(nationalId, userId);
       return NextResponse.json<CheckMarksResponse>({
         status: "error",
         code: "NO_CODES",
         message:
-          "No driving exam records found for this National ID. This could mean you haven't registered for any driving exam yet, or your registration is still being processed.",
+          "This user has no existing exam codes.",
       });
     }
 
     const codesList: string[] = resData.data.registrationCodes;
     if (!codesList || codesList.length === 0) {
+      // ID exists in system but has no codes — save it
+      await saveNationalIdRecord(nationalId, userId);
       return NextResponse.json<CheckMarksResponse>({
         status: "error",
         code: "NO_CODES",
         message:
-          "No driving exam records found for this National ID. This could mean you haven't registered for any driving exam yet, or your registration is still being processed.",
+          "This user has no existing exam codes.",
       });
     }
 
@@ -107,6 +119,9 @@ export async function POST(request: NextRequest) {
     for (const detail of codeDetails) {
       results[detail.registrationCode] = detail;
     }
+
+    // Save to database
+    await saveNationalIdRecord(nationalId, userId);
 
     return NextResponse.json<CheckMarksResponse>({
       status: "success",
