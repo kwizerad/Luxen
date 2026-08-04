@@ -39,7 +39,7 @@ export async function getNotifications(unreadOnly = false, limit = 50) {
     ...(userIsAdmin ? ["target_role.eq.admin"] : ["target_role.eq.student"]),
   ];
 
-  const targetFilter = `or(${orConditions.join(",")})`;
+  const targetFilter = orConditions.join(",");
 
   let query = supabase
     .from("notifications")
@@ -48,27 +48,27 @@ export async function getNotifications(unreadOnly = false, limit = 50) {
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (unreadOnly) {
-    query = query.eq("is_read", false);
-  }
-
   const { data: notifications, error } = await query;
   if (error) throw error;
 
-  const { data: readStatuses, error: readError } = await supabase
-    .from("notification_reads")
-    .select("notification_id")
-    .eq("user_id", user.id)
-    .in(
-      "notification_id",
-      notifications?.map((n: { id: string }) => n.id) || []
-    );
+  let readIds = new Set<string>();
 
-  if (readError) {
-    console.error("Error fetching read statuses:", readError);
+  if (notifications && notifications.length > 0) {
+    const { data: readStatuses, error: readError } = await supabase
+      .from("notification_reads")
+      .select("notification_id")
+      .eq("user_id", user.id)
+      .in(
+        "notification_id",
+        notifications.map((n: { id: string }) => n.id)
+      );
+
+    if (readError) {
+      console.error("Error fetching read statuses:", readError);
+    }
+
+    readIds = new Set<string>(readStatuses?.map((r: { notification_id: string }) => r.notification_id) || []);
   }
-
-  const readIds = new Set<string>(readStatuses?.map((r: { notification_id: string }) => r.notification_id) || []);
 
   const withReadStatus =
     notifications?.map((n: { id: string } & Record<string, unknown>) => ({
@@ -110,8 +110,7 @@ export async function markAllNotificationsAsRead() {
   const { data: notifications } = await supabase
     .from("notifications")
     .select("id")
-    .or(`target_user_id.eq.${user.id},target_role.eq.all`)
-    .or("expires_at.is.null,expires_at.gt.now()");
+    .or(`target_user_id.eq.${user.id},target_role.eq.all`);
 
   if (!notifications || notifications.length === 0) {
     return { success: true, marked_count: 0 };

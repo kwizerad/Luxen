@@ -431,6 +431,27 @@ export default function StudentCoursePage() {
     }
   };
 
+  // Keyboard navigation: left/right arrows to switch lessons/topics
+  useEffect(() => {
+    if (viewMode !== "journey" || activeExam || showLessonComplete || showCompletion || showCelebration) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLElement && e.target.isContentEditable) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goToPrevious();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        if (currentItem && !completedItems.has(itemKey(currentItem)) && currentItemIndex < flatList.length - 1) {
+          void markCompleteAndAdvance();
+        } else {
+          goToNext();
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [viewMode, activeExam, showLessonComplete, showCompletion, showCelebration, currentItemIndex, currentItem, completedItems, flatList]);
+
   const continueToNextLesson = () => {
     setShowLessonComplete(false);
     if (currentItemIndex < flatList.length - 1) {

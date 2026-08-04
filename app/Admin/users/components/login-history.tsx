@@ -148,26 +148,26 @@ export function LoginHistory({ userId }: LoginHistoryProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Calendar className="h-4 w-4" />
+    <Card className="rounded-xl">
+      <CardHeader className="p-3 pb-2">
+        <CardTitle className="text-xs sm:text-sm flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5" />
           {t("loginHistory")}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+      <CardContent className="px-3 pb-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-2.5 mb-2.5 sm:mb-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder={t("searchLoginHistory")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-8 h-8 sm:h-9 text-xs sm:text-sm"
             />
           </div>
           <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[140px] h-8 sm:h-9 text-xs sm:text-sm">
               <SelectValue placeholder={t("dateFilter")} />
             </SelectTrigger>
             <SelectContent>
@@ -179,65 +179,56 @@ export function LoginHistory({ userId }: LoginHistoryProps) {
           </Select>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto -mx-1 px-1">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <SortHeader sortKey="created_at" label={t("dateTime")} onSort={handleSort} />
-                <TableHead>{t("device")}</TableHead>
-                <TableHead>{t("browser")}</TableHead>
-                <TableHead>{t("operatingSystem")}</TableHead>
+                <TableHead className="text-xs">{t("device")}</TableHead>
                 <SortHeader sortKey="country" label={t("location")} onSort={handleSort} />
-                <TableHead>{t("ipAddress")}</TableHead>
-                <TableHead>{t("authMethod")}</TableHead>
-                <TableHead>{t("result")}</TableHead>
+                <TableHead className="text-xs">{t("ipAddress")}</TableHead>
+                <TableHead className="text-xs">{t("result")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-32 text-center">
-                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                    {t("loading")}
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                    <span className="text-sm">{t("loading")}</span>
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground text-sm">
                     {t("noLoginHistory")}
                   </TableCell>
                 </TableRow>
               ) : (
                 filtered.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell className="whitespace-nowrap text-sm">
+                    <TableCell className="whitespace-nowrap text-xs sm:text-sm">
                       {entry.created_at ? new Date(entry.created_at).toLocaleString() : "—"}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2 text-sm">
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm">
                         <DeviceIcon deviceType={entry.user_devices?.device_type} />
-                        {entry.user_devices?.device_type || t("unknown")}
+                        <span className="truncate max-w-[100px]">
+                          {entry.user_devices?.browser || "—"} {entry.user_devices?.browser_version || ""}
+                        </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {entry.user_devices?.browser || "—"} {entry.user_devices?.browser_version || ""}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {entry.user_devices?.os || "—"} {entry.user_devices?.os_version || ""}
-                    </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="text-xs sm:text-sm">
                       <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-muted-foreground" />
-                        {[entry.city, entry.region, entry.country_code ? `${entry.country} (${entry.country_code})` : entry.country]
-                          .filter(Boolean)
-                          .join(", ") || "—"}
+                        <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate max-w-[120px]">
+                          {[entry.city, entry.country].filter(Boolean).join(", ") || "—"}
+                        </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm font-mono">
+                    <TableCell className="text-xs sm:text-sm font-mono">
                       {entry.ip_address || "—"}
-                      {entry.ip_version && <span className="text-muted-foreground ml-1">({entry.ip_version})</span>}
                     </TableCell>
-                    <TableCell className="text-sm">{entry.auth_provider || t("email")}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -247,12 +238,12 @@ export function LoginHistory({ userId }: LoginHistoryProps) {
                               ? "destructive"
                               : "secondary"
                         }
-                        className="gap-1 text-xs"
+                        className="gap-1 text-[10px] px-1.5 py-0"
                       >
                         {entry.login_result === "success" ? (
-                          <CheckCircle className="h-3 w-3" />
+                          <CheckCircle className="h-2.5 w-2.5" />
                         ) : (
-                          <XCircle className="h-3 w-3" />
+                          <XCircle className="h-2.5 w-2.5" />
                         )}
                         {t(entry.login_result)}
                       </Badge>
@@ -265,16 +256,17 @@ export function LoginHistory({ userId }: LoginHistoryProps) {
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4">
+          <div className="flex items-center justify-between mt-2.5 sm:mt-3 gap-2">
             <Button
               variant="outline"
               size="sm"
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
+              className="h-7 text-xs"
             >
               {t("previous")}
             </Button>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {t("page")} {page} {t("of")} {totalPages}
             </span>
             <Button
@@ -282,6 +274,7 @@ export function LoginHistory({ userId }: LoginHistoryProps) {
               size="sm"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
+              className="h-7 text-xs"
             >
               {t("next")}
             </Button>
@@ -302,7 +295,7 @@ function SortHeader({
   onSort: (key: SortKey) => void;
 }) {
   return (
-    <TableHead>
+    <TableHead className="text-xs">
       <button
         onClick={() => onSort(sortKey)}
         className="flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground"

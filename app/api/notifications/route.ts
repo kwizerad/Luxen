@@ -22,10 +22,12 @@ export async function GET(request: NextRequest) {
       ...(userIsAdmin ? ["target_role.eq.admin"] : ["target_role.eq.student"]),
     ];
 
+    const targetFilter = orConditions.join(",");
+
     const { data: notifications, error } = await supabase
       .from("notifications")
       .select("*")
-      .or(`or(${orConditions.join(",")})`)
+      .or(targetFilter)
       .order("created_at", { ascending: false })
       .limit(limit);
 

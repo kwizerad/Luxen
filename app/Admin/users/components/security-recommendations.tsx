@@ -39,16 +39,16 @@ export function SecurityRecommendations({
 
   if (recommendations.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Shield className="h-4 w-4" />
+      <Card className="rounded-xl">
+        <CardHeader className="p-3 pb-2">
+          <CardTitle className="text-xs sm:text-sm flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5" />
             {t("securityRecommendations")}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-sm text-green-600">
-            <CheckCircle className="h-4 w-4" />
+        <CardContent className="px-3 pb-3">
+          <div className="flex items-center gap-1.5 text-[11px] text-green-600">
+            <CheckCircle className="h-3 w-3" />
             {t("noSecurityRecommendations")}
           </div>
         </CardContent>
@@ -57,31 +57,31 @@ export function SecurityRecommendations({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Shield className="h-4 w-4" />
+    <Card className="rounded-xl">
+      <CardHeader className="p-3 pb-2">
+        <CardTitle className="text-xs sm:text-sm flex items-center gap-1.5">
+          <Shield className="h-3.5 w-3.5" />
           {t("securityRecommendations")}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="px-3 pb-3 space-y-1.5">
         {recommendations.map((rec) => (
           <div
             key={rec.id}
-            className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30"
+            className="flex items-start gap-2 p-2 sm:p-2.5 rounded-lg border bg-muted/30"
           >
-            <div className="mt-0.5">
+            <div className="mt-0.5 flex-shrink-0">
               {rec.severity === "critical" ? (
-                <XCircle className="h-4 w-4 text-red-600" />
+                <XCircle className="h-3.5 w-3.5 text-red-600" />
               ) : rec.severity === "warning" ? (
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
               ) : (
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-medium">{rec.message}</p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="text-xs font-medium">{rec.message}</p>
                 <Badge
                   variant={
                     rec.severity === "critical"
@@ -90,7 +90,7 @@ export function SecurityRecommendations({
                         ? "default"
                         : "secondary"
                   }
-                  className="text-xs"
+                  className="text-[10px] px-1.5 py-0"
                 >
                   {t(rec.severity)}
                 </Badge>
@@ -99,7 +99,7 @@ export function SecurityRecommendations({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mt-2 h-7"
+                  className="mt-1.5 h-7 text-xs"
                   disabled={loading}
                   onClick={handleSignOutAll}
                 >

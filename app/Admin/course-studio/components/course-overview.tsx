@@ -22,19 +22,19 @@ export function CourseOverview({ course, onSelectModule, onAddModule }: CourseOv
   const isPublished = course.status === "published";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Course header */}
-      <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] p-5">
+      <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 sm:p-5">
         <div className="flex items-start gap-3">
-          <div className="flex items-center justify-center h-10 w-10 rounded-[5px] bg-[var(--admin-primary)]/10 flex-shrink-0">
-            <BookOpen className="h-5 w-5 text-[var(--admin-primary)]" />
+          <div className="flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-[5px] bg-[var(--admin-primary)]/10 flex-shrink-0">
+            <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--admin-primary)]" />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-[var(--admin-text)]">{course.title}</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-[var(--admin-text)]">{course.title}</h2>
             {course.description && (
-              <p className="text-sm text-[var(--admin-muted)] mt-1 line-clamp-2">{course.description}</p>
+              <p className="text-xs sm:text-sm text-[var(--admin-muted)] mt-1 line-clamp-2">{course.description}</p>
             )}
-            <div className="flex items-center gap-3 mt-2 text-xs text-[var(--admin-muted)]">
+            <div className="flex items-center gap-2 sm:gap-3 mt-2 text-xs text-[var(--admin-muted)] flex-wrap">
               <span className="flex items-center gap-1">
                 <Layers className="h-3.5 w-3.5" />
                 {course.modules.length} {t("modules") || "Modules"}
@@ -61,7 +61,7 @@ export function CourseOverview({ course, onSelectModule, onAddModule }: CourseOv
 
       {/* Modules list */}
       <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--admin-border)]">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-[var(--admin-border)]">
           <h3 className="text-sm font-semibold text-[var(--admin-text)]">{t("modules") || "Modules"}</h3>
           <button
             type="button"
@@ -73,7 +73,7 @@ export function CourseOverview({ course, onSelectModule, onAddModule }: CourseOv
           </button>
         </div>
         {course.modules.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-[var(--admin-muted)]">
+          <div className="px-4 py-6 sm:py-8 text-center text-sm text-[var(--admin-muted)]">
             {t("noModulesYet") || "No modules have been added yet."}
           </div>
         ) : (
@@ -86,13 +86,13 @@ export function CourseOverview({ course, onSelectModule, onAddModule }: CourseOv
                   key={module.id}
                   type="button"
                   onClick={() => onSelectModule(module.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--admin-hover-bg)] transition-colors group"
+                  className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-left hover:bg-[var(--admin-hover-bg)] transition-colors group"
                 >
-                  <span className="text-xs text-[var(--admin-muted)] font-medium w-6 flex-shrink-0">{idx + 1}</span>
+                  <span className="text-xs text-[var(--admin-muted)] font-medium w-5 sm:w-6 flex-shrink-0">{idx + 1}</span>
                   <Layers className="h-4 w-4 text-[var(--admin-primary)] flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[var(--admin-text)] truncate">{module.title || `${t("untitledModule") || "Untitled Module"} ${idx + 1}`}</p>
-                    <div className="flex items-center gap-3 text-[10px] text-[var(--admin-muted)] mt-0.5">
+                    <div className="flex items-center gap-2 sm:gap-3 text-[10px] text-[var(--admin-muted)] mt-0.5 flex-wrap">
                       <span>{module.lessons.length} {t("lessons") || "lessons"}</span>
                       <span>{modTopicCount} {t("topics") || "topics"}</span>
                       {module.exam && <span>{module.exam.questions.length} {t("questions") || "questions"}</span>}

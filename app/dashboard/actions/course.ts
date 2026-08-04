@@ -231,3 +231,120 @@ export async function getContinueLearningData(
     lessonTitle: last.lessonTitle,
   };
 }
+
+// ============================================================================
+// DASHBOARD STATS
+// ============================================================================
+
+export interface DashboardStats {
+  lessonsCompleted: number;
+  totalLessons: number;
+  modulesCompleted: number;
+  totalModules: number;
+  examAttemptsCount: number;
+  bestExamScore: number | null;
+}
+
+export async function getDashboardStats(
+  interfaceLanguage?: string
+): Promise<DashboardStats> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      lessonsCompleted: 0,
+      totalLessons: 0,
+      modulesCompleted: 0,
+      totalModules: 0,
+      examAttemptsCount: 0,
+      bestExamScore: null,
+    };
+  }
+
+  // Resolve learning language (same logic as getContinueLearningData)
+  let effectiveLanguage: LearningLanguage | null = null;
+  if (interfaceLanguage && isLearningLanguage(interfaceLanguage)) {
+    effectiveLanguage = interfaceLanguage;
+  }
+  if (!effectiveLanguage) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("learning_language")
+      .eq("id", user.id)
+      .maybeSingle();
+    const saved = profile?.learning_language;
+    if (saved && isLearningLanguage(saved)) {
+      effectiveLanguage = saved;
+    }
+  }
+  if (!effectiveLanguage) {
+    for (const lang of LEARNING_LANGUAGES) {
+      const { data } = await supabase
+        .from("course_languages")
+        .select("id")
+        .eq("language", lang)
+        .eq("status", "published")
+        .is("deleted_at", null)
+        .limit(1);
+      if (data && data.length > 0) {
+        effectiveLanguage = lang;
+        break;
+      }
+    }
+  }
+
+  let lessonsCompleted = 0;
+  let totalLessons = 0;
+  let modulesCompleted = 0;
+  let totalModules = 0;
+
+  if (effectiveLanguage) {
+    const { course } = await loadCourseByLanguage(effectiveLanguage);
+    if (course) {
+      const moduleIds = course.modules.map((m) => m.id);
+      totalModules = course.modules.length;
+      totalLessons = course.modules.reduce((sum, m) => sum + m.lessons.length, 0);
+
+      if (moduleIds.length > 0) {
+        // Lesson progress
+        const { data: lessonProgress } = await supabase
+          .from("student_lesson_progress")
+          .select("lesson_id, completed")
+          .eq("user_id", user.id)
+          .in("module_id", moduleIds)
+          .eq("completed", true);
+        lessonsCompleted = lessonProgress?.length || 0;
+
+        // Module progress
+        const { data: moduleProgress } = await supabase
+          .from("student_module_progress")
+          .select("module_id")
+          .eq("user_id", user.id)
+          .in("module_id", moduleIds);
+        modulesCompleted = moduleProgress?.length || 0;
+      }
+    }
+  }
+
+  // Exam attempts
+  const { data: examAttempts } = await supabase
+    .from("exam_attempts")
+    .select("score_percentage, status")
+    .eq("user_id", user.id)
+    .eq("status", "completed");
+  const completedAttempts = examAttempts || [];
+  const examAttemptsCount = completedAttempts.length;
+  const bestExamScore = completedAttempts.length > 0
+    ? Math.max(...completedAttempts.map((a: { score_percentage: number }) => a.score_percentage || 0))
+    : null;
+
+  return {
+    lessonsCompleted,
+    totalLessons,
+    modulesCompleted,
+    totalModules,
+    examAttemptsCount,
+    bestExamScore,
+  };
+}

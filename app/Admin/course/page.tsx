@@ -83,7 +83,7 @@ export default function CoursePage() {
   ];
 
   return (
-    <div className="course-page space-y-5">
+    <div className="course-page space-y-4 sm:space-y-5">
       {/* Tab switcher — sticky at top, auto-hides on scroll down */}
       <div
         className={`sticky top-0 z-30 -mx-1 px-1 py-2 flex flex-wrap gap-2 backdrop-blur-md bg-[#0B1020]/80 border-b border-[var(--admin-border)] transition-transform duration-300 ${tabsVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"}`}
@@ -97,11 +97,11 @@ export default function CoursePage() {
             role="tab"
             aria-selected={activeTab === id}
             variant={activeTab === id ? "default" : "outline"}
-            className="gap-2"
+            className="gap-2 text-xs sm:text-sm"
             onClick={() => switchTab(id)}
           >
-            <Icon className="h-4 w-4" />
-            {label}
+            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="truncate">{label}</span>
           </Button>
         ))}
       </div>

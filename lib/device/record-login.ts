@@ -18,37 +18,109 @@ function getIpVersion(ip: string): "IPv4" | "IPv6" | undefined {
   return ip.includes(":") ? "IPv6" : "IPv4";
 }
 
+function isPrivateIp(ip: string): boolean {
+  if (!ip) return false;
+  // IPv4 private ranges
+  if (ip.startsWith("10.") || ip.startsWith("192.168.")) return true;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)) return true;
+  if (ip === "127.0.0.1" || ip === "0.0.0.0") return true;
+  // IPv6 loopback and link-local
+  if (ip === "::1" || ip.startsWith("fe80:")) return true;
+  // Docker/internal networks
+  if (ip.startsWith("172.")) return true;
+  return false;
+}
+
+function getClientIp(request: NextRequest): string | undefined {
+  // Check headers in order of trustworthiness for various CDN/proxy setups
+  // Cloudflare
+  const cfConnectingIp = request.headers.get("cf-connecting-ip");
+  if (cfConnectingIp && !isPrivateIp(cfConnectingIp)) return cfConnectingIp.trim();
+
+  // Standard forwarded header (X-Forwarded-For: client, proxy1, proxy2)
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    // Take the first non-private IP in the chain
+    const ips = forwarded.split(",").map((s) => s.trim());
+    for (const ip of ips) {
+      if (ip && !isPrivateIp(ip)) return ip;
+    }
+    // If all are private, use the first one (better than nothing)
+    if (ips[0]) return ips[0];
+  }
+
+  // Nginx proxy
+  const realIp = request.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+
+  // Other common headers
+  const clientIp = request.headers.get("x-client-ip");
+  if (clientIp) return clientIp.trim();
+
+  const trueClientIp = request.headers.get("x-true-client-ip");
+  if (trueClientIp) return trueClientIp.trim();
+
+  // Fallback to connection info (works only without proxy)
+  // NextRequest doesn't expose socket directly, so we rely on headers
+  return undefined;
+}
+
 async function getGeoFromIp(ip: string): Promise<Partial<GeoLocationInfo>> {
   const ipVersion = getIpVersion(ip);
+
+  // Don't lookup geo for private/local IPs
+  if (isPrivateIp(ip)) {
+    return { ip, ipVersion };
+  }
+
   try {
     const res = await fetch(`https://ipapi.co/${ip}/json/`, {
       headers: { "User-Agent": "Navo/1.0" },
       next: { revalidate: 0 },
+      signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return { ip, ipVersion };
     const data = await res.json();
-    return {
-      ip,
-      ipVersion,
-      country: data.country_name || data.country || undefined,
-      countryCode: data.country_code || data.country || undefined,
-      region: data.region || data.region_code || undefined,
-      city: data.city || undefined,
-      latitude: typeof data.latitude === "number" ? data.latitude : undefined,
-      longitude: typeof data.longitude === "number" ? data.longitude : undefined,
-    };
+
+    // Only return fields that have actual values — never fabricate
+    const result: Partial<GeoLocationInfo> = { ip, ipVersion };
+
+    if (data.country_name && typeof data.country_name === "string") {
+      result.country = data.country_name;
+    } else if (data.country && typeof data.country === "string" && data.country.length === 2) {
+      // Some responses only have the 2-letter code
+      result.countryCode = data.country;
+    }
+
+    if (data.country_code && typeof data.country_code === "string") {
+      result.countryCode = data.country_code;
+    } else if (data.country && typeof data.country === "string" && data.country.length === 2) {
+      result.countryCode = data.country;
+    }
+
+    if (data.region && typeof data.region === "string") {
+      result.region = data.region;
+    } else if (data.region_code && typeof data.region_code === "string") {
+      result.region = data.region_code;
+    }
+
+    if (data.city && typeof data.city === "string") {
+      result.city = data.city;
+    }
+
+    if (typeof data.latitude === "number") {
+      result.latitude = data.latitude;
+    }
+
+    if (typeof data.longitude === "number") {
+      result.longitude = data.longitude;
+    }
+
+    return result;
   } catch {
+    // GeoIP lookup failed — return IP only, no fabricated data
     return { ip, ipVersion };
   }
-}
-
-function getClientIp(request: NextRequest): string | undefined {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return request.headers.get("x-real-ip") || undefined;
 }
 
 export async function recordLoginEvent(

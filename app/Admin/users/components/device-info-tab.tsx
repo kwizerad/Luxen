@@ -63,7 +63,7 @@ export function DeviceInfoTab({ user }: DeviceInfoTabProps) {
 
   if (loading) {
     return (
-      <TabsContent value="device" className="space-y-4 mt-4">
+      <TabsContent value="device" className="space-y-2.5 sm:space-y-3 mt-4">
         <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
           <RefreshCw className="h-5 w-5 animate-spin mr-2" />
           {t("loading")}
@@ -73,10 +73,10 @@ export function DeviceInfoTab({ user }: DeviceInfoTabProps) {
   }
 
   return (
-    <TabsContent value="device" className="space-y-4 mt-4">
+    <TabsContent value="device" className="space-y-2.5 sm:space-y-3 mt-4">
       <div className="flex justify-end">
-        <Button variant="outline" size="sm" disabled={refreshing} onClick={load}>
-          <RefreshCw className={`h-4 w-4 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
+        <Button variant="outline" size="sm" disabled={refreshing} onClick={load} className="h-8 text-xs sm:text-sm">
+          <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
           {t("refresh")}
         </Button>
       </div>
@@ -90,6 +90,7 @@ export function DeviceInfoTab({ user }: DeviceInfoTabProps) {
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
+            className="space-y-2.5 sm:space-y-3"
           >
             <SecurityMonitorCard analysis={securityAnalysis} />
             <SecurityRecommendations

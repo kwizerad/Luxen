@@ -206,12 +206,12 @@ export function UserInfoDetailDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] p-0 flex flex-col">
-        <DialogHeader className="px-6 pt-6 pb-2">
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <IdCard className="h-5 w-5 text-primary" />
-            {user.full_name || user.username || user.email}
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-xl">
+            <IdCard className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+            <span className="truncate">{user.full_name || user.username || user.email}</span>
           </DialogTitle>
-          <p className="text-sm text-muted-foreground font-mono">
+          <p className="text-xs sm:text-sm text-muted-foreground font-mono">
             {user.national_id}
           </p>
         </DialogHeader>
@@ -221,34 +221,34 @@ export function UserInfoDetailDialog({
           onValueChange={handleTabChange}
           className="flex-1 flex flex-col overflow-hidden"
         >
-          <div className="px-6">
+          <div className="px-4 sm:px-6">
             <TabsList className="w-full justify-start rounded-xl h-auto flex-wrap p-1 gap-1">
-              <TabsTrigger value="exams" className="gap-1.5 rounded-lg">
-                <Car className="h-4 w-4" />
+              <TabsTrigger value="exams" className="gap-1.5 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm">
+                <Car className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 <span>{t("exams")}</span>
               </TabsTrigger>
-              <TabsTrigger value="permit" className="gap-1.5 rounded-lg">
-                <FileText className="h-4 w-4" />
+              <TabsTrigger value="permit" className="gap-1.5 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm">
+                <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 <span>{t("permitInfo")}</span>
               </TabsTrigger>
-              <TabsTrigger value="userinfo" className="gap-1.5 rounded-lg">
-                <User className="h-4 w-4" />
+              <TabsTrigger value="userinfo" className="gap-1.5 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm">
+                <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 <span>{t("userInfo")}</span>
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <ScrollArea className="flex-1 px-6 pb-6">
+          <ScrollArea className="flex-1 px-4 sm:px-6 pb-4 sm:pb-6">
             {loading && (
-              <div className="flex items-center justify-center py-16 text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <div className="flex items-center justify-center py-12 sm:py-16 text-muted-foreground text-sm">
+                <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin mr-2" />
                 {t("fetchingInfo")}
               </div>
             )}
 
             {!loading && error && (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <AlertCircle className="h-8 w-8 mb-2 text-destructive" />
+              <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-muted-foreground">
+                <AlertCircle className="h-7 w-7 sm:h-8 sm:w-8 mb-2 text-destructive" />
                 <p className="text-sm">{error}</p>
               </div>
             )}
@@ -256,7 +256,7 @@ export function UserInfoDetailDialog({
             {!loading && !error && (
               <>
                 {/* Exams Tab */}
-                <TabsContent value="exams" className="mt-4 space-y-4">
+                <TabsContent value="exams" className="mt-4 space-y-3 sm:space-y-4">
                   {examCodes.practical.length === 0 &&
                   examCodes.theory.length === 0 ? (
                     <EmptyState message={t("liveExamNoCodes")} />
@@ -277,7 +277,7 @@ export function UserInfoDetailDialog({
                 </TabsContent>
 
                 {/* Permit Info Tab */}
-                <TabsContent value="permit" className="mt-4 space-y-4">
+                <TabsContent value="permit" className="mt-4 space-y-3 sm:space-y-4">
                   {!dlInfo?.license && !theoryExamInfo ? (
                     <EmptyState message={t("noData")} />
                   ) : !dlInfo?.license && theoryExamInfo ? (
@@ -439,7 +439,7 @@ export function UserInfoDetailDialog({
                 </TabsContent>
 
                 {/* User Info Tab */}
-                <TabsContent value="userinfo" className="mt-4 space-y-4">
+                <TabsContent value="userinfo" className="mt-4 space-y-3 sm:space-y-4">
                   {!dlInfo?.document && !theoryExamInfo?.document ? (
                     <EmptyState message={t("noData")} />
                   ) : !dlInfo?.document && theoryExamInfo?.document ? (
@@ -785,13 +785,13 @@ function InfoRow({
   value?: string;
 }) {
   return (
-    <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20">
-      <div className="text-muted-foreground mt-0.5">{icon}</div>
+    <div className="flex items-start gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-lg border bg-muted/20">
+      <div className="text-muted-foreground mt-0.5 flex-shrink-0">{icon}</div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground uppercase tracking-wider">
+        <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">
           {label}
         </p>
-        <p className="text-sm font-medium break-words">{value || "—"}</p>
+        <p className="text-xs sm:text-sm font-medium break-words mt-0.5">{value || "—"}</p>
       </div>
     </div>
   );
@@ -799,8 +799,8 @@ function InfoRow({
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-      <AlertCircle className="h-8 w-8 mb-2 opacity-50" />
+    <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-muted-foreground">
+      <AlertCircle className="h-7 w-7 sm:h-8 sm:w-8 mb-2 opacity-40" />
       <p className="text-sm">{message}</p>
     </div>
   );

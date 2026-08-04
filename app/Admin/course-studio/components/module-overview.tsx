@@ -25,16 +25,16 @@ export function ModuleOverview({
   const isPublished = module.status === "published";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Module header */}
-      <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] p-5">
+      <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 sm:p-5">
         <div className="flex items-start gap-3">
-          <div className="flex items-center justify-center h-10 w-10 rounded-[5px] bg-[var(--admin-primary)]/10 flex-shrink-0">
-            <Layers className="h-5 w-5 text-[var(--admin-primary)]" />
+          <div className="flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-[5px] bg-[var(--admin-primary)]/10 flex-shrink-0">
+            <Layers className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--admin-primary)]" />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-[var(--admin-text)]">{module.title}</h2>
-            <div className="flex items-center gap-3 mt-1.5 text-xs text-[var(--admin-muted)]">
+            <h2 className="text-base sm:text-lg font-semibold text-[var(--admin-text)]">{module.title}</h2>
+            <div className="flex items-center gap-2 sm:gap-3 mt-1.5 text-xs text-[var(--admin-muted)] flex-wrap">
               <span className="flex items-center gap-1">
                 <FileText className="h-3.5 w-3.5" />
                 {module.lessons.length} {t("lessons") || "Lessons"}
@@ -53,7 +53,7 @@ export function ModuleOverview({
 
       {/* Lessons list */}
       <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--admin-border)]">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-[var(--admin-border)]">
           <h3 className="text-sm font-semibold text-[var(--admin-text)]">{t("lessons") || "Lessons"}</h3>
           <button
             type="button"
@@ -65,7 +65,7 @@ export function ModuleOverview({
           </button>
         </div>
         {module.lessons.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-[var(--admin-muted)]">
+          <div className="px-4 py-6 sm:py-8 text-center text-sm text-[var(--admin-muted)]">
             {t("noLessonsYet") || "No lessons yet."}
           </div>
         ) : (
@@ -75,13 +75,13 @@ export function ModuleOverview({
                 key={lesson.id}
                 type="button"
                 onClick={() => onSelectLesson(lesson.id)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--admin-hover-bg)] transition-colors group"
+                className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-left hover:bg-[var(--admin-hover-bg)] transition-colors group"
               >
-                <span className="text-xs text-[var(--admin-muted)] font-medium w-6 flex-shrink-0">{idx + 1}</span>
+                <span className="text-xs text-[var(--admin-muted)] font-medium w-5 sm:w-6 flex-shrink-0">{idx + 1}</span>
                 <FileText className="h-4 w-4 text-[var(--admin-primary)] flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[var(--admin-text)] truncate">{lesson.title || `${t("untitledLesson") || "Untitled Lesson"} ${idx + 1}`}</p>
-                  <div className="flex items-center gap-3 text-[10px] text-[var(--admin-muted)] mt-0.5">
+                  <div className="flex items-center gap-2 sm:gap-3 text-[10px] text-[var(--admin-muted)] mt-0.5 flex-wrap">
                     <span>{lesson.topics?.length || 0} {t("topics") || "topics"}</span>
                     {lesson.topics && lesson.topics.length > 0 && (
                       <span className="flex items-center gap-0.5">
@@ -100,7 +100,7 @@ export function ModuleOverview({
 
       {/* Exam section */}
       <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--admin-border)]">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-[var(--admin-border)]">
           <h3 className="text-sm font-semibold text-[var(--admin-text)]">{t("moduleExam") || "Module Exam"}</h3>
           {!module.exam && (
             <button
@@ -117,7 +117,7 @@ export function ModuleOverview({
           <button
             type="button"
             onClick={onSelectExam}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--admin-hover-bg)] transition-colors group"
+            className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-left hover:bg-[var(--admin-hover-bg)] transition-colors group"
           >
             <ClipboardList className="h-4 w-4 text-[var(--admin-secondary)] flex-shrink-0" />
             <div className="flex-1 min-w-0">
@@ -127,7 +127,7 @@ export function ModuleOverview({
             <ChevronRight className="h-4 w-4 text-[var(--admin-muted)] group-hover:text-[var(--admin-text)] transition-colors flex-shrink-0" />
           </button>
         ) : (
-          <div className="px-4 py-6 text-center text-sm text-[var(--admin-muted)]">
+          <div className="px-4 py-5 sm:py-6 text-center text-sm text-[var(--admin-muted)]">
             {t("noExamCreated") || "No Exam Created"}
           </div>
         )}

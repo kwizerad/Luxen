@@ -494,7 +494,7 @@ export function CourseTree({
   }
 
   return (
-    <aside className="course-tree-sidebar w-full lg:w-80 flex-shrink-0 p-4 flex flex-col gap-3 overflow-hidden">
+    <aside className="course-tree-sidebar w-full lg:w-80 flex-shrink-0 p-3 sm:p-4 flex flex-col gap-3 overflow-hidden">
       <div className="flex items-center justify-between">
         <h2 className="admin-card-title flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-[var(--admin-primary)]" />

@@ -21,7 +21,6 @@ import {
   type Notification,
 } from "@/lib/notifications";
 import { createClient } from "@/lib/supabase/client";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useAuth } from "@/lib/auth-context";
 import { isAdmin } from "@/lib/permissions";
 import { useLanguage } from "@/lib/language-context";
@@ -85,15 +84,11 @@ export function NotificationsDropdown() {
   const [open, setOpen] = useState(false);
   const fetchNotifications = useCallback(async () => {
     try {
-      console.log('Fetching notifications...');
       const data = await getNotifications();
-      console.log('Fetched notifications:', data);
       setNotifications(data.notifications || []);
       setUnreadCount(data.unread_count || 0);
     } catch (error: any) {
       console.error('Error fetching notifications:', error);
-      console.error('Error details:', error.message);
-      // Set empty state on error so loading stops
       setNotifications([]);
       setUnreadCount(0);
     } finally {
@@ -105,24 +100,18 @@ export function NotificationsDropdown() {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const channelNameRef = useRef<string>("");
   const userRef = useRef(user);
-
   useEffect(() => {
     userRef.current = user;
   }, [user]);
 
-  // Real-time subscription
+  // Real-time subscription — single instance, unique channel name per mount
   useEffect(() => {
     if (!user?.id || typeof window === "undefined") return;
-    if (channelRef.current) return;
-
-    channelNameRef.current = `notifications-channel-${user.id}-${Date.now()}`;
 
     const supabase = createClient();
     const channel = supabase
-      .channel(channelNameRef.current)
+      .channel(`notif-rt-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
@@ -162,11 +151,7 @@ export function NotificationsDropdown() {
       )
       .subscribe();
 
-    channelRef.current = channel;
-
     return () => {
-      channelRef.current = null;
-      channelNameRef.current = "";
       supabase.removeChannel(channel);
     };
   }, [user?.id]);
@@ -247,12 +232,11 @@ export function NotificationsDropdown() {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+            <span
+              className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none"
             >
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </Badge>
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
           )}
         </Button>
       </DropdownMenuTrigger>

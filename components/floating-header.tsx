@@ -46,34 +46,16 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   }
 
   return (
-    <>
-      {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-4 py-2">
-        <div className={`flex items-center ${isRTL ? 'justify-start' : 'justify-end'} gap-2`}>
-          {/* Notifications */}
-          <div className="premium-glass-panel border rounded-full overflow-hidden">
-            <NotificationsDropdown />
-          </div>
-
-          {/* User Settings */}
-          <div className="premium-glass-panel border rounded-full overflow-hidden">
-            <FloatingUserSettings user={user} onMobile adminMode={adminMode} />
-          </div>
-        </div>
+    <div
+      className={`fixed top-2 md:top-4 ${isRTL ? "left-2 md:left-4" : "right-2 md:right-4"} z-50 flex items-center gap-2`}
+    >
+      <div className="premium-glass-panel border rounded-full overflow-hidden transition-all hover:shadow-glow dark:hover:shadow-glow-dark">
+        <NotificationsDropdown />
       </div>
 
-      {/* Desktop Header - Top Right/Left based on RTL */}
-      <div className={`hidden md:flex fixed top-4 ${isRTL ? 'left-4' : 'right-4'} z-50 items-center gap-3`}>
-        {/* Notifications */}
-        <div className="premium-glass-panel border rounded-full overflow-hidden transition-all hover:shadow-glow dark:hover:shadow-glow-dark">
-          <NotificationsDropdown />
-        </div>
-
-        {/* User Settings */}
-        <div className="premium-glass-panel border rounded-full overflow-hidden transition-all hover:shadow-glow dark:hover:shadow-glow-dark">
-          <FloatingUserSettings user={user} adminMode={adminMode} />
-        </div>
+      <div className="premium-glass-panel border rounded-full overflow-hidden transition-all hover:shadow-glow dark:hover:shadow-glow-dark">
+        <FloatingUserSettings user={user} adminMode={adminMode} />
       </div>
-    </>
+    </div>
   );
 }

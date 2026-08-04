@@ -163,40 +163,40 @@ export function UserProfileDrawer({
     <Sheet open={open} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
         <ScrollArea className="h-full">
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
             {/* Header */}
             <SheetHeader className="text-left space-y-4">
-              <div className="flex items-start gap-4">
-                <Avatar className="h-20 w-20">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <Avatar className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0">
                   <AvatarImage src={user.avatar_url} alt={user.full_name || user.email} />
-                  <AvatarFallback className="text-2xl">{getInitials()}</AvatarFallback>
+                  <AvatarFallback className="text-xl sm:text-2xl">{getInitials()}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <SheetTitle className="text-2xl truncate">
+                  <SheetTitle className="text-xl sm:text-2xl truncate">
                     {user.full_name || user.username || t("unknown")}
                   </SheetTitle>
-                  <SheetDescription className="flex items-center gap-2 mt-1">
-                    <Mail className="h-4 w-4" />
-                    {user.email || t("noEmail")}
+                  <SheetDescription className="flex items-center gap-1.5 sm:gap-2 mt-1 text-sm">
+                    <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <span className="truncate">{user.email || t("noEmail")}</span>
                   </SheetDescription>
-                  <div className="flex gap-2 mt-2 flex-wrap">
+                  <div className="flex gap-1.5 sm:gap-2 mt-2 flex-wrap">
                     {user.banned ? (
-                      <Badge variant="destructive" className="gap-1">
+                      <Badge variant="destructive" className="gap-1 text-xs">
                         <Ban className="h-3 w-3" />
                         {t("suspended")}
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="gap-1 text-green-600 border-green-600/20">
+                      <Badge variant="outline" className="gap-1 text-green-600 border-green-600/20 text-xs">
                         <CheckCircle className="h-3 w-3" />
                         {t("active")}
                       </Badge>
                     )}
-                    <Badge variant={user.role === "Admin" ? "default" : "secondary"}>
+                    <Badge variant={user.role === "Admin" ? "default" : "secondary"} className="text-xs">
                       <Shield className="h-3 w-3 mr-1" />
                       {user.role === "Admin" ? t("admin") : t("student")}
                     </Badge>
                     {user.is_online && (
-                      <Badge variant="outline" className="gap-1 text-green-600 border-green-600/20">
+                      <Badge variant="outline" className="gap-1 text-green-600 border-green-600/20 text-xs">
                         <span className="h-1.5 w-1.5 rounded-full bg-green-600 animate-pulse" />
                         {t("online")}
                       </Badge>
@@ -206,36 +206,36 @@ export function UserProfileDrawer({
               </div>
 
               <div className="flex gap-2 flex-wrap">
-                <Button size="sm" variant="outline" onClick={() => onPerformance(user)}>
-                  <Trophy className="h-4 w-4 mr-2" />
+                <Button size="sm" variant="outline" onClick={() => onPerformance(user)} className="h-8 text-xs sm:text-sm">
+                  <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   {t("performance")}
                 </Button>
                 {user.role === "Student" && (
                   <>
-                    <Button size="sm" variant="outline" onClick={() => onExamLimit(user)}>
-                      <Hash className="h-4 w-4 mr-2" />
+                    <Button size="sm" variant="outline" onClick={() => onExamLimit(user)} className="h-8 text-xs sm:text-sm">
+                      <Hash className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                       {t("setExamLimit")}
                     </Button>
                     {user.banned ? (
-                      <Button size="sm" variant="outline" onClick={() => onActivate(user)}>
-                        <CheckCircle className="h-4 w-4 mr-2" />
+                      <Button size="sm" variant="outline" onClick={() => onActivate(user)} className="h-8 text-xs sm:text-sm">
+                        <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                         {t("activate")}
                       </Button>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={() => onSuspend(user)}>
-                        <Ban className="h-4 w-4 mr-2" />
+                      <Button size="sm" variant="outline" onClick={() => onSuspend(user)} className="h-8 text-xs sm:text-sm">
+                        <Ban className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                         {t("suspend")}
                       </Button>
                     )}
-                    <Button size="sm" variant="outline" onClick={() => onDelete(user)}>
-                      <Trash2 className="h-4 w-4 mr-2" />
+                    <Button size="sm" variant="outline" onClick={() => onDelete(user)} className="h-8 text-xs sm:text-sm text-destructive hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                       {t("delete")}
                     </Button>
                   </>
                 )}
                 {user.role === "Admin" && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground px-2">
-                    <Shield className="h-4 w-4" />
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground px-2 py-1 rounded-lg bg-muted/40">
+                    <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     Admin actions restricted
                   </div>
                 )}
@@ -246,14 +246,14 @@ export function UserProfileDrawer({
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="w-full justify-start rounded-xl h-auto flex-wrap p-1 gap-1">
                 {[
-                  { id: "info", label: t("personalInformation"), icon: <User className="h-4 w-4" /> },
-                  { id: "progress", label: t("learningProgress"), icon: <Trophy className="h-4 w-4" /> },
-                  { id: "activity", label: t("activity"), icon: <Activity className="h-4 w-4" /> },
-                  { id: "security", label: t("security"), icon: <Shield className="h-4 w-4" /> },
-                  { id: "device", label: t("deviceInfo"), icon: <Monitor className="h-4 w-4" /> },
-                  { id: "nationalIds", label: t("nationalIds"), icon: <Hash className="h-4 w-4" /> },
+                  { id: "info", label: t("personalInformation"), icon: <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "progress", label: t("learningProgress"), icon: <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "activity", label: t("activity"), icon: <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "security", label: t("security"), icon: <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "device", label: t("deviceInfo"), icon: <Monitor className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "nationalIds", label: t("nationalIds"), icon: <Hash className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
                 ].map((tab) => (
-                  <TabsTrigger key={tab.id} value={tab.id} className="gap-1 rounded-lg">
+                  <TabsTrigger key={tab.id} value={tab.id} className="gap-1 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm">
                     {tab.icon}
                     <span className="hidden sm:inline">{tab.label}</span>
                   </TabsTrigger>
@@ -261,8 +261,8 @@ export function UserProfileDrawer({
               </TabsList>
 
               <AnimatePresence mode="wait">
-                <TabsContent value="info" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <TabsContent value="info" className="space-y-3 sm:space-y-4 mt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <InfoItem icon={<Hash className="h-4 w-4" />} label={t("userId")} value={user.id} mono />
                     <InfoItem icon={<User className="h-4 w-4" />} label={t("username")} value={user.username} />
                     <InfoItem icon={<Calendar className="h-4 w-4" />} label={t("joined")} value={formatDate(user.created_at)} />
@@ -274,7 +274,7 @@ export function UserProfileDrawer({
                   </div>
                 </TabsContent>
 
-                <TabsContent value="progress" className="space-y-4 mt-4">
+                <TabsContent value="progress" className="space-y-3 sm:space-y-4 mt-4">
                   {loading ? (
                     <LoadingState />
                   ) : progress.length === 0 ? (
@@ -282,14 +282,14 @@ export function UserProfileDrawer({
                   ) : (
                     <div className="space-y-3">
                       {progress.map((p: UserProgressSummary) => (
-                        <div key={p.id} className="p-4 border rounded-xl bg-muted/30">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-medium">{p.moduleTitle}</span>
-                            <Badge variant={p.examPassed ? "default" : "secondary"}>
+                        <div key={p.id} className="p-3 sm:p-4 border rounded-xl bg-muted/30">
+                          <div className="flex justify-between items-center mb-2 gap-2">
+                            <span className="font-medium text-sm truncate">{p.moduleTitle}</span>
+                            <Badge variant={p.examPassed ? "default" : "secondary"} className="text-xs flex-shrink-0">
                               {p.examPassed ? t("passed") : t("inProgress")}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mb-2 flex-wrap">
                             <span>
                               {p.lessonsCompleted} / {p.totalLessons} {t("lessons")}
                             </span>
@@ -309,24 +309,24 @@ export function UserProfileDrawer({
                   )}
                 </TabsContent>
 
-                <TabsContent value="activity" className="space-y-4 mt-4">
+                <TabsContent value="activity" className="space-y-3 sm:space-y-4 mt-4">
                   {loading ? (
                     <LoadingState />
                   ) : activity.length === 0 ? (
                     <EmptyState message={t("noActivityYet")} />
                   ) : (
-                    <div className="relative pl-4 border-l space-y-4">
+                    <div className="relative pl-3 sm:pl-4 border-l space-y-3 sm:space-y-4">
                       {activity.map((item) => (
                         <motion.div
                           key={item.id}
                           initial={{ opacity: 0, x: -8 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className="relative pl-6"
+                          className="relative pl-4 sm:pl-6"
                         >
-                          <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-background" />
+                          <span className="absolute -left-[17px] sm:-left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-background" />
                           <p className="font-medium text-sm">{item.title}</p>
                           {item.description && (
-                            <p className="text-sm text-muted-foreground">{item.description}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{item.description}</p>
                           )}
                           <p className="text-xs text-muted-foreground mt-1">{formatDate(item.created_at)}</p>
                         </motion.div>
@@ -335,8 +335,8 @@ export function UserProfileDrawer({
                   )}
                 </TabsContent>
 
-                <TabsContent value="security" className="space-y-4 mt-4">
-                  <div className="grid gap-3">
+                <TabsContent value="security" className="space-y-3 sm:space-y-4 mt-4">
+                  <div className="grid gap-2.5 sm:gap-3">
                     <SecurityItem
                       icon={<Key className="h-4 w-4" />}
                       label={resetLoading ? t("sending") : t("resetPassword")}
@@ -362,8 +362,8 @@ export function UserProfileDrawer({
                   <DeviceInfoTab user={user} />
                 </TabsContent>
 
-                <TabsContent value="nationalIds" className="space-y-4 mt-4">
-                  <div className="rounded-xl border bg-muted/30 p-4">
+                <TabsContent value="nationalIds" className="space-y-3 sm:space-y-4 mt-4">
+                  <div className="rounded-xl border bg-muted/30 p-3 sm:p-4">
                     <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
                       <Hash className="h-4 w-4 text-muted-foreground" />
                       {t("nationalIds")}
@@ -377,10 +377,10 @@ export function UserProfileDrawer({
                         {nationalIdRecords.map((record) => (
                           <div
                             key={record.id}
-                            className="flex items-center justify-between p-3 rounded-lg border bg-background"
+                            className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg border bg-background gap-2"
                           >
-                            <span className="font-mono text-sm">{record.national_id}</span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="font-mono text-xs sm:text-sm truncate">{record.national_id}</span>
+                            <span className="text-xs text-muted-foreground flex-shrink-0">
                               {formatDate(record.created_at)}
                             </span>
                           </div>
@@ -396,16 +396,16 @@ export function UserProfileDrawer({
 
         {/* Send Notification Dialog */}
         <Dialog open={notifyOpen} onOpenChange={setNotifyOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md p-4 sm:p-6">
             <DialogHeader>
-              <DialogTitle>{t("sendNotification")}</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-base sm:text-lg">{t("sendNotification")}</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
                 {t("sendNotificationDesc")}
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSendNotification} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="notify-title">{t("title")}</Label>
+            <form onSubmit={handleSendNotification} className="space-y-3 sm:space-y-4">
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="notify-title" className="text-xs sm:text-sm">{t("title")}</Label>
                 <Input
                   id="notify-title"
                   value={notifyTitle}
@@ -413,10 +413,11 @@ export function UserProfileDrawer({
                   placeholder={t("notificationTitlePlaceholder")}
                   required
                   disabled={notifyLoading}
+                  className="h-9 sm:h-10 text-sm"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="notify-message">{t("message")}</Label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="notify-message" className="text-xs sm:text-sm">{t("message")}</Label>
                 <Textarea
                   id="notify-message"
                   value={notifyMessage}
@@ -425,13 +426,14 @@ export function UserProfileDrawer({
                   rows={4}
                   required
                   disabled={notifyLoading}
+                  className="text-sm"
                 />
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setNotifyOpen(false)} disabled={notifyLoading}>
+                <Button type="button" variant="outline" onClick={() => setNotifyOpen(false)} disabled={notifyLoading} className="h-9 text-sm">
                   {t("cancel")}
                 </Button>
-                <Button type="submit" disabled={notifyLoading || !notifyTitle.trim() || !notifyMessage.trim()}>
+                <Button type="submit" disabled={notifyLoading || !notifyTitle.trim() || !notifyMessage.trim()} className="h-9 text-sm">
                   {notifyLoading ? t("sending") : t("send")}
                 </Button>
               </DialogFooter>
@@ -455,11 +457,11 @@ function InfoItem({
   mono?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
-      <div className="text-muted-foreground mt-0.5">{icon}</div>
+    <div className="flex items-start gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-lg border bg-muted/30">
+      <div className="text-muted-foreground mt-0.5 flex-shrink-0">{icon}</div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
-        <p className={`text-sm font-medium break-words ${mono ? "font-mono text-xs" : ""}`}>
+        <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className={`text-xs sm:text-sm font-medium break-words mt-0.5 ${mono ? "font-mono" : ""}`}>
           {value || "—"}
         </p>
       </div>
@@ -479,7 +481,7 @@ function SecurityItem({
   disabled?: boolean;
 }) {
   return (
-    <Button variant="outline" className="w-full justify-start gap-2" onClick={onClick} disabled={disabled}>
+    <Button variant="outline" className="w-full justify-start gap-2 h-9 sm:h-10 text-xs sm:text-sm" onClick={onClick} disabled={disabled}>
       {icon}
       {label}
     </Button>
@@ -488,7 +490,7 @@ function SecurityItem({
 
 function LoadingState() {
   return (
-    <div className="flex items-center justify-center h-32 text-muted-foreground">
+    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
       <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
       Loading...
     </div>
@@ -498,7 +500,7 @@ function LoadingState() {
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm">
-      <Activity className="h-8 w-8 mb-2 opacity-50" />
+      <Activity className="h-7 w-7 sm:h-8 sm:w-8 mb-2 opacity-40" />
       {message}
     </div>
   );

@@ -244,9 +244,9 @@ export function CourseManagementView() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="admin-card !rounded-[5px] p-5 space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="admin-card !rounded-[5px] p-4 sm:p-5 space-y-4">
             <div className="admin-skeleton h-6 w-40 rounded-[5px]" />
             <div className="admin-skeleton h-4 w-24 rounded-[5px]" />
             <div className="admin-skeleton h-20 w-full rounded-[5px]" />
@@ -258,17 +258,17 @@ export function CourseManagementView() {
 
   if (courses.length === 0) {
     return (
-      <div className="admin-card !rounded-[5px] p-12 flex flex-col items-center justify-center text-center text-[var(--admin-muted)]">
-        <BookOpen className="h-12 w-12 mb-4 opacity-40" />
-        <p>{t("noCoursesFound") || "No courses found."}</p>
+      <div className="admin-card !rounded-[5px] p-8 sm:p-12 flex flex-col items-center justify-center text-center text-[var(--admin-muted)]">
+        <BookOpen className="h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4 opacity-40" />
+        <p className="text-sm sm:text-base">{t("noCoursesFound") || "No courses found."}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Course cards — 3 per row with curved corners */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Course cards — responsive grid with curved corners */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
         {courses.map((course) => {
           const isPublished = course.status === "published";
           const isDraft = course.status === "draft";
@@ -280,7 +280,7 @@ export function CourseManagementView() {
             <div
               key={course.id}
               className={
-                "admin-card !rounded-[5px] p-5 flex flex-col gap-4 cursor-pointer transition-[border-color,box-shadow] duration-250 " +
+                "admin-card !rounded-[5px] p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 cursor-pointer transition-[border-color,box-shadow] duration-250 " +
                 (isActive ? "!border-[var(--admin-primary)] ring-1 ring-[var(--admin-primary)] " : "") +
                 (isPublished
                   ? "!border-green-500/40 hover:!border-green-500/60 shadow-[0_0_24px_rgba(34,197,94,0.15)]"
@@ -293,8 +293,8 @@ export function CourseManagementView() {
               {/* Header: title + status badge + actions */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <h3 className={`text-lg font-semibold flex items-center gap-2 ${titleColor}`}>
-                    <BookOpen className={`h-5 w-5 flex-shrink-0 ${isPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-primary)]"}`} />
+                  <h3 className={`text-base sm:text-lg font-semibold flex items-center gap-2 ${titleColor}`}>
+                    <BookOpen className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${isPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-primary)]"}`} />
                     <span className="truncate">{course.title}</span>
                   </h3>
                   <div className="flex items-center gap-2 mt-1.5">
@@ -371,11 +371,11 @@ export function CourseManagementView() {
               </div>
 
               {/* Description + stats row */}
-              <div className="flex flex-col gap-3">
-                <p className={`text-sm line-clamp-2 ${mutedColor}`}>
+              <div className="flex flex-col gap-2.5 sm:gap-3">
+                <p className={`text-xs sm:text-sm line-clamp-2 ${mutedColor}`}>
                   {course.description || t("noDescription") || "No description"}
                 </p>
-                <div className="flex items-center gap-3 text-[11px] text-[var(--admin-muted)] flex-wrap">
+                <div className="flex items-center gap-2 sm:gap-3 text-[11px] text-[var(--admin-muted)] flex-wrap">
                   <span className="flex items-center gap-1"><Layers className="h-3.5 w-3.5 text-[var(--admin-primary)]" />{course.moduleCount} {t("modules") || "Modules"}</span>
                   <span className="flex items-center gap-1"><FileText className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />{course.lessonCount} {t("lessons") || "Lessons"}</span>
                   <span className="flex items-center gap-1"><Globe className="h-3.5 w-3.5" />{languageLabel(course.language as CourseLanguage)}</span>
@@ -389,14 +389,14 @@ export function CourseManagementView() {
                   variant="outline"
                   size="sm"
                   onClick={() => toggleCourseExpand(course.id)}
-                  className="gap-1.5"
+                  className="gap-1.5 flex-1 sm:flex-none justify-center sm:justify-start"
                 >
                   {isActive ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  {isActive ? (t("hideModules") || "Hide Modules") : (t("viewModules") || "View Modules")}
+                  <span className="truncate">{isActive ? (t("hideModules") || "Hide Modules") : (t("viewModules") || "View Modules")}</span>
                 </Button>
-                <Link href={`/Admin/course?tab=studio&courseId=${course.id}`}>
-                  <Button type="button" variant="outline" size="sm" className="gap-1.5">
-                    <Pencil className="h-3.5 w-3.5" />
+                <Link href={`/Admin/course?tab=studio&courseId=${course.id}`} className="flex-1 sm:flex-none">
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5 w-full justify-center sm:justify-start">
+                    <Pencil className="h-3.5 w-3.5 flex-shrink-0" />
                     {t("manage") || "Manage"}
                   </Button>
                 </Link>
@@ -415,10 +415,10 @@ export function CourseManagementView() {
         return (
           <div className="admin-card !rounded-[5px] overflow-hidden">
             {/* Table header */}
-            <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-[var(--admin-border)]">
+            <div className="flex items-center justify-between gap-2 px-4 sm:px-5 py-3 sm:py-4 border-b border-[var(--admin-border)]">
               <div className="flex items-center gap-2 min-w-0">
-                <BookOpen className={`h-5 w-5 flex-shrink-0 ${isPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-primary)]"}`} />
-                <h3 className="text-lg font-semibold truncate text-[var(--admin-text)]">
+                <BookOpen className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${isPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-primary)]"}`} />
+                <h3 className="text-base sm:text-lg font-semibold truncate text-[var(--admin-text)]">
                   {course?.title} — {t("modules") || "Modules"}
                 </h3>
               </div>
@@ -435,7 +435,7 @@ export function CourseManagementView() {
 
             {/* Loading state */}
             {loadingModules === expandedCourseId && (
-              <div className="p-6 flex items-center gap-2 text-sm text-[var(--admin-muted)]">
+              <div className="p-4 sm:p-6 flex items-center gap-2 text-sm text-[var(--admin-muted)]">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 {t("loading") || "Loading..."}
               </div>
@@ -443,7 +443,7 @@ export function CourseManagementView() {
 
             {/* Empty state */}
             {modules.length === 0 && loadingModules !== expandedCourseId && (
-              <div className="p-8 text-center text-sm text-[var(--admin-muted)]">
+              <div className="p-6 sm:p-8 text-center text-sm text-[var(--admin-muted)]">
                 {t("noModulesYet") || "No modules yet."}
               </div>
             )}
@@ -454,11 +454,11 @@ export function CourseManagementView() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[var(--admin-border)] text-[var(--admin-muted)] text-xs">
-                      <th className="text-left font-medium px-4 py-2.5">{t("moduleName") || "Module / Lesson Name"}</th>
+                      <th className="text-left font-medium px-3 sm:px-4 py-2.5">{t("moduleName") || "Module / Lesson Name"}</th>
                       <th className="text-center font-medium px-3 py-2.5 hidden sm:table-cell">{t("totalLessons") || "Lessons / Topics"}</th>
-                      <th className="text-center font-medium px-3 py-2.5">{t("status") || "Status"}</th>
+                      <th className="text-center font-medium px-2 sm:px-3 py-2.5">{t("status") || "Status"}</th>
                       <th className="text-left font-medium px-3 py-2.5 hidden md:table-cell">{t("createdAt") || "Created At"}</th>
-                      <th className="text-right font-medium px-4 py-2.5">{t("actions") || "Actions"}</th>
+                      <th className="text-right font-medium px-3 sm:px-4 py-2.5">{t("actions") || "Actions"}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -475,7 +475,7 @@ export function CourseManagementView() {
                             className="border-b border-[var(--admin-border)] hover:bg-[var(--admin-hover-bg)] transition-colors cursor-pointer"
                             onClick={() => toggleModuleExpand(mod.id)}
                           >
-                            <td className="px-4 py-3">
+                            <td className="px-3 sm:px-4 py-3">
                               <div className="flex items-center gap-2">
                                 {isModExpanded ? (
                                   <ChevronDown className="h-4 w-4 text-[var(--admin-muted)] flex-shrink-0" />
@@ -489,7 +489,7 @@ export function CourseManagementView() {
                             <td className="px-3 py-3 text-center hidden sm:table-cell">
                               <span className="text-xs text-[var(--admin-muted)]">{mod.lessons.length} {t("lessons") || "lessons"}</span>
                             </td>
-                            <td className="px-3 py-3 text-center">
+                            <td className="px-2 sm:px-3 py-3 text-center">
                               <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${modPublished ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-[var(--admin-hover-bg)] text-[var(--admin-muted)]"}`}>
                                 {modPublished ? <Globe className="h-2.5 w-2.5" /> : <Lock className="h-2.5 w-2.5" />}
                                 {modPublished ? (t("published") || "Published") : (t("draft") || "Draft")}
@@ -498,7 +498,7 @@ export function CourseManagementView() {
                             <td className="px-3 py-3 text-xs text-[var(--admin-muted)] hidden md:table-cell">
                               {new Date(mod.created_at).toLocaleDateString()}
                             </td>
-                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <td className="px-3 sm:px-4 py-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1">
                                 <Button
                                   type="button"
@@ -568,7 +568,7 @@ export function CourseManagementView() {
                                     key={lesson.id}
                                     className="border-b border-[var(--admin-border)] last:border-b-0 hover:bg-[var(--admin-hover-bg)] transition-colors"
                                   >
-                                    <td className="px-4 py-2.5 pl-10">
+                                    <td className="px-3 sm:px-4 py-2.5 pl-8 sm:pl-10">
                                       <div className="flex items-center gap-2">
                                         <FileText className={`h-3.5 w-3.5 flex-shrink-0 ${lessonPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-muted)]"}`} />
                                         <span className="text-xs truncate text-[var(--admin-text)]">{lesson.title}</span>
@@ -577,7 +577,7 @@ export function CourseManagementView() {
                                     <td className="px-3 py-2.5 text-center hidden sm:table-cell">
                                       <span className="text-xs text-[var(--admin-muted)]">{topicCount} {t("topics") || "topics"}</span>
                                     </td>
-                                    <td className="px-3 py-2.5 text-center">
+                                    <td className="px-2 sm:px-3 py-2.5 text-center">
                                       <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${lessonPublished ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-[var(--admin-hover-bg)] text-[var(--admin-muted)]"}`}>
                                         {lessonPublished ? <Globe className="h-2.5 w-2.5" /> : <Lock className="h-2.5 w-2.5" />}
                                         {lessonPublished ? (t("published") || "Published") : (t("draft") || "Draft")}
@@ -586,7 +586,7 @@ export function CourseManagementView() {
                                     <td className="px-3 py-2.5 text-xs text-[var(--admin-muted)] hidden md:table-cell">
                                       {new Date(lesson.created_at).toLocaleDateString()}
                                     </td>
-                                    <td className="px-4 py-2.5">
+                                    <td className="px-3 sm:px-4 py-2.5">
                                       <div className="flex items-center justify-end gap-1">
                                         <Button
                                           type="button"

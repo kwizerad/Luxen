@@ -330,7 +330,7 @@ export function CourseStudioView() {
   if (coursesLoading) {
     return (
       <div className="h-[calc(100vh-7rem)] flex items-center justify-center admin-card !rounded-[5px] !transform-none hover:!transform-none">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--admin-primary)]" />
+        <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-[var(--admin-primary)]" />
       </div>
     );
   }
@@ -338,7 +338,7 @@ export function CourseStudioView() {
   if (courseLoading) {
     return (
       <div className="h-[calc(100vh-7rem)] flex items-center justify-center admin-card !rounded-[5px] !transform-none hover:!transform-none">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--admin-primary)]" />
+        <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-[var(--admin-primary)]" />
       </div>
     );
   }
@@ -346,12 +346,12 @@ export function CourseStudioView() {
   if (coursesError || courseError) {
     console.error("Course load error:", coursesError || courseError);
     return (
-      <div className="h-[calc(100vh-7rem)] flex flex-col items-center justify-center admin-card !rounded-[5px] !transform-none hover:!transform-none text-center text-[var(--admin-muted)] p-8">
-        <BookOpen className="h-12 w-12 mb-4 opacity-40" />
-        <p className="text-lg font-medium text-[var(--admin-text)] mb-2">
+      <div className="h-[calc(100vh-7rem)] flex flex-col items-center justify-center admin-card !rounded-[5px] !transform-none hover:!transform-none text-center text-[var(--admin-muted)] p-6 sm:p-8">
+        <BookOpen className="h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4 opacity-40" />
+        <p className="text-base sm:text-lg font-medium text-[var(--admin-text)] mb-2">
           {t("failedToLoadCourses") || "Failed to load courses"}
         </p>
-        <p className="text-sm max-w-md">
+        <p className="text-xs sm:text-sm max-w-md">
           {coursesError?.message || courseError?.message || t("unknownError") || "An unknown error occurred."}
         </p>
       </div>
@@ -360,12 +360,12 @@ export function CourseStudioView() {
 
   if (!course && !courseLoading) {
     return (
-      <div className="h-[calc(100vh-7rem)] flex flex-col items-center justify-center admin-card !rounded-[5px] !transform-none hover:!transform-none text-center text-[var(--admin-muted)] p-8">
-        <BookOpen className="h-12 w-12 mb-4 opacity-40" />
-        <p className="text-lg font-medium text-[var(--admin-text)]">
+      <div className="h-[calc(100vh-7rem)] flex flex-col items-center justify-center admin-card !rounded-[5px] !transform-none hover:!transform-none text-center text-[var(--admin-muted)] p-6 sm:p-8">
+        <BookOpen className="h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4 opacity-40" />
+        <p className="text-base sm:text-lg font-medium text-[var(--admin-text)]">
           {t("noCourseSelected") || "No course selected"}
         </p>
-        <p className="text-sm mt-2 max-w-md">
+        <p className="text-xs sm:text-sm mt-2 max-w-md">
           {t("noCourseSelectedHint") || "Make sure the Supabase migration has been applied and the course_languages table contains the default courses."}
         </p>
       </div>
@@ -377,7 +377,7 @@ export function CourseStudioView() {
   return (
     <div className="min-h-[calc(100vh-7rem)] admin-card !rounded-[5px] !transform-none hover:!transform-none flex flex-col lg:flex-row overflow-visible">
       {course && (
-        <div className="lg:sticky lg:top-[48px] lg:h-[calc(100vh-7rem-48px)] lg:flex-shrink-0 lg:self-start lg:overflow-y-auto">
+        <div className="lg:sticky lg:top-[48px] lg:h-[calc(100vh-7rem-48px)] lg:flex-shrink-0 lg:self-start lg:overflow-y-auto border-b lg:border-b-0 lg:border-r border-[var(--admin-border)]">
         <CourseTree
           courses={courses}
           course={course}
@@ -401,7 +401,7 @@ export function CourseStudioView() {
         {course && (
           <>
             {/* Top Action Toolbar */}
-            <div className="sticky top-[48px] z-30 flex flex-wrap items-center gap-2 px-4 py-2.5 min-h-[44px] h-auto border-b border-[var(--admin-border)] bg-[var(--admin-card)]">
+            <div className="sticky top-[48px] z-30 flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] h-auto border-b border-[var(--admin-border)] bg-[var(--admin-card)]">
               <div className="flex-1 min-w-0 overflow-hidden">
                 {renderBreadcrumb()}
               </div>
@@ -436,8 +436,8 @@ export function CourseStudioView() {
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 p-4 sm:p-5">
-              <div className="space-y-4">
+            <div className="flex-1 p-3 sm:p-4 lg:p-5">
+              <div className="space-y-3 sm:space-y-4">
                 {/* Course selection */}
                 {selection.type === "course" && (
                   <CourseOverview
@@ -465,17 +465,17 @@ export function CourseStudioView() {
                 {/* Lesson editor + topic strip */}
                 {selection.type === "lesson" && selectedLesson && (
                   previewMode ? (
-                    <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] p-6 space-y-6">
+                    <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 sm:p-6 space-y-4 sm:space-y-6">
                       <LessonContentView content={selectedLesson.content} />
                       {selectedLesson.topics && selectedLesson.topics.length > 0 && (
-                        <div className="space-y-4 pt-4 border-t border-[var(--admin-border)]">
+                        <div className="space-y-3 sm:space-y-4 pt-4 border-t border-[var(--admin-border)]">
                           {selectedLesson.topics.map((topic, i) => (
                             <div key={topic.id} className="space-y-2">
                               <h3 className="text-sm font-semibold text-[var(--admin-text)] flex items-center gap-2">
                                 <span className="flex h-5 w-5 items-center justify-center rounded bg-[var(--admin-primary)]/15 text-[var(--admin-primary)] text-xs">{i + 1}</span>
                                 {topic.title}
                               </h3>
-                              <div className="pl-7">
+                              <div className="pl-6 sm:pl-7">
                                 <LessonContentView content={topic.content} />
                               </div>
                             </div>
@@ -520,18 +520,18 @@ export function CourseStudioView() {
                 {/* Topic editor */}
                 {selection.type === "topic" && selectedTopic && selectedLesson && (
                   previewMode ? (
-                    <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] p-6 space-y-4">
-                      <div className="flex items-center gap-2 text-[var(--admin-muted)] text-xs">
-                        <FileText className="h-3.5 w-3.5" />
-                        <span>{selectedLesson.title}</span>
+                    <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 sm:p-6 space-y-3 sm:space-y-4">
+                      <div className="flex items-center gap-2 text-[var(--admin-muted)] text-xs flex-wrap">
+                        <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="truncate">{selectedLesson.title}</span>
                         <span>/</span>
-                        <span className="text-[var(--admin-primary)]">{selectedTopic.title}</span>
+                        <span className="text-[var(--admin-primary)] truncate">{selectedTopic.title}</span>
                       </div>
                       <LessonContentView content={selectedTopic.content} />
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-[var(--admin-muted)] text-xs">
+                      <div className="flex items-center gap-2 text-[var(--admin-muted)] text-xs flex-wrap">
                         <button
                           type="button"
                           onClick={() => {
@@ -543,8 +543,8 @@ export function CourseStudioView() {
                         >
                           {t("backToLesson") || "← Back to Lesson"}
                         </button>
-                        <ChevronRight className="h-3 w-3" />
-                        <span className="text-[var(--admin-primary)]">{selectedTopic.title}</span>
+                        <ChevronRight className="h-3 w-3 flex-shrink-0" />
+                        <span className="text-[var(--admin-primary)] truncate">{selectedTopic.title}</span>
                       </div>
                       <LessonEditor
                         lesson={{ ...selectedLesson, content: selectedTopic.content }}
@@ -611,7 +611,7 @@ export function CourseStudioView() {
             </button>
           </aside>
         ) : (
-        <aside className="settings-aside w-full lg:w-72 flex-shrink-0 p-3 flex flex-col gap-2 overflow-hidden border-t lg:border-t-0 lg:border-l border-[var(--admin-border)] lg:sticky lg:top-[48px] lg:h-[calc(100vh-7rem-48px)] lg:self-start lg:overflow-y-auto">
+        <aside className="settings-aside w-full lg:w-72 flex-shrink-0 p-3 sm:p-4 flex flex-col gap-2 overflow-hidden border-t lg:border-t-0 lg:border-l border-[var(--admin-border)] lg:sticky lg:top-[48px] lg:h-[calc(100vh-7rem-48px)] lg:self-start lg:overflow-y-auto">
           <div className="flex items-center justify-between">
             <h2 className="admin-card-title flex items-center gap-2 text-sm">
               {settingsHeader.icon}

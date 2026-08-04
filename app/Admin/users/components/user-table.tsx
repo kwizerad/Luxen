@@ -193,15 +193,15 @@ export function UserTable({
                   <TableCell>
                     <button
                       onClick={() => onView(user)}
-                      className="flex items-center gap-3 text-left hover:underline"
+                      className="flex items-center gap-2.5 sm:gap-3 text-left hover:underline transition-all rounded-lg p-1 -m-1"
                     >
-                      <Avatar className="h-9 w-9">
+                      <Avatar className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0">
                         <AvatarImage src={user.avatar_url} alt={user.full_name || user.email} />
-                        <AvatarFallback>{getInitials(user)}</AvatarFallback>
+                        <AvatarFallback className="text-xs sm:text-sm">{getInitials(user)}</AvatarFallback>
                       </Avatar>
-                      <div>
-                        <div className="font-medium">{user.full_name || user.username || user.email}</div>
-                        {user.username && <div className="text-xs text-muted-foreground">@{user.username}</div>}
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm truncate">{user.full_name || user.username || user.email}</div>
+                        {user.username && <div className="text-xs text-muted-foreground truncate">@{user.username}</div>}
                       </div>
                     </button>
                   </TableCell>

@@ -18,7 +18,7 @@ export function useLoginRecorder() {
       if (!session?.user) return;
       if (sessionStorage.getItem(RECORDED_KEY)) return;
 
-      const deviceInfo = parseDeviceInfo();
+      const deviceInfo = await parseDeviceInfo();
       const authProvider = session.user.app_metadata?.provider || "email";
 
       try {

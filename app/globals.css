@@ -193,7 +193,7 @@
       linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.28));
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(15, 23, 42, 0.14);
+    border: 1px solid rgba(18, 18, 23, 0.14);
     border-radius: 24px;
     transition: border-color 300ms ease, backdrop-filter 300ms ease;
   }
@@ -234,7 +234,7 @@
   .dark .premium-glass-card,
   .dark .glass-card,
   .dark .card-glass {
-    background: rgba(15, 23, 42, 0.92);
+    background: rgba(18, 18, 23, 0.8);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.10);
@@ -248,7 +248,7 @@
 
   .dark .premium-glass-card:hover,
   .dark .glass-card:hover {
-    background: rgba(15, 23, 42, 0.98);
+    background: rgba(18, 18, 23, 0.85);
     border-color: var(--hover-border-color, rgba(255, 255, 255, 0.18));
     backdrop-filter: blur(14px) saturate(200%);
     -webkit-backdrop-filter: blur(14px) saturate(200%);
@@ -263,10 +263,10 @@
       linear-gradient(145deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.25));
     backdrop-filter: blur(28px) saturate(190%);
     -webkit-backdrop-filter: blur(28px) saturate(190%);
-    border-color: rgba(15, 23, 42, 0.12);
+    border-color: rgba(18, 18, 23, 0.12);
     box-shadow:
-      18px 0 55px rgba(15, 23, 42, 0.1),
-      0 12px 35px rgba(15, 23, 42, 0.07);
+      18px 0 55px rgba(18, 18, 23, 0.1),
+      0 12px 35px rgba(18, 18, 23, 0.07);
   }
 
   /* Reflective sheen for panels — light mode only */
@@ -313,8 +313,8 @@
   /* Student nav pill — solid dark background so it stands out from content */
   .student-nav-pill {
     background:
-      linear-gradient(145deg, rgba(15, 23, 42, 0.62), rgba(30, 41, 59, 0.62)) !important;
-    border-color: rgba(15, 23, 42, 0.5) !important;
+      linear-gradient(145deg, rgba(18, 18, 23, 0.62), rgba(30, 30, 35, 0.62)) !important;
+    border-color: rgba(18, 18, 23, 0.5) !important;
   }
 
   .dark .student-nav-pill {
@@ -346,8 +346,8 @@
   /* Admin nav pill — solid dark background so it stands out from content */
   .admin-nav-pill {
     background:
-      linear-gradient(145deg, rgba(15, 23, 42, 0.62), rgba(30, 41, 59, 0.62)) !important;
-    border-color: rgba(15, 23, 42, 0.5) !important;
+      linear-gradient(145deg, rgba(18, 18, 23, 0.62), rgba(30, 30, 35, 0.62)) !important;
+    border-color: rgba(18, 18, 23, 0.5) !important;
   }
 
   .dark .admin-nav-pill {
@@ -812,8 +812,8 @@
   --admin-bg-2: #E2E8F0;
   --admin-card: rgba(255, 255, 255, 0.72);
   --admin-card-hover: rgba(255, 255, 255, 0.85);
-  --admin-border: rgba(15, 23, 42, 0.10);
-  --admin-border-hover: var(--hover-border-color, rgba(15, 23, 42, 0.18));
+  --admin-border: rgba(18, 18, 23, 0.10);
+  --admin-border-hover: var(--hover-border-color, rgba(18, 18, 23, 0.18));
   --admin-text: #0F172A;
   --admin-muted: #64748B;
   --admin-primary: hsl(var(--primary, 221 83% 53%));
@@ -824,12 +824,12 @@
   --admin-danger: #DC2626;
   --admin-glass-bg: rgba(255, 255, 255, 0.72);
   --admin-glass-bg-hover: rgba(255, 255, 255, 0.85);
-  --admin-glass-border: rgba(15, 23, 42, 0.10);
-  --admin-shadow: rgba(15, 23, 42, 0.10);
-  --admin-shadow-soft: rgba(15, 23, 42, 0.06);
+  --admin-glass-border: rgba(18, 18, 23, 0.10);
+  --admin-shadow: rgba(18, 18, 23, 0.10);
+  --admin-shadow-soft: rgba(18, 18, 23, 0.06);
   --admin-input-bg: rgba(255, 255, 255, 0.6);
   --admin-input-bg-focus: rgba(255, 255, 255, 0.85);
-  --admin-hover-bg: rgba(15, 23, 42, 0.04);
+  --admin-hover-bg: rgba(18, 18, 23, 0.04);
   --admin-overlay-bg: rgba(255, 255, 255, 0.92);
   --admin-overlay-bg-strong: rgba(255, 255, 255, 0.95);
 }
@@ -1310,7 +1310,7 @@
 /* ---------- Admin chart tooltip ---------- */
 .admin-chart-tooltip {
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(18, 18, 23, 0.9);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--admin-border);
@@ -1777,7 +1777,7 @@ body.admin-portal-active [role="option"]:focus {
 
 /* Dark mode */
 .dark .premium-dash-card {
-  background: rgba(15, 23, 42, 0.95);
+  background: rgba(18, 18, 23, 0.8);
   border-color: rgba(255, 255, 255, 0.10);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
@@ -1793,14 +1793,14 @@ body.admin-portal-active [role="option"]:focus {
 /* Light mode — Apple-inspired frosted glass */
 :not(.dark) .premium-dash-card {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
-  border-color: rgba(15, 23, 42, 0.08);
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+  border-color: rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
 }
 
 :not(.dark) .premium-dash-card:hover {
-  border-color: rgba(15, 23, 42, 0.14);
+  border-color: rgba(18, 18, 23, 0.14);
   box-shadow:
-    0 20px 50px rgba(15, 23, 42, 0.1),
+    0 20px 50px rgba(18, 18, 23, 0.1),
     0 0 24px rgba(34, 197, 94, 0.08);
 }
 
@@ -1832,7 +1832,7 @@ body.admin-portal-active [role="option"]:focus {
 
 /* Dark mode */
 .dark .premium-kpi-card {
-  background: rgba(15, 23, 42, 0.95);
+  background: rgba(18, 18, 23, 0.8);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   border-color: rgba(255, 255, 255, 0.10);
@@ -1843,7 +1843,7 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 .dark .premium-kpi-card:hover {
-  background: rgba(15, 23, 42, 0.98);
+  background: rgba(18, 18, 23, 0.85);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow:
     0 28px 60px rgba(0, 0, 0, 0.4),
@@ -1854,13 +1854,13 @@ body.admin-portal-active [role="option"]:focus {
 
 :not(.dark) .premium-kpi-card {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
-  border-color: rgba(15, 23, 42, 0.08);
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+  border-color: rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
 }
 
 :not(.dark) .premium-kpi-card:hover {
-  border-color: rgba(15, 23, 42, 0.14);
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.1), 0 0 24px rgba(37, 99, 235, 0.08);
+  border-color: rgba(18, 18, 23, 0.14);
+  box-shadow: 0 20px 50px rgba(18, 18, 23, 0.1), 0 0 24px rgba(37, 99, 235, 0.08);
 }
 
 /* Icon in soft circular gradient background */
@@ -1897,7 +1897,7 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 :not(.dark) .premium-progress-track {
-  background: rgba(15, 23, 42, 0.08);
+  background: rgba(18, 18, 23, 0.08);
 }
 
 .premium-progress-fill {
@@ -2006,18 +2006,18 @@ body.admin-portal-active [role="option"]:focus {
 
 /* Dark mode — visible dark glass */
 .dark .premium-empty-icon {
-  background: rgba(30, 41, 59, 0.3);
+  background: rgba(30, 30, 35, 0.3);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border-color: rgba(51, 65, 85, 0.3);
+  border-color: rgba(45, 45, 50, 0.3);
   box-shadow:
     0 8px 20px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 :not(.dark) .premium-empty-icon {
-  background: rgba(15, 23, 42, 0.04);
-  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(18, 18, 23, 0.04);
+  border-color: rgba(18, 18, 23, 0.08);
 }
 
 /* Premium quick action card */
@@ -2048,7 +2048,7 @@ body.admin-portal-active [role="option"]:focus {
 
 /* Dark mode */
 .dark .premium-quick-action {
-  background: rgba(15, 23, 42, 0.95);
+  background: rgba(18, 18, 23, 0.8);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   border-color: rgba(255, 255, 255, 0.10);
@@ -2059,7 +2059,7 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 .dark .premium-quick-action:hover {
-  background: rgba(15, 23, 42, 0.98);
+  background: rgba(18, 18, 23, 0.85);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow:
     0 28px 60px rgba(0, 0, 0, 0.4),
@@ -2070,13 +2070,13 @@ body.admin-portal-active [role="option"]:focus {
 
 :not(.dark) .premium-quick-action {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
-  border-color: rgba(15, 23, 42, 0.08);
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+  border-color: rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
 }
 
 :not(.dark) .premium-quick-action:hover {
-  border-color: rgba(15, 23, 42, 0.14);
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.1), 0 0 24px rgba(34, 197, 94, 0.08);
+  border-color: rgba(18, 18, 23, 0.14);
+  box-shadow: 0 20px 50px rgba(18, 18, 23, 0.1), 0 0 24px rgba(34, 197, 94, 0.08);
 }
 
 /* Premium quick action primary variant */
@@ -2117,31 +2117,31 @@ body.admin-portal-active [role="option"]:focus {
 
 /* Dark mode — visible dark glass */
 .dark .premium-list-item {
-  background: rgba(30, 41, 59, 0.25);
+  background: rgba(30, 30, 35, 0.25);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border-color: rgba(51, 65, 85, 0.25);
+  border-color: rgba(45, 45, 50, 0.25);
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .dark .premium-list-item:hover {
-  background: rgba(30, 41, 59, 0.4);
-  border-color: rgba(71, 85, 105, 0.4);
+  background: rgba(30, 30, 35, 0.4);
+  border-color: rgba(60, 60, 65, 0.4);
   box-shadow:
     0 6px 16px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 :not(.dark) .premium-list-item {
-  background: rgba(15, 23, 42, 0.02);
-  border-color: rgba(15, 23, 42, 0.04);
+  background: rgba(18, 18, 23, 0.02);
+  border-color: rgba(18, 18, 23, 0.04);
 }
 
 :not(.dark) .premium-list-item:hover {
-  background: rgba(15, 23, 42, 0.04);
-  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(18, 18, 23, 0.04);
+  border-color: rgba(18, 18, 23, 0.08);
 }
 
 /* Premium circular gradient icon backgrounds */
@@ -2222,7 +2222,7 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 :not(.dark) .premium-ring-bg {
-  stroke: rgba(15, 23, 42, 0.08);
+  stroke: rgba(18, 18, 23, 0.08);
 }
 
 .premium-ring-fill {

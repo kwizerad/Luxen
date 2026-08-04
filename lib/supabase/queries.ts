@@ -1062,9 +1062,7 @@ export async function getNotifications(unreadOnly = false, limit = 50) {
   }
 
   // Use OR filter
-  const targetFilter = `or(${orConditions.join(",")})`;
-
-  console.log('Fetching notifications with filter:', targetFilter);
+  const targetFilter = orConditions.join(",");
 
   let query = supabase
     .from("notifications")
@@ -1083,8 +1081,6 @@ export async function getNotifications(unreadOnly = false, limit = 50) {
     console.error('Supabase query error:', error);
     throw error;
   }
-
-  console.log('Raw notifications from DB:', notifications);
 
   // Get read status for each notification
   const { data: readStatuses, error: readError } = await supabase
