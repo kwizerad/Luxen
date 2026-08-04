@@ -66,6 +66,24 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     void isStandaloneExamEnabled().then(setExamEnabled);
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel("system_config_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "system_config", filter: "key=eq.standalone_exam_enabled" },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
+          const newValue = (payload.new as { value?: string } | undefined)?.value;
+          setExamEnabled(newValue === "true");
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {

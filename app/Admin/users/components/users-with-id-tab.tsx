@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { IdCard, ArrowUpDown, RefreshCw, Search, Loader2 } from "lucide-react";
+import { IdCard, ArrowUpDown, Eye, Search, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
 import type { UserWithStatus } from "./types";
@@ -289,11 +289,11 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
                     <TableCell className="text-right">
                       <Button
                         size="sm"
-                        variant="default"
+                        variant="outline"
                         onClick={() => setSelectedUser(user)}
                       >
-                        <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                        {t("update")}
+                        <Eye className="h-3.5 w-3.5 mr-1.5" />
+                        {t("viewDetails")}
                       </Button>
                     </TableCell>
                   </motion.tr>

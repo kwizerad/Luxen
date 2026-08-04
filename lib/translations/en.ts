@@ -1776,6 +1776,11 @@ const en: Record<string, string> = {
   "fetchingInfo": "Fetching info...",
   "noNationalId": "No National ID",
   "fetchInfoError": "Failed to fetch info. Please try again.",
+  "saveAsPng": "Save as PNG",
+  "userDocument": "User Document",
+  "exportingImage": "Exporting...",
+  "imageSavedSuccess": "Image saved successfully",
+  "imageSaveError": "Failed to save image",
 
   // ──────────────────────────────────────────────
   // Device & Session Tracking

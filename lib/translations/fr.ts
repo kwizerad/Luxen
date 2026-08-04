@@ -1313,6 +1313,11 @@ const fr: Record<string, string> = {
   "fetchingInfo": "Récupération des infos...",
   "noNationalId": "Aucun ID National",
   "fetchInfoError": "Échec de récupération des infos. Veuillez réessayer.",
+  "saveAsPng": "Enregistrer en PNG",
+  "userDocument": "Document Utilisateur",
+  "exportingImage": "Exportation...",
+  "imageSavedSuccess": "Image enregistrée avec succès",
+  "imageSaveError": "Échec de l'enregistrement de l'image",
 
   // ──────────────────────────────────────────────
   // Device & Session Tracking

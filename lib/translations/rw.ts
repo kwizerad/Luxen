@@ -1600,6 +1600,11 @@ const rw: Record<string, string> = {
   "fetchingInfo": "Bakusanya amakuru...",
   "noNationalId": "Nta ID y'Igihugu",
   "fetchInfoError": "Byanze kubona amakuru. Ongera mukanye.",
+  "saveAsPng": "Bika nka PNG",
+  "userDocument": "Inyandiko y'Umuturage",
+  "exportingImage": "Kohereza...",
+  "imageSavedSuccess": "Ifoto yabitswe neza",
+  "imageSaveError": "Byanze kubika ifoto",
 
   // ──────────────────────────────────────────────
   // Device & Session Tracking
