@@ -1,5 +1,20 @@
 // Permission types and validation utilities
 
+import { DEFAULT_ADMIN_EMAIL } from "./server-config";
+
+export const PRIMARY_ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
+
+export type PermissionAccess = "none" | "read_only" | "read_write";
+
+export type PermissionSection =
+  | "students"
+  | "courseManagement"
+  | "courseStudio"
+  | "retake"
+  | "exams"
+  | "settings"
+  | "notifications";
+
 export interface User {
   id?: string;
   email?: string | null;
@@ -22,36 +37,44 @@ export interface User {
 }
 
 export interface AdminPermissions {
-  students: {
-    enabled: boolean;
-    access: "read_only" | "read_write" | "none";
-  };
-  examPermissions: {
-    enabled: boolean;
-    canAddQuestions: boolean;
-    canViewQuestions: boolean;
-    canManageSettings: boolean;
-    questionAccess: "read_only" | "read_write" | "none";
-  };
+  students: PermissionAccess;
+  courseManagement: PermissionAccess;
+  courseStudio: PermissionAccess;
+  retake: PermissionAccess;
+  exams: PermissionAccess;
+  settings: PermissionAccess;
+  notifications: PermissionAccess;
 }
 
-export const DEFAULT_PERMISSIONS: AdminPermissions = {
-  students: {
-    enabled: true,
-    access: "read_write",
-  },
-  examPermissions: {
-    enabled: true,
-    canAddQuestions: true,
-    canViewQuestions: true,
-    canManageSettings: true,
-    questionAccess: "read_write",
-  },
+export const ALL_PERMISSIONS: AdminPermissions = {
+  students: "read_write",
+  courseManagement: "read_write",
+  courseStudio: "read_write",
+  retake: "read_write",
+  exams: "read_write",
+  settings: "read_write",
+  notifications: "read_write",
 };
 
-import { DEFAULT_ADMIN_EMAIL } from "./server-config";
+export const NO_PERMISSIONS: AdminPermissions = {
+  students: "none",
+  courseManagement: "none",
+  courseStudio: "none",
+  retake: "none",
+  exams: "none",
+  settings: "none",
+  notifications: "none",
+};
 
-export const PRIMARY_ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
+export const PERMISSION_SECTIONS: { key: PermissionSection; labelKey: string }[] = [
+  { key: "students", labelKey: "permStudents" },
+  { key: "courseManagement", labelKey: "permCourseManagement" },
+  { key: "courseStudio", labelKey: "permCourseStudio" },
+  { key: "retake", labelKey: "permRetake" },
+  { key: "exams", labelKey: "permExams" },
+  { key: "settings", labelKey: "permSettings" },
+  { key: "notifications", labelKey: "permNotifications" },
+];
 
 /**
  * Check if user is the primary admin
@@ -68,93 +91,99 @@ export function isAdmin(user: User | null): boolean {
 }
 
 /**
- * Get user permissions from metadata
+ * Migrate legacy permissions to the new format
  */
-export function getUserPermissions(user: User | null): AdminPermissions {
-  if (isPrimaryAdmin(user)) {
-    // Primary admin has all permissions
+function migratePermissions(raw: any): AdminPermissions {
+  if (!raw) return { ...NO_PERMISSIONS };
+  if (raw.students && typeof raw.students === "object" && "access" in raw.students) {
     return {
-      students: {
-        enabled: true,
-        access: "read_write",
-      },
-      examPermissions: {
-        enabled: true,
-        canAddQuestions: true,
-        canViewQuestions: true,
-        canManageSettings: true,
-        questionAccess: "read_write",
-      },
+      students: raw.students?.access ?? "none",
+      courseManagement: raw.courseManagement ?? "none",
+      courseStudio: raw.courseStudio ?? "none",
+      retake: raw.retake ?? "none",
+      exams: raw.exams ?? "none",
+      settings: raw.settings ?? "none",
+      notifications: raw.notifications ?? "none",
     };
   }
-  
+  // Legacy format: { students: { enabled, access }, examPermissions: { ... } }
+  const legacy = raw as {
+    students?: { enabled?: boolean; access?: PermissionAccess };
+    examPermissions?: { enabled?: boolean; questionAccess?: PermissionAccess; canManageSettings?: boolean };
+  };
   return {
-    ...DEFAULT_PERMISSIONS,
-    ...user?.user_metadata?.permissions,
-    examPermissions: {
-      ...DEFAULT_PERMISSIONS.examPermissions,
-      ...user?.user_metadata?.permissions?.examPermissions,
-    },
+    students: legacy?.students?.enabled ? (legacy.students.access ?? "read_write") : "none",
+    courseManagement: "none",
+    courseStudio: "none",
+    retake: "none",
+    exams: legacy?.examPermissions?.enabled ? (legacy.examPermissions.questionAccess ?? "read_write") : "none",
+    settings: legacy?.examPermissions?.canManageSettings ? "read_write" : "none",
+    notifications: "none",
   };
 }
 
 /**
- * Check if user can view students
+ * Get user permissions from metadata
  */
+export function getUserPermissions(user: User | null): AdminPermissions {
+  if (isPrimaryAdmin(user)) {
+    return { ...ALL_PERMISSIONS };
+  }
+  return migratePermissions(user?.user_metadata?.permissions);
+}
+
+/**
+ * Check if user can access a section at all (read or write)
+ */
+export function canAccess(user: User | null, section: PermissionSection): boolean {
+  return getUserPermissions(user)[section] !== "none";
+}
+
+/**
+ * Check if user has read access to a section
+ */
+export function canRead(user: User | null, section: PermissionSection): boolean {
+  const access = getUserPermissions(user)[section];
+  return access === "read_only" || access === "read_write";
+}
+
+/**
+ * Check if user has write access to a section
+ */
+export function canWrite(user: User | null, section: PermissionSection): boolean {
+  return getUserPermissions(user)[section] === "read_write";
+}
+
+// ── Backward-compatible helpers ──────────────────────────────────────────
+
 export function canViewStudents(user: User | null): boolean {
-  const perms = getUserPermissions(user);
-  return perms.students.enabled;
+  return canAccess(user, "students");
 }
 
-/**
- * Check if user has read-write access to students
- */
 export function hasReadWriteStudentAccess(user: User | null): boolean {
-  const perms = getUserPermissions(user);
-  return perms.students.enabled && perms.students.access === "read_write";
+  return canWrite(user, "students");
 }
 
-/**
- * Check if user has read-only access to students
- */
 export function hasReadOnlyStudentAccess(user: User | null): boolean {
-  const perms = getUserPermissions(user);
-  return perms.students.enabled && perms.students.access === "read_only";
+  return getUserPermissions(user).students === "read_only";
 }
 
-/**
- * Check if user can add questions
- */
 export function canAddQuestions(user: User | null): boolean {
-  const perms = getUserPermissions(user);
-  return perms.examPermissions.enabled && perms.examPermissions.canAddQuestions;
+  return canWrite(user, "exams");
 }
 
-/**
- * Check if user can view questions
- */
 export function canViewQuestions(user: User | null): boolean {
-  const perms = getUserPermissions(user);
-  return perms.examPermissions.enabled && perms.examPermissions.canViewQuestions;
+  return canRead(user, "exams");
 }
 
 export function canManageExamSettings(user: User | null): boolean {
-  const perms = getUserPermissions(user);
-  return perms.examPermissions.enabled && perms.examPermissions.canManageSettings;
+  return canWrite(user, "exams");
 }
 
-/**
- * Check if user has read-write access to questions
- */
 export function hasReadWriteQuestionAccess(user: User | null): boolean {
-  const perms = getUserPermissions(user);
-  return perms.examPermissions.enabled && perms.examPermissions.canViewQuestions && perms.examPermissions.questionAccess === "read_write";
+  return canWrite(user, "exams");
 }
 
-/**
- * Check if user has read-only access to questions
- */
 export function hasReadOnlyQuestionAccess(user: User | null): boolean {
-  const perms = getUserPermissions(user);
-  return perms.examPermissions.enabled && perms.examPermissions.canViewQuestions && perms.examPermissions.questionAccess === "read_only";
+  return getUserPermissions(user).exams === "read_only";
 }

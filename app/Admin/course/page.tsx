@@ -7,6 +7,8 @@ import { useLanguage } from "@/lib/language-context";
 import { CourseManagementView } from "../course-management/CourseManagementView";
 import { CourseStudioView } from "../course-studio/CourseStudioView";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
+import { canAccess, type User as PermUser } from "@/lib/permissions";
 
 type CourseTab = "management" | "studio";
 
@@ -17,6 +19,27 @@ export default function CoursePage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const [currentUser, setCurrentUser] = useState<PermUser | null>(null);
+  const [canViewManagement, setCanViewManagement] = useState(true);
+  const [canViewStudio, setCanViewStudio] = useState(true);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const loadUser = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user as PermUser);
+      const mgmt = canAccess(user as PermUser, "courseManagement");
+      const studio = canAccess(user as PermUser, "courseStudio");
+      setCanViewManagement(mgmt);
+      setCanViewStudio(studio);
+      if (!mgmt && !studio) {
+        router.replace("/Admin");
+      }
+    };
+    loadUser();
+  }, [router]);
 
   const initialTab = (() => {
     const fromUrl = searchParams.get("tab");
@@ -29,6 +52,15 @@ export default function CoursePage() {
   const [tabsVisible, setTabsVisible] = useState(true);
   const lastScrollY = useRef(0);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Adjust active tab if the selected tab is not visible
+  useEffect(() => {
+    if (activeTab === "management" && !canViewManagement && canViewStudio) {
+      switchTab("studio");
+    } else if (activeTab === "studio" && !canViewStudio && canViewManagement) {
+      switchTab("management");
+    }
+  }, [canViewManagement, canViewStudio]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-hide tabs on scroll down, show on scroll up or mouse near top
   useEffect(() => {
@@ -78,8 +110,8 @@ export default function CoursePage() {
   );
 
   const tabs: { id: CourseTab; label: string; icon: typeof BookOpen }[] = [
-    { id: "management", label: t("courseManagementNav") || "Course Management", icon: BookOpen },
-    { id: "studio", label: t("courseStudioNav") || "Course Studio", icon: Layers },
+    ...(canViewManagement ? [{ id: "management" as CourseTab, label: t("courseManagementNav") || "Course Management", icon: BookOpen }] : []),
+    ...(canViewStudio ? [{ id: "studio" as CourseTab, label: t("courseStudioNav") || "Course Studio", icon: Layers }] : []),
   ];
 
   return (
@@ -107,20 +139,24 @@ export default function CoursePage() {
       </div>
 
       {/* Tab panels — both kept mounted to preserve Course Studio state */}
-      <div
-        role="tabpanel"
-        hidden={activeTab !== "management"}
-        aria-hidden={activeTab !== "management"}
-      >
-        <CourseManagementView />
-      </div>
-      <div
-        role="tabpanel"
-        hidden={activeTab !== "studio"}
-        aria-hidden={activeTab !== "studio"}
-      >
-        <CourseStudioView />
-      </div>
+      {canViewManagement && (
+        <div
+          role="tabpanel"
+          hidden={activeTab !== "management"}
+          aria-hidden={activeTab !== "management"}
+        >
+          <CourseManagementView />
+        </div>
+      )}
+      {canViewStudio && (
+        <div
+          role="tabpanel"
+          hidden={activeTab !== "studio"}
+          aria-hidden={activeTab !== "studio"}
+        >
+          <CourseStudioView />
+        </div>
+      )}
     </div>
   );
 }

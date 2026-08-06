@@ -15,6 +15,8 @@ import { useLanguage } from "@/lib/language-context";
 import { Loading } from "@/components/skeletons";
 import { AnimatedCounter } from "@/components/animated-counter";
 import { motion } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
+import { canAccess, type User as PermUser } from "@/lib/permissions";
 import {
   AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -55,12 +57,17 @@ export default function AdminDashboard() {
   const [topPerformers, setTopPerformers] = useState<AdminStats["topPerformers"]>([]);
   const [recentAttempts, setRecentAttempts] = useState<AdminStats["recentAttempts"]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<PermUser | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const loadData = async () => {
       try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        setCurrentUser(user as PermUser);
+
         const result = await getAdminStats();
         if (!result.success) {
           console.error("Failed to load dashboard data:", result.error);
@@ -118,7 +125,7 @@ export default function AdminDashboard() {
       title: t("totalQuestions"),
       value: totalQuestions,
       icon: Activity,
-      href: "/Admin/questions",
+      href: "/Admin/exams",
       color: "#4ADE80",
       bg: "rgba(34, 197, 94, 0.12)",
       trend: "+23%",
@@ -132,7 +139,11 @@ export default function AdminDashboard() {
       bg: "rgba(245, 158, 11, 0.12)",
       trend: t("stable"),
     },
-  ];
+  ].filter((card) => {
+    if (card.href === "/Admin/users") return canAccess(currentUser, "students");
+    if (card.href === "/Admin/exams") return canAccess(currentUser, "exams");
+    return true;
+  });
 
   // Chart data — real weekly activity from the server
   const trafficData = weeklyActivity.length > 0
@@ -156,15 +167,17 @@ export default function AdminDashboard() {
 
   const passRateData = [{ name: "Pass Rate", value: passRate, fill: "#22C55E" }];
 
-  const quickActions = [
-    { href: "/Admin/users", icon: Users, label: t("manageUsers"), desc: t("viewManageAccounts"), color: "#60A5FA", bg: "rgba(37,99,235,0.12)" },
-    { href: "/Admin/exams", icon: FileText, label: t("manageExams"), desc: t("createExamCategories"), color: "#A5B4FC", bg: "rgba(99,102,241,0.12)" },
-    { href: "/Admin/questions", icon: Activity, label: t("manageQuestions"), desc: t("addEditQuestions"), color: "#4ADE80", bg: "rgba(34,197,94,0.12)" },
-    { href: "/Admin/course?tab=management", icon: BookOpen, label: t("courseManagementNav") || "Course Management", desc: t("admin.courseManagement.description") || "Overview of courses and their status.", color: "#2DD4BF", bg: "rgba(45,212,191,0.12)" },
-    { href: "/Admin/course?tab=studio", icon: Layers, label: t("courseStudioNav") || "Course Studio", desc: t("admin.courseStudio.description") || "Build modules and lessons for courses.", color: "#A78BFA", bg: "rgba(167,139,250,0.12)" },
-    { href: "/Admin/notifications", icon: Send, label: t("notifications") || "Notifications", desc: t("sendNotificationsToUsers") || "Send in-app notifications to users.", color: "#F472B6", bg: "rgba(244,114,182,0.12)" },
-    { href: "/Admin/settings", icon: Settings, label: t("settings"), desc: t("updateCredentials"), color: "#FBBF24", bg: "rgba(245,158,11,0.12)" },
+  const allQuickActions = [
+    { href: "/Admin/users", icon: Users, label: t("manageUsers"), desc: t("viewManageAccounts"), color: "#60A5FA", bg: "rgba(37,99,235,0.12)", perm: "students" as const },
+    { href: "/Admin/exams", icon: FileText, label: t("manageExams"), desc: t("createExamCategories"), color: "#A5B4FC", bg: "rgba(99,102,241,0.12)", perm: "exams" as const },
+    { href: "/Admin/exams", icon: Activity, label: t("manageQuestions"), desc: t("addEditQuestions"), color: "#4ADE80", bg: "rgba(34,197,94,0.12)", perm: "exams" as const },
+    { href: "/Admin/course?tab=management", icon: BookOpen, label: t("courseManagementNav") || "Course Management", desc: t("admin.courseManagement.description") || "Overview of courses and their status.", color: "#2DD4BF", bg: "rgba(45,212,191,0.12)", perm: "courseManagement" as const },
+    { href: "/Admin/course?tab=studio", icon: Layers, label: t("courseStudioNav") || "Course Studio", desc: t("admin.courseStudio.description") || "Build modules and lessons for courses.", color: "#A78BFA", bg: "rgba(167,139,250,0.12)", perm: "courseStudio" as const },
+    { href: "/Admin/notifications", icon: Send, label: t("notifications") || "Notifications", desc: t("sendNotificationsToUsers") || "Send in-app notifications to users.", color: "#F472B6", bg: "rgba(244,114,182,0.12)", perm: "notifications" as const },
+    { href: "/Admin/settings", icon: Settings, label: t("settings"), desc: t("updateCredentials"), color: "#FBBF24", bg: "rgba(245,158,11,0.12)", perm: "settings" as const },
   ];
+
+  const quickActions = allQuickActions.filter((action) => canAccess(currentUser, action.perm));
 
   const fadeUp = {
     hidden: { opacity: 0, y: 16 },

@@ -78,6 +78,7 @@ export function useExamSecurity({
   const showResultsRef = useRef(false);
   const cheatingAttemptsRef = useRef(0);
   const fullscreenRetryCountRef = useRef(0);
+  const autoSubmitTriggeredRef = useRef(false);
 
   useEffect(() => {
     isActiveRef.current = isActive;
@@ -86,26 +87,25 @@ export function useExamSecurity({
   const triggerViolation = useCallback(
     (type: ViolationType, message: string, count: number) => {
       if (!settings.violationMeasuresEnabled) return;
+      if (autoSubmitTriggeredRef.current) return;
       setViolationType(type);
       setCheatingWarningMessage(message);
       setShowCheatingWarning(true);
 
+      const shouldAutoSubmit = count >= settings.maxViolations;
+
       if (type === "fullscreen") {
-        if (count < settings.maxViolations) {
+        if (!shouldAutoSubmit) {
           setShowFullscreenWarning(true);
-        } else {
-          setTimeout(() => {
-            toast.error(t("examAutoSubmitted"));
-            onAutoSubmit();
-          }, 3000);
         }
-      } else {
-        if (count >= settings.maxViolations) {
-          setTimeout(() => {
-            toast.error(t("examAutoSubmitted"));
-            onAutoSubmit();
-          }, 3000);
-        }
+      }
+
+      if (shouldAutoSubmit) {
+        autoSubmitTriggeredRef.current = true;
+        setTimeout(() => {
+          toast.error(t("examAutoSubmitted"));
+          onAutoSubmit();
+        }, 3000);
       }
     },
     [t, onAutoSubmit, settings]
@@ -169,14 +169,16 @@ export function useExamSecurity({
     setFullscreenRetryCount(0);
     cheatingAttemptsRef.current = 0;
     fullscreenRetryCountRef.current = 0;
+    autoSubmitTriggeredRef.current = false;
+    showResultsRef.current = false;
   }, []);
 
   // Main security event listeners
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const examActive = () => isActiveRef.current;
-    const resultsShown = () => showResultsRef.current;
+    const examActive = () => isActiveRef.current && !autoSubmitTriggeredRef.current;
+    const resultsShown = () => showResultsRef.current || autoSubmitTriggeredRef.current;
 
     const handleFullscreenChange = () => {
       if (!settings.violationMeasuresEnabled || !settings.fullscreenEnabled || !examActive() || resultsShown()) return;

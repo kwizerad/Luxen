@@ -11,9 +11,10 @@ import { useBrandingConfig } from "@/lib/branding-config";
 import { getExamCategories, getExamForTaking, createExamAttempt, isStandaloneExamEnabled } from "@/lib/supabase/queries";
 import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings } from "@/lib/security-config";
 import { toast } from "sonner";
-import { CardSkeleton } from "@/components/skeletons";
+import { ExamCategorySkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
 import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, HelpCircle, FileText, Play, LogOut, Monitor, Clock, Hash } from "lucide-react";
+import { ExamReview } from "@/components/exam-review";
 import {
   Dialog,
   DialogContent,
@@ -74,7 +75,7 @@ export default function TakeExamPage() {
     if (typeof window === "undefined") return;
     void isStandaloneExamEnabled().then((enabled) => {
       if (!enabled) {
-        router.replace("/dashboard/course");
+        router.replace("/dashboard#course");
         return;
       }
       setAccessChecked(true);
@@ -116,7 +117,23 @@ export default function TakeExamPage() {
   const cheatingAttemptsRef = useRef(cheatingAttempts);
   const fullscreenRetryCountRef = useRef(fullscreenRetryCount);
   const isSubmittingOnExitRef = useRef(isSubmittingOnExit);
+  const submittingExamRef = useRef(false);
+  const showResultsRef = useRef(false);
   const handleSubmitExamRef = useRef<((isAutoSubmit?: boolean) => Promise<void>) | null>(null);
+  const resetRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted && showResultsRef.current) {
+        resetRef.current?.();
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || !accessChecked) return;
@@ -459,6 +476,47 @@ export default function TakeExamPage() {
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [exam, showResults, securitySettings]);
 
+  // Handle back button when viewing results: go to exam categories instead of leaving
+  // Also prevent forward navigation back to exam results after leaving
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!accessChecked || !showResults) return;
+
+    // Push multiple history states so user can't go back to exam questions
+    for (let i = 0; i < 3; i++) {
+      window.history.pushState({ resultsBuffer: true, index: i }, "", window.location.href);
+    }
+
+    const handlePopState = () => {
+      // Reset exam state and replace URL to remove exam from history
+      resetRef.current?.();
+      // Replace the current history entry to prevent forward navigation back to results
+      window.history.replaceState({ categoriesBuffer: true }, "", window.location.href);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [accessChecked, showResults]);
+
+  // Handle back button when on categories page: go to dashboard instead of leaving the site
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!accessChecked || exam || showResults) return;
+
+    window.history.pushState({ categoriesBuffer: true }, "", window.location.href);
+
+    const handlePopState = () => {
+      if (window.location.pathname === "/dashboard/exam") {
+        window.history.pushState({ categoriesBuffer: true }, "", window.location.href);
+      } else {
+        router.replace("/dashboard");
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [accessChecked, exam, showResults, router]);
+
   // Navigate questions with Left/Right arrow keys
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -511,13 +569,16 @@ export default function TakeExamPage() {
       setExamStartTime(Date.now());
       setUserAnswers({});
       setShowResults(false);
+      showResultsRef.current = false;
       setExamResult(null);
       setShowFullscreenWarning(false);
       setFullscreenRetryCount(0);
+      fullscreenRetryCountRef.current = 0;
       setCheatingAttempts(0);
       cheatingAttemptsRef.current = 0;
       setIsSubmittingOnExit(false);
       isSubmittingOnExitRef.current = false;
+      submittingExamRef.current = false;
       
       // Enter full screen mode only if violation measures and fullscreen are enabled
       if (securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled) {
@@ -597,6 +658,8 @@ export default function TakeExamPage() {
 
   const handleSubmitExam = async (isAutoSubmit = false) => {
     if (!exam || !examStartTime) return;
+    if (submittingExamRef.current || showResultsRef.current) return;
+    if (isAutoSubmit && isSubmittingOnExitRef.current) return;
 
     const answeredCount = Object.keys(userAnswers).length;
 
@@ -610,6 +673,10 @@ export default function TakeExamPage() {
     }
 
     setSubmittingExam(true);
+    submittingExamRef.current = true;
+    isSubmittingOnExitRef.current = true;
+    setIsSubmittingOnExit(true);
+    let submitSuccess = false;
     try {
       const durationSeconds = Math.floor((Date.now() - examStartTime) / 1000);
 
@@ -635,6 +702,8 @@ export default function TakeExamPage() {
 
       setExamResult(data.attempt as ExamAttempt);
       setShowResults(true);
+      showResultsRef.current = true;
+      submitSuccess = true;
 
       // Notify admins about the exam submission
       try {
@@ -685,6 +754,11 @@ export default function TakeExamPage() {
       toast.error(`${t("failedToSubmitExam")}: ${message}`);
     } finally {
       setSubmittingExam(false);
+      submittingExamRef.current = false;
+      if (!submitSuccess) {
+        isSubmittingOnExitRef.current = false;
+        setIsSubmittingOnExit(false);
+      }
     }
   };
   handleSubmitExamRef.current = handleSubmitExam;
@@ -696,13 +770,16 @@ export default function TakeExamPage() {
     setExamStartTime(null);
     setUserAnswers({});
     setShowResults(false);
+    showResultsRef.current = false;
     setExamResult(null);
     setShowFullscreenWarning(false);
     setFullscreenRetryCount(0);
+    fullscreenRetryCountRef.current = 0;
     setCheatingAttempts(0);
     cheatingAttemptsRef.current = 0;
     setIsSubmittingOnExit(false);
     isSubmittingOnExitRef.current = false;
+    submittingExamRef.current = false;
     setShowCheatingWarning(false);
     setCheatingWarningMessage("");
     setViolationType("other");
@@ -719,6 +796,15 @@ export default function TakeExamPage() {
     window.dispatchEvent(new CustomEvent('exam-state-change'));
     console.log('Exam reset - exam-active removed');
   };
+  resetRef.current = reset;
+
+  const handleRetake = () => {
+    reset();
+    if (categoryId) {
+      setShowInstructions(true);
+      setInstructionsAccepted(false);
+    }
+  };
 
   const answeredCount = Object.keys(userAnswers).length;
   const progress = exam ? (answeredCount / exam.questions.length) * 100 : 0;
@@ -727,98 +813,12 @@ export default function TakeExamPage() {
 
   if (showResults && examResult) {
     return (
-      <main className="student-page student-page-no-nav relative !mx-auto max-w-5xl">        <Watermark />
-        <div className="flex items-start justify-between gap-2 sm:gap-4">
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-3xl font-bold brand-protected">{t("examResults")}</h1>
-            <p className="text-muted-foreground mt-1 text-xs sm:text-sm">{t("yourPerformanceSummary")}</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={reset} className="shrink-0">
-            <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-            {t("backToExams")}
-          </Button>
-        </div>
-
-        <Card className="border-primary/20 navo-card-brand rounded-[14px] sm:rounded-[24px]">
-          <CardHeader className="p-3 sm:p-6">
-            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-              <Trophy className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
-              {examResult.category_name}
-            </CardTitle>
-            <CardDescription className="text-[11px] sm:text-sm">
-              {t("completedOn")} {examResult.completed_at ? new Date(examResult.completed_at).toLocaleString() : "—"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 sm:space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-              <div className="text-center p-3 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
-                <div className="text-xl sm:text-3xl font-bold text-primary leading-tight">{examResult.score_percentage}%</div>
-                <div className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("score")}</div>
-              </div>
-              <div className="text-center p-3 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
-                <div className="text-xl sm:text-3xl font-bold text-green-600 leading-tight">{examResult.correct_answers}</div>
-                <div className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("correct")}</div>
-              </div>
-              <div className="text-center p-3 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
-                <div className="text-xl sm:text-3xl font-bold text-red-600 leading-tight">{examResult.total_questions - examResult.correct_answers}</div>
-                <div className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("incorrect")}</div>
-              </div>
-              <div className="text-center p-3 sm:p-4 bg-secondary rounded-[10px] sm:rounded-lg">
-                <div className="text-xl sm:text-3xl font-bold leading-tight">{formatTime(examResult.duration_seconds)}</div>
-                <div className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">{t("time")}</div>
-              </div>
-            </div>
-
-            <div className="space-y-2 sm:space-y-3">
-              <h3 className="font-semibold text-sm sm:text-base">{t("answerBreakdown")}</h3>
-              {examResult.answers.map((answer: ExamAnswer, idx: number) => {
-                const question = exam?.questions?.find((q) => q.id === answer.question_id);
-                if (!question) return null;
-                
-                return (
-                  <div key={answer.question_id} className="p-2.5 sm:p-4 border rounded-[10px] sm:rounded-lg">
-                    <div className="flex items-start justify-between gap-2 sm:gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5 sm:mb-2 flex-wrap">
-                          <Badge variant={answer.is_correct ? "default" : "destructive"} className="text-[10px] sm:text-xs">
-                            {answer.is_correct ? (
-                              <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                            ) : (
-                              <XCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                            )}
-                            {answer.is_correct ? t("correct") : t("incorrect")}
-                          </Badge>
-                          <span className="text-[11px] sm:text-sm text-muted-foreground">{t("question")} {idx + 1}</span>
-                        </div>
-                        {question.question && (
-                          <p className="text-xs sm:text-sm mb-1.5 sm:mb-2">{question.question}</p>
-                        )}
-                        <div className="text-xs sm:text-sm">
-                          <span className="text-muted-foreground">{t("yourAnswer")}: </span>
-                          <span className={answer.is_correct ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                            {answer.selected_answer || t("notAnswered")}
-                          </span>
-                          {!answer.is_correct && (
-                            <span className="text-muted-foreground ml-2">
-                              ({t("correctColon")} {question.correct_answer})
-                            </span>
-                          )}
-                        </div>
-                        {question.explanation && (
-                          <div className="mt-1.5 sm:mt-2 p-2 bg-secondary rounded text-xs sm:text-sm">
-                            <span className="font-medium">{t("explanationColon")} </span>
-                            {question.explanation}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+      <ExamReview
+        examResult={examResult}
+        questions={exam?.questions || []}
+        onReset={reset}
+        onRetake={handleRetake}
+      />
     );
   }
 
@@ -860,9 +860,7 @@ export default function TakeExamPage() {
                 // Loading or no exams
                 <div className="text-center py-8">
                   {loadingCategories ? (
-                    <div className="max-w-md mx-auto">
-                      <CardSkeleton lines={4} />
-                    </div>
+                    <ExamCategorySkeleton />
                   ) : (
                     <>
                       <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />

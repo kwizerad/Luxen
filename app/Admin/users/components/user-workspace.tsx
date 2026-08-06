@@ -36,7 +36,9 @@ import { OverviewTab } from "./overview-tab";
 import { AnalyticsTab } from "./analytics-tab";
 import { ActivityTab } from "./activity-tab";
 import { UsersWithIdTab } from "./users-with-id-tab";
+import { AdminRegistrationPanel } from "./admin-registration-panel";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { isPrimaryAdmin } from "@/lib/permissions";
 import { UserExamLimitDialog } from "@/components/user-exam-limit-dialog";
 import { UserPerformanceModal } from "@/components/user-performance-modal";
 import { getAllUsers, getUserStats, getUserGrowth } from "../../actions/users";
@@ -118,6 +120,24 @@ export function UserWorkspace({
     user: UserWithStatus;
   } | null>(null);
   const [performanceUser, setPerformanceUser] = useState<UserWithStatus | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const loadUser = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    loadUser();
+  }, []);
+
+  const userIsPrimaryAdmin = isPrimaryAdmin(currentUser);
+
+  const visibleTabs = TABS.filter((tab) => {
+    if (tab.id === "administrators" && !userIsPrimaryAdmin) return false;
+    return true;
+  });
 
   const refresh = useCallback(() => {
     startRefresh(async () => {
@@ -364,7 +384,7 @@ export function UserWorkspace({
       <div className="relative">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="w-full">
           <TabsList className="w-full justify-start overflow-x-auto h-auto flex-wrap md:flex-nowrap rounded-xl p-1.5 gap-1">
-            {TABS.map((tab) => (
+            {visibleTabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
@@ -497,9 +517,10 @@ export function UserWorkspace({
           {activeTab === "analytics" && <AnalyticsTab users={users} growth={growth} />}
           {activeTab === "activity" && <ActivityTab users={users} />}
           {activeTab === "users-with-id" && <UsersWithIdTab users={users} />}
-          {(activeTab === "all" ||
+          {activeTab === "administrators" && userIsPrimaryAdmin ? (
+            <AdminRegistrationPanel />
+          ) : (activeTab === "all" ||
             activeTab === "students" ||
-            activeTab === "administrators" ||
             activeTab === "online" ||
             activeTab === "suspended" ||
             activeTab === "verification") && (

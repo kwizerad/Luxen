@@ -284,6 +284,7 @@ export interface StudentModuleProgress {
   exam_attempts: number;
   best_score?: number;
   time_spent_seconds: number;
+  exceeded_time_seconds: number;
   completed_at?: string;
   created_at: string;
   updated_at?: string;
@@ -297,6 +298,7 @@ export interface StudentLessonProgress {
   completed: boolean;
   completed_at?: string;
   time_spent_seconds: number;
+  exceeded_time_seconds: number;
   created_at: string;
   updated_at?: string;
 }

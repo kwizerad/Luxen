@@ -41,7 +41,39 @@ export async function GET(
       return NextResponse.json({ error: "Failed to fetch exam attempts" }, { status: 500 });
     }
 
-    return NextResponse.json({ attempts: attempts || [] });
+    // Get user's course progress (lesson + module) with exceeded time
+    const [lessonProgressResult, moduleProgressResult] = await Promise.all([
+      supabase
+        .from("student_lesson_progress")
+        .select("lesson_id, module_id, completed, time_spent_seconds, exceeded_time_seconds")
+        .eq("user_id", userId),
+      supabase
+        .from("student_module_progress")
+        .select("module_id, time_spent_seconds, exceeded_time_seconds, lessons_completed, total_lessons")
+        .eq("user_id", userId),
+    ]);
+
+    const lessonProgress = lessonProgressResult.data || [];
+    const moduleProgress = moduleProgressResult.data || [];
+
+    const totalExceededTime = lessonProgress.reduce(
+      (sum: number, l: { exceeded_time_seconds?: number }) => sum + (l.exceeded_time_seconds || 0),
+      0
+    );
+    const totalTimeSpent = lessonProgress.reduce(
+      (sum: number, l: { time_spent_seconds?: number }) => sum + (l.time_spent_seconds || 0),
+      0
+    );
+
+    return NextResponse.json({
+      attempts: attempts || [],
+      courseProgress: {
+        lessons: lessonProgress,
+        modules: moduleProgress,
+        totalExceededTime,
+        totalTimeSpent,
+      },
+    });
   } catch (error) {
     console.error("Performance data error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

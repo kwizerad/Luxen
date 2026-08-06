@@ -7,7 +7,7 @@ import {
   Settings, ShieldCheck,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
-import { canViewStudents, canAddQuestions } from "@/lib/permissions";
+import { canAccess } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/client";
 import Dock, { type DockItemData } from "@/components/Dock";
 
@@ -21,16 +21,21 @@ export function AdminDockNav({ user, isPrimaryAdmin }: AdminDockNavProps) {
   const router = useRouter();
   const { t } = useLanguage();
 
-  const canViewStudentsTab = canViewStudents(user);
-  const canAddQuestionsTab = canAddQuestions(user);
+  const canViewStudentsTab = canAccess(user, "students");
+  const canViewExamsTab = canAccess(user, "exams");
+  const canViewRetakeTab = canAccess(user, "retake");
+  const canViewSettingsTab = canAccess(user, "settings");
+  const canViewCourseManagement = canAccess(user, "courseManagement");
+  const canViewCourseStudio = canAccess(user, "courseStudio");
+  const canViewCourseTab = canViewCourseManagement || canViewCourseStudio;
 
   const navItems: { href: string; icon: React.ReactNode; label: string }[] = [
     { href: "/Admin", icon: <LayoutDashboard size={18} />, label: t("dashboard") },
-    { href: "/Admin/course", icon: <BookOpen size={18} />, label: t("courseManagementNav") || "Course" },
+    ...(canViewCourseTab ? [{ href: "/Admin/course", icon: <BookOpen size={18} />, label: t("courseManagementNav") || "Course" }] : []),
     ...(canViewStudentsTab ? [{ href: "/Admin/users", icon: <Users size={18} />, label: t("users") }] : []),
-    ...(canAddQuestionsTab ? [{ href: "/Admin/exams", icon: <FileText size={18} />, label: t("examManagementNav") }] : []),
-    ...(canViewStudentsTab ? [{ href: "/Admin/retake-requests", icon: <ShieldCheck size={18} />, label: t("retakeRequests") || "Retakes" }] : []),
-    { href: "/Admin/settings", icon: <Settings size={18} />, label: t("settings") },
+    ...(canViewExamsTab ? [{ href: "/Admin/exams", icon: <FileText size={18} />, label: t("examManagementNav") }] : []),
+    ...(canViewRetakeTab ? [{ href: "/Admin/retake-requests", icon: <ShieldCheck size={18} />, label: t("retakeRequests") || "Retakes" }] : []),
+    ...(canViewSettingsTab ? [{ href: "/Admin/settings", icon: <Settings size={18} />, label: t("settings") }] : []),
   ];
 
   const isNavItemActive = (href: string) => {

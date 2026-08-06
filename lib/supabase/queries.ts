@@ -1783,7 +1783,8 @@ export async function upsertLessonProgress(
   lessonId: string,
   moduleId: string,
   completed: boolean,
-  timeSpentSeconds: number
+  timeSpentSeconds: number,
+  exceededTimeSeconds: number = 0
 ): Promise<void> {
   const supabase = createClient();
   const user = await getAuthUser();
@@ -1791,7 +1792,7 @@ export async function upsertLessonProgress(
 
   const { data: existing } = await supabase
     .from("student_lesson_progress")
-    .select("id, time_spent_seconds")
+    .select("id, time_spent_seconds, exceeded_time_seconds")
     .eq("user_id", user.id)
     .eq("lesson_id", lessonId)
     .maybeSingle();
@@ -1803,6 +1804,7 @@ export async function upsertLessonProgress(
         completed,
         completed_at: completed ? new Date().toISOString() : null,
         time_spent_seconds: (existing.time_spent_seconds || 0) + timeSpentSeconds,
+        exceeded_time_seconds: (existing.exceeded_time_seconds || 0) + exceededTimeSeconds,
         updated_at: new Date().toISOString(),
       })
       .eq("id", existing.id);
@@ -1814,13 +1816,15 @@ export async function upsertLessonProgress(
       completed,
       completed_at: completed ? new Date().toISOString() : null,
       time_spent_seconds: timeSpentSeconds,
+      exceeded_time_seconds: exceededTimeSeconds,
     });
   }
 }
 
 export async function updateModuleTimeSpent(
   moduleId: string,
-  additionalSeconds: number
+  additionalSeconds: number,
+  exceededSeconds: number = 0
 ): Promise<void> {
   const supabase = createClient();
   const user = await getAuthUser();
@@ -1828,7 +1832,7 @@ export async function updateModuleTimeSpent(
 
   const { data: existing } = await supabase
     .from("student_module_progress")
-    .select("id, time_spent_seconds")
+    .select("id, time_spent_seconds, exceeded_time_seconds")
     .eq("user_id", user.id)
     .eq("module_id", moduleId)
     .maybeSingle();
@@ -1838,6 +1842,7 @@ export async function updateModuleTimeSpent(
       .from("student_module_progress")
       .update({
         time_spent_seconds: (existing.time_spent_seconds || 0) + additionalSeconds,
+        exceeded_time_seconds: (existing.exceeded_time_seconds || 0) + exceededSeconds,
         updated_at: new Date().toISOString(),
       })
       .eq("id", existing.id);
@@ -1857,8 +1862,53 @@ export async function updateModuleTimeSpent(
       exam_passed: false,
       exam_attempts: 0,
       time_spent_seconds: additionalSeconds,
+      exceeded_time_seconds: exceededSeconds,
     });
   }
+}
+
+export interface UserCourseProgressData {
+  lessons: Array<{
+    lesson_id: string;
+    module_id: string;
+    completed: boolean;
+    time_spent_seconds: number;
+    exceeded_time_seconds: number;
+  }>;
+  modules: Array<{
+    module_id: string;
+    time_spent_seconds: number;
+    exceeded_time_seconds: number;
+    lessons_completed: number;
+    total_lessons: number;
+  }>;
+  totalExceededTime: number;
+  totalTimeSpent: number;
+}
+
+export async function getUserCourseProgress(userId: string): Promise<UserCourseProgressData> {
+  const supabase = createClient();
+  const admin = await getAuthUser();
+  if (!admin) throw new Error("Not authenticated");
+
+  const [lessonResult, moduleResult] = await Promise.all([
+    supabase
+      .from("student_lesson_progress")
+      .select("lesson_id, module_id, completed, time_spent_seconds, exceeded_time_seconds")
+      .eq("user_id", userId),
+    supabase
+      .from("student_module_progress")
+      .select("module_id, time_spent_seconds, exceeded_time_seconds, lessons_completed, total_lessons")
+      .eq("user_id", userId),
+  ]);
+
+  const lessons = (lessonResult.data || []) as UserCourseProgressData["lessons"];
+  const modules = (moduleResult.data || []) as UserCourseProgressData["modules"];
+
+  const totalExceededTime = lessons.reduce((sum, l) => sum + (l.exceeded_time_seconds || 0), 0);
+  const totalTimeSpent = lessons.reduce((sum, l) => sum + (l.time_spent_seconds || 0), 0);
+
+  return { lessons, modules, totalExceededTime, totalTimeSpent };
 }
 
 export async function canRetakeExam(

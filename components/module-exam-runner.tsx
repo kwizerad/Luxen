@@ -263,8 +263,11 @@ export function ModuleExamRunner({
     }
   }, [touchStart, touchEnd, currentIndex, questions.length]);
 
+  const submittingRef = useRef(false);
+
   const handleSubmitExam = async (isAutoSubmit = false) => {
     if (!examStartTime || !questions.length) return;
+    if (submittingRef.current || showResultsRef.current) return;
 
     const answeredCount = Object.keys(userAnswers).length;
     if (answeredCount === 0 && !isAutoSubmit) {
@@ -272,6 +275,7 @@ export function ModuleExamRunner({
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     showResultsRef.current = true;
     examActiveRef.current = false;
@@ -332,6 +336,7 @@ export function ModuleExamRunner({
       toast.error(`${t("failedToSubmitExam") || "Failed to submit exam"}: ${message}`);
       examActiveRef.current = true;
       showResultsRef.current = false;
+      submittingRef.current = false;
     } finally {
       setSubmitting(false);
     }
@@ -348,6 +353,7 @@ export function ModuleExamRunner({
     setRetakeInfo(null);
     showResultsRef.current = false;
     examActiveRef.current = false;
+    submittingRef.current = false;
     security.resetSecurity();
     setShowInstructions(true);
     setInstructionsAccepted(false);
@@ -375,6 +381,7 @@ export function ModuleExamRunner({
   const reset = () => {
     examActiveRef.current = false;
     showResultsRef.current = false;
+    submittingRef.current = false;
     setQuestions([]);
     setSettings(null);
     setCurrentIndex(0);

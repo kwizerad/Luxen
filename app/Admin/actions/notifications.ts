@@ -181,3 +181,53 @@ export async function deleteNotification(notificationId: string) {
   if (error) throw error;
   return { success: true };
 }
+
+export async function sendNotificationToMultipleUsers(
+  userIds: string[],
+  input: Omit<SendNotificationInput, "target_role" | "target_user_id">
+) {
+  const adminUser = await requireAdmin();
+  const adminSupabase = createAdminClient();
+
+  if (!userIds.length) {
+    throw new Error("At least one recipient is required");
+  }
+
+  const rows = userIds.map((userId) => ({
+    target_user_id: userId,
+    title: input.title,
+    message: input.message,
+    type: input.type || "info",
+    priority: input.priority || "normal",
+    sender_id: adminUser.id,
+    sender_name: adminUser.user_metadata?.full_name || adminUser.email,
+    action_url: input.action_url,
+    related_entity_type: input.related_entity_type,
+    related_entity_id: input.related_entity_id,
+    expires_at: input.expires_at,
+    data: {},
+  }));
+
+  const { data, error } = await adminSupabase
+    .from("notifications")
+    .insert(rows)
+    .select();
+
+  if (error) throw error;
+  return { success: true, count: data?.length || userIds.length };
+}
+
+export async function getStudentsForNotification() {
+  const supabase = await createClient();
+  await requireAdmin();
+  const adminSupabase = createAdminClient();
+
+  const { data, error } = await adminSupabase
+    .from("user_profiles")
+    .select("id, email, full_name, username")
+    .eq("role", "Student")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}

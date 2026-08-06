@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DashboardLayoutSkeleton } from "@/components/skeletons";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
@@ -39,10 +40,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
   }, []);
 
-  // Pages where the inline header (logo + logout) is hidden; only the
-  // FloatingHeader (notifications + user settings) remains.
-  const HIDE_INLINE_HEADER_PATHS = ["/dashboard", "/dashboard/exam", "/dashboard/settings", "/dashboard/course", "/dashboard/services"];
-  const showInlineHeader = !HIDE_INLINE_HEADER_PATHS.includes(pathname);
+  // Prevent back button from leaving the dashboard to the landing page or exiting the site.
+  // Push a buffer history state so there is always an extra entry to absorb the back press.
+  // On popstate: if still on /dashboard, re-push the buffer; if leaving, redirect back.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (pathname !== "/dashboard") return;
+
+    window.history.pushState({ navBuffer: true }, "", window.location.href);
+
+    const handlePopState = () => {
+      if (window.location.pathname === "/dashboard") {
+        window.history.pushState({ navBuffer: true }, "", window.location.href);
+      } else {
+        router.replace("/dashboard" + window.location.hash);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [pathname, router]);
+
+  // Inline header is hidden for all SPA views — they manage their own headers.
+  // It only shows on the exam route (separate Next.js route, not part of the SPA).
+  const showInlineHeader = pathname === "/dashboard/exam";
 
   // Track user activity for real-time online status
   useActivityTracker();
@@ -72,12 +93,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   if (authLoading) {
-    return null;
+    return <DashboardLayoutSkeleton />;
   }
 
   return (
     <div className="bg-transparent" dir={isRTL ? "rtl" : "ltr"}>
-      {/* Inline Header (hidden on /dashboard, /dashboard/exam, /dashboard/settings) */}
+      {/* Inline Header (only shown on exam route, which is outside the SPA) */}
       {showInlineHeader && (
         <div
           id="floating-header"

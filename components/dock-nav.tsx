@@ -1,13 +1,14 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, Trophy, Settings, BookOpen, LayoutList } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { LayoutDashboard, Trophy, Settings, BookOpen, LayoutList } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { isStandaloneExamEnabled } from "@/lib/supabase/queries";
 import { useEffect, useState } from "react";
 import Dock, { type DockItemData } from "@/components/Dock";
+import { useHashRouter } from "@/hooks/use-hash-router";
 
 const LEARNING_LANGUAGES = ["English", "French", "Kinyarwanda"] as const;
 type LearningLanguage = (typeof LEARNING_LANGUAGES)[number];
@@ -16,8 +17,8 @@ const isLearningLanguage = (language: string | null | undefined): language is Le
   !!language && LEARNING_LANGUAGES.includes(language as LearningLanguage);
 
 export function DockNav({ hide = false }: { hide?: boolean } = {}) {
-  const pathname = usePathname();
   const router = useRouter();
+  const { view: hashView, navigate } = useHashRouter();
   const { t, language: interfaceLanguage } = useLanguage();
   const { user } = useAuth();
   const [isExamActive, setIsExamActive] = useState(false);
@@ -109,28 +110,38 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
 
   if (hide || isExamActive) return null;
 
-  const allItems: { href: string; labelKey: string; icon: React.ReactNode }[] = [
-    { href: "/dashboard", labelKey: "home", icon: <LayoutDashboard size={18} /> },
-    { href: "/dashboard/course", labelKey: "courses", icon: <BookOpen size={18} /> },
+  type NavItem = { view?: string; href?: string; labelKey: string; icon: React.ReactNode };
+
+  const allItems: NavItem[] = [
+    { view: "home", labelKey: "home", icon: <LayoutDashboard size={18} /> },
+    { view: "course", labelKey: "courses", icon: <BookOpen size={18} /> },
     ...(examEnabled ? [{ href: "/dashboard/exam", labelKey: "exam", icon: <Trophy size={18} /> }] : []),
-    { href: "/dashboard/services", labelKey: "services", icon: <LayoutList size={18} /> },
-    { href: "/dashboard/settings", labelKey: "settings", icon: <Settings size={18} /> },
+    { view: "services", labelKey: "services", icon: <LayoutList size={18} /> },
+    { view: "settings", labelKey: "settings", icon: <Settings size={18} /> },
   ];
 
   const visibleItems = hasPublishedCourse === true
     ? allItems
-    : allItems.filter((item) => item.href !== "/dashboard/course");
+    : allItems.filter((item) => item.view !== "course");
 
-  const isNavItemActive = (href: string) => {
-    if (href === "/dashboard") return pathname === href;
-    return pathname.startsWith(href);
+  const isNavItemActive = (item: NavItem) => {
+    if (item.href) return false;
+    if (item.view === "home") return hashView === "home" || hashView === "";
+    if (item.view === "services") return hashView === "services" || hashView === "services/live-exam";
+    return hashView === item.view;
   };
 
   const dockItems: DockItemData[] = visibleItems.map((item) => ({
     icon: item.icon,
     label: t(item.labelKey),
-    onClick: () => router.push(item.href),
-    className: isNavItemActive(item.href)
+    onClick: () => {
+      if (item.href) {
+        router.push(item.href);
+      } else if (item.view) {
+        navigate(item.view);
+      }
+    },
+    className: isNavItemActive(item)
       ? "bg-black/10 dark:bg-white/10 text-black dark:text-white border-black/15 dark:border-white/15"
       : "text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-white",
   }));

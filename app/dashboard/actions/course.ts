@@ -84,15 +84,8 @@ export async function loadCourseByLanguage(
 }
 
 // ============================================================================
-// CONTINUE LEARNING
+// COMBINED DASHBOARD DATA (single server action, shared course fetch)
 // ============================================================================
-
-const LEARNING_LANGUAGES = ["English", "French", "Kinyarwanda"] as const;
-type LearningLanguage = (typeof LEARNING_LANGUAGES)[number];
-
-function isLearningLanguage(language: string): language is LearningLanguage {
-  return (LEARNING_LANGUAGES as readonly string[]).includes(language);
-}
 
 export interface ContinueLearningData {
   courseTitle: string;
@@ -103,75 +96,202 @@ export interface ContinueLearningData {
   lessonTitle: string;
 }
 
-export async function getContinueLearningData(
+export interface DashboardStats {
+  lessonsCompleted: number;
+  totalLessons: number;
+  modulesCompleted: number;
+  totalModules: number;
+  progressPercent: number;
+}
+
+const LEARNING_LANGUAGES = ["English", "French", "Kinyarwanda"] as const;
+type LearningLanguage = (typeof LEARNING_LANGUAGES)[number];
+
+function isLearningLanguage(language: string): language is LearningLanguage {
+  return (LEARNING_LANGUAGES as readonly string[]).includes(language);
+}
+
+async function resolveLearningLanguage(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  user: { id: string },
   interfaceLanguage?: string
-): Promise<ContinueLearningData | null> {
+): Promise<LearningLanguage | null> {
+  if (interfaceLanguage && isLearningLanguage(interfaceLanguage)) {
+    return interfaceLanguage;
+  }
+
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("learning_language")
+    .eq("id", user.id)
+    .maybeSingle();
+  const saved = profile?.learning_language;
+  if (saved && isLearningLanguage(saved)) {
+    return saved;
+  }
+
+  for (const lang of LEARNING_LANGUAGES) {
+    const { data } = await supabase
+      .from("course_languages")
+      .select("id")
+      .eq("language", lang)
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .limit(1);
+    if (data && data.length > 0) {
+      return lang;
+    }
+  }
+
+  return null;
+}
+
+export interface DashboardData {
+  continueLearning: ContinueLearningData | null;
+  stats: DashboardStats;
+}
+
+export async function getDashboardData(
+  interfaceLanguage?: string
+): Promise<DashboardData> {
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  // Resolve effective learning language
-  let effectiveLanguage: LearningLanguage | null = null;
-
-  if (interfaceLanguage && isLearningLanguage(interfaceLanguage)) {
-    effectiveLanguage = interfaceLanguage;
+  if (!user) {
+    return {
+      continueLearning: null,
+      stats: {
+        lessonsCompleted: 0,
+        totalLessons: 0,
+        modulesCompleted: 0,
+        totalModules: 0,
+        progressPercent: 0,
+      },
+    };
   }
 
+  const effectiveLanguage = await resolveLearningLanguage(supabase, user, interfaceLanguage);
   if (!effectiveLanguage) {
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("learning_language")
-      .eq("id", user.id)
-      .maybeSingle();
-    const saved = profile?.learning_language;
-    if (saved && isLearningLanguage(saved)) {
-      effectiveLanguage = saved;
-    }
+    return {
+      continueLearning: null,
+      stats: {
+        lessonsCompleted: 0,
+        totalLessons: 0,
+        modulesCompleted: 0,
+        totalModules: 0,
+        progressPercent: 0,
+      },
+    };
   }
 
-  if (!effectiveLanguage) {
-    // Try all learning languages — pick the first that has a published course
-    for (const lang of LEARNING_LANGUAGES) {
-      const { data } = await supabase
-        .from("course_languages")
-        .select("id")
-        .eq("language", lang)
-        .eq("status", "published")
-        .is("deleted_at", null)
-        .limit(1);
-      if (data && data.length > 0) {
-        effectiveLanguage = lang;
-        break;
-      }
-    }
-  }
-
-  if (!effectiveLanguage) return null;
-
-  // Load the course with modules and lessons
+  // Single course fetch — shared by both continue-learning and stats
   const { course } = await loadCourseByLanguage(effectiveLanguage);
-  if (!course || course.modules.length === 0) return null;
+  if (!course || course.modules.length === 0) {
+    return {
+      continueLearning: null,
+      stats: {
+        lessonsCompleted: 0,
+        totalLessons: 0,
+        modulesCompleted: 0,
+        totalModules: 0,
+        progressPercent: 0,
+      },
+    };
+  }
 
   const moduleIds = course.modules.map((m) => m.id);
 
-  // Fetch lesson progress for this user
-  const { data: lessonProgress } = await supabase
-    .from("student_lesson_progress")
-    .select("*")
-    .eq("user_id", user.id)
-    .in("module_id", moduleIds)
-    .order("updated_at", { ascending: false });
+  // Parallel: lesson progress + module progress (need exam_attempts for completion check)
+  const [lessonProgressResult, moduleProgressResult] = await Promise.all([
+    supabase
+      .from("student_lesson_progress")
+      .select("*")
+      .eq("user_id", user.id)
+      .in("module_id", moduleIds)
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("student_module_progress")
+      .select("module_id, exam_attempts")
+      .eq("user_id", user.id)
+      .in("module_id", moduleIds),
+  ]);
 
+  const lessonProgress = lessonProgressResult.data || [];
+  const moduleProgress = moduleProgressResult.data || [];
+
+  // --- Stats (matching course-view calculation) ---
+  const totalModules = course.modules.length;
+
+  // Build lesson progress map: lessonId -> completed
+  const lessonCompletedMap = new Map<string, boolean>();
+  for (const p of lessonProgress) {
+    lessonCompletedMap.set(p.lesson_id, p.completed);
+  }
+
+  // Build module progress map: moduleId -> { examAttempts }
+  const moduleExamAttemptsMap = new Map<string, number>();
+  for (const p of moduleProgress) {
+    moduleExamAttemptsMap.set(p.module_id, (p as { exam_attempts?: number }).exam_attempts || 0);
+  }
+
+  // Calculate progress matching course-view's buildFlatList logic:
+  // - Lessons with topics are split into topic items (+ 1 content item if content exists)
+  // - Exam items are added for modules with examSettings
+  let totalItems = 0;
+  let completedItems = 0;
+  let totalLessons = 0;
+  let lessonsCompleted = 0;
+  let modulesCompleted = 0;
+
+  for (const mod of course.modules) {
+    const allLessonsDone = mod.lessons.length > 0 && mod.lessons.every((l) => lessonCompletedMap.get(l.id) === true);
+    const examAttempts = moduleExamAttemptsMap.get(mod.id) || 0;
+    const examTaken = examAttempts > 0;
+    const isComplete = allLessonsDone && (examTaken || !mod.examSettings);
+    if (isComplete) modulesCompleted++;
+
+    for (const lesson of mod.lessons) {
+      totalLessons++;
+      const isLessonCompleted = lessonCompletedMap.get(lesson.id) === true;
+      if (isLessonCompleted) lessonsCompleted++;
+
+      const topics = Array.isArray(lesson.topics) ? lesson.topics : [];
+      if (topics.length > 0) {
+        // Content page item (only if content exists)
+        if (lesson.content && lesson.content.trim()) {
+          totalItems++;
+          if (isLessonCompleted) completedItems++;
+        }
+        // Topic items
+        for (const _topic of topics) {
+          totalItems++;
+          if (isLessonCompleted) completedItems++;
+        }
+      } else {
+        // Single lesson item
+        totalItems++;
+        if (isLessonCompleted) completedItems++;
+      }
+    }
+
+    // Exam item
+    if (mod.examSettings) {
+      totalItems++;
+      if (examTaken) completedItems++;
+    }
+  }
+
+  const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+  // --- Continue learning ---
   const progressMap = new Map<string, { completed: boolean; updated_at: string }>();
-  for (const p of lessonProgress || []) {
+  for (const p of lessonProgress) {
     progressMap.set(p.lesson_id, {
       completed: p.completed,
       updated_at: p.updated_at,
     });
   }
 
-  // Build a flat ordered list of all lessons across modules
   const allLessons: { moduleId: string; moduleTitle: string; lessonId: string; lessonTitle: string }[] = [];
   for (const mod of course.modules) {
     for (const lesson of mod.lessons) {
@@ -184,167 +304,84 @@ export async function getContinueLearningData(
     }
   }
 
-  if (allLessons.length === 0) return null;
+  let continueLearning: ContinueLearningData | null = null;
 
-  // Strategy 1: Find the most recently updated incomplete lesson
-  const incompleteStarted = (lessonProgress || [])
-    .filter((p) => !p.completed)
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  if (allLessons.length > 0) {
+    // Strategy 1: most recently updated incomplete lesson
+    const incompleteStarted = lessonProgress
+      .filter((p: { completed: boolean }) => !p.completed)
+      .sort((a: { updated_at: string }, b: { updated_at: string }) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      );
 
-  if (incompleteStarted.length > 0) {
-    const target = incompleteStarted[0];
-    const lessonInfo = allLessons.find((l) => l.lessonId === target.lesson_id);
-    if (lessonInfo) {
-      return {
+    if (incompleteStarted.length > 0) {
+      const target = incompleteStarted[0];
+      const lessonInfo = allLessons.find((l) => l.lessonId === target.lesson_id);
+      if (lessonInfo) {
+        continueLearning = {
+          courseTitle: course.title,
+          courseLanguage: course.language,
+          moduleTitle: lessonInfo.moduleTitle,
+          moduleId: lessonInfo.moduleId,
+          lessonId: lessonInfo.lessonId,
+          lessonTitle: lessonInfo.lessonTitle,
+        };
+      }
+    }
+
+    if (!continueLearning) {
+      // Strategy 2: first unstarted lesson
+      const firstUnstarted = allLessons.find((l) => !progressMap.has(l.lessonId));
+      if (firstUnstarted) {
+        continueLearning = {
+          courseTitle: course.title,
+          courseLanguage: course.language,
+          moduleTitle: firstUnstarted.moduleTitle,
+          moduleId: firstUnstarted.moduleId,
+          lessonId: firstUnstarted.lessonId,
+          lessonTitle: firstUnstarted.lessonTitle,
+        };
+      }
+    }
+
+    if (!continueLearning) {
+      // Strategy 3: last lesson (all completed)
+      const last = allLessons[allLessons.length - 1];
+      continueLearning = {
         courseTitle: course.title,
         courseLanguage: course.language,
-        moduleTitle: lessonInfo.moduleTitle,
-        moduleId: lessonInfo.moduleId,
-        lessonId: lessonInfo.lessonId,
-        lessonTitle: lessonInfo.lessonTitle,
+        moduleTitle: last.moduleTitle,
+        moduleId: last.moduleId,
+        lessonId: last.lessonId,
+        lessonTitle: last.lessonTitle,
       };
     }
   }
 
-  // Strategy 2: Find the first lesson that has no progress record (not started yet)
-  // after all completed lessons
-  const firstUnstarted = allLessons.find((l) => !progressMap.has(l.lessonId));
-  if (firstUnstarted) {
-    return {
-      courseTitle: course.title,
-      courseLanguage: course.language,
-      moduleTitle: firstUnstarted.moduleTitle,
-      moduleId: firstUnstarted.moduleId,
-      lessonId: firstUnstarted.lessonId,
-      lessonTitle: firstUnstarted.lessonTitle,
-    };
-  }
-
-  // Strategy 3: Everything is completed — return the last lesson
-  const last = allLessons[allLessons.length - 1];
   return {
-    courseTitle: course.title,
-    courseLanguage: course.language,
-    moduleTitle: last.moduleTitle,
-    moduleId: last.moduleId,
-    lessonId: last.lessonId,
-    lessonTitle: last.lessonTitle,
+    continueLearning,
+    stats: {
+      lessonsCompleted,
+      totalLessons,
+      modulesCompleted,
+      totalModules,
+      progressPercent,
+    },
   };
 }
 
-// ============================================================================
-// DASHBOARD STATS
-// ============================================================================
-
-export interface DashboardStats {
-  lessonsCompleted: number;
-  totalLessons: number;
-  modulesCompleted: number;
-  totalModules: number;
-  examAttemptsCount: number;
-  bestExamScore: number | null;
+// Keep old function signatures for backward compatibility but delegate to getDashboardData
+export async function getContinueLearningData(
+  interfaceLanguage?: string
+): Promise<ContinueLearningData | null> {
+  const data = await getDashboardData(interfaceLanguage);
+  return data.continueLearning;
 }
 
+// Keep old function signature for backward compatibility but delegate to getDashboardData
 export async function getDashboardStats(
   interfaceLanguage?: string
 ): Promise<DashboardStats> {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return {
-      lessonsCompleted: 0,
-      totalLessons: 0,
-      modulesCompleted: 0,
-      totalModules: 0,
-      examAttemptsCount: 0,
-      bestExamScore: null,
-    };
-  }
-
-  // Resolve learning language (same logic as getContinueLearningData)
-  let effectiveLanguage: LearningLanguage | null = null;
-  if (interfaceLanguage && isLearningLanguage(interfaceLanguage)) {
-    effectiveLanguage = interfaceLanguage;
-  }
-  if (!effectiveLanguage) {
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("learning_language")
-      .eq("id", user.id)
-      .maybeSingle();
-    const saved = profile?.learning_language;
-    if (saved && isLearningLanguage(saved)) {
-      effectiveLanguage = saved;
-    }
-  }
-  if (!effectiveLanguage) {
-    for (const lang of LEARNING_LANGUAGES) {
-      const { data } = await supabase
-        .from("course_languages")
-        .select("id")
-        .eq("language", lang)
-        .eq("status", "published")
-        .is("deleted_at", null)
-        .limit(1);
-      if (data && data.length > 0) {
-        effectiveLanguage = lang;
-        break;
-      }
-    }
-  }
-
-  let lessonsCompleted = 0;
-  let totalLessons = 0;
-  let modulesCompleted = 0;
-  let totalModules = 0;
-
-  if (effectiveLanguage) {
-    const { course } = await loadCourseByLanguage(effectiveLanguage);
-    if (course) {
-      const moduleIds = course.modules.map((m) => m.id);
-      totalModules = course.modules.length;
-      totalLessons = course.modules.reduce((sum, m) => sum + m.lessons.length, 0);
-
-      if (moduleIds.length > 0) {
-        // Lesson progress
-        const { data: lessonProgress } = await supabase
-          .from("student_lesson_progress")
-          .select("lesson_id, completed")
-          .eq("user_id", user.id)
-          .in("module_id", moduleIds)
-          .eq("completed", true);
-        lessonsCompleted = lessonProgress?.length || 0;
-
-        // Module progress
-        const { data: moduleProgress } = await supabase
-          .from("student_module_progress")
-          .select("module_id")
-          .eq("user_id", user.id)
-          .in("module_id", moduleIds);
-        modulesCompleted = moduleProgress?.length || 0;
-      }
-    }
-  }
-
-  // Exam attempts
-  const { data: examAttempts } = await supabase
-    .from("exam_attempts")
-    .select("score_percentage, status")
-    .eq("user_id", user.id)
-    .eq("status", "completed");
-  const completedAttempts = examAttempts || [];
-  const examAttemptsCount = completedAttempts.length;
-  const bestExamScore = completedAttempts.length > 0
-    ? Math.max(...completedAttempts.map((a: { score_percentage: number }) => a.score_percentage || 0))
-    : null;
-
-  return {
-    lessonsCompleted,
-    totalLessons,
-    modulesCompleted,
-    totalModules,
-    examAttemptsCount,
-    bestExamScore,
-  };
+  const data = await getDashboardData(interfaceLanguage);
+  return data.stats;
 }

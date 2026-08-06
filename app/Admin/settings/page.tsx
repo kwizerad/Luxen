@@ -17,6 +17,8 @@ import Image from "next/image";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useThemeConfig } from "@/lib/theme-config";
 import { useLanguage } from "@/lib/language-context";
+import { canRead, canWrite, type User as PermUser } from "@/lib/permissions";
+import { useRouter } from "next/navigation";
 
 export default function AdminSettingsPage() {
   const { config } = useBrandingConfig();
@@ -25,6 +27,8 @@ export default function AdminSettingsPage() {
   const { setIsAdmin: setBrandingIsAdmin } = useBrandingConfig();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [readOnly, setReadOnly] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -47,11 +51,18 @@ export default function AdminSettingsPage() {
       }
 
       setUser(user);
+
+      const permUser = user as PermUser;
+      if (!canRead(permUser, "settings")) {
+        router.replace("/Admin");
+        return;
+      }
+      setReadOnly(!canWrite(permUser, "settings"));
       setLoading(false);
     };
 
     loadUser();
-  }, [setThemeIsAdmin, setBrandingIsAdmin]);
+  }, [setThemeIsAdmin, setBrandingIsAdmin, router]);
 
   if (loading) {
     return null;
@@ -126,27 +137,29 @@ export default function AdminSettingsPage() {
             <SystemConfigSettings />
           </div>
 
-          <div className="space-y-6">
-            <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
-              <CardHeader>
-                <CardTitle>{t("themeCustomization")}</CardTitle>
-                <CardDescription>{t("themeCustomizationDescription")}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ThemeCustomizer />
-              </CardContent>
-            </Card>
+          {!readOnly && (
+            <div className="space-y-6">
+              <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+                <CardHeader>
+                  <CardTitle>{t("themeCustomization")}</CardTitle>
+                  <CardDescription>{t("themeCustomizationDescription")}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ThemeCustomizer />
+                </CardContent>
+              </Card>
 
-            <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
-              <CardHeader>
-                <CardTitle>{t("brandingSettings")}</CardTitle>
-                <CardDescription>{t("brandingSettingsDescription")}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <BrandingCustomizer />
-              </CardContent>
-            </Card>
-          </div>
+              <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+                <CardHeader>
+                  <CardTitle>{t("brandingSettings")}</CardTitle>
+                  <CardDescription>{t("brandingSettingsDescription")}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <BrandingCustomizer />
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </main>
       </div>

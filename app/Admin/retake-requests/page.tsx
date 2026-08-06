@@ -21,6 +21,9 @@ import {
   denyRetakeRequest,
 } from "@/lib/supabase/queries";
 import type { ExamRetakeRequest, ExamRetakeStatus } from "@/lib/database.types";
+import { createClient } from "@/lib/supabase/client";
+import { canRead, canWrite, type User as PermUser } from "@/lib/permissions";
+import { useRouter } from "next/navigation";
 
 type RetakeRequestWithUser = ExamRetakeRequest & {
   user_email?: string;
@@ -29,6 +32,7 @@ type RetakeRequestWithUser = ExamRetakeRequest & {
 
 export default function RetakeRequestsPage() {
   const { t } = useLanguage();
+  const router = useRouter();
   const [requests, setRequests] = useState<RetakeRequestWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ExamRetakeStatus | "all">("pending");
@@ -36,6 +40,22 @@ export default function RetakeRequestsPage() {
   const [adminNote, setAdminNote] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
+  const [canWriteAccess, setCanWriteAccess] = useState(true);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const checkPermissions = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      const permUser = user as PermUser;
+      if (!canRead(permUser, "retake")) {
+        router.replace("/Admin");
+        return;
+      }
+      setCanWriteAccess(canWrite(permUser, "retake"));
+    };
+    checkPermissions();
+  }, [router]);
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -212,7 +232,7 @@ export default function RetakeRequestsPage() {
                       {new Date(request.created_at).toLocaleString()}
                     </p>
                   </div>
-                  {request.status === "pending" && (
+                  {request.status === "pending" && canWriteAccess && (
                     <Button size="sm" onClick={() => openDialog(request)}>
                       {t("review") || "Review"}
                     </Button>

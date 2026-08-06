@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Clock, Trophy, Target, Calendar, ChevronRight, Eye } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Trophy, Target, Calendar, ChevronRight, Eye, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import type { ExamAttempt } from "@/lib/database.types";
@@ -40,6 +40,9 @@ interface PerformanceStats {
   categoriesAttempted: Set<string>;
   recentAttempts: ExamAttempt[];
   scoreTrend: number[];
+  totalExceededTime: number;
+  totalTimeSpent: number;
+  exceededLessons: Array<{ lesson_id: string; module_id: string; exceeded_time_seconds: number; time_spent_seconds: number }>;
 }
 
 export function UserPerformanceModal({ open, onOpenChange, user }: UserPerformanceModalProps) {
@@ -70,7 +73,7 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
         throw new Error(data.error || "Failed to fetch performance data");
       }
 
-      const { attempts } = data;
+      const { attempts, courseProgress } = data;
       console.log("Attempts:", attempts);
 
       // If no real data, show empty state
@@ -86,7 +89,10 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
           totalTime: 0,
           categoriesAttempted: new Set(),
           recentAttempts: [],
-          scoreTrend: []
+          scoreTrend: [],
+          totalExceededTime: 0,
+          totalTimeSpent: 0,
+          exceededLessons: [],
         });
         return;
       }
@@ -103,6 +109,10 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
       // Calculate trend (last 5 completed attempts)
       const recentScores = completed.slice(-5).map((a: ExamAttempt) => a.score_percentage);
 
+      const exceededLessons = (courseProgress?.lessons || []).filter(
+        (l: { exceeded_time_seconds?: number }) => (l.exceeded_time_seconds || 0) > 0
+      );
+
       setStats({
         totalAttempts: attempts.length,
         completedAttempts: completed.length,
@@ -113,7 +123,10 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
         totalTime,
         categoriesAttempted: categories,
         recentAttempts: attempts.slice(0, 10), // Last 10 attempts
-        scoreTrend: recentScores
+        scoreTrend: recentScores,
+        totalExceededTime: courseProgress?.totalExceededTime || 0,
+        totalTimeSpent: courseProgress?.totalTimeSpent || 0,
+        exceededLessons: exceededLessons || [],
       });
     } catch (error: any) {
       toast.error("Failed to fetch performance data: " + error.message);
@@ -342,6 +355,68 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
                       </span>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Exceeded Time Report */}
+            {stats.totalExceededTime > 0 && (
+              <Card className="border-orange-200 dark:border-orange-900">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                    <AlertTriangle className="h-5 w-5" />
+                    Exceeded Time Report
+                  </CardTitle>
+                  <CardDescription>
+                    Time spent beyond admin-set estimated limits (not counted toward course completion)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 border rounded-lg bg-orange-50 dark:bg-orange-950/30">
+                      <p className="text-sm font-medium text-muted-foreground">Total Exceeded Time</p>
+                      <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                        {formatTime(stats.totalExceededTime)}
+                      </p>
+                    </div>
+                    <div className="p-3 border rounded-lg">
+                      <p className="text-sm font-medium text-muted-foreground">Total Course Time</p>
+                      <p className="text-2xl font-bold">
+                        {formatTime(stats.totalTimeSpent)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {stats.exceededLessons.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-2">Lessons with Exceeded Time</p>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {stats.exceededLessons
+                          .sort((a, b) => b.exceeded_time_seconds - a.exceeded_time_seconds)
+                          .map((lesson) => (
+                            <div
+                              key={lesson.lesson_id}
+                              className="flex items-center justify-between p-2 border rounded text-sm"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-3.5 w-3.5 text-orange-500" />
+                                <span className="text-muted-foreground">
+                                  Lesson: {lesson.lesson_id.slice(0, 8)}...
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs text-muted-foreground">
+                                  Spent: {formatTime(lesson.time_spent_seconds)}
+                                </span>
+                                <Badge variant="outline" className="text-orange-600 border-orange-300">
+                                  +{formatTime(lesson.exceeded_time_seconds)} over
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
