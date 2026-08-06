@@ -91,6 +91,14 @@ function formatMinutes(mins: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+function formatTimer(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 interface FlatItem {
   type: "lesson" | "topic" | "exam";
   moduleId: string;
@@ -199,6 +207,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const sidebarHoverRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const lessonStartTimeRef = useRef<number>(Date.now());
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const flatList = useMemo(() => (course ? buildFlatList(course) : []), [course]);
 
@@ -315,6 +324,23 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       lessonStartTimeRef.current = Date.now();
     }
   }, [params, flatList]);
+
+  // Live timer: tick every second while studying a lesson/topic
+  useEffect(() => {
+    if (viewMode !== "journey" || !currentItem || currentItem.type === "exam" || activeExam || showLessonComplete || showCompletion || showCelebration) {
+      return;
+    }
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - lessonStartTimeRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [viewMode, currentItem, activeExam, showLessonComplete, showCompletion, showCelebration]);
+
+  // Reset timer when switching items
+  useEffect(() => {
+    lessonStartTimeRef.current = Date.now();
+    setElapsedSeconds(0);
+  }, [currentItemIndex]);
 
   const selectLearningLanguage = async (selectedLanguage: LearningLanguage) => {
     const supabase = createClient();
@@ -1154,8 +1180,22 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                     <div className="p-4 sm:p-5 md:p-8 space-y-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="space-y-1 min-w-0">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                             {currentEstimatedTime > 0 && <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{formatMinutes(currentEstimatedTime)}</span>}
+                            <span className={cn(
+                              "inline-flex items-center gap-1 font-medium tabular-nums",
+                              currentEstimatedTime > 0 && elapsedSeconds > currentEstimatedTime * 60
+                                ? "text-blue-500 dark:text-blue-400"
+                                : "text-green-500 dark:text-green-400"
+                            )}>
+                              <Clock className="h-3 w-3" />
+                              {formatTimer(elapsedSeconds)}
+                              {currentEstimatedTime > 0 && elapsedSeconds > currentEstimatedTime * 60 && (
+                                <span className="text-[10px] text-blue-500/70 dark:text-blue-400/70">
+                                  +{formatTimer(elapsedSeconds - currentEstimatedTime * 60)} {t("overtime") || "overtime"}
+                                </span>
+                              )}
+                            </span>
                           </div>
                           <h2 className="text-lg sm:text-2xl font-bold tracking-tight truncate">{currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle}</h2>
                         </div>

@@ -1500,6 +1500,9 @@ const fr: Record<string, string> = {
   "noStudentsFound": "Aucun étudiant trouvé",
   "selectAtLeastOneStudent": "Sélectionnez au moins un étudiant",
   "failedToLoadStudents": "Échec du chargement des étudiants : ",
+
+  // Lesson timer
+  "overtime": "temps supplémentaire",
 };
 
 export default fr;

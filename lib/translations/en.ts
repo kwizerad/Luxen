@@ -1945,6 +1945,9 @@ const en: Record<string, string> = {
   "noStudentsFound": "No students found",
   "selectAtLeastOneStudent": "Select at least one student",
   "failedToLoadStudents": "Failed to load students: ",
+
+  // Lesson timer
+  "overtime": "overtime",
 };
 
 export default en;

@@ -1789,6 +1789,9 @@ const rw: Record<string, string> = {
   "noStudentsFound": "Nta banyeshuri babonetse",
   "selectAtLeastOneStudent": "Hitamo umunyeshuri umwe nibura",
   "failedToLoadStudents": "Byanze kubika abanyeshuri: ",
+
+  // Lesson timer
+  "overtime": "isaha y'irenga",
 };
 
 export default rw;
