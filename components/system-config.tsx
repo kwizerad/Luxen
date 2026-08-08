@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Loader2, Settings2, Shield, ClipboardList, FileText } from "lucide-react";
-import { getSystemConfig, updateSystemConfig } from "@/lib/supabase/queries";
+import { Loader2, Settings2, Shield, ClipboardList, FileText, LayoutList } from "lucide-react";
+import { getSystemConfig, updateSystemConfig, getServicesConfig } from "@/lib/supabase/queries";
 import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
 import { parseSecuritySettings, type SecuritySettings, SECURITY_CONFIG_KEYS, DEFAULT_SECURITY_SETTINGS } from "@/lib/security-config";
@@ -52,6 +52,17 @@ export function SystemConfigSettings() {
   const [standaloneExamEnabled, setStandaloneExamEnabled] = useState<boolean>(false);
   const [security, setSecurity] = useState<SecuritySettings>(DEFAULT_SECURITY_SETTINGS);
 
+  // Services settings
+  const [servicesPageEnabled, setServicesPageEnabled] = useState<boolean>(true);
+  const [serviceToggles, setServiceToggles] = useState<Record<string, boolean>>({});
+
+  // Service definitions for the admin UI
+  const serviceDefinitions = [
+    { key: "live-exam", labelKey: "liveExamResults", descKey: "liveExamResultsDesc" },
+    { key: "driver-hub", labelKey: "findDriver", descKey: "findDriverDesc" },
+    { key: "claim-results", labelKey: "claimResults", descKey: "claimResultsDesc" },
+  ];
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     
@@ -74,6 +85,11 @@ export function SystemConfigSettings() {
           }
           setSecurity(parseSecuritySettings(configMap));
         }
+
+        // Load services config
+        const servicesConfig = await getServicesConfig();
+        setServicesPageEnabled(servicesConfig.pageEnabled);
+        setServiceToggles(servicesConfig.services);
       } catch (error: any) {
         toast.error(t("failedToLoadSystemConfig") + error.message);
       } finally {
@@ -133,6 +149,31 @@ export function SystemConfigSettings() {
       toast.success(t(standaloneExamEnabled ? "standaloneExamEnabled" : "standaloneExamDisabled"));
     } catch (error: any) {
       toast.error(t("failedToUpdateStandaloneExam") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveServices = async () => {
+    try {
+      setSaving(true);
+      await updateSystemConfig(
+        "services_page_enabled",
+        servicesPageEnabled.toString(),
+        t("servicesPageToggleDesc") || "Enable or disable the entire services page"
+      );
+      await Promise.all(
+        serviceDefinitions.map((svc) =>
+          updateSystemConfig(
+            `service_${svc.key}_enabled`,
+            (serviceToggles[svc.key] ?? true).toString(),
+            t(svc.descKey) || `Enable or disable the ${svc.key} service`
+          )
+        )
+      );
+      toast.success(t("servicesSettingsSaved") || "Services settings saved");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateServicesSettings") || "Failed to save services settings: ") + error.message);
     } finally {
       setSaving(false);
     }
@@ -349,6 +390,79 @@ export function SystemConfigSettings() {
 
           <Button
             onClick={handleSaveStandaloneExam}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("save") || "Save"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Services Settings */}
+      <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LayoutList className="h-5 w-5 text-primary" />
+            {t("servicesSettings") || "Services Settings"}
+          </CardTitle>
+          <CardDescription>
+            {t("servicesSettingsDesc") || "Enable or disable the services page and individual services for students"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Master toggle for entire services page */}
+          <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+            <div className="space-y-0.5 pr-3">
+              <Label htmlFor="services-page-toggle" className="text-sm font-medium">
+                {t("servicesPageToggle") || "Services Page"}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {t("servicesPageToggleDesc") || "When disabled, the entire services page is hidden from students."}
+              </p>
+            </div>
+            <Switch
+              id="services-page-toggle"
+              checked={servicesPageEnabled}
+              onCheckedChange={setServicesPageEnabled}
+            />
+          </div>
+
+          {/* Individual service toggles */}
+          <div className={`space-y-3 ${!servicesPageEnabled ? "opacity-50 pointer-events-none" : ""}`}>
+            <Label className="text-sm font-medium text-muted-foreground">
+              {t("individualServices") || "Individual Services"}
+            </Label>
+            {serviceDefinitions.map((svc) => (
+              <div key={svc.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                <div className="space-y-0.5 pr-3">
+                  <Label htmlFor={`service-${svc.key}-toggle`} className="text-sm font-medium">
+                    {t(svc.labelKey)}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t(svc.descKey)}
+                  </p>
+                </div>
+                <Switch
+                  id={`service-${svc.key}-toggle`}
+                  checked={serviceToggles[svc.key] ?? true}
+                  onCheckedChange={(checked) =>
+                    setServiceToggles((prev) => ({ ...prev, [svc.key]: checked }))
+                  }
+                  disabled={!servicesPageEnabled}
+                />
+              </div>
+            ))}
+          </div>
+
+          <Button
+            onClick={handleSaveServices}
             disabled={saving}
             className="w-full sm:w-auto"
           >

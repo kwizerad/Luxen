@@ -13,7 +13,8 @@ export type PermissionSection =
   | "retake"
   | "exams"
   | "settings"
-  | "notifications";
+  | "notifications"
+  | "drivers";
 
 export interface User {
   id?: string;
@@ -44,6 +45,7 @@ export interface AdminPermissions {
   exams: PermissionAccess;
   settings: PermissionAccess;
   notifications: PermissionAccess;
+  drivers: PermissionAccess;
 }
 
 export const ALL_PERMISSIONS: AdminPermissions = {
@@ -54,6 +56,7 @@ export const ALL_PERMISSIONS: AdminPermissions = {
   exams: "read_write",
   settings: "read_write",
   notifications: "read_write",
+  drivers: "read_write",
 };
 
 export const NO_PERMISSIONS: AdminPermissions = {
@@ -64,6 +67,7 @@ export const NO_PERMISSIONS: AdminPermissions = {
   exams: "none",
   settings: "none",
   notifications: "none",
+  drivers: "none",
 };
 
 export const PERMISSION_SECTIONS: { key: PermissionSection; labelKey: string }[] = [
@@ -74,6 +78,7 @@ export const PERMISSION_SECTIONS: { key: PermissionSection; labelKey: string }[]
   { key: "exams", labelKey: "permExams" },
   { key: "settings", labelKey: "permSettings" },
   { key: "notifications", labelKey: "permNotifications" },
+  { key: "drivers", labelKey: "permDrivers" },
 ];
 
 /**
@@ -91,6 +96,13 @@ export function isAdmin(user: User | null): boolean {
 }
 
 /**
+ * Check if user has driver role
+ */
+export function isDriver(user: User | null): boolean {
+  return user?.user_metadata?.role === "Driver";
+}
+
+/**
  * Migrate legacy permissions to the new format
  */
 function migratePermissions(raw: any): AdminPermissions {
@@ -104,6 +116,7 @@ function migratePermissions(raw: any): AdminPermissions {
       exams: raw.exams ?? "none",
       settings: raw.settings ?? "none",
       notifications: raw.notifications ?? "none",
+      drivers: raw.drivers ?? "none",
     };
   }
   // Legacy format: { students: { enabled, access }, examPermissions: { ... } }
@@ -119,6 +132,7 @@ function migratePermissions(raw: any): AdminPermissions {
     exams: legacy?.examPermissions?.enabled ? (legacy.examPermissions.questionAccess ?? "read_write") : "none",
     settings: legacy?.examPermissions?.canManageSettings ? "read_write" : "none",
     notifications: "none",
+    drivers: "none",
   };
 }
 

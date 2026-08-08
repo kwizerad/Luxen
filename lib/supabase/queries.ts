@@ -612,6 +612,22 @@ export async function createExamAttempt(attemptData: {
 
   if (error) throw error;
 
+  // If the student passed (score >= 50), auto-verify provision (category P)
+  if (scorePercentage >= 50) {
+    try {
+      await supabase
+        .from("user_profiles")
+        .update({
+          provision_verified: true,
+          provision_category: "P",
+          provision_verified_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+    } catch (provError) {
+      console.error("Failed to auto-verify provision:", provError);
+    }
+  }
+
   // Notify the student that their exam result is available
   try {
     await createNotification({
@@ -1498,6 +1514,72 @@ export async function isStandaloneExamEnabled(): Promise<boolean> {
   }
 
   return data.value === "true";
+}
+
+export async function isServicesPageEnabled(): Promise<boolean> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", "services_page_enabled")
+    .single();
+
+  if (error || !data) {
+    return true; // Default to enabled
+  }
+
+  return data.value === "true";
+}
+
+export async function isServiceEnabled(serviceKey: string): Promise<boolean> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", `service_${serviceKey}_enabled`)
+    .single();
+
+  if (error || !data) {
+    return true; // Default to enabled
+  }
+
+  return data.value === "true";
+}
+
+export async function getServicesConfig(): Promise<{
+  pageEnabled: boolean;
+  services: Record<string, boolean>;
+}> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("key, value")
+    .like("key", "service_%_enabled")
+    .or("key.eq.services_page_enabled");
+
+  if (error) {
+    return { pageEnabled: true, services: {} };
+  }
+
+  let pageEnabled = true;
+  const services: Record<string, boolean> = {};
+
+  for (const row of data || []) {
+    if (row.key === "services_page_enabled") {
+      pageEnabled = row.value === "true";
+    } else {
+      // Extract service key from "service_{key}_enabled"
+      const match = row.key.match(/^service_(.+)_enabled$/);
+      if (match) {
+        services[match[1]] = row.value === "true";
+      }
+    }
+  }
+
+  return { pageEnabled, services };
 }
 
 // ============================================================================
