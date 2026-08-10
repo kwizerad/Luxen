@@ -1075,16 +1075,16 @@ export default function TakeExamPage() {
               {activeQuestion ? (
                 <>
                   <div
-                    className="touch-pan-y"
+                    className="touch-pan-y space-y-3 sm:space-y-4"
                     onTouchStart={onTouchStart}
                     onTouchMove={onTouchMove}
                     onTouchEnd={onTouchEnd}
                   >
-                    {activeQuestion.question_image && (
-                      <Image src={activeQuestion.question_image} alt={t("question")} width={800} height={600} unoptimized className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg border" />
-                    )}
                     {activeQuestion.question && (
-                      <div className="text-sm sm:text-base font-medium">{activeQuestion.question}</div>
+                      <div className="text-base sm:text-lg font-medium">{activeQuestion.question}</div>
+                    )}
+                    {activeQuestion.question_image && (
+                      <Image src={activeQuestion.question_image} alt={t("question")} width={800} height={600} unoptimized className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg" />
                     )}
 
                     <div className="grid gap-2 sm:gap-3">
@@ -1110,7 +1110,7 @@ export default function TakeExamPage() {
                               {opt}
                             </div>
                             <div className="flex-1 min-w-0">
-                              {img && <Image src={img} alt={`${t("option")} ${opt}`} width={800} height={600} unoptimized className="w-full max-h-[180px] sm:max-h-[240px] object-contain rounded-md border mb-2" />}
+                              {img && <Image src={img} alt={`${t("option")} ${opt}`} width={800} height={600} unoptimized className="w-full max-h-[180px] sm:max-h-[240px] object-contain rounded-md mb-2" />}
                               {text && <div className="text-xs sm:text-sm">{text}</div>}
                             </div>
                           </div>
