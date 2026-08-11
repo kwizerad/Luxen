@@ -46,6 +46,20 @@ async function generatePNGs() {
       .toFile(applePng);
     console.log(`Generated ${applePng}`);
   }
+
+  // Generate maskable icons for Android adaptive icons
+  const maskableSvg = path.join(iconsDir, "icon-maskable.svg");
+  if (fs.existsSync(maskableSvg)) {
+    const maskableSizes = [192, 512];
+    for (const size of maskableSizes) {
+      const maskablePng = path.join(iconsDir, `icon-maskable-${size}x${size}.png`);
+      await sharp(fs.readFileSync(maskableSvg))
+        .resize(size, size)
+        .png()
+        .toFile(maskablePng);
+      console.log(`Generated ${maskablePng}`);
+    }
+  }
 }
 
 generatePNGs().catch(console.error);

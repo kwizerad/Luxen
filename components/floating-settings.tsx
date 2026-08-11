@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -45,6 +45,18 @@ export function FloatingSettings() {
 
   const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
 
+  const [isExamActive, setIsExamActive] = useState(false);
+  const currentTheme = theme ?? "light";
+
+  useEffect(() => {
+    const checkExamActive = () => {
+      setIsExamActive(sessionStorage.getItem("exam-active") === "true");
+    };
+    checkExamActive();
+    window.addEventListener("exam-state-change", checkExamActive);
+    return () => window.removeEventListener("exam-state-change", checkExamActive);
+  }, []);
+
   const logout = async () => {
     try {
       const supabase = createClient();
@@ -86,6 +98,22 @@ export function FloatingSettings() {
       }
     }
   };
+
+  if (isExamActive) {
+    return (
+      <div className="fixed right-5 bottom-5 z-50">
+        <Button
+          variant="glass"
+          size="icon"
+          onClick={() => handleThemeChange(currentTheme === "dark" ? "light" : "dark")}
+          className="h-12 w-12 rounded-full border border-border/20 shadow-glass dark:shadow-glass-dark bg-card/70 backdrop-blur-[20px] text-foreground hover:shadow-glow dark:hover:shadow-glow-dark hover:-translate-y-0.5 transition-all"
+          aria-label={t("toggleTheme")}
+        >
+          {currentTheme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed right-5 bottom-5 z-50 hidden md:block">

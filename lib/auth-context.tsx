@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-utils";
+import { isAdmin } from "@/lib/permissions";
 
 interface User {
   id: string;
@@ -81,6 +82,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Destroy admin session when the admin leaves the page (close/refresh/external nav)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (loading || !user) return;
+
+    const currentUser = { id: user.id, email: user.email, user_metadata: user.user_metadata };
+    if (!isAdmin(currentUser as any)) return;
+
+    const clearAuthCookies = () => {
+      const prefix = "navo-auth-token";
+      document.cookie
+        .split("; ")
+        .map((cookie) => cookie.split("=")[0])
+        .filter((name) => name.startsWith(prefix))
+        .forEach((name) => {
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        });
+    };
+
+    const sendAdminSignOut = () => {
+      if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+        navigator.sendBeacon("/api/admin-signout", JSON.stringify({}));
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      sendAdminSignOut();
+      clearAuthCookies();
+    };
+
+    const handlePageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) return;
+      sendAdminSignOut();
+      clearAuthCookies();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [user, loading]);
 
   return (
     <AuthContext.Provider value={{ user, session, loading, refreshUser }}>

@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
 import { uploadCourseFile } from "@/lib/course-storage";
+import { AudioUpload } from "@/components/audio-upload";
 import {
   ModuleExam,
   ModuleExamQuestionUI,
@@ -492,6 +493,12 @@ function QuestionCard({
                   onChange={(text) => onUpdate({ text })}
                   placeholder={t("enterQuestion") || "Enter the question..."}
                 />
+                <AudioUpload
+                  value={q.audio}
+                  onChange={(audio) => onUpdate({ audio: audio || undefined })}
+                  folder={`exams/questions/${q.id || "new"}/audio`}
+                  label={t("questionAudio") || "Question audio"}
+                />
               </div>
 
               <QuestionTypeFields q={q} onUpdate={onUpdate} />
@@ -835,6 +842,14 @@ function QuestionPreview({ q }: { q: ModuleExamQuestionUI }) {
 
   return (
     <div className="space-y-2">
+      {q.audio && (
+        <audio
+          controls
+          src={q.audio}
+          className="w-full h-10 rounded-lg mb-2"
+          onError={() => toast.error(t("audioUpload.loadError") || "Failed to load audio.")}
+        />
+      )}
       {(q.options || []).map((option) => {
         const isCorrect = q.type === "multiple_select" ? q.correctOptionIds.includes(option.id) : q.correctOptionId === option.id;
         return (

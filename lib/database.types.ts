@@ -100,6 +100,36 @@ export interface SystemConfig {
   updated_at?: string;
 }
 
+export interface AnonymousVisit {
+  id: string;
+  fingerprint: string;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  country?: string | null;
+  region?: string | null;
+  city?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  screen_width?: number | null;
+  screen_height?: number | null;
+  device_type?: string | null;
+  os?: string | null;
+  browser?: string | null;
+  browser_version?: string | null;
+  language?: string | null;
+  timezone?: string | null;
+  referrer?: string | null;
+  landing_page?: string | null;
+  touch_support?: boolean | null;
+  cookies_enabled?: boolean | null;
+  visit_count: number;
+  first_seen: string;
+  last_seen: string;
+  linked_user_id?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
 // ============================================================================
 // COURSE MANAGEMENT TYPES
 // ============================================================================

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   ParsedDeviceInfo,
   GeoLocationInfo,
@@ -128,7 +128,7 @@ export async function recordLoginEvent(
   body: RecordLoginRequestBody,
   userId: string
 ): Promise<NextResponse> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const device = body.device;
 
   const ip = getClientIp(request) || "";

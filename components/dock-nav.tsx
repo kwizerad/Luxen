@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { LayoutDashboard, Trophy, Settings, BookOpen, LayoutList, Car } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
+import { isAdmin } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/client";
-import { isStandaloneExamEnabled, isServicesPageEnabled } from "@/lib/supabase/queries";
+import { isStandaloneExamEnabled, isServicesPageEnabled, isProductionModeEnabled } from "@/lib/supabase/queries";
 import { useEffect, useState } from "react";
 import Dock, { type DockItemData } from "@/components/Dock";
 import { useHashRouter } from "@/hooks/use-hash-router";
@@ -25,6 +26,7 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
   const [hasPublishedCourse, setHasPublishedCourse] = useState<boolean | null>(null);
   const [examEnabled, setExamEnabled] = useState<boolean>(false);
   const [servicesEnabled, setServicesEnabled] = useState<boolean>(true);
+  const [productionMode, setProductionMode] = useState<boolean>(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || !user) return;
@@ -69,6 +71,7 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
     if (typeof window === "undefined") return;
     void isStandaloneExamEnabled().then(setExamEnabled);
     void isServicesPageEnabled().then(setServicesEnabled);
+    void isProductionModeEnabled().then(setProductionMode);
 
     const supabase = createClient();
     const channel = supabase
@@ -89,6 +92,15 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
         (payload: any) => {
           const newValue = (payload.new as { value?: string } | undefined)?.value;
           setServicesEnabled(newValue === "true");
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "system_config", filter: "key=eq.production_mode_enabled" },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
+          const newValue = (payload.new as { value?: string } | undefined)?.value;
+          setProductionMode(newValue === "true");
         }
       )
       .subscribe();
@@ -125,26 +137,35 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
 
   const userRole = user?.user_metadata?.role;
   const isDriverRole = userRole === "Driver";
+  const isAdminUser = isAdmin(user);
 
   const allItems: NavItem[] = [
     { view: "home", labelKey: "home", icon: <LayoutDashboard size={18} /> },
     { view: "course", labelKey: "courses", icon: <BookOpen size={18} /> },
     ...(examEnabled ? [{ href: "/dashboard/exam", labelKey: "exam", icon: <Trophy size={18} /> }] : []),
+    { view: "services/live-exam", labelKey: "exam", icon: <Trophy size={18} /> },
+    { view: "services/claim-results", labelKey: "claimResults", icon: <LayoutList size={18} /> },
     { view: "services", labelKey: "services", icon: <LayoutList size={18} /> },
     ...(isDriverRole ? [{ view: "driver-panel", labelKey: "driverPanel", icon: <Car size={18} /> }] : []),
     { view: "settings", labelKey: "settings", icon: <Settings size={18} /> },
   ];
 
+  const productionAllowed = new Set(["settings", "services/live-exam", "services/claim-results"]);
+
   const visibleItems = allItems.filter((item) => {
     if (item.view === "course" && hasPublishedCourse !== true) return false;
     if (item.view === "services" && !servicesEnabled) return false;
+    if (productionMode && !isAdminUser) {
+      if (item.href) return item.href === "/dashboard/exam";
+      if (item.view && !productionAllowed.has(item.view)) return false;
+    }
     return true;
   });
 
   const isNavItemActive = (item: NavItem) => {
     if (item.href) return false;
     if (item.view === "home") return hashView === "home" || hashView === "";
-    if (item.view === "services") return hashView === "services" || hashView.startsWith("services/");
+    if (item.view === "services") return hashView === "services";
     if (item.view === "driver-panel") return hashView === "driver-panel" || hashView.startsWith("driver-panel/");
     return hashView === item.view;
   };

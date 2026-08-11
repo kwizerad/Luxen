@@ -79,6 +79,8 @@ export function useExamSecurity({
   const cheatingAttemptsRef = useRef(0);
   const fullscreenRetryCountRef = useRef(0);
   const autoSubmitTriggeredRef = useRef(false);
+  const lastViolationAtRef = useRef(0);
+  const focusViolationSentRef = useRef(false);
 
   useEffect(() => {
     isActiveRef.current = isActive;
@@ -180,6 +182,43 @@ export function useExamSecurity({
     const examActive = () => isActiveRef.current && !autoSubmitTriggeredRef.current;
     const resultsShown = () => showResultsRef.current || autoSubmitTriggeredRef.current;
 
+    const getCountMessage = (base: string, count: number) =>
+      count === 1
+        ? t(`${base}Violation1` as any)
+        : count < settings.maxViolations
+        ? t(`${base}Violation2` as any)
+        : t(`${base}ViolationFinal` as any);
+
+    const getCountToast = (base: string, count: number) =>
+      count === 1
+        ? t(`${base}Warning1` as any)
+        : count < settings.maxViolations
+        ? t(`${base}Warning2` as any)
+        : t(`${base}WarningFinal` as any);
+
+    const recordViolation = (type: ViolationType, message: string, toastMessage?: string) => {
+      if (!settings.violationMeasuresEnabled || !examActive() || autoSubmitTriggeredRef.current) return;
+
+      const now = Date.now();
+      if (now - lastViolationAtRef.current < 800) return;
+      lastViolationAtRef.current = now;
+
+      const newCount = cheatingAttemptsRef.current + 1;
+      cheatingAttemptsRef.current = newCount;
+      setCheatingAttempts(newCount);
+
+      triggerViolation(type, message, newCount);
+
+      if (toastMessage && newCount < settings.maxViolations) {
+        toast.error(toastMessage);
+      }
+    };
+
+    const isInsideDialog = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      return !!target.closest('[role="dialog"], [data-radix-popper-content-wrapper], [data-state="open"]');
+    };
+
     const handleFullscreenChange = () => {
       if (!settings.violationMeasuresEnabled || !settings.fullscreenEnabled || !examActive() || resultsShown()) return;
       if (!document.fullscreenElement) {
@@ -202,67 +241,125 @@ export function useExamSecurity({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!settings.violationMeasuresEnabled || !examActive() || resultsShown()) return;
 
+      const isMac = navigator.platform?.toLowerCase().includes("mac");
+      const ctrlOrCmd = e.ctrlKey || e.metaKey;
+
+      // Escape / F11 may leave fullscreen
       if (e.key === "Escape" || e.key === "F11") {
         if (settings.fullscreenEnabled) {
           e.preventDefault();
           e.stopPropagation();
           e.stopImmediatePropagation();
+          recordViolation("fullscreen", t("fullscreenViolation1"), t("fullscreenWarning1"));
           return false;
         }
-      }
-
-      if (e.ctrlKey && e.key === "w") {
-        if (settings.tabSwitchEnabled) {
+        // Escape only allowed while a dialog is open
+        if (e.key === "Escape" && !isInsideDialog(e.target)) {
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation();
           return false;
         }
       }
 
-      if (e.altKey && e.key === "Tab") {
-        if (settings.tabSwitchEnabled) {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        }
-      }
+      // Allow bare modifier keys
+      if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return;
 
+      // Allow arrow navigation without modifiers
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !ctrlOrCmd && !e.altKey) return;
+
+      // Allow Tab/Enter/Space/Escape only while inside a dialog
       if (
-        ((e.ctrlKey || e.metaKey) &&
-          e.shiftKey &&
-          (e.key === "G" ||
-            e.key === "g" ||
-            e.key === "B" ||
-            e.key === "b" ||
-            e.key === "Y" ||
-            e.key === "y")) ||
-        (e.altKey && (e.key === "i" || e.key === "I"))
+        (e.key === "Tab" || e.key === "Enter" || e.key === " " || e.key === "Escape") &&
+        isInsideDialog(e.target)
       ) {
-        if (settings.aiDetectionEnabled) {
+        return;
+      }
+
+      // Let clipboard events handle these
+      if (ctrlOrCmd && (e.key === "c" || e.key === "C" || e.key === "x" || e.key === "X" || e.key === "v" || e.key === "V")) {
+        return;
+      }
+
+      // Tab / window switching shortcuts
+      if (settings.tabSwitchEnabled) {
+        if (
+          (ctrlOrCmd && (e.key === "t" || e.key === "T" || e.key === "w" || e.key === "W" || e.key === "n" || e.key === "N" || e.key === "Tab")) ||
+          (e.altKey && e.key === "Tab") ||
+          (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) ||
+          ((e.ctrlKey || e.metaKey) && (e.key === "[" || e.key === "]")) ||
+          e.key === "F5" ||
+          (ctrlOrCmd && (e.key === "r" || e.key === "R"))
+        ) {
           e.preventDefault();
           e.stopPropagation();
           e.stopImmediatePropagation();
-          toast.error(t("aiShortcutBlocked"));
+          const nextCount = cheatingAttemptsRef.current + 1;
+          recordViolation(
+            "tabswitch",
+            getCountMessage("tabSwitch", nextCount),
+            getCountToast("tabSwitch", nextCount)
+          );
           return false;
         }
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.length === 1) {
-        if (settings.aiDetectionEnabled) {
+      // Dev tools / print / save
+      if (settings.aiDetectionEnabled) {
+        if (
+          e.key === "F12" ||
+          e.key === "F10" ||
+          (ctrlOrCmd && e.shiftKey && (e.key === "i" || e.key === "I" || e.key === "j" || e.key === "J" || e.key === "c" || e.key === "C")) ||
+          (ctrlOrCmd && (e.key === "p" || e.key === "P" || e.key === "s" || e.key === "S"))
+        ) {
           e.preventDefault();
           e.stopPropagation();
           e.stopImmediatePropagation();
+          recordViolation("aishortcut", t("aiShortcutBlocked"), t("aiShortcutBlocked"));
           return false;
         }
       }
 
-      const allowedKeys = ["ArrowLeft", "ArrowRight", "Enter", " "];
-      if (!allowedKeys.includes(e.key)) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        return false;
+      // Known AI shortcuts
+      if (settings.aiDetectionEnabled) {
+        if (
+          (ctrlOrCmd &&
+            e.shiftKey &&
+            (e.key === "G" ||
+              e.key === "g" ||
+              e.key === "B" ||
+              e.key === "b" ||
+              e.key === "Y" ||
+              e.key === "y" ||
+              e.key === "I" ||
+              e.key === "i" ||
+              e.key === "J" ||
+              e.key === "j" ||
+              e.key === "C" ||
+              e.key === "c" ||
+              e.key === "A" ||
+              e.key === "a" ||
+              e.key === "L" ||
+              e.key === "l" ||
+              e.key === "E" ||
+              e.key === "e" ||
+              e.key === " ")) ||
+          (e.altKey && (e.key === "i" || e.key === "I" || e.key === "g" || e.key === "G"))
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          recordViolation("aishortcut", t("aiShortcutBlocked"), t("aiShortcutBlocked"));
+          return false;
+        }
       }
+
+      // Anything else is unauthorized keyboard input
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      recordViolation("other", t("examSecurity.keyboardLocked"), t("examSecurity.keyboardLocked"));
+      return false;
     };
 
     const handleContextMenu = (e: MouseEvent) => {
@@ -281,30 +378,21 @@ export function useExamSecurity({
     const handleCopy = (e: ClipboardEvent) => {
       if (!settings.violationMeasuresEnabled || !settings.copyPasteEnabled || !examActive() || resultsShown()) return;
       e.preventDefault();
-      setViolationType("copy");
-      setCheatingWarningMessage(t("copyAttemptDetected"));
-      setShowCheatingWarning(true);
-      toast.error(t("copyNotAllowed"));
+      recordViolation("copy", t("copyAttemptDetected"), t("copyNotAllowed"));
       return false;
     };
 
     const handlePaste = (e: ClipboardEvent) => {
       if (!settings.violationMeasuresEnabled || !settings.copyPasteEnabled || !examActive() || resultsShown()) return;
       e.preventDefault();
-      setViolationType("paste");
-      setCheatingWarningMessage(t("pasteAttemptDetected"));
-      setShowCheatingWarning(true);
-      toast.error(t("pasteNotAllowed"));
+      recordViolation("paste", t("pasteAttemptDetected"), t("pasteNotAllowed"));
       return false;
     };
 
     const handleCut = (e: ClipboardEvent) => {
       if (!settings.violationMeasuresEnabled || !settings.copyPasteEnabled || !examActive() || resultsShown()) return;
       e.preventDefault();
-      setViolationType("other");
-      setCheatingWarningMessage(t("cutAttemptDetected"));
-      setShowCheatingWarning(true);
-      toast.error(t("cutNotAllowed"));
+      recordViolation("other", t("cutAttemptDetected"), t("cutNotAllowed"));
       return false;
     };
 
@@ -324,23 +412,26 @@ export function useExamSecurity({
     };
 
     const handleVisibilityChange = () => {
-      if (!settings.violationMeasuresEnabled || !settings.tabSwitchEnabled || !examActive() || resultsShown() || !document.hidden) return;
-      const newCount = cheatingAttemptsRef.current + 1;
-      cheatingAttemptsRef.current = newCount;
-      setCheatingAttempts(newCount);
+      if (!settings.violationMeasuresEnabled || !settings.tabSwitchEnabled || !examActive() || resultsShown()) return;
 
-      triggerViolation(
+      if (!document.hidden) {
+        focusViolationSentRef.current = false;
+        if (blurTimerRef.current) {
+          clearTimeout(blurTimerRef.current);
+          blurTimerRef.current = null;
+        }
+        return;
+      }
+
+      if (focusViolationSentRef.current) return;
+      focusViolationSentRef.current = true;
+
+      const nextCount = cheatingAttemptsRef.current + 1;
+      recordViolation(
         "tabswitch",
-        newCount === 1
-          ? t("tabSwitchViolation1")
-          : newCount < settings.maxViolations
-          ? t("tabSwitchViolation2")
-          : t("tabSwitchViolationFinal"),
-        newCount
+        getCountMessage("tabSwitch", nextCount),
+        getCountToast("tabSwitch", nextCount)
       );
-
-      if (newCount === 1) toast.error(t("tabSwitchWarning1"));
-      else if (newCount < settings.maxViolations) toast.error(t("tabSwitchWarning2"));
     };
 
     const handleDragStart = (e: DragEvent) => {
@@ -371,20 +462,12 @@ export function useExamSecurity({
           const stillShrunk = baselineWidth - window.innerWidth >= 120;
           if (stillShrunk && !violationDebounceRef.current) {
             violationDebounceRef.current = true;
-            const newCount = cheatingAttemptsRef.current + 1;
-            cheatingAttemptsRef.current = newCount;
-            setCheatingAttempts(newCount);
-            triggerViolation(
+            const nextCount = cheatingAttemptsRef.current + 1;
+            recordViolation(
               "resize",
-              newCount === 1
-                ? t("resizeViolation1")
-                : newCount < settings.maxViolations
-                ? t("resizeViolation2")
-                : t("resizeViolationFinal"),
-              newCount
+              getCountMessage("resize", nextCount),
+              getCountToast("resize", nextCount)
             );
-            if (newCount === 1) toast.error(t("resizeWarning1"));
-            else if (newCount < settings.maxViolations) toast.error(t("resizeWarning2"));
             setTimeout(() => {
               violationDebounceRef.current = false;
             }, 3000);
@@ -398,32 +481,21 @@ export function useExamSecurity({
 
     const handleWindowBlur = () => {
       if (!settings.violationMeasuresEnabled || !settings.tabSwitchEnabled || !examActive() || resultsShown()) return;
-      window.focus();
-      if (violationDebounceRef.current) return;
+
+      if (focusViolationSentRef.current) return;
       if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+
       blurTimerRef.current = setTimeout(() => {
-        if (!document.hasFocus() && !violationDebounceRef.current) {
-          window.focus();
-          violationDebounceRef.current = true;
-          const newCount = cheatingAttemptsRef.current + 1;
-          cheatingAttemptsRef.current = newCount;
-          setCheatingAttempts(newCount);
-          triggerViolation(
+        if (!document.hasFocus() && examActive() && !resultsShown()) {
+          focusViolationSentRef.current = true;
+          const nextCount = cheatingAttemptsRef.current + 1;
+          recordViolation(
             "blur",
-            newCount === 1
-              ? t("blurViolation1")
-              : newCount < settings.maxViolations
-              ? t("blurViolation2")
-              : t("blurViolationFinal"),
-            newCount
+            getCountMessage("blur", nextCount),
+            getCountToast("blur", nextCount)
           );
-          if (newCount === 1) toast.error(t("blurWarning1"));
-          else if (newCount < settings.maxViolations) toast.error(t("blurWarning2"));
-          setTimeout(() => {
-            violationDebounceRef.current = false;
-          }, 3000);
         }
-      }, 1000);
+      }, 800);
     };
 
     const handleWindowFocus = () => {
@@ -431,6 +503,7 @@ export function useExamSecurity({
         clearTimeout(blurTimerRef.current);
         blurTimerRef.current = null;
       }
+      focusViolationSentRef.current = false;
     };
 
     const handleMouseUp = () => {
@@ -447,11 +520,12 @@ export function useExamSecurity({
         );
         if (found.length > 0) {
           violationDebounceRef.current = true;
-          const newCount = cheatingAttemptsRef.current + 1;
-          cheatingAttemptsRef.current = newCount;
-          setCheatingAttempts(newCount);
-          triggerViolation("aishortcut", t("aiSidebarDetected"), newCount);
-          toast.error(t("aiSidebarDetected"));
+          const nextCount = cheatingAttemptsRef.current + 1;
+          recordViolation(
+            "aishortcut",
+            t("aiSidebarDetected"),
+            t("aiSidebarDetected")
+          );
           setTimeout(() => {
             violationDebounceRef.current = false;
           }, 3000);
@@ -484,8 +558,8 @@ export function useExamSecurity({
     aiDomPollRef.current = setInterval(checkAiExtensionDom, 3000);
     focusPollRef.current = settings.tabSwitchEnabled
       ? setInterval(() => {
-          if (examActive() && !resultsShown() && !document.hasFocus()) {
-            window.focus();
+          if (examActive() && !resultsShown() && !document.hasFocus() && !focusViolationSentRef.current) {
+            handleWindowBlur();
           }
         }, 500)
       : null;
@@ -565,31 +639,6 @@ export function useExamSecurity({
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [isActive, t, triggerViolation, settings]);
-
-  // Keyboard navigation shortcuts prevention
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!isActive || !settings.violationMeasuresEnabled || !settings.tabSwitchEnabled) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!settings.violationMeasuresEnabled || !settings.tabSwitchEnabled) return;
-      if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        return false;
-      }
-      if ((e.metaKey || e.ctrlKey) && (e.key === "[" || e.key === "]")) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        return false;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [isActive, settings]);
 
   return {
     cheatingAttempts,

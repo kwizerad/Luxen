@@ -121,6 +121,12 @@ export default function TakeExamPage() {
   const showResultsRef = useRef(false);
   const handleSubmitExamRef = useRef<((isAutoSubmit?: boolean) => Promise<void>) | null>(null);
   const resetRef = useRef<(() => void) | null>(null);
+  const lastViolationAtRef = useRef(0);
+  const focusViolationSentRef = useRef(false);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastViewportWidthRef = useRef(0);
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -172,13 +178,53 @@ export default function TakeExamPage() {
   }, [accessChecked, t]);
   
   useEffect(() => {
+    const getCountMessage = (base: string, count: number) =>
+      count === 1
+        ? t(`${base}Violation1` as any)
+        : count < securitySettings.maxViolations
+        ? t(`${base}Violation2` as any)
+        : t(`${base}ViolationFinal` as any);
+
+    const getCountToast = (base: string, count: number) =>
+      count === 1
+        ? t(`${base}Warning1` as any)
+        : count < securitySettings.maxViolations
+        ? t(`${base}Warning2` as any)
+        : t(`${base}WarningFinal` as any);
+
+    const recordViolation = (message: string, type: "fullscreen" | "tabswitch" | "copy" | "paste" | "backnavigation" | "other" = "other", toastMessage?: string) => {
+      if (!exam || showResults || !securitySettings.violationMeasuresEnabled || isSubmittingOnExitRef.current) return;
+
+      const now = Date.now();
+      if (now - lastViolationAtRef.current < 800) return;
+      lastViolationAtRef.current = now;
+
+      const newCount = cheatingAttemptsRef.current + 1;
+      cheatingAttemptsRef.current = newCount;
+      setCheatingAttempts(newCount);
+      setViolationType(type);
+      setCheatingWarningMessage(message);
+      setShowCheatingWarning(true);
+
+      if (toastMessage && newCount < securitySettings.maxViolations) {
+        toast.error(toastMessage);
+      }
+
+      if (newCount >= securitySettings.maxViolations) {
+        setTimeout(() => {
+          toast.error(t("examAutoSubmitted"));
+          handleSubmitExamRef.current?.(true);
+        }, 3000);
+      }
+    };
+
     const handleFullscreenChange = () => {
       // If user tries to exit full screen during exam, show warning and prevent
       if (exam && !document.fullscreenElement && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled) {
         const newCount = fullscreenRetryCountRef.current + 1;
         fullscreenRetryCountRef.current = newCount;
         setFullscreenRetryCount(newCount);
-        
+
         // Show cheating warning modal
         setViolationType("fullscreen");
         setCheatingWarningMessage(
@@ -203,38 +249,119 @@ export default function TakeExamPage() {
       }
     };
 
+    const isInsideDialog = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      return !!target.closest('[role="dialog"], [data-radix-popper-content-wrapper], [data-state="open"]');
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!exam || showResults || !securitySettings.violationMeasuresEnabled) return;
 
-      if (securitySettings.fullscreenEnabled && (e.key === 'Escape' || e.key === 'F11')) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        return false;
+      const ctrlOrCmd = e.ctrlKey || e.metaKey;
+
+      // Escape / F11 may leave fullscreen
+      if (e.key === 'Escape' || e.key === 'F11') {
+        if (securitySettings.fullscreenEnabled) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          return false;
+        }
+        // Escape only allowed while a dialog is open
+        if (e.key === 'Escape' && !isInsideDialog(e.target)) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          return false;
+        }
       }
 
-      if (securitySettings.tabSwitchEnabled && e.ctrlKey && e.key === 'w') {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
+      // Allow bare modifier keys
+      if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
+
+      // Allow arrow navigation without modifiers
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !ctrlOrCmd && !e.altKey) return;
+
+      // Allow Tab/Enter/Space/Escape only while inside a dialog
+      if ((e.key === 'Tab' || e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && isInsideDialog(e.target)) {
+        return;
       }
 
-      if (securitySettings.tabSwitchEnabled && e.altKey && e.key === 'Tab') {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
+      // Let clipboard events handle these
+      if (ctrlOrCmd && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X' || e.key === 'v' || e.key === 'V')) {
+        return;
       }
 
-      if (securitySettings.aiDetectionEnabled && (
-        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'G' || e.key === 'g' || e.key === 'B' || e.key === 'b' || e.key === 'Y' || e.key === 'y')) ||
-        (e.altKey && (e.key === 'i' || e.key === 'I'))
-      )) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        toast.error(t("aiShortcutBlocked"));
-        return false;
+      // Tab / window switching shortcuts
+      if (securitySettings.tabSwitchEnabled) {
+        if (
+          (ctrlOrCmd && (e.key === 't' || e.key === 'T' || e.key === 'w' || e.key === 'W' || e.key === 'n' || e.key === 'N' || e.key === 'Tab')) ||
+          (e.altKey && e.key === 'Tab') ||
+          (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) ||
+          ((e.ctrlKey || e.metaKey) && (e.key === '[' || e.key === ']')) ||
+          e.key === 'F5' ||
+          (ctrlOrCmd && (e.key === 'r' || e.key === 'R'))
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          const nextCount = cheatingAttemptsRef.current + 1;
+          recordViolation(
+            getCountMessage('tabSwitch', nextCount),
+            'tabswitch',
+            getCountToast('tabSwitch', nextCount)
+          );
+          return false;
+        }
       }
+
+      // Dev tools / print / save
+      if (securitySettings.aiDetectionEnabled) {
+        if (
+          e.key === 'F12' ||
+          e.key === 'F10' ||
+          (ctrlOrCmd && e.shiftKey && (e.key === 'i' || e.key === 'I' || e.key === 'j' || e.key === 'J' || e.key === 'c' || e.key === 'C')) ||
+          (ctrlOrCmd && (e.key === 'p' || e.key === 'P' || e.key === 's' || e.key === 'S'))
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          recordViolation(t('aiShortcutBlocked'), 'other', t('aiShortcutBlocked'));
+          return false;
+        }
+      }
+
+      // Known AI shortcuts
+      if (securitySettings.aiDetectionEnabled) {
+        if (
+          (ctrlOrCmd &&
+            e.shiftKey &&
+            (e.key === 'G' || e.key === 'g' ||
+             e.key === 'B' || e.key === 'b' ||
+             e.key === 'Y' || e.key === 'y' ||
+             e.key === 'I' || e.key === 'i' ||
+             e.key === 'J' || e.key === 'j' ||
+             e.key === 'C' || e.key === 'c' ||
+             e.key === 'A' || e.key === 'a' ||
+             e.key === 'L' || e.key === 'l' ||
+             e.key === 'E' || e.key === 'e' ||
+             e.key === ' ')) ||
+          (e.altKey && (e.key === 'i' || e.key === 'I' || e.key === 'g' || e.key === 'G'))
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          recordViolation(t('aiShortcutBlocked'), 'other', t('aiShortcutBlocked'));
+          return false;
+        }
+      }
+
+      // Anything else is unauthorized keyboard input
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      recordViolation(t('examSecurity.keyboardLocked'), 'other', t('examSecurity.keyboardLocked'));
+      return false;
     };
 
     const handleContextMenu = (e: MouseEvent) => {
@@ -249,7 +376,7 @@ export default function TakeExamPage() {
       if (exam && !showResults && !isSubmittingOnExitRef.current && securitySettings.violationMeasuresEnabled && securitySettings.tabSwitchEnabled) {
         e.preventDefault();
         e.returnValue = t("leaveExamConfirm");
-        
+
         // Auto-submit exam when user tries to close/refresh
         isSubmittingOnExitRef.current = true;
         setIsSubmittingOnExit(true);
@@ -262,10 +389,7 @@ export default function TakeExamPage() {
     const handleCopy = (e: ClipboardEvent) => {
       if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.copyPasteEnabled) {
         e.preventDefault();
-        setViolationType("copy");
-        setCheatingWarningMessage(t("copyAttemptDetected"));
-        setShowCheatingWarning(true);
-        toast.error(t("copyNotAllowed"));
+        recordViolation(t("copyAttemptDetected"), "copy", t("copyNotAllowed"));
         return false;
       }
     };
@@ -273,10 +397,7 @@ export default function TakeExamPage() {
     const handlePaste = (e: ClipboardEvent) => {
       if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.copyPasteEnabled) {
         e.preventDefault();
-        setViolationType("paste");
-        setCheatingWarningMessage(t("pasteAttemptDetected"));
-        setShowCheatingWarning(true);
-        toast.error(t("pasteNotAllowed"));
+        recordViolation(t("pasteAttemptDetected"), "paste", t("pasteNotAllowed"));
         return false;
       }
     };
@@ -284,10 +405,7 @@ export default function TakeExamPage() {
     const handleCut = (e: ClipboardEvent) => {
       if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.copyPasteEnabled) {
         e.preventDefault();
-        setViolationType("other");
-        setCheatingWarningMessage(t("cutAttemptDetected"));
-        setShowCheatingWarning(true);
-        toast.error(t("cutNotAllowed"));
+        recordViolation(t("cutAttemptDetected"), "other", t("cutNotAllowed"));
         return false;
       }
     };
@@ -315,31 +433,40 @@ export default function TakeExamPage() {
     // Track tab visibility changes (cheating detection)
     const handleVisibilityChange = () => {
       if (exam && !showResults && document.hidden && securitySettings.violationMeasuresEnabled && securitySettings.tabSwitchEnabled) {
-        const newCount = cheatingAttemptsRef.current + 1;
-        cheatingAttemptsRef.current = newCount;
-        setCheatingAttempts(newCount);
-        
-        // Show cheating warning modal
-        setViolationType("tabswitch");
-        setCheatingWarningMessage(
-          newCount === 1
-            ? t("tabSwitchViolation1")
-            : newCount < securitySettings.maxViolations
-            ? t("tabSwitchViolation2")
-            : t("tabSwitchViolationFinal")
-        );
-        setShowCheatingWarning(true);
+        if (focusViolationSentRef.current) return;
+        focusViolationSentRef.current = true;
 
-        if (newCount === 1) {
-          toast.error(t("tabSwitchWarning1"));
-        } else if (newCount < securitySettings.maxViolations) {
-          toast.error(t("tabSwitchWarning2"));
-        } else if (newCount >= securitySettings.maxViolations) {
-          setTimeout(() => {
-            toast.error(t("tabSwitchWarningFinal"));
-            handleSubmitExamRef.current?.(true);
-          }, 3000);
+        const nextCount = cheatingAttemptsRef.current + 1;
+        recordViolation(
+          getCountMessage('tabSwitch', nextCount),
+          'tabswitch',
+          getCountToast('tabSwitch', nextCount)
+        );
+      }
+    };
+
+    const handleWindowBlur = () => {
+      if (!exam || showResults || !securitySettings.violationMeasuresEnabled || !securitySettings.tabSwitchEnabled || focusViolationSentRef.current) return;
+
+      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+      blurTimerRef.current = setTimeout(() => {
+        if (!document.hasFocus() && exam && !showResults) {
+          focusViolationSentRef.current = true;
+          const nextCount = cheatingAttemptsRef.current + 1;
+          recordViolation(
+            getCountMessage('blur', nextCount),
+            'tabswitch',
+            getCountToast('blur', nextCount)
+          );
         }
+      }, 800);
+    };
+
+    const handleWindowFocus = () => {
+      focusViolationSentRef.current = false;
+      if (blurTimerRef.current) {
+        clearTimeout(blurTimerRef.current);
+        blurTimerRef.current = null;
       }
     };
 
@@ -358,6 +485,49 @@ export default function TakeExamPage() {
       }
     };
 
+    const handleViewportResize = () => {
+      if (!exam || showResults || !securitySettings.violationMeasuresEnabled || !securitySettings.aiDetectionEnabled) return;
+
+      const currentWidth = window.innerWidth;
+      const baselineWidth = lastViewportWidthRef.current;
+      if (baselineWidth === 0) {
+        lastViewportWidthRef.current = currentWidth;
+        return;
+      }
+      const delta = baselineWidth - currentWidth;
+      if (delta >= 120) {
+        if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
+        resizeTimerRef.current = setTimeout(() => {
+          const stillShrunk = baselineWidth - window.innerWidth >= 120;
+          if (stillShrunk) {
+            const nextCount = cheatingAttemptsRef.current + 1;
+            recordViolation(
+              getCountMessage('resize', nextCount),
+              'other',
+              getCountToast('resize', nextCount)
+            );
+          }
+          lastViewportWidthRef.current = window.innerWidth;
+        }, 2000);
+      } else {
+        lastViewportWidthRef.current = currentWidth;
+      }
+    };
+
+    const checkAiExtensionDom = () => {
+      if (!exam || showResults || !securitySettings.violationMeasuresEnabled || !securitySettings.aiDetectionEnabled) return;
+      try {
+        const found = document.querySelectorAll(
+          '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i]'
+        );
+        if (found.length > 0) {
+          recordViolation(t("aiSidebarDetected"), 'other', t("aiSidebarDetected"));
+        }
+      } catch {
+        /* invalid selector — ignore */
+      }
+    };
+
     // Add event listeners
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
@@ -366,20 +536,33 @@ export default function TakeExamPage() {
     document.addEventListener('keydown', handleKeyDown, true); // Use capture phase
     document.addEventListener('contextmenu', handleContextMenu);
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
+
     // Clipboard protection
     document.addEventListener('copy', handleCopy, true);
     document.addEventListener('paste', handlePaste, true);
     document.addEventListener('cut', handleCut, true);
     document.addEventListener('selectstart', handleSelectStart, true);
     document.addEventListener('mousedown', handleMouseDown, true);
-    
-    // Tab visibility tracking
+
+    // Tab/window visibility and focus tracking
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
+
     // Drag and drop prevention
     document.addEventListener('dragstart', handleDragStart, true);
     document.addEventListener('drop', handleDrop, true);
+
+    // AI sidebar / resize detection
+    window.addEventListener('resize', handleViewportResize);
+    const aiDomPoll = setInterval(checkAiExtensionDom, 3000);
+    focusPollRef.current = securitySettings.tabSwitchEnabled
+      ? setInterval(() => {
+          if (exam && !showResults && !document.hasFocus() && !focusViolationSentRef.current) {
+            handleWindowBlur();
+          }
+        }, 500)
+      : null;
 
     return () => {
       // Clean up event listeners
@@ -390,20 +573,38 @@ export default function TakeExamPage() {
       document.removeEventListener('keydown', handleKeyDown, true);
       document.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      
+
       // Remove clipboard protection
       document.removeEventListener('copy', handleCopy, true);
       document.removeEventListener('paste', handlePaste, true);
       document.removeEventListener('cut', handleCut, true);
       document.removeEventListener('selectstart', handleSelectStart, true);
       document.removeEventListener('mousedown', handleMouseDown, true);
-      
-      // Remove visibility tracking
+
+      // Remove tab/window tracking
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+
       // Remove drag prevention
       document.removeEventListener('dragstart', handleDragStart, true);
       document.removeEventListener('drop', handleDrop, true);
+
+      // Remove resize / AI polling
+      window.removeEventListener('resize', handleViewportResize);
+      clearInterval(aiDomPoll);
+      if (focusPollRef.current) {
+        clearInterval(focusPollRef.current);
+        focusPollRef.current = null;
+      }
+      if (blurTimerRef.current) {
+        clearTimeout(blurTimerRef.current);
+        blurTimerRef.current = null;
+      }
+      if (resizeTimerRef.current) {
+        clearTimeout(resizeTimerRef.current);
+        resizeTimerRef.current = null;
+      }
     };
   }, [exam, showResults, securitySettings, t]);
 
@@ -448,33 +649,6 @@ export default function TakeExamPage() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [exam, showResults, securitySettings, t]);
-
-  // Prevent keyboard navigation shortcuts (Alt+Left/Right, Cmd+[/]) during exam
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!exam || showResults || !securitySettings.violationMeasuresEnabled || !securitySettings.tabSwitchEnabled) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Alt + Left/Right arrow (browser back/forward in many browsers)
-      if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        return false;
-      }
-
-      // Cmd/Ctrl + [ or ] (back/forward on macOS and some browsers)
-      if ((e.metaKey || e.ctrlKey) && (e.key === '[' || e.key === ']')) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        return false;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [exam, showResults, securitySettings]);
 
   // Handle back button when viewing results: go to exam categories instead of leaving
   // Also prevent forward navigation back to exam results after leaving

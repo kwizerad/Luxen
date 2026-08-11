@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ShieldCheck, Rocket, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdmin } from "@/lib/permissions";
+import { isProductionModeEnabled } from "@/lib/supabase/queries";
 import Image from "next/image";
 
 export default function Home() {
@@ -21,6 +22,12 @@ export default function Home() {
   const { config } = useBrandingConfig();
   const router = useRouter();
   const [showFloatingHeader, setShowFloatingHeader] = useState(false);
+  const [productionMode, setProductionMode] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    void isProductionModeEnabled().then(setProductionMode);
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -88,7 +95,7 @@ export default function Home() {
               {t("welcome")} <span className="text-primary-readable">{t("navo")}</span>
             </h1>
             <p className="max-w-2xl text-lg text-muted-foreground leading-relaxed">
-              {t("welcome.description")}
+              {productionMode ? t("productionModeWelcome") : t("welcome.description")}
             </p>
             <div className="flex flex-wrap gap-4">
               <Button size="lg" onClick={openLogin}>{t("signIn")}</Button>
@@ -99,47 +106,49 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid gap-4">
-            <Card className="border-border/20 bg-card/50 backdrop-blur-[20px] animate-fade-in-up" style={{ animationDelay: "100ms" }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <div className="p-2 rounded-[12px] bg-primary/10">
-                    <ShieldCheck className="h-5 w-5 text-primary-readable" />
-                  </div>
-                  {t("secure")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>{t("secure.description")}</CardDescription>
-              </CardContent>
-            </Card>
-            <Card className="border-border/20 bg-card/50 backdrop-blur-[20px] animate-fade-in-up" style={{ animationDelay: "200ms" }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <div className="p-2 rounded-[12px] bg-primary/10">
-                    <Rocket className="h-5 w-5 text-primary-readable" />
-                  </div>
-                  {t("fast")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>{t("fast.description")}</CardDescription>
-              </CardContent>
-            </Card>
-            <Card className="border-border/20 bg-card/50 backdrop-blur-[20px] animate-fade-in-up" style={{ animationDelay: "300ms" }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <div className="p-2 rounded-[12px] bg-primary/10">
-                    <Sparkles className="h-5 w-5 text-primary-readable" />
-                  </div>
-                  {t("simple")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>{t("simple.description")}</CardDescription>
-              </CardContent>
-            </Card>
-          </div>
+          {!productionMode && (
+            <div className="grid gap-4">
+              <Card className="border-border/20 bg-card/50 backdrop-blur-[20px] animate-fade-in-up" style={{ animationDelay: "100ms" }}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="p-2 rounded-[12px] bg-primary/10">
+                      <ShieldCheck className="h-5 w-5 text-primary-readable" />
+                    </div>
+                    {t("secure")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription>{t("secure.description")}</CardDescription>
+                </CardContent>
+              </Card>
+              <Card className="border-border/20 bg-card/50 backdrop-blur-[20px] animate-fade-in-up" style={{ animationDelay: "200ms" }}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="p-2 rounded-[12px] bg-primary/10">
+                      <Rocket className="h-5 w-5 text-primary-readable" />
+                    </div>
+                    {t("fast")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription>{t("fast.description")}</CardDescription>
+                </CardContent>
+              </Card>
+              <Card className="border-border/20 bg-card/50 backdrop-blur-[20px] animate-fade-in-up" style={{ animationDelay: "300ms" }}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="p-2 rounded-[12px] bg-primary/10">
+                      <Sparkles className="h-5 w-5 text-primary-readable" />
+                    </div>
+                    {t("simple")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription>{t("simple.description")}</CardDescription>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </main>
     </div>

@@ -2240,3 +2240,91 @@ export async function getPendingRetakeCount(): Promise<number> {
   if (error) return 0;
   return count || 0;
 }
+
+export async function isProductionModeEnabled(): Promise<boolean> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", "production_mode_enabled")
+    .single();
+
+  if (error || !data) {
+    return false;
+  }
+
+  return data.value === "true";
+}
+
+export async function getAllAnonymousVisits() {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  const { data, error } = await supabase
+    .from("anonymous_visits")
+    .select("*")
+    .order("last_seen", { ascending: false });
+
+  if (error) throw error;
+  return { visits: data || [] };
+}
+
+export async function getAnonymousVisitsByUser(userId: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  const { data, error } = await supabase
+    .from("anonymous_visits")
+    .select("*")
+    .eq("linked_user_id", userId)
+    .order("last_seen", { ascending: false });
+
+  if (error) throw error;
+  return { visits: data || [] };
+}
+
+export async function getAnonymousVisitByFingerprint(fingerprint: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  const { data, error } = await supabase
+    .from("anonymous_visits")
+    .select("*")
+    .eq("fingerprint", fingerprint)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return { visit: data };
+}
+
+export async function linkAnonymousVisitToUser(fingerprint: string, userId: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  const { data, error } = await supabase
+    .from("anonymous_visits")
+    .update({ linked_user_id: userId, updated_at: new Date().toISOString() })
+    .eq("fingerprint", fingerprint)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return { visit: data };
+}

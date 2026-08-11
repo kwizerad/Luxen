@@ -29,6 +29,7 @@ export interface Lesson {
   title: string;
   content: string; // Tiptap JSON string
   status: CourseStatus;
+  audioUrl?: string;
   topics: LessonTopic[];
 }
 
@@ -61,6 +62,7 @@ export interface ModuleExamQuestionUI {
   type: ModuleExamQuestionType;
   text: string; // Tiptap JSON string
   image?: string;
+  audio?: string;
   options: ModuleExamOption[];
   correctOptionId: string; // MC / T/F
   correctOptionIds: string[]; // Multiple select
@@ -174,6 +176,7 @@ export const createModuleExamQuestion = (
     id: "",
     type,
     text: "",
+    audio: undefined,
     options: defaultOptionsForType(type),
     correctOptionId: type === "true_false" ? "A" : "A",
     correctOptionIds: type === "true_false" ? ["A"] : [],
@@ -262,6 +265,7 @@ export function dbQuestionToUI(q: ModuleExamQuestion): ModuleExamQuestionUI {
     type: q.type,
     text: q.question || tiptapEmptyDoc(),
     image: q.question_image || undefined,
+    audio: (meta.audio as string) || undefined,
     options,
     correctOptionId: q.correct_answer || "A",
     correctOptionIds: Array.isArray(meta.correctOptionIds) ? (meta.correctOptionIds as string[]) : [],
@@ -280,6 +284,14 @@ export function uiQuestionToDB(q: ModuleExamQuestionUI): Partial<ModuleExamQuest
   for (const opt of q.options || []) {
     optionMap[opt.id] = { text: opt.text, image: opt.image };
   }
+  const metadata: Record<string, unknown> = {
+    options: q.options || [],
+    correctOptionIds: q.correctOptionIds,
+    partialScoring: q.partialScoring,
+    matchingPairs: q.matchingPairs,
+    shortAnswer: q.shortAnswer,
+  };
+  if (q.audio) metadata.audio = q.audio;
   return {
     type: q.type,
     question: q.text,
@@ -297,13 +309,7 @@ export function uiQuestionToDB(q: ModuleExamQuestionUI): Partial<ModuleExamQuest
     points: q.points,
     randomize_answer_order: q.randomizeAnswerOrder,
     tags: q.tags,
-    metadata: {
-      options: q.options || [],
-      correctOptionIds: q.correctOptionIds,
-      partialScoring: q.partialScoring,
-      matchingPairs: q.matchingPairs,
-      shortAnswer: q.shortAnswer,
-    },
+    metadata,
   };
 }
 
@@ -363,6 +369,7 @@ export function dbLessonToUI(l: CourseLesson): Lesson {
     title: l.title,
     content: l.content || tiptapEmptyDoc(),
     status: l.status || "draft",
+    audioUrl: l.audio_url || undefined,
     topics,
   };
 }
@@ -371,6 +378,8 @@ export function uiLessonToDB(l: Lesson): Partial<CourseLesson> {
   return {
     title: l.title,
     content: l.content,
+    content_type: l.audioUrl ? "audio" : (l.content ? "rich_text" : "text"),
+    audio_url: l.audioUrl || undefined,
     status: l.status,
     topics: l.topics as any,
   };

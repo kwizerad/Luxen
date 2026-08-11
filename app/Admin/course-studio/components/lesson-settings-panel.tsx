@@ -13,6 +13,7 @@ import {
 import { useLanguage } from "@/lib/language-context";
 import { Lesson, LessonTopic, CourseStatus } from "@/lib/courses-store";
 import { FileText, X, Plus, Tag, AlertTriangle, Trash2, Clock } from "lucide-react";
+import { AudioUpload } from "@/components/audio-upload";
 
 interface LessonSettingsPanelProps {
   lesson: Lesson;
@@ -102,6 +103,15 @@ export function LessonSettingsPanel({ lesson, onChange }: LessonSettingsPanelPro
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-1.5">
+        <AudioUpload
+          value={lesson.audioUrl}
+          onChange={(audioUrl) => onChange({ ...lesson, audioUrl: audioUrl || undefined })}
+          folder="lessons/audio"
+          label={t("ttsAudio") || "Text-to-speech audio"}
+        />
       </div>
 
       <div className="space-y-1.5">

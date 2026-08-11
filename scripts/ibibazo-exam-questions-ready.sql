@@ -683,8 +683,6 @@ INSERT INTO exam_questions (category_id,question,question_image,option_a,option_
 
   ($q$bcb8c5b1-b4ec-4117-b05f-5a6aec6eaa9e$q$,$q$Iyo umuhanda ugabanijemo ibisate bibiri kandi ugendwamo mu byerekezo byombi umuyobozi abujijwe :$q$,NULL,$q$kugendera mu gisate cy’iburyo$q$,NULL,$q$kunyuranaho$q$,NULL,$q$kugendera mu gisate cy’ibumoso$q$,NULL,$q$ibisubizo byose ni byo$q$,NULL,$q$C$q$,NULL,NULL),
 
-  ($q$bcb8c5b1-b4ec-4117-b05f-5a6aec6eaa9e$q$,$q$Icyapa kimenyesha kugendera mu muhanda ubisikanirwamo gifite:$q$,NULL,$q$Ishusho y’uruziga mw’ibara ritukura, ubuso bwera n’ikirango cy’umukara$q$,NULL,$q$Ishusho ya mpandeshatu mw’ibara ritukura, ubuso bwera n’ikirango cy’umukara$q$,NULL,$q$Ishusho ya mpandeshatu mw’ibara ritukura, ubuso bw’ubururu n’ikirango cy’umukara$q$,NULL,$q$Ishusho y’uruziga mw’ibara ritukura, ubuso bw’ubururu n’ikirango cy’umukara$q$,NULL,$q$B$q$,NULL,NULL),
-
   ($q$bcb8c5b1-b4ec-4117-b05f-5a6aec6eaa9e$q$,$q$Icyapa cyerekana inzira y’amatungo itegetswe giteye:$q$,NULL,$q$Uruziga mubuso bw’ubururu, ishusho y’inka mu ibara ry’umukara$q$,NULL,$q$Uruziga mu ibara ryera, ishusho y’inka mwibara ry’ubururu$q$,NULL,$q$Uruziga mu buso bw’ibara ry’ubururu, ishusho y’inka mu ibara ryera n’ikirango cy’umukara$q$,NULL,$q$Uruziga mu buso bw’ibara ry’ubururu, ishusho y’inka mu ibara ryera$q$,NULL,$q$D$q$,NULL,NULL),
 
   ($q$bcb8c5b1-b4ec-4117-b05f-5a6aec6eaa9e$q$,$q$Icyapa cyerekana ko bibujijwe kuvuza amahoni kirangwa na :$q$,NULL,$q$ishusho y’uruziga, ubuso bw’ubururu, ikiranga cy’umukara$q$,NULL,$q$ishusho y’uruziga, ubuso bw’ubururu, ikiranga cy’umweru$q$,NULL,$q$ishusho y’uruziga, ubuso bw’umweru, ikiranga cy’umukara$q$,NULL,$q$ntagisubizi cy’ukuri kirimo$q$,NULL,$q$C$q$,NULL,NULL),

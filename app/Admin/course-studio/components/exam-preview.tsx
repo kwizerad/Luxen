@@ -223,6 +223,13 @@ function StudentQuestionCard({
             ) : (
               <span className="text-[var(--admin-muted)] italic">{t("enterQuestion") || "Enter the question..."}</span>
             )}
+            {q.audio && (
+              <audio
+                controls
+                src={q.audio}
+                className="w-full h-10 rounded-lg mt-2"
+              />
+            )}
           </div>
         </div>
       </div>

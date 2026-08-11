@@ -246,8 +246,8 @@ export function UserProfileDrawer({
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="w-full justify-start rounded-xl h-auto flex-wrap p-1 gap-1">
                 {[
-                  { id: "info", label: t("personalInformation"), icon: <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
-                  { id: "progress", label: t("learningProgress"), icon: <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "info", label: t("profile"), icon: <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "exams", label: t("examHistory"), icon: <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
                   { id: "activity", label: t("activity"), icon: <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
                   { id: "security", label: t("security"), icon: <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
                   { id: "device", label: t("deviceInfo"), icon: <Monitor className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
@@ -274,11 +274,11 @@ export function UserProfileDrawer({
                   </div>
                 </TabsContent>
 
-                <TabsContent value="progress" className="space-y-3 sm:space-y-4 mt-4">
+                <TabsContent value="exams" className="space-y-3 sm:space-y-4 mt-4">
                   {loading ? (
                     <LoadingState />
                   ) : progress.length === 0 ? (
-                    <EmptyState message={t("noProgressYet")} />
+                    <EmptyState message={t("noExamHistory")} />
                   ) : (
                     <div className="space-y-3">
                       {progress.map((p: UserProgressSummary) => (

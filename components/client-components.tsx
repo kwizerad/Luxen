@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PWAInstallPrompt } from "./pwa-install-prompt";
+import { VisitorTracker } from "./visitor-tracker";
 
 export function ClientComponents() {
   const [mounted, setMounted] = useState(false);
@@ -18,6 +19,7 @@ export function ClientComponents() {
   return (
     <>
       <PWAInstallPrompt />
+      <VisitorTracker />
     </>
   );
 }

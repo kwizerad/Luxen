@@ -11,12 +11,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { BookOpen, MoreHorizontal, Check, Loader2, Globe, Lock, Layers, FileText, Pencil, ChevronDown, ChevronRight } from "lucide-react";
+import { BookOpen, MoreHorizontal, Check, Loader2, Globe, Lock, Layers, FileText, Pencil, ChevronDown, ChevronRight, Eye } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { createClient } from "@/lib/supabase/client";
 import { updateCourse, updateModule, updateLesson } from "@/app/Admin/actions/courses";
 import { toast } from "sonner";
 import type { CourseLanguageCourse, CourseModule, CourseLesson } from "@/lib/database.types";
+import { CoursePreviewDialog } from "@/components/course-preview-dialog";
 
 const LANGUAGES: CourseLanguage[] = ["English", "Kinyarwanda", "French"];
 type CourseLanguage = "English" | "Kinyarwanda" | "French";
@@ -40,6 +41,7 @@ export function CourseManagementView() {
   const [courseModules, setCourseModules] = useState<Record<string, ModuleWithLessons[]>>({});
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [loadingModules, setLoadingModules] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ type: "course"; course: CourseWithCounts } | { type: "module"; course: CourseWithCounts; module: ModuleWithLessons } | { type: "lesson"; course: CourseWithCounts; module: ModuleWithLessons; lesson: CourseLesson } | null>(null);
 
   const load = async () => {
     const supabase = createClient();
@@ -140,6 +142,18 @@ export function CourseManagementView() {
       setExpandedCourseId(courseId);
       if (!courseModules[courseId]) loadModules(courseId);
     }
+  };
+
+  const handlePreviewCourse = (course: CourseWithCounts) => {
+    setPreview({ type: "course", course });
+  };
+
+  const handlePreviewModule = (course: CourseWithCounts, module: ModuleWithLessons) => {
+    setPreview({ type: "module", course, module });
+  };
+
+  const handlePreviewLesson = (course: CourseWithCounts, module: ModuleWithLessons, lesson: CourseLesson) => {
+    setPreview({ type: "lesson", course, module, lesson });
   };
 
   const toggleModuleExpand = (moduleId: string) => {
@@ -383,7 +397,7 @@ export function CourseManagementView() {
               </div>
 
               {/* Action buttons row */}
-              <div className="flex items-center gap-2 pt-2 border-t border-[var(--admin-border)]" onClick={(e) => e.stopPropagation()}>
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--admin-border)]" onClick={(e) => e.stopPropagation()}>
                 <Button
                   type="button"
                   variant="outline"
@@ -393,6 +407,16 @@ export function CourseManagementView() {
                 >
                   {isActive ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   <span className="truncate">{isActive ? (t("hideModules") || "Hide Modules") : (t("viewModules") || "View Modules")}</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePreviewCourse(course)}
+                  className="gap-1.5 flex-1 sm:flex-none justify-center sm:justify-start"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  {t("preview") || "Preview"}
                 </Button>
                 <Link href={`/Admin/course?tab=studio&courseId=${course.id}`} className="flex-1 sm:flex-none">
                   <Button type="button" variant="outline" size="sm" className="gap-1.5 w-full justify-center sm:justify-start">
@@ -517,6 +541,16 @@ export function CourseManagementView() {
                                     <Lock className="h-3.5 w-3.5" />
                                   )}
                                 </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => course && handlePreviewModule(course, mod)}
+                                  className="text-[var(--admin-primary)] hover:text-[var(--admin-primary)] hover:bg-[var(--admin-primary)]/10"
+                                  title={t("preview") || "Preview"}
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
                                 {mod.lessons.length > 0 && (
                                   <Button
                                     type="button"
@@ -605,6 +639,16 @@ export function CourseManagementView() {
                                             <Lock className="h-3.5 w-3.5" />
                                           )}
                                         </Button>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => course && handlePreviewLesson(course, mod, lesson)}
+                                          className="text-[var(--admin-primary)] hover:text-[var(--admin-primary)] hover:bg-[var(--admin-primary)]/10"
+                                          title={t("preview") || "Preview"}
+                                        >
+                                          <Eye className="h-3.5 w-3.5" />
+                                        </Button>
                                       </div>
                                     </td>
                                   </tr>
@@ -622,6 +666,17 @@ export function CourseManagementView() {
           </div>
         );
       })()}
+
+      {preview && (
+        <CoursePreviewDialog
+          open={!!preview}
+          onOpenChange={(open) => !open && setPreview(null)}
+          type={preview.type}
+          course={preview.course}
+          moduleId={preview.type !== "course" ? preview.module.id : undefined}
+          lessonId={preview.type === "lesson" ? preview.lesson.id : undefined}
+        />
+      )}
     </div>
   );
 }

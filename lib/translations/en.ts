@@ -1558,6 +1558,13 @@ const en: Record<string, string> = {
   "failedToUpdate": "Failed to update",
   "noCoursesFound": "No courses found",
   "noDescription": "No description",
+  "coursePreviewDescription": "Preview how this course appears to students",
+  "estimatedTime": "Estimated Time",
+  "failedToLoad": "Failed to load",
+  "objectives": "Objectives",
+  "previewExam": "Preview Exam",
+  "resources": "Resources",
+  "retry": "Retry",
   "topicTitle": "Topic Title",
   "estimatedMinutes": "Estimated Minutes",
   "deleteTopic": "Delete Topic",
@@ -2128,6 +2135,30 @@ const en: Record<string, string> = {
   "bookingCompleted": "Completed",
   "bookingCancelled": "Cancelled",
   "no_show": "No-Show",
+
+  // Production mode
+  "productionMode": "Production Mode",
+  "productionModeDesc": "Restrict student access to exams only",
+  "productionModeHint": "When enabled, students can only access the exam, results, and settings areas.",
+  "productionModeEnabled": "Production mode enabled",
+  "productionModeDisabled": "Production mode disabled",
+  "failedToUpdateProductionMode": "Failed to update production mode: ",
+  "productionModeWelcome": "Welcome to the exam portal. Sign in to take your exam.",
+  "takeExamDesc": "Start your exam now",
+
+  // Admin user details
+  "noExamHistory": "No exam history yet",
+  "toggleTheme": "Toggle theme",
+
+  // Audio / TTS
+  "uploadAudio": "Upload Audio",
+  "ttsAudio": "Text-to-speech audio",
+  "questionAudio": "Question audio",
+  "audioUpload.invalidFile": "Please select a supported audio file.",
+  "audioUpload.success": "Audio uploaded",
+  "audioUpload.failed": "Failed to upload audio.",
+  "audioUpload.loadError": "Failed to load audio.",
+  "audioUpload.supportedFormats": "MP3, WAV, OGG, WebM, AAC. Max 50MB.",
 };
 
 export default en;

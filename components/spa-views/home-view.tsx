@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { BookOpen, LayoutGrid, Settings, ArrowRight, Play, BookOpenCheck, CheckCircle2, Layers } from "lucide-react";
+import { BookOpen, LayoutGrid, Settings, ArrowRight, Play, BookOpenCheck, CheckCircle2, Layers, Trophy, List } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { getDashboardData, type ContinueLearningData, type DashboardStats } from "@/app/dashboard/actions/course";
+import { isProductionModeEnabled } from "@/lib/supabase/queries";
+import { isAdmin } from "@/lib/permissions";
 import { HomeViewSkeleton } from "@/components/skeletons";
 
 interface HomeViewProps {
@@ -20,6 +22,12 @@ export function HomeView({ navigate }: HomeViewProps) {
   const [continueData, setContinueData] = useState<ContinueLearningData | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loadingData, setLoadingData] = useState(true);
+  const [productionMode, setProductionMode] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    void isProductionModeEnabled().then(setProductionMode);
+  }, []);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -49,6 +57,70 @@ export function HomeView({ navigate }: HomeViewProps) {
 
   if (authLoading || loadingData) {
     return <HomeViewSkeleton />;
+  }
+
+  const isRestricted = productionMode && !isAdmin(user);
+
+  if (isRestricted) {
+    return (
+      <div className="min-h-[calc(100vh-80px)] pb-20 sm:pb-24 flex items-center justify-center">
+        <div className="container mx-auto max-w-md px-4 py-8">
+          <div className="flex flex-col items-center gap-4 mb-8">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary overflow-hidden shadow-sm relative">
+              {config.logoUrl ? (
+                <Image src={config.logoUrl} alt={config.systemName} fill unoptimized className="object-cover" sizes="64px" />
+              ) : (
+                <span className="text-primary-foreground font-bold text-xl">{config.logoText}</span>
+              )}
+            </div>
+            <h1 className="text-xl font-bold text-center"><span className="text-primary">{config.systemName}</span></h1>
+            <p className="text-sm text-muted-foreground text-center">{t("productionModeWelcome")}</p>
+          </div>
+
+          <button
+            onClick={() => navigate("services/live-exam")}
+            className="group flex w-full items-center gap-4 rounded-2xl border bg-card p-5 transition-all hover:border-primary hover:shadow-md text-left mb-4"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Trophy className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-base">{t("takeExam")}</h3>
+              <p className="text-sm text-muted-foreground">{t("takeExamDesc")}</p>
+            </div>
+            <ArrowRight className="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
+          </button>
+
+          <button
+            onClick={() => navigate("services/claim-results")}
+            className="group flex w-full items-center gap-4 rounded-2xl border bg-card p-5 transition-all hover:border-primary hover:shadow-md text-left mb-4"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-500">
+              <List className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-base">{t("claimResults")}</h3>
+              <p className="text-sm text-muted-foreground">{t("claimResultsDesc")}</p>
+            </div>
+            <ArrowRight className="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
+          </button>
+
+          <button
+            onClick={() => navigate("settings")}
+            className="group flex w-full items-center gap-4 rounded-2xl border bg-card p-5 transition-all hover:border-primary hover:shadow-md text-left"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500">
+              <Settings className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-base">{t("settings")}</h3>
+              <p className="text-sm text-muted-foreground">{t("settingsDesc")}</p>
+            </div>
+            <ArrowRight className="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const quickLinks: { view: string; icon: typeof BookOpen; titleKey: string; descKey: string; iconBg: string; iconColor: string }[] = [

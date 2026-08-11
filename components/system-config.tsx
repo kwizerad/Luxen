@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Loader2, Settings2, Shield, ClipboardList, FileText, LayoutList } from "lucide-react";
+import { Loader2, Settings2, Shield, ClipboardList, FileText, LayoutList, Rocket } from "lucide-react";
 import { getSystemConfig, updateSystemConfig, getServicesConfig } from "@/lib/supabase/queries";
 import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
@@ -50,6 +50,7 @@ export function SystemConfigSettings() {
   // Individual settings
   const [examLimit, setExamLimit] = useState<number>(5);
   const [standaloneExamEnabled, setStandaloneExamEnabled] = useState<boolean>(false);
+  const [productionModeEnabled, setProductionModeEnabled] = useState<boolean>(false);
   const [security, setSecurity] = useState<SecuritySettings>(DEFAULT_SECURITY_SETTINGS);
 
   // Services settings
@@ -82,6 +83,9 @@ export function SystemConfigSettings() {
           }
           if (configMap["standalone_exam_enabled"]) {
             setStandaloneExamEnabled(configMap["standalone_exam_enabled"].value === "true");
+          }
+          if (configMap["production_mode_enabled"]) {
+            setProductionModeEnabled(configMap["production_mode_enabled"].value === "true");
           }
           setSecurity(parseSecuritySettings(configMap));
         }
@@ -149,6 +153,22 @@ export function SystemConfigSettings() {
       toast.success(t(standaloneExamEnabled ? "standaloneExamEnabled" : "standaloneExamDisabled"));
     } catch (error: any) {
       toast.error(t("failedToUpdateStandaloneExam") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveProductionMode = async () => {
+    try {
+      setSaving(true);
+      await updateSystemConfig(
+        "production_mode_enabled",
+        productionModeEnabled.toString(),
+        t("productionModeDesc") || "Enable production mode to restrict student access to exams only"
+      );
+      toast.success(t(productionModeEnabled ? "productionModeEnabled" : "productionModeDisabled"));
+    } catch (error: any) {
+      toast.error(t("failedToUpdateProductionMode") + error.message);
     } finally {
       setSaving(false);
     }
@@ -390,6 +410,51 @@ export function SystemConfigSettings() {
 
           <Button
             onClick={handleSaveStandaloneExam}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("save") || "Save"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Production Mode Toggle */}
+      <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Rocket className="h-5 w-5 text-primary" />
+            {t("productionMode") || "Production Mode"}
+          </CardTitle>
+          <CardDescription>
+            {t("productionModeDesc") || "Enable production mode to restrict student access to exams only"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="production-mode-toggle" className="text-base">
+                {t("productionMode") || "Production Mode"}
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {t("productionModeHint") || "When enabled, students can only access the exam, results, and settings areas."}
+              </p>
+            </div>
+            <Switch
+              id="production-mode-toggle"
+              checked={productionModeEnabled}
+              onCheckedChange={setProductionModeEnabled}
+            />
+          </div>
+
+          <Button
+            onClick={handleSaveProductionMode}
             disabled={saving}
             className="w-full sm:w-auto"
           >
