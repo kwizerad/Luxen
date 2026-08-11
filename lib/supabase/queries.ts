@@ -2,6 +2,7 @@
 
 import { createClient } from "./client";
 import { isAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
+import { isProductionModeEnabled as checkProductionMode } from "@/app/actions/public";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
 import type { ExamCategory, ExamQuestion, ExamAnswer, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
 
@@ -2242,19 +2243,7 @@ export async function getPendingRetakeCount(): Promise<number> {
 }
 
 export async function isProductionModeEnabled(): Promise<boolean> {
-  const supabase = createClient();
-
-  const { data, error } = await supabase
-    .from("system_config")
-    .select("value")
-    .eq("key", "production_mode_enabled")
-    .single();
-
-  if (error || !data) {
-    return false;
-  }
-
-  return data.value === "true";
+  return checkProductionMode();
 }
 
 export async function getAllAnonymousVisits() {
