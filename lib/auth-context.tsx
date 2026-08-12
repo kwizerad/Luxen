@@ -108,54 +108,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Real, synchronous page close/refresh — always safe to sign out immediately.
+    // Only sign out on a real, synchronous page close/refresh/navigate-away.
+    // We intentionally do NOT hook into `visibilitychange` or `pagehide` —
+    // those also fire when the admin merely switches tabs, backgrounds the
+    // app, or steps away, which was incorrectly logging admins out.
     const handleBeforeUnload = () => {
       sendAdminSignOut();
       clearAuthCookies();
     };
 
-    // Fallback for mobile browsers where `beforeunload` is unreliable.
-    // Losing focus / switching tabs / backgrounding the app also fires
-    // `visibilitychange` (and sometimes `pagehide` with persisted=true),
-    // so we debounce and only sign out if the page stays hidden for a
-    // sustained period — a strong signal the user actually left/closed it
-    // rather than briefly switching tabs or apps.
-    const HIDDEN_SIGNOUT_DELAY_MS = 60_000;
-    let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const clearHiddenTimer = () => {
-      if (hiddenTimer) {
-        clearTimeout(hiddenTimer);
-        hiddenTimer = null;
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        clearHiddenTimer();
-        hiddenTimer = setTimeout(() => {
-          if (document.visibilityState === "hidden") {
-            sendAdminSignOut();
-            clearAuthCookies();
-          }
-        }, HIDDEN_SIGNOUT_DELAY_MS);
-      } else {
-        clearHiddenTimer();
-      }
-    };
-
-    // NOTE: We intentionally do NOT sign out on `pagehide`. On many mobile
-    // browsers `pagehide` fires with `persisted=false` when the app is
-    // simply backgrounded/tab-switched away from — not just on real close —
-    // which caused admins to be logged out just by losing focus.
-
     window.addEventListener("beforeunload", handleBeforeUnload);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      clearHiddenTimer();
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [user, loading]);
 
