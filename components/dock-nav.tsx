@@ -139,23 +139,24 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
   const isDriverRole = userRole === "Driver";
   const isAdminUser = isAdmin(user);
 
+  const isRestrictedUser = productionMode && !isAdminUser;
+
   const allItems: NavItem[] = [
     { view: "home", labelKey: "home", icon: <LayoutDashboard size={18} /> },
     { view: "course", labelKey: "courses", icon: <BookOpen size={18} /> },
-    ...(examEnabled ? [{ href: "/dashboard/exam", labelKey: "exam", icon: <Trophy size={18} /> }] : []),
-    { view: "services/live-exam", labelKey: "exam", icon: <Trophy size={18} /> },
+    ...(examEnabled || isRestrictedUser ? [{ href: "/dashboard/exam", labelKey: "exam", icon: <Trophy size={18} /> }] : []),
     { view: "services/claim-results", labelKey: "claimResults", icon: <LayoutList size={18} /> },
     { view: "services", labelKey: "services", icon: <LayoutList size={18} /> },
     ...(isDriverRole ? [{ view: "driver-panel", labelKey: "driverPanel", icon: <Car size={18} /> }] : []),
     { view: "settings", labelKey: "settings", icon: <Settings size={18} /> },
   ];
 
-  const productionAllowed = new Set(["settings", "services/live-exam", "services/claim-results"]);
+  const productionAllowed = new Set(["settings"]);
 
   const visibleItems = allItems.filter((item) => {
     if (item.view === "course" && hasPublishedCourse !== true) return false;
     if (item.view === "services" && !servicesEnabled) return false;
-    if (productionMode && !isAdminUser) {
+    if (isRestrictedUser) {
       if (item.href) return item.href === "/dashboard/exam";
       if (item.view && !productionAllowed.has(item.view)) return false;
     }

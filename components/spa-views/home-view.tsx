@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { BookOpen, LayoutGrid, Settings, ArrowRight, Play, BookOpenCheck, CheckCircle2, Layers, Trophy, List } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BookOpen, LayoutGrid, Settings, ArrowRight, Play, BookOpenCheck, CheckCircle2, Layers, Trophy } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
@@ -16,6 +17,7 @@ interface HomeViewProps {
 }
 
 export function HomeView({ navigate }: HomeViewProps) {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { t, language: interfaceLanguage } = useLanguage();
   const { config } = useBrandingConfig();
@@ -78,7 +80,7 @@ export function HomeView({ navigate }: HomeViewProps) {
           </div>
 
           <button
-            onClick={() => navigate("services/live-exam")}
+            onClick={() => router.push("/dashboard/exam")}
             className="group flex w-full items-center gap-4 rounded-2xl border bg-card p-5 transition-all hover:border-primary hover:shadow-md text-left mb-4"
           >
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -87,20 +89,6 @@ export function HomeView({ navigate }: HomeViewProps) {
             <div className="flex-1">
               <h3 className="font-bold text-base">{t("takeExam")}</h3>
               <p className="text-sm text-muted-foreground">{t("takeExamDesc")}</p>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
-          </button>
-
-          <button
-            onClick={() => navigate("services/claim-results")}
-            className="group flex w-full items-center gap-4 rounded-2xl border bg-card p-5 transition-all hover:border-primary hover:shadow-md text-left mb-4"
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-500">
-              <List className="h-6 w-6" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-base">{t("claimResults")}</h3>
-              <p className="text-sm text-muted-foreground">{t("claimResultsDesc")}</p>
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
           </button>

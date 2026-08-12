@@ -37,17 +37,17 @@ export default function DashboardPage() {
   }, []);
 
   const isRestricted = productionMode && !isAdmin(user);
-  const allowedViews = new Set(["home", "settings", "services/live-exam", "services/claim-results"]);
+  const allowedViews = new Set(["home", "settings"]);
 
   useEffect(() => {
     if (isRestricted && view && !allowedViews.has(view)) {
-      navigate("services/live-exam");
+      navigate("home");
     }
   }, [isRestricted, view, navigate]);
 
   const renderView = () => {
     if (isRestricted && view && !allowedViews.has(view)) {
-      return <LiveExamView navigate={navigate} />;
+      return <HomeView navigate={navigate} />;
     }
     switch (view) {
       case "home":
