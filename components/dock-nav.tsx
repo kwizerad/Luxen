@@ -152,7 +152,7 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
     { view: "settings", labelKey: "settings", icon: <Settings size={18} /> },
   ];
 
-  const productionAllowed = new Set(["settings"]);
+  const productionAllowed = new Set(["home", "settings"]);
 
   const visibleItems = allItems.filter((item) => {
     if (item.view === "course" && hasPublishedCourse !== true) return false;
