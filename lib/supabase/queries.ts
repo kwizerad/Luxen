@@ -578,20 +578,40 @@ export async function createExamAttempt(attemptData: {
     throw new Error("Missing required fields");
   }
 
-  // Calculate score
-  let correctAnswers = 0;
-  const processedAnswers: ExamAnswer[] = answers.map((ans) => ({
-    question_id: ans.question_id,
-    selected_answer: ans.selected_answer,
-    is_correct: ans.is_correct || false,
-    time_spent_seconds: ans.time_spent_seconds,
-  }));
+  // Never trust client-supplied is_correct — look up the real answer key
+  // server-side so a tampered request can't fake a passing score.
+  const questionIds = answers.map((ans) => ans.question_id);
+  const { data: answerKeyRows, error: answerKeyError } = await supabase
+    .from("exam_questions")
+    .select("id, correct_answer, explanation")
+    .in("id", questionIds);
 
-  processedAnswers.forEach((ans) => {
-    if (ans.is_correct) correctAnswers++;
+  if (answerKeyError) throw answerKeyError;
+
+  const answerKey = new Map<string, { correct_answer: string; explanation?: string }>(
+    (answerKeyRows || []).map((q: { id: string; correct_answer: string; explanation?: string }) => [
+      q.id,
+      { correct_answer: q.correct_answer, explanation: q.explanation },
+    ])
+  );
+
+  let correctAnswers = 0;
+  const processedAnswers: ExamAnswer[] = answers.map((ans) => {
+    const isCorrect = answerKey.get(ans.question_id)?.correct_answer === ans.selected_answer;
+    if (isCorrect) correctAnswers++;
+    return {
+      question_id: ans.question_id,
+      selected_answer: ans.selected_answer,
+      is_correct: isCorrect,
+      time_spent_seconds: ans.time_spent_seconds,
+    };
   });
 
   const scorePercentage = Math.round((correctAnswers / total_questions) * 100);
+  const questionDetails: Record<string, { correct_answer: string; explanation?: string }> = {};
+  answerKey.forEach((value, id) => {
+    questionDetails[id] = { correct_answer: value.correct_answer as string, explanation: value.explanation };
+  });
 
   const { data, error } = await supabase
     .from("exam_attempts")
@@ -645,7 +665,7 @@ export async function createExamAttempt(attemptData: {
     console.error("Failed to send exam result notification:", notifyError);
   }
 
-  return { attempt: data };
+  return { attempt: data, questionDetails };
 }
 
 // ============================================================================
@@ -1041,11 +1061,15 @@ export async function getExamForTaking(categoryId: string) {
 
   const remainingAttempts = isLimited ? dailyLimit - attemptsCount - 1 : 999999;
 
+  // Never send correct_answer/explanation to the client before submission —
+  // otherwise anyone can read the answer key straight from the network tab.
+  const sanitizedQuestions = picked.map(({ correct_answer, explanation, ...rest }) => rest);
+
   return {
     categoryId,
     settings,
     totalAvailable: (questions || []).length,
-    questions: picked,
+    questions: sanitizedQuestions,
     serverTime: now.toISOString(),
     daily_limit: dailyLimit,
     is_limited: isLimited,

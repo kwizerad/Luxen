@@ -5,7 +5,7 @@ import { useAuth } from "./auth-context";
 
 const FINGERPRINT_KEY = "navo-visitor-fingerprint";
 
-function getOrCreateFingerprint(): string {
+export function getOrCreateFingerprint(): string {
   if (typeof window === "undefined") return "";
   let fingerprint = localStorage.getItem(FINGERPRINT_KEY);
   if (!fingerprint) {

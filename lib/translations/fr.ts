@@ -1665,6 +1665,8 @@ const fr: Record<string, string> = {
   "bookingCompleted": "Terminé",
   "bookingCancelled": "Annulé",
   "no_show": "Absent",
+  "freeExamLimitReachedTitle": "Vous avez utilisé vos examens gratuits",
+  "freeExamLimitReachedDesc": "Connectez-vous ou créez un compte gratuit pour continuer à passer des examens.",
 };
 
 export default fr;

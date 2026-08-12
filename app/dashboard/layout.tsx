@@ -11,6 +11,11 @@ import { FloatingHeader } from "@/components/floating-header";
 import { useLanguage } from "@/lib/language-context";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
 import { useLoginRecorder } from "@/hooks/use-login-recorder";
+import { isProductionModeEnabled } from "@/lib/supabase/queries";
+
+// The only /dashboard/* route anonymous visitors may access — the free
+// practice-exam entry point exposed on the landing page in production mode.
+const PUBLIC_ANONYMOUS_PATH = "/dashboard/exam";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -19,6 +24,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { isRTL } = useLanguage();
   const { config } = useBrandingConfig();
   const [isExamActive, setIsExamActive] = useState(false);
+  const [productionMode, setProductionMode] = useState(false);
+  const [productionModeChecked, setProductionModeChecked] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    void isProductionModeEnabled().then((enabled) => {
+      setProductionMode(enabled);
+      setProductionModeChecked(true);
+    });
+  }, []);
 
   // Check if exam is active (to hide dock nav during exam)
   useEffect(() => {
@@ -60,10 +75,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useActivityTracker();
   useLoginRecorder();
 
+  const isAnonymousExamRoute = pathname === PUBLIC_ANONYMOUS_PATH;
+  const anonymousAllowed = isAnonymousExamRoute && productionModeChecked && productionMode;
+
   useEffect(() => {
     if (authLoading) return;
+    if (!user && isAnonymousExamRoute && !productionModeChecked) return; // wait for the check
 
     if (!user) {
+      if (anonymousAllowed) return;
       router.push("/");
       return;
     }
@@ -71,9 +91,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (isPrimaryAdmin(user)) {
       router.push("/Admin");
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, user, router, isAnonymousExamRoute, anonymousAllowed, productionModeChecked]);
 
   if (authLoading) {
+    return <DashboardLayoutSkeleton />;
+  }
+
+  if (!user && isAnonymousExamRoute && !productionModeChecked) {
+    return <DashboardLayoutSkeleton />;
+  }
+
+  if (!user && !anonymousAllowed) {
     return <DashboardLayoutSkeleton />;
   }
 

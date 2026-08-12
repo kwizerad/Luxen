@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Watermark } from "@/components/watermark";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { getExamCategories, getExamForTaking, createExamAttempt, isStandaloneExamEnabled } from "@/lib/supabase/queries";
+import { getPublicExamCategories, startAnonymousExam, checkAnonymousExamStatus, submitAnonymousExam } from "@/app/actions/anonymous-exam";
+import { getOrCreateFingerprint } from "@/lib/use-visitor-tracker";
+import { useAuth } from "@/lib/auth-context";
+import { useAuthModals } from "@/lib/auth-modals-context";
 import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings } from "@/lib/security-config";
 import { toast } from "sonner";
 import { ExamCategorySkeleton } from "@/components/skeletons";
@@ -27,6 +31,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import type { ExamCategory, ExamQuestion, ExamAttempt, ExamAnswer } from "@/lib/database.types";
 
+// Before submission, correct_answer/explanation are stripped server-side so
+// the answer key is never sent to the client ahead of grading.
+type TakeExamQuestion = Omit<ExamQuestion, "correct_answer" | "explanation"> &
+  Partial<Pick<ExamQuestion, "correct_answer" | "explanation">>;
+
 type TakeResponse = {
   categoryId: string;
   settings: {
@@ -36,7 +45,7 @@ type TakeResponse = {
     available_from: string | null;
     available_to: string | null;
   };
-  questions: ExamQuestion[];
+  questions: TakeExamQuestion[];
   serverTime: string;
 };
 
@@ -66,13 +75,26 @@ export default function TakeExamPage() {
   const { config } = useBrandingConfig();
   const { t } = useLanguage();
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const { openLogin, openSignUp } = useAuthModals();
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string>("");
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [accessChecked, setAccessChecked] = useState(false);
+  const [anonymousStatus, setAnonymousStatus] = useState<{ remaining: number; requiresLogin: boolean } | null>(null);
+  const [loginRequired, setLoginRequired] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || authLoading) return;
+
+    // Anonymous visitors are already gated by the dashboard layout
+    // (production mode) — their access here is limited separately by the
+    // 2 free-attempts check, not the standalone-exam admin toggle.
+    if (!user) {
+      setAccessChecked(true);
+      return;
+    }
+
     void isStandaloneExamEnabled().then((enabled) => {
       if (!enabled) {
         router.replace("/dashboard#course");
@@ -80,7 +102,13 @@ export default function TakeExamPage() {
       }
       setAccessChecked(true);
     });
-  }, [router]);
+  }, [router, user, authLoading]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !accessChecked || user) return;
+    const fingerprint = getOrCreateFingerprint();
+    void checkAnonymousExamStatus(fingerprint).then((status) => setAnonymousStatus(status));
+  }, [accessChecked, user]);
 
   const [loadingExam, setLoadingExam] = useState(false);
   const [submittingExam, setSubmittingExam] = useState(false);
@@ -147,7 +175,7 @@ export default function TakeExamPage() {
     const load = async () => {
       setLoadingCategories(true);
       try {
-        const data = await getExamCategories();
+        const data = user ? await getExamCategories() : await getPublicExamCategories();
         setCategories(data.categories || []);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -175,7 +203,7 @@ export default function TakeExamPage() {
       window.dispatchEvent(new CustomEvent('exam-state-change'));
       console.log('Exam component unmounted - exam-active removed');
     };
-  }, [accessChecked, t]);
+  }, [accessChecked, t, user]);
   
   useEffect(() => {
     const getCountMessage = (base: string, count: number) =>
@@ -736,7 +764,9 @@ export default function TakeExamPage() {
     setShowInstructions(false);
     setLoadingExam(true);
     try {
-      const data = await getExamForTaking(categoryId);
+      const data = user
+        ? await getExamForTaking(categoryId)
+        : await startAnonymousExam(categoryId, getOrCreateFingerprint());
       setExam(data as TakeResponse);
       setCurrentIndex(0);
       setSecondsLeft((data.settings?.duration_minutes ?? 20) * 60);
@@ -780,7 +810,14 @@ export default function TakeExamPage() {
         }
       }
     } catch (error) {
-      toast.error((error instanceof Error ? error.message : String(error)) || t("failedToStartExam"));
+      const message = error instanceof Error ? error.message : String(error);
+      if (message === "LOGIN_REQUIRED") {
+        setLoginRequired(true);
+        setAnonymousStatus({ remaining: 0, requiresLogin: true });
+        openLogin();
+      } else {
+        toast.error(message || t("failedToStartExam"));
+      }
     } finally {
       setLoadingExam(false);
     }
@@ -854,53 +891,99 @@ export default function TakeExamPage() {
     try {
       const durationSeconds = Math.floor((Date.now() - examStartTime) / 1000);
 
+      // Note: correct_answer isn't in exam.questions (stripped before the
+      // exam started) — is_correct is always graded server-side below, so
+      // it never needs to be computed (or trusted) on the client.
       const answers = exam.questions.map((q) => {
         const userAnswer = userAnswers[q.id];
-        const isCorrect = userAnswer?.selectedAnswer === q.correct_answer;
         return {
           question_id: q.id,
           selected_answer: userAnswer?.selectedAnswer || null,
-          is_correct: isCorrect,
+          is_correct: false,
           time_spent_seconds: userAnswer ? Math.floor((Date.now() - userAnswer.timeStarted) / 1000) : 0,
         };
       });
 
-      const data = await createExamAttempt({
-        category_id: exam.categoryId,
-        category_name: categories.find((c) => c.id === exam.categoryId)?.name || t("unknown"),
-        total_questions: exam.questions.length,
-        answers,
-        duration_seconds: durationSeconds,
-        status: answeredCount > 0 ? 'completed' : 'abandoned',
-      });
+      const categoryName = categories.find((c) => c.id === exam.categoryId)?.name || t("unknown");
+      const status: 'completed' | 'abandoned' = answeredCount > 0 ? 'completed' : 'abandoned';
 
-      setExamResult(data.attempt as ExamAttempt);
+      let attempt: ExamAttempt;
+      let questionDetails: Record<string, { correct_answer: string; explanation?: string }> = {};
+
+      if (user) {
+        const data = await createExamAttempt({
+          category_id: exam.categoryId,
+          category_name: categoryName,
+          total_questions: exam.questions.length,
+          answers,
+          duration_seconds: durationSeconds,
+          status,
+        });
+        attempt = data.attempt as ExamAttempt;
+        questionDetails = data.questionDetails || {};
+      } else {
+        // Anonymous attempts aren't persisted (exam_attempts requires a
+        // logged-in user_id) — grade server-side and build the result
+        // locally for the review UI.
+        const graded = await submitAnonymousExam(getOrCreateFingerprint(), exam.categoryId, answers);
+        attempt = {
+          id: `anonymous-${Date.now()}`,
+          user_id: "",
+          category_id: exam.categoryId,
+          category_name: categoryName,
+          started_at: new Date(examStartTime).toISOString(),
+          completed_at: new Date().toISOString(),
+          duration_seconds: durationSeconds,
+          total_questions: exam.questions.length,
+          correct_answers: graded.correctAnswers,
+          score_percentage: graded.scorePercentage,
+          answers: graded.answers,
+          status,
+        };
+        questionDetails = graded.questionDetails || {};
+      }
+
+      // Now that the exam is over, merge the real correct_answer/explanation
+      // back into the locally-held questions so the review screen can render them.
+      setExam((prev) =>
+        prev
+          ? {
+              ...prev,
+              questions: prev.questions.map((q) => ({
+                ...q,
+                correct_answer: (questionDetails[q.id]?.correct_answer ?? q.correct_answer) as ExamQuestion["correct_answer"],
+                explanation: questionDetails[q.id]?.explanation ?? q.explanation,
+              })),
+            }
+          : prev
+      );
+
+      setExamResult(attempt);
       setShowResults(true);
       showResultsRef.current = true;
       submitSuccess = true;
 
-      // Notify admins about the exam submission
-      try {
-        await fetch("/api/notifications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "exam_submitted",
-            title: t("examSubmittedNotificationTitle"),
-            message:
-              t("examSubmittedNotificationMessage") +
-              " " +
-              (categories.find((c) => c.id === exam.categoryId)?.name || t("unknown")),
-            target_role: "admin",
-            data: {
-              attempt_id: data.attempt?.id,
-              category_id: exam.categoryId,
-              category_name: categories.find((c) => c.id === exam.categoryId)?.name,
-            },
-          }),
-        });
-      } catch (error) {
-        console.error("Failed to notify admins about exam submission:", error);
+      // Notify admins about the exam submission (signed-in users only — no attempt record for anonymous users)
+      if (user) {
+        try {
+          await fetch("/api/notifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "exam_submitted",
+              title: t("examSubmittedNotificationTitle"),
+              message: t("examSubmittedNotificationMessage") + " " + categoryName,
+              target_role: "admin",
+              data: {
+                attempt_id: attempt.id,
+                category_id: exam.categoryId,
+                category_name: categoryName,
+              },
+            }),
+          });
+        } catch (error) {
+          console.error("Failed to notify admins about exam submission:", error);
+        }
       }
 
       // Remove exam-active flag
@@ -969,6 +1052,10 @@ export default function TakeExamPage() {
     // Dispatch custom event to notify layout
     window.dispatchEvent(new CustomEvent('exam-state-change'));
     console.log('Exam reset - exam-active removed');
+
+    if (!user) {
+      void checkAnonymousExamStatus(getOrCreateFingerprint()).then((status) => setAnonymousStatus(status));
+    }
   };
   resetRef.current = reset;
 
@@ -985,11 +1072,29 @@ export default function TakeExamPage() {
 
   if (!accessChecked) return null;
 
+  if (!user && !exam && !showResults && (anonymousStatus?.requiresLogin || loginRequired)) {
+    return (
+      <div className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md rounded-3xl border bg-card/95 p-8 text-center shadow-lg backdrop-blur-md">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Trophy className="h-8 w-8" />
+          </div>
+          <h1 className="mb-2 text-xl font-bold">{t("freeExamLimitReachedTitle")}</h1>
+          <p className="mb-6 text-sm text-muted-foreground">{t("freeExamLimitReachedDesc")}</p>
+          <div className="flex flex-col gap-3">
+            <Button size="lg" onClick={() => openLogin()}>{t("signIn")}</Button>
+            <Button size="lg" variant="outline" onClick={() => openSignUp()}>{t("signUp")}</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (showResults && examResult) {
     return (
       <ExamReview
         examResult={examResult}
-        questions={exam?.questions || []}
+        questions={(exam?.questions || []) as ExamQuestion[]}
         onReset={reset}
         onRetake={handleRetake}
       />

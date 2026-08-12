@@ -29,6 +29,28 @@ const nextConfig = {
       'date-fns',
     ],
   },
+  async headers() {
+    return [
+      {
+        // Applies to every route (pages + API): stop browsers from
+        // MIME-sniffing responses into an executable content-type.
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+      {
+        // API responses carry session/user data — never let browsers or
+        // intermediate caches store them. (Content-Type is left to each
+        // route handler since some return CSV/binary data, not JSON.)
+        source: '/api/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-cache, no-store, must-revalidate' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

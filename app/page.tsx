@@ -10,7 +10,7 @@ import { useAuthModals } from "@/lib/auth-modals-context";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Rocket, Sparkles } from "lucide-react";
+import { ShieldCheck, Rocket, Sparkles, Trophy, List } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdmin } from "@/lib/permissions";
 import { isProductionModeEnabled } from "@/lib/supabase/queries";
@@ -98,7 +98,19 @@ export default function Home() {
               {productionMode ? t("productionModeWelcome") : t("welcome.description")}
             </p>
             <div className="flex flex-wrap gap-4">
-              <Button size="lg" onClick={openLogin}>{t("signIn")}</Button>
+              {productionMode ? (
+                <>
+                  <Button size="lg" onClick={() => router.push("/dashboard/exam")}>
+                    <Trophy className="mr-2 h-4 w-4" />
+                    {t("takeExam")}
+                  </Button>
+                  <Button size="lg" variant="outline" onClick={() => router.push("/results")}>
+                    <List className="mr-2 h-4 w-4" />
+                    {t("liveExamResults")}
+                  </Button>
+                </>
+              ) : null}
+              <Button size="lg" variant={productionMode ? "outline" : "default"} onClick={openLogin}>{t("signIn")}</Button>
               <Button size="lg" variant="outline" onClick={openSignUp}>{t("signUp")}</Button>
             </div>
             <div className="flex justify-center pt-2">

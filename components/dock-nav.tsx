@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Trophy, Settings, BookOpen, LayoutList, Car } from "lucide-react";
+import { LayoutDashboard, Trophy, Settings, BookOpen, LayoutList, Car, ClipboardCheck } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { isAdmin } from "@/lib/permissions";
@@ -146,6 +146,7 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
     { view: "home", labelKey: "home", icon: <LayoutDashboard size={18} /> },
     { view: "course", labelKey: "courses", icon: <BookOpen size={18} /> },
     ...(examEnabled || isRestrictedUser ? [{ href: "/dashboard/exam", labelKey: "exam", icon: <Trophy size={18} /> }] : []),
+    ...(isRestrictedUser ? [{ href: "/results", labelKey: "liveExamResults", icon: <ClipboardCheck size={18} /> }] : []),
     { view: "services/claim-results", labelKey: "claimResults", icon: <LayoutList size={18} /> },
     { view: "services", labelKey: "services", icon: <LayoutList size={18} /> },
     ...(isDriverRole ? [{ view: "driver-panel", labelKey: "driverPanel", icon: <Car size={18} /> }] : []),
@@ -153,12 +154,13 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
   ];
 
   const productionAllowed = new Set(["home", "settings"]);
+  const productionAllowedHrefs = new Set(["/dashboard/exam", "/results"]);
 
   const visibleItems = allItems.filter((item) => {
     if (item.view === "course" && hasPublishedCourse !== true) return false;
     if (item.view === "services" && !servicesEnabled) return false;
     if (isRestrictedUser) {
-      if (item.href) return item.href === "/dashboard/exam";
+      if (item.href) return productionAllowedHrefs.has(item.href);
       if (item.view && !productionAllowed.has(item.view)) return false;
     }
     return true;
