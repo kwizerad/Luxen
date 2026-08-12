@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { LayoutDashboard, Trophy, Settings, BookOpen, LayoutList, Car } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
@@ -19,6 +19,7 @@ const isLearningLanguage = (language: string | null | undefined): language is Le
 
 export function DockNav({ hide = false }: { hide?: boolean } = {}) {
   const router = useRouter();
+  const pathname = usePathname();
   const { view: hashView, navigate } = useHashRouter();
   const { t, language: interfaceLanguage } = useLanguage();
   const { user } = useAuth();
@@ -164,7 +165,7 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
   });
 
   const isNavItemActive = (item: NavItem) => {
-    if (item.href) return false;
+    if (item.href) return pathname === item.href;
     if (item.view === "home") return hashView === "home" || hashView === "";
     if (item.view === "services") return hashView === "services";
     if (item.view === "driver-panel") return hashView === "driver-panel" || hashView.startsWith("driver-panel/");
