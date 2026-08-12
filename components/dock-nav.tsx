@@ -166,6 +166,7 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
 
   const isNavItemActive = (item: NavItem) => {
     if (item.href) return pathname === item.href;
+    if (pathname !== "/dashboard") return false;
     if (item.view === "home") return hashView === "home" || hashView === "";
     if (item.view === "services") return hashView === "services";
     if (item.view === "driver-panel") return hashView === "driver-panel" || hashView.startsWith("driver-panel/");
@@ -188,7 +189,13 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
       if (item.href) {
         router.push(item.href);
       } else if (item.view) {
-        navigate(item.view);
+        if (pathname === "/dashboard") {
+          navigate(item.view);
+        } else {
+          // We're on a separate route (e.g. /dashboard/exam) — setting the
+          // hash alone would stay on this page. Navigate to the SPA page.
+          router.push(`/dashboard#${item.view}`);
+        }
       }
     },
     className: isNavItemActive(item)
