@@ -53,7 +53,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const [friends, setFriends] = useState<FriendProfile[]>([]);
   const [classmates, setClassmates] = useState<FriendProfile[]>([]);
   const [requests, setRequests] = useState<ClassmateRequestWithProfile[]>([]);
-  const [sentRequestIds, setSentRequestIds] = useState<Set<string>>(new Set());
+  const [sentRequestIds, setSentRequestIds] = useState<Map<string, string>>(new Map());
   const [isPublic, setIsPublic] = useState(true);
 
   const [selectedFriend, setSelectedFriend] = useState<FriendProfile | null>(null);
@@ -97,12 +97,13 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         .map((r) => r.other_user);
 
       const friendIds = new Set(acceptedFriends.map((f) => f.id));
-      const sentIds = new Set(
-        allRequests.filter((r) => r.direction === "sent" && r.status === "pending").map((r) => r.other_user.id)
-      );
+      const sentMap = new Map<string, string>();
+      allRequests.filter((r) => r.direction === "sent" && r.status === "pending").forEach((r) => {
+        sentMap.set(r.other_user.id, r.id);
+      });
 
       setFriends(acceptedFriends);
-      setSentRequestIds(sentIds);
+      setSentRequestIds(sentMap);
       setRequests(allRequests.filter((r) => r.status === "pending"));
       setIsPublic(requestsData.is_public ?? true);
 
@@ -231,7 +232,9 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
       const data = await res.json();
       if (res.ok) {
         toast.success(t("classmateRequestSent"));
-        setSentRequestIds((prev) => new Set([...prev, classmateId]));
+        if (data.request?.id) {
+          setSentRequestIds((prev) => new Map([...prev, [classmateId, data.request.id]]));
+        }
       } else {
         toast.error(data.error || t("failedToSendRequest"));
       }
@@ -587,9 +590,15 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                       <p className="text-xs text-muted-foreground truncate">@{classmate.username}</p>
                     </div>
                     {sentRequestIds.has(classmate.id) ? (
-                      <Badge variant="secondary" className="text-xs">
-                        {t("requestSent")}
-                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleCancelRequest(sentRequestIds.get(classmate.id)!)}
+                        className="text-xs h-7 text-muted-foreground hover:text-red-600"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        {t("cancelRequest")}
+                      </Button>
                     ) : (
                       <Button
                         size="sm"
