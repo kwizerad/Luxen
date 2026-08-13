@@ -2136,18 +2136,6 @@ const en: Record<string, string> = {
   "bookingCancelled": "Cancelled",
   "no_show": "No-Show",
 
-  // Production mode
-  "productionMode": "Production Mode",
-  "productionModeDesc": "Restrict student access to exams only",
-  "productionModeHint": "When enabled, students can only access the exam, results, and settings areas.",
-  "productionModeEnabled": "Production mode enabled",
-  "productionModeDisabled": "Production mode disabled",
-  "failedToUpdateProductionMode": "Failed to update production mode: ",
-  "productionModeWelcome": "Welcome to the exam portal. Sign in to take your exam.",
-  "takeExamDesc": "Start your exam now",
-  "freeExamLimitReachedTitle": "You've used your free exams",
-  "freeExamLimitReachedDesc": "Sign in or create a free account to keep taking exams.",
-
   // Admin user details
   "noExamHistory": "No exam history yet",
   "toggleTheme": "Toggle theme",

@@ -1956,8 +1956,6 @@ const rw: Record<string, string> = {
   "bookingCompleted": "Byakozwe",
   "bookingCancelled": "Byahakannywe",
   "no_show": "Ntiyagaragaye",
-  "freeExamLimitReachedTitle": "Wamaze gukoresha ibizamini byawe by'ubuntu",
-  "freeExamLimitReachedDesc": "Injira cyangwa ufungure konti y'ubuntu kugira ngo ukomeze gukora ibizamini.",
 };
 
 export default rw;

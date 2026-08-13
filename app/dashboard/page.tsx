@@ -1,10 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useHashRouter } from "@/hooks/use-hash-router";
-import { useAuth } from "@/lib/auth-context";
-import { isAdmin } from "@/lib/permissions";
-import { isProductionModeEnabled } from "@/lib/supabase/queries";
 import { ViewTransition } from "@/components/spa-views/view-transition";
 import { HomeView } from "@/components/spa-views/home-view";
 import { CourseView } from "@/components/spa-views/course-view";
@@ -28,27 +24,8 @@ import { DriverHubView } from "@/components/spa-views/driver-hub-view";
 
 export default function DashboardPage() {
   const { view, params, navigate } = useHashRouter();
-  const { user } = useAuth();
-  const [productionMode, setProductionMode] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    void isProductionModeEnabled().then(setProductionMode);
-  }, []);
-
-  const isRestricted = productionMode && !isAdmin(user);
-  const allowedViews = new Set(["home", "settings"]);
-
-  useEffect(() => {
-    if (isRestricted && view && !allowedViews.has(view)) {
-      navigate("home");
-    }
-  }, [isRestricted, view, navigate]);
 
   const renderView = () => {
-    if (isRestricted && view && !allowedViews.has(view)) {
-      return <HomeView navigate={navigate} />;
-    }
     switch (view) {
       case "home":
         return <HomeView navigate={navigate} />;

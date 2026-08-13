@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Watermark } from "@/components/watermark";
+import { SmartImage, preloadImages } from "@/components/smart-image";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import {
@@ -209,6 +210,16 @@ export function ModuleExamRunner({
     setShowResults(false);
     setExamResult(null);
     security.resetSecurity();
+
+    // Preload all question + option images so navigation feels instant
+    const allImageUrls = questions.flatMap((q) => [
+      q.question_image,
+      q.option_a_image,
+      q.option_b_image,
+      q.option_c_image,
+      q.option_d_image,
+    ]).filter(Boolean) as string[];
+    preloadImages(allImageUrls);
 
     showResultsRef.current = false;
     examActiveRef.current = true;
@@ -721,7 +732,7 @@ export function ModuleExamRunner({
                 {activeQuestion ? (
                   <>
                     {activeQuestion.question_image && (
-                      <img src={activeQuestion.question_image} alt={t("question") || "Question"} className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg border" />
+                      <SmartImage src={activeQuestion.question_image} alt={t("question") || "Question"} className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg border" />
                     )}
                     {activeQuestion.question && (
                       <div className="text-sm sm:text-base font-medium">{activeQuestion.question}</div>
@@ -754,7 +765,7 @@ export function ModuleExamRunner({
                                     {opt}
                                   </div>
                                   {img && (
-                                    <img src={img} alt={`${t("option") || "Option"} ${opt}`} className="w-full h-24 sm:h-32 object-cover rounded-md border mb-2 cursor-zoom-in" onClick={(e) => { e.stopPropagation(); setPreviewImage(img); }} />
+                                    <SmartImage src={img} alt={`${t("option") || "Option"} ${opt}`} className="w-full h-24 sm:h-32 object-cover rounded-md border mb-2 cursor-zoom-in" />
                                   )}
                                   {text && <div className="text-xs sm:text-sm text-center">{text}</div>}
                                 </div>
@@ -783,7 +794,7 @@ export function ModuleExamRunner({
                                     {opt}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    {img && <img src={img} alt={`${t("option") || "Option"} ${opt}`} className="w-full max-h-[180px] sm:max-h-[240px] object-contain rounded-md border mb-2" />}
+                                    {img && <SmartImage src={img} alt={`${t("option") || "Option"} ${opt}`} className="w-full max-h-[180px] sm:max-h-[240px] object-contain rounded-md border mb-2" />}
                                     {text && <div className="text-xs sm:text-sm">{text}</div>}
                                   </div>
                                 </div>

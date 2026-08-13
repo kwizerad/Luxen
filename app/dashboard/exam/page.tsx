@@ -3,16 +3,14 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { SmartImage, preloadImages } from "@/components/smart-image";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Watermark } from "@/components/watermark";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { getExamCategories, getExamForTaking, createExamAttempt, isStandaloneExamEnabled } from "@/lib/supabase/queries";
-import { getPublicExamCategories, startAnonymousExam, checkAnonymousExamStatus, submitAnonymousExam } from "@/app/actions/anonymous-exam";
-import { getOrCreateFingerprint } from "@/lib/use-visitor-tracker";
 import { useAuth } from "@/lib/auth-context";
-import { useAuthModals } from "@/lib/auth-modals-context";
 import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings } from "@/lib/security-config";
 import { toast } from "sonner";
 import { ExamCategorySkeleton } from "@/components/skeletons";
@@ -75,25 +73,14 @@ export default function TakeExamPage() {
   const { config } = useBrandingConfig();
   const { t } = useLanguage();
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
-  const { openLogin, openSignUp } = useAuthModals();
+  const { loading: authLoading } = useAuth();
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string>("");
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [accessChecked, setAccessChecked] = useState(false);
-  const [anonymousStatus, setAnonymousStatus] = useState<{ remaining: number; requiresLogin: boolean } | null>(null);
-  const [loginRequired, setLoginRequired] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || authLoading) return;
-
-    // Anonymous visitors are already gated by the dashboard layout
-    // (production mode) — their access here is limited separately by the
-    // 2 free-attempts check, not the standalone-exam admin toggle.
-    if (!user) {
-      setAccessChecked(true);
-      return;
-    }
 
     void isStandaloneExamEnabled().then((enabled) => {
       if (!enabled) {
@@ -102,13 +89,7 @@ export default function TakeExamPage() {
       }
       setAccessChecked(true);
     });
-  }, [router, user, authLoading]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !accessChecked || user) return;
-    const fingerprint = getOrCreateFingerprint();
-    void checkAnonymousExamStatus(fingerprint).then((status) => setAnonymousStatus(status));
-  }, [accessChecked, user]);
+  }, [router, authLoading]);
 
   const [loadingExam, setLoadingExam] = useState(false);
   const [submittingExam, setSubmittingExam] = useState(false);
@@ -175,7 +156,7 @@ export default function TakeExamPage() {
     const load = async () => {
       setLoadingCategories(true);
       try {
-        const data = user ? await getExamCategories() : await getPublicExamCategories();
+        const data = await getExamCategories();
         setCategories(data.categories || []);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -203,7 +184,7 @@ export default function TakeExamPage() {
       window.dispatchEvent(new CustomEvent('exam-state-change'));
       console.log('Exam component unmounted - exam-active removed');
     };
-  }, [accessChecked, t, user]);
+  }, [accessChecked, t]);
   
   useEffect(() => {
     const getCountMessage = (base: string, count: number) =>
@@ -764,12 +745,20 @@ export default function TakeExamPage() {
     setShowInstructions(false);
     setLoadingExam(true);
     try {
-      const data = user
-        ? await getExamForTaking(categoryId)
-        : await startAnonymousExam(categoryId, getOrCreateFingerprint());
+      const data = await getExamForTaking(categoryId);
       setExam(data as TakeResponse);
       setCurrentIndex(0);
       setSecondsLeft((data.settings?.duration_minutes ?? 20) * 60);
+
+      // Preload all question + option images so navigation feels instant
+      const allImageUrls = (data.questions || []).flatMap((q: Record<string, unknown>) => [
+        q.question_image,
+        q.option_a_image,
+        q.option_b_image,
+        q.option_c_image,
+        q.option_d_image,
+      ]).filter(Boolean) as string[];
+      preloadImages(allImageUrls);
       setExamStartTime(Date.now());
       setUserAnswers({});
       setShowResults(false);
@@ -811,13 +800,7 @@ export default function TakeExamPage() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (message === "LOGIN_REQUIRED") {
-        setLoginRequired(true);
-        setAnonymousStatus({ remaining: 0, requiresLogin: true });
-        openLogin();
-      } else {
-        toast.error(message || t("failedToStartExam"));
-      }
+      toast.error(message || t("failedToStartExam"));
     } finally {
       setLoadingExam(false);
     }
@@ -907,41 +890,16 @@ export default function TakeExamPage() {
       const categoryName = categories.find((c) => c.id === exam.categoryId)?.name || t("unknown");
       const status: 'completed' | 'abandoned' = answeredCount > 0 ? 'completed' : 'abandoned';
 
-      let attempt: ExamAttempt;
-      let questionDetails: Record<string, { correct_answer: string; explanation?: string }> = {};
-
-      if (user) {
-        const data = await createExamAttempt({
-          category_id: exam.categoryId,
-          category_name: categoryName,
-          total_questions: exam.questions.length,
-          answers,
-          duration_seconds: durationSeconds,
-          status,
-        });
-        attempt = data.attempt as ExamAttempt;
-        questionDetails = data.questionDetails || {};
-      } else {
-        // Anonymous attempts aren't persisted (exam_attempts requires a
-        // logged-in user_id) — grade server-side and build the result
-        // locally for the review UI.
-        const graded = await submitAnonymousExam(getOrCreateFingerprint(), exam.categoryId, answers);
-        attempt = {
-          id: `anonymous-${Date.now()}`,
-          user_id: "",
-          category_id: exam.categoryId,
-          category_name: categoryName,
-          started_at: new Date(examStartTime).toISOString(),
-          completed_at: new Date().toISOString(),
-          duration_seconds: durationSeconds,
-          total_questions: exam.questions.length,
-          correct_answers: graded.correctAnswers,
-          score_percentage: graded.scorePercentage,
-          answers: graded.answers,
-          status,
-        };
-        questionDetails = graded.questionDetails || {};
-      }
+      const data = await createExamAttempt({
+        category_id: exam.categoryId,
+        category_name: categoryName,
+        total_questions: exam.questions.length,
+        answers,
+        duration_seconds: durationSeconds,
+        status,
+      });
+      const attempt = data.attempt as ExamAttempt;
+      const questionDetails: Record<string, { correct_answer: string; explanation?: string }> = data.questionDetails || {};
 
       // Now that the exam is over, merge the real correct_answer/explanation
       // back into the locally-held questions so the review screen can render them.
@@ -963,9 +921,8 @@ export default function TakeExamPage() {
       showResultsRef.current = true;
       submitSuccess = true;
 
-      // Notify admins about the exam submission (signed-in users only — no attempt record for anonymous users)
-      if (user) {
-        try {
+      // Notify admins about the exam submission
+      try {
           await fetch("/api/notifications", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -984,7 +941,6 @@ export default function TakeExamPage() {
         } catch (error) {
           console.error("Failed to notify admins about exam submission:", error);
         }
-      }
 
       // Remove exam-active flag
       sessionStorage.removeItem('exam-active');
@@ -1053,9 +1009,6 @@ export default function TakeExamPage() {
     window.dispatchEvent(new CustomEvent('exam-state-change'));
     console.log('Exam reset - exam-active removed');
 
-    if (!user) {
-      void checkAnonymousExamStatus(getOrCreateFingerprint()).then((status) => setAnonymousStatus(status));
-    }
   };
   resetRef.current = reset;
 
@@ -1071,24 +1024,6 @@ export default function TakeExamPage() {
   const progress = exam ? (answeredCount / exam.questions.length) * 100 : 0;
 
   if (!accessChecked) return null;
-
-  if (!user && !exam && !showResults && (anonymousStatus?.requiresLogin || loginRequired)) {
-    return (
-      <div className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-10">
-        <div className="w-full max-w-md rounded-3xl border bg-card/95 p-8 text-center shadow-lg backdrop-blur-md">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Trophy className="h-8 w-8" />
-          </div>
-          <h1 className="mb-2 text-xl font-bold">{t("freeExamLimitReachedTitle")}</h1>
-          <p className="mb-6 text-sm text-muted-foreground">{t("freeExamLimitReachedDesc")}</p>
-          <div className="flex flex-col gap-3">
-            <Button size="lg" onClick={() => openLogin()}>{t("signIn")}</Button>
-            <Button size="lg" variant="outline" onClick={() => openSignUp()}>{t("signUp")}</Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (showResults && examResult) {
     return (
@@ -1363,7 +1298,7 @@ export default function TakeExamPage() {
                       <div className="text-base sm:text-lg font-medium">{activeQuestion.question}</div>
                     )}
                     {activeQuestion.question_image && (
-                      <Image src={activeQuestion.question_image} alt={t("question")} width={800} height={600} unoptimized className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg" />
+                      <SmartImage src={activeQuestion.question_image} alt={t("question")} width={800} height={600} className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg" />
                     )}
 
                     <div className="grid gap-2 sm:gap-3">
@@ -1389,7 +1324,7 @@ export default function TakeExamPage() {
                               {opt}
                             </div>
                             <div className="flex-1 min-w-0">
-                              {img && <Image src={img} alt={`${t("option")} ${opt}`} width={800} height={600} unoptimized className="w-full max-h-[180px] sm:max-h-[240px] object-contain rounded-md mb-2" />}
+                              {img && <SmartImage src={img} alt={`${t("option")} ${opt}`} width={800} height={600} className="w-full max-h-[180px] sm:max-h-[240px] object-contain rounded-md mb-2" />}
                               {text && <div className="text-xs sm:text-sm">{text}</div>}
                             </div>
                           </div>
