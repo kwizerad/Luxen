@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, setAdminSessionFlag } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -97,8 +97,12 @@ export function LoginForm({
 
       const isPrimary = isPrimaryAdmin({ email: trimmedEmail });
       const role = data.user?.user_metadata?.role;
+      const isAdminUser = isPrimary || role === "Admin";
 
-      const destination = isPrimary || role === "Admin" ? "/Admin" : "/dashboard";
+      // Set admin session flag so token is stored in sessionStorage (cleared on tab close)
+      setAdminSessionFlag(isAdminUser);
+
+      const destination = isAdminUser ? "/Admin" : "/dashboard";
       router.prefetch(destination);
       router.push(destination);
     } catch (error: unknown) {

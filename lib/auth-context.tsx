@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, setAdminSessionFlag } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-utils";
 import { isAdmin } from "@/lib/permissions";
 
@@ -74,13 +74,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       _event: string,
       session: { user: User | null; access_token?: string; refresh_token?: string; expires_at?: number } | null
     ) => {
-      setUser(session?.user ?? null);
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
       setSession(session ? {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
         expires_at: session.expires_at,
       } : null);
       setLoading(false);
+
+      // Set admin session flag so auth token is stored in sessionStorage (cleared on tab close)
+      if (sessionUser && isAdmin(sessionUser as any)) {
+        setAdminSessionFlag(true);
+      } else if (sessionUser) {
+        setAdminSessionFlag(false);
+      }
     });
 
     return () => {
@@ -89,45 +97,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Destroy admin session when the admin leaves the page (close/refresh/external nav)
+  // When user is resolved, set the admin session flag for storage routing
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (loading || !user) return;
-
-    const currentUser = { id: user.id, email: user.email, user_metadata: user.user_metadata };
-    if (!isAdmin(currentUser as any)) return;
-
-    const clearAuthCookies = () => {
-      const prefix = "navo-auth-token";
-      document.cookie
-        .split("; ")
-        .map((cookie) => cookie.split("=")[0])
-        .filter((name) => name.startsWith(prefix))
-        .forEach((name) => {
-          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-        });
-    };
-
-    const sendAdminSignOut = () => {
-      if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-        navigator.sendBeacon("/api/admin-signout", JSON.stringify({}));
-      }
-    };
-
-    // Only sign out on a real, synchronous page close/refresh/navigate-away.
-    // We intentionally do NOT hook into `visibilitychange` or `pagehide` —
-    // those also fire when the admin merely switches tabs, backgrounds the
-    // app, or steps away, which was incorrectly logging admins out.
-    const handleBeforeUnload = () => {
-      sendAdminSignOut();
-      clearAuthCookies();
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
+    if (isAdmin(user as any)) {
+      setAdminSessionFlag(true);
+    } else {
+      setAdminSessionFlag(false);
+    }
   }, [user, loading]);
 
   return (

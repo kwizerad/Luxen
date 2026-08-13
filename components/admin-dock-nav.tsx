@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { canAccess } from "@/lib/permissions";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, setAdminSessionFlag } from "@/lib/supabase/client";
 import Dock, { type DockItemData } from "@/components/Dock";
 
 interface AdminDockNavProps {
@@ -48,6 +48,7 @@ export function AdminDockNav({ user, isPrimaryAdmin }: AdminDockNavProps) {
 
   const handleLogout = async () => {
     try {
+      setAdminSessionFlag(false);
       const supabase = createClient();
       await supabase.auth.signOut();
       router.push("/");
