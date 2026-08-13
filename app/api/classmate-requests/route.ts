@@ -47,7 +47,14 @@ export async function GET(request: NextRequest) {
       direction: r.sender_id === user.id ? "sent" : "received",
     }));
 
-    return NextResponse.json({ requests: enriched });
+    // Also return the current user's is_public setting
+    const { data: myProfile } = await supabase
+      .from("user_profiles")
+      .select("is_public")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    return NextResponse.json({ requests: enriched, is_public: myProfile?.is_public ?? true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch classmate requests.";
     return NextResponse.json({ error: message }, { status: 500 });

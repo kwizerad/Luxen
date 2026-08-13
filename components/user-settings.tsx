@@ -505,11 +505,15 @@ export default function UserSettings({
                         .eq("id", currentUser.id)
                         .maybeSingle();
                       const newValue = !(profile?.is_public ?? true);
-                      const { error } = await supabase
-                        .from("user_profiles")
-                        .update({ is_public: newValue })
-                        .eq("id", currentUser.id);
-                      if (error) throw error;
+                      const res = await fetch("/api/classmate-requests/visibility", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ is_public: newValue }),
+                      });
+                      if (!res.ok) {
+                        const data = await res.json();
+                        throw new Error(data.error || "Failed");
+                      }
                       toast.success(t("visibilityUpdated"));
                     } catch (error: any) {
                       toast.error(`${t("failedToUpdateVisibility")}: ${error.message}`);

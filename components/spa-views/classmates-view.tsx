@@ -82,24 +82,12 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
     if (!user) return;
     setLoading(true);
     try {
-      const [friendsRes, classmatesRes, requestsRes, profileRes] = await Promise.all([
-        fetch("/api/classmate-requests"),
-        (async () => {
-          const { data, error } = await supabase
-            .from("user_profiles")
-            .select("id, full_name, username, avatar_url, last_seen")
-            .eq("role", "Student")
-            .eq("banned", false)
-            .eq("is_public", true)
-            .neq("id", user.id)
-            .order("full_name", { ascending: true })
-            .limit(100);
-          return { data, error };
-        })(),
+      const [classmatesRes, requestsRes] = await Promise.all([
+        fetch("/api/classmate-requests/classmates").then((r) => r.json()),
         fetch("/api/classmate-requests").then((r) => r.json()),
-        supabase.from("user_profiles").select("is_public").eq("id", user.id).maybeSingle(),
       ]);
 
+      const classmatesData = classmatesRes as { classmates?: FriendProfile[]; error?: string };
       const requestsData = await requestsRes.json();
       const allRequests: ClassmateRequestWithProfile[] = requestsData.requests || [];
 
@@ -115,9 +103,10 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
       setFriends(acceptedFriends);
       setSentRequestIds(sentIds);
       setRequests(allRequests.filter((r) => r.status === "pending"));
-      setIsPublic(profileRes.data?.is_public ?? true);
+      setIsPublic(requestsData.is_public ?? true);
 
-      const filteredClassmates = (classmatesRes.data || []).filter((c: FriendProfile) => !friendIds.has(c.id));
+      const classmatesList = classmatesData.classmates || [];
+      const filteredClassmates = classmatesList.filter((c: FriendProfile) => !friendIds.has(c.id));
       setClassmates(filteredClassmates);
     } catch (error) {
       console.error("Failed to fetch classmates data:", error);
@@ -294,15 +283,20 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
     const newValue = !isPublic;
     setIsPublic(newValue);
     try {
-      const { error } = await supabase
-        .from("user_profiles")
-        .update({ is_public: newValue })
-        .eq("id", user?.id);
-      if (error) throw error;
+      const res = await fetch("/api/classmate-requests/visibility", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_public: newValue }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed");
+      }
       toast.success(t("visibilityUpdated"));
-    } catch {
+    } catch (error) {
       setIsPublic(!newValue);
-      toast.error(t("failedToUpdateVisibility"));
+      const message = error instanceof Error ? error.message : "Failed";
+      toast.error(`${t("failedToUpdateVisibility")}: ${message}`);
     }
   };
 
