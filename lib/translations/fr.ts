@@ -1745,6 +1745,10 @@ const fr: Record<string, string> = {
   "toggle": "Basculer",
   "youArePublic": "Vous êtes visible aux camarades",
   "youArePrivate": "Vous êtes caché des camarades",
+  "inviteFriendsExam": "Inviter des amis pour un examen",
+  "inviteFriendsExamDesc": "Défiez vos amis à un examen en groupe",
+  "classmatesDesc": "Connectez-vous avec vos camarades et amis",
+  "takeExamDesc": "Testez vos connaissances avec des examens pratiques",
 };
 
 export default fr;

@@ -2228,6 +2228,10 @@ const en: Record<string, string> = {
   "toggle": "Toggle",
   "youArePublic": "You are visible on Classmates",
   "youArePrivate": "You are hidden from Classmates",
+  "inviteFriendsExam": "Invite Friends for Exam",
+  "inviteFriendsExamDesc": "Challenge your friends to a group exam",
+  "classmatesDesc": "Connect with classmates and friends",
+  "takeExamDesc": "Test your knowledge with practice exams",
 };
 
 export default en;

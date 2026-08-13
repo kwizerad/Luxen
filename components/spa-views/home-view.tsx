@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { BookOpen, LayoutGrid, Settings, ArrowRight, Play, BookOpenCheck, CheckCircle2, Layers } from "lucide-react";
+import { BookOpen, LayoutGrid, Settings, ArrowRight, Play, BookOpenCheck, CheckCircle2, Layers, Trophy, Users, FileText } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
@@ -73,6 +73,14 @@ export function HomeView({ navigate }: HomeViewProps) {
       iconColor: "text-green-500",
     },
     {
+      view: "classmates",
+      icon: Users,
+      titleKey: "classmates",
+      descKey: "classmatesDesc",
+      iconBg: "bg-purple-500/10",
+      iconColor: "text-purple-500",
+    },
+    {
       view: "settings",
       icon: Settings,
       titleKey: "settings",
@@ -98,6 +106,26 @@ export function HomeView({ navigate }: HomeViewProps) {
       labelKey: "modulesCompleted",
       iconBg: "bg-teal-500/10",
       iconColor: "text-teal-500",
+    },
+  ];
+
+  const quickActions: { view: string; icon: typeof Trophy; titleKey: string; descKey: string; iconBg: string; iconColor: string; badge?: string }[] = [
+    {
+      view: "classmates",
+      icon: Trophy,
+      titleKey: "inviteFriendsExam",
+      descKey: "inviteFriendsExamDesc",
+      iconBg: "bg-amber-500/10",
+      iconColor: "text-amber-500",
+      badge: t("new"),
+    },
+    {
+      view: "services/live-exam",
+      icon: FileText,
+      titleKey: "takeExam",
+      descKey: "takeExamDesc",
+      iconBg: "bg-red-500/10",
+      iconColor: "text-red-500",
     },
   ];
 
@@ -207,6 +235,43 @@ export function HomeView({ navigate }: HomeViewProps) {
               <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-1" />
             </button>
           )}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mb-4 sm:mb-6">
+          <h2 className="mb-2 sm:mb-3 text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            {t("quickActions")}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+            {quickActions.map((action, idx) => {
+              const Icon = action.icon;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleQuickLinkClick(action)}
+                  className="group flex items-center gap-3 rounded-xl sm:rounded-2xl border bg-card p-3 sm:p-4 transition-all hover:border-primary hover:shadow-md hover:-translate-y-0.5 text-left relative overflow-hidden"
+                >
+                  <div className={`flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl ${action.iconBg} ${action.iconColor}`}>
+                    <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold sm:font-bold text-sm sm:text-base leading-tight">{t(action.titleKey)}</h3>
+                      {action.badge && (
+                        <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-primary uppercase">
+                          {action.badge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-[11px] sm:text-xs text-muted-foreground line-clamp-1">
+                      {t(action.descKey)}
+                    </p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-1" />
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Quick Links Grid */}

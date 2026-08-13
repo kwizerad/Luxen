@@ -2036,6 +2036,10 @@ const rw: Record<string, string> = {
   "toggle": "Hindura",
   "youArePublic": "Uwerekanwa ku banyeshuri",
   "youArePrivate": "Uhishwe ku banyeshuri",
+  "inviteFriendsExam": "Tumira inshuti mu kizamini",
+  "inviteFriendsExamDesc": "Hangana n'inshuti zawe mu kizamini cy'itsinda",
+  "classmatesDesc": "Hura n'abanyeshuri n'inshuti zawe",
+  "takeExamDesc": "Igure imyitozo yo kugenzura ubumenyi bwawe",
 };
 
 export default rw;
