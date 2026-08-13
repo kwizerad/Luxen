@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Send, Loader2, Users, UserPlus, MessageCircle, Trophy, X, Check, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -74,10 +75,39 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const messageChannelRef = useRef<ReturnType<typeof createClient> extends infer T ? any : any>(null);
 
+  // Auto-switch to classmates tab if friends tab is hidden
+  useEffect(() => {
+    if (!loading && friends.length === 0 && requests.filter((r) => r.status === "pending").length === 0) {
+      setActiveTab("classmates");
+    }
+  }, [loading, friends.length, requests]);
+
   const isOnline = (lastSeen?: string) => {
     if (!lastSeen) return false;
     const diff = Date.now() - new Date(lastSeen).getTime();
     return diff < 5 * 60 * 1000;
+  };
+
+  const formatLastSeen = (lastSeen?: string) => {
+    if (!lastSeen) return null;
+    try {
+      return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
+    } catch {
+      return null;
+    }
+  };
+
+  const getSortedFriends = (list: FriendProfile[]) => {
+    return [...list].sort((a, b) => {
+      const aOnline = isOnline(a.last_seen);
+      const bOnline = isOnline(b.last_seen);
+      if (aOnline && !bOnline) return -1;
+      if (!aOnline && bOnline) return 1;
+      // Both online or both offline: sort by last_seen descending (most recent first)
+      const aTime = a.last_seen ? new Date(a.last_seen).getTime() : 0;
+      const bTime = b.last_seen ? new Date(b.last_seen).getTime() : 0;
+      return bTime - aTime;
+    });
   };
 
   const fetchData = useCallback(async () => {
@@ -367,23 +397,31 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const pendingReceivedRequests = requests.filter((r) => r.direction === "received");
   const pendingSentRequests = requests.filter((r) => r.direction === "sent");
 
-  const filteredFriends = friends.filter((f) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      f.full_name?.toLowerCase().includes(q) ||
-      f.username?.toLowerCase().includes(q)
-    );
-  });
+  const filteredFriends = getSortedFriends(
+    friends.filter((f) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        f.full_name?.toLowerCase().includes(q) ||
+        f.username?.toLowerCase().includes(q)
+      );
+    })
+  );
 
-  const filteredClassmates = classmates.filter((c) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      c.full_name?.toLowerCase().includes(q) ||
-      c.username?.toLowerCase().includes(q)
-    );
-  });
+  const filteredClassmates = getSortedFriends(
+    classmates.filter((c) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        c.full_name?.toLowerCase().includes(q) ||
+        c.username?.toLowerCase().includes(q)
+      );
+    })
+  );
+
+  const hasFriends = friends.length > 0;
+  const hasPendingRequests = pendingReceivedRequests.length > 0 || pendingSentRequests.length > 0;
+  const showFriendsTab = hasFriends || hasPendingRequests;
 
   if (loading) return <ClassmatesViewSkeleton />;
 
@@ -430,19 +468,21 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         <div className="p-3 border-b space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex gap-1 bg-muted rounded-lg p-1">
-              <button
-                onClick={() => setActiveTab("friends")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === "friends" ? "bg-background shadow-sm" : "text-muted-foreground"
-                }`}
-              >
-                {t("friends")}
-                {pendingReceivedRequests.length > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
-                    {pendingReceivedRequests.length}
-                  </span>
-                )}
-              </button>
+              {showFriendsTab && (
+                <button
+                  onClick={() => setActiveTab("friends")}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === "friends" ? "bg-background shadow-sm" : "text-muted-foreground"
+                  }`}
+                >
+                  {t("friends")}
+                  {pendingReceivedRequests.length > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                      {pendingReceivedRequests.length}
+                    </span>
+                  )}
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab("classmates")}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
@@ -571,7 +611,9 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                         {friend.full_name || friend.username}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {isOnline(friend.last_seen) ? t("online") : `@${friend.username}`}
+                        {isOnline(friend.last_seen)
+                          ? t("online")
+                          : (formatLastSeen(friend.last_seen) || `@${friend.username}`)}
                       </p>
                     </div>
                   </button>
@@ -601,7 +643,11 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                       <p className="text-sm font-medium truncate">
                         {classmate.full_name || classmate.username}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">@{classmate.username}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {isOnline(classmate.last_seen)
+                          ? t("online")
+                          : (formatLastSeen(classmate.last_seen) || `@${classmate.username}`)}
+                      </p>
                     </div>
                     {sentRequestIds.has(classmate.id) ? (
                       <Button
@@ -660,7 +706,9 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                   {selectedFriend.full_name || selectedFriend.username}
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  {isOnline(selectedFriend.last_seen) ? t("online") : `@${selectedFriend.username}`}
+                  {isOnline(selectedFriend.last_seen)
+                    ? t("online")
+                    : (formatLastSeen(selectedFriend.last_seen) || `@${selectedFriend.username}`)}
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={openInviteModal} className="text-xs">
