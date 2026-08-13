@@ -69,6 +69,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const [selectedInvitees, setSelectedInvitees] = useState<Set<string>>(new Set());
   const [creatingChallenge, setCreatingChallenge] = useState(false);
   const [showRequests, setShowRequests] = useState(true);
+  const [pictureViewer, setPictureViewer] = useState<{ url: string; name: string } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const messageChannelRef = useRef<ReturnType<typeof createClient> extends infer T ? any : any>(null);
@@ -400,9 +401,22 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const ProfileAvatar = ({ profile, size = "h-10 w-10" }: { profile?: FriendProfile | null; size?: string }) => {
     if (!profile) return <div className={`${size} rounded-full bg-muted animate-pulse`} />;
     const url = getAvatarUrl(profile);
+    if (url) {
+      return (
+        <button
+          onClick={() => setPictureViewer({ url, name: profile.full_name || profile.username || "" })}
+          className="rounded-full overflow-hidden hover:ring-2 hover:ring-primary/40 transition-all"
+          title={t("viewProfilePicture")}
+        >
+          <Avatar className={size}>
+            <AvatarImage src={url} alt={profile.full_name || ""} />
+            <AvatarFallback className={`bg-primary/10 text-primary font-bold text-xs ${size}`}>{getInitials(profile)}</AvatarFallback>
+          </Avatar>
+        </button>
+      );
+    }
     return (
       <Avatar className={size}>
-        {url && <AvatarImage src={url} alt={profile.full_name || ""} />}
         <AvatarFallback className={`bg-primary/10 text-primary font-bold text-xs ${size}`}>{getInitials(profile)}</AvatarFallback>
       </Avatar>
     );
@@ -909,6 +923,20 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
               {t("createChallenge")}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Profile Picture Viewer */}
+      <Dialog open={!!pictureViewer} onOpenChange={(open) => !open && setPictureViewer(null)}>
+        <DialogContent className="max-w-fit p-0 border-0 bg-transparent shadow-none flex flex-col items-center gap-4">
+          <img
+            src={pictureViewer?.url}
+            alt={pictureViewer?.name || ""}
+            className="max-h-[80vh] max-w-[90vw] rounded-2xl object-contain"
+          />
+          {pictureViewer?.name && (
+            <p className="text-white text-sm font-medium drop-shadow-lg">{pictureViewer.name}</p>
+          )}
         </DialogContent>
       </Dialog>
     </div>
