@@ -88,7 +88,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
       ]);
 
       const classmatesData = classmatesRes as { classmates?: FriendProfile[]; error?: string };
-      const requestsData = await requestsRes.json();
+      const requestsData = requestsRes as { requests?: ClassmateRequestWithProfile[]; is_public?: boolean };
       const allRequests: ClassmateRequestWithProfile[] = requestsData.requests || [];
 
       const acceptedFriends = allRequests
