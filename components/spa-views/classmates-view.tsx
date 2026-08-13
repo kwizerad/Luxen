@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Send, Loader2, Users, UserPlus, MessageCircle, Trophy, X, Check, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLanguage } from "@/lib/language-context";
@@ -382,15 +383,25 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
 
   if (loading) return <ClassmatesViewSkeleton />;
 
-  const Avatar = ({ profile, size = "h-10 w-10" }: { profile?: FriendProfile | null; size?: string }) => {
+  const getAvatarUrl = (profile?: FriendProfile | null) => {
+    if (!profile) return undefined;
+    return profile.avatar_url || undefined;
+  };
+
+  const getInitials = (profile?: FriendProfile | null) => {
+    if (!profile) return "?";
+    const name = profile.full_name || profile.username || "?";
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  const ProfileAvatar = ({ profile, size = "h-10 w-10" }: { profile?: FriendProfile | null; size?: string }) => {
     if (!profile) return <div className={`${size} rounded-full bg-muted animate-pulse`} />;
-    if (profile.avatar_url) {
-      return <img src={profile.avatar_url} alt="" className={`${size} rounded-full`} />;
-    }
+    const url = getAvatarUrl(profile);
     return (
-      <div className={`flex ${size} items-center justify-center rounded-full bg-primary/10 text-primary font-bold`}>
-        {(profile.full_name || profile.username || "?")[0]?.toUpperCase()}
-      </div>
+      <Avatar className={size}>
+        {url && <AvatarImage src={url} alt={profile.full_name || ""} />}
+        <AvatarFallback className={`bg-primary/10 text-primary font-bold text-xs ${size}`}>{getInitials(profile)}</AvatarFallback>
+      </Avatar>
     );
   };
 
@@ -466,7 +477,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                   </div>
                   {pendingReceivedRequests.map((req) => (
                     <div key={req.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50">
-                      <Avatar profile={req.other_user} size="h-8 w-8" />
+                      <ProfileAvatar profile={req.other_user} size="h-8 w-8" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">
                           {req.other_user.full_name || req.other_user.username}
@@ -498,7 +509,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                   </span>
                   {pendingSentRequests.map((req) => (
                     <div key={req.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50">
-                      <Avatar profile={req.other_user} size="h-8 w-8" />
+                      <ProfileAvatar profile={req.other_user} size="h-8 w-8" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">
                           {req.other_user.full_name || req.other_user.username}
@@ -533,7 +544,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                     }`}
                   >
                     <div className="relative">
-                      <Avatar profile={friend} size="h-10 w-10" />
+                      <ProfileAvatar profile={friend} size="h-10 w-10" />
                       {isOnline(friend.last_seen) && (
                         <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
                       )}
@@ -564,7 +575,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                     className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors"
                   >
                     <div className="relative">
-                      <Avatar profile={classmate} size="h-10 w-10" />
+                      <ProfileAvatar profile={classmate} size="h-10 w-10" />
                       {isOnline(classmate.last_seen) && (
                         <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
                       )}
@@ -620,7 +631,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <Avatar profile={selectedFriend} size="h-10 w-10" />
+              <ProfileAvatar profile={selectedFriend} size="h-10 w-10" />
               <div className="flex-1 min-w-0">
                 <h2 className="font-bold text-sm truncate">
                   {selectedFriend.full_name || selectedFriend.username}
@@ -727,7 +738,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <Avatar profile={selectedFriend} size="h-10 w-10" />
+            <ProfileAvatar profile={selectedFriend} size="h-10 w-10" />
             <div className="flex-1 min-w-0">
               <h2 className="font-bold text-sm truncate">
                 {selectedFriend.full_name || selectedFriend.username}
@@ -865,7 +876,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                           });
                         }}
                       />
-                      <Avatar profile={friend} size="h-8 w-8" />
+                      <ProfileAvatar profile={friend} size="h-8 w-8" />
                       <span className="text-sm flex-1">
                         {friend.full_name || friend.username}
                       </span>

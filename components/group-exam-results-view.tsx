@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Trophy, Medal, Clock, CheckCircle, XCircle, Loader2, ArrowLeft, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -186,14 +187,15 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
     );
   }
 
-  const Avatar = ({ profile, size = "h-8 w-8" }: { profile?: any; size?: string }) => {
-    if (profile?.avatar_url) {
-      return <img src={profile.avatar_url} alt="" className={`${size} rounded-full`} />;
-    }
+  const ProfileAvatar = ({ profile, size = "h-8 w-8" }: { profile?: any; size?: string }) => {
+    if (!profile) return <div className={`${size} rounded-full bg-muted animate-pulse`} />;
     return (
-      <div className={`flex ${size} items-center justify-center rounded-full bg-primary/10 text-primary font-bold`}>
-        {(profile?.full_name || profile?.username || "?")[0]?.toUpperCase()}
-      </div>
+      <Avatar className={size}>
+        {profile.avatar_url && <AvatarImage src={profile.avatar_url} alt="" />}
+        <AvatarFallback className={`bg-primary/10 text-primary font-bold text-xs ${size}`}>
+          {(profile.full_name || profile.username || "?")[0]?.toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
     );
   };
 
@@ -272,7 +274,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
                   {rp.rank === 3 && <Medal className="h-5 w-5 text-orange-400" />}
                   {rp.rank > 3 && <span className="text-muted-foreground">{rp.rank}</span>}
                 </div>
-                <Avatar profile={rp.participant.profile} size="h-8 w-8" />
+                <ProfileAvatar profile={rp.participant.profile} size="h-8 w-8" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">
                     {rp.participant.profile?.full_name || rp.participant.profile?.username}
@@ -304,7 +306,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
                 <div className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
-                <Avatar profile={p.profile} size="h-8 w-8" />
+                <ProfileAvatar profile={p.profile} size="h-8 w-8" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">
                     {p.profile?.full_name || p.profile?.username}
@@ -425,7 +427,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
             {selectedParticipantAttempt && (
               <div className="rounded-xl border bg-card p-3 sm:p-4">
                 <div className="flex items-center gap-3 mb-4">
-                  <Avatar profile={selectedParticipant?.profile} size="h-10 w-10" />
+                  <ProfileAvatar profile={selectedParticipant?.profile} size="h-10 w-10" />
                   <div className="flex-1">
                     <p className="font-medium text-sm">
                       {selectedParticipant?.profile?.full_name || selectedParticipant?.profile?.username}

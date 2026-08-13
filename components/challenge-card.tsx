@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Trophy, Users, Check, X, Play, Clock, Loader2, Bell, Medal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/lib/language-context";
 import { createClient } from "@/lib/supabase/client";
 import type { ExamChallenge, ExamChallengeParticipant } from "@/lib/database.types";
@@ -146,11 +147,12 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
         {participants.map((p) => (
           <div key={p.id} className="relative group">
             {p.profile?.avatar_url ? (
-              <img
-                src={p.profile.avatar_url}
-                alt=""
-                className="h-7 w-7 rounded-full border-2 border-background"
-              />
+              <Avatar className="h-7 w-7 border-2 border-background">
+                <AvatarImage src={p.profile.avatar_url} alt="" />
+                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                  {(p.profile?.full_name || p.profile?.username || "?")[0].toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
             ) : (
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-bold border-2 border-background">
                 {(p.profile?.full_name || p.profile?.username || "?")[0]?.toUpperCase()}
