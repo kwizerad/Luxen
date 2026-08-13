@@ -19,11 +19,11 @@ export async function GET(request: NextRequest) {
     // Fetch all students except the current user
     const { data: allStudents, error: studentsError } = await admin
       .from("user_profiles")
-      .select("id, full_name, username, avatar_url, last_seen, is_public")
+      .select("id, full_name, first_name, last_name, username, email, avatar_url, last_seen, banned")
       .eq("role", "Student")
       .neq("id", user.id)
       .order("full_name", { ascending: true })
-      .limit(500);
+      .limit(1000);
 
     if (studentsError) {
       console.error("Failed to fetch classmates:", studentsError);
@@ -47,20 +47,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Filter out banned users and existing friends
+    // Filter out banned users and existing friends, build display name from available fields
     const classmates = (allStudents || [])
       .filter((s: any) => {
-        if (s.banned) return false;
+        if (s.banned === true) return false;
         if (friendIds.has(s.id)) return false;
         return true;
       })
-      .map((s: any) => ({
-        id: s.id,
-        full_name: s.full_name,
-        username: s.username,
-        avatar_url: s.avatar_url,
-        last_seen: s.last_seen,
-      }));
+      .map((s: any) => {
+        const displayName = s.full_name?.trim() || [s.first_name, s.last_name].filter(Boolean).join(" ").trim() || s.username?.trim() || s.email?.split("@")[0] || "Unknown";
+        return {
+          id: s.id,
+          full_name: displayName,
+          username: s.username,
+          avatar_url: s.avatar_url,
+          last_seen: s.last_seen,
+        };
+      });
 
     return NextResponse.json({ classmates });
   } catch (error) {

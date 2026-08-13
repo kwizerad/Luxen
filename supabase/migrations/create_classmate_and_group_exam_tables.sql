@@ -38,16 +38,9 @@ CREATE TABLE IF NOT EXISTS exam_challenges (
 );
 CREATE INDEX IF NOT EXISTS idx_exam_challenges_creator ON exam_challenges(creator_id);
 CREATE INDEX IF NOT EXISTS idx_exam_challenges_status ON exam_challenges(status);
-ALTER TABLE exam_challenges ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view own challenges" ON exam_challenges FOR SELECT TO authenticated
-  USING (creator_id = auth.uid()
-    OR id IN (SELECT challenge_id FROM exam_challenge_participants WHERE user_id = auth.uid()));
-CREATE POLICY "Creators can create challenges" ON exam_challenges FOR INSERT TO authenticated
-  WITH CHECK (creator_id = auth.uid());
-CREATE POLICY "Creators can update own challenges" ON exam_challenges FOR UPDATE TO authenticated
-  USING (creator_id = auth.uid()) WITH CHECK (creator_id = auth.uid());
 
 -- ============ exam_challenge_participants ============
+-- Created BEFORE exam_challenges RLS policies because the SELECT policy references this table
 CREATE TABLE IF NOT EXISTS exam_challenge_participants (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   challenge_id UUID NOT NULL REFERENCES exam_challenges(id) ON DELETE CASCADE,
@@ -62,6 +55,18 @@ CREATE TABLE IF NOT EXISTS exam_challenge_participants (
 );
 CREATE INDEX IF NOT EXISTS idx_exam_challenge_participants_challenge ON exam_challenge_participants(challenge_id);
 CREATE INDEX IF NOT EXISTS idx_exam_challenge_participants_user ON exam_challenge_participants(user_id);
+
+-- Now enable RLS and create policies for exam_challenges (can reference exam_challenge_participants)
+ALTER TABLE exam_challenges ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own challenges" ON exam_challenges FOR SELECT TO authenticated
+  USING (creator_id = auth.uid()
+    OR id IN (SELECT challenge_id FROM exam_challenge_participants WHERE user_id = auth.uid()));
+CREATE POLICY "Creators can create challenges" ON exam_challenges FOR INSERT TO authenticated
+  WITH CHECK (creator_id = auth.uid());
+CREATE POLICY "Creators can update own challenges" ON exam_challenges FOR UPDATE TO authenticated
+  USING (creator_id = auth.uid()) WITH CHECK (creator_id = auth.uid());
+
+-- RLS policies for exam_challenge_participants
 ALTER TABLE exam_challenge_participants ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Participants can view own participation" ON exam_challenge_participants FOR SELECT TO authenticated
   USING (user_id = auth.uid()
