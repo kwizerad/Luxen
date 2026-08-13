@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Bell, Check, Trash2, Info, CheckCircle, AlertTriangle, XCircle, FileText, UserPlus, Trophy, Settings, Swords } from "lucide-react";
+import { Bell, Check, Trash2, Info, CheckCircle, AlertTriangle, XCircle, FileText, UserPlus, Trophy, Settings, Swords, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Loader2 } from "lucide-react";
 import {
@@ -44,6 +44,7 @@ const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   reminder: Info,
   admin_message: Info,
   exam_challenge_invite: Swords,
+  friend_request: Users,
 };
 
 const typeColors: Record<string, string> = {
@@ -59,6 +60,7 @@ const typeColors: Record<string, string> = {
   announcement: "text-red-500 bg-red-50",
   admin_message: "text-blue-500 bg-blue-50",
   exam_challenge_invite: "text-purple-500 bg-purple-50",
+  friend_request: "text-cyan-500 bg-cyan-50",
 };
 
 const priorityColors = {

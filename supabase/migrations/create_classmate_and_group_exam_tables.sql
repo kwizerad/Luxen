@@ -103,5 +103,5 @@ ALTER TABLE notifications ADD CONSTRAINT notifications_type_check
     'info','success','warning','error','exam','system','user_joined','exam_submitted',
     'admin_update','announcement','admin_message','language_published','module_published',
     'lesson_published','exam_result','exam_available','course_updated','reminder',
-    'exam_challenge_invite'
+    'exam_challenge_invite','friend_request'
   ));

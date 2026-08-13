@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
   try {
@@ -111,6 +112,29 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    // Send notification to the receiver
+    try {
+      const adminClient = createAdminClient();
+      const senderName = user.user_metadata?.full_name || user.user_metadata?.username || user.email;
+      await adminClient.from("notifications").insert({
+        target_user_id: receiver_id,
+        type: "friend_request",
+        title: "New Friend Request",
+        message: `${senderName} wants to be your friend. Tap to view and accept!`,
+        data: {
+          sender_id: user.id,
+          sender_name: senderName,
+          request_id: created.id,
+        },
+        sender_id: user.id,
+        sender_name: senderName,
+        action_url: "/dashboard#classmates",
+        priority: "normal",
+      });
+    } catch (notifError) {
+      console.error("Failed to send friend request notification:", notifError);
+    }
 
     return NextResponse.json({ request: created, status: "success" });
   } catch (error) {

@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
 
     for (const inviteeId of invite_user_ids) {
       await adminClient.from("notifications").insert({
-        user_id: inviteeId,
+        target_user_id: inviteeId,
         type: "exam_challenge_invite",
         title: "Group Exam Invitation",
         message: `Your friend ${creatorName} wishes to take an exam together with you: ${category_name}. Check your Classmates chat to join!`,
@@ -219,7 +219,6 @@ export async function POST(request: NextRequest) {
           challenge_id: challenge.id,
           category_name,
         },
-        is_read: false,
         action_url: "/dashboard#classmates",
       });
 
