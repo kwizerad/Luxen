@@ -5,7 +5,6 @@ import { LayoutDashboard, Trophy, Settings, BookOpen, LayoutList, Car } from "lu
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
-import { isStandaloneExamEnabled, isServicesPageEnabled } from "@/lib/supabase/queries";
 import { useEffect, useState } from "react";
 import Dock, { type DockItemData } from "@/components/Dock";
 import { useHashRouter } from "@/hooks/use-hash-router";
@@ -68,10 +67,25 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    void isStandaloneExamEnabled().then(setExamEnabled);
-    void isServicesPageEnabled().then(setServicesEnabled);
 
+    // Batch both system_config lookups into a single query
     const supabase = createClient();
+    const fetchConfig = async () => {
+      const { data } = await supabase
+        .from("system_config")
+        .select("key, value")
+        .in("key", ["standalone_exam_enabled", "services_page_enabled"]);
+
+      for (const row of data || []) {
+        if (row.key === "standalone_exam_enabled") {
+          setExamEnabled(row.value === "true");
+        } else if (row.key === "services_page_enabled") {
+          setServicesEnabled(row.value === "true");
+        }
+      }
+    };
+    void fetchConfig();
+
     const channel = supabase
       .channel("system_config_changes")
       .on(

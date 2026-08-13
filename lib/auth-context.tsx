@@ -63,6 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     refreshUser();
 
+    // Safety timeout: if auth hasn't resolved in 5s, stop blocking the UI
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
     // Listen for auth state changes
     const supabase = createClient();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((
@@ -79,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);

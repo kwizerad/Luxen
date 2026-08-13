@@ -26,7 +26,11 @@ export function HomeView({ navigate }: HomeViewProps) {
     let mounted = true;
     const loadData = async () => {
       try {
-        const data = await getDashboardData(interfaceLanguage);
+        const dataPromise = getDashboardData(interfaceLanguage);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Dashboard data timeout")), 8000)
+        );
+        const data = await Promise.race([dataPromise, timeoutPromise]);
         if (mounted) {
           setContinueData(data.continueLearning);
           setStats(data.stats);

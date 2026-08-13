@@ -120,25 +120,31 @@ async function resolveLearningLanguage(
     return interfaceLanguage;
   }
 
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("learning_language")
-    .eq("id", user.id)
-    .maybeSingle();
-  const saved = profile?.learning_language;
+  // Fetch user profile and all published courses in parallel
+  const [profileResult, coursesResult] = await Promise.all([
+    supabase
+      .from("user_profiles")
+      .select("learning_language")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("course_languages")
+      .select("language")
+      .eq("status", "published")
+      .is("deleted_at", null),
+  ]);
+
+  const saved = profileResult.data?.learning_language;
   if (saved && isLearningLanguage(saved)) {
     return saved;
   }
 
+  // Find the first matching learning language from published courses
+  const publishedLanguages = new Set(
+    (coursesResult.data || []).map((c: { language: string }) => c.language)
+  );
   for (const lang of LEARNING_LANGUAGES) {
-    const { data } = await supabase
-      .from("course_languages")
-      .select("id")
-      .eq("language", lang)
-      .eq("status", "published")
-      .is("deleted_at", null)
-      .limit(1);
-    if (data && data.length > 0) {
+    if (publishedLanguages.has(lang)) {
       return lang;
     }
   }
@@ -170,7 +176,13 @@ export async function getDashboardData(
     };
   }
 
-  const effectiveLanguage = await resolveLearningLanguage(supabase, user, interfaceLanguage);
+  // If interfaceLanguage is already a valid learning language, skip the profile lookup
+  let effectiveLanguage: LearningLanguage | null = null;
+  if (interfaceLanguage && isLearningLanguage(interfaceLanguage)) {
+    effectiveLanguage = interfaceLanguage;
+  } else {
+    effectiveLanguage = await resolveLearningLanguage(supabase, user, interfaceLanguage);
+  }
   if (!effectiveLanguage) {
     return {
       continueLearning: null,
