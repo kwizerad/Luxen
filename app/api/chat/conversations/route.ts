@@ -74,7 +74,62 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { driver_id } = body;
+    const { driver_id, peer_id } = body;
+
+    if (peer_id) {
+      if (peer_id === user.id) {
+        return NextResponse.json(
+          { error: "You cannot start a conversation with yourself" },
+          { status: 400 }
+        );
+      }
+
+      const { data: friendship } = await supabase
+        .from("classmate_requests")
+        .select("id")
+        .eq("status", "accepted")
+        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${peer_id}),and(sender_id.eq.${peer_id},receiver_id.eq.${user.id})`)
+        .maybeSingle();
+
+      if (!friendship) {
+        return NextResponse.json(
+          { error: "You can only chat with friends" },
+          { status: 403 }
+        );
+      }
+
+      const { data: existingForward } = await supabase
+        .from("chat_conversations")
+        .select("*")
+        .eq("driver_id", user.id)
+        .eq("student_id", peer_id)
+        .maybeSingle();
+
+      if (existingForward) {
+        return NextResponse.json({ conversation: existingForward, status: "success" });
+      }
+
+      const { data: existingReverse } = await supabase
+        .from("chat_conversations")
+        .select("*")
+        .eq("driver_id", peer_id)
+        .eq("student_id", user.id)
+        .maybeSingle();
+
+      if (existingReverse) {
+        return NextResponse.json({ conversation: existingReverse, status: "success" });
+      }
+
+      const { data: created, error } = await supabase
+        .from("chat_conversations")
+        .insert([{ driver_id: user.id, student_id: peer_id }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return NextResponse.json({ conversation: created, status: "success" });
+    }
 
     if (!driver_id) {
       return NextResponse.json({ error: "Driver ID is required" }, { status: 400 });
@@ -87,15 +142,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: existing } = await supabase
+    const { data: existingForward } = await supabase
       .from("chat_conversations")
       .select("*")
       .eq("driver_id", driver_id)
       .eq("student_id", user.id)
       .maybeSingle();
 
-    if (existing) {
-      return NextResponse.json({ conversation: existing, status: "success" });
+    if (existingForward) {
+      return NextResponse.json({ conversation: existingForward, status: "success" });
+    }
+
+    const { data: existingReverse } = await supabase
+      .from("chat_conversations")
+      .select("*")
+      .eq("driver_id", user.id)
+      .eq("student_id", driver_id)
+      .maybeSingle();
+
+    if (existingReverse) {
+      return NextResponse.json({ conversation: existingReverse, status: "success" });
     }
 
     const { data: created, error } = await supabase

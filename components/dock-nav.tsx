@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Trophy, Settings, BookOpen, LayoutList, Car } from "lucide-react";
+import { LayoutDashboard, Trophy, Settings, BookOpen, LayoutList, Car, Users } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -146,6 +146,7 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
     { view: "course", labelKey: "courses", icon: <BookOpen size={18} /> },
     ...(examEnabled ? [{ href: "/dashboard/exam", labelKey: "exam", icon: <Trophy size={18} /> }] : []),
     { view: "results", labelKey: "examHistory", icon: <LayoutList size={18} /> },
+    { view: "classmates", labelKey: "classmates", icon: <Users size={18} /> },
     { view: "services", labelKey: "services", icon: <LayoutList size={18} /> },
     ...(isDriverRole ? [{ view: "driver-panel", labelKey: "driverPanel", icon: <Car size={18} /> }] : []),
     { view: "settings", labelKey: "settings", icon: <Settings size={18} /> },

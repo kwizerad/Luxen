@@ -81,6 +81,7 @@ export interface UserProfile {
   birthdate?: string;
   last_seen?: string;
   banned?: boolean;
+  is_public?: boolean;
   national_id?: string;
   provision_verified?: boolean;
   provision_category?: string;
@@ -576,4 +577,49 @@ export interface ChatMessage {
   is_read: boolean;
   read_at?: string | null;
   created_at: string;
+}
+
+// ============================================================================
+// CLASSMATE (FRIEND) REQUEST TYPES
+// ============================================================================
+
+export type ClassmateRequestStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface ClassmateRequest {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  status: ClassmateRequestStatus;
+  created_at: string;
+  responded_at?: string | null;
+}
+
+// ============================================================================
+// EXAM CHALLENGE (GROUP EXAM) TYPES
+// ============================================================================
+
+export type ExamChallengeStatus = 'pending' | 'active' | 'completed' | 'cancelled';
+export type ChallengeParticipantStatus = 'pending' | 'joined' | 'ready' | 'rejected' | 'completed';
+
+export interface ExamChallenge {
+  id: string;
+  creator_id: string;
+  category_id: string;
+  category_name: string;
+  status: ExamChallengeStatus;
+  started_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExamChallengeParticipant {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  status: ChallengeParticipantStatus;
+  exam_attempt_id?: string | null;
+  reminded_at?: string | null;
+  ready_at?: string | null;
+  invited_at: string;
+  completed_at?: string | null;
 }

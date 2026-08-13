@@ -487,6 +487,39 @@ export default function UserSettings({
             {privacyOpen && (
             <CardContent className="pt-0 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden transition-all duration-300 ease-in-out max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium">{t("classmatesVisibility")}</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("classmatesVisibilityDesc")}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const supabase = createClient();
+                      const { data: { user: currentUser } } = await supabase.auth.getUser();
+                      if (!currentUser) return;
+                      const { data: profile } = await supabase
+                        .from("user_profiles")
+                        .select("is_public")
+                        .eq("id", currentUser.id)
+                        .maybeSingle();
+                      const newValue = !(profile?.is_public ?? true);
+                      const { error } = await supabase
+                        .from("user_profiles")
+                        .update({ is_public: newValue })
+                        .eq("id", currentUser.id);
+                      if (error) throw error;
+                      toast.success(t("visibilityUpdated"));
+                    } catch (error: any) {
+                      toast.error(`${t("failedToUpdateVisibility")}: ${error.message}`);
+                    }
+                  }}
+                >
+                  {t("toggle")}
+                </Button>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-sm">{t("userSettings.downloadData")}</span>
                 <Button 
                   variant="outline" 

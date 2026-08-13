@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { getDashboardData, type ContinueLearningData, type DashboardStats } from "@/app/dashboard/actions/course";
-import { HomeViewSkeleton } from "@/components/skeletons";
+import { HomeViewSkeleton, HomeStatsSkeleton, HomeContinueLearningSkeleton } from "@/components/skeletons";
 
 interface HomeViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -28,7 +28,7 @@ export function HomeView({ navigate }: HomeViewProps) {
       try {
         const dataPromise = getDashboardData(interfaceLanguage);
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Dashboard data timeout")), 8000)
+          setTimeout(() => reject(new Error("Dashboard data timeout")), 4000)
         );
         const data = await Promise.race([dataPromise, timeoutPromise]);
         if (mounted) {
@@ -51,7 +51,7 @@ export function HomeView({ navigate }: HomeViewProps) {
     return meta?.full_name || meta?.username || user?.email || t("user");
   };
 
-  if (authLoading || loadingData) {
+  if (authLoading) {
     return <HomeViewSkeleton />;
   }
 
@@ -135,6 +135,7 @@ export function HomeView({ navigate }: HomeViewProps) {
         </div>
 
         {/* Progress Stats */}
+        {loadingData ? <HomeStatsSkeleton /> : (
         <div className="mb-4 sm:mb-6 grid grid-cols-2 gap-2 sm:gap-3">
           {statCards.map((stat, idx) => {
             const Icon = stat.icon;
@@ -149,6 +150,7 @@ export function HomeView({ navigate }: HomeViewProps) {
             );
           })}
         </div>
+        )}
 
         {/* Progress Bar */}
         {stats && stats.totalLessons > 0 && (
@@ -165,7 +167,7 @@ export function HomeView({ navigate }: HomeViewProps) {
 
         {/* Continue Learning Card */}
         <div className="mb-4 sm:mb-6">
-          {continueData ? (
+          {loadingData ? <HomeContinueLearningSkeleton /> : continueData ? (
             <button
               onClick={() => navigate("course", { lesson: continueData.lessonId })}
               className="group flex w-full items-center gap-2.5 sm:gap-4 rounded-xl sm:rounded-2xl border bg-card p-3 sm:p-5 transition-all hover:border-primary hover:shadow-md hover:-translate-y-0.5 text-left"

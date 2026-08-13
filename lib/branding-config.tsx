@@ -34,16 +34,32 @@ const STORAGE_KEY = "navo-branding-config";
 const BrandingConfigContext = createContext<BrandingConfigContextType | undefined>(undefined);
 
 export function BrandingConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<BrandingConfig>(defaultConfig);
+  const [config, setConfig] = useState<BrandingConfig>(() => {
+    if (typeof window === "undefined") return defaultConfig;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          systemName: parsed.systemName || defaultConfig.systemName,
+          logoUrl: parsed.logoUrl || defaultConfig.logoUrl,
+          logoText: parsed.logoText || defaultConfig.logoText,
+          adminEmail: parsed.adminEmail || defaultConfig.adminEmail,
+        };
+      }
+    } catch {
+      // ignore parse errors
+    }
+    return defaultConfig;
+  });
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Load branding config from database first, then localStorage as fallback
+    // Load branding config from database (updates localStorage in background)
     const loadBrandingConfig = async () => {
       if (typeof window === "undefined") return;
 
       try {
-        // API reads session from cookies; no need for explicit auth header
         const response = await fetch('/api/system-config/branding_config');
 
         if (response.ok) {
@@ -51,33 +67,12 @@ export function BrandingConfigProvider({ children }: { children: ReactNode }) {
           if (data.value) {
             const dbConfig = JSON.parse(data.value);
             setConfig(dbConfig);
-            console.log("Branding config loaded from database:", dbConfig);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(dbConfig));
             return;
           }
         }
-      } catch (error) {
-        console.log("Could not load branding from database, using localStorage:", error);
-      }
-
-      // Fallback to localStorage
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setConfig({
-            systemName: parsed.systemName || defaultConfig.systemName,
-            logoUrl: parsed.logoUrl || defaultConfig.logoUrl,
-            logoText: parsed.logoText || defaultConfig.logoText,
-            adminEmail: parsed.adminEmail || defaultConfig.adminEmail,
-          });
-          console.log("Branding config loaded from localStorage:", parsed);
-        } catch (e) {
-          console.error("Failed to parse branding config:", e);
-          setConfig(defaultConfig);
-        }
-      } else {
-        console.log("No saved branding config, using default");
-        setConfig(defaultConfig);
+      } catch {
+        // ignore — we already have localStorage or default
       }
     };
 

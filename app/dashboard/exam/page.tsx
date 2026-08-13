@@ -76,11 +76,23 @@ export default function TakeExamPage() {
   const { loading: authLoading } = useAuth();
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string>("");
+  const [challengeId, setChallengeId] = useState<string>("");
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [accessChecked, setAccessChecked] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || authLoading) return;
+
+    // Parse challenge_id and category_id from URL params (group exam challenge)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlChallengeId = urlParams.get("challenge_id");
+    const urlCategoryId = urlParams.get("category_id");
+    if (urlChallengeId) setChallengeId(urlChallengeId);
+    if (urlCategoryId) {
+      setCategoryId(urlCategoryId);
+      setShowInstructions(true);
+      setInstructionsAccepted(false);
+    }
 
     void isStandaloneExamEnabled().then((enabled) => {
       if (!enabled) {
@@ -920,6 +932,19 @@ export default function TakeExamPage() {
       setShowResults(true);
       showResultsRef.current = true;
       submitSuccess = true;
+
+      // If this exam is part of a group challenge, mark participation as completed
+      if (challengeId) {
+        try {
+          await fetch(`/api/exam-challenges/${challengeId}/complete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ exam_attempt_id: attempt.id }),
+          });
+        } catch (challengeError) {
+          console.error("Failed to mark challenge participation as completed:", challengeError);
+        }
+      }
 
       // Notify admins about the exam submission
       try {
