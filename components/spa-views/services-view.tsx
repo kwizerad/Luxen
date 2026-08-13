@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Car, ArrowLeft, Users, Award } from "lucide-react";
+import { Car, ArrowLeft, Users } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { getServicesConfig } from "@/lib/supabase/queries";
 
@@ -42,16 +42,6 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       color: "text-blue-600 dark:text-blue-400",
       bg: "bg-blue-500/10",
       openLabelKey: "openDrivers",
-    },
-    {
-      key: "claim-results",
-      view: "services/claim-results",
-      icon: Award,
-      titleKey: "claimResults",
-      descKey: "claimResultsDesc",
-      color: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-500/10",
-      openLabelKey: "openClaimResults",
     },
   ];
 

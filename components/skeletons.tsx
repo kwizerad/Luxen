@@ -599,3 +599,32 @@ export function DriverHubViewSkeleton() {
     </div>
   );
 }
+
+// ============================================================================
+// EXAM HISTORY VIEW SKELETON
+// ============================================================================
+
+export function ExamHistorySkeleton() {
+  return (
+    <div className="min-h-[calc(100vh-80px)] pb-24">
+      <div className="container mx-auto max-w-2xl px-4 py-8">
+        <div className="mb-6">
+          <div className="h-8 w-48 rounded-lg bg-muted animate-pulse mb-2" />
+          <div className="h-4 w-64 rounded bg-muted animate-pulse" />
+        </div>
+        <div className="space-y-3">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex items-center gap-4 rounded-2xl border bg-card p-4">
+              <div className="h-10 w-10 rounded-lg bg-muted animate-pulse shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-48 rounded bg-muted animate-pulse" />
+              </div>
+              <div className="h-8 w-12 rounded bg-muted animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -131,7 +131,7 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
     { view: "home", labelKey: "home", icon: <LayoutDashboard size={18} /> },
     { view: "course", labelKey: "courses", icon: <BookOpen size={18} /> },
     ...(examEnabled ? [{ href: "/dashboard/exam", labelKey: "exam", icon: <Trophy size={18} /> }] : []),
-    { view: "services/claim-results", labelKey: "claimResults", icon: <LayoutList size={18} /> },
+    { view: "results", labelKey: "examHistory", icon: <LayoutList size={18} /> },
     { view: "services", labelKey: "services", icon: <LayoutList size={18} /> },
     ...(isDriverRole ? [{ view: "driver-panel", labelKey: "driverPanel", icon: <Car size={18} /> }] : []),
     { view: "settings", labelKey: "settings", icon: <Settings size={18} /> },

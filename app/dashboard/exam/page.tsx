@@ -121,7 +121,7 @@ export default function TakeExamPage() {
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
-  const [showQuestionPalette, setShowQuestionPalette] = useState(false);
+  const [showQuestionPalette, setShowQuestionPalette] = useState(true);
 
   const cheatingAttemptsRef = useRef(cheatingAttempts);
   const fullscreenRetryCountRef = useRef(fullscreenRetryCount);

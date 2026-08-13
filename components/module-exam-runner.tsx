@@ -100,7 +100,7 @@ export function ModuleExamRunner({
   const [showInstructions, setShowInstructions] = useState(false);
   const [instructionsAccepted, setInstructionsAccepted] = useState(false);
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(DEFAULT_SECURITY_SETTINGS);
-  const [showQuestionPalette, setShowQuestionPalette] = useState(false);
+  const [showQuestionPalette, setShowQuestionPalette] = useState(true);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [retakeInfo, setRetakeInfo] = useState<{ canRetake: boolean; needsApproval: boolean; reason?: string } | null>(null);
   const [showRetakeRequest, setShowRetakeRequest] = useState(false);

@@ -1956,6 +1956,28 @@ const rw: Record<string, string> = {
   "bookingCompleted": "Byakozwe",
   "bookingCancelled": "Byahakannywe",
   "no_show": "Ntiyagaragaye",
+
+  // Exam history & results
+  "examHistoryDesc": "Reba ibisubizo by'ibizamini byakozwe kandi usubiremo ibyitabiriye",
+  "noExamHistoryHint": "Kora ikizamni kugira ngo ubone ibisubizo byawe hano",
+
+  // Driver registration
+  "registerAsDriverDesc": "Emeza umwirondoro wawe ukoresheje ID yawe y'igihugu kugira ngo ubeho umufasha",
+  "noDataForNationalId": "Nta makuru yabonetse kuri iyi ID y'igihugu.",
+  "enterVerificationValue": "Uzuza agaciro k'ukugenzura.",
+  "enterName": "Andika izina",
+  "enterDob": "Andika itariki y'amavuko",
+  "enterSingleName": "Andika rimwe mu mazina yawe",
+  "singleNamePlaceholder": "urug. Yohani cyangwa Mwene",
+  "singleNameHint": "Andika izina ryawe rya mbere cyangwa irya nyuma nk'uko bisobanura kuri ID yawe y'igihugu.",
+  "enterDateOfBirth": "Andika itariki y'amavuko yawe",
+  "dobHint": "Andika itariki y'amavuko yawe nk'uko bisobanura kuri ID yawe y'igihugu.",
+  "chooseVerificationMethod": "Emeza umwirondoro wawe ku kwandika rimwe mu mazina kuri ID yawe cyangwa itariki y'amavuko.",
+  "idVerifiedSuccessfully": "ID y'igihugu yemejwe. None wemeze umwirondoro wawe.",
+  "registering": "Kwiyandikisha...",
+  "driverRegistrationSuccess": "Kwiyandikisha byagenze neza! Porofayiri yawe iri kugenzurwa.",
+  "driverRegistrationFailed": "Byanze kwiyandikisha. Ongera ugerageze.",
+  "continue": "Komeza",
 };
 
 export default rw;

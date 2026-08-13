@@ -10,7 +10,7 @@ import { SettingsView } from "@/components/spa-views/settings-view";
 import { DriversListView } from "@/components/spa-views/drivers-list-view";
 import { DriverDetailView } from "@/components/spa-views/driver-detail-view";
 import { RequestCodeView } from "@/components/spa-views/request-code-view";
-import { ClaimResultsView } from "@/components/spa-views/claim-results-view";
+import { ExamHistoryView } from "@/components/spa-views/exam-history-view";
 import { DriverPanelView } from "@/components/spa-views/driver-panel-view";
 import { DriverPlansView } from "@/components/spa-views/driver-plans-view";
 import { DriverApplicationsView } from "@/components/spa-views/driver-applications-view";
@@ -43,8 +43,8 @@ export default function DashboardPage() {
         return <DriverDetailView navigate={navigate} params={params} />;
       case "services/request-code":
         return <RequestCodeView navigate={navigate} />;
-      case "services/claim-results":
-        return <ClaimResultsView navigate={navigate} />;
+      case "results":
+        return <ExamHistoryView navigate={navigate} />;
       case "driver-panel":
         return <DriverPanelView navigate={navigate} />;
       case "driver-panel/plans":

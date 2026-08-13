@@ -1,21 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Car, GraduationCap, Flag, MessageSquare, ArrowLeft, FileCode } from "lucide-react";
+import { Car, GraduationCap, Flag, MessageSquare, ArrowLeft, FileCode, UserPlus } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { useHashRouter } from "@/hooks/use-hash-router";
+import { createClient } from "@/lib/supabase/client";
 import { DriversListView } from "./drivers-list-view";
 import { StudentTrainingView } from "./student-training-view";
 import { MyReportsView } from "./my-reports-view";
 import { ChatListView } from "./chat-list-view";
 import { RequestCodeView } from "./request-code-view";
+import { RegisterDriverForm } from "@/components/register-driver-form";
 
 export interface DriverHubViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
 }
 
-type TabId = "drivers" | "training" | "reports" | "messages" | "exam-code";
+type TabId = "drivers" | "training" | "reports" | "messages" | "exam-code" | "register";
 
 export function DriverHubView({ navigate }: DriverHubViewProps) {
   const { t } = useLanguage();
@@ -23,10 +25,24 @@ export function DriverHubView({ navigate }: DriverHubViewProps) {
   const { params } = useHashRouter();
   const [activeTab, setActiveTab] = useState<TabId>("drivers");
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isDriver, setIsDriver] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }: { data: { role?: string } | null }) => {
+        setIsDriver(data?.role === "Driver");
+      });
+  }, [user]);
 
   useEffect(() => {
     const tab = params.get("tab") as TabId | null;
-    if (tab && ["drivers", "training", "reports", "messages", "exam-code"].includes(tab)) {
+    if (tab && ["drivers", "training", "reports", "messages", "exam-code", "register"].includes(tab)) {
       setActiveTab(tab);
     }
   }, [params]);
@@ -57,6 +73,7 @@ export function DriverHubView({ navigate }: DriverHubViewProps) {
     { id: "reports", labelKey: "myReports", icon: <Flag className="h-4 w-4" /> },
     { id: "messages", labelKey: "messages", icon: <MessageSquare className="h-4 w-4" />, badge: unreadCount },
     { id: "exam-code", labelKey: "requestCode", icon: <FileCode className="h-4 w-4" /> },
+    ...(!isDriver ? [{ id: "register" as TabId, labelKey: "registerAsDriver", icon: <UserPlus className="h-4 w-4" /> }] : []),
   ];
 
   const handleTabChange = (tab: TabId) => {
@@ -106,6 +123,11 @@ export function DriverHubView({ navigate }: DriverHubViewProps) {
         {activeTab === "reports" && <MyReportsView navigate={navigate} embedded />}
         {activeTab === "messages" && <ChatListView navigate={navigate} embedded />}
         {activeTab === "exam-code" && <RequestCodeView navigate={navigate} embedded />}
+        {activeTab === "register" && (
+          <div className="py-4">
+            <RegisterDriverForm onSuccess={() => window.location.reload()} />
+          </div>
+        )}
       </div>
     </div>
   );

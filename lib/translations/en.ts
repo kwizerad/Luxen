@@ -2136,8 +2136,29 @@ const en: Record<string, string> = {
   "bookingCancelled": "Cancelled",
   "no_show": "No-Show",
 
+  // Exam history & results
+  "examHistoryDesc": "View your past exam results and review answers",
+  "noExamHistoryHint": "Take an exam to see your results here",
+
+  // Driver registration
+  "registerAsDriverDesc": "Verify your identity with your National ID to become a driver",
+  "noDataForNationalId": "No data found for this National ID.",
+  "enterVerificationValue": "Please enter a verification value.",
+  "enterName": "Enter Name",
+  "enterDob": "Enter Date of Birth",
+  "enterSingleName": "Enter one of your names",
+  "singleNamePlaceholder": "e.g. John or Doe",
+  "singleNameHint": "Enter either your first name or last name exactly as it appears on your National ID.",
+  "enterDateOfBirth": "Enter your date of birth",
+  "dobHint": "Enter your date of birth as it appears on your National ID.",
+  "chooseVerificationMethod": "Verify your identity by entering one of the names on your ID or your date of birth.",
+  "idVerifiedSuccessfully": "National ID verified. Now confirm your identity.",
+  "registering": "Registering...",
+  "driverRegistrationSuccess": "Driver registration successful! Your profile is pending approval.",
+  "driverRegistrationFailed": "Failed to register as driver. Please try again.",
+  "continue": "Continue",
+
   // Admin user details
-  "noExamHistory": "No exam history yet",
   "toggleTheme": "Toggle theme",
 
   // Audio / TTS

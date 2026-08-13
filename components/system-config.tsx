@@ -60,7 +60,6 @@ export function SystemConfigSettings() {
   const serviceDefinitions = [
     { key: "live-exam", labelKey: "liveExamResults", descKey: "liveExamResultsDesc" },
     { key: "driver-hub", labelKey: "findDriver", descKey: "findDriverDesc" },
-    { key: "claim-results", labelKey: "claimResults", descKey: "claimResultsDesc" },
   ];
 
   useEffect(() => {

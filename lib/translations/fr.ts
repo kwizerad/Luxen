@@ -1665,6 +1665,28 @@ const fr: Record<string, string> = {
   "bookingCompleted": "Terminé",
   "bookingCancelled": "Annulé",
   "no_show": "Absent",
+
+  // Exam history & results
+  "examHistoryDesc": "Consultez vos résultats d'examens passés et revoyez vos réponses",
+  "noExamHistoryHint": "Passer un examen pour voir vos résultats ici",
+
+  // Driver registration
+  "registerAsDriverDesc": "Vérifiez votre identité avec votre ID national pour devenir conducteur",
+  "noDataForNationalId": "Aucune donnée trouvée pour cet ID national.",
+  "enterVerificationValue": "Veuillez entrer une valeur de vérification.",
+  "enterName": "Entrer le nom",
+  "enterDob": "Entrer la date de naissance",
+  "enterSingleName": "Entrez l'un de vos noms",
+  "singleNamePlaceholder": "ex. Jean ou Dupont",
+  "singleNameHint": "Entrez votre prénom ou nom de famille exactement comme il apparaît sur votre ID national.",
+  "enterDateOfBirth": "Entrez votre date de naissance",
+  "dobHint": "Entrez votre date de naissance telle qu'elle apparaît sur votre ID national.",
+  "chooseVerificationMethod": "Vérifiez votre identité en entrant l'un des noms sur votre ID ou votre date de naissance.",
+  "idVerifiedSuccessfully": "ID national vérifié. Confirmez maintenant votre identité.",
+  "registering": "Inscription en cours...",
+  "driverRegistrationSuccess": "Inscription réussie! Votre profil est en attente d'approbation.",
+  "driverRegistrationFailed": "Échec de l'inscription. Veuillez réessayer.",
+  "continue": "Continuer",
 };
 
 export default fr;
