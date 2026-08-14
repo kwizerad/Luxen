@@ -47,8 +47,8 @@ export function RatingModal({ open, onClose, driverId, existingRating, existingR
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl border border-border/50 dark:border-border/30 bg-card shadow-xl p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">{t("rateDriver")}</h2>
           <button onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
