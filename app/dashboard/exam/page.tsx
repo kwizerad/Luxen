@@ -1621,18 +1621,18 @@ export default function TakeExamPage() {
       </Dialog>
 
       {/* Cheating Warning Modal - Shows after any violation */}
-      <Dialog open={showCheatingWarning} onOpenChange={() => {
-        // Prevent closing if it's a serious violation (fullscreen or tabswitch)
-        if ((violationType === "fullscreen" || violationType === "tabswitch") && fullscreenRetryCount < securitySettings.maxViolations && cheatingAttempts < securitySettings.maxViolations) {
-          // Allow closing only if user is re-entering fullscreen
-          if (document.fullscreenElement) {
+      <Dialog open={showCheatingWarning} onOpenChange={(open) => {
+        // Prevent closing by clicking outside or pressing Escape for ALL violation types
+        // The dialog should only close via explicit buttons or auto-dismiss timer
+        if (!open) {
+          // Only allow closing if fullscreen is restored for fullscreen violations
+          if (violationType === "fullscreen" && document.fullscreenElement) {
             setShowCheatingWarning(false);
-          } else {
-            toast.error(t("reEnterFullscreenFirst"));
           }
-        } else {
-          setShowCheatingWarning(false);
+          // For all other violations, do nothing — auto-dismiss handles minor violations
+          return;
         }
+        setShowCheatingWarning(open);
       }}>
         <DialogContent
           className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[calc(100dvh-6rem)] sm:max-h-[90vh] overflow-y-auto border-red-500 border-2"
@@ -1642,7 +1642,7 @@ export default function TakeExamPage() {
           onEscapeKeyDown={(e) => {
             e.preventDefault();
           }}
-          hideCloseButton={violationType === "fullscreen" || violationType === "tabswitch"}
+          hideCloseButton
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base sm:text-xl text-red-600">

@@ -940,7 +940,17 @@ export function ModuleExamRunner({
       </Dialog>
 
       {/* Cheating Warning Dialog */}
-      <Dialog open={security.showCheatingWarning} onOpenChange={() => security.dismissCheatingWarning()}>
+      <Dialog open={security.showCheatingWarning} onOpenChange={(open) => {
+        // Prevent closing by clicking outside or pressing Escape for ALL violation types
+        if (!open) {
+          // Only allow closing if fullscreen is restored for fullscreen violations
+          if (security.violationType === "fullscreen" && document.fullscreenElement) {
+            security.dismissCheatingWarning();
+          }
+          return;
+        }
+        security.dismissCheatingWarning();
+      }}>
         <DialogContent
           className="max-w-md border-red-500 border-2"
           onPointerDownOutside={(e) => e.preventDefault()}
