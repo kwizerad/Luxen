@@ -1287,37 +1287,58 @@ export default function TakeExamPage() {
 
       {exam ? (
         <>
-          {/* Top action bar: quit + submit */}
+          {/* Top action bar: back + quit + submit */}
           <div className="flex items-center justify-between gap-2 sm:gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setConfirmTitle(t("quitExamTitle"));
-                setConfirmMessage(t("quitExamMessage"));
-                setConfirmCallback(() => () => handleSubmitExamRef.current?.(true));
-                setShowConfirm(true);
-              }}
-              className="gap-2"
-            >
-              <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              {t("quit")}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => handleSubmitExamRef.current?.()}
-              disabled={submittingExam || answeredCount === 0}
-              className="min-w-[100px] sm:min-w-[120px]"
-            >
-              {submittingExam ? (
-                t("submitting")
-              ) : (
-                <>
-                  {t("submit")}
-                  <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-2" />
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setConfirmTitle(t("quitExamTitle"));
+                  setConfirmMessage(t("quitExamMessage"));
+                  setConfirmCallback(() => () => {
+                    handleSubmitExamRef.current?.(true);
+                    router.push("/dashboard");
+                  });
+                  setShowConfirm(true);
+                }}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {t("backToHome")}
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setConfirmTitle(t("quitExamTitle"));
+                  setConfirmMessage(t("quitExamMessage"));
+                  setConfirmCallback(() => () => handleSubmitExamRef.current?.(true));
+                  setShowConfirm(true);
+                }}
+                className="gap-2"
+              >
+                <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {t("quit")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleSubmitExamRef.current?.()}
+                disabled={submittingExam || answeredCount === 0}
+                className="min-w-[100px] sm:min-w-[120px]"
+              >
+                {submittingExam ? (
+                  t("submitting")
+                ) : (
+                  <>
+                    {t("submit")}
+                    <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           <Card
