@@ -576,6 +576,7 @@ export interface ChatMessage {
   message: string;
   is_read: boolean;
   read_at?: string | null;
+  delivered_at?: string | null;
   created_at: string;
 }
 

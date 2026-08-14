@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Send, Loader2, Users, UserPlus, MessageCircle, Trophy, X, Check, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Search, Send, Loader2, Users, UserPlus, MessageCircle, Trophy, X, Check, CheckCheck, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,16 @@ interface ClassmateRequestWithProfile {
 interface ChallengeWithParticipants extends ExamChallenge {
   participants?: (ExamChallengeParticipant & { profile?: FriendProfile })[];
   creator_profile?: FriendProfile;
+}
+
+function MessageTicks({ msg }: { msg: ChatMessage }) {
+  if (msg.is_read) {
+    return <CheckCheck className="inline-block h-3.5 w-3.5 text-sky-300" />;
+  } else if (msg.delivered_at) {
+    return <CheckCheck className="inline-block h-3.5 w-3.5 text-primary-foreground/50" />;
+  } else {
+    return <Check className="inline-block h-3.5 w-3.5 text-primary-foreground/50" />;
+  }
 }
 
 export function ClassmatesView({ navigate }: ClassmatesViewProps) {
@@ -365,12 +375,23 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
             return [...prev, newMsg];
           });
           if (newMsg.sender_id !== user?.id) {
+            // Mark as read since we're viewing the chat
             fetch("/api/chat/messages", {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ conversation_id: conversationId }),
             });
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chat_messages", filter: `conversation_id=eq.${conversationId}` },
+        (payload: any) => {
+          const updatedMsg = payload.new as ChatMessage;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m))
+          );
         }
       )
       .subscribe();
@@ -407,7 +428,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   }, []);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !conversationId) return;
+    if (!newMessage.trim() || !conversationId || !user) return;
     const msgText = newMessage.trim();
     setNewMessage("");
     setSendingMessage(true);
@@ -422,7 +443,10 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         toast.error(data.error || t("failedToSendMessage"));
         setNewMessage(msgText);
       } else if (data.message) {
-        setMessages((prev) => [...prev, data.message]);
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === data.message.id)) return prev;
+          return [...prev, data.message as ChatMessage];
+        });
       }
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -991,16 +1015,19 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                         }`}
                       >
                         <p className="text-sm">{msg.message}</p>
-                        <p
-                          className={`mt-1 text-xs ${
-                            isOwn ? "text-primary-foreground/60" : "text-muted-foreground"
+                        <div
+                          className={`mt-1 flex items-center gap-1 text-xs ${
+                            isOwn ? "text-primary-foreground/60 justify-end" : "text-muted-foreground"
                           }`}
                         >
+                          <span>
                           {new Date(msg.created_at).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
-                        </p>
+                          </span>
+                          {isOwn && <MessageTicks msg={msg} />}
+                        </div>
                       </div>
                     </div>
                   );

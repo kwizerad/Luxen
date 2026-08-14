@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Send, Loader2 } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Check, CheckCheck } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -78,14 +78,28 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_messages", filter: `conversation_id=eq.${conversationId}` },
         (payload: any) => {
-          setMessages((prev) => [...prev, payload.new as ChatMessage]);
-          if (payload.new.sender_id !== user?.id) {
+          const newMsg = payload.new as ChatMessage;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+          if (newMsg.sender_id !== user?.id) {
             fetch("/api/chat/messages", {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ conversation_id: conversationId }),
             });
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chat_messages", filter: `conversation_id=eq.${conversationId}` },
+        (payload: any) => {
+          const updatedMsg = payload.new as ChatMessage;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m))
+          );
         }
       )
       .subscribe();
@@ -113,7 +127,10 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
       });
       const data = await res.json();
       if (data.message) {
-        setMessages((prev) => [...prev, data.message]);
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === data.message.id)) return prev;
+          return [...prev, data.message as ChatMessage];
+        });
       }
       setNewMessage("");
     } catch {
@@ -164,9 +181,24 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
                   }`}
                 >
                   <p className="text-sm">{msg.message}</p>
-                  <p className={`mt-1 text-xs ${isOwn ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-                    {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </p>
+                  <div
+                    className={`mt-1 flex items-center gap-1 text-xs ${
+                      isOwn ? "text-primary-foreground/60 justify-end" : "text-muted-foreground"
+                    }`}
+                  >
+                    <span>
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    {isOwn && (
+                      msg.is_read ? (
+                        <CheckCheck className="h-3.5 w-3.5 text-sky-300" />
+                      ) : msg.delivered_at ? (
+                        <CheckCheck className="h-3.5 w-3.5 text-primary-foreground/50" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5 text-primary-foreground/50" />
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             );

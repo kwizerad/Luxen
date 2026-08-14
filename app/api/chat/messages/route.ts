@@ -41,6 +41,19 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
+    // Mark received messages as delivered (sender sees double tick)
+    const receivedMsgIds = (messages || [])
+      .filter((m: any) => m.sender_id !== user.id && !m.delivered_at)
+      .map((m: any) => m.id);
+
+    if (receivedMsgIds.length > 0) {
+      await supabase
+        .from("chat_messages")
+        .update({ delivered_at: new Date().toISOString() })
+        .in("id", receivedMsgIds)
+        .is("delivered_at", null);
+    }
+
     return NextResponse.json({ messages: messages || [] });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch messages.";
@@ -135,7 +148,7 @@ export async function PATCH(request: NextRequest) {
 
     const { error } = await supabase
       .from("chat_messages")
-      .update({ is_read: true, read_at: new Date().toISOString() })
+      .update({ is_read: true, read_at: new Date().toISOString(), delivered_at: new Date().toISOString() })
       .eq("conversation_id", conversation_id)
       .neq("sender_id", user.id)
       .eq("is_read", false);
