@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function DELETE(
   request: NextRequest,
@@ -13,7 +14,9 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { error } = await supabase
+    const adminClient = createAdminClient();
+
+    const { error } = await adminClient
       .from("classmate_requests")
       .delete()
       .eq("id", params.id)

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(
   request: NextRequest,
@@ -13,11 +14,18 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: existing } = await supabase
+    const adminClient = createAdminClient();
+
+    const { data: existing, error: queryError } = await adminClient
       .from("classmate_requests")
       .select("*")
       .eq("id", params.id)
       .maybeSingle();
+
+    if (queryError) {
+      console.error("Reject request query error:", queryError);
+      return NextResponse.json({ error: queryError.message }, { status: 500 });
+    }
 
     if (!existing) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
@@ -27,7 +35,7 @@ export async function POST(
       return NextResponse.json({ error: "Only the receiver can reject" }, { status: 403 });
     }
 
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await adminClient
       .from("classmate_requests")
       .update({ status: "rejected", responded_at: new Date().toISOString() })
       .eq("id", params.id)

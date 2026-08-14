@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
     }
 
     return await recordLoginEvent(request, body, user.id);
-  } catch {
+  } catch (error) {
+    console.error("Record login error:", error);
     return NextResponse.json(
       { error: "Failed to record login." },
       { status: 500 }
