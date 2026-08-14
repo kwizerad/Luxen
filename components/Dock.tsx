@@ -151,7 +151,7 @@ function DockIcon({ children, className = "" }: DockIconProps) {
   return <div className={`flex items-center justify-center ${className}`}>{children}</div>;
 }
 
-export default function Dock({
+function Dock({
   items,
   className = "",
   spring = { mass: 0.1, stiffness: 150, damping: 12 },
@@ -198,14 +198,14 @@ export default function Dock({
           isHovered.set(0);
           mouseX.set(Infinity);
         }}
-        className={`${className} absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 flex items-end w-fit gap-2 md:gap-3 rounded-2xl border border-black/10 dark:border-white/10 pb-2 px-2 md:px-3 backdrop-blur-md bg-white/80 dark:bg-[#121217]/75`}
+        className={`${className} absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 flex items-end w-fit gap-2 md:gap-3 rounded-2xl border border-black/10 dark:border-white/10 pb-2 px-2 md:px-3 backdrop-blur-md bg-white/80 dark:bg-[#121217]/75 will-change-transform`}
         style={{ height: effectivePanelHeight }}
         role="toolbar"
         aria-label="Application dock"
       >
         {items.map((item, index) => (
           <DockItem
-            key={index}
+            key={typeof item.label === "string" ? item.label : index}
             onClick={item.onClick}
             className={item.className}
             mouseX={mouseX}
@@ -223,3 +223,5 @@ export default function Dock({
     </motion.div>
   );
 }
+
+export default React.memo(Dock);

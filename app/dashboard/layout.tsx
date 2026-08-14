@@ -60,8 +60,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const handlePopState = () => {
       if (window.location.pathname === "/dashboard") {
+        // Re-push buffer to absorb future back presses
         window.history.pushState({ navBuffer: true }, "", window.location.href);
+        // Ensure the hash router picks up the current hash
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
       } else {
+        // Redirect back to dashboard, preserving any hash
         router.replace("/dashboard" + window.location.hash);
       }
     };

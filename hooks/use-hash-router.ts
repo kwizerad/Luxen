@@ -24,8 +24,15 @@ export function useHashRouter() {
 
   useEffect(() => {
     const onHashChange = () => setRoute(parseHash());
+    const onPopState = () => setRoute(parseHash());
     window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    window.addEventListener("popstate", onPopState);
+    // Re-parse on mount to catch any hash set during navigation
+    setRoute(parseHash());
+    return () => {
+      window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener("popstate", onPopState);
+    };
   }, []);
 
   const navigate = useCallback((view: string, params?: Record<string, string>) => {
@@ -35,9 +42,12 @@ export function useHashRouter() {
       hash = `#${view}?${searchParams.toString()}`;
     }
     if (window.location.hash === hash) {
+      // Force re-render even if hash is the same
       setRoute(parseHash());
     } else {
       window.location.hash = hash;
+      // Ensure state updates immediately for responsiveness
+      setRoute(parseHash());
     }
   }, []);
 

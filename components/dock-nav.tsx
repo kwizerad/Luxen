@@ -5,7 +5,7 @@ import { LayoutDashboard, Trophy, Settings, BookOpen, LayoutList, Car, Users } f
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Dock, { type DockItemData } from "@/components/Dock";
 import { useHashRouter } from "@/hooks/use-hash-router";
 import { useLearningLanguages } from "@/hooks/use-learning-languages";
@@ -156,22 +156,25 @@ export function DockNav({ hide = false, hideOnMobile = false }: { hide?: boolean
     { view: "settings", labelKey: "settings", icon: <Settings size={18} /> },
   ];
 
-  const visibleItems = allItems.filter((item) => {
+  const visibleItems = useMemo(() => allItems.filter((item) => {
     if (item.view === "course" && hasPublishedCourse !== true) return false;
     if (item.view === "services" && !servicesEnabled) return false;
     return true;
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [hasPublishedCourse, servicesEnabled, examEnabled, isDriverRole]);
 
   const isNavItemActive = (item: NavItem) => {
     if (item.href) return pathname === item.href;
     if (pathname !== "/dashboard") return false;
+    // Handle sub-route matching (e.g. "services/live-exam" matches "services")
     if (item.view === "home") return hashView === "home" || hashView === "";
-    if (item.view === "services") return hashView === "services";
+    if (item.view === "services") return hashView === "services" || hashView.startsWith("services/");
     if (item.view === "driver-panel") return hashView === "driver-panel" || hashView.startsWith("driver-panel/");
+    if (item.view === "classmates") return hashView === "classmates" || hashView.startsWith("classmates/");
     return hashView === item.view;
   };
 
-  const dockItems: DockItemData[] = visibleItems.map((item) => ({
+  const dockItems: DockItemData[] = useMemo(() => visibleItems.map((item) => ({
     icon: (
       <div className="relative">
         {item.icon}
@@ -190,16 +193,26 @@ export function DockNav({ hide = false, hideOnMobile = false }: { hide?: boolean
         if (pathname === "/dashboard") {
           navigate(item.view);
         } else {
-          // We're on a separate route (e.g. /dashboard/exam) — setting the
-          // hash alone would stay on this page. Navigate to the SPA page.
+          // We're on a separate route (e.g. /dashboard/exam) — navigate to
+          // /dashboard first, then set the hash after the page loads.
+          // Using router.push with hash can be unreliable in Next.js.
           router.push(`/dashboard#${item.view}`);
+          // Fallback: also set the hash directly in case Next.js strips it
+          setTimeout(() => {
+            if (window.location.pathname === "/dashboard") {
+              if (window.location.hash !== `#${item.view}`) {
+                window.location.hash = item.view!;
+              }
+            }
+          }, 100);
         }
       }
     },
     className: isNavItemActive(item)
       ? "bg-black/10 dark:bg-white/10 text-black dark:text-white border-black/15 dark:border-white/15"
       : "text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-white",
-  }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  })), [visibleItems, t, router, pathname, hashView, navigate]);
 
   return (
     <div className={`fixed bottom-0 left-0 right-0 z-50 justify-center pointer-events-none ${hideOnMobile ? "hidden sm:flex" : "flex"}`}>
