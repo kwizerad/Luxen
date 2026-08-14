@@ -337,14 +337,14 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         setConversationId(data.conversation.id);
         setMessages([]);
 
-        const { data: msgs } = await supabase
-          .from("chat_messages")
-          .select("*")
-          .eq("conversation_id", data.conversation.id)
-          .order("created_at", { ascending: true })
-          .limit(100);
-        setMessages((msgs || []) as ChatMessage[]);
+        // Fetch messages via API route (handles delivered_at marking and error recovery)
+        const msgRes = await fetch(`/api/chat/messages?conversation_id=${data.conversation.id}`);
+        const msgData = await msgRes.json();
+        if (msgData.messages) {
+          setMessages(msgData.messages as ChatMessage[]);
+        }
 
+        // Mark messages as read
         await fetch("/api/chat/messages", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -428,7 +428,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   }, []);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !conversationId || !user) return;
+    if (!newMessage.trim() || !conversationId || !user || sendingMessage) return;
     const msgText = newMessage.trim();
     setNewMessage("");
     setSendingMessage(true);

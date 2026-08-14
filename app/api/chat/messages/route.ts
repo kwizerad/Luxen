@@ -42,16 +42,21 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
 
     // Mark received messages as delivered (sender sees double tick)
-    const receivedMsgIds = (messages || [])
-      .filter((m: any) => m.sender_id !== user.id && !m.delivered_at)
-      .map((m: any) => m.id);
+    // Use try/catch so this doesn't block message fetching if delivered_at column doesn't exist yet
+    try {
+      const receivedMsgIds = (messages || [])
+        .filter((m: any) => m.sender_id !== user.id && !m.delivered_at)
+        .map((m: any) => m.id);
 
-    if (receivedMsgIds.length > 0) {
-      await supabase
-        .from("chat_messages")
-        .update({ delivered_at: new Date().toISOString() })
-        .in("id", receivedMsgIds)
-        .is("delivered_at", null);
+      if (receivedMsgIds.length > 0) {
+        await supabase
+          .from("chat_messages")
+          .update({ delivered_at: new Date().toISOString() })
+          .in("id", receivedMsgIds)
+          .is("delivered_at", null);
+      }
+    } catch {
+      // delivered_at column may not exist yet — ignore
     }
 
     return NextResponse.json({ messages: messages || [] });
@@ -146,14 +151,27 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { error } = await supabase
+    // Update read status — try with delivered_at first, fall back without it
+    let updateError: any = null;
+    const { error: err1 } = await supabase
       .from("chat_messages")
       .update({ is_read: true, read_at: new Date().toISOString(), delivered_at: new Date().toISOString() })
       .eq("conversation_id", conversation_id)
       .neq("sender_id", user.id)
       .eq("is_read", false);
 
-    if (error) throw error;
+    if (err1) {
+      // delivered_at column may not exist — try without it
+      const { error: err2 } = await supabase
+        .from("chat_messages")
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq("conversation_id", conversation_id)
+        .neq("sender_id", user.id)
+        .eq("is_read", false);
+      updateError = err2;
+    }
+
+    if (updateError) throw updateError;
 
     return NextResponse.json({ status: "success" });
   } catch (error) {

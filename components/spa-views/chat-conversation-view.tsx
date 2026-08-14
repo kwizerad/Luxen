@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Send, Loader2, Check, CheckCheck } from "lucide-react";
+import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -47,13 +48,12 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
           setOtherParty(profile);
         }
 
-        const { data: msgs } = await supabase
-          .from("chat_messages")
-          .select("*")
-          .eq("conversation_id", conversationId)
-          .order("created_at", { ascending: true })
-          .limit(100);
-        setMessages((msgs || []) as ChatMessage[]);
+        // Fetch messages via API route (handles delivered_at marking and error recovery)
+        const msgRes = await fetch(`/api/chat/messages?conversation_id=${conversationId}`);
+        const msgData = await msgRes.json();
+        if (msgData.messages) {
+          setMessages(msgData.messages as ChatMessage[]);
+        }
 
         await fetch("/api/chat/messages", {
           method: "PATCH",
@@ -116,25 +116,31 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
   }, [messages]);
 
   const handleSend = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !conversationId || sending) return;
 
+    const msgText = newMessage.trim();
+    setNewMessage("");
     setSending(true);
     try {
       const res = await fetch("/api/chat/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: conversationId, message: newMessage }),
+        body: JSON.stringify({ conversation_id: conversationId, message: msgText }),
       });
       const data = await res.json();
-      if (data.message) {
+      if (!res.ok) {
+        toast.error(data.error || t("failedToSendMessage"));
+        setNewMessage(msgText);
+      } else if (data.message) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === data.message.id)) return prev;
           return [...prev, data.message as ChatMessage];
         });
       }
-      setNewMessage("");
-    } catch {
-      // ignore
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      toast.error(t("failedToSendMessage"));
+      setNewMessage(msgText);
     } finally {
       setSending(false);
     }
