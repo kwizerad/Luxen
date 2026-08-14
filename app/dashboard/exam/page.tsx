@@ -80,6 +80,7 @@ export default function TakeExamPage() {
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string>("");
   const [challengeId, setChallengeId] = useState<string>("");
+  const [pendingInviteeIds, setPendingInviteeIds] = useState<string[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [accessChecked, setAccessChecked] = useState(false);
 
@@ -848,6 +849,31 @@ export default function TakeExamPage() {
     setShowInstructions(false);
     setInstructionsAccepted(true);
     setLoadingExam(true);
+
+    // If this is a group exam, create the challenge first
+    if (pendingInviteeIds.length > 0) {
+      try {
+        const categoryName = categories.find((c) => c.id === targetCategoryId)?.name || "Exam";
+        const res = await fetch("/api/exam-challenges", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category_id: targetCategoryId,
+            category_name: categoryName,
+            invite_user_ids: pendingInviteeIds,
+          }),
+        });
+        const data = await res.json();
+        if (data?.challenge?.id) {
+          setChallengeId(data.challenge.id);
+        }
+      } catch (error) {
+        console.error("Failed to create group exam challenge:", error);
+        toast.error(t("failedToStartExam") || "Failed to create group exam");
+        setLoadingExam(false);
+        return;
+      }
+    }
     try {
       const data = await getExamForTaking(targetCategoryId);
       setExam(data as TakeResponse);
@@ -1121,6 +1147,8 @@ export default function TakeExamPage() {
     violationTypeRef.current = "other";
     submissionReasonRef.current = 'manual';
     violationMessagesRef.current = [];
+    setPendingInviteeIds([]);
+    setChallengeId("");
     
     // Reset custom dialogs
     setShowAlert(false);
@@ -1234,9 +1262,9 @@ export default function TakeExamPage() {
     return (
       <GroupExamCreation
         onBack={() => setExamMode("choice")}
-        onStartExam={(categoryId, inviteeIds) => {
-          setCategoryId(categoryId);
-          setChallengeId(inviteeIds.join(",")); // Store invitee IDs temporarily
+        onStartExam={(selectedCategoryId, inviteeIds) => {
+          setCategoryId(selectedCategoryId);
+          setPendingInviteeIds(inviteeIds);
           setShowInstructions(true);
           setInstructionsAccepted(false);
         }}

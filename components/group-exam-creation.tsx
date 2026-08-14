@@ -52,7 +52,10 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
       const [classmatesRes, requestsRes, categoriesRes] = await Promise.all([
         fetch("/api/classmate-requests/classmates").then((r) => r.json()),
         fetch("/api/classmate-requests").then((r) => r.json()),
-        fetch("/api/exam-categories").then((r) => r.json()),
+        fetch("/api/exam-categories").then((r) => {
+          if (!r.ok) return { categories: [] };
+          return r.json();
+        }).catch(() => ({ categories: [] })),
       ]);
 
       const classmatesData = classmatesRes as { classmates?: FriendProfile[]; error?: string };
@@ -64,9 +67,13 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
         .filter((r) => r.status === "accepted")
         .map((r) => r.other_user);
 
-      const friendIds = new Set(acceptedFriends.map((f) => f.id));
+      const friendIds = new Set(acceptedFriends.map((f: FriendProfile) => f.id));
+      const pendingRequestIds = new Set(
+        allRequests.filter((r) => r.status === "pending").map((r: any) => r.other_user.id)
+      );
+      const allKnownUserIds = new Set([...friendIds, ...pendingRequestIds]);
       const classmatesList = classmatesData.classmates || [];
-      const filteredClassmates = classmatesList.filter((c: FriendProfile) => !friendIds.has(c.id));
+      const filteredClassmates = classmatesList.filter((c: FriendProfile) => !allKnownUserIds.has(c.id));
 
       setFriends(acceptedFriends);
       setClassmates(filteredClassmates);

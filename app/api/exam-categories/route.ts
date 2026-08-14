@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/permissions";
 
 export async function GET() {
   try {
@@ -10,16 +11,14 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isUserAdmin =
-      user.email?.toLowerCase() === "navoadmin@navo.rw" ||
-      user.user_metadata?.role === "Admin";
+    const userIsAdmin = isAdmin(user);
 
     let query = supabase
       .from("exam_categories")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!isUserAdmin) {
+    if (!userIsAdmin) {
       query = query.eq("is_published", true);
     }
 

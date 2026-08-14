@@ -406,7 +406,9 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
       setIsPublic(requestsData.is_public ?? true);
 
       const classmatesList = classmatesData.classmates || [];
-      const filteredClassmates = classmatesList.filter((c: FriendProfile) => !friendIds.has(c.id));
+      // Filter out both accepted friends and users with pending requests
+      const allKnownUserIds = new Set([...friendIds, ...pendingRequestIds]);
+      const filteredClassmates = classmatesList.filter((c: FriendProfile) => !allKnownUserIds.has(c.id));
       setClassmates(filteredClassmates);
     } catch (error) {
       console.error("Failed to fetch classmates data:", error);
