@@ -105,8 +105,8 @@ export default function RootLayout({
               <BackgroundManager />
               <GlobalClickSpark />
               <ParticlesBackground />
-              <SystemWatermark />
               <BrandingConfigProvider>
+                <SystemWatermark />
                 <LanguageProvider>
                   <AuthProvider>
                     <GoogleAuthProvider lazy>
