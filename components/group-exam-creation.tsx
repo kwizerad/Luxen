@@ -45,6 +45,13 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
     fetchData();
   }, [user]);
 
+  // Auto-select category when there's only one
+  useEffect(() => {
+    if (!loading && categories.length === 1 && !selectedCategory) {
+      setSelectedCategory(categories[0].id);
+    }
+  }, [loading, categories, selectedCategory]);
+
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
@@ -149,7 +156,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
 
   return (
     <div className="min-h-[calc(100vh-80px)] p-4">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <button
@@ -163,207 +170,203 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
           <p className="text-muted-foreground">{t("createGroupExamDescription") || "Invite friends or classmates to compete in a group exam"}</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left: Invitees Selection */}
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  {t("selectInvitees") || "Select Invitees"}
-                </CardTitle>
-                <CardDescription>
-                  {t("selectInviteesDescription") || "Choose friends or classmates to invite"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* Search */}
-                <div className="relative mb-4">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder={t("searchFriendsClassmates") || "Search friends or classmates..."}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                {/* Tab Switcher */}
-                <div className="flex gap-2 mb-4">
-                  <button
-                    onClick={() => setShowFriends(true)}
-                    disabled={friends.length === 0}
-                    className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      showFriends && friends.length > 0
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted"
-                    } ${friends.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-                  >
-                    {t("friends") || "Friends"} ({friends.length})
-                  </button>
-                  <button
-                    onClick={() => setShowFriends(false)}
-                    className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      !showFriends
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {t("classmatesList") || "Classmates"} ({classmates.length})
-                  </button>
-                </div>
-
-                {/* List */}
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {showFriends ? (
-                    filteredFriends.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        {searchQuery ? t("noResults") || "No results" : t("noFriendsYet") || "No friends yet"}
-                      </div>
-                    ) : (
-                      filteredFriends.map((friend) => (
-                        <div
-                          key={friend.id}
-                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <Checkbox
-                            checked={selectedInvitees.has(friend.id)}
-                            onCheckedChange={() => toggleInvitee(friend.id)}
-                          />
-                          <Avatar className="h-10 w-10">
-                            {friend.avatar_url ? (
-                              <AvatarImage src={friend.avatar_url} />
-                            ) : (
-                              <AvatarFallback>{getInitials(friend.full_name)}</AvatarFallback>
-                            )}
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {friend.full_name || friend.username}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
-                          </div>
-                        </div>
-                      ))
-                    )
-                  ) : (
-                    filteredClassmates.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        {searchQuery ? t("noResults") || "No results" : t("noClassmatesFound") || "No classmates found"}
-                      </div>
-                    ) : (
-                      filteredClassmates.map((classmate) => (
-                        <div
-                          key={classmate.id}
-                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <Checkbox
-                            checked={selectedInvitees.has(classmate.id)}
-                            onCheckedChange={() => toggleInvitee(classmate.id)}
-                          />
-                          <Avatar className="h-10 w-10">
-                            {classmate.avatar_url ? (
-                              <AvatarImage src={classmate.avatar_url} />
-                            ) : (
-                              <AvatarFallback>{getInitials(classmate.full_name)}</AvatarFallback>
-                            )}
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {classmate.full_name || classmate.username}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">@{classmate.username}</p>
-                          </div>
-                        </div>
-                      ))
-                    )
+        <div className="space-y-6">
+          {/* 1. Category Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                {t("selectCategory") || "Select Category"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {categories.length === 1 ? (
+                <div className="p-3 rounded-lg border border-primary bg-primary/5">
+                  <p className="font-medium">{categories[0].name}</p>
+                  {categories[0].description && (
+                    <p className="text-sm text-muted-foreground mt-1">{categories[0].description}</p>
                   )}
                 </div>
-
-                {/* Selected Count */}
-                {selectedInvitees.size > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-sm text-muted-foreground">
-                      {selectedInvitees.size} {selectedInvitees.size === 1 ? t("personSelected") || "person selected" : t("peopleSelected") || "people selected"}
-                    </p>
+              ) : (
+                <>
+                  <div className="relative mb-4">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder={t("searchCategories") || "Search categories..."}
+                      value={categorySearchQuery}
+                      onChange={(e) => setCategorySearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right: Category Selection */}
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  {t("selectCategory") || "Select Category"}
-                </CardTitle>
-                <CardDescription>
-                  {t("selectCategoryDescription") || "Choose the exam category for the group challenge"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* Search */}
-                <div className="relative mb-4">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder={t("searchCategories") || "Search categories..."}
-                    value={categorySearchQuery}
-                    onChange={(e) => setCategorySearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                {/* Categories */}
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {filteredCategories.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      {categorySearchQuery ? t("noResults") || "No results" : t("noCategoriesAvailable") || "No categories available"}
-                    </div>
-                  ) : (
-                    filteredCategories.map((category) => (
-                      <div
-                        key={category.id}
-                        onClick={() => setSelectedCategory(category.id)}
-                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                          selectedCategory === category.id
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:bg-muted/50"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium">{category.name}</p>
-                            {category.description && (
-                              <p className="text-sm text-muted-foreground mt-1">{category.description}</p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {filteredCategories.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        {categorySearchQuery ? t("noResults") || "No results" : t("noCategoriesAvailable") || "No categories available"}
+                      </div>
+                    ) : (
+                      filteredCategories.map((category) => (
+                        <div
+                          key={category.id}
+                          onClick={() => setSelectedCategory(category.id)}
+                          className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                            selectedCategory === category.id
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:bg-muted/50"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="font-medium">{category.name}</p>
+                              {category.description && (
+                                <p className="text-sm text-muted-foreground mt-1">{category.description}</p>
+                              )}
+                            </div>
+                            {selectedCategory === category.id && (
+                              <Check className="h-5 w-5 text-primary" />
                             )}
                           </div>
-                          {selectedCategory === category.id && (
-                            <Check className="h-5 w-5 text-primary" />
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 2. Search + 3. Tabs + 4. User List */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                {t("selectInvitees") || "Select Invitees"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Search */}
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t("searchFriendsClassmates") || "Search friends or classmates..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {/* Tab Switcher */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setShowFriends(true)}
+                  disabled={friends.length === 0}
+                  className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    showFriends && friends.length > 0
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  } ${friends.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  {t("friends") || "Friends"} ({friends.length})
+                </button>
+                <button
+                  onClick={() => setShowFriends(false)}
+                  className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    !showFriends
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {t("classmatesList") || "Classmates"} ({classmates.length})
+                </button>
+              </div>
+
+              {/* List */}
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {showFriends ? (
+                  filteredFriends.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {searchQuery ? t("noResults") || "No results" : t("noFriendsYet") || "No friends yet"}
+                    </div>
+                  ) : (
+                    filteredFriends.map((friend) => (
+                      <div
+                        key={friend.id}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <Checkbox
+                          checked={selectedInvitees.has(friend.id)}
+                          onCheckedChange={() => toggleInvitee(friend.id)}
+                        />
+                        <Avatar className="h-10 w-10">
+                          {friend.avatar_url ? (
+                            <AvatarImage src={friend.avatar_url} />
+                          ) : (
+                            <AvatarFallback>{getInitials(friend.full_name)}</AvatarFallback>
                           )}
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {friend.full_name || friend.username}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
                         </div>
                       </div>
                     ))
-                  )}
-                </div>
+                  )
+                ) : (
+                  filteredClassmates.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {searchQuery ? t("noResults") || "No results" : t("noClassmatesFound") || "No classmates found"}
+                    </div>
+                  ) : (
+                    filteredClassmates.map((classmate) => (
+                      <div
+                        key={classmate.id}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <Checkbox
+                          checked={selectedInvitees.has(classmate.id)}
+                          onCheckedChange={() => toggleInvitee(classmate.id)}
+                        />
+                        <Avatar className="h-10 w-10">
+                          {classmate.avatar_url ? (
+                            <AvatarImage src={classmate.avatar_url} />
+                          ) : (
+                            <AvatarFallback>{getInitials(classmate.full_name)}</AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {classmate.full_name || classmate.username}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">@{classmate.username}</p>
+                        </div>
+                      </div>
+                    ))
+                  )
+                )}
+              </div>
 
-                {/* Start Button */}
-                <div className="mt-6">
-                  <Button
-                    onClick={handleStartExam}
-                    disabled={!selectedCategory || selectedInvitees.size === 0}
-                    className="w-full"
-                    size="lg"
-                  >
-                    <UserPlus className="h-5 w-5 mr-2" />
-                    {t("createAndSendInvitations") || "Create and Send Invitations"}
-                  </Button>
+              {/* Selected Count */}
+              {selectedInvitees.size > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    {selectedInvitees.size} {selectedInvitees.size === 1 ? t("personSelected") || "person selected" : t("peopleSelected") || "people selected"}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Start Button */}
+          <Button
+            onClick={handleStartExam}
+            disabled={!selectedCategory || selectedInvitees.size === 0}
+            className="w-full"
+            size="lg"
+          >
+            <UserPlus className="h-5 w-5 mr-2" />
+            {t("createAndSendInvitations") || "Create and Send Invitations"}
+          </Button>
         </div>
       </div>
     </div>

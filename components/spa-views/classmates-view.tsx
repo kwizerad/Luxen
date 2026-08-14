@@ -358,6 +358,8 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedInvitees, setSelectedInvitees] = useState<Set<string>>(new Set());
   const [creatingChallenge, setCreatingChallenge] = useState(false);
+  const [inviteSearchQuery, setInviteSearchQuery] = useState("");
+  const [inviteTab, setInviteTab] = useState<"friends" | "classmates">("friends");
   const [pictureViewer, setPictureViewer] = useState<{ url: string; name: string } | null>(null);
   const [isFriendTyping, setIsFriendTyping] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1014,6 +1016,8 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
 
   const openInviteModal = async () => {
     setShowInviteModal(true);
+    setInviteSearchQuery("");
+    setInviteTab("friends");
     if (examCategories.length === 0) {
       try {
         const { data } = await supabase
@@ -1021,10 +1025,16 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
           .select("id, name")
           .eq("is_published", true)
           .order("name", { ascending: true });
-        setExamCategories(data || []);
+        const cats = data || [];
+        setExamCategories(cats);
+        if (cats.length === 1) {
+          setSelectedCategory(cats[0].id);
+        }
       } catch {
         // ignore
       }
+    } else if (examCategories.length === 1) {
+      setSelectedCategory(examCategories[0].id);
     }
     if (selectedFriend) {
       setSelectedInvitees(new Set([selectedFriend.id]));
@@ -1711,53 +1721,136 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            {/* Category Select */}
+          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+            {/* 1. Category */}
             <div>
               <label className="text-sm font-medium mb-1.5 block">{t("selectExamCategory")}</label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              >
-                <option value="">—</option>
-                {examCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+              {examCategories.length === 1 ? (
+                <div className="p-2.5 rounded-lg border border-primary bg-primary/5">
+                  <p className="text-sm font-medium">{examCategories[0].name}</p>
+                </div>
+              ) : (
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                >
+                  <option value="">—</option>
+                  {examCategories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
-            {/* Friend Multi-Select */}
+            {/* 2. Search bar */}
             <div>
-              <label className="text-sm font-medium mb-1.5 block">{t("selectFriends")}</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={inviteSearchQuery}
+                  onChange={(e) => setInviteSearchQuery(e.target.value)}
+                  placeholder={t("searchFriendsClassmates") || "Search friends or classmates..."}
+                  className="w-full rounded-lg border bg-background pl-9 pr-3 py-2 text-sm outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+
+            {/* 3. Tabs */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setInviteTab("friends")}
+                disabled={friends.length === 0}
+                className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  inviteTab === "friends" && friends.length > 0
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                } ${friends.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                {t("friends") || "Friends"} ({friends.length})
+              </button>
+              <button
+                onClick={() => setInviteTab("classmates")}
+                className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  inviteTab === "classmates"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {t("classmatesList") || "Classmates"} ({classmates.length})
+              </button>
+            </div>
+
+            {/* 4. User list based on tab */}
+            <div>
               <div className="max-h-48 overflow-y-auto rounded-lg border divide-y">
-                {friends.length === 0 ? (
-                  <p className="text-sm text-muted-foreground p-3 text-center">{t("noFriendsToInvite")}</p>
+                {inviteTab === "friends" ? (
+                  friends.length === 0 ? (
+                    <p className="text-sm text-muted-foreground p-3 text-center">{t("noFriendsToInvite")}</p>
+                  ) : (
+                    friends
+                      .filter((f) => {
+                        if (!inviteSearchQuery) return true;
+                        const q = inviteSearchQuery.toLowerCase();
+                        return f.full_name?.toLowerCase().includes(q) || f.username?.toLowerCase().includes(q);
+                      })
+                      .map((friend) => (
+                        <label
+                          key={friend.id}
+                          className="flex items-center gap-3 p-2.5 hover:bg-muted/50 cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={selectedInvitees.has(friend.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedInvitees((prev) => {
+                                const next = new Set(prev);
+                                if (checked) next.add(friend.id);
+                                else next.delete(friend.id);
+                                return next;
+                              });
+                            }}
+                          />
+                          <ProfileAvatar profile={friend} size="h-8 w-8" />
+                          <span className="text-sm flex-1">
+                            {friend.full_name || friend.username}
+                          </span>
+                        </label>
+                      ))
+                  )
+                ) : classmates.length === 0 ? (
+                  <p className="text-sm text-muted-foreground p-3 text-center">{t("noClassmatesFound")}</p>
                 ) : (
-                  friends.map((friend) => (
-                    <label
-                      key={friend.id}
-                      className="flex items-center gap-3 p-2.5 hover:bg-muted/50 cursor-pointer"
-                    >
-                      <Checkbox
-                        checked={selectedInvitees.has(friend.id)}
-                        onCheckedChange={(checked) => {
-                          setSelectedInvitees((prev) => {
-                            const next = new Set(prev);
-                            if (checked) next.add(friend.id);
-                            else next.delete(friend.id);
-                            return next;
-                          });
-                        }}
-                      />
-                      <ProfileAvatar profile={friend} size="h-8 w-8" />
-                      <span className="text-sm flex-1">
-                        {friend.full_name || friend.username}
-                      </span>
-                    </label>
-                  ))
+                  classmates
+                    .filter((c) => {
+                      if (!inviteSearchQuery) return true;
+                      const q = inviteSearchQuery.toLowerCase();
+                      return c.full_name?.toLowerCase().includes(q) || c.username?.toLowerCase().includes(q);
+                    })
+                    .map((classmate) => (
+                      <label
+                        key={classmate.id}
+                        className="flex items-center gap-3 p-2.5 hover:bg-muted/50 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={selectedInvitees.has(classmate.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedInvitees((prev) => {
+                              const next = new Set(prev);
+                              if (checked) next.add(classmate.id);
+                              else next.delete(classmate.id);
+                              return next;
+                            });
+                          }}
+                        />
+                        <ProfileAvatar profile={classmate} size="h-8 w-8" />
+                        <span className="text-sm flex-1">
+                          {classmate.full_name || classmate.username}
+                        </span>
+                      </label>
+                    ))
                 )}
               </div>
             </div>
