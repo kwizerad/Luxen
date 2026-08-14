@@ -2140,7 +2140,12 @@ const en: Record<string, string> = {
 
   // Exam history & results
   "examHistoryDesc": "View your past exam results and review answers",
+  "noExamHistory": "No exam history yet",
   "noExamHistoryHint": "Take an exam to see your results here",
+  "noQuestionsAnswered": "No questions were answered in this exam",
+  "autoSubmittedDueToViolations": "Automatically submitted due to security violations",
+  "autoSubmittedPageClosed": "Automatically submitted — exam window was closed",
+  "autoSubmittedTimeExpired": "Automatically submitted — time expired",
 
   // Driver registration
   "registerAsDriverDesc": "Verify your identity with your National ID to become a driver",

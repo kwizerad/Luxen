@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, FileText, Clock, CheckCircle2, XCircle, Trophy, Loader2, ChevronRight } from "lucide-react";
+import { ArrowLeft, FileText, Clock, CheckCircle2, XCircle, Trophy, Loader2, ChevronRight, AlertTriangle, ShieldAlert } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -149,20 +149,39 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           <div className="space-y-3">
             {attempts.map((attempt) => {
               const isPassed = attempt.score_percentage >= 50;
+              const answeredCount = (attempt.answers || []).filter((a) => a.selected_answer !== null).length;
+              const isAbandoned = attempt.status === 'abandoned' || answeredCount === 0;
+              const isCheating = attempt.submission_reason === 'cheating_violation';
+              const isAutoSubmitted = attempt.submission_reason === 'page_closed' || attempt.submission_reason === 'time_expired' || isCheating;
+
               return (
                 <button
                   key={attempt.id}
                   onClick={() => handleReview(attempt)}
-                  className="group w-full flex items-center gap-4 rounded-2xl border bg-card p-4 text-left transition-all hover:border-primary hover:shadow-md"
+                  className={`group w-full flex items-center gap-4 rounded-2xl border p-4 text-left transition-all hover:shadow-md ${
+                    isCheating
+                      ? "border-orange-300 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30 hover:border-orange-400"
+                      : isAbandoned
+                      ? "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 hover:border-amber-300"
+                      : "border-default bg-card hover:border-primary"
+                  }`}
                 >
                   <div
                     className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                      isPassed
+                      isCheating
+                        ? "bg-orange-500/10 text-orange-600"
+                        : isAbandoned
+                        ? "bg-amber-500/10 text-amber-600"
+                        : isPassed
                         ? "bg-green-500/10 text-green-600"
                         : "bg-red-500/10 text-red-600"
                     }`}
                   >
-                    {isPassed ? (
+                    {isCheating ? (
+                      <ShieldAlert className="h-5 w-5" />
+                    ) : isAbandoned ? (
+                      <AlertTriangle className="h-5 w-5" />
+                    ) : isPassed ? (
                       <CheckCircle2 className="h-5 w-5" />
                     ) : (
                       <XCircle className="h-5 w-5" />
@@ -181,17 +200,36 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                         {formatDuration(attempt.duration_seconds)}
                       </span>
                     </div>
+                    {isAbandoned && (
+                      <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                        {t("noQuestionsAnswered")}
+                      </p>
+                    )}
+                    {isCheating && attempt.violation_summary && (
+                      <p className="mt-1 text-xs text-orange-600 dark:text-orange-400 font-medium line-clamp-2">
+                        {t("autoSubmittedDueToViolations")}: {attempt.violation_summary}
+                      </p>
+                    )}
+                    {isAutoSubmitted && !isCheating && !isAbandoned && (
+                      <p className="mt-1 text-xs text-muted-foreground italic">
+                        {attempt.submission_reason === 'page_closed' ? t("autoSubmittedPageClosed") : t("autoSubmittedTimeExpired")}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p
                       className={`text-lg font-bold ${
-                        isPassed ? "text-green-600" : "text-red-600"
+                        isAbandoned
+                          ? "text-amber-600"
+                          : isCheating
+                          ? "text-orange-600"
+                          : isPassed ? "text-green-600" : "text-red-600"
                       }`}
                     >
-                      {attempt.score_percentage}%
+                      {isAbandoned ? "—" : `${attempt.score_percentage}%`}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {attempt.correct_answers}/{attempt.total_questions}
+                      {answeredCount}/{attempt.total_questions}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />

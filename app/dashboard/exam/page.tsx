@@ -164,6 +164,8 @@ export default function TakeExamPage() {
   const focusPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastViewportWidthRef = useRef(0);
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const submissionReasonRef = useRef<'manual' | 'page_closed' | 'cheating_violation' | 'time_expired'>('manual');
+  const violationMessagesRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -244,11 +246,17 @@ export default function TakeExamPage() {
       setCheatingWarningMessage(message);
       setShowCheatingWarning(true);
 
+      // Track violation messages for summary
+      if (toastMessage && !violationMessagesRef.current.includes(toastMessage)) {
+        violationMessagesRef.current.push(toastMessage);
+      }
+
       if (toastMessage && newCount < securitySettings.maxViolations) {
         toast.error(toastMessage);
       }
 
       if (newCount >= securitySettings.maxViolations) {
+        submissionReasonRef.current = 'cheating_violation';
         setTimeout(() => {
           toast.error(t("examAutoSubmitted"));
           handleSubmitExamRef.current?.(true);
@@ -408,15 +416,19 @@ export default function TakeExamPage() {
     };
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (exam && !showResults && !isSubmittingOnExitRef.current && securitySettings.violationMeasuresEnabled && securitySettings.tabSwitchEnabled) {
-        e.preventDefault();
-        e.returnValue = t("leaveExamConfirm");
-
-        // Auto-submit exam when user tries to close/refresh
+      if (exam && !showResults && !isSubmittingOnExitRef.current) {
+        // Auto-submit exam when user tries to close/refresh the page
+        submissionReasonRef.current = 'page_closed';
         isSubmittingOnExitRef.current = true;
         setIsSubmittingOnExit(true);
         handleSubmitExamRef.current?.(true);
-        return e.returnValue;
+
+        // Show confirmation dialog (browser-dependent)
+        if (securitySettings.violationMeasuresEnabled && securitySettings.tabSwitchEnabled) {
+          e.preventDefault();
+          e.returnValue = t("leaveExamConfirm");
+          return e.returnValue;
+        }
       }
     };
 
@@ -811,6 +823,7 @@ export default function TakeExamPage() {
   useEffect(() => {
     if (secondsLeft === null) return;
     if (secondsLeft <= 0) {
+      submissionReasonRef.current = 'time_expired';
       handleSubmitExamRef.current?.(true);
       return;
     }
@@ -970,6 +983,9 @@ export default function TakeExamPage() {
 
       const categoryName = categories.find((c) => c.id === exam.categoryId)?.name || t("unknown");
       const status: 'completed' | 'abandoned' = answeredCount > 0 ? 'completed' : 'abandoned';
+      const violationSummary = violationMessagesRef.current.length > 0
+        ? violationMessagesRef.current.join("; ")
+        : undefined;
 
       const data = await createExamAttempt({
         category_id: exam.categoryId,
@@ -978,6 +994,8 @@ export default function TakeExamPage() {
         answers,
         duration_seconds: durationSeconds,
         status,
+        submission_reason: submissionReasonRef.current,
+        violation_summary: violationSummary,
       });
       const attempt = data.attempt as ExamAttempt;
       const questionDetails: Record<string, { correct_answer: string; explanation?: string }> = data.questionDetails || {};
@@ -1091,6 +1109,8 @@ export default function TakeExamPage() {
     setCheatingWarningMessage("");
     setViolationType("other");
     violationTypeRef.current = "other";
+    submissionReasonRef.current = 'manual';
+    violationMessagesRef.current = [];
     
     // Reset custom dialogs
     setShowAlert(false);

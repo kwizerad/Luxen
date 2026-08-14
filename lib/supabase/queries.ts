@@ -563,6 +563,8 @@ export async function createExamAttempt(attemptData: {
   answers: ExamAnswer[];
   duration_seconds: number;
   status?: 'in_progress' | 'completed' | 'abandoned';
+  submission_reason?: 'manual' | 'page_closed' | 'cheating_violation' | 'time_expired';
+  violation_summary?: string;
 }) {
   const supabase = createClient();
   const user = await getAuthUser();
@@ -626,6 +628,8 @@ export async function createExamAttempt(attemptData: {
       score_percentage: scorePercentage,
       answers: processedAnswers,
       status,
+      submission_reason: attemptData.submission_reason || 'manual',
+      violation_summary: attemptData.violation_summary || null,
     }])
     .select()
     .single();

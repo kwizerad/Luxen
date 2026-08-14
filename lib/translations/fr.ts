@@ -1670,7 +1670,12 @@ const fr: Record<string, string> = {
 
   // Exam history & results
   "examHistoryDesc": "Consultez vos résultats d'examens passés et revoyez vos réponses",
+  "noExamHistory": "Pas d'historique d'examen",
   "noExamHistoryHint": "Passer un examen pour voir vos résultats ici",
+  "noQuestionsAnswered": "Aucune question n'a été répondue dans cet examen",
+  "autoSubmittedDueToViolations": "Soumis automatiquement en raison de violations de sécurité",
+  "autoSubmittedPageClosed": "Soumis automatiquement — la fenêtre d'examen a été fermée",
+  "autoSubmittedTimeExpired": "Soumis automatiquement — temps écoulé",
 
   // Driver registration
   "registerAsDriverDesc": "Vérifiez votre identité avec votre ID national pour devenir conducteur",

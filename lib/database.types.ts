@@ -55,6 +55,8 @@ export interface ExamAttempt {
   score_percentage: number;
   answers: ExamAnswer[];
   status: 'in_progress' | 'completed' | 'abandoned';
+  submission_reason?: 'manual' | 'page_closed' | 'cheating_violation' | 'time_expired';
+  violation_summary?: string | null;
 }
 
 export interface ExamAnswer {

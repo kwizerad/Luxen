@@ -1961,7 +1961,12 @@ const rw: Record<string, string> = {
 
   // Exam history & results
   "examHistoryDesc": "Reba ibisubizo by'ibizamini byakozwe kandi usubiremo ibyitabiriye",
+  "noExamHistory": "Nta makuru y'ibizamini byakozwe",
   "noExamHistoryHint": "Kora ikizamni kugira ngo ubone ibisubizo byawe hano",
+  "noQuestionsAnswered": "Nta kibazo cyisubiwemo muri iki kizamini",
+  "autoSubmittedDueToViolations": "Byatanzwe mu buryo bwikora kubera ibyangirijwe by'umutekano",
+  "autoSubmittedPageClosed": "Byatanzwe mu buryo bwikora — idirishya ry'ikizamini ryafunzwe",
+  "autoSubmittedTimeExpired": "Byatanzwe mu buryo bwikora — igihe cyarangiye",
 
   // Driver registration
   "registerAsDriverDesc": "Emeza umwirondoro wawe ukoresheje ID yawe y'igihugu kugira ngo ubeho umufasha",
