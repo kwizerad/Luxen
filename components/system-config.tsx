@@ -68,6 +68,18 @@ export function SystemConfigSettings() {
     kinyarwanda: true,
   });
 
+  // Interface language toggles (controls which languages students can select for the UI)
+  const INTERFACE_LANGUAGES = [
+    { key: "english", label: "English", nativeLabel: "English" },
+    { key: "french", label: "French", nativeLabel: "Français" },
+    { key: "kinyarwanda", label: "Kinyarwanda", nativeLabel: "Kinyarwanda" },
+  ];
+  const [interfaceLanguageToggles, setInterfaceLanguageToggles] = useState<Record<string, boolean>>({
+    english: true,
+    french: true,
+    kinyarwanda: true,
+  });
+
   // Service definitions for the admin UI
   const serviceDefinitions = [
     { key: "live-exam", labelKey: "liveExamResults", descKey: "liveExamResultsDesc" },
@@ -105,6 +117,16 @@ export function SystemConfigSettings() {
             }
           }
           setLanguageToggles(langToggles);
+
+          // Load interface language toggles (default to enabled if not set)
+          const ifaceLangToggles: Record<string, boolean> = { english: true, french: true, kinyarwanda: true };
+          for (const lang of ["english", "french", "kinyarwanda"]) {
+            const configKey = `interface_language_${lang}_enabled`;
+            if (configMap[configKey]) {
+              ifaceLangToggles[lang] = configMap[configKey].value === "true";
+            }
+          }
+          setInterfaceLanguageToggles(ifaceLangToggles);
         }
 
         // Load services config
@@ -215,6 +237,26 @@ export function SystemConfigSettings() {
       toast.success(t("learningLanguagesSaved") || "Learning language settings saved");
     } catch (error: any) {
       toast.error((t("failedToUpdateLearningLanguages") || "Failed to save learning language settings: ") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveInterfaceLanguages = async () => {
+    try {
+      setSaving(true);
+      await Promise.all(
+        INTERFACE_LANGUAGES.map((lang) =>
+          updateSystemConfig(
+            `interface_language_${lang.key}_enabled`,
+            (interfaceLanguageToggles[lang.key] ?? true).toString(),
+            t("interfaceLanguageToggleDesc") || `Enable or disable ${lang.label} as an interface language`
+          )
+        )
+      );
+      toast.success(t("interfaceLanguagesSaved") || "Interface language settings saved");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateInterfaceLanguages") || "Failed to save interface language settings: ") + error.message);
     } finally {
       setSaving(false);
     }
@@ -555,6 +597,61 @@ export function SystemConfigSettings() {
 
           <Button
             onClick={handleSaveLanguages}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("save") || "Save"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Interface Language Toggles */}
+      <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            {t("interfaceLanguages") || "Interface Languages"}
+          </CardTitle>
+          <CardDescription>
+            {t("interfaceLanguagesDesc") || "Enable or disable languages that users can select for the app interface. Disable a language if its translations are not ready or need updating."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-3">
+            {INTERFACE_LANGUAGES.map((lang) => {
+              const isLastEnabled = Object.entries(interfaceLanguageToggles).filter(([k, v]) => v && k !== lang.key).length === 0 && interfaceLanguageToggles[lang.key];
+              return (
+                <div key={lang.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                  <div className="space-y-0.5 pr-3">
+                    <Label htmlFor={`iface-lang-${lang.key}-toggle`} className="text-sm font-medium">
+                      {lang.nativeLabel}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {t("interfaceLanguageToggleDesc") || `Allow users to use ${lang.label} as the app interface language`}
+                    </p>
+                  </div>
+                  <Switch
+                    id={`iface-lang-${lang.key}-toggle`}
+                    checked={interfaceLanguageToggles[lang.key] ?? true}
+                    disabled={isLastEnabled}
+                    onCheckedChange={(checked) =>
+                      setInterfaceLanguageToggles((prev) => ({ ...prev, [lang.key]: checked }))
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          <Button
+            onClick={handleSaveInterfaceLanguages}
             disabled={saving}
             className="w-full sm:w-auto"
           >

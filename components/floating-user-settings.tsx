@@ -52,7 +52,7 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage, t, availableLanguages } = useLanguage();
 
   const getDisplayName = () => {
     if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
@@ -146,14 +146,14 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
     router.push("/");
   };
 
-  const handleLanguageChange = async (newLanguage: Language) => {
+  const handleLanguageChange = async (newLanguage: string) => {
     setLanguage(newLanguage);
 
     if (user) {
       try {
         const supabase = createClient();
         await supabase.auth.updateUser({
-          data: { language: languageToCode[newLanguage] }
+          data: { language: languageToCode[newLanguage as Language] || "en" }
         });
       } catch (error) {
         console.error("Failed to save language:", error);
@@ -247,7 +247,7 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
       {!adminMode && (
         <>
           <DropdownMenuSeparator />
-          {languages.map((lang) => (
+          {availableLanguages.map((lang) => (
             <DropdownMenuItem
               key={lang.value}
               onClick={() => handleLanguageChange(lang.value)}

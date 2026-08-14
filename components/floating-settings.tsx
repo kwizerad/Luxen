@@ -37,11 +37,11 @@ export function FloatingSettings() {
   const { user, loading } = useAuth();
   const { openLogin, openSignUp } = useAuthModals();
   const { theme, setTheme } = useTheme();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage, t, availableLanguages } = useLanguage();
   const router = useRouter();
   const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
 
-  const languageToCode: Record<Language, LanguageCode> = {
+  const languageToCode: Record<string, string> = {
     English: "en",
     Kinyarwanda: "rw",
     French: "fr",
@@ -81,12 +81,12 @@ export function FloatingSettings() {
     }
   };
 
-  const handleLanguageChange = async (newLanguage: Language) => {
+  const handleLanguageChange = async (newLanguage: string) => {
     setLanguage(newLanguage);
     if (user) {
       try {
         const supabase = createClient();
-        await supabase.auth.updateUser({ data: { language: languageToCode[newLanguage] } });
+        await supabase.auth.updateUser({ data: { language: languageToCode[newLanguage] || "en" } });
       } catch (error) {
         console.error("Failed to save language:", error);
       }
@@ -214,7 +214,7 @@ export function FloatingSettings() {
               {t("language")}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent sideOffset={8}>
-              {languages.map((lang) => (
+              {availableLanguages.map((lang) => (
                 <DropdownMenuItem
                   key={lang.value}
                   onClick={() => handleLanguageChange(lang.value)}

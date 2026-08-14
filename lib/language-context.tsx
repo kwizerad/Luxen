@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import en from "./translations/en";
 import rw from "./translations/rw";
 import fr from "./translations/fr";
+import { createClient } from "./supabase/client";
 
 type Language = string;
 
@@ -13,6 +14,7 @@ interface LanguageContextType {
   setLanguage: (lang: Language) => void;
   t: (key: string) => string;
   isRTL: boolean;
+  availableLanguages: { value: string; label: string; flag: string }[];
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -22,6 +24,12 @@ const translations: Record<Language, Record<string, string>> = {
   Kinyarwanda: rw,
   French: fr,
 };
+
+const ALL_LANGUAGES = [
+  { value: "English", label: "English", flag: "🇬🇧", configKey: "english" },
+  { value: "French", label: "Français", flag: "🇫🇷", configKey: "french" },
+  { value: "Kinyarwanda", label: "Kinyarwanda", flag: "🇷🇼", configKey: "kinyarwanda" },
+];
 
 // Get default system name from localStorage or fallback to "Navo"
 const getDefaultSystemName = (): string => {
@@ -44,6 +52,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>("English");
   const [systemName, setSystemName] = useState<string>("Navo");
   const [mounted, setMounted] = useState(false);
+  const [availableLanguages, setAvailableLanguages] = useState(ALL_LANGUAGES.map(l => ({ value: l.value, label: l.label, flag: l.flag })));
 
   const pathname = usePathname();
   const isAdminRoute = typeof pathname === "string" && pathname.startsWith("/Admin");
@@ -58,6 +67,45 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(LANGUAGE_STORAGE_KEY, lang || "English");
     }
   }, []);
+
+  // Fetch interface language toggles from system_config
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const supabase = createClient();
+    const configKeys = ALL_LANGUAGES.map((l) => `interface_language_${l.configKey}_enabled`);
+
+    const fetchEnabled = async () => {
+      const { data } = await supabase
+        .from("system_config")
+        .select("key, value")
+        .in("key", configKeys);
+
+      const disabledSet = new Set<string>();
+      for (const row of data || []) {
+        if (row.value === "false") {
+          const match = row.key.match(/^interface_language_(.+)_enabled$/);
+          if (match) disabledSet.add(match[1]);
+        }
+      }
+
+      const enabled = ALL_LANGUAGES
+        .filter((l) => !disabledSet.has(l.configKey))
+        .map((l) => ({ value: l.value, label: l.label, flag: l.flag }));
+
+      setAvailableLanguages(enabled.length > 0 ? enabled : ALL_LANGUAGES.map(l => ({ value: l.value, label: l.label, flag: l.flag })));
+
+      // If current language is now disabled, fall back to English
+      const currentLang = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      if (currentLang) {
+        const currentConfigKey = ALL_LANGUAGES.find((l) => l.value === currentLang)?.configKey;
+        if (currentConfigKey && disabledSet.has(currentConfigKey)) {
+          applyLanguage("English");
+        }
+      }
+    };
+
+    fetchEnabled();
+  }, [applyLanguage]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -103,7 +151,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [effectiveLanguage, mounted, systemName]);
 
   return (
-    <LanguageContext.Provider value={{ language: effectiveLanguage, setLanguage, t, isRTL: effectiveIsRTL }}>
+    <LanguageContext.Provider value={{ language: effectiveLanguage, setLanguage, t, isRTL: effectiveIsRTL, availableLanguages }}>
       {children}
     </LanguageContext.Provider>
   );

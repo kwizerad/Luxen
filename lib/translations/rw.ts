@@ -2074,6 +2074,11 @@ const rw: Record<string, string> = {
   "learningLanguagesSaved": "Amagenamiterere y'indimi zo kwiga yabitswe",
   "failedToUpdateLearningLanguages": "Byanze kubika amagenamiterere y'indimi zo kwiga: ",
   "noLearningLanguagesAvailable": "Nta ndimi zo kwiga ziboneka ubu. Munze ikigo kibishinzwe.",
+  "interfaceLanguages": "Indimi z'Ikarata",
+  "interfaceLanguagesDesc": "Fungura cyangwa jugunyurura indimi abakoresha bitoranya zo gukoresha mu karata. Jugunyurura urimi niba amagambo ayayo ataraboneka cyangwa atarakosorwa.",
+  "interfaceLanguageToggleDesc": "Emera abakoresha gukoresha iyi rimi nk'urimi y'ikarata",
+  "interfaceLanguagesSaved": "Amagenamiterere y'indimi y'ikarata yabitswe",
+  "failedToUpdateInterfaceLanguages": "Byanze kubika amagenamiterere y'indimi y'ikarata: ",
 };
 
 export default rw;

@@ -1783,6 +1783,11 @@ const fr: Record<string, string> = {
   "learningLanguagesSaved": "Paramètres de langue d'apprentissage enregistrés",
   "failedToUpdateLearningLanguages": "Échec de l'enregistrement des paramètres de langue d'apprentissage : ",
   "noLearningLanguagesAvailable": "Aucune langue d'apprentissage n'est actuellement disponible. Veuillez contacter un administrateur.",
+  "interfaceLanguages": "Langues de l'interface",
+  "interfaceLanguagesDesc": "Activer ou désactiver les langues que les utilisateurs peuvent sélectionner pour l'interface de l'application. Désactivez une langue si ses traductions ne sont pas prêtes ou nécessitent une mise à jour.",
+  "interfaceLanguageToggleDesc": "Autoriser les utilisateurs à utiliser cette langue comme langue de l'interface",
+  "interfaceLanguagesSaved": "Paramètres de langue de l'interface enregistrés",
+  "failedToUpdateInterfaceLanguages": "Échec de l'enregistrement des paramètres de langue de l'interface : ",
 };
 
 export default fr;

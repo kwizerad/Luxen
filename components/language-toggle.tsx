@@ -2,18 +2,18 @@
 
 import { useLanguage } from "@/lib/language-context";
 
-const languages = [
-  { value: "English", label: "EN" },
-  { value: "French", label: "FR" },
-  { value: "Kinyarwanda", label: "RW" },
-] as const;
+const langShortLabels: Record<string, string> = {
+  English: "EN",
+  French: "FR",
+  Kinyarwanda: "RW",
+};
 
 export function LanguageToggle() {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, availableLanguages } = useLanguage();
 
   return (
     <div className="flex items-center gap-1 text-sm font-medium">
-      {languages.map((lang, index) => (
+      {availableLanguages.map((lang) => (
         <button
           key={lang.value}
           onClick={() => setLanguage(lang.value)}
@@ -23,7 +23,7 @@ export function LanguageToggle() {
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          {lang.label}
+          {langShortLabels[lang.value] || lang.value.slice(0, 2).toUpperCase()}
         </button>
       ))}
     </div>

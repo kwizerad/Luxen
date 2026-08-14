@@ -41,7 +41,7 @@ export default function UserSettings({
 }: UserSettingsProps) {
   const isAdminMode = mode === "admin";
   const { theme, setTheme } = useTheme();
-  const { t, language: contextLanguage, setLanguage: setContextLanguage } = useLanguage();
+  const { t, language: contextLanguage, setLanguage: setContextLanguage, availableLanguages } = useLanguage();
   const [textSize, setTextSize] = useState<TextSize>("md");
   const [language, setLanguage] = useState<LanguageCode>("en");
   const [cardHoverClass, setCardHoverClass] = useState("transition-all duration-200 hover:shadow-lg");
@@ -172,12 +172,14 @@ export default function UserSettings({
     { value: "lg", label: t("large") },
   ];
 
-  const languages = [
-    { value: "en", label: "English" },
-    { value: "rw", label: "Kinyarwanda" },
-    { value: "fr", label: "Français" },
-    { value: "ar", label: "العربية" },
+  const allLanguages = [
+    { value: "en", label: "English", fullValue: "English" },
+    { value: "rw", label: "Kinyarwanda", fullValue: "Kinyarwanda" },
+    { value: "fr", label: "Français", fullValue: "French" },
   ];
+  const languages = allLanguages.filter((l) =>
+    availableLanguages.some((al) => al.value === l.fullValue)
+  );
 
   const handleTextSizeChange = async (size: TextSize) => {
     setTextSize(size);

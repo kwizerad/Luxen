@@ -2266,6 +2266,11 @@ const en: Record<string, string> = {
   "learningLanguagesSaved": "Learning language settings saved",
   "failedToUpdateLearningLanguages": "Failed to save learning language settings: ",
   "noLearningLanguagesAvailable": "No learning languages are currently available. Please contact an administrator.",
+  "interfaceLanguages": "Interface Languages",
+  "interfaceLanguagesDesc": "Enable or disable languages that users can select for the app interface. Disable a language if its translations are not ready or need updating.",
+  "interfaceLanguageToggleDesc": "Allow users to use this language as the app interface language",
+  "interfaceLanguagesSaved": "Interface language settings saved",
+  "failedToUpdateInterfaceLanguages": "Failed to save interface language settings: ",
 };
 
 export default en;
