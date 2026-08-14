@@ -1324,15 +1324,80 @@ export default function TakeExamPage() {
   // Show group exam creation
   if (examMode === "group") {
     return (
-      <GroupExamCreation
-        onBack={() => setExamMode("choice")}
-        onStartExam={(selectedCategoryId, inviteeIds) => {
-          setCategoryId(selectedCategoryId);
-          setPendingInviteeIds(inviteeIds);
-          setShowInstructions(true);
-          setInstructionsAccepted(false);
-        }}
-      />
+      <>
+        <GroupExamCreation
+          onBack={() => setExamMode("choice")}
+          onStartExam={(selectedCategoryId, inviteeIds) => {
+            setCategoryId(selectedCategoryId);
+            setPendingInviteeIds(inviteeIds);
+            setShowInstructions(true);
+            setInstructionsAccepted(false);
+          }}
+        />
+        {/* Instructions Dialog */}
+        <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                {t("examInstructions")}
+              </DialogTitle>
+              <DialogDescription>
+                {t("readCarefullyBeforeStart")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
+                <p className="font-medium">{t("examRulesTitle")}</p>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                  <li>{t("examRule1")}</li>
+                  <li>{t("examRule2")}</li>
+                  <li>{t("examRule3")}</li>
+                  {securitySettings.fullscreenEnabled && <li>{t("examRuleFullscreen")}</li>}
+                  {securitySettings.tabSwitchEnabled && <li>{t("examRuleTabSwitch")}</li>}
+                  {securitySettings.rightClickEnabled && <li>{t("examRuleRightClick")}</li>}
+                  {securitySettings.aiDetectionEnabled && <li>{t("examRules.noAISidebars")}</li>}
+                  {securitySettings.aiDetectionEnabled && <li>{t("examSecurity.aiShortcutsBlocked")}</li>}
+                  <li>{t("examSecurity.keyboardLocked")}</li>
+                </ul>
+              </div>
+              <div className="flex items-start gap-2 sm:gap-3 pt-2 border-t">
+                <Checkbox
+                  id="accept-group"
+                  checked={instructionsAccepted}
+                  onCheckedChange={(checked) => setInstructionsAccepted(checked as boolean)}
+                />
+                <label
+                  htmlFor="accept-group"
+                  className="text-xs sm:text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  {t("acceptExamInstructions")}
+                </label>
+              </div>
+            </div>
+            <DialogFooter className="gap-2 flex-col-reverse sm:flex-row">
+              <Button variant="outline" onClick={() => {
+                setShowInstructions(false);
+                setPendingInviteeIds([]);
+              }} className="w-full sm:w-auto">
+                {t("cancel")}
+              </Button>
+              <Button
+                onClick={() => {
+                  if (categoryId) {
+                    startExam(categoryId);
+                  }
+                }}
+                disabled={!instructionsAccepted || loadingExam}
+                className="w-full sm:w-auto sm:min-w-[120px]"
+              >
+                {loadingExam ? t("starting") : t("beginExam")}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
