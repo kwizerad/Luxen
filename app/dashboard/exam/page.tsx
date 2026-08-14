@@ -11,11 +11,12 @@ import { Watermark } from "@/components/watermark";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { getExamCategories, getExamForTaking, createExamAttempt, isStandaloneExamEnabled } from "@/lib/supabase/queries";
 import { useAuth } from "@/lib/auth-context";
+import { createClient } from "@/lib/supabase/client";
 import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings } from "@/lib/security-config";
 import { toast } from "sonner";
 import { ExamCategorySkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
-import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, HelpCircle, FileText, Play, LogOut, Monitor, Clock, Hash, ArrowLeft } from "lucide-react";
+import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, HelpCircle, FileText, Play, LogOut, Monitor, Clock, Hash, ArrowLeft, History } from "lucide-react";
 import { ExamReview } from "@/components/exam-review";
 import {
   Dialog,
@@ -73,7 +74,7 @@ export default function TakeExamPage() {
   const { config } = useBrandingConfig();
   const { t } = useLanguage();
   const router = useRouter();
-  const { loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string>("");
   const [challengeId, setChallengeId] = useState<string>("");
@@ -103,8 +104,22 @@ export default function TakeExamPage() {
     });
   }, [router, authLoading]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !user) return;
+    const checkExamHistory = async () => {
+      const supabase = createClient();
+      const { count } = await supabase
+        .from("exam_attempts")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+      setHasExamHistory((count ?? 0) > 0);
+    };
+    void checkExamHistory();
+  }, [user]);
+
   const [loadingExam, setLoadingExam] = useState(false);
   const [submittingExam, setSubmittingExam] = useState(false);
+  const [hasExamHistory, setHasExamHistory] = useState(false);
   const [exam, setExam] = useState<TakeResponse | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
@@ -1150,9 +1165,20 @@ export default function TakeExamPage() {
               </Link>
             </div>
             <div className="student-page-header">
-              <div>
-                <h1 className="student-page-title">{t("exams")}</h1>
-                <p className="student-page-description">{t("selectExamCategory")}</p>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h1 className="student-page-title">{t("exams")}</h1>
+                  <p className="student-page-description">{t("selectExamCategory")}</p>
+                </div>
+                {hasExamHistory && (
+                  <Link
+                    href="/dashboard#results"
+                    className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                  >
+                    <History className="h-4 w-4" />
+                    <span className="hidden sm:inline">{t("examHistory")}</span>
+                  </Link>
+                )}
               </div>
             </div>
             <div>

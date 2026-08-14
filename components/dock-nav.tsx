@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Trophy, Settings, BookOpen, LayoutList, Car, Users } from "lucide-react";
+import { Home, FileText, History, Settings, BookOpen, LayoutGrid, Car, Users } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -27,6 +27,7 @@ export function DockNav({ hide = false, hideOnMobile = false }: { hide?: boolean
   const [hasPublishedCourse, setHasPublishedCourse] = useState<boolean | null>(null);
   const [examEnabled, setExamEnabled] = useState<boolean>(false);
   const [servicesEnabled, setServicesEnabled] = useState<boolean>(true);
+  const [hasExamHistory, setHasExamHistory] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || !user) return;
@@ -68,6 +69,19 @@ export function DockNav({ hide = false, hideOnMobile = false }: { hide?: boolean
 
     void checkPublishedCourse();
   }, [user, interfaceLanguage, enabledLanguages]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !user) return;
+    const supabase = createClient();
+    const checkExamHistory = async () => {
+      const { count } = await supabase
+        .from("exam_attempts")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+      setHasExamHistory((count ?? 0) > 0);
+    };
+    void checkExamHistory();
+  }, [user]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -146,12 +160,12 @@ export function DockNav({ hide = false, hideOnMobile = false }: { hide?: boolean
   const isDriverRole = userRole === "Driver";
 
   const allItems: NavItem[] = [
-    { view: "home", labelKey: "home", icon: <LayoutDashboard size={18} /> },
+    { view: "home", labelKey: "home", icon: <Home size={18} /> },
     { view: "course", labelKey: "courses", icon: <BookOpen size={18} /> },
-    ...(examEnabled ? [{ href: "/dashboard/exam", labelKey: "exam", icon: <Trophy size={18} /> }] : []),
-    { view: "results", labelKey: "examHistory", icon: <LayoutList size={18} /> },
+    ...(examEnabled ? [{ href: "/dashboard/exam", labelKey: "exam", icon: <FileText size={18} /> }] : []),
+    { view: "results", labelKey: "examHistory", icon: <History size={18} /> },
     { view: "classmates", labelKey: "classmates", icon: <Users size={18} /> },
-    { view: "services", labelKey: "services", icon: <LayoutList size={18} /> },
+    { view: "services", labelKey: "services", icon: <LayoutGrid size={18} /> },
     ...(isDriverRole ? [{ view: "driver-panel", labelKey: "driverPanel", icon: <Car size={18} /> }] : []),
     { view: "settings", labelKey: "settings", icon: <Settings size={18} /> },
   ];
@@ -159,9 +173,10 @@ export function DockNav({ hide = false, hideOnMobile = false }: { hide?: boolean
   const visibleItems = useMemo(() => allItems.filter((item) => {
     if (item.view === "course" && hasPublishedCourse !== true) return false;
     if (item.view === "services" && !servicesEnabled) return false;
+    if (item.view === "results" && hasExamHistory !== true) return false;
     return true;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [hasPublishedCourse, servicesEnabled, examEnabled, isDriverRole]);
+  }), [hasPublishedCourse, servicesEnabled, examEnabled, isDriverRole, hasExamHistory]);
 
   const isNavItemActive = (item: NavItem) => {
     if (item.href) return pathname === item.href;
