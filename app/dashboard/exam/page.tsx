@@ -136,8 +136,9 @@ export default function TakeExamPage() {
   const [isSubmittingOnExit, setIsSubmittingOnExit] = useState(false);
   const [showCheatingWarning, setShowCheatingWarning] = useState(false);
   const [cheatingWarningMessage, setCheatingWarningMessage] = useState("");
-  const [violationType, setViolationType] = useState<"fullscreen" | "tabswitch" | "copy" | "paste" | "backnavigation" | "other">("other");
+  const [violationType, setViolationType] = useState<"fullscreen" | "tabswitch" | "copy" | "paste" | "backnavigation" | "ai_detection" | "other">("other");
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(DEFAULT_SECURITY_SETTINGS);
+  const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
 
   // Custom alert/confirm dialog states
   const [showAlert, setShowAlert] = useState(false);
@@ -168,6 +169,8 @@ export default function TakeExamPage() {
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const submissionReasonRef = useRef<'manual' | 'page_closed' | 'cheating_violation' | 'time_expired'>('manual');
   const violationMessagesRef = useRef<string[]>([]);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoSubmitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -240,7 +243,7 @@ export default function TakeExamPage() {
         ? t(`${base}Warning2` as any)
         : t(`${base}WarningFinal` as any);
 
-    const recordViolation = (message: string, type: "fullscreen" | "tabswitch" | "copy" | "paste" | "backnavigation" | "other" = "other", toastMessage?: string) => {
+    const recordViolation = (message: string, type: "fullscreen" | "tabswitch" | "copy" | "paste" | "backnavigation" | "ai_detection" | "other" = "other", toastMessage?: string) => {
       if (!exam || showResults || !securitySettings.violationMeasuresEnabled || isSubmittingOnExitRef.current) return;
 
       const now = Date.now();
@@ -266,10 +269,22 @@ export default function TakeExamPage() {
 
       if (newCount >= securitySettings.maxViolations) {
         submissionReasonRef.current = 'cheating_violation';
-        setTimeout(() => {
-          toast.error(t("examAutoSubmitted"));
-          handleSubmitExamRef.current?.(true);
-        }, 3000);
+        // Start 15-second countdown then auto-submit
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        if (autoSubmitTimeoutRef.current) clearTimeout(autoSubmitTimeoutRef.current);
+        setCountdownSeconds(15);
+        countdownRef.current = setInterval(() => {
+          setCountdownSeconds((prev) => {
+            if (prev === null) return null;
+            if (prev <= 1) {
+              if (countdownRef.current) clearInterval(countdownRef.current);
+              countdownRef.current = null;
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+        toast.error(t("examAutoSubmitted"));
       }
     };
 
@@ -302,10 +317,22 @@ export default function TakeExamPage() {
 
         // Auto-submit exam after max violation attempts
         if (newCount >= securitySettings.maxViolations) {
-          setTimeout(() => {
-            toast.error(t("examAutoSubmitted"));
-            handleSubmitExamRef.current?.(true);
-          }, 3000);
+          submissionReasonRef.current = 'cheating_violation';
+          if (countdownRef.current) clearInterval(countdownRef.current);
+          if (autoSubmitTimeoutRef.current) clearTimeout(autoSubmitTimeoutRef.current);
+          setCountdownSeconds(15);
+          countdownRef.current = setInterval(() => {
+            setCountdownSeconds((prev) => {
+              if (prev === null) return null;
+              if (prev <= 1) {
+                if (countdownRef.current) clearInterval(countdownRef.current);
+                countdownRef.current = null;
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+          toast.error(t("examAutoSubmitted"));
         } else {
           // Show fullscreen warning too
           setShowFullscreenWarning(true);
@@ -577,7 +604,7 @@ export default function TakeExamPage() {
           '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i], [aria-label*="Bard" i], [aria-label*="ChatGPT" i], [aria-label*="Claude" i], [aria-label*="Perplexity" i]'
         );
         if (found.length > 0) {
-          recordViolation(t("aiSidebarDetected"), 'other', t("aiSidebarDetected"));
+          recordViolation(t("aiSidebarDetected"), 'ai_detection', t("aiSidebarDetected"));
         }
         // Detect AI sidebar input fields with content — warn but do NOT count as violation
         const aiInputs = document.querySelectorAll(
@@ -705,10 +732,10 @@ export default function TakeExamPage() {
   }, [exam, showResults, securitySettings, t]);
 
   // Auto-dismiss cheating warning for minor violations (copy, paste, keyboard, etc.)
-  // Fullscreen and tabswitch violations require manual action (re-enter fullscreen / acknowledge)
+  // Fullscreen, tabswitch, and ai_detection violations require manual action
   useEffect(() => {
     if (!showCheatingWarning) return;
-    if (violationType === "fullscreen" || violationType === "tabswitch") return;
+    if (violationType === "fullscreen" || violationType === "tabswitch" || violationType === "ai_detection") return;
     if (fullscreenRetryCount >= securitySettings.maxViolations || cheatingAttempts >= securitySettings.maxViolations) return;
 
     const timer = setTimeout(() => {
@@ -717,6 +744,15 @@ export default function TakeExamPage() {
 
     return () => clearTimeout(timer);
   }, [showCheatingWarning, violationType, fullscreenRetryCount, cheatingAttempts, securitySettings.maxViolations]);
+
+  // Countdown watcher — auto-submit when countdown reaches 0
+  useEffect(() => {
+    if (countdownSeconds === null) return;
+    if (countdownSeconds === 0) {
+      handleSubmitExamRef.current?.(true);
+      setCountdownSeconds(null);
+    }
+  }, [countdownSeconds]);
 
   // Prevent back button / smartphone back gesture during exam
   useEffect(() => {
@@ -750,10 +786,22 @@ export default function TakeExamPage() {
       } else if (newCount < securitySettings.maxViolations) {
         toast.error(t("backNavigationWarning2"));
       } else if (newCount >= securitySettings.maxViolations) {
-        setTimeout(() => {
-          toast.error(t("backNavigationWarningFinal"));
-          handleSubmitExamRef.current?.(true);
-        }, 3000);
+        submissionReasonRef.current = 'cheating_violation';
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        if (autoSubmitTimeoutRef.current) clearTimeout(autoSubmitTimeoutRef.current);
+        setCountdownSeconds(15);
+        countdownRef.current = setInterval(() => {
+          setCountdownSeconds((prev) => {
+            if (prev === null) return null;
+            if (prev <= 1) {
+              if (countdownRef.current) clearInterval(countdownRef.current);
+              countdownRef.current = null;
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+        toast.error(t("backNavigationWarningFinal"));
       }
     };
 
@@ -983,7 +1031,6 @@ export default function TakeExamPage() {
   const handleSubmitExam = async (isAutoSubmit = false) => {
     if (!exam || !examStartTime) return;
     if (submittingExamRef.current || showResultsRef.current) return;
-    if (isAutoSubmit && isSubmittingOnExitRef.current) return;
 
     const answeredCount = Object.keys(userAnswers).length;
 
@@ -1149,6 +1196,15 @@ export default function TakeExamPage() {
     violationMessagesRef.current = [];
     setPendingInviteeIds([]);
     setChallengeId("");
+    setCountdownSeconds(null);
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    if (autoSubmitTimeoutRef.current) {
+      clearTimeout(autoSubmitTimeoutRef.current);
+      autoSubmitTimeoutRef.current = null;
+    }
     
     // Reset custom dialogs
     setShowAlert(false);
@@ -1930,6 +1986,8 @@ export default function TakeExamPage() {
               <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6" />
               {violationType === "fullscreen" || violationType === "tabswitch"
                 ? t("cheatingViolationDetected")
+                : violationType === "ai_detection"
+                ? t("aiDetectionDetected") || "AI Detection Alert"
                 : t("prohibitedActionDetected")}
             </DialogTitle>
             <DialogDescription className="text-xs sm:text-sm text-red-600 font-medium whitespace-pre-line">
@@ -1965,10 +2023,36 @@ export default function TakeExamPage() {
                 </p>
               </div>
             )}
+            {violationType === "ai_detection" && (
+              <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900 rounded-lg p-2.5 sm:p-3">
+                <p className="text-xs sm:text-sm text-purple-800 dark:text-purple-400 font-medium">
+                  {t("actionRequired.closeAiTab") || "Please close the AI tab/sidebar to continue the exam."}
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="flex-col gap-2">
-            {(violationType === "fullscreen" || violationType === "tabswitch") && fullscreenRetryCount < securitySettings.maxViolations && cheatingAttempts < securitySettings.maxViolations ? (
+            {violationType === "ai_detection" ? (
+              <Button
+                onClick={() => {
+                  // Check if AI elements are still present
+                  const stillPresent = document.querySelectorAll(
+                    '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i], [aria-label*="Bard" i], [aria-label*="ChatGPT" i], [aria-label*="Claude" i], [aria-label*="Perplexity" i]'
+                  );
+                  if (stillPresent.length > 0) {
+                    toast.error(t("closeAiTabFirst") || "Please close the AI tab/sidebar first!");
+                  } else {
+                    setShowCheatingWarning(false);
+                  }
+                }}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                size="sm"
+              >
+                <Shield className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                {t("iveClosedAiTab") || "I've closed the AI tab"}
+              </Button>
+            ) : (violationType === "fullscreen" || violationType === "tabswitch") && fullscreenRetryCount < securitySettings.maxViolations && cheatingAttempts < securitySettings.maxViolations ? (
               <>
                 {violationType === "fullscreen" && (
                   <Button
@@ -2010,12 +2094,23 @@ export default function TakeExamPage() {
                 )}
               </>
             ) : (
-              <div className="w-full text-center py-2">
-                <p className="text-sm font-medium text-red-600">
-                  {fullscreenRetryCount >= securitySettings.maxViolations || cheatingAttempts >= securitySettings.maxViolations
-                    ? t("examBeingSubmitted")
-                    : t("warningWillCloseAutomatically")}
-                </p>
+              <div className="w-full text-center py-2 space-y-2">
+                {countdownSeconds !== null && countdownSeconds > 0 ? (
+                  <>
+                    <p className="text-sm font-medium text-red-600">
+                      {t("examAutoSubmitCountdown") || "Exam will be auto-submitted in:"}
+                    </p>
+                    <div className="text-3xl font-bold text-red-600 tabular-nums">
+                      {countdownSeconds}s
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm font-medium text-red-600">
+                    {fullscreenRetryCount >= securitySettings.maxViolations || cheatingAttempts >= securitySettings.maxViolations
+                      ? t("examBeingSubmitted")
+                      : t("warningWillCloseAutomatically")}
+                  </p>
+                )}
               </div>
             )}
           </DialogFooter>

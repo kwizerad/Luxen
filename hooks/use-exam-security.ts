@@ -25,6 +25,7 @@ export type ViolationType =
   | "resize"
   | "blur"
   | "aishortcut"
+  | "ai_detection"
   | "other";
 
 interface UseExamSecurityParams {
@@ -41,6 +42,7 @@ interface UseExamSecurityReturn {
   violationType: ViolationType;
   fullscreenWarning: boolean;
   fullscreenRetryCount: number;
+  countdownSeconds: number | null;
   requestFullscreen: () => Promise<void>;
   exitFullscreen: () => Promise<void>;
   dismissCheatingWarning: () => void;
@@ -68,6 +70,9 @@ export function useExamSecurity({
   const violationTypeRef = useRef<ViolationType>("other");
   const [showFullscreenWarning, setShowFullscreenWarning] = useState(false);
   const [fullscreenRetryCount, setFullscreenRetryCount] = useState(0);
+  const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
+
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const lastViewportWidthRef = useRef<number>(0);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -106,10 +111,20 @@ export function useExamSecurity({
 
       if (shouldAutoSubmit) {
         autoSubmitTriggeredRef.current = true;
-        setTimeout(() => {
-          toast.error(t("examAutoSubmitted"));
-          onAutoSubmit();
-        }, 3000);
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        setCountdownSeconds(15);
+        countdownRef.current = setInterval(() => {
+          setCountdownSeconds((prev) => {
+            if (prev === null) return null;
+            if (prev <= 1) {
+              if (countdownRef.current) clearInterval(countdownRef.current);
+              countdownRef.current = null;
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+        toast.error(t("examAutoSubmitted"));
       }
     },
     [t, onAutoSubmit, settings]
@@ -176,6 +191,11 @@ export function useExamSecurity({
     fullscreenRetryCountRef.current = 0;
     autoSubmitTriggeredRef.current = false;
     showResultsRef.current = false;
+    setCountdownSeconds(null);
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
   }, []);
 
   // Main security event listeners
@@ -528,7 +548,7 @@ export function useExamSecurity({
           violationDebounceRef.current = true;
           const nextCount = cheatingAttemptsRef.current + 1;
           recordViolation(
-            "aishortcut",
+            "ai_detection",
             t("aiSidebarDetected"),
             t("aiSidebarDetected")
           );
@@ -685,6 +705,14 @@ export function useExamSecurity({
     return () => window.removeEventListener("popstate", handlePopState);
   }, [isActive, t, triggerViolation, settings]);
 
+  useEffect(() => {
+    if (countdownSeconds === null) return;
+    if (countdownSeconds === 0) {
+      onAutoSubmit();
+      setCountdownSeconds(null);
+    }
+  }, [countdownSeconds, onAutoSubmit]);
+
   return {
     cheatingAttempts,
     showCheatingWarning,
@@ -692,6 +720,7 @@ export function useExamSecurity({
     violationType,
     fullscreenWarning: showFullscreenWarning,
     fullscreenRetryCount,
+    countdownSeconds,
     requestFullscreen,
     exitFullscreen,
     dismissCheatingWarning,

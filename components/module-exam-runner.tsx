@@ -126,7 +126,7 @@ export function ModuleExamRunner({
   // Auto-dismiss cheating warning for minor violations (not fullscreen/tabswitch)
   useEffect(() => {
     if (!security.showCheatingWarning) return;
-    if (security.violationType === "fullscreen" || security.violationType === "tabswitch") return;
+    if (security.violationType === "fullscreen" || security.violationType === "tabswitch" || security.violationType === "ai_detection") return;
     if (security.fullscreenRetryCount >= securitySettings.maxViolations || security.cheatingAttempts >= securitySettings.maxViolations) return;
 
     const timer = setTimeout(() => {
@@ -961,6 +961,8 @@ export function ModuleExamRunner({
               <AlertTriangle className="h-5 w-5" />
               {security.violationType === "fullscreen" || security.violationType === "tabswitch"
                 ? t("cheatingViolationDetected") || "Violation Detected"
+                : security.violationType === "ai_detection"
+                ? t("aiDetectionDetected") || "AI Detection Alert"
                 : t("prohibitedActionDetected") || "Prohibited Action"}
             </DialogTitle>
             <DialogDescription className="text-red-600 font-medium whitespace-pre-line">
@@ -982,20 +984,56 @@ export function ModuleExamRunner({
                 {t("violationCount.autoSubmitWarning") || `Exam will auto-submit after ${securitySettings.maxViolations} violations.`}
               </p>
             </div>
+            {security.violationType === "ai_detection" && (
+              <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900 rounded-lg p-2.5">
+                <p className="text-xs sm:text-sm text-purple-800 dark:text-purple-400 font-medium">
+                  {t("actionRequired.closeAiTab") || "Please close the AI tab/sidebar to continue the exam."}
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            {security.violationType === "fullscreen" && security.fullscreenRetryCount < securitySettings.maxViolations ? (
+            {security.violationType === "ai_detection" ? (
+              <Button
+                onClick={() => {
+                  const stillPresent = document.querySelectorAll(
+                    '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i], [aria-label*="Bard" i], [aria-label*="ChatGPT" i], [aria-label*="Claude" i], [aria-label*="Perplexity" i]'
+                  );
+                  if (stillPresent.length > 0) {
+                    toast.error(t("closeAiTabFirst") || "Please close the AI tab/sidebar first!");
+                  } else {
+                    security.dismissCheatingWarning();
+                  }
+                }}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                size="sm"
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                {t("iveClosedAiTab") || "I've closed the AI tab"}
+              </Button>
+            ) : security.violationType === "fullscreen" && security.fullscreenRetryCount < securitySettings.maxViolations ? (
               <Button onClick={security.requestFullscreen} className="w-full bg-red-600 hover:bg-red-700 text-white" size="sm">
                 <Monitor className="h-4 w-4 mr-2" />
                 {t("reEnterFullscreenNow") || "Re-enter Fullscreen Now"}
               </Button>
             ) : (
-              <div className="w-full text-center py-2">
-                <p className="text-sm font-medium text-red-600">
-                  {security.fullscreenRetryCount >= securitySettings.maxViolations || security.cheatingAttempts >= securitySettings.maxViolations
-                    ? t("examBeingSubmitted") || "Exam is being submitted..."
-                    : t("warningWillCloseAutomatically") || "Warning will close automatically..."}
-                </p>
+              <div className="w-full text-center py-2 space-y-2">
+                {security.countdownSeconds !== null && security.countdownSeconds > 0 ? (
+                  <>
+                    <p className="text-sm font-medium text-red-600">
+                      {t("examAutoSubmitCountdown") || "Exam will be auto-submitted in:"}
+                    </p>
+                    <div className="text-3xl font-bold text-red-600 tabular-nums">
+                      {security.countdownSeconds}s
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm font-medium text-red-600">
+                    {security.fullscreenRetryCount >= securitySettings.maxViolations || security.cheatingAttempts >= securitySettings.maxViolations
+                      ? t("examBeingSubmitted") || "Exam is being submitted..."
+                      : t("warningWillCloseAutomatically") || "Warning will close automatically..."}
+                  </p>
+                )}
               </div>
             )}
           </DialogFooter>
