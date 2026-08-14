@@ -8,6 +8,7 @@ import UserSettings from "@/components/user-settings";
 import { useBrandingConfig } from "@/lib/branding-config";
 import Image from "next/image";
 import { useLanguage } from "@/lib/language-context";
+import { ArrowLeft } from "lucide-react";
 
 export interface SettingsViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -59,6 +60,15 @@ export function SettingsView({ navigate }: SettingsViewProps) {
       </div>
 
       <main className="student-page-narrow student-page-no-nav w-full">
+        <div className="hidden md:block mb-6">
+          <button
+            onClick={() => navigate("home")}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t("backToHome")}
+          </button>
+        </div>
         <div className="student-page-header">
           <div>
             <h1 className="student-page-title">{t("personalSettings")}</h1>

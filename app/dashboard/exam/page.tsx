@@ -15,7 +15,7 @@ import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings }
 import { toast } from "sonner";
 import { ExamCategorySkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
-import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, HelpCircle, FileText, Play, LogOut, Monitor, Clock, Hash } from "lucide-react";
+import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, HelpCircle, FileText, Play, LogOut, Monitor, Clock, Hash, ArrowLeft } from "lucide-react";
 import { ExamReview } from "@/components/exam-review";
 import {
   Dialog,
@@ -1143,6 +1143,12 @@ export default function TakeExamPage() {
         {/* Exam Categories - Top Left */}
         {!exam && (
           <section className="student-section">
+            <div className="hidden md:block mb-6">
+              <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <ArrowLeft className="h-4 w-4" />
+                {t("backToHome")}
+              </Link>
+            </div>
             <div className="student-page-header">
               <div>
                 <h1 className="student-page-title">{t("exams")}</h1>

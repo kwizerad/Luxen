@@ -644,6 +644,16 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
     <div className="flex h-[calc(100vh-80px)]">
       {/* Left Sidebar */}
       <div className="w-full sm:w-80 border-r flex flex-col bg-background">
+        {/* Back button */}
+        <div className="p-3 pb-0">
+          <button
+            onClick={() => navigate("home")}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t("backToHome")}
+          </button>
+        </div>
         {/* Tab Switcher + Visibility */}
         <div className="p-3 border-b space-y-2">
           <div className="flex items-center justify-between">

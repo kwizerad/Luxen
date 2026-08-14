@@ -6,7 +6,7 @@ import { useLanguage } from "@/lib/language-context";
 import { useLearningLanguages } from "@/hooks/use-learning-languages";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { BookOpen, ChevronRight, ChevronLeft, Clock, CheckCircle2, Circle, Layers, ArrowRight, Play, FileText, Lock, Trophy, Shield, Home } from "lucide-react";
+import { BookOpen, ChevronRight, ChevronLeft, Clock, CheckCircle2, Circle, Layers, ArrowRight, Play, FileText, Lock, Trophy, Shield, Home, ArrowLeft } from "lucide-react";
 import ScrollStack, { ScrollStackItem } from "@/components/scroll-stack";
 import type { CourseLanguageCourse, CourseModule, CourseLesson, ModuleExamSettings } from "@/lib/database.types";
 import { LessonContentView } from "@/app/dashboard/course/LessonContentView";
@@ -699,6 +699,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     return (
       <div className="min-h-[calc(100vh-4rem)]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+          <button
+            onClick={() => navigate("home")}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t("backToHome")}
+          </button>
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary-readable" />
             <h1 className="text-xl font-bold flex-1 truncate">{course.title}</h1>

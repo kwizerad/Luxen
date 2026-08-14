@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ClipboardList, Calendar, BookOpen, FileText, Loader2, Users, Clock } from "lucide-react";
+import { ClipboardList, Calendar, BookOpen, FileText, Loader2, Users, Clock, ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -56,6 +56,13 @@ export function DriverPanelView({ navigate }: DriverPanelViewProps) {
   return (
     <div className="min-h-[calc(100vh-80px)] pb-24">
       <div className="container mx-auto max-w-4xl px-4 py-8">
+        <button
+          onClick={() => navigate("home")}
+          className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {t("backToHome")}
+        </button>
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">{t("driverPanel")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("driverPanelDesc")}</p>
