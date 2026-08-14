@@ -436,10 +436,11 @@ export default function TakeExamPage() {
       }
 
       // All other keys are blocked — only arrow keys are allowed for navigation
+      // Do NOT count as a cheating violation; just block and warn
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      recordViolation(t('examSecurity.keyboardLocked'), 'other', t('examSecurity.keyboardLocked'));
+      toast.warning(t('examSecurity.keyboardLocked'));
       return false;
     };
 
@@ -1158,7 +1159,7 @@ export default function TakeExamPage() {
       
       toast.success(t("examSubmittedSuccess"));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : (error as any)?.message || String(error);
       toast.error(`${t("failedToSubmitExam")}: ${message}`);
     } finally {
       setSubmittingExam(false);

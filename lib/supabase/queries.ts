@@ -587,7 +587,7 @@ export async function createExamAttempt(attemptData: {
     .select("id, correct_answer, explanation")
     .in("id", questionIds);
 
-  if (answerKeyError) throw answerKeyError;
+  if (answerKeyError) throw new Error(answerKeyError.message || "Failed to fetch answer key");
 
   const answerKey = new Map<string, { correct_answer: string; explanation?: string }>(
     (answerKeyRows || []).map((q: { id: string; correct_answer: string; explanation?: string }) => [
@@ -634,7 +634,7 @@ export async function createExamAttempt(attemptData: {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || "Failed to submit exam attempt");
 
   // If the student passed (score >= 50), auto-verify provision (category P)
   if (scorePercentage >= 50) {
