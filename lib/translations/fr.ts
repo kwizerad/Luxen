@@ -1797,6 +1797,9 @@ const fr: Record<string, string> = {
   "reloadPage": "Recharger la page",
   "backOnline": "De nouveau en ligne",
   "checkingConnection": "Vérification de la connexion...",
+  "account": "Compte",
+  "appearance": "Apparence",
+  "readOnlyAccess": "Vous avez un accès en lecture seule aux paramètres.",
 };
 
 export default fr;

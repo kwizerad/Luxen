@@ -41,7 +41,7 @@ function SecurityFeatureToggle({ id, label, description, checked, onCheckedChang
   );
 }
 
-export function SystemConfigSettings() {
+export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages" | "services" }) {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -272,8 +272,9 @@ export function SystemConfigSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Universal Exam Limit */}
-      <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+      {(!filter || filter === "exam") && (
+      <>
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
@@ -323,7 +324,7 @@ export function SystemConfigSettings() {
       </Card>
 
       {/* Exam Security Settings */}
-      <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
@@ -443,8 +444,9 @@ export function SystemConfigSettings() {
           </Button>
         </CardContent>
       </Card>
+
       {/* Standalone Exam Toggle */}
-      <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
@@ -487,9 +489,12 @@ export function SystemConfigSettings() {
           </Button>
         </CardContent>
       </Card>
+      </>
+      )}
 
       {/* Services Settings */}
-      <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+      {(!filter || filter === "services") && (
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <LayoutList className="h-5 w-5 text-primary" />
@@ -560,9 +565,12 @@ export function SystemConfigSettings() {
           </Button>
         </CardContent>
       </Card>
+      )}
 
       {/* Learning Language Toggles */}
-      <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+      {(!filter || filter === "languages") && (
+      <>
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-primary" />
@@ -613,7 +621,7 @@ export function SystemConfigSettings() {
       </Card>
 
       {/* Interface Language Toggles */}
-      <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-primary" />
@@ -666,6 +674,8 @@ export function SystemConfigSettings() {
           </Button>
         </CardContent>
       </Card>
+      </>
+      )}
     </div>
   );
 }

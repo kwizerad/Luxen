@@ -2280,6 +2280,9 @@ const en: Record<string, string> = {
   "reloadPage": "Reload Page",
   "backOnline": "Back Online",
   "checkingConnection": "Checking connection...",
+  "account": "Account",
+  "appearance": "Appearance",
+  "readOnlyAccess": "You have read-only access to settings.",
 };
 
 export default en;

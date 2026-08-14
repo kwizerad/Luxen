@@ -2088,6 +2088,9 @@ const rw: Record<string, string> = {
   "reloadPage": "Ongera utangize ipaji",
   "backOnline": "Hasubiye kuri murandara",
   "checkingConnection": "Kugenzura umurandara...",
+  "account": "Konti",
+  "appearance": "Imigaragarire",
+  "readOnlyAccess": "Ufite uburenganzira bwo gusoma gusa amagenamiterere.",
 };
 
 export default rw;
