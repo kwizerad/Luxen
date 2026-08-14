@@ -215,6 +215,15 @@ export default function TakeExamPage() {
       console.log('Exam component unmounted - exam-active removed');
     };
   }, [accessChecked, t]);
+
+  // Auto-select the single category when there's only one
+  useEffect(() => {
+    if (!loadingCategories && categories.length === 1 && !categoryId && !showInstructions && !exam) {
+      setCategoryId(categories[0].id);
+      setShowInstructions(true);
+      setInstructionsAccepted(false);
+    }
+  }, [loadingCategories, categories, categoryId, showInstructions, exam]);
   
   useEffect(() => {
     const getCountMessage = (base: string, count: number) =>
@@ -1214,6 +1223,66 @@ export default function TakeExamPage() {
                       <p className="text-sm text-muted-foreground">{t("examsBeingPrepared")}</p>
                     </>
                   )}
+                </div>
+              ) : categories.length === 1 ? (
+                // Single category — display directly without selection grid
+                <div className="max-w-md">
+                  <Card className="group h-full rounded-[14px] sm:rounded-[24px]">
+                    <CardHeader className="p-3 sm:pb-4 sm:p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="w-9 h-9 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                          <FileText className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
+                        </div>
+                        <Badge variant="secondary" className="bg-primary/10 text-primary text-[10px] sm:text-xs">
+                          {t("available")}
+                        </Badge>
+                      </div>
+                      <CardTitle className="text-base sm:text-xl font-bold mt-2 sm:mt-3 line-clamp-2">{categories[0].name}</CardTitle>
+                      <CardDescription className="text-[11px] sm:text-sm line-clamp-2">
+                        {t("clickToStartExamInCategory")}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0 p-3 sm:p-6 sm:pt-0">
+                      <div className="space-y-2 sm:space-y-3">
+                        <div className="flex items-center justify-between text-[11px] sm:text-sm">
+                          <span className="text-muted-foreground flex items-center gap-1.5">
+                            <Hash className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                            {t("questions")}
+                          </span>
+                          <span className="font-medium">{categories[0].question_count ?? "—"}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] sm:text-sm">
+                          <span className="text-muted-foreground flex items-center gap-1.5">
+                            <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                            {t("duration")}
+                          </span>
+                          <span className="font-medium">{categories[0].duration_minutes ? `${categories[0].duration_minutes} ${t("minutes")}` : t("timed")}</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full mt-3 sm:mt-4"
+                          disabled={loadingExam}
+                          onClick={() => {
+                            setCategoryId(categories[0].id);
+                            setShowInstructions(true);
+                            setInstructionsAccepted(false);
+                          }}
+                        >
+                          {loadingExam ? (
+                            <>
+                              <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+                              {t("starting")}
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
+                              {t("startExam")}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               ) : (
                 // Display all exams in consistent grid layout
