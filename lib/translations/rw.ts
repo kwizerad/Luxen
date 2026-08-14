@@ -2040,6 +2040,18 @@ const rw: Record<string, string> = {
   "inviteFriendsExamDesc": "Hangana n'inshuti zawe mu kizamini cy'itsinda",
   "classmatesDesc": "Hura n'abanyeshuri n'inshuti zawe",
   "takeExamDesc": "Igure imyitozo yo kugenzura ubumenyi bwawe",
+  "registerNewDriver": "Iyandikisha Umufasha Nshya",
+  "registerNewDriverDesc": "Kora konti nshya y'umufasha n'ibyangombwa n'ibyerekeye umwuga we",
+  "registerDriver": "Iyandikisha Umufasha",
+  "failedToRegisterDriver": "Byanze kwiyandikisha umufasha",
+  "driverRegisteredSuccess": "Umufasha yiyandikijwe neza",
+  "queueMode": "Umurongo",
+  "scheduledMode": "Byateganijwe",
+  "pricePerDay": "Igiciro ku munsi",
+  "pricePerWeek": "Igiciro ku cyumweru",
+  "pricePerMonth": "Igiciro ku kwezi",
+  "languagesSpoken": "Indimi uvuga (zitatanywe n'akitso)",
+  "bioPlaceholder": "Vuga ibyerekeye ubunararibonye n'uburyo bwo kwigisha bwa uyu mufasha...",
 };
 
 export default rw;

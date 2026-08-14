@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Users, LayoutDashboard,
   FileText, LogOut, BookOpen,
-  Settings, ShieldCheck, Car, Flag,
+  Settings, Car, Flag,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { canAccess } from "@/lib/permissions";
@@ -23,7 +23,6 @@ export function AdminDockNav({ user, isPrimaryAdmin }: AdminDockNavProps) {
 
   const canViewStudentsTab = canAccess(user, "students");
   const canViewExamsTab = canAccess(user, "exams");
-  const canViewRetakeTab = canAccess(user, "retake");
   const canViewSettingsTab = canAccess(user, "settings");
   const canViewCourseManagement = canAccess(user, "courseManagement");
   const canViewCourseStudio = canAccess(user, "courseStudio");
@@ -35,7 +34,6 @@ export function AdminDockNav({ user, isPrimaryAdmin }: AdminDockNavProps) {
     ...(canViewCourseTab ? [{ href: "/Admin/course", icon: <BookOpen size={18} />, label: t("courseManagementNav") || "Course" }] : []),
     ...(canViewStudentsTab ? [{ href: "/Admin/users", icon: <Users size={18} />, label: t("users") }] : []),
     ...(canViewExamsTab ? [{ href: "/Admin/exams", icon: <FileText size={18} />, label: t("examManagementNav") }] : []),
-    ...(canViewRetakeTab ? [{ href: "/Admin/retake-requests", icon: <ShieldCheck size={18} />, label: t("retakeRequests") || "Retakes" }] : []),
     ...(canViewDriversTab ? [{ href: "/Admin/drivers", icon: <Car size={18} />, label: t("manageDrivers") }] : []),
     ...(canViewDriversTab ? [{ href: "/Admin/reports", icon: <Flag size={18} />, label: t("manageReports") }] : []),
     ...(canViewSettingsTab ? [{ href: "/Admin/settings", icon: <Settings size={18} />, label: t("settings") }] : []),

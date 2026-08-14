@@ -10,7 +10,6 @@ export type PermissionSection =
   | "students"
   | "courseManagement"
   | "courseStudio"
-  | "retake"
   | "exams"
   | "settings"
   | "notifications"
@@ -41,7 +40,6 @@ export interface AdminPermissions {
   students: PermissionAccess;
   courseManagement: PermissionAccess;
   courseStudio: PermissionAccess;
-  retake: PermissionAccess;
   exams: PermissionAccess;
   settings: PermissionAccess;
   notifications: PermissionAccess;
@@ -52,7 +50,6 @@ export const ALL_PERMISSIONS: AdminPermissions = {
   students: "read_write",
   courseManagement: "read_write",
   courseStudio: "read_write",
-  retake: "read_write",
   exams: "read_write",
   settings: "read_write",
   notifications: "read_write",
@@ -63,7 +60,6 @@ export const NO_PERMISSIONS: AdminPermissions = {
   students: "none",
   courseManagement: "none",
   courseStudio: "none",
-  retake: "none",
   exams: "none",
   settings: "none",
   notifications: "none",
@@ -74,7 +70,6 @@ export const PERMISSION_SECTIONS: { key: PermissionSection; labelKey: string }[]
   { key: "students", labelKey: "permStudents" },
   { key: "courseManagement", labelKey: "permCourseManagement" },
   { key: "courseStudio", labelKey: "permCourseStudio" },
-  { key: "retake", labelKey: "permRetake" },
   { key: "exams", labelKey: "permExams" },
   { key: "settings", labelKey: "permSettings" },
   { key: "notifications", labelKey: "permNotifications" },
@@ -112,7 +107,6 @@ function migratePermissions(raw: any): AdminPermissions {
       students: raw.students?.access ?? "none",
       courseManagement: raw.courseManagement ?? "none",
       courseStudio: raw.courseStudio ?? "none",
-      retake: raw.retake ?? "none",
       exams: raw.exams ?? "none",
       settings: raw.settings ?? "none",
       notifications: raw.notifications ?? "none",
@@ -128,7 +122,6 @@ function migratePermissions(raw: any): AdminPermissions {
     students: legacy?.students?.enabled ? (legacy.students.access ?? "read_write") : "none",
     courseManagement: "none",
     courseStudio: "none",
-    retake: "none",
     exams: legacy?.examPermissions?.enabled ? (legacy.examPermissions.questionAccess ?? "read_write") : "none",
     settings: legacy?.examPermissions?.canManageSettings ? "read_write" : "none",
     notifications: "none",

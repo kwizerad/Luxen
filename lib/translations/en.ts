@@ -2232,6 +2232,18 @@ const en: Record<string, string> = {
   "inviteFriendsExamDesc": "Challenge your friends to a group exam",
   "classmatesDesc": "Connect with classmates and friends",
   "takeExamDesc": "Test your knowledge with practice exams",
+  "registerNewDriver": "Register New Driver",
+  "registerNewDriverDesc": "Create a new driver account with credentials and profile details",
+  "registerDriver": "Register Driver",
+  "failedToRegisterDriver": "Failed to register driver",
+  "driverRegisteredSuccess": "Driver registered successfully",
+  "queueMode": "Queue",
+  "scheduledMode": "Scheduled",
+  "pricePerDay": "Price per Day",
+  "pricePerWeek": "Price per Week",
+  "pricePerMonth": "Price per Month",
+  "languagesSpoken": "Languages Spoken (comma-separated)",
+  "bioPlaceholder": "Tell us about this driver's experience and teaching style...",
 };
 
 export default en;

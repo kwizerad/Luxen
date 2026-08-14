@@ -1749,6 +1749,18 @@ const fr: Record<string, string> = {
   "inviteFriendsExamDesc": "Défiez vos amis à un examen en groupe",
   "classmatesDesc": "Connectez-vous avec vos camarades et amis",
   "takeExamDesc": "Testez vos connaissances avec des examens pratiques",
+  "registerNewDriver": "Inscrire un nouveau moniteur",
+  "registerNewDriverDesc": "Créer un nouveau compte de moniteur avec identifiants et détails de profil",
+  "registerDriver": "Inscrire le moniteur",
+  "failedToRegisterDriver": "Échec de l'inscription du moniteur",
+  "driverRegisteredSuccess": "Moniteur inscrit avec succès",
+  "queueMode": "File d'attente",
+  "scheduledMode": "Planifié",
+  "pricePerDay": "Prix par jour",
+  "pricePerWeek": "Prix par semaine",
+  "pricePerMonth": "Prix par mois",
+  "languagesSpoken": "Langues parlées (séparées par des virgules)",
+  "bioPlaceholder": "Parlez-nous de l'expérience et du style d'enseignement de ce moniteur...",
 };
 
 export default fr;
