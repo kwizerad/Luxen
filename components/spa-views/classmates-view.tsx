@@ -330,6 +330,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const [isFriendTyping, setIsFriendTyping] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [unreadNotifications, setUnreadNotifications] = useState<{ senderId: string; senderName: string; message: string; conversationId: string }[]>([]);
+  const [friendLastMessages, setFriendLastMessages] = useState<Map<string, { message: string; time: string; unread: number }>>(new Map());
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const messageChannelRef = useRef<ReturnType<typeof createClient> extends infer T ? any : any>(null);
@@ -386,13 +387,20 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         .filter((r) => r.status === "accepted")
         .map((r) => r.other_user);
 
+      // Double-check: ensure we don't include pending requests in friends
+      const pendingRequestIds = new Set(
+        allRequests.filter((r) => r.status === "pending").map((r) => r.other_user.id)
+      );
+
       const friendIds = new Set(acceptedFriends.map((f) => f.id));
       const sentMap = new Map<string, string>();
       allRequests.filter((r) => r.direction === "sent" && r.status === "pending").forEach((r) => {
         sentMap.set(r.other_user.id, r.id);
       });
 
-      setFriends(acceptedFriends);
+      // Filter out any users who have pending requests from being in friends
+      const filteredFriends = acceptedFriends.filter((f) => !pendingRequestIds.has(f.id));
+      setFriends(filteredFriends);
       setSentRequestIds(sentMap);
       setRequests(allRequests.filter((r) => r.status === "pending"));
       setIsPublic(requestsData.is_public ?? true);
@@ -426,6 +434,27 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
           if (newMsg.sender_id === user.id) return;
           // Don't notify if we're currently viewing this conversation
           if (conversationId === newMsg.conversation_id) return;
+
+          // Fetch conversation to get the friend ID
+          const { data: conversation } = await supabase
+            .from("chat_conversations")
+            .select("driver_id, student_id")
+            .eq("id", newMsg.conversation_id)
+            .maybeSingle();
+
+          if (!conversation) return;
+
+          const friendId = conversation.driver_id === user.id ? conversation.student_id : conversation.driver_id;
+
+          // Update friend last messages
+          setFriendLastMessages((prev) => {
+            const existing = prev.get(friendId);
+            return new Map(prev).set(friendId, {
+              message: newMsg.message,
+              time: newMsg.created_at,
+              unread: (existing?.unread || 0) + 1,
+            });
+          });
 
           // Fetch sender profile
           const { data: senderProfile } = await supabase
@@ -626,6 +655,14 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
     if (!user) return;
     setLoadingChat(true);
     setSelectedFriend(friend);
+    // Clear unread counter when opening chat
+    setFriendLastMessages((prev) => {
+      const existing = prev.get(friend.id);
+      if (existing) {
+        return new Map(prev).set(friend.id, { ...existing, unread: 0 });
+      }
+      return prev;
+    });
     try {
       const res = await fetch("/api/chat/conversations", {
         method: "POST",
@@ -642,6 +679,17 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         const msgData = await msgRes.json();
         if (msgData.messages) {
           setMessages(msgData.messages as ChatMessage[]);
+          // Update last message from the most recent message
+          const latestMessage = msgData.messages[msgData.messages.length - 1];
+          if (latestMessage) {
+            setFriendLastMessages((prev) => {
+              return new Map(prev).set(friend.id, {
+                message: latestMessage.message,
+                time: latestMessage.created_at,
+                unread: 0,
+              });
+            });
+          }
         }
 
         // Mark messages as read
@@ -785,6 +833,16 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
           if (prev.some((m) => m.id === data.message.id)) return prev;
           return [...prev, data.message as ChatMessage];
         });
+        // Update last message when we send a message
+        if (selectedFriend) {
+          setFriendLastMessages((prev) => {
+            return new Map(prev).set(selectedFriend.id, {
+              message: data.message.message,
+              time: data.message.created_at,
+              unread: 0,
+            });
+          });
+        }
       }
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -1003,9 +1061,9 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   };
 
   return (
-    <div className="flex h-[calc(100vh-80px)]">
+    <div className="flex h-[calc(100vh-80px)] overflow-hidden">
       {/* Left Sidebar */}
-      <div className={`${selectedFriend ? 'hidden sm:flex' : 'flex'} w-full sm:w-80 border-r flex flex-col bg-background`}>
+      <div className={`${selectedFriend ? 'hidden sm:flex' : 'flex'} w-full sm:w-80 border-r flex flex-col bg-background h-full`}>
         {/* Back button */}
         <div className="p-3 pb-0">
           <button
@@ -1075,7 +1133,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
           {activeTab === "friends" ? (
             <>
               {/* Invite to Group Exam button (available outside chat) */}
@@ -1158,32 +1216,47 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                   <p className="text-sm text-muted-foreground">{t("noFriendsYet")}</p>
                 </div>
               ) : (
-                filteredFriends.map((friend) => (
-                  <button
-                    key={friend.id}
-                    onClick={() => openChat(friend)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left ${
-                      selectedFriend?.id === friend.id ? "bg-muted" : ""
-                    }`}
-                  >
-                    <div className="relative">
-                      <ProfileAvatar profile={friend} size="h-10 w-10" />
-                      {isOnline(friend.last_seen) && (
-                        <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {friend.full_name || friend.username}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {isOnline(friend.last_seen)
-                          ? t("online")
-                          : (formatLastSeen(friend.last_seen) || `@${friend.username}`)}
-                      </p>
-                    </div>
-                  </button>
-                ))
+                filteredFriends.map((friend) => {
+                  const lastMessageData = friendLastMessages.get(friend.id);
+                  return (
+                    <button
+                      key={friend.id}
+                      onClick={() => openChat(friend)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left ${
+                        selectedFriend?.id === friend.id ? "bg-muted" : ""
+                      }`}
+                    >
+                      <div className="relative">
+                        <ProfileAvatar profile={friend} size="h-10 w-10" />
+                        {isOnline(friend.last_seen) && (
+                          <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium truncate">
+                            {friend.full_name || friend.username}
+                          </p>
+                          {lastMessageData?.time && (
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(lastMessageData.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground truncate flex-1">
+                            {lastMessageData?.message || (isOnline(friend.last_seen) ? t("online") : (formatLastSeen(friend.last_seen) || `@${friend.username}`))}
+                          </p>
+                          {lastMessageData?.unread && lastMessageData.unread > 0 && (
+                            <span className="ml-2 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1">
+                              {lastMessageData.unread > 9 ? "9+" : lastMessageData.unread}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
               )}
             </>
           ) : activeTab === "invitations" ? (

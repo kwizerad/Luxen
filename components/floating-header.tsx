@@ -13,7 +13,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   const { isRTL } = useLanguage();
   const { config } = useBrandingConfig();
   const [isExamActive, setIsExamActive] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     const checkExamActive = () => {
@@ -27,18 +26,12 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       checkExamActive();
     };
 
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-
     window.addEventListener('exam-state-change', handleExamStateChange);
     window.addEventListener('storage', handleExamStateChange);
-    window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       window.removeEventListener('exam-state-change', handleExamStateChange);
       window.removeEventListener('storage', handleExamStateChange);
-      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -57,7 +50,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       {/* Brand logo — left side */}
       <Link
         href={homeHref}
-        className={`fixed top-2 md:top-4 ${isRTL ? "right-2 md:right-4" : "left-2 md:left-4"} z-50 flex items-center gap-2 premium-glass-panel border rounded-full overflow-hidden transition-all px-3 py-1.5 group ${isScrolled ? "scale-95 md:scale-100" : "scale-100"}`}
+        className={`fixed top-2 md:top-4 ${isRTL ? "right-2 md:right-4" : "left-2 md:left-4"} z-50 flex items-center gap-2 premium-glass-panel border rounded-full overflow-hidden transition-all px-3 py-1.5 group`}
       >
         <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden shrink-0">
           {config.logoUrl ? (
@@ -73,7 +66,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
       {/* Action buttons — right side */}
       <div
-        className={`fixed top-2 md:top-4 ${isRTL ? "left-2 md:left-4" : "right-2 md:right-4"} z-50 flex items-center gap-1.5 md:gap-2 transition-all duration-300 ${isScrolled ? "scale-95 md:scale-100" : "scale-100"}`}
+        className={`fixed top-2 md:top-4 ${isRTL ? "left-2 md:left-4" : "right-2 md:right-4"} z-50 flex items-center gap-1.5 md:gap-2 transition-all duration-300`}
       >
         {/* Notifications */}
         <div className="premium-glass-panel border rounded-full overflow-hidden transition-all">
