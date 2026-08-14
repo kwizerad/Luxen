@@ -66,6 +66,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Check if this national ID is already used by another user
+    const { data: existingIdUser } = await supabase
+      .from("user_profiles")
+      .select("id")
+      .eq("national_id", nationalId)
+      .neq("id", user.id)
+      .maybeSingle();
+
+    if (existingIdUser) {
+      return NextResponse.json(
+        { status: "error", message: "This National ID is already registered to another account." },
+        { status: 409 }
+      );
+    }
+
     await supabase
       .from("user_profiles")
       .update({

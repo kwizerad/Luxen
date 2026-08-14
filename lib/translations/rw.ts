@@ -1976,6 +1976,7 @@ const rw: Record<string, string> = {
 
   // Driver registration
   "registerAsDriverDesc": "Emeza umwirondoro wawe ukoresheje ID yawe y'igihugu kugira ngo ubeho umufasha",
+  "nationalIdAlreadyRegistered": "Iyi ID y'igihugu yanditswe kuindi konti.",
   "noDataForNationalId": "Nta makuru yabonetse kuri iyi ID y'igihugu.",
   "enterVerificationValue": "Uzuza agaciro k'ukugenzura.",
   "enterName": "Andika izina",

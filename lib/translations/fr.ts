@@ -1685,6 +1685,7 @@ const fr: Record<string, string> = {
 
   // Driver registration
   "registerAsDriverDesc": "Vérifiez votre identité avec votre ID national pour devenir conducteur",
+  "nationalIdAlreadyRegistered": "Cet ID national est déjà enregistré sur un autre compte.",
   "noDataForNationalId": "Aucune donnée trouvée pour cet ID national.",
   "enterVerificationValue": "Veuillez entrer une valeur de vérification.",
   "enterName": "Entrer le nom",
