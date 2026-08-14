@@ -970,6 +970,8 @@ const fr: Record<string, string> = {
   "blurWarningFinal": "Triche détectée ! L'examen sera soumis automatiquement.",
   "aiShortcutBlocked": "Les raccourcis d'assistant IA sont bloqués pendant l'examen !",
   "aiSidebarDetected": "ASSISTANT IA DÉTECTÉ !\n\nUne barre latérale ou superposition IA a été détectée sur votre écran. Cela est considéré comme de la triche. Fermez-la immédiatement.",
+  "aiTypingDetected": "SAISIE IA DÉTECTÉE !\n\nVous tapez dans un assistant IA. Cela est considéré comme de la triche. Arrêtez immédiatement.",
+  "warningWillCloseAutomatically": "L'avertissement se fermera automatiquement...",
   "examRules.noAISidebars": "N'ouvrez pas de barres latérales ou d'assistants IA (Gemini, Copilot, ChatGPT, etc.) — détecté et compté comme de la triche",
   "examSecurity.aiSidebarsBlocked": "Les barres latérales et superpositions d'assistants IA sont détectées ; en ouvrir une compte comme une violation",
   "examSecurity.aiShortcutsBlocked": "Les raccourcis du panneau IA (Ctrl+Shift+G, Ctrl+Shift+B, etc.) sont bloqués",

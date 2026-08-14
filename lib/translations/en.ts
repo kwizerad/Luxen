@@ -1037,6 +1037,8 @@ const en: Record<string, string> = {
   "blurWarningFinal": "Cheating detected! Exam will be submitted automatically.",
   "aiShortcutBlocked": "AI assistant shortcuts are blocked during the exam!",
   "aiSidebarDetected": "AI ASSISTANT DETECTED!\n\nAn AI sidebar or overlay has been detected on your screen. This is considered cheating. Close it immediately.",
+  "aiTypingDetected": "AI TYPING DETECTED!\n\nYou are typing into an AI assistant. This is considered cheating. Stop immediately.",
+  "warningWillCloseAutomatically": "Warning will close automatically...",
   "examRules.noAISidebars": "Do not open AI sidebars or assistants (Gemini, Copilot, ChatGPT, etc.) — detected and counts as cheating",
   "examSecurity.aiSidebarsBlocked": "AI assistant sidebars and overlays are detected; opening one counts as a violation",
   "examSecurity.aiShortcutsBlocked": "AI panel shortcuts (Ctrl+Shift+G, Ctrl+Shift+B, etc.) are blocked",

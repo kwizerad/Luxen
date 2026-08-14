@@ -137,6 +137,7 @@ export default function TakeExamPage() {
 
   const cheatingAttemptsRef = useRef(cheatingAttempts);
   const fullscreenRetryCountRef = useRef(fullscreenRetryCount);
+  const violationTypeRef = useRef(violationType);
   const isSubmittingOnExitRef = useRef(isSubmittingOnExit);
   const submittingExamRef = useRef(false);
   const showResultsRef = useRef(false);
@@ -224,6 +225,7 @@ export default function TakeExamPage() {
       cheatingAttemptsRef.current = newCount;
       setCheatingAttempts(newCount);
       setViolationType(type);
+      violationTypeRef.current = type;
       setCheatingWarningMessage(message);
       setShowCheatingWarning(true);
 
@@ -240,6 +242,14 @@ export default function TakeExamPage() {
     };
 
     const handleFullscreenChange = () => {
+      // If user re-enters fullscreen, auto-close all warnings and continue exam
+      if (exam && document.fullscreenElement && !showResults) {
+        setShowFullscreenWarning(false);
+        if (violationTypeRef.current === "fullscreen") {
+          setShowCheatingWarning(false);
+        }
+        return;
+      }
       // If user tries to exit full screen during exam, show warning and prevent
       if (exam && !document.fullscreenElement && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled) {
         const newCount = fullscreenRetryCountRef.current + 1;
@@ -248,6 +258,7 @@ export default function TakeExamPage() {
 
         // Show cheating warning modal
         setViolationType("fullscreen");
+        violationTypeRef.current = "fullscreen";
         setCheatingWarningMessage(
           newCount === 1
             ? t("fullscreenViolation1")
@@ -288,28 +299,16 @@ export default function TakeExamPage() {
           e.stopImmediatePropagation();
           return false;
         }
-        // Escape only allowed while a dialog is open
-        if (e.key === 'Escape' && !isInsideDialog(e.target)) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          return false;
-        }
       }
 
-      // Allow bare modifier keys
+      // Allow bare modifier keys (don't count as violations on their own)
       if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
 
-      // Allow arrow navigation without modifiers
-      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !ctrlOrCmd && !e.altKey) return;
+      // Allow ONLY arrow keys for question navigation (no modifiers)
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') && !ctrlOrCmd && !e.altKey && !e.shiftKey) return;
 
       // Allow Tab/Enter/Space/Escape only while inside a dialog
       if ((e.key === 'Tab' || e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && isInsideDialog(e.target)) {
-        return;
-      }
-
-      // Let clipboard events handle these
-      if (ctrlOrCmd && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X' || e.key === 'v' || e.key === 'V')) {
         return;
       }
 
@@ -352,7 +351,7 @@ export default function TakeExamPage() {
         }
       }
 
-      // Known AI shortcuts
+      // Known AI shortcuts — includes Alt+G (Gemini), Ctrl+Shift+G, etc.
       if (securitySettings.aiDetectionEnabled) {
         if (
           (ctrlOrCmd &&
@@ -367,7 +366,7 @@ export default function TakeExamPage() {
              e.key === 'L' || e.key === 'l' ||
              e.key === 'E' || e.key === 'e' ||
              e.key === ' ')) ||
-          (e.altKey && (e.key === 'i' || e.key === 'I' || e.key === 'g' || e.key === 'G'))
+          (e.altKey && (e.key === 'i' || e.key === 'I' || e.key === 'g' || e.key === 'G' || e.key === 'b' || e.key === 'B' || e.key === 'y' || e.key === 'Y' || e.key === 'a' || e.key === 'A' || e.key === 'l' || e.key === 'L' || e.key === 'e' || e.key === 'E'))
         ) {
           e.preventDefault();
           e.stopPropagation();
@@ -377,7 +376,7 @@ export default function TakeExamPage() {
         }
       }
 
-      // Anything else is unauthorized keyboard input
+      // All other keys are blocked — only arrow keys are allowed for navigation
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
@@ -539,13 +538,38 @@ export default function TakeExamPage() {
       if (!exam || showResults || !securitySettings.violationMeasuresEnabled || !securitySettings.aiDetectionEnabled) return;
       try {
         const found = document.querySelectorAll(
-          '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i]'
+          '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i], [aria-label*="Bard" i], [aria-label*="ChatGPT" i], [aria-label*="Claude" i], [aria-label*="Perplexity" i]'
         );
         if (found.length > 0) {
           recordViolation(t("aiSidebarDetected"), 'other', t("aiSidebarDetected"));
         }
+        // Also detect AI sidebar input fields with content (user is typing into AI)
+        const aiInputs = document.querySelectorAll(
+          'textarea[aria-label*="Copilot" i], textarea[aria-label*="Gemini" i], textarea[aria-label*="Bard" i], textarea[aria-label*="ChatGPT" i], textarea[aria-label*="Claude" i], textarea[aria-label*="Perplexity" i], input[aria-label*="Copilot" i], input[aria-label*="Gemini" i], input[aria-label*="Bard" i], input[aria-label*="ChatGPT" i], input[aria-label*="Claude" i], input[aria-label*="Perplexity" i], [contenteditable="true"][aria-label*="Copilot" i], [contenteditable="true"][aria-label*="Gemini" i]'
+        );
+        aiInputs.forEach((el) => {
+          const text = (el as HTMLInputElement | HTMLTextAreaElement).value || (el as HTMLElement).textContent || "";
+          if (text.trim().length > 0) {
+            recordViolation(t("aiTypingDetected"), 'other', t("aiTypingDetected"));
+          }
+        });
       } catch {
         /* invalid selector — ignore */
+      }
+    };
+
+    // Detect typing into AI extension elements via input events
+    const handleAiInput = (e: Event) => {
+      if (!exam || showResults || !securitySettings.violationMeasuresEnabled || !securitySettings.aiDetectionEnabled) return;
+      const target = e.target as HTMLElement;
+      if (!target) return;
+
+      // Check if the input is happening inside an AI sidebar/extension element
+      const aiElement = target.closest(
+        '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i], [aria-label*="Bard" i], [aria-label*="ChatGPT" i], [aria-label*="Claude" i], [aria-label*="Perplexity" i]'
+      );
+      if (aiElement) {
+        recordViolation(t("aiTypingDetected"), 'other', t("aiTypingDetected"));
       }
     };
 
@@ -556,6 +580,7 @@ export default function TakeExamPage() {
     document.addEventListener('MSFullscreenChange', handleFullscreenChange);
     document.addEventListener('keydown', handleKeyDown, true); // Use capture phase
     document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('input', handleAiInput, true); // AI typing detection
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     // Clipboard protection
@@ -593,6 +618,7 @@ export default function TakeExamPage() {
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
       document.removeEventListener('keydown', handleKeyDown, true);
       document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('input', handleAiInput, true);
       window.removeEventListener('beforeunload', handleBeforeUnload);
 
       // Remove clipboard protection
@@ -629,6 +655,20 @@ export default function TakeExamPage() {
     };
   }, [exam, showResults, securitySettings, t]);
 
+  // Auto-dismiss cheating warning for minor violations (copy, paste, keyboard, etc.)
+  // Fullscreen and tabswitch violations require manual action (re-enter fullscreen / acknowledge)
+  useEffect(() => {
+    if (!showCheatingWarning) return;
+    if (violationType === "fullscreen" || violationType === "tabswitch") return;
+    if (fullscreenRetryCount >= securitySettings.maxViolations || cheatingAttempts >= securitySettings.maxViolations) return;
+
+    const timer = setTimeout(() => {
+      setShowCheatingWarning(false);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [showCheatingWarning, violationType, fullscreenRetryCount, cheatingAttempts, securitySettings.maxViolations]);
+
   // Prevent back button / smartphone back gesture during exam
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -646,6 +686,7 @@ export default function TakeExamPage() {
       cheatingAttemptsRef.current = newCount;
       setCheatingAttempts(newCount);
       setViolationType('backnavigation');
+      violationTypeRef.current = 'backnavigation';
       setCheatingWarningMessage(
         newCount === 1
           ? t("backNavigationViolation1")
@@ -1021,6 +1062,7 @@ export default function TakeExamPage() {
     setShowCheatingWarning(false);
     setCheatingWarningMessage("");
     setViolationType("other");
+    violationTypeRef.current = "other";
     
     // Reset custom dialogs
     setShowAlert(false);
@@ -1687,16 +1729,13 @@ export default function TakeExamPage() {
                 )}
               </>
             ) : (
-              <Button
-                onClick={() => setShowCheatingWarning(false)}
-                className="w-full"
-                size="sm"
-                variant={fullscreenRetryCount >= securitySettings.maxViolations || cheatingAttempts >= securitySettings.maxViolations ? "destructive" : "default"}
-              >
-                {fullscreenRetryCount >= securitySettings.maxViolations || cheatingAttempts >= securitySettings.maxViolations
-                  ? t("examBeingSubmitted")
-                  : t("iUnderstand")}
-              </Button>
+              <div className="w-full text-center py-2">
+                <p className="text-sm font-medium text-red-600">
+                  {fullscreenRetryCount >= securitySettings.maxViolations || cheatingAttempts >= securitySettings.maxViolations
+                    ? t("examBeingSubmitted")
+                    : t("warningWillCloseAutomatically")}
+                </p>
+              </div>
             )}
           </DialogFooter>
         </DialogContent>

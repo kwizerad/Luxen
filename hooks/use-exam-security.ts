@@ -65,6 +65,7 @@ export function useExamSecurity({
   const [showCheatingWarning, setShowCheatingWarning] = useState(false);
   const [cheatingWarningMessage, setCheatingWarningMessage] = useState("");
   const [violationType, setViolationType] = useState<ViolationType>("other");
+  const violationTypeRef = useRef<ViolationType>("other");
   const [showFullscreenWarning, setShowFullscreenWarning] = useState(false);
   const [fullscreenRetryCount, setFullscreenRetryCount] = useState(0);
 
@@ -91,6 +92,7 @@ export function useExamSecurity({
       if (!settings.violationMeasuresEnabled) return;
       if (autoSubmitTriggeredRef.current) return;
       setViolationType(type);
+      violationTypeRef.current = type;
       setCheatingWarningMessage(message);
       setShowCheatingWarning(true);
 
@@ -167,6 +169,7 @@ export function useExamSecurity({
     setShowCheatingWarning(false);
     setCheatingWarningMessage("");
     setViolationType("other");
+    violationTypeRef.current = "other";
     setShowFullscreenWarning(false);
     setFullscreenRetryCount(0);
     cheatingAttemptsRef.current = 0;
@@ -220,6 +223,14 @@ export function useExamSecurity({
     };
 
     const handleFullscreenChange = () => {
+      // Auto-close warnings when fullscreen is restored
+      if (document.fullscreenElement && examActive() && !resultsShown()) {
+        setShowFullscreenWarning(false);
+        if (violationTypeRef.current === "fullscreen") {
+          setShowCheatingWarning(false);
+        }
+        return;
+      }
       if (!settings.violationMeasuresEnabled || !settings.fullscreenEnabled || !examActive() || resultsShown()) return;
       if (!document.fullscreenElement) {
         const newCount = fullscreenRetryCountRef.current + 1;
@@ -265,19 +276,14 @@ export function useExamSecurity({
       // Allow bare modifier keys
       if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return;
 
-      // Allow arrow navigation without modifiers
-      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !ctrlOrCmd && !e.altKey) return;
+      // Allow ONLY arrow keys for question navigation (no modifiers)
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") && !ctrlOrCmd && !e.altKey && !e.shiftKey) return;
 
       // Allow Tab/Enter/Space/Escape only while inside a dialog
       if (
         (e.key === "Tab" || e.key === "Enter" || e.key === " " || e.key === "Escape") &&
         isInsideDialog(e.target)
       ) {
-        return;
-      }
-
-      // Let clipboard events handle these
-      if (ctrlOrCmd && (e.key === "c" || e.key === "C" || e.key === "x" || e.key === "X" || e.key === "v" || e.key === "V")) {
         return;
       }
 
@@ -344,7 +350,7 @@ export function useExamSecurity({
               e.key === "E" ||
               e.key === "e" ||
               e.key === " ")) ||
-          (e.altKey && (e.key === "i" || e.key === "I" || e.key === "g" || e.key === "G"))
+          (e.altKey && (e.key === "i" || e.key === "I" || e.key === "g" || e.key === "G" || e.key === "b" || e.key === "B" || e.key === "y" || e.key === "Y" || e.key === "a" || e.key === "A" || e.key === "l" || e.key === "L" || e.key === "e" || e.key === "E"))
         ) {
           e.preventDefault();
           e.stopPropagation();
@@ -354,7 +360,7 @@ export function useExamSecurity({
         }
       }
 
-      // Anything else is unauthorized keyboard input
+      // All other keys are blocked — only arrow keys are allowed for navigation
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
@@ -516,7 +522,7 @@ export function useExamSecurity({
       if (violationDebounceRef.current) return;
       try {
         const found = document.querySelectorAll(
-          '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i]'
+          '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i], [aria-label*="Bard" i], [aria-label*="ChatGPT" i], [aria-label*="Claude" i], [aria-label*="Perplexity" i]'
         );
         if (found.length > 0) {
           violationDebounceRef.current = true;
@@ -529,9 +535,50 @@ export function useExamSecurity({
           setTimeout(() => {
             violationDebounceRef.current = false;
           }, 3000);
+          return;
         }
+        // Detect AI sidebar input fields with content (user is typing into AI)
+        const aiInputs = document.querySelectorAll(
+          'textarea[aria-label*="Copilot" i], textarea[aria-label*="Gemini" i], textarea[aria-label*="Bard" i], textarea[aria-label*="ChatGPT" i], textarea[aria-label*="Claude" i], textarea[aria-label*="Perplexity" i], input[aria-label*="Copilot" i], input[aria-label*="Gemini" i], input[aria-label*="Bard" i], input[aria-label*="ChatGPT" i], input[aria-label*="Claude" i], input[aria-label*="Perplexity" i], [contenteditable="true"][aria-label*="Copilot" i], [contenteditable="true"][aria-label*="Gemini" i]'
+        );
+        aiInputs.forEach((el) => {
+          const text = (el as HTMLInputElement | HTMLTextAreaElement).value || (el as HTMLElement).textContent || "";
+          if (text.trim().length > 0) {
+            violationDebounceRef.current = true;
+            recordViolation(
+              "aishortcut",
+              t("aiTypingDetected"),
+              t("aiTypingDetected")
+            );
+            setTimeout(() => {
+              violationDebounceRef.current = false;
+            }, 3000);
+          }
+        });
       } catch {
         /* invalid selector — ignore */
+      }
+    };
+
+    // Detect typing into AI extension elements via input events
+    const handleAiInput = (e: Event) => {
+      if (!settings.violationMeasuresEnabled || !settings.aiDetectionEnabled || !examActive() || resultsShown()) return;
+      if (violationDebounceRef.current) return;
+      const target = e.target as HTMLElement;
+      if (!target) return;
+      const aiElement = target.closest(
+        '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i], [aria-label*="Bard" i], [aria-label*="ChatGPT" i], [aria-label*="Claude" i], [aria-label*="Perplexity" i]'
+      );
+      if (aiElement) {
+        violationDebounceRef.current = true;
+        recordViolation(
+          "aishortcut",
+          t("aiTypingDetected"),
+          t("aiTypingDetected")
+        );
+        setTimeout(() => {
+          violationDebounceRef.current = false;
+        }, 3000);
       }
     };
 
@@ -555,6 +602,7 @@ export function useExamSecurity({
     window.addEventListener("blur", handleWindowBlur);
     window.addEventListener("focus", handleWindowFocus);
     document.addEventListener("mouseup", handleMouseUp, true);
+    document.addEventListener("input", handleAiInput, true);
     aiDomPollRef.current = setInterval(checkAiExtensionDom, 3000);
     focusPollRef.current = settings.tabSwitchEnabled
       ? setInterval(() => {
@@ -584,6 +632,7 @@ export function useExamSecurity({
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("mouseup", handleMouseUp, true);
+      document.removeEventListener("input", handleAiInput, true);
       if (aiDomPollRef.current) {
         clearInterval(aiDomPollRef.current);
         aiDomPollRef.current = null;

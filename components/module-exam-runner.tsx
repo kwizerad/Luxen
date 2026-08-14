@@ -123,6 +123,19 @@ export function ModuleExamRunner({
     onAutoSubmit: handleAutoSubmit,
   });
 
+  // Auto-dismiss cheating warning for minor violations (not fullscreen/tabswitch)
+  useEffect(() => {
+    if (!security.showCheatingWarning) return;
+    if (security.violationType === "fullscreen" || security.violationType === "tabswitch") return;
+    if (security.fullscreenRetryCount >= securitySettings.maxViolations || security.cheatingAttempts >= securitySettings.maxViolations) return;
+
+    const timer = setTimeout(() => {
+      security.dismissCheatingWarning();
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [security.showCheatingWarning, security.violationType, security.fullscreenRetryCount, security.cheatingAttempts, securitySettings.maxViolations, security]);
+
   // Load exam data
   useEffect(() => {
     const loadExam = async () => {
@@ -967,9 +980,13 @@ export function ModuleExamRunner({
                 {t("reEnterFullscreenNow") || "Re-enter Fullscreen Now"}
               </Button>
             ) : (
-              <Button onClick={security.dismissCheatingWarning} className="w-full" size="sm">
-                {t("iUnderstand") || "I Understand"}
-              </Button>
+              <div className="w-full text-center py-2">
+                <p className="text-sm font-medium text-red-600">
+                  {security.fullscreenRetryCount >= securitySettings.maxViolations || security.cheatingAttempts >= securitySettings.maxViolations
+                    ? t("examBeingSubmitted") || "Exam is being submitted..."
+                    : t("warningWillCloseAutomatically") || "Warning will close automatically..."}
+                </p>
+              </div>
             )}
           </DialogFooter>
         </DialogContent>
