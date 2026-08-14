@@ -1817,6 +1817,16 @@ const fr: Record<string, string> = {
   "account": "Compte",
   "appearance": "Apparence",
   "readOnlyAccess": "Vous avez un accès en lecture seule aux paramètres.",
+  "keepTrying": "Continuez à essayer ! Vous y arriverez la prochaine fois.",
+  "champion": "Champion",
+  "secondPlace": "2ème Place",
+  "thirdPlace": "3ème Place",
+  "waitingForOthersToFinish": "En attente que les autres terminent...",
+  "podiumTitle": "Classement Final",
+  "youPassed": "Vous avez réussi !",
+  "youFailed": "Vous n'avez pas réussi",
+  "groupExamCompleted": "Examen de Groupe Terminé !",
+  "gettingReady": "Préparation en cours...",
 };
 
 export default fr;

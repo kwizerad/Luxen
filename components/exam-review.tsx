@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Watermark } from "@/components/watermark";
 import { useLanguage } from "@/lib/language-context";
+import { ExamCelebration } from "@/components/exam-celebration";
 import {
   CheckCircle,
   XCircle,
-  Trophy,
   Home,
   Clock,
   Target,
@@ -44,52 +44,6 @@ function getScoreColor(percentage: number): string {
   if (percentage >= 80) return "text-green-500";
   if (percentage >= 50) return "text-orange-500";
   return "text-red-500";
-}
-
-function getScoreBg(percentage: number): string {
-  if (percentage >= 80) return "from-green-500 to-emerald-500";
-  if (percentage >= 50) return "from-orange-500 to-amber-500";
-  return "from-red-500 to-rose-500";
-}
-
-function CircularScore({ percentage }: { percentage: number }) {
-  const radius = 52;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percentage / 100) * circumference;
-
-  return (
-    <div className="relative w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center">
-      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 120 120">
-        <circle
-          cx="60"
-          cy="60"
-          r={radius}
-          fill="none"
-          strokeWidth="8"
-          className="text-muted/30"
-          stroke="currentColor"
-        />
-        <circle
-          cx="60"
-          cy="60"
-          r={radius}
-          fill="none"
-          strokeWidth="8"
-          stroke="currentColor"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className={cn("transition-all duration-1000 ease-out", getScoreColor(percentage))}
-          style={{ filter: "drop-shadow(0 0 6px currentColor)" }}
-        />
-      </svg>
-      <div className="flex flex-col items-center">
-        <span className={cn("text-2xl sm:text-3xl font-bold", getScoreColor(percentage))}>
-          {percentage}%
-        </span>
-      </div>
-    </div>
-  );
 }
 
 export function ExamReview({ examResult, questions, onReset, onRetake }: ExamReviewProps) {
@@ -187,34 +141,15 @@ export function ExamReview({ examResult, questions, onReset, onRetake }: ExamRev
         </div>
       </div>
 
-      {/* Pass/Fail Banner */}
+      {/* Pass/Fail Celebration Banner */}
       {!isAbandoned && !isCheating && (
-        <div
-          className={cn(
-            "mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 flex items-center gap-4 sm:gap-6",
-            isPassed
-              ? "border-green-500/30 bg-green-500/5"
-              : "border-red-500/30 bg-red-500/5"
-          )}
-        >
-          <CircularScore percentage={examResult.score_percentage} />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {isPassed ? (
-                <Trophy className="h-5 w-5 sm:h-7 sm:w-7 text-green-500" />
-              ) : (
-                <AlertCircle className="h-5 w-5 sm:h-7 sm:w-7 text-red-500" />
-              )}
-              <h2 className={cn("text-lg sm:text-2xl font-bold", isPassed ? "text-green-600" : "text-red-600")}>
-                {isPassed ? t("congratulations") : t("examNotPassed")}
-              </h2>
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              {isPassed
-                ? t("passedModuleExam")
-                : t("failedModuleExam")}
-            </p>
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
+        <ExamCelebration
+          passed={isPassed}
+          scorePercentage={examResult.score_percentage}
+          title={isPassed ? t("congratulations") : t("examNotPassed")}
+          subtitle={isPassed ? t("passedModuleExam") : t("keepTrying")}
+          badges={
+            <>
               <Badge variant="secondary" className="text-[10px] sm:text-xs">
                 <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
                 {examResult.category_name}
@@ -226,9 +161,9 @@ export function ExamReview({ examResult, questions, onReset, onRetake }: ExamRev
               <Badge variant="secondary" className="text-[10px] sm:text-xs">
                 {t("examDetails.questionsCount").replace("{count}", String(examResult.total_questions))}
               </Badge>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
       )}
 
       {/* No Questions Answered Banner */}

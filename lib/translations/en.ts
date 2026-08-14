@@ -2300,6 +2300,16 @@ const en: Record<string, string> = {
   "account": "Account",
   "appearance": "Appearance",
   "readOnlyAccess": "You have read-only access to settings.",
+  "keepTrying": "Keep trying! You'll get it next time.",
+  "champion": "Champion",
+  "secondPlace": "2nd Place",
+  "thirdPlace": "3rd Place",
+  "waitingForOthersToFinish": "Waiting for others to finish...",
+  "podiumTitle": "Final Standings",
+  "youPassed": "You Passed!",
+  "youFailed": "You Didn't Pass",
+  "groupExamCompleted": "Group Exam Completed!",
+  "gettingReady": "Getting ready...",
 };
 
 export default en;

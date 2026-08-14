@@ -62,7 +62,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       {/* Brand logo — left side */}
       <Link
         href={homeHref}
-        className={`fixed top-2 md:top-4 ${isRTL ? "right-2 md:right-4" : "left-2 md:left-4"} z-50 flex items-center gap-2 premium-glass-panel border rounded-full overflow-hidden transition-all hover:shadow-glow dark:hover:shadow-glow-dark px-3 py-1.5 group ${isScrolled ? "scale-95 md:scale-100" : "scale-100"}`}
+        className={`fixed top-2 md:top-4 ${isRTL ? "right-2 md:right-4" : "left-2 md:left-4"} z-50 flex items-center gap-2 premium-glass-panel border rounded-full overflow-hidden transition-all px-3 py-1.5 group ${isScrolled ? "scale-95 md:scale-100" : "scale-100"}`}
       >
         <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden shrink-0">
           {config.logoUrl ? (
@@ -83,19 +83,19 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
         {/* Quick home/dashboard link */}
         <Link
           href={homeHref}
-          className={`premium-glass-panel border rounded-full overflow-hidden transition-all hover:shadow-glow dark:hover:shadow-glow-dark flex items-center justify-center h-9 w-9 md:h-10 md:w-10 shrink-0 group`}
+          className={`premium-glass-panel border rounded-full overflow-hidden transition-all flex items-center justify-center h-9 w-9 md:h-10 md:w-10 shrink-0 group`}
           title={dashboardLabel}
         >
           <LayoutDashboard className="h-4 w-4 md:h-[18px] md:w-[18px] text-muted-foreground group-hover:text-primary transition-colors" />
         </Link>
 
         {/* Notifications */}
-        <div className="premium-glass-panel border rounded-full overflow-hidden transition-all hover:shadow-glow dark:hover:shadow-glow-dark">
+        <div className="premium-glass-panel border rounded-full overflow-hidden transition-all">
           <NotificationsDropdown />
         </div>
 
         {/* User settings / profile */}
-        <div className="premium-glass-panel border rounded-full overflow-hidden transition-all hover:shadow-glow dark:hover:shadow-glow-dark">
+        <div className="premium-glass-panel border rounded-full overflow-hidden transition-all">
           <FloatingUserSettings user={user} adminMode={adminMode} />
         </div>
       </div>

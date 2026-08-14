@@ -2108,6 +2108,16 @@ const rw: Record<string, string> = {
   "account": "Konti",
   "appearance": "Imigaragarire",
   "readOnlyAccess": "Ufite uburenganzira bwo gusoma gusa amagenamiterere.",
+  "keepTrying": "Ongera ugerageze! Uzabyibutsa igihe gihera.",
+  "champion": "Nyatsindi",
+  "secondPlace": "Awa ya 2",
+  "thirdPlace": "Awa ya 3",
+  "waitingForOthersToFinish": "Tegereza abandi barangize...",
+  "podiumTitle": "Ibyifuzo Bya Nyuma",
+  "youPassed": "Wabyitabaye!",
+  "youFailed": "Ntiwabyitabaye",
+  "groupExamCompleted": "Ikizamini Cy'Igisebo Kirarangiye!",
+  "gettingReady": "Igitegerezo kiri hose...",
 };
 
 export default rw;

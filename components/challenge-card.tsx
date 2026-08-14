@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Trophy, Users, Check, X, Play, Clock, Loader2, Bell, Medal } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Trophy, Users, Check, X, Play, Clock, Loader2, Bell, Medal, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,6 +21,8 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
   const { t } = useLanguage();
   const [participants, setParticipants] = useState(challenge.participants || []);
   const [acting, setActing] = useState(false);
+  const [countdown, setCountdown] = useState(30);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -84,9 +86,43 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
     }
   };
 
-  const handleJoin = () => callApi(`/api/exam-challenges/${challenge.id}/join`);
+  const handleJoin = () => {
+    callApi(`/api/exam-challenges/${challenge.id}/join`);
+    setCountdown(30);
+  };
   const handleDeny = () => callApi(`/api/exam-challenges/${challenge.id}/deny`);
-  const handleReady = () => callApi(`/api/exam-challenges/${challenge.id}/ready`);
+  const handleReady = useCallback(() => {
+    callApi(`/api/exam-challenges/${challenge.id}/ready`);
+  }, [challenge.id]);
+
+  useEffect(() => {
+    if (myParticipation?.status === "joined") {
+      setCountdown(30);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      countdownRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            handleReady();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+    }
+
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+    };
+  }, [myParticipation?.status, handleReady]);
   const handleStart = () => callApi(`/api/exam-challenges/${challenge.id}/start`);
   const handleRemind = (participantId: string) =>
     callApi(`/api/exam-challenges/${challenge.id}/remind`, { participant_id: participantId });
@@ -216,12 +252,41 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
               </>
             )}
 
-            {/* Participant view - joined */}
+            {/* Participant view - joined: auto-countdown to ready */}
             {myParticipation?.status === "joined" && (
-              <Button size="sm" onClick={handleReady} disabled={acting} className="text-xs">
-                <Check className="h-3 w-3 mr-1" />
-                {t("readyUp")}
-              </Button>
+              <div className="flex items-center gap-2 py-1">
+                <div className="relative flex h-8 w-8 items-center justify-center">
+                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 32 32">
+                    <circle
+                      cx="16"
+                      cy="16"
+                      r="14"
+                      fill="none"
+                      strokeWidth="3"
+                      className="text-muted/30"
+                      stroke="currentColor"
+                    />
+                    <circle
+                      cx="16"
+                      cy="16"
+                      r="14"
+                      fill="none"
+                      strokeWidth="3"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      className="text-primary"
+                      strokeDasharray={2 * Math.PI * 14}
+                      strokeDashoffset={2 * Math.PI * 14 * (1 - countdown / 30)}
+                      style={{ transition: "stroke-dashoffset 1s linear" }}
+                    />
+                  </svg>
+                  <span className="text-xs font-bold text-primary">{countdown}</span>
+                </div>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Timer className="h-3 w-3" />
+                  {t("gettingReady")}
+                </span>
+              </div>
             )}
 
             {/* Participant view - ready */}

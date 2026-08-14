@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Trophy, Medal, Clock, CheckCircle, XCircle, Loader2, ArrowLeft, PartyPopper } from "lucide-react";
+import { motion } from "framer-motion";
+import { Trophy, Medal, Clock, CheckCircle, XCircle, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,6 +10,8 @@ import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { GroupExamResultsSkeleton } from "@/components/skeletons";
+import { ExamCelebration } from "@/components/exam-celebration";
+import { ExamPodium } from "@/components/exam-podium";
 import type { ExamChallenge, ExamChallengeParticipant, ExamQuestion, ExamAttempt } from "@/lib/database.types";
 
 interface GroupExamResultsViewProps {
@@ -221,21 +224,77 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
           </div>
         </div>
 
-        {/* Congratulations Banner */}
-        {winner && (
-          <div className="mb-4 rounded-xl bg-gradient-to-r from-yellow-400/20 via-amber-400/20 to-orange-400/20 border border-yellow-400/30 p-4 flex items-center gap-3">
-            <PartyPopper className="h-8 w-8 text-yellow-500" />
-            <div>
-              <p className="font-bold text-sm sm:text-base">
-                {t("congratulationsWinner")} 🏆
-              </p>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                {winner.participant.profile?.full_name || winner.participant.profile?.username} —{" "}
-                {winner.scorePercentage}% ({winner.correctAnswers}/{winner.totalQuestions})
-              </p>
-            </div>
-          </div>
+        {/* Celebration + Podium when all completed */}
+        {allCompleted && ranked.length > 0 ? (
+          <>
+            <ExamCelebration
+              passed={true}
+              scorePercentage={ranked[0].scorePercentage}
+              title={t("groupExamCompleted")}
+              subtitle={
+                ranked[0].participant.profile?.full_name ||
+                ranked[0].participant.profile?.username + " — " +
+                ranked[0].scorePercentage + "% (" + ranked[0].correctAnswers + "/" + ranked[0].totalQuestions + ")"
+              }
+              variant="group"
+            />
+
+            {/* Podium for top 3 */}
+            {ranked.length >= 2 && (
+              <ExamPodium
+                participants={ranked.map((rp) => ({
+                  profile: rp.participant.profile,
+                  scorePercentage: rp.scorePercentage,
+                  correctAnswers: rp.correctAnswers,
+                  totalQuestions: rp.totalQuestions,
+                  rank: rp.rank,
+                }))}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            {/* Waiting for others state */}
+            {completedParticipants.length > 0 && incompleteParticipants.length > 0 && (
+              <motion.div
+                className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-center gap-3"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                >
+                  <Loader2 className="h-6 w-6 text-primary" />
+                </motion.div>
+                <div>
+                  <p className="font-medium text-sm">
+                    {t("waitingForOthersToFinish")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {incompleteParticipants.length} {t("participants")}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </>
         )}
+
+        {/* Individual pass/fail for current user */}
+        {(() => {
+          const myResult = ranked.find((rp) => rp.participant.user_id === user?.id);
+          if (!myResult || allCompleted) return null;
+          const myPassed = myResult.scorePercentage >= 50;
+          return (
+            <ExamCelebration
+              passed={myPassed}
+              scorePercentage={myResult.scorePercentage}
+              title={myPassed ? t("youPassed") : t("youFailed")}
+              subtitle={myPassed ? t("passedModuleExam") : t("keepTrying")}
+            />
+          );
+        })()}
 
         {/* View Mode Toggle */}
         <div className="flex gap-1 bg-muted rounded-lg p-1 mb-4 w-fit">
@@ -276,10 +335,30 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
                 </div>
                 <ProfileAvatar profile={rp.participant.profile} size="h-8 w-8" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
+                  <p className="text-sm font-medium truncate flex items-center gap-1.5">
                     {rp.participant.profile?.full_name || rp.participant.profile?.username}
                     {rp.participant.user_id === user?.id && (
-                      <span className="ml-1.5 text-xs text-primary">({t("user")})</span>
+                      <span className="text-xs text-primary">({t("user")})</span>
+                    )}
+                    {rp.scorePercentage < 50 && (
+                      <motion.span
+                        className="text-sm"
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+                      >
+                        😢
+                      </motion.span>
+                    )}
+                    {rp.rank === 1 && rp.scorePercentage >= 50 && (
+                      <motion.span
+                        className="text-sm"
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+                      >
+                        🏆
+                      </motion.span>
                     )}
                   </p>
                   <p className="text-xs text-muted-foreground">
