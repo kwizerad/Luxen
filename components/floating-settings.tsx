@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModals } from "@/lib/auth-modals-context";
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,10 @@ import {
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { Settings, LogOut, User, LogIn, Moon, Sun, Globe, Check, Download } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Settings, LogOut, User, LogIn, Moon, Sun, Globe, Check, Download, Home, Shield, BookOpen, FileText, Users, Car } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { isAdmin } from "@/lib/permissions";
@@ -35,15 +38,14 @@ export function FloatingSettings() {
   const { openLogin, openSignUp } = useAuthModals();
   const { theme, setTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
+  const router = useRouter();
+  const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
 
-  // Convert full language name to code for storage
   const languageToCode: Record<Language, LanguageCode> = {
     English: "en",
     Kinyarwanda: "rw",
     French: "fr",
   };
-
-  const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
 
   const [isExamActive, setIsExamActive] = useState(false);
   const currentTheme = theme ?? "light";
@@ -69,14 +71,10 @@ export function FloatingSettings() {
 
   const handleThemeChange = async (newTheme: string) => {
     setTheme(newTheme);
-    
-    // Save to user metadata if logged in
     if (user) {
       try {
         const supabase = createClient();
-        await supabase.auth.updateUser({
-          data: { theme: newTheme }
-        });
+        await supabase.auth.updateUser({ data: { theme: newTheme } });
       } catch (error) {
         console.error("Failed to save theme:", error);
       }
@@ -85,19 +83,47 @@ export function FloatingSettings() {
 
   const handleLanguageChange = async (newLanguage: Language) => {
     setLanguage(newLanguage);
-
-    // Save to user metadata if logged in (store as language code)
     if (user) {
       try {
         const supabase = createClient();
-        await supabase.auth.updateUser({
-          data: { language: languageToCode[newLanguage] }
-        });
+        await supabase.auth.updateUser({ data: { language: languageToCode[newLanguage] } });
       } catch (error) {
         console.error("Failed to save language:", error);
       }
     }
   };
+
+  const getDisplayName = () => {
+    if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
+      return `${user.user_metadata.first_name} ${user.user_metadata.last_name}`;
+    }
+    return user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email || "User";
+  };
+
+  const getInitials = () => {
+    const name = getDisplayName();
+    return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.google_avatar_url || user?.user_metadata?.picture;
+
+  const getRoleLabel = () => {
+    const role = user?.user_metadata?.role?.toLowerCase();
+    if (role === "admin") return t("admin");
+    if (role === "driver") return t("driver");
+    return t("student");
+  };
+
+  const getRoleIcon = () => {
+    const role = user?.user_metadata?.role?.toLowerCase();
+    if (role === "admin") return <Shield className="h-3 w-3" />;
+    if (role === "driver") return <Car className="h-3 w-3" />;
+    return <User className="h-3 w-3" />;
+  };
+
+  const userIsAdmin = user ? isAdmin(user) : false;
+  const dashboardHref = userIsAdmin ? "/Admin" : "/dashboard";
+  const settingsHref = userIsAdmin ? "/Admin/settings" : "/dashboard#settings";
 
   if (isExamActive) {
     return (
@@ -125,30 +151,43 @@ export function FloatingSettings() {
             className="h-12 w-12 rounded-full border border-border/20 shadow-glass dark:shadow-glass-dark bg-card/70 backdrop-blur-[20px] text-foreground hover:shadow-glow dark:hover:shadow-glow-dark hover:-translate-y-0.5 transition-all"
           >
             <Settings className="h-5 w-5" />
-            <span className="sr-only">Settings</span>
+            <span className="sr-only">{t("settings")}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="top" sideOffset={8} className="w-64" style={{ direction: "ltr" }}>
-          <div className="space-y-2 px-4 py-3">
-            {loading ? (
-              <p className="text-sm text-muted-foreground">{t("loading")}</p>
-            ) : user ? (
-              <div className="space-y-1">
-                <p className="text-sm font-semibold truncate">{user.email}</p>
-                <p className="text-xs text-muted-foreground">
-                  {t(user.user_metadata?.role?.toLowerCase() || "student")}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-1">
+          {/* User info header */}
+          {user && (
+            <>
+              <DropdownMenuLabel className="px-3 py-2">
+                <div className="flex items-center gap-2.5">
+                  <Avatar className="h-9 w-9 ring-2 ring-primary/20">
+                    {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
+                    <AvatarFallback className="text-xs font-semibold bg-primary/10">{getInitials()}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">{getDisplayName()}</p>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      {getRoleIcon()}
+                      <span>{getRoleLabel()}</span>
+                    </div>
+                  </div>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+            </>
+          )}
+
+          {!user && !loading && (
+            <>
+              <div className="space-y-1 px-4 py-3">
                 <p className="text-sm font-semibold">{t("welcome")}</p>
                 <p className="text-xs text-muted-foreground">{t("customizeYourExperience")}</p>
               </div>
-            )}
-          </div>
-          <DropdownMenuSeparator />
+              <DropdownMenuSeparator />
+            </>
+          )}
 
-          {/* Theme Selector - Available to all users */}
+          {/* Theme Selector */}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="cursor-pointer [&>svg:last-child]:rotate-180">
               {theme === "dark" ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
@@ -168,7 +207,7 @@ export function FloatingSettings() {
             </DropdownMenuSubContent>
           </DropdownMenuSub>
 
-          {/* Language Selector - Available to all users */}
+          {/* Language Selector */}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="cursor-pointer [&>svg:last-child]:rotate-180">
               <Globe className="mr-2 h-4 w-4" />
@@ -191,7 +230,7 @@ export function FloatingSettings() {
 
           <DropdownMenuSeparator />
 
-          {/* Install App Button - Available when app is installable */}
+          {/* Install App */}
           {!isInstalled && isInstallable && (
             <DropdownMenuItem onClick={promptInstall} className="cursor-pointer">
               <Download className="mr-2 h-4 w-4" />
@@ -203,32 +242,35 @@ export function FloatingSettings() {
 
           {user ? (
             <>
-              <DropdownMenuItem
-                onClick={() => {
-                  if (isAdmin(user)) {
-                    window.location.href = "/Admin";
-                  } else {
-                    window.location.href = "/dashboard";
-                  }
-                }}
-                className="cursor-pointer"
-              >
-                <User className="mr-2 h-4 w-4" />
-                {t("dashboard")}
+              {/* Quick navigation */}
+              <DropdownMenuItem onClick={() => router.push(dashboardHref)} className="cursor-pointer">
+                <Home className="mr-2 h-4 w-4" />
+                {userIsAdmin ? t("adminDashboard") : t("dashboard")}
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  if (isAdmin(user)) {
-                    window.location.href = "/Admin/settings";
-                  } else {
-                    window.location.href = "/dashboard/settings";
-                  }
-                }}
-                className="cursor-pointer"
-              >
+              <DropdownMenuItem onClick={() => router.push(settingsHref)} className="cursor-pointer">
                 <Settings className="mr-2 h-4 w-4" />
                 {t("settings")}
               </DropdownMenuItem>
+
+              {/* Admin quick links */}
+              {userIsAdmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push("/Admin/exams")} className="cursor-pointer">
+                    <FileText className="mr-2 h-4 w-4" />
+                    {t("examManagementNav") || "Exams"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/Admin/users")} className="cursor-pointer">
+                    <Users className="mr-2 h-4 w-4" />
+                    {t("users")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/Admin/course")} className="cursor-pointer">
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    {t("courseManagementNav") || "Course"}
+                  </DropdownMenuItem>
+                </>
+              )}
+
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />

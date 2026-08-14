@@ -11,10 +11,12 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { User, Settings, Download, LogOut, Menu, Home, Plus, Moon, Sun, Monitor, Globe, Check, Smartphone } from "lucide-react";
+import { User, Settings, Download, LogOut, Menu, Home, Plus, Moon, Sun, Monitor, Globe, Check, Smartphone, Shield, BookOpen, FileText, Users, Car, Bell } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
+import { isAdmin } from "@/lib/permissions";
 
 type Language = "English" | "Kinyarwanda" | "French";
 type LanguageCode = "en" | "rw" | "fr";
@@ -25,7 +27,6 @@ const languages: { value: Language; label: string; flag: string }[] = [
   { value: "Kinyarwanda", label: "Kinyarwanda", flag: "🇷🇼" },
 ];
 
-// Convert full language name to code for storage
 const languageToCode: Record<Language, LanguageCode> = {
   English: "en",
   Kinyarwanda: "rw",
@@ -51,7 +52,7 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
 
   const getDisplayName = () => {
     if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
@@ -72,6 +73,20 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
       .slice(0, 2);
   };
 
+  const getRoleLabel = () => {
+    const role = user?.user_metadata?.role?.toLowerCase();
+    if (role === "admin") return t("admin");
+    if (role === "driver") return t("driver");
+    return t("student");
+  };
+
+  const getRoleIcon = () => {
+    const role = user?.user_metadata?.role?.toLowerCase();
+    if (role === "admin") return <Shield className="h-3 w-3" />;
+    if (role === "driver") return <Car className="h-3 w-3" />;
+    return <User className="h-3 w-3" />;
+  };
+
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -79,19 +94,16 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    
-    // Check if already installed
+
     if (window.matchMedia("(display-mode: standalone)").matches ||
         (window.navigator as Navigator & { standalone?: boolean }).standalone === true) {
       setIsInstalled(true);
       return;
     }
 
-    // Detect iOS
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
     setIsIOS(isIOSDevice);
 
-    // Handle beforeinstallprompt event (Chrome/Edge/Android)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -100,7 +112,6 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
-    // Handle appinstalled event
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
@@ -118,16 +129,13 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      
       if (outcome === "accepted") {
         setIsInstalled(true);
       }
       setDeferredPrompt(null);
     } else if (isIOS) {
-      // For iOS, show instructions
       alert('To install: Tap the share button in Safari, then select "Add to Home Screen"');
     } else {
-      // For other browsers, show general instructions
       alert('To install: Look for the install icon in your browser\'s address bar');
     }
   };
@@ -141,7 +149,6 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
   const handleLanguageChange = async (newLanguage: Language) => {
     setLanguage(newLanguage);
 
-    // Save to user metadata if logged in (store as language code)
     if (user) {
       try {
         const supabase = createClient();
@@ -154,6 +161,114 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
     }
   };
 
+  const handleThemeToggle = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    if (user) {
+      try {
+        const supabase = createClient();
+        supabase.auth.updateUser({ data: { theme: newTheme } });
+      } catch (error) {
+        console.error("Failed to save theme:", error);
+      }
+    }
+  };
+
+  // Context-aware route helpers
+  const settingsHref = adminMode ? "/Admin/settings" : "/dashboard#settings";
+  const dashboardHref = adminMode ? "/Admin" : "/dashboard";
+
+  const renderDropdownContent = () => (
+    <>
+      {/* User info header */}
+      <DropdownMenuLabel className="px-3 py-2">
+        <div className="flex items-center gap-2.5">
+          <Avatar className="h-9 w-9 ring-2 ring-primary/20">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={getDisplayName()} />}
+            <AvatarFallback className="text-xs font-semibold bg-primary/10">{getInitials()}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold truncate">{getDisplayName()}</p>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              {getRoleIcon()}
+              <span>{getRoleLabel()}</span>
+            </div>
+          </div>
+        </div>
+      </DropdownMenuLabel>
+      <DropdownMenuSeparator />
+
+      {/* Quick navigation */}
+      <DropdownMenuItem onClick={() => router.push(dashboardHref)} className="cursor-pointer">
+        <Home className="mr-2 h-4 w-4" />
+        {adminMode ? t("adminDashboard") : t("dashboard")}
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => router.push(settingsHref)} className="cursor-pointer">
+        <Settings className="mr-2 h-4 w-4" />
+        {t("settings")}
+      </DropdownMenuItem>
+
+      {/* Admin quick links */}
+      {adminMode && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => router.push("/Admin/exams")} className="cursor-pointer">
+            <FileText className="mr-2 h-4 w-4" />
+            {t("examManagementNav") || "Exams"}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/Admin/users")} className="cursor-pointer">
+            <Users className="mr-2 h-4 w-4" />
+            {t("users")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/Admin/course")} className="cursor-pointer">
+            <BookOpen className="mr-2 h-4 w-4" />
+            {t("courseManagementNav") || "Course"}
+          </DropdownMenuItem>
+        </>
+      )}
+
+      <DropdownMenuSeparator />
+
+      {/* Install App */}
+      {!isInstalled && (
+        <DropdownMenuItem onClick={handleInstallApp} className="cursor-pointer">
+          <Smartphone className="mr-2 h-4 w-4" />
+          {t("installApp") || "Install App"}
+        </DropdownMenuItem>
+      )}
+
+      {/* Theme toggle */}
+      <DropdownMenuItem onClick={handleThemeToggle} className="cursor-pointer">
+        {theme === "light" ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
+        {theme === "light" ? t("darkMode") || "Dark Mode" : t("lightMode") || "Light Mode"}
+      </DropdownMenuItem>
+
+      {/* Language Selector — hidden in admin mode */}
+      {!adminMode && (
+        <>
+          <DropdownMenuSeparator />
+          {languages.map((lang) => (
+            <DropdownMenuItem
+              key={lang.value}
+              onClick={() => handleLanguageChange(lang.value)}
+              className={language === lang.value ? "bg-accent/60" : ""}
+            >
+              <span className="mr-2">{lang.flag}</span>
+              {lang.label}
+              {language === lang.value && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+          ))}
+        </>
+      )}
+
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
+        <LogOut className="mr-2 h-4 w-4" />
+        {t("logout")}
+      </DropdownMenuItem>
+    </>
+  );
+
   if (onMobile) {
     return (
       <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -165,50 +280,8 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={() => router.push(adminMode ? "/Admin/settings" : "/dashboard/settings")}>
-            {adminMode ? <Settings className="mr-2 h-4 w-4" /> : <User className="mr-2 h-4 w-4" />}
-            {adminMode ? "Settings" : "Account Info"}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {!isInstalled && (
-            <DropdownMenuItem onClick={handleInstallApp}>
-              <Smartphone className="mr-2 h-4 w-4" />
-              Install App
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-            <Home className="mr-2 h-4 w-4" />
-            Dashboard
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {/* Theme Selector */}
-          <DropdownMenuItem onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
-            {theme === "light" ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
-            {theme === "light" ? "Dark Mode" : "Light Mode"}
-          </DropdownMenuItem>
-          {/* Language Selector — hidden in admin mode */}
-          {!adminMode && (
-            <>
-              <DropdownMenuSeparator />
-              {languages.map((lang) => (
-                <DropdownMenuItem
-                  key={lang.value}
-                  onClick={() => handleLanguageChange(lang.value)}
-                  className={language === lang.value ? "bg-accent/60" : ""}
-                >
-                  <span className="mr-2">{lang.flag}</span>
-                  {lang.label}
-                  {language === lang.value && <Check className="ml-auto h-4 w-4" />}
-                </DropdownMenuItem>
-              ))}
-            </>
-          )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </DropdownMenuItem>
+        <DropdownMenuContent align="end" className="w-60">
+          {renderDropdownContent()}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -225,50 +298,8 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={() => router.push(adminMode ? "/Admin/settings" : "/dashboard/settings")}>
-            {adminMode ? <Settings className="mr-2 h-4 w-4" /> : <User className="mr-2 h-4 w-4" />}
-            {adminMode ? "Settings" : "Account Settings"}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {!isInstalled && (
-            <DropdownMenuItem onClick={handleInstallApp}>
-              <Smartphone className="mr-2 h-4 w-4" />
-              Install App
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-            <Home className="mr-2 h-4 w-4" />
-            Dashboard
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {/* Theme Selector */}
-          <DropdownMenuItem onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
-            {theme === "light" ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
-            {theme === "light" ? "Dark Mode" : "Light Mode"}
-          </DropdownMenuItem>
-          {/* Language Selector — hidden in admin mode */}
-          {!adminMode && (
-            <>
-              <DropdownMenuSeparator />
-              {languages.map((lang) => (
-                <DropdownMenuItem
-                  key={lang.value}
-                  onClick={() => handleLanguageChange(lang.value)}
-                  className={language === lang.value ? "bg-accent/60" : ""}
-                >
-                  <span className="mr-2">{lang.flag}</span>
-                  {lang.label}
-                  {language === lang.value && <Check className="ml-auto h-4 w-4" />}
-                </DropdownMenuItem>
-              ))}
-            </>
-          )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </DropdownMenuItem>
+        <DropdownMenuContent align="end" className="w-60">
+          {renderDropdownContent()}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
