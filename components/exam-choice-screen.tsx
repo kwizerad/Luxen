@@ -50,7 +50,7 @@ export function ExamChoiceScreen({ onNavigate }: ExamChoiceScreenProps) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "exam_challenge_participants", filter: `user_id=eq.${user.id}` },
-        (payload) => {
+        (payload: any) => {
           if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
             const status = payload.new?.status;
             if (status === "pending") {
