@@ -18,6 +18,8 @@ import { ExamCategorySkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
 import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, HelpCircle, FileText, Play, LogOut, Monitor, Clock, Hash, ArrowLeft, History } from "lucide-react";
 import { ExamReview } from "@/components/exam-review";
+import { ExamChoiceScreen } from "@/components/exam-choice-screen";
+import { ExamInvitationsView } from "@/components/exam-invitations-view";
 import {
   Dialog,
   DialogContent,
@@ -147,6 +149,7 @@ export default function TakeExamPage() {
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
   const [showQuestionPalette, setShowQuestionPalette] = useState(true);
+  const [examMode, setExamMode] = useState<"choice" | "individual" | "group" | "invitations">("choice");
 
   const cheatingAttemptsRef = useRef(cheatingAttempts);
   const fullscreenRetryCountRef = useRef(fullscreenRetryCount);
@@ -1145,6 +1148,32 @@ export default function TakeExamPage() {
   const progress = exam ? (answeredCount / exam.questions.length) * 100 : 0;
 
   if (!accessChecked) return null;
+
+  // Show exam choice screen first
+  if (examMode === "choice") {
+    return (
+      <ExamChoiceScreen
+        onNavigate={(choice) => {
+          if (choice === "individual") {
+            setExamMode("individual");
+          } else if (choice === "group") {
+            setExamMode("group");
+          } else if (choice === "invitations") {
+            setExamMode("invitations");
+          }
+        }}
+      />
+    );
+  }
+
+  // Show exam invitations view
+  if (examMode === "invitations") {
+    return (
+      <ExamInvitationsView
+        onBack={() => setExamMode("choice")}
+      />
+    );
+  }
 
   if (showResults && examResult) {
     return (
