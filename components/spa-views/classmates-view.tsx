@@ -359,8 +359,12 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_messages", filter: `conversation_id=eq.${conversationId}` },
         (payload: any) => {
-          setMessages((prev) => [...prev, payload.new as ChatMessage]);
-          if (payload.new.sender_id !== user?.id) {
+          const newMsg = payload.new as ChatMessage;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+          if (newMsg.sender_id !== user?.id) {
             fetch("/api/chat/messages", {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },

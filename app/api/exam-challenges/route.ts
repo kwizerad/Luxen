@@ -219,6 +219,8 @@ export async function POST(request: NextRequest) {
           challenge_id: challenge.id,
           category_name,
         },
+        sender_id: user.id,
+        sender_name: creatorName,
         action_url: "/dashboard#classmates",
       });
 
