@@ -1166,7 +1166,7 @@ export default function TakeExamPage() {
   }
 
   // Show category selection for individual exam
-  if (examMode === "individual" && !instructionsAccepted && !exam) {
+  if (examMode === "individual" && !showInstructions && !instructionsAccepted && !exam) {
     return (
       <div className="min-h-[calc(100vh-80px)] p-4">
         <div className="max-w-4xl mx-auto">
@@ -1280,7 +1280,7 @@ export default function TakeExamPage() {
         <Watermark />
         
         {/* Exam Categories - Top Left */}
-        {!exam && (
+        {!exam && examMode !== "individual" && (
           <section className="student-section">
             <div className="hidden md:block mb-6">
               <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
