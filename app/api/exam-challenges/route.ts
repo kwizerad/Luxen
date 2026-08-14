@@ -165,15 +165,14 @@ export async function POST(request: NextRequest) {
     const creatorName = myProfile?.full_name || myProfile?.username || "A friend";
 
     for (const inviteeId of invite_user_ids) {
-      const { data: friendship } = await supabase
+      const { data: relationship } = await supabase
         .from("classmate_requests")
-        .select("id")
-        .eq("status", "accepted")
+        .select("id, status")
         .or(`and(sender_id.eq.${user.id},receiver_id.eq.${inviteeId}),and(sender_id.eq.${inviteeId},receiver_id.eq.${user.id})`)
         .maybeSingle();
 
-      if (!friendship) {
-        return NextResponse.json({ error: "Only friends can be invited" }, { status: 403 });
+      if (!relationship) {
+        return NextResponse.json({ error: "You can only invite friends or classmates" }, { status: 403 });
       }
     }
 
@@ -208,50 +207,58 @@ export async function POST(request: NextRequest) {
     const adminClient = createAdminClient();
 
     for (const inviteeId of invite_user_ids) {
-      await adminClient.from("notifications").insert({
-        target_user_id: inviteeId,
-        type: "exam_challenge_invite",
-        title: "Group Exam Invitation",
-        message: `Your friend ${creatorName} wishes to take an exam together with you: ${category_name}. Check your Classmates chat to join!`,
-        data: {
+      try {
+        await adminClient.from("notifications").insert({
+          target_user_id: inviteeId,
+          type: "exam_challenge_invite",
+          title: "Group Exam Invitation",
+          message: `Your friend ${creatorName} wishes to take an exam together with you: ${category_name}. Check your Classmates chat to join!`,
+          data: {
+            sender_id: user.id,
+            sender_name: creatorName,
+            challenge_id: challenge.id,
+            category_name,
+          },
           sender_id: user.id,
           sender_name: creatorName,
-          challenge_id: challenge.id,
-          category_name,
-        },
-        sender_id: user.id,
-        sender_name: creatorName,
-        action_url: "/dashboard#classmates",
-      });
-
-      const { data: existingConv } = await adminClient
-        .from("chat_conversations")
-        .select("id")
-        .or(`and(driver_id.eq.${user.id},student_id.eq.${inviteeId}),and(driver_id.eq.${inviteeId},student_id.eq.${user.id})`)
-        .maybeSingle();
-
-      let conversationId = existingConv?.id;
-
-      if (!conversationId) {
-        const { data: newConv } = await adminClient
-          .from("chat_conversations")
-          .insert([{ driver_id: user.id, student_id: inviteeId }])
-          .select()
-          .single();
-        conversationId = newConv?.id;
+          action_url: "/dashboard#classmates",
+        });
+      } catch (notifError) {
+        console.error("Failed to insert notification for", inviteeId, notifError);
       }
 
-      if (conversationId) {
-        await adminClient.from("chat_messages").insert({
-          conversation_id: conversationId,
-          sender_id: user.id,
-          message: `Your friend ${creatorName} wishes to take an exam together with you: ${category_name}. Check the challenge card above to join!`,
-        });
-
-        await adminClient
+      try {
+        const { data: existingConv } = await adminClient
           .from("chat_conversations")
-          .update({ last_message_at: new Date().toISOString() })
-          .eq("id", conversationId);
+          .select("id")
+          .or(`and(driver_id.eq.${user.id},student_id.eq.${inviteeId}),and(driver_id.eq.${inviteeId},student_id.eq.${user.id})`)
+          .maybeSingle();
+
+        let conversationId = existingConv?.id;
+
+        if (!conversationId) {
+          const { data: newConv } = await adminClient
+            .from("chat_conversations")
+            .insert([{ driver_id: user.id, student_id: inviteeId }])
+            .select()
+            .single();
+          conversationId = newConv?.id;
+        }
+
+        if (conversationId) {
+          await adminClient.from("chat_messages").insert({
+            conversation_id: conversationId,
+            sender_id: user.id,
+            message: `Your friend ${creatorName} wishes to take an exam together with you: ${category_name}. Check the challenge card above to join!`,
+          });
+
+          await adminClient
+            .from("chat_conversations")
+            .update({ last_message_at: new Date().toISOString() })
+            .eq("id", conversationId);
+        }
+      } catch (chatError) {
+        console.error("Failed to send chat message to", inviteeId, chatError);
       }
     }
 

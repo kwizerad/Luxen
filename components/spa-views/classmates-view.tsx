@@ -56,7 +56,7 @@ function MessageTicks({ msg }: { msg: ChatMessage }) {
   }
 }
 
-function ExamInvitationsContent({ user, supabase, t, navigate }: { user: any; supabase: any; t: any; navigate: (view: string, params?: Record<string, string>) => void }) {
+function ExamInvitationsContent({ user, supabase, t, navigate, onPendingCountChange }: { user: any; supabase: any; t: any; navigate: (view: string, params?: Record<string, string>) => void; onPendingCountChange?: (count: number) => void }) {
   const [challenges, setChallenges] = useState<ChallengeWithParticipants[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"pending" | "ongoing" | "completed">("pending");
@@ -72,6 +72,13 @@ function ExamInvitationsContent({ user, supabase, t, navigate }: { user: any; su
       const res = await fetch("/api/exam-challenges");
       const data = await res.json();
       setChallenges(data.challenges || []);
+      if (onPendingCountChange) {
+        const pending = (data.challenges || []).filter((c: any) => {
+          const participation = c.participants?.find((p: any) => p.user_id === user.id);
+          return participation?.status === "pending";
+        });
+        onPendingCountChange(pending.length);
+      }
     } catch (error) {
       console.error("Failed to fetch challenges:", error);
       toast.error(t("failedToLoadChallenges") || "Failed to load challenges");
@@ -135,6 +142,16 @@ function ExamInvitationsContent({ user, supabase, t, navigate }: { user: any; su
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
+  const pendingCount = challenges.filter((c) => c.participants?.find((p) => p.user_id === user?.id)?.status === "pending").length;
+  const ongoingCount = challenges.filter((c) => {
+    const p = c.participants?.find((p) => p.user_id === user?.id);
+    return p?.status === "joined" && c.status === "active";
+  }).length;
+  const completedCount = challenges.filter((c) => {
+    const p = c.participants?.find((p) => p.user_id === user?.id);
+    return c.status === "completed" || p?.status === "completed";
+  }).length;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -156,6 +173,11 @@ function ExamInvitationsContent({ user, supabase, t, navigate }: { user: any; su
           }`}
         >
           {t("pending") || "Pending"}
+          {pendingCount > 0 && (
+            <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+              {pendingCount > 99 ? "99+" : pendingCount}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab("ongoing")}
@@ -166,6 +188,11 @@ function ExamInvitationsContent({ user, supabase, t, navigate }: { user: any; su
           }`}
         >
           {t("ongoing") || "Ongoing"}
+          {ongoingCount > 0 && (
+            <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-blue-500 text-white text-[10px] font-bold">
+              {ongoingCount > 99 ? "99+" : ongoingCount}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab("completed")}
@@ -176,6 +203,11 @@ function ExamInvitationsContent({ user, supabase, t, navigate }: { user: any; su
           }`}
         >
           {t("completed") || "Completed"}
+          {completedCount > 0 && (
+            <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted-foreground/20 text-foreground text-[10px] font-bold">
+              {completedCount > 99 ? "99+" : completedCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -331,6 +363,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [unreadNotifications, setUnreadNotifications] = useState<{ senderId: string; senderName: string; message: string; conversationId: string }[]>([]);
   const [friendLastMessages, setFriendLastMessages] = useState<Map<string, { message: string; time: string; unread: number }>>(new Map());
+  const [pendingExamInvites, setPendingExamInvites] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const messageChannelRef = useRef<ReturnType<typeof createClient> extends infer T ? any : any>(null);
@@ -420,6 +453,48 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Fetch pending exam challenge invitations count
+  const fetchPendingExamInvites = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await fetch("/api/exam-challenges");
+      const data = await res.json();
+      const pending = (data.challenges || []).filter((c: any) => {
+        const participation = c.participants?.find((p: any) => p.user_id === user.id);
+        return participation?.status === "pending";
+      });
+      setPendingExamInvites(pending.length);
+    } catch {
+      // ignore
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchPendingExamInvites();
+  }, [fetchPendingExamInvites]);
+
+  // Realtime subscription for exam challenge updates
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`exam_invite_count:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "exam_challenge_participants", filter: `user_id=eq.${user.id}` },
+        () => fetchPendingExamInvites()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "exam_challenges" },
+        () => fetchPendingExamInvites()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, supabase, fetchPendingExamInvites]);
 
   // Global realtime subscription for new message notifications
   useEffect(() => {
@@ -1110,6 +1185,11 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                 }`}
               >
                 {t("examInvitations") || "Exam Invitations"}
+                {pendingExamInvites > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                    {pendingExamInvites > 99 ? "99+" : pendingExamInvites}
+                  </span>
+                )}
               </button>
             </div>
             <button
@@ -1262,7 +1342,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
               )}
             </>
           ) : activeTab === "invitations" ? (
-            <ExamInvitationsContent user={user} supabase={supabase} t={t} navigate={navigate} />
+            <ExamInvitationsContent user={user} supabase={supabase} t={t} navigate={navigate} onPendingCountChange={setPendingExamInvites} />
           ) : (
             <>
               {filteredClassmates.length === 0 ? (
