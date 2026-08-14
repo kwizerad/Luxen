@@ -1837,6 +1837,33 @@ const fr: Record<string, string> = {
   "completedChallenges": "Défis Terminés",
   "noGroupExamsYet": "Aucun Examen de Groupe",
   "noGroupExamsDesc": "Créez un examen de groupe pour défier vos amis et voir qui obtient le meilleur score !",
+
+  // Exam System
+  "examChoiceTitle": "Choisir le Type d'Examen",
+  "examChoiceSubtitle": "Sélectionnez comment vous souhaitez passer votre examen",
+  "individualExam": "Examen Individuel",
+  "individualExamDescription": "Passez un examen seul à votre propre rythme",
+  "startIndividualExam": "Commencer l'Examen Individuel",
+  "chooseCategoryToStart": "Choisissez une catégorie pour commencer votre examen individuel",
+  "examCategoryDescription": "Passer l'examen dans cette catégorie",
+  "createGroupExamDescription": "Invitez des amis ou camarades à concourir",
+  "selectInviteesDescription": "Choisissez des amis ou camarades à inviter",
+  "searchFriendsClassmates": "Rechercher des amis ou camarades...",
+  "selectCategoryDescription": "Choisissez la catégorie d'examen pour le défi",
+  "createAndSendInvitations": "Créer et Envoyer les Invitations",
+  "personSelected": "personne sélectionnée",
+  "peopleSelected": "personnes sélectionnées",
+  "noPendingInvitations": "Aucune invitation en attente",
+  "noOngoingExams": "Aucun examen en cours",
+  "noCompletedExams": "Aucun examen terminé",
+  "invitationAccepted": "Invitation acceptée",
+  "invitationDeclined": "Invitation refusée",
+  "failedToRespond": "Échec de la réponse",
+  "viewRankings": "Voir les Classements",
+  "createdBy": "Créé par",
+  "rankings": "Classements",
+  "failedToLoadChallenges": "Échec du chargement des défis",
+  "viewingResults": "Affichage des résultats...",
 };
 
 export default fr;

@@ -1005,7 +1005,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   return (
     <div className="flex h-[calc(100vh-80px)]">
       {/* Left Sidebar */}
-      <div className="w-full sm:w-80 border-r flex flex-col bg-background">
+      <div className={`${selectedFriend ? 'hidden sm:flex' : 'flex'} w-full sm:w-80 border-r flex flex-col bg-background`}>
         {/* Back button */}
         <div className="p-3 pb-0">
           <button
@@ -1247,7 +1247,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
       </div>
 
       {/* Right Panel — Chat */}
-      <div className="hidden sm:flex flex-1 flex-col bg-background">
+      <div className={`${selectedFriend ? 'flex' : 'hidden sm:flex'} flex-1 flex-col bg-background fixed inset-0 sm:static z-20 sm:z-0`}>
         {!selectedFriend ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground overflow-y-auto">
             {pendingReceivedRequests.length > 0 ? (
@@ -1300,7 +1300,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         ) : (
           <>
             {/* Chat Header */}
-            <div className="sticky top-0 z-10 shrink-0 border-b px-4 py-3 flex items-center gap-3 bg-background">
+            <div className="sticky top-0 z-10 shrink-0 border-b px-4 py-3 flex items-center gap-3 bg-background max-h-[60px]">
               <button
                 onClick={() => {
                   setSelectedFriend(null);
