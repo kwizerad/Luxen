@@ -913,12 +913,19 @@ export default function TakeExamPage() {
           }),
         });
         const data = await res.json();
+        if (!res.ok) {
+          const errorMsg = data?.error || "Failed to create group exam";
+          toast.error(errorMsg);
+          setLoadingExam(false);
+          return;
+        }
         if (data?.challenge?.id) {
           setChallengeId(data.challenge.id);
         }
       } catch (error) {
+        const message = error instanceof Error ? error.message : (error as any)?.message || String(error);
         console.error("Failed to create group exam challenge:", error);
-        toast.error(t("failedToStartExam") || "Failed to create group exam");
+        toast.error(`${t("failedToStartExam") || "Failed to create group exam"}: ${message}`);
         setLoadingExam(false);
         return;
       }
@@ -978,7 +985,7 @@ export default function TakeExamPage() {
         }
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : (error as any)?.message || String(error);
       toast.error(message || t("failedToStartExam"));
     } finally {
       setLoadingExam(false);

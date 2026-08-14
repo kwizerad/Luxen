@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (challengeError) throw challengeError;
+    if (challengeError) throw new Error(challengeError.message || "Failed to create challenge");
 
     const participants = [
       { challenge_id: challenge.id, user_id: user.id, status: "ready", ready_at: new Date().toISOString() },
@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
       .from("exam_challenge_participants")
       .insert(participants);
 
-    if (participantError) throw participantError;
+    if (participantError) throw new Error(participantError.message || "Failed to add participants");
 
     const adminClient = createAdminClient();
 
