@@ -63,7 +63,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
         fetch("/api/classmate-requests").then((r) => r.json()),
         supabase
           .from("exam_categories")
-          .select("id, name, description")
+          .select("id, name")
           .eq("is_published", true)
           .order("name", { ascending: true }),
       ]);
