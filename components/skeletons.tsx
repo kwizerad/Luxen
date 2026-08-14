@@ -1,3 +1,5 @@
+import { LoadingLogo } from "@/components/loading-logo";
+
 export function CardSkeleton({ lines = 3 }: { lines?: number }) {
   return (
     <div className="space-y-3">
@@ -12,7 +14,11 @@ export function Loading({ message = "Loading..." }: { message?: string }) {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <div className="relative h-10 w-10">
+        {/* Small devices: rounded corners logo; Larger: spinner */}
+        <div className="md:hidden">
+          <LoadingLogo size="md" />
+        </div>
+        <div className="hidden md:block relative h-10 w-10">
           <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
         </div>
         <p className="text-lg font-medium text-muted-foreground">{message}</p>
@@ -31,7 +37,8 @@ export function HomeViewSkeleton() {
       <div className="container mx-auto max-w-4xl px-4 py-5 sm:py-8">
         {/* Welcome Banner */}
         <div className="mb-5 sm:mb-6 flex items-center gap-3 sm:gap-4">
-          <div className="h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-xl bg-muted animate-pulse" />
+          <div className="md:hidden"><LoadingLogo size="md" /></div>
+          <div className="hidden md:block h-14 w-14 shrink-0 rounded-xl bg-muted animate-pulse" />
           <div className="min-w-0 flex-1 space-y-2">
             <div className="h-5 sm:h-7 w-32 sm:w-48 rounded bg-muted animate-pulse" />
             <div className="h-3 sm:h-4 w-48 sm:w-72 rounded bg-muted animate-pulse" />
@@ -154,7 +161,7 @@ export function SettingsViewSkeleton() {
     <div className="bg-transparent flex justify-center">
       <div className="fixed top-4 left-4 z-50 md:hidden">
         <div className="flex items-center gap-2 rounded-full border p-2">
-          <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
+          <LoadingLogo size="sm" />
           <div className="h-4 w-20 rounded bg-muted animate-pulse" />
         </div>
       </div>
@@ -243,7 +250,8 @@ export function DashboardLayoutSkeleton() {
       {/* Content area */}
       <div className="container mx-auto max-w-4xl px-4 py-8 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-muted animate-pulse" />
+          <div className="md:hidden"><LoadingLogo size="md" /></div>
+          <div className="hidden md:block h-12 w-12 rounded-xl bg-muted animate-pulse" />
           <div className="space-y-2">
             <div className="h-6 w-40 rounded bg-muted animate-pulse" />
             <div className="h-4 w-56 rounded bg-muted animate-pulse" />
