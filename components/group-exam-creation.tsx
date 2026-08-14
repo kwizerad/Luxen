@@ -56,18 +56,21 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
     if (!user) return;
     setLoading(true);
     try {
+      const supabase = createClient();
+
       const [classmatesRes, requestsRes, categoriesRes] = await Promise.all([
         fetch("/api/classmate-requests/classmates").then((r) => r.json()),
         fetch("/api/classmate-requests").then((r) => r.json()),
-        fetch("/api/exam-categories").then((r) => {
-          if (!r.ok) return { categories: [] };
-          return r.json();
-        }).catch(() => ({ categories: [] })),
+        supabase
+          .from("exam_categories")
+          .select("id, name, description")
+          .eq("is_published", true)
+          .order("name", { ascending: true }),
       ]);
 
       const classmatesData = classmatesRes as { classmates?: FriendProfile[]; error?: string };
       const requestsData = requestsRes as { requests?: any[]; is_public?: boolean };
-      const categoriesData = categoriesRes as { categories?: { id: string; name: string; description?: string }[]; error?: string };
+      const categoriesData = categoriesRes.data || [];
 
       const allRequests: any[] = requestsData.requests || [];
       const acceptedFriends = allRequests
@@ -84,7 +87,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
 
       setFriends(acceptedFriends);
       setClassmates(filteredClassmates);
-      setCategories(categoriesData.categories || []);
+      setCategories(categoriesData as { id: string; name: string; description?: string }[]);
 
       // Auto-switch to classmates if no friends
       setShowFriends(acceptedFriends.length > 0);

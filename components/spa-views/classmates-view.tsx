@@ -1020,11 +1020,14 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
     setInviteTab("friends");
     if (examCategories.length === 0) {
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("exam_categories")
           .select("id, name")
           .eq("is_published", true)
           .order("name", { ascending: true });
+        if (error) {
+          console.error("Failed to fetch exam categories:", error);
+        }
         const cats = data || [];
         setExamCategories(cats);
         if (cats.length === 1) {
