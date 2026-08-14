@@ -1929,6 +1929,18 @@ const en: Record<string, string> = {
   "noDeviceInfoAvailable": "No device information available. The user must sign in from a tracked device.",
   "passwordResetEmailSent": "Password reset email sent",
   "failedToSendPasswordReset": "Failed to send password reset: ",
+  "personalInfo": "Personal Info",
+  "userInfoTab": "User Info",
+  "fullNameLabel": "Full Name",
+  "provisionInfo": "Provision Information",
+  "provisionVerifiedLabel": "Provision Verified",
+  "provisionCategory": "Provision Category",
+  "verifiedAt": "Verified At",
+  "nationalId": "National ID",
+  "exportAsImage": "Export as Image",
+  "exporting": "Exporting...",
+  "exportProfileSuccess": "Profile exported successfully",
+  "exportFailedMsg": "Failed to export profile",
 
   // ── Admin RBAC & Permissions ──
   "adminManagement": "Admin Management",

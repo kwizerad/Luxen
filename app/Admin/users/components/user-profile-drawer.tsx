@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -39,7 +39,11 @@ import {
   Monitor,
   BookOpen,
   Timer,
+  Download,
+  IdCard,
+  FileText,
 } from "lucide-react";
+import { toPng } from "html-to-image";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
 import type { UserWithStatus, UserProgressSummary } from "./types";
@@ -78,6 +82,8 @@ export function UserProfileDrawer({
   const [notifyTitle, setNotifyTitle] = useState("");
   const [notifyMessage, setNotifyMessage] = useState("");
   const [notifyLoading, setNotifyLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -133,6 +139,28 @@ export function UserProfileDrawer({
       setResetLoading(false);
     }
   };
+
+  const handleExport = useCallback(async () => {
+    if (!exportRef.current) return;
+    setExporting(true);
+    try {
+      const dataUrl = await toPng(exportRef.current, {
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--background") || "#ffffff",
+        pixelRatio: 2,
+        style: { padding: "24px" },
+      });
+      const link = document.createElement("a");
+      const userName = (user.full_name || user.username || user.id).replace(/[^a-zA-Z0-9]/g, "_");
+      link.download = `user_profile_${userName}_${activeTab}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast.success(t("exportProfileSuccess") || "Profile exported successfully");
+    } catch {
+      toast.error(t("exportFailedMsg") || "Failed to export profile");
+    } finally {
+      setExporting(false);
+    }
+  }, [user, activeTab, t]);
 
   const handleSendNotification = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,17 +275,28 @@ export function UserProfileDrawer({
               </div>
             </SheetHeader>
 
+            {/* Export button */}
+            <div className="flex justify-end mb-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExport}
+                disabled={exporting}
+                className="h-8 text-xs sm:text-sm gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {exporting ? (t("exporting") || "Exporting...") : (t("exportAsImage") || "Export as Image")}
+              </Button>
+            </div>
+
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="w-full justify-start rounded-xl h-auto flex-wrap p-1 gap-1">
                 {[
-                  { id: "info", label: t("profile"), icon: <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
-                  { id: "exams", label: t("examHistory"), icon: <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
-                  { id: "courseAnalytics", label: t("courseAnalytics") || "Course", icon: <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
-                  { id: "activity", label: t("activity"), icon: <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
-                  { id: "security", label: t("security"), icon: <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
-                  { id: "device", label: t("deviceInfo"), icon: <Monitor className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
-                  { id: "nationalIds", label: t("nationalIds"), icon: <Hash className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "personal", label: t("personalInfo") || "Personal Info", icon: <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "exams", label: t("exams") || "Exams", icon: <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "permit", label: t("permitInfo") || "Permit Info", icon: <IdCard className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "userInfo", label: t("userInfoTab") || "User Info", icon: <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
                 ].map((tab) => (
                   <TabsTrigger key={tab.id} value={tab.id} className="gap-1 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm">
                     {tab.icon}
@@ -266,244 +305,243 @@ export function UserProfileDrawer({
                 ))}
               </TabsList>
 
-              <AnimatePresence mode="wait">
-                <TabsContent value="info" className="space-y-3 sm:space-y-4 mt-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <InfoItem icon={<Hash className="h-4 w-4" />} label={t("userId")} value={user.id} mono />
-                    <InfoItem icon={<User className="h-4 w-4" />} label={t("username")} value={user.username} />
-                    <InfoItem icon={<Calendar className="h-4 w-4" />} label={t("joined")} value={formatDate(user.created_at)} />
-                    <InfoItem icon={<Clock className="h-4 w-4" />} label={t("lastLogin")} value={formatDate(user.last_seen)} />
-                    <InfoItem icon={<Cake className="h-4 w-4" />} label={t("dateOfBirth")} value={user.birthdate} />
-                    <InfoItem icon={<MapPin className="h-4 w-4" />} label={t("nationality")} value={user.nationality} />
-                    <InfoItem icon={<User className="h-4 w-4" />} label={t("gender")} value={user.gender} />
-                    <InfoItem icon={<Shield className="h-4 w-4" />} label={t("role")} value={user.role} />
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="exams" className="space-y-3 sm:space-y-4 mt-4">
-                  {loading ? (
-                    <LoadingState />
-                  ) : progress.length === 0 ? (
-                    <EmptyState message={t("noExamHistory")} />
-                  ) : (
-                    <div className="space-y-3">
-                      {progress.map((p: UserProgressSummary) => (
-                        <div key={p.id} className="p-3 sm:p-4 border rounded-xl bg-muted/30">
-                          <div className="flex justify-between items-center mb-2 gap-2">
-                            <span className="font-medium text-sm truncate">{p.moduleTitle}</span>
-                            <Badge variant={p.examPassed ? "default" : "secondary"} className="text-xs flex-shrink-0">
-                              {p.examPassed ? t("passed") : t("inProgress")}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mb-2 flex-wrap">
-                            <span>
-                              {p.lessonsCompleted} / {p.totalLessons} {t("lessons")}
-                            </span>
-                            {p.bestScore != null && (
-                              <span>• {t("bestScore")}: {p.bestScore}%</span>
-                            )}
-                          </div>
-                          <Progress
-                            value={
-                              p.totalLessons > 0 ? (p.lessonsCompleted / p.totalLessons) * 100 : 0
-                            }
-                            className="h-2"
-                          />
-                        </div>
-                      ))}
+              <div ref={exportRef} className="rounded-xl bg-background">
+                <AnimatePresence mode="wait">
+                  {/* Personal Info Tab */}
+                  <TabsContent value="personal" className="space-y-3 sm:space-y-4 mt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <InfoItem icon={<User className="h-4 w-4" />} label={t("username")} value={user.username} />
+                      <InfoItem icon={<User className="h-4 w-4" />} label={t("fullNameLabel") || "Full Name"} value={user.full_name} />
+                      <InfoItem icon={<Cake className="h-4 w-4" />} label={t("dateOfBirth")} value={user.birthdate} />
+                      <InfoItem icon={<MapPin className="h-4 w-4" />} label={t("nationality")} value={user.nationality} />
+                      <InfoItem icon={<User className="h-4 w-4" />} label={t("gender")} value={user.gender} />
+                      <InfoItem icon={<Mail className="h-4 w-4" />} label={t("email")} value={user.email} />
                     </div>
-                  )}
-                </TabsContent>
+                  </TabsContent>
 
-                {/* Course Analytics Tab */}
-                <TabsContent value="courseAnalytics" className="space-y-3 sm:space-y-4 mt-4">
-                  {loading ? (
-                    <LoadingState />
-                  ) : progress.length === 0 && lessonProgress.length === 0 ? (
-                    <EmptyState message={t("noCourseData") || "No course data available"} />
-                  ) : (
-                    <div className="space-y-4">
-                      {/* Total time summary */}
-                      {(() => {
-                        const totalTime = progress.reduce((sum, p) => sum + (p.timeSpentSeconds || 0), 0);
-                        const totalExceeded = progress.reduce((sum, p) => sum + (p.exceededTimeSeconds || 0), 0);
-                        const totalLessonsCompleted = progress.reduce((sum, p) => sum + p.lessonsCompleted, 0);
-                        const totalLessonsAll = progress.reduce((sum, p) => sum + p.totalLessons, 0);
-                        const overallProgress = totalLessonsAll > 0 ? Math.round((totalLessonsCompleted / totalLessonsAll) * 100) : 0;
-                        return (
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                            <div className="p-3 rounded-xl border bg-muted/30 text-center">
-                              <Timer className="h-4 w-4 mx-auto mb-1 text-primary" />
-                              <p className="text-xs text-muted-foreground">{t("totalTimeSpent") || "Total Time"}</p>
-                              <p className="text-sm font-bold tabular-nums">{formatDuration(totalTime)}</p>
-                            </div>
-                            <div className="p-3 rounded-xl border bg-muted/30 text-center">
-                              <Clock className="h-4 w-4 mx-auto mb-1 text-blue-500" />
-                              <p className="text-xs text-muted-foreground">{t("overtime") || "Overtime"}</p>
-                              <p className="text-sm font-bold tabular-nums text-blue-500">{formatDuration(totalExceeded)}</p>
-                            </div>
-                            <div className="p-3 rounded-xl border bg-muted/30 text-center">
-                              <BookOpen className="h-4 w-4 mx-auto mb-1 text-primary" />
-                              <p className="text-xs text-muted-foreground">{t("lessonsCompleted") || "Lessons"}</p>
-                              <p className="text-sm font-bold tabular-nums">{totalLessonsCompleted}/{totalLessonsAll}</p>
-                            </div>
-                            <div className="p-3 rounded-xl border bg-muted/30 text-center">
-                              <Trophy className="h-4 w-4 mx-auto mb-1 text-primary" />
-                              <p className="text-xs text-muted-foreground">{t("overallProgress") || "Progress"}</p>
-                              <p className="text-sm font-bold tabular-nums">{overallProgress}%</p>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Per-module time breakdown */}
-                      {progress.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("timePerModule") || "Time per Module"}</h4>
-                          {progress.map((p) => {
-                            const modProgress = p.totalLessons > 0 ? Math.round((p.lessonsCompleted / p.totalLessons) * 100) : 0;
-                            return (
-                              <div key={p.id} className="p-3 border rounded-xl bg-muted/30 space-y-2">
-                                <div className="flex justify-between items-center gap-2">
-                                  <span className="font-medium text-sm truncate">{p.moduleTitle}</span>
-                                  <Badge variant={p.examPassed ? "default" : "secondary"} className="text-xs flex-shrink-0">
-                                    {p.examPassed ? t("passed") : t("inProgress")}
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                                  <span className="inline-flex items-center gap-1">
-                                    <Timer className="h-3 w-3" />
-                                    {formatDuration(p.timeSpentSeconds)}
-                                  </span>
-                                  {p.exceededTimeSeconds > 0 && (
-                                    <span className="inline-flex items-center gap-1 text-blue-500">
-                                      <Clock className="h-3 w-3" />
-                                      +{formatDuration(p.exceededTimeSeconds)} {t("overtime") || "overtime"}
-                                    </span>
-                                  )}
-                                  <span>{p.lessonsCompleted}/{p.totalLessons} {t("lessons") || "lessons"}</span>
-                                  {p.completedAt && (
-                                    <span className="inline-flex items-center gap-1">
-                                      <CheckCircle className="h-3 w-3" />
-                                      {formatDate(p.completedAt)}
-                                    </span>
-                                  )}
-                                </div>
-                                <Progress value={modProgress} className="h-1.5" />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Per-lesson time breakdown */}
-                      {lessonProgress.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("timePerLesson") || "Time per Lesson"}</h4>
-                          <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
-                            {lessonProgress.map((lp, idx) => (
-                              <div key={`${lp.lessonId}-${idx}`} className="flex items-center justify-between p-2.5 border rounded-lg bg-muted/20 gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-medium truncate">{lp.lessonTitle}</p>
-                                  <p className="text-xs text-muted-foreground truncate">{lp.moduleTitle}</p>
-                                </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {lp.completed && <CheckCircle className="h-3.5 w-3.5 text-green-500" />}
-                                  <span className="text-xs font-medium tabular-nums inline-flex items-center gap-1">
-                                    <Timer className="h-3 w-3 text-primary" />
-                                    {formatDuration(lp.timeSpentSeconds)}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="activity" className="space-y-3 sm:space-y-4 mt-4">
-                  {loading ? (
-                    <LoadingState />
-                  ) : activity.length === 0 ? (
-                    <EmptyState message={t("noActivityYet")} />
-                  ) : (
-                    <div className="relative pl-3 sm:pl-4 border-l space-y-3 sm:space-y-4">
-                      {activity.map((item) => (
-                        <motion.div
-                          key={item.id}
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="relative pl-4 sm:pl-6"
-                        >
-                          <span className="absolute -left-[17px] sm:-left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-background" />
-                          <p className="font-medium text-sm">{item.title}</p>
-                          {item.description && (
-                            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{item.description}</p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">{formatDate(item.created_at)}</p>
-                        </motion.div>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="security" className="space-y-3 sm:space-y-4 mt-4">
-                  <div className="grid gap-2.5 sm:gap-3">
-                    <SecurityItem
-                      icon={<Key className="h-4 w-4" />}
-                      label={resetLoading ? t("sending") : t("resetPassword")}
-                      onClick={handleResetPassword}
-                      disabled={resetLoading}
-                    />
-                    <SecurityItem
-                      icon={<Send className="h-4 w-4" />}
-                      label={t("sendNotification")}
-                      onClick={() => setNotifyOpen(true)}
-                    />
-                    {user.role === "Student" && (
-                      <SecurityItem
-                        icon={<Ban className="h-4 w-4" />}
-                        label={user.banned ? t("activate") : t("suspend")}
-                        onClick={() => (user.banned ? onActivate(user) : onSuspend(user))}
-                      />
-                    )}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="device" className="space-y-4 mt-4">
-                  <DeviceInfoTab user={user} />
-                </TabsContent>
-
-                <TabsContent value="nationalIds" className="space-y-3 sm:space-y-4 mt-4">
-                  <div className="rounded-xl border bg-muted/30 p-3 sm:p-4">
-                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-                      <Hash className="h-4 w-4 text-muted-foreground" />
-                      {t("nationalIds")}
-                    </h3>
-                    {nationalIdRecords.length === 0 ? (
-                      <div className="text-sm text-muted-foreground text-center py-6">
-                        {t("noNationalIdRecords")}
-                      </div>
+                  {/* Exams Tab — exam history + course analytics */}
+                  <TabsContent value="exams" className="space-y-4 mt-4">
+                    {loading ? (
+                      <LoadingState />
+                    ) : progress.length === 0 && lessonProgress.length === 0 ? (
+                      <EmptyState message={t("noExamHistory")} />
                     ) : (
-                      <div className="space-y-2 max-h-80 overflow-y-auto">
-                        {nationalIdRecords.map((record) => (
-                          <div
-                            key={record.id}
-                            className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg border bg-background gap-2"
-                          >
-                            <span className="font-mono text-xs sm:text-sm truncate">{record.national_id}</span>
-                            <span className="text-xs text-muted-foreground flex-shrink-0">
-                              {formatDate(record.created_at)}
-                            </span>
+                      <div className="space-y-4">
+                        {/* Summary stats */}
+                        {(() => {
+                          const totalTime = progress.reduce((sum, p) => sum + (p.timeSpentSeconds || 0), 0);
+                          const totalExceeded = progress.reduce((sum, p) => sum + (p.exceededTimeSeconds || 0), 0);
+                          const totalLessonsCompleted = progress.reduce((sum, p) => sum + p.lessonsCompleted, 0);
+                          const totalLessonsAll = progress.reduce((sum, p) => sum + p.totalLessons, 0);
+                          const overallProgress = totalLessonsAll > 0 ? Math.round((totalLessonsCompleted / totalLessonsAll) * 100) : 0;
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                              <div className="p-3 rounded-xl border bg-muted/30 text-center">
+                                <Timer className="h-4 w-4 mx-auto mb-1 text-primary" />
+                                <p className="text-xs text-muted-foreground">{t("totalTimeSpent") || "Total Time"}</p>
+                                <p className="text-sm font-bold tabular-nums">{formatDuration(totalTime)}</p>
+                              </div>
+                              <div className="p-3 rounded-xl border bg-muted/30 text-center">
+                                <Clock className="h-4 w-4 mx-auto mb-1 text-blue-500" />
+                                <p className="text-xs text-muted-foreground">{t("overtime") || "Overtime"}</p>
+                                <p className="text-sm font-bold tabular-nums text-blue-500">{formatDuration(totalExceeded)}</p>
+                              </div>
+                              <div className="p-3 rounded-xl border bg-muted/30 text-center">
+                                <BookOpen className="h-4 w-4 mx-auto mb-1 text-primary" />
+                                <p className="text-xs text-muted-foreground">{t("lessonsCompleted") || "Lessons"}</p>
+                                <p className="text-sm font-bold tabular-nums">{totalLessonsCompleted}/{totalLessonsAll}</p>
+                              </div>
+                              <div className="p-3 rounded-xl border bg-muted/30 text-center">
+                                <Trophy className="h-4 w-4 mx-auto mb-1 text-primary" />
+                                <p className="text-xs text-muted-foreground">{t("overallProgress") || "Progress"}</p>
+                                <p className="text-sm font-bold tabular-nums">{overallProgress}%</p>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Exam progress list */}
+                        {progress.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("examHistory")}</h4>
+                            <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                              {progress.map((p: UserProgressSummary) => (
+                                <div key={p.id} className="p-3 sm:p-4 border rounded-xl bg-muted/30">
+                                  <div className="flex justify-between items-center mb-2 gap-2">
+                                    <span className="font-medium text-sm truncate">{p.moduleTitle}</span>
+                                    <Badge variant={p.examPassed ? "default" : "secondary"} className="text-xs flex-shrink-0">
+                                      {p.examPassed ? t("passed") : t("inProgress")}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2 flex-wrap">
+                                    <span className="inline-flex items-center gap-1">
+                                      <Timer className="h-3 w-3" />
+                                      {formatDuration(p.timeSpentSeconds)}
+                                    </span>
+                                    <span>{p.lessonsCompleted}/{p.totalLessons} {t("lessons") || "lessons"}</span>
+                                    {p.bestScore != null && (
+                                      <span>• {t("bestScore")}: {p.bestScore}%</span>
+                                    )}
+                                  </div>
+                                  <Progress
+                                    value={p.totalLessons > 0 ? (p.lessonsCompleted / p.totalLessons) * 100 : 0}
+                                    className="h-2"
+                                  />
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        ))}
+                        )}
+
+                        {/* Per-lesson time breakdown */}
+                        {lessonProgress.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("timePerLesson") || "Time per Lesson"}</h4>
+                            <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
+                              {lessonProgress.map((lp, idx) => (
+                                <div key={`${lp.lessonId}-${idx}`} className="flex items-center justify-between p-2.5 border rounded-lg bg-muted/20 gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium truncate">{lp.lessonTitle}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{lp.moduleTitle}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    {lp.completed && <CheckCircle className="h-3.5 w-3.5 text-green-500" />}
+                                    <span className="text-xs font-medium tabular-nums inline-flex items-center gap-1">
+                                      <Timer className="h-3 w-3 text-primary" />
+                                      {formatDuration(lp.timeSpentSeconds)}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
-                </TabsContent>
-              </AnimatePresence>
+                  </TabsContent>
+
+                  {/* Permit Info Tab — national IDs, provision, driver info, device info */}
+                  <TabsContent value="permit" className="space-y-3 sm:space-y-4 mt-4">
+                    {/* Provision status */}
+                    <div className="rounded-xl border bg-muted/30 p-3 sm:p-4">
+                      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-muted-foreground" />
+                        {t("provisionInfo") || "Provision Information"}
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <InfoItem icon={<CheckCircle className="h-4 w-4" />} label={t("provisionVerifiedLabel") || "Provision Verified"} value={user.provision_verified ? t("yes") : t("no")} />
+                        <InfoItem icon={<Shield className="h-4 w-4" />} label={t("provisionCategory") || "Category"} value={user.provision_category} />
+                        {user.provision_verified_at && (
+                          <InfoItem icon={<Calendar className="h-4 w-4" />} label={t("verifiedAt") || "Verified At"} value={formatDate(user.provision_verified_at)} />
+                        )}
+                        {user.national_id && (
+                          <InfoItem icon={<Hash className="h-4 w-4" />} label={t("nationalId") || "National ID"} value={user.national_id} mono />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* National ID records */}
+                    <div className="rounded-xl border bg-muted/30 p-3 sm:p-4">
+                      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                        <Hash className="h-4 w-4 text-muted-foreground" />
+                        {t("nationalIds")}
+                      </h3>
+                      {nationalIdRecords.length === 0 ? (
+                        <div className="text-sm text-muted-foreground text-center py-6">
+                          {t("noNationalIdRecords")}
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {nationalIdRecords.map((record) => (
+                            <div
+                              key={record.id}
+                              className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg border bg-background gap-2"
+                            >
+                              <span className="font-mono text-xs sm:text-sm truncate">{record.national_id}</span>
+                              <span className="text-xs text-muted-foreground flex-shrink-0">
+                                {formatDate(record.created_at)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Device info */}
+                    <div className="rounded-xl border bg-muted/30 p-3 sm:p-4">
+                      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                        <Monitor className="h-4 w-4 text-muted-foreground" />
+                        {t("deviceInfo")}
+                      </h3>
+                      <DeviceInfoTab user={user} />
+                    </div>
+                  </TabsContent>
+
+                  {/* User Info Tab — account details, activity, security actions */}
+                  <TabsContent value="userInfo" className="space-y-4 mt-4">
+                    {/* Account details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <InfoItem icon={<Hash className="h-4 w-4" />} label={t("userId")} value={user.id} mono />
+                      <InfoItem icon={<Shield className="h-4 w-4" />} label={t("role")} value={user.role} />
+                      <InfoItem icon={<Calendar className="h-4 w-4" />} label={t("joined")} value={formatDate(user.created_at)} />
+                      <InfoItem icon={<Clock className="h-4 w-4" />} label={t("lastLogin")} value={formatDate(user.last_seen)} />
+                    </div>
+
+                    {/* Activity timeline */}
+                    <div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("activity")}</h4>
+                      {loading ? (
+                        <LoadingState />
+                      ) : activity.length === 0 ? (
+                        <EmptyState message={t("noActivityYet")} />
+                      ) : (
+                        <div className="relative pl-3 sm:pl-4 border-l space-y-3 sm:space-y-4 max-h-60 overflow-y-auto">
+                          {activity.map((item) => (
+                            <motion.div
+                              key={item.id}
+                              initial={{ opacity: 0, x: -8 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              className="relative pl-4 sm:pl-6"
+                            >
+                              <span className="absolute -left-[17px] sm:-left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-background" />
+                              <p className="font-medium text-sm">{item.title}</p>
+                              {item.description && (
+                                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{item.description}</p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">{formatDate(item.created_at)}</p>
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Security actions */}
+                    <div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("security")}</h4>
+                      <div className="grid gap-2.5 sm:gap-3">
+                        <SecurityItem
+                          icon={<Key className="h-4 w-4" />}
+                          label={resetLoading ? t("sending") : t("resetPassword")}
+                          onClick={handleResetPassword}
+                          disabled={resetLoading}
+                        />
+                        <SecurityItem
+                          icon={<Send className="h-4 w-4" />}
+                          label={t("sendNotification")}
+                          onClick={() => setNotifyOpen(true)}
+                        />
+                        {user.role === "Student" && (
+                          <SecurityItem
+                            icon={<Ban className="h-4 w-4" />}
+                            label={user.banned ? t("activate") : t("suspend")}
+                            onClick={() => (user.banned ? onActivate(user) : onSuspend(user))}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+                </AnimatePresence>
+              </div>
             </Tabs>
           </div>
         </ScrollArea>

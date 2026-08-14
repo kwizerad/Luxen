@@ -1477,6 +1477,18 @@ const fr: Record<string, string> = {
   "noDeviceInfoAvailable": "Aucune information sur l'appareil disponible. L'utilisateur doit se connecter depuis un appareil suivi.",
   "passwordResetEmailSent": "E-mail de réinitialisation du mot de passe envoyé",
   "failedToSendPasswordReset": "Échec de l'envoi de la réinitialisation du mot de passe : ",
+  "personalInfo": "Informations Personnelles",
+  "userInfoTab": "Informations Utilisateur",
+  "fullNameLabel": "Nom Complet",
+  "provisionInfo": "Informations de Provision",
+  "provisionVerifiedLabel": "Provision Vérifiée",
+  "provisionCategory": "Catégorie de Provision",
+  "verifiedAt": "Vérifié le",
+  "nationalId": "ID National",
+  "exportAsImage": "Exporter en Image",
+  "exporting": "Exportation...",
+  "exportProfileSuccess": "Profil exporté avec succès",
+  "exportFailedMsg": "Échec de l'exportation du profil",
 
   // ── Admin RBAC & Permissions ──
   "adminManagement": "Gestion des administrateurs",

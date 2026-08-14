@@ -1744,6 +1744,18 @@ const rw: Record<string, string> = {
   "noDeviceInfoAvailable": "Nta makuru y'ikikoreshwa abonetse. Umukoresha agomba kwinjira mu kikoreshwa gikurikiranwa.",
   "passwordResetEmailSent": "Imeri yo guhindura ijambo ry'ibanga yoherejwe",
   "failedToSendPasswordReset": "Kohereza imeri yo guhindura ijambo ry'ibanga byanze: ",
+  "personalInfo": "Amakuru Bwite",
+  "userInfoTab": "Amakuru ku Mukoresha",
+  "fullNameLabel": "Izina Ryuzuye",
+  "provisionInfo": "Amakuru y'Uruhushya",
+  "provisionVerifiedLabel": "Uruhushya Rwemejwe",
+  "provisionCategory": "Icyiciro cy'Uruhushya",
+  "verifiedAt": "Byemejwe Ku",
+  "nationalId": "Indangamuntu",
+  "exportAsImage": "Kuvamo Ifoto",
+  "exporting": "Birakorwa...",
+  "exportProfileSuccess": "Umwirondoro wavuyemo neza",
+  "exportFailedMsg": "Byanze kuvamo umwirondoro",
 
   // Exam Security Settings — New Keys
   "enableEachSecurityFeature": "Fungura cyangwa ufunge buri gikorwa cy'umutekano w'ikizamini cyitabwaho",
