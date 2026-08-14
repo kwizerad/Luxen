@@ -2244,6 +2244,12 @@ const en: Record<string, string> = {
   "pricePerMonth": "Price per Month",
   "languagesSpoken": "Languages Spoken (comma-separated)",
   "bioPlaceholder": "Tell us about this driver's experience and teaching style...",
+  "newFriendRequest": "New Friend Request",
+  "wantsToBeYourFriend": "wants to be your friend",
+  "friendRequestAccepted": "Friend Request Accepted",
+  "acceptedYourFriendRequest": "accepted your friend request!",
+  "friendRequestRejected": "Friend Request Declined",
+  "declinedYourFriendRequest": "declined your friend request",
 };
 
 export default en;

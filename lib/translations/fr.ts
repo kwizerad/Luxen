@@ -1761,6 +1761,12 @@ const fr: Record<string, string> = {
   "pricePerMonth": "Prix par mois",
   "languagesSpoken": "Langues parlées (séparées par des virgules)",
   "bioPlaceholder": "Parlez-nous de l'expérience et du style d'enseignement de ce moniteur...",
+  "newFriendRequest": "Nouvelle demande d'ami",
+  "wantsToBeYourFriend": "veut être votre ami",
+  "friendRequestAccepted": "Demande d'ami acceptée",
+  "acceptedYourFriendRequest": "a accepté votre demande d'ami !",
+  "friendRequestRejected": "Demande d'ami refusée",
+  "declinedYourFriendRequest": "a refusé votre demande d'ami",
 };
 
 export default fr;

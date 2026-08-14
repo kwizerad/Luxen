@@ -44,6 +44,28 @@ export async function POST(
 
     if (error) throw error;
 
+    // Notify the sender that their friend request was accepted
+    try {
+      const receiverName = user.user_metadata?.full_name || user.user_metadata?.username || user.email;
+      await adminClient.from("notifications").insert({
+        target_user_id: existing.sender_id,
+        type: "friend_request_accepted",
+        title: "Friend Request Accepted",
+        message: `${receiverName} accepted your friend request!`,
+        data: {
+          receiver_id: user.id,
+          receiver_name: receiverName,
+          request_id: existing.id,
+        },
+        sender_id: user.id,
+        sender_name: receiverName,
+        action_url: "/dashboard#classmates",
+        priority: "normal",
+      });
+    } catch (notifError) {
+      console.error("Failed to send acceptance notification:", notifError);
+    }
+
     return NextResponse.json({ request: updated, status: "success" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to accept request.";

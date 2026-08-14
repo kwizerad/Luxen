@@ -44,6 +44,28 @@ export async function POST(
 
     if (error) throw error;
 
+    // Notify the sender that their friend request was rejected
+    try {
+      const receiverName = user.user_metadata?.full_name || user.user_metadata?.username || user.email;
+      await adminClient.from("notifications").insert({
+        target_user_id: existing.sender_id,
+        type: "friend_request_rejected",
+        title: "Friend Request Declined",
+        message: `${receiverName} declined your friend request.`,
+        data: {
+          receiver_id: user.id,
+          receiver_name: receiverName,
+          request_id: existing.id,
+        },
+        sender_id: user.id,
+        sender_name: receiverName,
+        action_url: "/dashboard#classmates",
+        priority: "low",
+      });
+    } catch (notifError) {
+      console.error("Failed to send rejection notification:", notifError);
+    }
+
     return NextResponse.json({ request: updated, status: "success" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to reject request.";

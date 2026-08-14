@@ -45,6 +45,8 @@ const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   admin_message: Info,
   exam_challenge_invite: Swords,
   friend_request: Users,
+  friend_request_accepted: CheckCircle,
+  friend_request_rejected: XCircle,
 };
 
 const typeColors: Record<string, string> = {
@@ -61,6 +63,8 @@ const typeColors: Record<string, string> = {
   admin_message: "text-blue-500 bg-blue-50",
   exam_challenge_invite: "text-purple-500 bg-purple-50",
   friend_request: "text-cyan-500 bg-cyan-50",
+  friend_request_accepted: "text-green-500 bg-green-50",
+  friend_request_rejected: "text-red-500 bg-red-50",
 };
 
 const priorityColors = {

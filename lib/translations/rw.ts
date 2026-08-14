@@ -2052,6 +2052,12 @@ const rw: Record<string, string> = {
   "pricePerMonth": "Igiciro ku kwezi",
   "languagesSpoken": "Indimi uvuga (zitatanywe n'akitso)",
   "bioPlaceholder": "Vuga ibyerekeye ubunararibonye n'uburyo bwo kwigisha bwa uyu mufasha...",
+  "newFriendRequest": "Kwisabwa kushya kw'inshuti",
+  "wantsToBeYourFriend": "ashaka kuba inshuti yawe",
+  "friendRequestAccepted": "Kwisabwa kw'inshuti byemewe",
+  "acceptedYourFriendRequest": "yemeye kwisabwa kwawe kw'inshuti!",
+  "friendRequestRejected": "Kwisabwa kw'inshuti cyangiwe",
+  "declinedYourFriendRequest": "yanganije kwisabwa kwawe kw'inshuti",
 };
 
 export default rw;

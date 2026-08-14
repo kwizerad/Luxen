@@ -151,6 +151,157 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
     fetchData();
   }, [fetchData]);
 
+  // Real-time subscription for classmate_requests and user_profiles
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") return;
+
+    // Helper: enrich a raw classmate_request row with the other user's profile
+    const enrichRequest = async (
+      row: any,
+      currentUserId: string
+    ): Promise<ClassmateRequestWithProfile | null> => {
+      const otherUserId = row.sender_id === currentUserId ? row.receiver_id : row.sender_id;
+      try {
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("id, full_name, username, avatar_url, last_seen")
+          .eq("id", otherUserId)
+          .maybeSingle();
+        if (!profile) return null;
+        return {
+          ...row,
+          other_user: profile,
+          direction: row.sender_id === currentUserId ? "sent" : "received",
+        };
+      } catch {
+        return null;
+      }
+    };
+
+    // Subscribe to classmate_requests changes
+    const reqChannel = supabase
+      .channel(`classmate_requests_rt:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "classmate_requests" },
+        async (payload: any) => {
+          const row = payload.new;
+          if (!row) return;
+
+          // Only care about rows involving the current user
+          if (row.sender_id !== user.id && row.receiver_id !== user.id) return;
+
+          if (payload.eventType === "INSERT") {
+            // New friend request
+            const enriched = await enrichRequest(row, user.id);
+            if (!enriched) return;
+
+            if (enriched.direction === "received") {
+              // Someone sent us a request
+              setRequests((prev) => {
+                if (prev.some((r) => r.id === row.id)) return prev;
+                return [...prev, enriched];
+              });
+              toast.success(t("newFriendRequest"), {
+                description: `${enriched.other_user.full_name || enriched.other_user.username} ${t("wantsToBeYourFriend")}`,
+              });
+            } else {
+              // We sent a request (update sent map)
+              setSentRequestIds((prev) => new Map([...prev, [enriched.other_user.id, row.id]]));
+            }
+          } else if (payload.eventType === "UPDATE") {
+            const oldRow = payload.old;
+            const status = row.status;
+
+            if (status === "accepted") {
+              // A request was accepted — move from pending to friends
+              const enriched = await enrichRequest(row, user.id);
+              if (!enriched) return;
+
+              setRequests((prev) => prev.filter((r) => r.id !== row.id));
+              setSentRequestIds((prev) => {
+                const next = new Map(prev);
+                next.delete(enriched.other_user.id);
+                return next;
+              });
+              setFriends((prev) => {
+                if (prev.some((f) => f.id === enriched.other_user.id)) return prev;
+                return [...prev, enriched.other_user];
+              });
+              // Remove from classmates list if present
+              setClassmates((prev) => prev.filter((c) => c.id !== enriched.other_user.id));
+
+              // Toast only if we were the sender (our request was accepted)
+              if (oldRow?.sender_id === user.id) {
+                toast.success(t("friendRequestAccepted"), {
+                  description: `${enriched.other_user.full_name || enriched.other_user.username} ${t("acceptedYourFriendRequest")}`,
+                });
+              } else if (oldRow?.receiver_id === user.id) {
+                // We accepted it — no toast needed, we initiated the action
+              }
+            } else if (status === "rejected") {
+              // A request was rejected — remove from pending
+              const enriched = await enrichRequest(row, user.id);
+              setRequests((prev) => prev.filter((r) => r.id !== row.id));
+              setSentRequestIds((prev) => {
+                if (!enriched) return prev;
+                const next = new Map(prev);
+                next.delete(enriched.other_user.id);
+                return next;
+              });
+
+              // Toast if we were the sender (our request was rejected)
+              if (oldRow?.sender_id === user.id && enriched) {
+                toast.error(t("friendRequestRejected"), {
+                  description: `${enriched.other_user.full_name || enriched.other_user.username} ${t("declinedYourFriendRequest")}`,
+                });
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to user_profiles changes for online status updates
+    const profileChannel = supabase
+      .channel(`user_profiles_rt:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "user_profiles" },
+        (payload: any) => {
+          const updated = payload.new as FriendProfile;
+          if (!updated?.id) return;
+
+          // Update friends list
+          setFriends((prev) =>
+            prev.map((f) => (f.id === updated.id ? { ...f, last_seen: updated.last_seen } : f))
+          );
+          // Update classmates list
+          setClassmates((prev) =>
+            prev.map((c) => (c.id === updated.id ? { ...c, last_seen: updated.last_seen } : c))
+          );
+          // Update selected friend
+          setSelectedFriend((prev) =>
+            prev?.id === updated.id ? { ...prev, last_seen: updated.last_seen } : prev
+          );
+          // Update requests other_user
+          setRequests((prev) =>
+            prev.map((r) =>
+              r.other_user.id === updated.id
+                ? { ...r, other_user: { ...r.other_user, last_seen: updated.last_seen } }
+                : r
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(reqChannel);
+      supabase.removeChannel(profileChannel);
+    };
+  }, [user?.id, supabase, t]);
+
   const fetchChallenges = useCallback(async (otherUserId: string) => {
     try {
       const res = await fetch(`/api/exam-challenges?with_user=${otherUserId}`);
