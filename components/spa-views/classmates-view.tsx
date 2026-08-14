@@ -69,7 +69,6 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedInvitees, setSelectedInvitees] = useState<Set<string>>(new Set());
   const [creatingChallenge, setCreatingChallenge] = useState(false);
-  const [showRequests, setShowRequests] = useState(true);
   const [pictureViewer, setPictureViewer] = useState<{ url: string; name: string } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -519,19 +518,11 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
           {activeTab === "friends" ? (
             <>
               {/* Pending Requests */}
-              {pendingReceivedRequests.length > 0 && showRequests && (
+              {pendingReceivedRequests.length > 0 && (
                 <div className="border-b">
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase">
-                      {t("pendingRequests")} ({pendingReceivedRequests.length})
-                    </span>
-                    <button
-                      onClick={() => setShowRequests(false)}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase px-3 py-2 block">
+                    {t("pendingRequests")} ({pendingReceivedRequests.length})
+                  </span>
                   {pendingReceivedRequests.map((req) => (
                     <div key={req.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50">
                       <ProfileAvatar profile={req.other_user} size="h-8 w-8" />
@@ -681,9 +672,53 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
       {/* Right Panel — Chat */}
       <div className="hidden sm:flex flex-1 flex-col bg-background">
         {!selectedFriend ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-            <MessageCircle className="h-12 w-12 mb-3 opacity-30" />
-            <p className="text-sm">{t("selectFriendToChat")}</p>
+          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground overflow-y-auto">
+            {pendingReceivedRequests.length > 0 ? (
+              <div className="w-full max-w-md px-4 py-6">
+                <div className="flex items-center gap-2 mb-4 justify-center">
+                  <UserPlus className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-bold text-foreground">{t("pendingRequests")}</h2>
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                    {pendingReceivedRequests.length}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {pendingReceivedRequests.map((req) => (
+                    <div key={req.id} className="flex items-center gap-3 rounded-xl border bg-card p-3">
+                      <ProfileAvatar profile={req.other_user} size="h-12 w-12" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate text-foreground">
+                          {req.other_user.full_name || req.other_user.username}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">@{req.other_user.username}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleAcceptRequest(req.id)}
+                        className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <Check className="h-4 w-4" />
+                        {t("accept")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRejectRequest(req.id)}
+                        className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        <X className="h-4 w-4" />
+                        {t("deny")}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <MessageCircle className="h-12 w-12 mb-3 opacity-30" />
+                <p className="text-sm">{t("selectFriendToChat")}</p>
+              </>
+            )}
           </div>
         ) : (
           <>
