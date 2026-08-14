@@ -29,6 +29,18 @@ END $$;
 ALTER TABLE classmate_requests REPLICA IDENTITY FULL;
 ALTER TABLE user_profiles REPLICA IDENTITY FULL;
 
+-- Add chat_messages to realtime publication (was missing — realtime chat didn't work)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+    AND tablename = 'chat_messages'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages;
+  END IF;
+END $$;
+
 -- Add new notification types for friend request accepted/rejected
 ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
 ALTER TABLE notifications ADD CONSTRAINT notifications_type_check

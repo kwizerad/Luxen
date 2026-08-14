@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Loader2, Settings2, Shield, ClipboardList, FileText, LayoutList } from "lucide-react";
+import { Loader2, Settings2, Shield, ClipboardList, FileText, LayoutList, Globe } from "lucide-react";
 import { getSystemConfig, updateSystemConfig, getServicesConfig } from "@/lib/supabase/queries";
 import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
@@ -56,6 +56,18 @@ export function SystemConfigSettings() {
   const [servicesPageEnabled, setServicesPageEnabled] = useState<boolean>(true);
   const [serviceToggles, setServiceToggles] = useState<Record<string, boolean>>({});
 
+  // Learning language toggles
+  const LEARNING_LANGUAGES = [
+    { key: "english", label: "English", nativeLabel: "English" },
+    { key: "french", label: "French", nativeLabel: "Français" },
+    { key: "kinyarwanda", label: "Kinyarwanda", nativeLabel: "Kinyarwanda" },
+  ];
+  const [languageToggles, setLanguageToggles] = useState<Record<string, boolean>>({
+    english: true,
+    french: true,
+    kinyarwanda: true,
+  });
+
   // Service definitions for the admin UI
   const serviceDefinitions = [
     { key: "live-exam", labelKey: "liveExamResults", descKey: "liveExamResultsDesc" },
@@ -83,6 +95,16 @@ export function SystemConfigSettings() {
             setStandaloneExamEnabled(configMap["standalone_exam_enabled"].value === "true");
           }
           setSecurity(parseSecuritySettings(configMap));
+
+          // Load learning language toggles (default to enabled if not set)
+          const langToggles: Record<string, boolean> = { english: true, french: true, kinyarwanda: true };
+          for (const lang of ["english", "french", "kinyarwanda"]) {
+            const configKey = `learning_language_${lang}_enabled`;
+            if (configMap[configKey]) {
+              langToggles[lang] = configMap[configKey].value === "true";
+            }
+          }
+          setLanguageToggles(langToggles);
         }
 
         // Load services config
@@ -173,6 +195,26 @@ export function SystemConfigSettings() {
       toast.success(t("servicesSettingsSaved") || "Services settings saved");
     } catch (error: any) {
       toast.error((t("failedToUpdateServicesSettings") || "Failed to save services settings: ") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveLanguages = async () => {
+    try {
+      setSaving(true);
+      await Promise.all(
+        LEARNING_LANGUAGES.map((lang) =>
+          updateSystemConfig(
+            `learning_language_${lang.key}_enabled`,
+            (languageToggles[lang.key] ?? true).toString(),
+            t("learningLanguageToggleDesc") || `Enable or disable ${lang.label} as a learning language`
+          )
+        )
+      );
+      toast.success(t("learningLanguagesSaved") || "Learning language settings saved");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateLearningLanguages") || "Failed to save learning language settings: ") + error.message);
     } finally {
       setSaving(false);
     }
@@ -462,6 +504,57 @@ export function SystemConfigSettings() {
 
           <Button
             onClick={handleSaveServices}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("save") || "Save"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Learning Language Toggles */}
+      <Card className="border border-border rounded-[32px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            {t("learningLanguages") || "Learning Languages"}
+          </CardTitle>
+          <CardDescription>
+            {t("learningLanguagesDesc") || "Enable or disable languages that students can choose for learning"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-3">
+            {LEARNING_LANGUAGES.map((lang) => (
+              <div key={lang.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                <div className="space-y-0.5 pr-3">
+                  <Label htmlFor={`lang-${lang.key}-toggle`} className="text-sm font-medium">
+                    {lang.nativeLabel}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t("learningLanguageToggleDesc") || `Allow students to use ${lang.label} as their learning language`}
+                  </p>
+                </div>
+                <Switch
+                  id={`lang-${lang.key}-toggle`}
+                  checked={languageToggles[lang.key] ?? true}
+                  onCheckedChange={(checked) =>
+                    setLanguageToggles((prev) => ({ ...prev, [lang.key]: checked }))
+                  }
+                />
+              </div>
+            ))}
+          </div>
+
+          <Button
+            onClick={handleSaveLanguages}
             disabled={saving}
             className="w-full sm:w-auto"
           >

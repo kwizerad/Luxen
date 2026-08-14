@@ -116,7 +116,32 @@ async function resolveLearningLanguage(
   user: { id: string },
   interfaceLanguage?: string
 ): Promise<LearningLanguage | null> {
-  if (interfaceLanguage && isLearningLanguage(interfaceLanguage)) {
+  // Fetch enabled languages from system_config
+  const { data: langConfigs } = await supabase
+    .from("system_config")
+    .select("key, value")
+    .in("key", [
+      "learning_language_english_enabled",
+      "learning_language_french_enabled",
+      "learning_language_kinyarwanda_enabled",
+    ]);
+
+  const disabledLanguages = new Set<string>();
+  for (const row of langConfigs || []) {
+    if (row.value === "false") {
+      const match = row.key.match(/^learning_language_(.+)_enabled$/);
+      if (match) {
+        // Capitalize first letter to match LEARNING_LANGUAGES format
+        const lang = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+        disabledLanguages.add(lang);
+      }
+    }
+  }
+
+  const isLanguageEnabled = (lang: string): boolean =>
+    !disabledLanguages.has(lang);
+
+  if (interfaceLanguage && isLearningLanguage(interfaceLanguage) && isLanguageEnabled(interfaceLanguage)) {
     return interfaceLanguage;
   }
 
@@ -135,16 +160,16 @@ async function resolveLearningLanguage(
   ]);
 
   const saved = profileResult.data?.learning_language;
-  if (saved && isLearningLanguage(saved)) {
+  if (saved && isLearningLanguage(saved) && isLanguageEnabled(saved)) {
     return saved;
   }
 
-  // Find the first matching learning language from published courses
+  // Find the first matching enabled learning language from published courses
   const publishedLanguages = new Set(
     (coursesResult.data || []).map((c: { language: string }) => c.language)
   );
   for (const lang of LEARNING_LANGUAGES) {
-    if (publishedLanguages.has(lang)) {
+    if (isLanguageEnabled(lang) && publishedLanguages.has(lang)) {
       return lang;
     }
   }

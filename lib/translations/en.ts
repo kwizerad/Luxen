@@ -2190,6 +2190,7 @@ const en: Record<string, string> = {
   "failedToRespondRequest": "Failed to respond to request",
   "cancelRequest": "Cancel request",
   "selectFriendToChat": "Select a friend to start chatting",
+  "failedToSendMessage": "Failed to send message",
   "inviteToGroupExam": "Group Exam",
   "selectFriends": "Select friends to invite",
   "noFriendsToInvite": "You need friends to invite them",
@@ -2250,6 +2251,12 @@ const en: Record<string, string> = {
   "acceptedYourFriendRequest": "accepted your friend request!",
   "friendRequestRejected": "Friend Request Declined",
   "declinedYourFriendRequest": "declined your friend request",
+  "learningLanguages": "Learning Languages",
+  "learningLanguagesDesc": "Enable or disable languages that students can choose for learning",
+  "learningLanguageToggleDesc": "Allow students to use this language as their learning language",
+  "learningLanguagesSaved": "Learning language settings saved",
+  "failedToUpdateLearningLanguages": "Failed to save learning language settings: ",
+  "noLearningLanguagesAvailable": "No learning languages are currently available. Please contact an administrator.",
 };
 
 export default en;

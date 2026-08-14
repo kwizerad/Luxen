@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 import Dock, { type DockItemData } from "@/components/Dock";
 import { useHashRouter } from "@/hooks/use-hash-router";
+import { useLearningLanguages } from "@/hooks/use-learning-languages";
 
 const LEARNING_LANGUAGES = ["English", "French", "Kinyarwanda"] as const;
 type LearningLanguage = (typeof LEARNING_LANGUAGES)[number];
@@ -15,12 +16,13 @@ type LearningLanguage = (typeof LEARNING_LANGUAGES)[number];
 const isLearningLanguage = (language: string | null | undefined): language is LearningLanguage =>
   !!language && LEARNING_LANGUAGES.includes(language as LearningLanguage);
 
-export function DockNav({ hide = false }: { hide?: boolean } = {}) {
+export function DockNav({ hide = false, hideOnMobile = false }: { hide?: boolean; hideOnMobile?: boolean } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const { view: hashView, navigate } = useHashRouter();
   const { t, language: interfaceLanguage } = useLanguage();
   const { user } = useAuth();
+  const { enabledLanguages } = useLearningLanguages();
   const [isExamActive, setIsExamActive] = useState(false);
   const [hasPublishedCourse, setHasPublishedCourse] = useState<boolean | null>(null);
   const [examEnabled, setExamEnabled] = useState<boolean>(false);
@@ -44,7 +46,9 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
         ? interfaceLanguage
         : null;
 
-      const languagesToCheck = effectiveLanguage ? [effectiveLanguage] : LEARNING_LANGUAGES;
+      const languagesToCheck = effectiveLanguage
+        ? (enabledLanguages.includes(effectiveLanguage as any) ? [effectiveLanguage] : [])
+        : enabledLanguages;
       const { data: courses, error } = await supabase
         .from("course_languages")
         .select("id")
@@ -63,7 +67,7 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
     };
 
     void checkPublishedCourse();
-  }, [user, interfaceLanguage]);
+  }, [user, interfaceLanguage, enabledLanguages]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -198,7 +202,7 @@ export function DockNav({ hide = false }: { hide?: boolean } = {}) {
   }));
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
+    <div className={`fixed bottom-0 left-0 right-0 z-50 justify-center pointer-events-none ${hideOnMobile ? "hidden sm:flex" : "flex"}`}>
       <div className="pointer-events-auto">
         <Dock
           items={dockItems}

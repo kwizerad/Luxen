@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { CourseViewSkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
+import { useLearningLanguages } from "@/hooks/use-learning-languages";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { BookOpen, ChevronRight, ChevronLeft, Clock, CheckCircle2, Circle, Layers, ArrowRight, Play, FileText, Lock, Trophy, Shield, Home } from "lucide-react";
@@ -185,6 +186,7 @@ export interface CourseViewProps {
 
 export function CourseView({ navigate, params }: CourseViewProps) {
   const { t, language: interfaceLanguage } = useLanguage();
+  const { enabledLanguages } = useLearningLanguages();
   const [course, setCourse] = useState<CourseWithModules | null>(null);
   const [learningLanguage, setLearningLanguage] = useState<LearningLanguage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -635,11 +637,16 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           <p className="text-sm text-muted-foreground">{t("learningLanguageSeparate") || "Your learning language is separate from the application interface language."}</p>
         </div>
         <div className="grid gap-3">
-          {LEARNING_LANGUAGES.map((option) => (
+          {enabledLanguages.map((option) => (
             <Button key={option} type="button" variant="outline" className="h-12 justify-start" disabled={savingLanguage} onClick={() => void selectLearningLanguage(option)}>
               {option === "English" ? "English" : option === "French" ? "Français" : "Kinyarwanda"}
             </Button>
           ))}
+          {enabledLanguages.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              {t("noLearningLanguagesAvailable") || "No learning languages are currently available. Please contact an administrator."}
+            </p>
+          )}
         </div>
       </div>
     );

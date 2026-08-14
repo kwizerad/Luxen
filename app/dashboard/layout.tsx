@@ -19,6 +19,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { isRTL } = useLanguage();
   const { config } = useBrandingConfig();
   const [isExamActive, setIsExamActive] = useState(false);
+  const [isChatActive, setIsChatActive] = useState(false);
 
   // Check if exam is active (to hide dock nav during exam)
   useEffect(() => {
@@ -32,6 +33,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => {
       window.removeEventListener('exam-state-change', handleExamStateChange);
       window.removeEventListener('storage', handleExamStateChange);
+    };
+  }, []);
+
+  // Check if chat is active (to hide dock nav during chat on small devices)
+  useEffect(() => {
+    const checkChatActive = () => {
+      setIsChatActive(sessionStorage.getItem('chat-active') === 'true');
+    };
+    checkChatActive();
+    const handleChatStateChange = () => checkChatActive();
+    window.addEventListener('chat-state-change', handleChatStateChange);
+    return () => {
+      window.removeEventListener('chat-state-change', handleChatStateChange);
     };
   }, []);
 
@@ -90,8 +104,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {children}
       </main>
 
-      {/* Bottom Navigation (hidden during active exam) */}
-      {!isExamActive && <DockNav />}
+      {/* Bottom Navigation (hidden during active exam, or on mobile during chat) */}
+      {!isExamActive && <DockNav hideOnMobile={isChatActive} />}
     </div>
   );
 }

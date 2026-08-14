@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,11 +67,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: conv } = await supabase
+    const adminClient = createAdminClient();
+
+    const { data: conv } = await adminClient
       .from("chat_conversations")
       .select("driver_id, student_id")
       .eq("id", conversation_id)
-      .single();
+      .maybeSingle();
 
     if (!conv) {
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
@@ -80,7 +83,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { data: msg, error } = await supabase
+    const { data: msg, error } = await adminClient
       .from("chat_messages")
       .insert([{ conversation_id, sender_id: user.id, message }])
       .select()
@@ -88,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    await supabase
+    await adminClient
       .from("chat_conversations")
       .update({ last_message_at: new Date().toISOString() })
       .eq("id", conversation_id);

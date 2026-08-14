@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
   try {
@@ -76,6 +77,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { driver_id, peer_id } = body;
 
+    const adminClient = createAdminClient();
+
     if (peer_id) {
       if (peer_id === user.id) {
         return NextResponse.json(
@@ -98,7 +101,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const { data: existingForward } = await supabase
+      const { data: existingForward } = await adminClient
         .from("chat_conversations")
         .select("*")
         .eq("driver_id", user.id)
@@ -109,7 +112,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ conversation: existingForward, status: "success" });
       }
 
-      const { data: existingReverse } = await supabase
+      const { data: existingReverse } = await adminClient
         .from("chat_conversations")
         .select("*")
         .eq("driver_id", peer_id)
@@ -120,7 +123,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ conversation: existingReverse, status: "success" });
       }
 
-      const { data: created, error } = await supabase
+      const { data: created, error } = await adminClient
         .from("chat_conversations")
         .insert([{ driver_id: user.id, student_id: peer_id }])
         .select()
@@ -142,7 +145,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: existingForward } = await supabase
+    const { data: existingForward } = await adminClient
       .from("chat_conversations")
       .select("*")
       .eq("driver_id", driver_id)
@@ -153,7 +156,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ conversation: existingForward, status: "success" });
     }
 
-    const { data: existingReverse } = await supabase
+    const { data: existingReverse } = await adminClient
       .from("chat_conversations")
       .select("*")
       .eq("driver_id", user.id)
@@ -164,7 +167,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ conversation: existingReverse, status: "success" });
     }
 
-    const { data: created, error } = await supabase
+    const { data: created, error } = await adminClient
       .from("chat_conversations")
       .insert([{ driver_id, student_id: user.id }])
       .select()

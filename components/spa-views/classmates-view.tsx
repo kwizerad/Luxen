@@ -382,22 +382,48 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
     }
   }, [messages]);
 
+  // Notify layout to hide dock nav when chat is open (especially on small devices)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (selectedFriend) {
+      sessionStorage.setItem("chat-active", "true");
+    } else {
+      sessionStorage.removeItem("chat-active");
+    }
+    window.dispatchEvent(new CustomEvent("chat-state-change"));
+  }, [selectedFriend]);
+
+  // Clean up chat-active flag when component unmounts
+  useEffect(() => {
+    return () => {
+      if (typeof window === "undefined") return;
+      sessionStorage.removeItem("chat-active");
+      window.dispatchEvent(new CustomEvent("chat-state-change"));
+    };
+  }, []);
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !conversationId) return;
+    const msgText = newMessage.trim();
+    setNewMessage("");
     setSendingMessage(true);
     try {
       const res = await fetch("/api/chat/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: conversationId, message: newMessage }),
+        body: JSON.stringify({ conversation_id: conversationId, message: msgText }),
       });
       const data = await res.json();
-      if (data.message) {
+      if (!res.ok) {
+        toast.error(data.error || t("failedToSendMessage"));
+        setNewMessage(msgText);
+      } else if (data.message) {
         setMessages((prev) => [...prev, data.message]);
       }
-      setNewMessage("");
-    } catch {
-      // ignore
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      toast.error(t("failedToSendMessage"));
+      setNewMessage(msgText);
     } finally {
       setSendingMessage(false);
     }
@@ -668,6 +694,20 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         <div className="flex-1 overflow-y-auto">
           {activeTab === "friends" ? (
             <>
+              {/* Invite to Group Exam button (available outside chat) */}
+              {friends.length > 0 && (
+                <button
+                  onClick={() => {
+                    setSelectedInvitees(new Set());
+                    openInviteModal();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 border-b bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+                >
+                  <Trophy className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium text-primary">{t("inviteToGroupExam")}</span>
+                </button>
+              )}
+
               {/* Pending Requests */}
               {pendingReceivedRequests.length > 0 && (
                 <div className="border-b">

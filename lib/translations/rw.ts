@@ -1998,6 +1998,7 @@ const rw: Record<string, string> = {
   "failedToRespondRequest": "Byanze gusubiza ibisabo",
   "cancelRequest": "Hakana ibisabo",
   "selectFriendToChat": "Hitamo inshuti yo kuganira nayo",
+  "failedToSendMessage": "Byanze kohereza ubutumwa",
   "inviteToGroupExam": "Ikizamini cy'Igitsina",
   "selectFriends": "Hitamo inshuti wo gutuma",
   "noFriendsToInvite": "Ukeneye inshuti kugira ngo ubitume",
@@ -2058,6 +2059,12 @@ const rw: Record<string, string> = {
   "acceptedYourFriendRequest": "yemeye kwisabwa kwawe kw'inshuti!",
   "friendRequestRejected": "Kwisabwa kw'inshuti cyangiwe",
   "declinedYourFriendRequest": "yanganije kwisabwa kwawe kw'inshuti",
+  "learningLanguages": "Indimi zo kwiga",
+  "learningLanguagesDesc": "Emera cyangwa janga indimi abanyeshuri bishobora guhitamo kwiga",
+  "learningLanguageToggleDesc": "Emera abanyeshuri gukoresha iyi rimi nk'urimi rw'kwiga",
+  "learningLanguagesSaved": "Amagenamiterere y'indimi zo kwiga yabitswe",
+  "failedToUpdateLearningLanguages": "Byanze kubika amagenamiterere y'indimi zo kwiga: ",
+  "noLearningLanguagesAvailable": "Nta ndimi zo kwiga ziboneka ubu. Munze ikigo kibishinzwe.",
 };
 
 export default rw;

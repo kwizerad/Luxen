@@ -1707,6 +1707,7 @@ const fr: Record<string, string> = {
   "failedToRespondRequest": "Échec de la réponse à la demande",
   "cancelRequest": "Annuler la demande",
   "selectFriendToChat": "Sélectionnez un ami pour discuter",
+  "failedToSendMessage": "Échec de l'envoi du message",
   "inviteToGroupExam": "Examen en groupe",
   "selectFriends": "Sélectionnez des amis à inviter",
   "noFriendsToInvite": "Vous avez besoin d'amis pour les inviter",
@@ -1767,6 +1768,12 @@ const fr: Record<string, string> = {
   "acceptedYourFriendRequest": "a accepté votre demande d'ami !",
   "friendRequestRejected": "Demande d'ami refusée",
   "declinedYourFriendRequest": "a refusé votre demande d'ami",
+  "learningLanguages": "Langues d'apprentissage",
+  "learningLanguagesDesc": "Activer ou désactiver les langues que les étudiants peuvent choisir pour l'apprentissage",
+  "learningLanguageToggleDesc": "Autoriser les étudiants à utiliser cette langue comme langue d'apprentissage",
+  "learningLanguagesSaved": "Paramètres de langue d'apprentissage enregistrés",
+  "failedToUpdateLearningLanguages": "Échec de l'enregistrement des paramètres de langue d'apprentissage : ",
+  "noLearningLanguagesAvailable": "Aucune langue d'apprentissage n'est actuellement disponible. Veuillez contacter un administrateur.",
 };
 
 export default fr;
