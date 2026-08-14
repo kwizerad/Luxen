@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Send, Loader2, Users, UserPlus, MessageCircle, Trophy, X, Check, CheckCheck, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Search, Send, Loader2, Users, UserPlus, MessageCircle, Trophy, X, Check, CheckCheck, ArrowLeft, Eye, EyeOff, Bell, Clock, Play } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,10 @@ interface ClassmateRequestWithProfile {
 }
 
 interface ChallengeWithParticipants extends ExamChallenge {
-  participants?: (ExamChallengeParticipant & { profile?: FriendProfile })[];
+  participants?: (ExamChallengeParticipant & { 
+    profile?: FriendProfile;
+    exam_attempt?: { score?: number; percentage?: number };
+  })[];
   creator_profile?: FriendProfile;
 }
 
@@ -53,12 +56,256 @@ function MessageTicks({ msg }: { msg: ChatMessage }) {
   }
 }
 
+function ExamInvitationsContent({ user, supabase, t, navigate }: { user: any; supabase: any; t: any; navigate: (view: string, params?: Record<string, string>) => void }) {
+  const [challenges, setChallenges] = useState<ChallengeWithParticipants[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"pending" | "ongoing" | "completed">("pending");
+
+  useEffect(() => {
+    fetchChallenges();
+  }, [user]);
+
+  const fetchChallenges = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/exam-challenges");
+      const data = await res.json();
+      setChallenges(data.challenges || []);
+    } catch (error) {
+      console.error("Failed to fetch challenges:", error);
+      toast.error(t("failedToLoadChallenges") || "Failed to load challenges");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`exam_challenges:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "exam_challenges" },
+        () => fetchChallenges()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "exam_challenge_participants", filter: `user_id=eq.${user.id}` },
+        () => fetchChallenges()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, supabase]);
+
+  const handleRespondToInvitation = async (challengeId: string, accept: boolean) => {
+    try {
+      const endpoint = accept ? `/api/exam-challenges/${challengeId}/join` : `/api/exam-challenges/${challengeId}/deny`;
+      const res = await fetch(endpoint, { method: "POST" });
+      
+      if (res.ok) {
+        toast.success(accept ? t("invitationAccepted") || "Invitation accepted" : t("invitationDeclined") || "Invitation declined");
+        fetchChallenges();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || t("failedToRespond") || "Failed to respond");
+      }
+    } catch (error) {
+      console.error("Failed to respond to invitation:", error);
+      toast.error(t("failedToRespond") || "Failed to respond");
+    }
+  };
+
+  const filteredChallenges = challenges.filter((challenge) => {
+    const userParticipation = challenge.participants?.find((p) => p.user_id === user?.id);
+    if (!userParticipation) return false;
+
+    if (activeTab === "pending") return userParticipation.status === "pending";
+    if (activeTab === "ongoing") return userParticipation.status === "joined" && challenge.status === "active";
+    if (activeTab === "completed") return challenge.status === "completed" || userParticipation.status === "completed";
+    return false;
+  });
+
+  const getInitials = (name?: string) => {
+    if (!name) return "?";
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Tabs */}
+      <div className="flex gap-2 p-3 border-b">
+        <button
+          onClick={() => setActiveTab("pending")}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeTab === "pending"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          {t("pending") || "Pending"}
+        </button>
+        <button
+          onClick={() => setActiveTab("ongoing")}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeTab === "ongoing"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          {t("ongoing") || "Ongoing"}
+        </button>
+        <button
+          onClick={() => setActiveTab("completed")}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeTab === "completed"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          {t("completed") || "Completed"}
+        </button>
+      </div>
+
+      {/* Challenges List */}
+      <div className="flex-1 overflow-y-auto p-3">
+        {filteredChallenges.length === 0 ? (
+          <div className="text-center py-8">
+            <Bell className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+            <p className="text-sm text-muted-foreground">
+              {activeTab === "pending"
+                ? t("noPendingInvitations") || "No pending invitations"
+                : activeTab === "ongoing"
+                ? t("noOngoingExams") || "No ongoing exams"
+                : t("noCompletedExams") || "No completed exams"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredChallenges.map((challenge) => {
+              const userParticipation = challenge.participants?.find((p) => p.user_id === user?.id);
+              const isPending = userParticipation?.status === "pending";
+              const isOngoing = userParticipation?.status === "joined" && challenge.status === "active";
+              const isCompleted = challenge.status === "completed" || userParticipation?.status === "completed";
+
+              return (
+                <div key={challenge.id} className="bg-card border rounded-lg p-3 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">{challenge.category_name}</span>
+                        <Badge variant={isPending ? "default" : isOngoing ? "secondary" : "outline"} className="text-xs">
+                          {isPending ? t("pending") || "Pending" : isOngoing ? t("ongoing") || "Ongoing" : t("completed") || "Completed"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {t("createdBy") || "Created by"} {challenge.creator_profile?.full_name || challenge.creator_profile?.username || "Unknown"}
+                      </p>
+                    </div>
+                    {isPending && (
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRespondToInvitation(challenge.id, false)}
+                          className="h-7 text-xs"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          {t("decline") || "Decline"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleRespondToInvitation(challenge.id, true)}
+                          className="h-7 text-xs"
+                        >
+                          <Check className="h-3 w-3 mr-1" />
+                          {t("accept") || "Accept"}
+                        </Button>
+                      </div>
+                    )}
+                    {isOngoing && (
+                      <Button size="sm" onClick={() => window.location.href = `/dashboard/exam?challenge_id=${challenge.id}`} className="h-7 text-xs">
+                        <Play className="h-3 w-3 mr-1" />
+                        {t("joinExam") || "Join Exam"}
+                      </Button>
+                    )}
+                    {isCompleted && (
+                      <Button size="sm" variant="outline" onClick={() => window.location.href = `/dashboard/exam?challenge_id=${challenge.id}`} className="h-7 text-xs">
+                        <Trophy className="h-3 w-3 mr-1" />
+                        {t("viewRankings") || "View Rankings"}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Participants */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-muted-foreground">{t("participants") || "Participants"}:</span>
+                    <div className="flex -space-x-1">
+                      {challenge.participants?.slice(0, 4).map((participant) => (
+                        <Avatar key={participant.id} className="w-6 h-6 border-2 border-background">
+                          {participant.profile?.avatar_url ? (
+                            <AvatarImage src={participant.profile.avatar_url} />
+                          ) : (
+                            <AvatarFallback className="text-[8px]">{getInitials(participant.profile?.full_name)}</AvatarFallback>
+                          )}
+                        </Avatar>
+                      ))}
+                      {(challenge.participants?.length || 0) > 4 && (
+                        <div className="w-6 h-6 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[8px] font-medium">
+                          +{(challenge.participants?.length || 0) - 4}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Rankings for completed exams */}
+                  {isCompleted && challenge.participants && (
+                    <div className="space-y-1">
+                      {challenge.participants
+                        .filter((p) => p.status === "completed" && p.exam_attempt)
+                        .sort((a, b) => (b.exam_attempt?.percentage || 0) - (a.exam_attempt?.percentage || 0))
+                        .slice(0, 3)
+                        .map((participant, index) => (
+                          <div key={participant.id} className="flex items-center justify-between text-xs p-1.5 rounded bg-muted/50">
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant={index === 0 ? "default" : index === 1 ? "secondary" : "outline"} className="w-5 h-5 flex items-center justify-center p-0 text-[10px]">
+                                {index + 1}
+                              </Badge>
+                              <span className="font-medium">{participant.profile?.full_name || participant.profile?.username || "Unknown"}</span>
+                            </div>
+                            <span className="font-bold">{participant.exam_attempt?.percentage || 0}%</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const supabase = createClient();
 
-  const [activeTab, setActiveTab] = useState<"friends" | "classmates">("friends");
+  const [activeTab, setActiveTab] = useState<"friends" | "classmates" | "invitations">("friends");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [friends, setFriends] = useState<FriendProfile[]>([]);
@@ -796,6 +1043,14 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
               >
                 {t("classmatesList")}
               </button>
+              <button
+                onClick={() => setActiveTab("invitations")}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === "invitations" ? "bg-background shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                {t("examInvitations") || "Exam Invitations"}
+              </button>
             </div>
             <button
               onClick={handleToggleVisibility}
@@ -931,6 +1186,8 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                 ))
               )}
             </>
+          ) : activeTab === "invitations" ? (
+            <ExamInvitationsContent user={user} supabase={supabase} t={t} navigate={navigate} />
           ) : (
             <>
               {filteredClassmates.length === 0 ? (

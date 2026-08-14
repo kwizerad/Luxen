@@ -19,7 +19,7 @@ import { useLanguage } from "@/lib/language-context";
 import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, HelpCircle, FileText, Play, LogOut, Monitor, Clock, Hash, ArrowLeft, History } from "lucide-react";
 import { ExamReview } from "@/components/exam-review";
 import { ExamChoiceScreen } from "@/components/exam-choice-screen";
-import { ExamInvitationsView } from "@/components/exam-invitations-view";
+import { GroupExamCreation } from "@/components/group-exam-creation";
 import {
   Dialog,
   DialogContent,
@@ -149,7 +149,7 @@ export default function TakeExamPage() {
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
   const [showQuestionPalette, setShowQuestionPalette] = useState(true);
-  const [examMode, setExamMode] = useState<"choice" | "individual" | "group" | "invitations">("choice");
+  const [examMode, setExamMode] = useState<"choice" | "individual" | "group">("choice");
 
   const cheatingAttemptsRef = useRef(cheatingAttempts);
   const fullscreenRetryCountRef = useRef(fullscreenRetryCount);
@@ -1156,21 +1156,90 @@ export default function TakeExamPage() {
         onNavigate={(choice) => {
           if (choice === "individual") {
             setExamMode("individual");
+            setShowInstructions(false);
           } else if (choice === "group") {
             setExamMode("group");
-          } else if (choice === "invitations") {
-            setExamMode("invitations");
           }
         }}
       />
     );
   }
 
-  // Show exam invitations view
-  if (examMode === "invitations") {
+  // Show category selection for individual exam
+  if (examMode === "individual" && !instructionsAccepted && !exam) {
     return (
-      <ExamInvitationsView
+      <div className="min-h-[calc(100vh-80px)] p-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Back button */}
+          <button
+            onClick={() => setExamMode("choice")}
+            className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t("back") || "Back"}
+          </button>
+
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold mb-2">{t("selectExamCategory") || "Select Exam Category"}</h1>
+            <p className="text-muted-foreground">{t("chooseCategoryToStart") || "Choose a category to start your individual exam"}</p>
+          </div>
+
+          {/* Categories */}
+          {loadingCategories ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-32 bg-muted rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <p className="text-muted-foreground">{t("noCategoriesAvailable") || "No exam categories available"}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {categories.map((category) => (
+                <Card 
+                  key={category.id}
+                  className="cursor-pointer hover:shadow-lg transition-all hover:scale-105 border-2 hover:border-primary"
+                  onClick={() => {
+                    setCategoryId(category.id);
+                    setShowInstructions(true);
+                    setInstructionsAccepted(false);
+                  }}
+                >
+                  <CardHeader>
+                    <CardTitle className="text-lg">{category.name}</CardTitle>
+                    <CardDescription>
+                      {category.description || t("examCategoryDescription") || "Take exam in this category"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button className="w-full" variant="outline">
+                      {t("select") || "Select"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Show group exam creation
+  if (examMode === "group") {
+    return (
+      <GroupExamCreation
         onBack={() => setExamMode("choice")}
+        onStartExam={(categoryId, inviteeIds) => {
+          setCategoryId(categoryId);
+          setChallengeId(inviteeIds.join(",")); // Store invitee IDs temporarily
+          setShowInstructions(true);
+          setInstructionsAccepted(false);
+        }}
       />
     );
   }

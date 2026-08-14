@@ -7,6 +7,9 @@
 -- Drop the restrictive admin-only insert policy
 DROP POLICY IF EXISTS "Admins can create notifications" ON notifications;
 
+-- Drop existing service role policy if it exists (for idempotency)
+DROP POLICY IF EXISTS "Service role can insert notifications" ON notifications;
+
 -- Create a policy that allows service role to insert notifications (bypasses RLS)
 CREATE POLICY "Service role can insert notifications"
   ON notifications FOR INSERT
