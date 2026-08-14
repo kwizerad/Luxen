@@ -2079,6 +2079,10 @@ const rw: Record<string, string> = {
   "interfaceLanguageToggleDesc": "Emera abakoresha gukoresha iyi rimi nk'urimi y'ikarata",
   "interfaceLanguagesSaved": "Amagenamiterere y'indimi y'ikarata yabitswe",
   "failedToUpdateInterfaceLanguages": "Byanze kubika amagenamiterere y'indimi y'ikarata: ",
+  "courseAnalytics": "Isuzuma ry'Amasomo",
+  "noCourseData": "Nta makuru y'amasomo aboneka",
+  "timePerModule": "Igihe ku gice",
+  "timePerLesson": "Igihe ku isomo",
 };
 
 export default rw;

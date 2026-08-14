@@ -2271,6 +2271,10 @@ const en: Record<string, string> = {
   "interfaceLanguageToggleDesc": "Allow users to use this language as the app interface language",
   "interfaceLanguagesSaved": "Interface language settings saved",
   "failedToUpdateInterfaceLanguages": "Failed to save interface language settings: ",
+  "courseAnalytics": "Course Analytics",
+  "noCourseData": "No course data available",
+  "timePerModule": "Time per Module",
+  "timePerLesson": "Time per Lesson",
 };
 
 export default en;

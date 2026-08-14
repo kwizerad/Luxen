@@ -204,6 +204,20 @@ export interface UserProgressSummary {
   examPassed: boolean;
   examAttempts: number;
   bestScore?: number | null;
+  timeSpentSeconds: number;
+  exceededTimeSeconds: number;
+  completedAt?: string | null;
+}
+
+export interface UserLessonProgressDetail {
+  lessonId: string;
+  lessonTitle: string;
+  moduleId: string;
+  moduleTitle: string;
+  completed: boolean;
+  timeSpentSeconds: number;
+  exceededTimeSeconds: number;
+  completedAt?: string | null;
 }
 
 export async function getStudentProgressSummary(userId: string): Promise<UserProgressSummary[]> {
@@ -229,6 +243,36 @@ export async function getStudentProgressSummary(userId: string): Promise<UserPro
     examPassed: p.exam_passed,
     examAttempts: p.exam_attempts,
     bestScore: p.best_score,
+    timeSpentSeconds: p.time_spent_seconds || 0,
+    exceededTimeSeconds: p.exceeded_time_seconds || 0,
+    completedAt: p.completed_at || null,
+  }));
+}
+
+export async function getStudentLessonProgressDetail(userId: string): Promise<UserLessonProgressDetail[]> {
+  const supabase = await createClient();
+  await requireAdmin();
+
+  const { data: lessonProgress, error } = await supabase
+    .from("student_lesson_progress")
+    .select("*, course_lessons(title), course_modules(title)")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    console.error("getStudentLessonProgressDetail error:", error);
+    return [];
+  }
+
+  return (lessonProgress || []).map((p) => ({
+    lessonId: p.lesson_id,
+    lessonTitle: (p.course_lessons as { title?: string })?.title || "Lesson",
+    moduleId: p.module_id,
+    moduleTitle: (p.course_modules as { title?: string })?.title || "Module",
+    completed: p.completed,
+    timeSpentSeconds: p.time_spent_seconds || 0,
+    exceededTimeSeconds: p.exceeded_time_seconds || 0,
+    completedAt: p.completed_at || null,
   }));
 }
 

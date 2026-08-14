@@ -1788,6 +1788,10 @@ const fr: Record<string, string> = {
   "interfaceLanguageToggleDesc": "Autoriser les utilisateurs à utiliser cette langue comme langue de l'interface",
   "interfaceLanguagesSaved": "Paramètres de langue de l'interface enregistrés",
   "failedToUpdateInterfaceLanguages": "Échec de l'enregistrement des paramètres de langue de l'interface : ",
+  "courseAnalytics": "Analyse de cours",
+  "noCourseData": "Aucune donnée de cours disponible",
+  "timePerModule": "Temps par module",
+  "timePerLesson": "Temps par leçon",
 };
 
 export default fr;

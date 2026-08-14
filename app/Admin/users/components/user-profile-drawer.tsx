@@ -37,11 +37,13 @@ import {
   Key,
   Send,
   Monitor,
+  BookOpen,
+  Timer,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
 import type { UserWithStatus, UserProgressSummary } from "./types";
-import { getUserActivity, getStudentProgressSummary, getUserNationalIdRecords, type NationalIdRecord } from "../../actions/users";
+import { getUserActivity, getStudentProgressSummary, getStudentLessonProgressDetail, getUserNationalIdRecords, type NationalIdRecord, type UserLessonProgressDetail } from "../../actions/users";
 import { DeviceInfoTab } from "./device-info-tab";
 import { sendPasswordReset } from "@/app/Admin/actions/devices";
 
@@ -67,6 +69,7 @@ export function UserProfileDrawer({
   const { t } = useLanguage();
   const [activity, setActivity] = useState<Awaited<ReturnType<typeof getUserActivity>>>([]);
   const [progress, setProgress] = useState<UserProgressSummary[]>([]);
+  const [lessonProgress, setLessonProgress] = useState<UserLessonProgressDetail[]>([]);
   const [nationalIdRecords, setNationalIdRecords] = useState<NationalIdRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
@@ -82,11 +85,13 @@ export function UserProfileDrawer({
     Promise.all([
       getUserActivity(user.id),
       getStudentProgressSummary(user.id),
+      getStudentLessonProgressDetail(user.id),
       getUserNationalIdRecords(user.id),
     ])
-      .then(([a, p, records]) => {
+      .then(([a, p, lp, records]) => {
         setActivity(a);
         setProgress(p);
+        setLessonProgress(lp);
         setNationalIdRecords(records);
       })
       .catch((err) => toast.error(t("failedToLoadActivity") + (err instanceof Error ? err.message : String(err))))
@@ -248,6 +253,7 @@ export function UserProfileDrawer({
                 {[
                   { id: "info", label: t("profile"), icon: <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
                   { id: "exams", label: t("examHistory"), icon: <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "courseAnalytics", label: t("courseAnalytics") || "Course", icon: <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
                   { id: "activity", label: t("activity"), icon: <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
                   { id: "security", label: t("security"), icon: <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
                   { id: "device", label: t("deviceInfo"), icon: <Monitor className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
@@ -305,6 +311,114 @@ export function UserProfileDrawer({
                           />
                         </div>
                       ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Course Analytics Tab */}
+                <TabsContent value="courseAnalytics" className="space-y-3 sm:space-y-4 mt-4">
+                  {loading ? (
+                    <LoadingState />
+                  ) : progress.length === 0 && lessonProgress.length === 0 ? (
+                    <EmptyState message={t("noCourseData") || "No course data available"} />
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Total time summary */}
+                      {(() => {
+                        const totalTime = progress.reduce((sum, p) => sum + (p.timeSpentSeconds || 0), 0);
+                        const totalExceeded = progress.reduce((sum, p) => sum + (p.exceededTimeSeconds || 0), 0);
+                        const totalLessonsCompleted = progress.reduce((sum, p) => sum + p.lessonsCompleted, 0);
+                        const totalLessonsAll = progress.reduce((sum, p) => sum + p.totalLessons, 0);
+                        const overallProgress = totalLessonsAll > 0 ? Math.round((totalLessonsCompleted / totalLessonsAll) * 100) : 0;
+                        return (
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                            <div className="p-3 rounded-xl border bg-muted/30 text-center">
+                              <Timer className="h-4 w-4 mx-auto mb-1 text-primary" />
+                              <p className="text-xs text-muted-foreground">{t("totalTimeSpent") || "Total Time"}</p>
+                              <p className="text-sm font-bold tabular-nums">{formatDuration(totalTime)}</p>
+                            </div>
+                            <div className="p-3 rounded-xl border bg-muted/30 text-center">
+                              <Clock className="h-4 w-4 mx-auto mb-1 text-blue-500" />
+                              <p className="text-xs text-muted-foreground">{t("overtime") || "Overtime"}</p>
+                              <p className="text-sm font-bold tabular-nums text-blue-500">{formatDuration(totalExceeded)}</p>
+                            </div>
+                            <div className="p-3 rounded-xl border bg-muted/30 text-center">
+                              <BookOpen className="h-4 w-4 mx-auto mb-1 text-primary" />
+                              <p className="text-xs text-muted-foreground">{t("lessonsCompleted") || "Lessons"}</p>
+                              <p className="text-sm font-bold tabular-nums">{totalLessonsCompleted}/{totalLessonsAll}</p>
+                            </div>
+                            <div className="p-3 rounded-xl border bg-muted/30 text-center">
+                              <Trophy className="h-4 w-4 mx-auto mb-1 text-primary" />
+                              <p className="text-xs text-muted-foreground">{t("overallProgress") || "Progress"}</p>
+                              <p className="text-sm font-bold tabular-nums">{overallProgress}%</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Per-module time breakdown */}
+                      {progress.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("timePerModule") || "Time per Module"}</h4>
+                          {progress.map((p) => {
+                            const modProgress = p.totalLessons > 0 ? Math.round((p.lessonsCompleted / p.totalLessons) * 100) : 0;
+                            return (
+                              <div key={p.id} className="p-3 border rounded-xl bg-muted/30 space-y-2">
+                                <div className="flex justify-between items-center gap-2">
+                                  <span className="font-medium text-sm truncate">{p.moduleTitle}</span>
+                                  <Badge variant={p.examPassed ? "default" : "secondary"} className="text-xs flex-shrink-0">
+                                    {p.examPassed ? t("passed") : t("inProgress")}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Timer className="h-3 w-3" />
+                                    {formatDuration(p.timeSpentSeconds)}
+                                  </span>
+                                  {p.exceededTimeSeconds > 0 && (
+                                    <span className="inline-flex items-center gap-1 text-blue-500">
+                                      <Clock className="h-3 w-3" />
+                                      +{formatDuration(p.exceededTimeSeconds)} {t("overtime") || "overtime"}
+                                    </span>
+                                  )}
+                                  <span>{p.lessonsCompleted}/{p.totalLessons} {t("lessons") || "lessons"}</span>
+                                  {p.completedAt && (
+                                    <span className="inline-flex items-center gap-1">
+                                      <CheckCircle className="h-3 w-3" />
+                                      {formatDate(p.completedAt)}
+                                    </span>
+                                  )}
+                                </div>
+                                <Progress value={modProgress} className="h-1.5" />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Per-lesson time breakdown */}
+                      {lessonProgress.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("timePerLesson") || "Time per Lesson"}</h4>
+                          <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
+                            {lessonProgress.map((lp, idx) => (
+                              <div key={`${lp.lessonId}-${idx}`} className="flex items-center justify-between p-2.5 border rounded-lg bg-muted/20 gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium truncate">{lp.lessonTitle}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{lp.moduleTitle}</p>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {lp.completed && <CheckCircle className="h-3.5 w-3.5 text-green-500" />}
+                                  <span className="text-xs font-medium tabular-nums inline-flex items-center gap-1">
+                                    <Timer className="h-3 w-3 text-primary" />
+                                    {formatDuration(lp.timeSpentSeconds)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </TabsContent>
@@ -504,4 +618,14 @@ function EmptyState({ message }: { message: string }) {
       {message}
     </div>
   );
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins < 60) return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return remMins === 0 ? `${hrs}h` : `${hrs}h ${remMins}m`;
 }
