@@ -1792,6 +1792,11 @@ const fr: Record<string, string> = {
   "noCourseData": "Aucune donnée de cours disponible",
   "timePerModule": "Temps par module",
   "timePerLesson": "Temps par leçon",
+  "noInternetConnection": "Aucune connexion Internet",
+  "noInternetDescription": "Vous semble être hors ligne. Veuillez vérifier votre connexion Internet et réessayer. La page se restaurera automatiquement une fois la connexion rétablie.",
+  "reloadPage": "Recharger la page",
+  "backOnline": "De nouveau en ligne",
+  "checkingConnection": "Vérification de la connexion...",
 };
 
 export default fr;

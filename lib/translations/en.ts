@@ -2275,6 +2275,11 @@ const en: Record<string, string> = {
   "noCourseData": "No course data available",
   "timePerModule": "Time per Module",
   "timePerLesson": "Time per Lesson",
+  "noInternetConnection": "No Internet Connection",
+  "noInternetDescription": "You appear to be offline. Please check your internet connection and try again. The page will automatically restore once the connection is back.",
+  "reloadPage": "Reload Page",
+  "backOnline": "Back Online",
+  "checkingConnection": "Checking connection...",
 };
 
 export default en;

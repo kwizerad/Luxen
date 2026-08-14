@@ -2083,6 +2083,11 @@ const rw: Record<string, string> = {
   "noCourseData": "Nta makuru y'amasomo aboneka",
   "timePerModule": "Igihe ku gice",
   "timePerLesson": "Igihe ku isomo",
+  "noInternetConnection": "Nta murandara w'Interineti",
+  "noInternetDescription": "Uriboneka nk'utari kuri murandara. Bwira usuzume umurandara wawe wa Interineti hanyuma ugerageze kandi. Ipaji izongera mu byiza iyo umurandara usubiriye.",
+  "reloadPage": "Ongera utangize ipaji",
+  "backOnline": "Hasubiye kuri murandara",
+  "checkingConnection": "Kugenzura umurandara...",
 };
 
 export default rw;

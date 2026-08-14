@@ -17,6 +17,7 @@ import { ServiceWorkerRegistration } from "@/components/sw-registration";
 import { ParticlesBackground } from "@/components/particles-background";
 import { GlobalClickSpark } from "@/components/global-click-spark";
 import { BackgroundManager } from "@/components/background-manager";
+import { NetworkStatus } from "@/components/network-status";
 import { getSystemName } from "@/lib/server-config";
 import "sonner/dist/styles.css";
 import "./globals.css";
@@ -111,6 +112,7 @@ export default function RootLayout({
                       <AuthModalsProvider>
                         <Toaster position="top-right" richColors closeButton />
                         {children}
+                        <NetworkStatus />
                         <FloatingSettings />
                         <AuthModalsContainer />
                         <ClientComponents />
