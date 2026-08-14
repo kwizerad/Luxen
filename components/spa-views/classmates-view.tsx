@@ -928,7 +928,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         ) : (
           <>
             {/* Chat Header */}
-            <div className="border-b px-4 py-3 flex items-center gap-3">
+            <div className="sticky top-0 z-10 shrink-0 border-b px-4 py-3 flex items-center gap-3 bg-background">
               <button
                 onClick={() => {
                   setSelectedFriend(null);
@@ -1036,8 +1036,8 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
 
       {/* Mobile Chat Overlay */}
       {selectedFriend && (
-        <div className="sm:hidden fixed inset-0 z-50 flex flex-col bg-background">
-          <div className="border-b px-4 py-3 flex items-center gap-3">
+        <div className="sm:hidden fixed inset-0 z-50 flex flex-col bg-background" style={{ height: "100dvh" }}>
+          <div className="sticky top-0 z-10 shrink-0 border-b px-4 py-3 flex items-center gap-3 bg-background">
             <button
               onClick={() => {
                 setSelectedFriend(null);

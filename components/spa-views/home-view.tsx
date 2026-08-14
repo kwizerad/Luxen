@@ -55,15 +55,17 @@ export function HomeView({ navigate }: HomeViewProps) {
     return <HomeViewSkeleton />;
   }
 
+  const hasCourses = (stats?.totalLessons ?? 0) > 0;
+
   const quickLinks: { view: string; icon: typeof BookOpen; titleKey: string; descKey: string; iconBg: string; iconColor: string }[] = [
-    {
+    ...(hasCourses ? [{
       view: "course",
       icon: BookOpen,
       titleKey: "courses",
       descKey: "coursesDesc",
       iconBg: "bg-blue-500/10",
       iconColor: "text-blue-500",
-    },
+    }] : []),
     {
       view: "services",
       icon: LayoutGrid,
@@ -216,7 +218,7 @@ export function HomeView({ navigate }: HomeViewProps) {
               </div>
               <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-1" />
             </button>
-          ) : (
+          ) : hasCourses ? (
             <button
               onClick={() => navigate("course")}
               className="group flex w-full items-center gap-2.5 sm:gap-4 rounded-xl sm:rounded-2xl border bg-card p-3 sm:p-5 transition-all hover:border-primary hover:shadow-md hover:-translate-y-0.5 text-left"
@@ -234,7 +236,7 @@ export function HomeView({ navigate }: HomeViewProps) {
               </div>
               <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-1" />
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* Quick Actions */}
