@@ -1652,6 +1652,8 @@ const fr: Record<string, string> = {
   "browseDrivers": "Parcourir les moniteurs",
   "noMessagesYet": "Aucun message pour le moment",
   "typeMessage": "Tapez un message...",
+  "typing": "écrit...",
+  "isTyping": "est en train d'écrire...",
   "registerAsDriver": "S'inscrire comme moniteur",
   "trainingLocation": "Lieu de formation",
   "trainingAddress": "Adresse de formation",

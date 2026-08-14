@@ -80,6 +80,9 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const [selectedInvitees, setSelectedInvitees] = useState<Set<string>>(new Set());
   const [creatingChallenge, setCreatingChallenge] = useState(false);
   const [pictureViewer, setPictureViewer] = useState<{ url: string; name: string } | null>(null);
+  const [isFriendTyping, setIsFriendTyping] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState<{ senderId: string; senderName: string; message: string; conversationId: string }[]>([]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const messageChannelRef = useRef<ReturnType<typeof createClient> extends infer T ? any : any>(null);
@@ -160,6 +163,56 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Global realtime subscription for new message notifications
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") return;
+
+    const channel = supabase
+      .channel(`chat_notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_messages" },
+        async (payload: any) => {
+          const newMsg = payload.new;
+          // Only notify for messages from others, not our own
+          if (newMsg.sender_id === user.id) return;
+          // Don't notify if we're currently viewing this conversation
+          if (conversationId === newMsg.conversation_id) return;
+
+          // Fetch sender profile
+          const { data: senderProfile } = await supabase
+            .from("user_profiles")
+            .select("full_name, username")
+            .eq("id", newMsg.sender_id)
+            .maybeSingle();
+
+          const senderName = senderProfile?.full_name || senderProfile?.username || "Unknown";
+          setUnreadNotifications((prev) => {
+            // Keep only last 5 notifications, replace if same conversation
+            const filtered = prev.filter((n) => n.conversationId !== newMsg.conversation_id);
+            return [...filtered, {
+              senderId: newMsg.sender_id,
+              senderName,
+              message: newMsg.message,
+              conversationId: newMsg.conversation_id,
+            }].slice(-5);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, conversationId, supabase]);
+
+  // Auto-dismiss notifications after 5 seconds
+  useEffect(() => {
+    if (unreadNotifications.length === 0) return;
+    const timer = setTimeout(() => setUnreadNotifications([]), 5000);
+    return () => clearTimeout(timer);
+  }, [unreadNotifications]);
 
   // Real-time subscription for classmate_requests and user_profiles
   useEffect(() => {
@@ -374,6 +427,8 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
             if (prev.some((m) => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
+          // Clear typing indicator when a message arrives
+          setIsFriendTyping(false);
           if (newMsg.sender_id !== user?.id) {
             // Mark as read since we're viewing the chat
             fetch("/api/chat/messages", {
@@ -394,12 +449,48 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
           );
         }
       )
+      .on("broadcast", { event: "typing" }, (payload: any) => {
+        if (payload.payload?.userId !== user?.id) {
+          setIsFriendTyping(true);
+          // Auto-clear typing after 3 seconds
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => setIsFriendTyping(false), 3000);
+        }
+      })
+      .on("broadcast", { event: "stop_typing" }, (payload: any) => {
+        if (payload.payload?.userId !== user?.id) {
+          setIsFriendTyping(false);
+        }
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+      setIsFriendTyping(false);
     };
   }, [conversationId, user?.id, supabase]);
+
+  // Broadcast typing status
+  const broadcastTyping = () => {
+    if (!conversationId) return;
+    const channel = supabase.channel(`chat_messages:${conversationId}`);
+    channel.send({ type: "broadcast", event: "typing", payload: { userId: user?.id } });
+  };
+
+  const broadcastStopTyping = () => {
+    if (!conversationId) return;
+    const channel = supabase.channel(`chat_messages:${conversationId}`);
+    channel.send({ type: "broadcast", event: "stop_typing", payload: { userId: user?.id } });
+  };
+
+  const handleMessageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    if (e.target.value.trim()) {
+      broadcastTyping();
+    } else {
+      broadcastStopTyping();
+    }
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -970,15 +1061,13 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                   {selectedFriend.full_name || selectedFriend.username}
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  {isOnline(selectedFriend.last_seen)
+                  {isFriendTyping
+                    ? t("typing")
+                    : isOnline(selectedFriend.last_seen)
                     ? t("online")
                     : (formatLastSeen(selectedFriend.last_seen) || `@${selectedFriend.username}`)}
                 </p>
               </div>
-              <Button size="sm" variant="outline" onClick={openInviteModal} className="text-xs">
-                <Trophy className="h-3.5 w-3.5 mr-1.5" />
-                {t("inviteToGroupExam")}
-              </Button>
             </div>
 
             {/* Challenge Cards */}
@@ -1035,18 +1124,38 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
               )}
             </div>
 
+            {/* Typing indicator */}
+            {isFriendTyping && (
+              <div className="px-4 pb-1 text-xs text-muted-foreground italic">
+                {selectedFriend.full_name || selectedFriend.username} {t("isTyping")}
+              </div>
+            )}
+
             {/* Message Input */}
             <div className="border-t px-4 py-3 flex items-center gap-2">
+              <button
+                onClick={openInviteModal}
+                title={t("inviteToGroupExam")}
+                className="rounded-xl p-2.5 text-muted-foreground hover:text-primary hover:bg-muted transition-colors shrink-0"
+              >
+                <Trophy className="h-5 w-5" />
+              </button>
               <input
                 type="text"
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                onChange={handleMessageInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSendMessage();
+                  else if (e.key === "Backspace" && !newMessage) broadcastStopTyping();
+                }}
                 placeholder={t("typeMessage")}
                 className="flex-1 rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
               />
               <button
-                onClick={handleSendMessage}
+                onClick={() => {
+                  broadcastStopTyping();
+                  handleSendMessage();
+                }}
                 disabled={sendingMessage || !newMessage.trim()}
                 className="rounded-xl bg-primary p-2.5 text-primary-foreground disabled:opacity-50"
               >
@@ -1082,12 +1191,13 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                 {selectedFriend.full_name || selectedFriend.username}
               </h2>
               <p className="text-xs text-muted-foreground">
-                {isOnline(selectedFriend.last_seen) ? t("online") : `@${selectedFriend.username}`}
+                {isFriendTyping
+                  ? t("typing")
+                  : isOnline(selectedFriend.last_seen)
+                  ? t("online")
+                  : `@${selectedFriend.username}`}
               </p>
             </div>
-            <Button size="sm" variant="outline" onClick={openInviteModal} className="text-xs">
-              <Trophy className="h-3.5 w-3.5" />
-            </Button>
           </div>
 
           {challenges.length > 0 && (
@@ -1139,17 +1249,37 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
             )}
           </div>
 
+            {/* Typing indicator */}
+            {isFriendTyping && (
+              <div className="px-4 pb-1 text-xs text-muted-foreground italic">
+                {selectedFriend.full_name || selectedFriend.username} {t("isTyping")}
+              </div>
+            )}
+
           <div className="border-t px-4 py-3 flex items-center gap-2">
+            <button
+              onClick={openInviteModal}
+              title={t("inviteToGroupExam")}
+              className="rounded-xl p-2.5 text-muted-foreground hover:text-primary hover:bg-muted transition-colors shrink-0"
+            >
+              <Trophy className="h-5 w-5" />
+            </button>
             <input
               type="text"
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+              onChange={handleMessageInputChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSendMessage();
+                else if (e.key === "Backspace" && !newMessage) broadcastStopTyping();
+              }}
               placeholder={t("typeMessage")}
               className="flex-1 rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
             />
             <button
-              onClick={handleSendMessage}
+              onClick={() => {
+                broadcastStopTyping();
+                handleSendMessage();
+              }}
               disabled={sendingMessage || !newMessage.trim()}
               className="rounded-xl bg-primary p-2.5 text-primary-foreground disabled:opacity-50"
             >
@@ -1255,6 +1385,34 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* New message notifications */}
+      {unreadNotifications.length > 0 && (
+        <div className="fixed bottom-20 right-4 z-50 flex flex-col gap-2 max-w-xs">
+          {unreadNotifications.map((notif, idx) => {
+            const friend = friends.find((f) => f.id === notif.senderId);
+            return (
+              <button
+                key={idx}
+                onClick={() => {
+                  if (friend) openChat(friend);
+                  setUnreadNotifications([]);
+                }}
+                className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-lg transition-all hover:shadow-xl text-left animate-in slide-in-from-bottom-2"
+              >
+                <div className="relative shrink-0">
+                  <ProfileAvatar profile={friend} size="h-10 w-10" />
+                  <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">{notif.senderName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{notif.message}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

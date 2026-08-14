@@ -1943,6 +1943,8 @@ const rw: Record<string, string> = {
   "browseDrivers": "Shakisha Abarezi",
   "noMessagesYet": "Nta butumwa kugeza ubu",
   "typeMessage": "Andika ubutumwa...",
+  "typing": "andika...",
+  "isTyping": "ari kwandika...",
   "registerAsDriver": "Iyandike nk'Umufasha",
   "trainingLocation": "Aho mwitoza",
   "trainingAddress": "Aderesi yo kwitoza",

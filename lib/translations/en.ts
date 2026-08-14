@@ -2116,6 +2116,8 @@ const en: Record<string, string> = {
   "browseDrivers": "Browse Drivers",
   "noMessagesYet": "No messages yet",
   "typeMessage": "Type a message...",
+  "typing": "typing...",
+  "isTyping": "is typing...",
 
   // Driver Registration
   "registerAsDriver": "Register as Driver",
