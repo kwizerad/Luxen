@@ -1307,6 +1307,10 @@
 .admin-portal ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }
 .admin-portal ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
 
+/* Light mode scrollbar — visible dark thumb */
+:not(.dark) .admin-portal ::-webkit-scrollbar-thumb { background: rgba(18, 18, 23, 0.15); border-radius: 8px; }
+:not(.dark) .admin-portal ::-webkit-scrollbar-thumb:hover { background: rgba(18, 18, 23, 0.25); }
+
 /* ---------- Admin chart tooltip ---------- */
 .admin-chart-tooltip {
   border-radius: 12px;
@@ -1318,6 +1322,12 @@
   padding: 10px 14px;
   font-size: 13px;
   color: var(--admin-text);
+}
+
+/* Light mode chart tooltip */
+:not(.dark) .admin-chart-tooltip {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.12);
 }
 
 /* ---------- Admin shadcn component overrides ---------- */
@@ -1620,6 +1630,11 @@ body.admin-portal-active .fixed.inset-0.z-50.bg-black\/60 {
   background: rgba(0, 0, 0, 0.5) !important;
 }
 
+/* Light mode dialog overlay — lighter */
+:not(.dark) body.admin-portal-active .fixed.inset-0.z-50.bg-black\/60 {
+  background: rgba(18, 18, 23, 0.25) !important;
+}
+
 /* Admin Dropdown menus — portaled to body, Radix sets role="menu" */
 body.admin-portal-active [role="menu"] {
   border-radius: 16px !important;
@@ -1744,6 +1759,10 @@ body.admin-portal-active [role="option"]:focus {
 .admin-portal ::-webkit-scrollbar-thumb { background: var(--admin-hover-bg); border-radius: 6px; }
 .admin-portal ::-webkit-scrollbar-track { background: transparent; }
 
+/* Light mode admin scrollbar — visible dark thumb */
+:not(.dark) .admin-portal ::-webkit-scrollbar-thumb { background: rgba(18, 18, 23, 0.15); border-radius: 6px; }
+:not(.dark) .admin-portal ::-webkit-scrollbar-thumb:hover { background: rgba(18, 18, 23, 0.25); }
+
 /* ============================================================= */
 /*  PREMIUM DASHBOARD CARDS — Dark Glassmorphism                 */
 /*  Used by student dashboard components (KPICard, etc.)         */
@@ -1754,11 +1773,11 @@ body.admin-portal-active [role="option"]:focus {
 .premium-dash-card {
   position: relative;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
   transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 250ms ease,
               border-color 250ms ease;
@@ -1772,7 +1791,7 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 .premium-dash-card:hover {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(18, 18, 23, 0.14);
 }
 
 /* Dark mode */
@@ -1808,11 +1827,11 @@ body.admin-portal-active [role="option"]:focus {
 .premium-kpi-card {
   position: relative;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
   transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 250ms ease,
               border-color 250ms ease;
@@ -1827,7 +1846,7 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 .premium-kpi-card:hover {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(18, 18, 23, 0.14);
 }
 
 /* Dark mode */
@@ -1887,7 +1906,7 @@ body.admin-portal-active [role="option"]:focus {
   width: 100%;
   height: 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(18, 18, 23, 0.08);
   overflow: hidden;
 }
 
@@ -1926,6 +1945,10 @@ body.admin-portal-active [role="option"]:focus {
   color: #FFFFFF;
 }
 
+:not(.dark) .premium-dash-value {
+  color: #0F172A;
+}
+
 .premium-dash-label {
   font-size: 13px;
   font-weight: 500;
@@ -1948,6 +1971,10 @@ body.admin-portal-active [role="option"]:focus {
 
 .dark .premium-dash-title {
   color: #FFFFFF;
+}
+
+:not(.dark) .premium-dash-title {
+  color: #0F172A;
 }
 
 .premium-dash-subtitle {
@@ -1991,6 +2018,18 @@ body.admin-portal-active [role="option"]:focus {
   color: #94A3B8;
 }
 
+:not(.dark) .premium-trend-up {
+  color: #16A34A;
+}
+
+:not(.dark) .premium-trend-down {
+  color: #DC2626;
+}
+
+:not(.dark) .premium-trend-stable {
+  color: #64748B;
+}
+
 /* Premium empty state */
 .premium-empty-icon {
   width: 64px;
@@ -1999,8 +2038,8 @@ body.admin-portal-active [role="option"]:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(18, 18, 23, 0.04);
+  border: 1px solid rgba(18, 18, 23, 0.08);
   margin: 0 auto 16px;
 }
 
@@ -2024,11 +2063,11 @@ body.admin-portal-active [role="option"]:focus {
 .premium-quick-action {
   position: relative;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
   transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 250ms ease,
               border-color 250ms ease;
@@ -2043,7 +2082,7 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 .premium-quick-action:hover {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(18, 18, 23, 0.14);
 }
 
 /* Dark mode */
@@ -2105,14 +2144,14 @@ body.admin-portal-active [role="option"]:focus {
   gap: 12px;
   padding: 12px 16px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(18, 18, 23, 0.02);
+  border: 1px solid rgba(18, 18, 23, 0.04);
   transition: background 200ms ease, border-color 200ms ease;
 }
 
 .premium-list-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(18, 18, 23, 0.04);
+  border-color: rgba(18, 18, 23, 0.08);
 }
 
 /* Dark mode — visible dark glass */
@@ -2158,7 +2197,7 @@ body.admin-portal-active [role="option"]:focus {
 
 .premium-icon-purple {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.08));
-  color: #A5B4FC;
+  color: #6366F1;
 }
 
 .dark .premium-icon-purple {
@@ -2169,7 +2208,7 @@ body.admin-portal-active [role="option"]:focus {
 
 .premium-icon-green {
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(74, 222, 128, 0.08));
-  color: #4ADE80;
+  color: #22C55E;
 }
 
 .dark .premium-icon-green {
@@ -2180,7 +2219,7 @@ body.admin-portal-active [role="option"]:focus {
 
 .premium-icon-orange {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.08));
-  color: #FBBF24;
+  color: #D97706;
 }
 
 .dark .premium-icon-orange {
@@ -2191,7 +2230,7 @@ body.admin-portal-active [role="option"]:focus {
 
 .premium-icon-pink {
   background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(244, 114, 182, 0.08));
-  color: #F472B6;
+  color: #EC4899;
 }
 
 .dark .premium-icon-pink {
@@ -2202,7 +2241,7 @@ body.admin-portal-active [role="option"]:focus {
 
 .premium-icon-teal {
   background: linear-gradient(135deg, rgba(20, 184, 166, 0.15), rgba(45, 212, 191, 0.08));
-  color: #2DD4BF;
+  color: #14B8A6;
 }
 
 .dark .premium-icon-teal {
@@ -2213,7 +2252,7 @@ body.admin-portal-active [role="option"]:focus {
 
 /* Premium progress ring (SVG) */
 .premium-ring-bg {
-  stroke: rgba(255, 255, 255, 0.08);
+  stroke: rgba(18, 18, 23, 0.08);
 }
 
 /* Dark mode — visible ring track */
