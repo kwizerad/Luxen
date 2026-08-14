@@ -7,6 +7,7 @@ import { useLearningLanguages } from "@/hooks/use-learning-languages";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { BookOpen, ChevronRight, ChevronLeft, Clock, CheckCircle2, Circle, Layers, ArrowRight, Play, FileText, Lock, Trophy, Shield, Home } from "lucide-react";
+import ScrollStack, { ScrollStackItem } from "@/components/scroll-stack";
 import type { CourseLanguageCourse, CourseModule, CourseLesson, ModuleExamSettings } from "@/lib/database.types";
 import { LessonContentView } from "@/app/dashboard/course/LessonContentView";
 import { TopicCarousel, type CarouselTopic } from "@/components/topic-carousel";
@@ -718,7 +719,17 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <ScrollStack
+            useWindowScroll
+            itemDistance={120}
+            itemStackDistance={40}
+            baseScale={0.9}
+            itemScale={0.02}
+            stackPosition="15%"
+            scaleEndPosition="8%"
+            rotationAmount={0}
+            blurAmount={0}
+          >
             {course.modules.map((module, modIdx) => {
               const moduleItems = flatList.filter((f) => f.moduleId === module.id);
               const moduleDone = moduleItems.filter((f) => completedItems.has(itemKey(f))).length;
@@ -730,7 +741,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               const examPassed = mp?.exam_passed;
 
               return (
-                <div key={module.id}>
+                <ScrollStackItem key={module.id}>
                   <button
                     type="button"
                     onClick={() => startModule(module.id)}
@@ -792,10 +803,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                       </div>
                     </div>
                   )}
-                </div>
+                </ScrollStackItem>
               );
             })}
-          </div>
+          </ScrollStack>
 
           {allModulesCompleted() && (
             <div className="rounded-[14px] sm:rounded-[24px] border-2 border-primary/40 bg-primary/5 p-5">
