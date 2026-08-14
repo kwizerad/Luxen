@@ -537,22 +537,19 @@ export function useExamSecurity({
           }, 3000);
           return;
         }
-        // Detect AI sidebar input fields with content (user is typing into AI)
+        // Detect AI sidebar input fields with content — warn and clear, do NOT count as violation
         const aiInputs = document.querySelectorAll(
           'textarea[aria-label*="Copilot" i], textarea[aria-label*="Gemini" i], textarea[aria-label*="Bard" i], textarea[aria-label*="ChatGPT" i], textarea[aria-label*="Claude" i], textarea[aria-label*="Perplexity" i], input[aria-label*="Copilot" i], input[aria-label*="Gemini" i], input[aria-label*="Bard" i], input[aria-label*="ChatGPT" i], input[aria-label*="Claude" i], input[aria-label*="Perplexity" i], [contenteditable="true"][aria-label*="Copilot" i], [contenteditable="true"][aria-label*="Gemini" i]'
         );
         aiInputs.forEach((el) => {
           const text = (el as HTMLInputElement | HTMLTextAreaElement).value || (el as HTMLElement).textContent || "";
           if (text.trim().length > 0) {
-            violationDebounceRef.current = true;
-            recordViolation(
-              "aishortcut",
-              t("aiTypingDetected"),
-              t("aiTypingDetected")
-            );
-            setTimeout(() => {
-              violationDebounceRef.current = false;
-            }, 3000);
+            // Clear the AI input field to prevent typing
+            const inputEl = el as HTMLInputElement | HTMLTextAreaElement;
+            if (inputEl.value !== undefined) inputEl.value = "";
+            if (el instanceof HTMLElement) el.textContent = "";
+            // Show warning toast only — do NOT record as a violation
+            toast.warning(t("aiTypingDetected"));
           }
         });
       } catch {
@@ -560,25 +557,24 @@ export function useExamSecurity({
       }
     };
 
-    // Detect typing into AI extension elements via input events
+    // Detect and block typing into AI extension elements via input events
     const handleAiInput = (e: Event) => {
       if (!settings.violationMeasuresEnabled || !settings.aiDetectionEnabled || !examActive() || resultsShown()) return;
-      if (violationDebounceRef.current) return;
       const target = e.target as HTMLElement;
       if (!target) return;
       const aiElement = target.closest(
         '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i], [aria-label*="Bard" i], [aria-label*="ChatGPT" i], [aria-label*="Claude" i], [aria-label*="Perplexity" i]'
       );
       if (aiElement) {
-        violationDebounceRef.current = true;
-        recordViolation(
-          "aishortcut",
-          t("aiTypingDetected"),
-          t("aiTypingDetected")
-        );
-        setTimeout(() => {
-          violationDebounceRef.current = false;
-        }, 3000);
+        // Block the input — prevent typing from reaching the AI element
+        e.preventDefault();
+        e.stopPropagation();
+        // Clear any text that was entered
+        const inputEl = target as HTMLInputElement | HTMLTextAreaElement;
+        if (inputEl.value !== undefined) inputEl.value = "";
+        if (target instanceof HTMLElement) target.textContent = "";
+        // Show warning toast only — do NOT record as a violation
+        toast.warning(t("aiTypingDetected"));
       }
     };
 

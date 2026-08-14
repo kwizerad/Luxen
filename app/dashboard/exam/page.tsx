@@ -543,14 +543,19 @@ export default function TakeExamPage() {
         if (found.length > 0) {
           recordViolation(t("aiSidebarDetected"), 'other', t("aiSidebarDetected"));
         }
-        // Also detect AI sidebar input fields with content (user is typing into AI)
+        // Detect AI sidebar input fields with content — warn but do NOT count as violation
         const aiInputs = document.querySelectorAll(
           'textarea[aria-label*="Copilot" i], textarea[aria-label*="Gemini" i], textarea[aria-label*="Bard" i], textarea[aria-label*="ChatGPT" i], textarea[aria-label*="Claude" i], textarea[aria-label*="Perplexity" i], input[aria-label*="Copilot" i], input[aria-label*="Gemini" i], input[aria-label*="Bard" i], input[aria-label*="ChatGPT" i], input[aria-label*="Claude" i], input[aria-label*="Perplexity" i], [contenteditable="true"][aria-label*="Copilot" i], [contenteditable="true"][aria-label*="Gemini" i]'
         );
         aiInputs.forEach((el) => {
           const text = (el as HTMLInputElement | HTMLTextAreaElement).value || (el as HTMLElement).textContent || "";
           if (text.trim().length > 0) {
-            recordViolation(t("aiTypingDetected"), 'other', t("aiTypingDetected"));
+            // Clear the AI input field to prevent typing
+            const inputEl = el as HTMLInputElement | HTMLTextAreaElement;
+            if (inputEl.value !== undefined) inputEl.value = "";
+            if (el instanceof HTMLElement) el.textContent = "";
+            // Show warning toast only — do NOT record as a violation
+            toast.warning(t("aiTypingDetected"));
           }
         });
       } catch {
@@ -558,7 +563,7 @@ export default function TakeExamPage() {
       }
     };
 
-    // Detect typing into AI extension elements via input events
+    // Detect and block typing into AI extension elements via input events
     const handleAiInput = (e: Event) => {
       if (!exam || showResults || !securitySettings.violationMeasuresEnabled || !securitySettings.aiDetectionEnabled) return;
       const target = e.target as HTMLElement;
@@ -569,7 +574,15 @@ export default function TakeExamPage() {
         '#__edge_copilot, [data-ai-sidebar], gemini-sidebar, [aria-label*="Copilot" i], [aria-label*="Gemini" i], [aria-label*="Bard" i], [aria-label*="ChatGPT" i], [aria-label*="Claude" i], [aria-label*="Perplexity" i]'
       );
       if (aiElement) {
-        recordViolation(t("aiTypingDetected"), 'other', t("aiTypingDetected"));
+        // Block the input — prevent typing from reaching the AI element
+        e.preventDefault();
+        e.stopPropagation();
+        // Clear any text that was entered
+        const inputEl = target as HTMLInputElement | HTMLTextAreaElement;
+          if (inputEl.value !== undefined) inputEl.value = "";
+          if (target instanceof HTMLElement) target.textContent = "";
+        // Show warning toast only — do NOT record as a violation
+        toast.warning(t("aiTypingDetected"));
       }
     };
 
