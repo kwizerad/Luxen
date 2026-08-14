@@ -431,7 +431,7 @@
     width: 100%;
     box-sizing: border-box;
     margin-inline: 0;
-    padding: 4rem 1rem calc(5.5rem + env(safe-area-inset-bottom));
+    padding: 3.25rem 1rem calc(5.5rem + env(safe-area-inset-bottom));
     overflow-x: clip;
   }
 
@@ -531,7 +531,7 @@
   @media (min-width: 768px) {
     .student-page,
     .student-page-narrow {
-      padding-block: 4.5rem calc(6rem + env(safe-area-inset-bottom));
+      padding-block: 3.75rem calc(6rem + env(safe-area-inset-bottom));
     }
   }
 

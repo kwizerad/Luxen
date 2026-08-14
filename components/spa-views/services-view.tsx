@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Car, ArrowLeft, Users } from "lucide-react";
+import { Car, ArrowLeft, Users, Trophy } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { getServicesConfig } from "@/lib/supabase/queries";
 
@@ -32,6 +32,16 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       color: "text-primary",
       bg: "bg-primary/10",
       openLabelKey: "liveExamOpen",
+    },
+    {
+      key: "group-exam",
+      view: "services/group-exam",
+      icon: Trophy,
+      titleKey: "groupExamService",
+      descKey: "groupExamServiceDesc",
+      color: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-500/10",
+      openLabelKey: "groupExamOpen",
     },
     {
       key: "driver-hub",

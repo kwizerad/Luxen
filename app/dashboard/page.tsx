@@ -20,6 +20,7 @@ import { StudentTrainingView } from "@/components/spa-views/student-training-vie
 import { MyReportsView } from "@/components/spa-views/my-reports-view";
 import { DriverHubView } from "@/components/spa-views/driver-hub-view";
 import { ClassmatesView } from "@/components/spa-views/classmates-view";
+import { GroupExamView } from "@/components/spa-views/group-exam-view";
 import { GroupExamResultsView } from "@/components/group-exam-results-view";
 
 export default function DashboardPage() {
@@ -35,6 +36,8 @@ export default function DashboardPage() {
         return <ServicesView navigate={navigate} />;
       case "services/live-exam":
         return <LiveExamView navigate={navigate} />;
+      case "services/group-exam":
+        return <GroupExamView navigate={navigate} />;
       case "driver-hub":
         return <DriverHubView navigate={navigate} />;
       case "services/drivers":

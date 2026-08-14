@@ -1,21 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import { NotificationsDropdown } from "./notifications-dropdown";
 import { FloatingUserSettings } from "./floating-user-settings";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
-import { isAdmin } from "@/lib/permissions";
-import { Home, LayoutDashboard, Bell } from "lucide-react";
 import Link from "next/link";
 
 export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = {}) {
   const { user, loading: authLoading } = useAuth();
-  const { isRTL, t } = useLanguage();
+  const { isRTL } = useLanguage();
   const { config } = useBrandingConfig();
-  const pathname = usePathname();
   const [isExamActive, setIsExamActive] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -55,7 +51,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   }
 
   const homeHref = adminMode ? "/Admin" : "/dashboard";
-  const dashboardLabel = adminMode ? t("adminDashboard") : t("dashboard");
 
   return (
     <>
@@ -80,15 +75,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       <div
         className={`fixed top-2 md:top-4 ${isRTL ? "left-2 md:left-4" : "right-2 md:right-4"} z-50 flex items-center gap-1.5 md:gap-2 transition-all duration-300 ${isScrolled ? "scale-95 md:scale-100" : "scale-100"}`}
       >
-        {/* Quick home/dashboard link */}
-        <Link
-          href={homeHref}
-          className={`premium-glass-panel border rounded-full overflow-hidden transition-all flex items-center justify-center h-9 w-9 md:h-10 md:w-10 shrink-0 group`}
-          title={dashboardLabel}
-        >
-          <LayoutDashboard className="h-4 w-4 md:h-[18px] md:w-[18px] text-muted-foreground group-hover:text-primary transition-colors" />
-        </Link>
-
         {/* Notifications */}
         <div className="premium-glass-panel border rounded-full overflow-hidden transition-all">
           <NotificationsDropdown />

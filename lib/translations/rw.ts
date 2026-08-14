@@ -2118,6 +2118,16 @@ const rw: Record<string, string> = {
   "youFailed": "Ntiwabyitabaye",
   "groupExamCompleted": "Ikizamini Cy'Igisebo Kirarangiye!",
   "gettingReady": "Igitegerezo kiri hose...",
+  "proceedToExams": "Komeza ku Bizamini",
+  "groupExamService": "Ikizamini Cy'Igisebo",
+  "groupExamServiceDesc": "Kora ibizamini by'igisebo umenye inshuti zawe",
+  "groupExamOpen": "Fungura Ibizamini By'Igisebo",
+  "createGroupExam": "Kora Ikizamini Cy'Igisebo",
+  "pendingInvitations": "Ibyitabiro Biri Hagati",
+  "activeChallenges": "Ibyifuzo Biri Kora",
+  "completedChallenges": "Ibyifuzo Byarangiye",
+  "noGroupExamsYet": "Nta Bizamini By'Igisebo Biriho",
+  "noGroupExamsDesc": "Kora ikizamini cy'igisebo umenye inshuti zawe urebe uwatsinda!",
 };
 
 export default rw;

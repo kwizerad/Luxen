@@ -1827,6 +1827,16 @@ const fr: Record<string, string> = {
   "youFailed": "Vous n'avez pas réussi",
   "groupExamCompleted": "Examen de Groupe Terminé !",
   "gettingReady": "Préparation en cours...",
+  "proceedToExams": "Accéder aux Examens",
+  "groupExamService": "Examen de Groupe",
+  "groupExamServiceDesc": "Créez des examens de groupe et défiez vos amis",
+  "groupExamOpen": "Ouvrir les Examens de Groupe",
+  "createGroupExam": "Créer un Examen de Groupe",
+  "pendingInvitations": "Invitations en Attente",
+  "activeChallenges": "Défis Actifs",
+  "completedChallenges": "Défis Terminés",
+  "noGroupExamsYet": "Aucun Examen de Groupe",
+  "noGroupExamsDesc": "Créez un examen de groupe pour défier vos amis et voir qui obtient le meilleur score !",
 };
 
 export default fr;

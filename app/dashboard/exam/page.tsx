@@ -91,8 +91,6 @@ export default function TakeExamPage() {
     if (urlChallengeId) setChallengeId(urlChallengeId);
     if (urlCategoryId) {
       setCategoryId(urlCategoryId);
-      setShowInstructions(true);
-      setInstructionsAccepted(false);
     }
 
     void isStandaloneExamEnabled().then((enabled) => {
@@ -127,7 +125,7 @@ export default function TakeExamPage() {
   const [userAnswers, setUserAnswers] = useState<Record<string, UserAnswer>>({});
   const [showResults, setShowResults] = useState(false);
   const [examResult, setExamResult] = useState<ExamAttempt | null>(null);
-  const [showInstructions, setShowInstructions] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(true);
   const [instructionsAccepted, setInstructionsAccepted] = useState(false);
   const [showFullscreenWarning, setShowFullscreenWarning] = useState(false);
   const [fullscreenRetryCount, setFullscreenRetryCount] = useState(0);
@@ -218,12 +216,10 @@ export default function TakeExamPage() {
 
   // Auto-select the single category when there's only one
   useEffect(() => {
-    if (!loadingCategories && categories.length === 1 && !categoryId && !showInstructions && !exam) {
+    if (!loadingCategories && categories.length === 1 && !categoryId && instructionsAccepted && !exam) {
       setCategoryId(categories[0].id);
-      setShowInstructions(true);
-      setInstructionsAccepted(false);
     }
-  }, [loadingCategories, categories, categoryId, showInstructions, exam]);
+  }, [loadingCategories, categories, categoryId, instructionsAccepted, exam]);
   
   useEffect(() => {
     const getCountMessage = (base: string, count: number) =>
@@ -840,15 +836,17 @@ export default function TakeExamPage() {
     return () => clearInterval(id);
   }, [secondsLeft]);
 
-  const startExam = async () => {
-    if (!instructionsAccepted) {
+  const startExam = async (catId?: string) => {
+    const targetCategoryId = catId || categoryId;
+    if (!targetCategoryId) {
       toast.error(t("pleaseAcceptExamInstructions"));
       return;
     }
     setShowInstructions(false);
+    setInstructionsAccepted(true);
     setLoadingExam(true);
     try {
-      const data = await getExamForTaking(categoryId);
+      const data = await getExamForTaking(targetCategoryId);
       setExam(data as TakeResponse);
       setCurrentIndex(0);
       setSecondsLeft((data.settings?.duration_minutes ?? 20) * 60);
@@ -1139,8 +1137,7 @@ export default function TakeExamPage() {
   const handleRetake = () => {
     reset();
     if (categoryId) {
-      setShowInstructions(true);
-      setInstructionsAccepted(false);
+      startExam(categoryId);
     }
   };
 
@@ -1264,8 +1261,7 @@ export default function TakeExamPage() {
                           disabled={loadingExam}
                           onClick={() => {
                             setCategoryId(categories[0].id);
-                            setShowInstructions(true);
-                            setInstructionsAccepted(false);
+                            startExam(categories[0].id);
                           }}
                         >
                           {loadingExam ? (
@@ -1294,8 +1290,7 @@ export default function TakeExamPage() {
                         className="group cursor-pointer h-full rounded-[14px] sm:rounded-[24px]"
                         onClick={() => {
                           setCategoryId(category.id);
-                          setShowInstructions(true);
-                          setInstructionsAccepted(false);
+                          startExam(category.id);
                         }}
                       >
                         <CardHeader className="p-3 sm:pb-4 sm:p-6">
@@ -1335,8 +1330,7 @@ export default function TakeExamPage() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setCategoryId(category.id);
-                                setShowInstructions(true);
-                                setInstructionsAccepted(false);
+                                startExam(category.id);
                               }}
                             >
                               {loadingExam ? (
@@ -1687,11 +1681,17 @@ export default function TakeExamPage() {
               {t("cancel")}
             </Button>
             <Button
-              onClick={startExam}
+              onClick={() => {
+                if (categoryId) {
+                  startExam(categoryId);
+                } else {
+                  setShowInstructions(false);
+                }
+              }}
               disabled={!instructionsAccepted}
               className="w-full sm:w-auto sm:min-w-[120px]"
             >
-              {loadingExam ? t("starting") : t("beginExam")}
+              {loadingExam ? t("starting") : categoryId ? t("beginExam") : t("proceedToExams")}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </DialogFooter>

@@ -177,34 +177,34 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
             return (
               <div
                 key={msg.id}
-                className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                className={`flex flex-col ${isOwn ? "items-end" : "items-start"} max-w-[80%] ${isOwn ? "self-end" : "self-start"}`}
               >
                 <div
-                  className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
+                  className={`rounded-2xl px-3 py-1.5 text-sm ${
                     isOwn
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-muted rounded-bl-sm"
                   }`}
                 >
-                  <p className="text-sm">{msg.message}</p>
-                  <div
-                    className={`mt-1 flex items-center gap-1 text-xs ${
-                      isOwn ? "text-primary-foreground/60 justify-end" : "text-muted-foreground"
-                    }`}
-                  >
-                    <span>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    {isOwn && (
-                      msg.is_read ? (
-                        <CheckCheck className="h-3.5 w-3.5 text-sky-300" />
-                      ) : msg.delivered_at ? (
-                        <CheckCheck className="h-3.5 w-3.5 text-primary-foreground/50" />
-                      ) : (
-                        <Check className="h-3.5 w-3.5 text-primary-foreground/50" />
-                      )
-                    )}
-                  </div>
+                  <p>{msg.message}</p>
+                </div>
+                <div
+                  className={`mt-0.5 flex items-center gap-1 text-[10px] ${
+                    isOwn ? "text-muted-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  <span>
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  {isOwn && (
+                    msg.is_read ? (
+                      <CheckCheck className="h-3 w-3 text-sky-500" />
+                    ) : msg.delivered_at ? (
+                      <CheckCheck className="h-3 w-3 text-muted-foreground" />
+                    ) : (
+                      <Check className="h-3 w-3 text-muted-foreground" />
+                    )
+                  )}
                 </div>
               </div>
             );

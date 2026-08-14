@@ -672,6 +672,46 @@ export function ClassmatesViewSkeleton() {
 }
 
 // ============================================================================
+// GROUP EXAM VIEW SKELETON
+// ============================================================================
+
+export function GroupExamViewSkeleton() {
+  return (
+    <div className="min-h-[calc(100vh-80px)] pb-20">
+      <div className="container mx-auto max-w-3xl px-4 py-8">
+        <div className="h-4 w-24 rounded bg-muted animate-pulse mb-6" />
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="space-y-2">
+            <div className="h-7 w-48 rounded bg-muted animate-pulse" />
+            <div className="h-3 w-64 rounded bg-muted animate-pulse" />
+          </div>
+          <div className="h-9 w-32 rounded-lg bg-muted animate-pulse" />
+        </div>
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="rounded-xl border-2 border-primary/20 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-muted animate-pulse" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+                </div>
+              </div>
+              <div className="flex gap-1.5">
+                {[0, 1, 2].map((j) => (
+                  <div key={j} className="h-7 w-7 rounded-full bg-muted animate-pulse" />
+                ))}
+              </div>
+              <div className="h-8 w-full rounded-lg bg-muted animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // GROUP EXAM RESULTS SKELETON
 // ============================================================================
 

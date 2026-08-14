@@ -2310,6 +2310,16 @@ const en: Record<string, string> = {
   "youFailed": "You Didn't Pass",
   "groupExamCompleted": "Group Exam Completed!",
   "gettingReady": "Getting ready...",
+  "proceedToExams": "Proceed to Exams",
+  "groupExamService": "Group Exam",
+  "groupExamServiceDesc": "Create group exams and challenge your friends",
+  "groupExamOpen": "Open Group Exams",
+  "createGroupExam": "Create Group Exam",
+  "pendingInvitations": "Pending Invitations",
+  "activeChallenges": "Active Challenges",
+  "completedChallenges": "Completed Challenges",
+  "noGroupExamsYet": "No Group Exams Yet",
+  "noGroupExamsDesc": "Create a group exam to challenge your friends and see who scores the highest!",
 };
 
 export default en;

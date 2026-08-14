@@ -15,6 +15,10 @@ CREATE TABLE IF NOT EXISTS classmate_requests (
 CREATE INDEX IF NOT EXISTS idx_classmate_requests_receiver ON classmate_requests(receiver_id, status);
 CREATE INDEX IF NOT EXISTS idx_classmate_requests_sender ON classmate_requests(sender_id, status);
 ALTER TABLE classmate_requests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own classmate requests" ON classmate_requests;
+DROP POLICY IF EXISTS "Users can create classmate requests" ON classmate_requests;
+DROP POLICY IF EXISTS "Users can update own classmate requests" ON classmate_requests;
+DROP POLICY IF EXISTS "Users can delete own classmate requests" ON classmate_requests;
 CREATE POLICY "Users can view own classmate requests" ON classmate_requests FOR SELECT TO authenticated
   USING (sender_id = auth.uid() OR receiver_id = auth.uid());
 CREATE POLICY "Users can create classmate requests" ON classmate_requests FOR INSERT TO authenticated
@@ -58,6 +62,9 @@ CREATE INDEX IF NOT EXISTS idx_exam_challenge_participants_user ON exam_challeng
 
 -- Now enable RLS and create policies for exam_challenges (can reference exam_challenge_participants)
 ALTER TABLE exam_challenges ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own challenges" ON exam_challenges;
+DROP POLICY IF EXISTS "Creators can create challenges" ON exam_challenges;
+DROP POLICY IF EXISTS "Creators can update own challenges" ON exam_challenges;
 CREATE POLICY "Users can view own challenges" ON exam_challenges FOR SELECT TO authenticated
   USING (creator_id = auth.uid()
     OR id IN (SELECT challenge_id FROM exam_challenge_participants WHERE user_id = auth.uid()));
@@ -68,6 +75,10 @@ CREATE POLICY "Creators can update own challenges" ON exam_challenges FOR UPDATE
 
 -- RLS policies for exam_challenge_participants
 ALTER TABLE exam_challenge_participants ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Participants can view own participation" ON exam_challenge_participants;
+DROP POLICY IF EXISTS "Creators can add participants" ON exam_challenge_participants;
+DROP POLICY IF EXISTS "Users can update own participation" ON exam_challenge_participants;
+DROP POLICY IF EXISTS "Creators can delete participants" ON exam_challenge_participants;
 CREATE POLICY "Participants can view own participation" ON exam_challenge_participants FOR SELECT TO authenticated
   USING (user_id = auth.uid()
     OR challenge_id IN (SELECT id FROM exam_challenges WHERE creator_id = auth.uid()));

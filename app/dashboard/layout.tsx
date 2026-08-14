@@ -104,7 +104,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <FloatingHeader />
 
       {/* Main Content */}
-      <main className="min-w-0 pt-14 md:pt-16">
+      <main className="min-w-0 pt-12 md:pt-14">
         {children}
       </main>
 

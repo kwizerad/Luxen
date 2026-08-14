@@ -39,7 +39,9 @@ ALTER TABLE notifications
       'exam_result',
       'exam_available',
       'course_updated',
-      'reminder'
+      'reminder',
+      'exam_challenge_invite',
+      'friend_request'
     )
   );
 
