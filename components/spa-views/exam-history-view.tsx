@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, FileText, Clock, CheckCircle2, XCircle, Trophy, Loader2, ChevronRight, AlertTriangle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, FileText, Clock, CheckCircle2, XCircle, Trophy, Loader2, ChevronRight, AlertTriangle, ShieldAlert, UserX } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -200,14 +200,15 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                         {formatDuration(attempt.duration_seconds)}
                       </span>
                     </div>
-                    {isAbandoned && (
+                    {isAbandoned && !isCheating && (
                       <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
                         {t("noQuestionsAnswered")}
                       </p>
                     )}
-                    {isCheating && attempt.violation_summary && (
+                    {isCheating && (
                       <p className="mt-1 text-xs text-orange-600 dark:text-orange-400 font-medium line-clamp-2">
-                        {t("autoSubmittedDueToViolations")}: {attempt.violation_summary}
+                        {t("examSubmittedDueToCheating")}
+                        {attempt.violation_summary && `: ${attempt.violation_summary}`}
                       </p>
                     )}
                     {isAutoSubmitted && !isCheating && !isAbandoned && (

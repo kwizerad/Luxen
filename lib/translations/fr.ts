@@ -1678,6 +1678,10 @@ const fr: Record<string, string> = {
   "autoSubmittedDueToViolations": "Soumis automatiquement en raison de violations de sécurité",
   "autoSubmittedPageClosed": "Soumis automatiquement — la fenêtre d'examen a été fermée",
   "autoSubmittedTimeExpired": "Soumis automatiquement — temps écoulé",
+  "examSubmittedDueToCheating": "Examen soumis en raison d'une violation de triche",
+  "cheatingViolationExplanation": "Cet examen a été soumis automatiquement parce que l'utilisateur a enfreint les règles de sécurité de l'examen. Les détails de la violation sont affichés ci-dessous.",
+  "noQuestionsAnsweredTitle": "Aucune question n'a été répondue",
+  "noQuestionsAnsweredExplanation": "L'utilisateur n'a répondu à aucune question dans cet examen. Cela peut se produire si l'examen a été abandonné, si la page a été fermée ou si le temps a expiré avant qu'aucune réponse ne soit soumise.",
 
   // Driver registration
   "registerAsDriverDesc": "Vérifiez votre identité avec votre ID national pour devenir conducteur",

@@ -19,6 +19,8 @@ import {
   Filter,
   FileText,
   Image as ImageIcon,
+  ShieldAlert,
+  UserX,
 } from "lucide-react";
 import type { ExamAttempt, ExamAnswer, ExamQuestion } from "@/lib/database.types";
 import { cn } from "@/lib/utils";
@@ -109,6 +111,9 @@ export function ExamReview({ examResult, questions, onReset, onRetake }: ExamRev
 
   const isPassed = examResult.score_percentage >= 50;
   const isAbandoned = examResult.status === "abandoned";
+  const isCheating = examResult.submission_reason === "cheating_violation";
+  const isAutoSubmitted = examResult.submission_reason === "page_closed" || examResult.submission_reason === "time_expired";
+  const hasNoAnswers = answeredCount === 0;
 
   const filteredAnswers = useMemo(() => {
     return examResult.answers
@@ -183,7 +188,7 @@ export function ExamReview({ examResult, questions, onReset, onRetake }: ExamRev
       </div>
 
       {/* Pass/Fail Banner */}
-      {!isAbandoned && (
+      {!isAbandoned && !isCheating && (
         <div
           className={cn(
             "mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 flex items-center gap-4 sm:gap-6",
@@ -220,6 +225,66 @@ export function ExamReview({ examResult, questions, onReset, onRetake }: ExamRev
               </Badge>
               <Badge variant="secondary" className="text-[10px] sm:text-xs">
                 {t("examDetails.questionsCount").replace("{count}", String(examResult.total_questions))}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Questions Answered Banner */}
+      {hasNoAnswers && !isCheating && (
+        <div className="mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 border-amber-500/30 bg-amber-500/5 flex items-center gap-4 sm:gap-6">
+          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
+            <UserX className="h-6 w-6 sm:h-7 sm:w-7 text-amber-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-xl font-bold text-amber-600 dark:text-amber-400">
+              {t("noQuestionsAnsweredTitle")}
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              {t("noQuestionsAnsweredExplanation")}
+            </p>
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                {examResult.category_name}
+              </Badge>
+              {isAutoSubmitted && (
+                <Badge variant="secondary" className="text-[10px] sm:text-xs text-muted-foreground italic">
+                  {examResult.submission_reason === "page_closed" ? t("autoSubmittedPageClosed") : t("autoSubmittedTimeExpired")}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cheating Violation Banner */}
+      {isCheating && (
+        <div className="mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 border-orange-500/30 bg-orange-500/5 flex items-center gap-4 sm:gap-6">
+          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full bg-orange-500/10">
+            <ShieldAlert className="h-6 w-6 sm:h-7 sm:w-7 text-orange-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-xl font-bold text-orange-600 dark:text-orange-400">
+              {t("examSubmittedDueToCheating")}
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              {t("cheatingViolationExplanation")}
+            </p>
+            {examResult.violation_summary && (
+              <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 mt-1.5 font-medium line-clamp-3">
+                {examResult.violation_summary}
+              </p>
+            )}
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                {examResult.category_name}
+              </Badge>
+              <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                {formatTime(examResult.duration_seconds)}
               </Badge>
             </div>
           </div>

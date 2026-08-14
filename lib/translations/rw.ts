@@ -1969,6 +1969,10 @@ const rw: Record<string, string> = {
   "autoSubmittedDueToViolations": "Byatanzwe mu buryo bwikora kubera ibyangirijwe by'umutekano",
   "autoSubmittedPageClosed": "Byatanzwe mu buryo bwikora — idirishya ry'ikizamini ryafunzwe",
   "autoSubmittedTimeExpired": "Byatanzwe mu buryo bwikora — igihe cyarangiye",
+  "examSubmittedDueToCheating": "Ikizamini cyatanzwe kubera ibyaha byo gukora ibizamini",
+  "cheatingViolationExplanation": "Iki kizamini cyatanzwe mu buryo bwikora kuberauko umukoresha yabujije amategeko y'umutekano w'ikizamini. Amakuru y'icyaha agaragazwa hano hepfuye.",
+  "noQuestionsAnsweredTitle": "Nta kibazo cyisubiwemo",
+  "noQuestionsAnsweredExplanation": "Umukoresha ntiyasubije n'ikibazo kimwe muri iki kizamini. Ibi bishobora kubaho niba ikizamini cyasize, ipaji ryafunzwe, cyangwa igihe cyarangiye mbere y'uko n'igisubizo cyatanzwe.",
 
   // Driver registration
   "registerAsDriverDesc": "Emeza umwirondoro wawe ukoresheje ID yawe y'igihugu kugira ngo ubeho umufasha",

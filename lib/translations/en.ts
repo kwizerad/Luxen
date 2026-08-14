@@ -2148,6 +2148,10 @@ const en: Record<string, string> = {
   "autoSubmittedDueToViolations": "Automatically submitted due to security violations",
   "autoSubmittedPageClosed": "Automatically submitted — exam window was closed",
   "autoSubmittedTimeExpired": "Automatically submitted — time expired",
+  "examSubmittedDueToCheating": "Exam submitted due to cheating violation",
+  "cheatingViolationExplanation": "This exam was automatically submitted because the user violated the exam security rules. The violation details are shown below.",
+  "noQuestionsAnsweredTitle": "No questions were answered",
+  "noQuestionsAnsweredExplanation": "The user did not answer any questions in this exam. This may happen if the exam was abandoned, the page was closed, or time expired before any answers were submitted.",
 
   // Driver registration
   "registerAsDriverDesc": "Verify your identity with your National ID to become a driver",
