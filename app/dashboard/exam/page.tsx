@@ -1321,8 +1321,8 @@ export default function TakeExamPage() {
     );
   }
 
-  // Show group exam creation
-  if (examMode === "group") {
+  // Show group exam creation (only when exam hasn't started yet)
+  if (examMode === "group" && !exam) {
     return (
       <>
         <GroupExamCreation
