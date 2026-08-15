@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { BookOpen, LayoutGrid, Settings, ArrowRight, Play, BookOpenCheck, CheckCircle2, Layers, Trophy, Users, FileText } from "lucide-react";
+import { BookOpen, LayoutGrid, Settings, ArrowRight, Play, BookOpenCheck, CheckCircle2, Layers, Trophy, Users, FileText, GraduationCap, ClipboardList, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { getDashboardData, type ContinueLearningData, type DashboardStats } from "@/app/dashboard/actions/course";
+import { isGroupExamEnabled } from "@/lib/feature-flags";
 import { HomeViewSkeleton, HomeStatsSkeleton, HomeContinueLearningSkeleton } from "@/components/skeletons";
 
 interface HomeViewProps {
@@ -20,6 +21,7 @@ export function HomeView({ navigate }: HomeViewProps) {
   const [continueData, setContinueData] = useState<ContinueLearningData | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loadingData, setLoadingData] = useState(true);
+  const [groupExamEnabled, setGroupExamEnabled] = useState(true);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -42,7 +44,10 @@ export function HomeView({ navigate }: HomeViewProps) {
       }
     };
     loadData();
-    return () => { mounted = false; };
+    void isGroupExamEnabled().then((enabled) => {
+      if (mounted) setGroupExamEnabled(enabled);
+    });
+    return () => { mounted = false };
   }, [authLoading, user, interfaceLanguage]);
 
   const getDisplayName = () => {
@@ -112,7 +117,7 @@ export function HomeView({ navigate }: HomeViewProps) {
   ];
 
   const quickActions: { view: string; icon: typeof Trophy; titleKey: string; descKey: string; iconBg: string; iconColor: string; badge?: string }[] = [
-    {
+    ...(groupExamEnabled ? [{
       view: "classmates",
       icon: Trophy,
       titleKey: "inviteFriendsExam",
@@ -120,7 +125,7 @@ export function HomeView({ navigate }: HomeViewProps) {
       iconBg: "bg-amber-500/10",
       iconColor: "text-amber-500",
       badge: t("new"),
-    },
+    }] : []),
     {
       view: "services/live-exam",
       icon: FileText,
@@ -138,30 +143,55 @@ export function HomeView({ navigate }: HomeViewProps) {
   return (
     <div className="min-h-[calc(100vh-80px)] pb-20 sm:pb-24">
       <div className="container mx-auto max-w-4xl px-4 py-5 sm:py-8">
-        {/* Welcome Banner with Logo + System Name */}
-        <div className="mb-5 sm:mb-6 flex items-center gap-3 sm:gap-4">
-          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-xl bg-primary overflow-hidden shadow-sm relative">
-            {config.logoUrl ? (
-              <Image
-                src={config.logoUrl}
-                alt={config.systemName}
-                fill
-                unoptimized
-                className="object-cover"
-                sizes="56px"
-              />
-            ) : (
-              <span className="text-primary-foreground font-bold text-lg sm:text-xl">{config.logoText}</span>
-            )}
+        {/* Welcome Banner with Logo + System Name + Description */}
+        <div className="mb-5 sm:mb-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-xl bg-primary overflow-hidden shadow-sm relative">
+              {config.logoUrl ? (
+                <Image
+                  src={config.logoUrl}
+                  alt={config.systemName}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                  sizes="56px"
+                />
+              ) : (
+                <span className="text-primary-foreground font-bold text-lg sm:text-xl">{config.logoText}</span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-2xl font-bold tracking-tight leading-tight">
+                <span className="text-primary">{config.systemName}</span>
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                {t("welcomeBack")}, {getDisplayName().split(" ")[0]} — {t("continueLearningDesc")}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg sm:text-2xl font-bold tracking-tight leading-tight">
-              <span className="text-primary">{config.systemName}</span>
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground truncate">
-              {t("welcomeBack")}, {getDisplayName().split(" ")[0]} — {t("continueLearningDesc")}
-            </p>
-          </div>
+          {/* System Description */}
+          <p className="mt-3 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            {t("systemDescription") || "Your all-in-one platform for learning, practice exams, and connecting with classmates."}
+          </p>
+        </div>
+
+        {/* Primary Action Buttons */}
+        <div className="mb-4 sm:mb-6 grid grid-cols-2 gap-2.5 sm:gap-3">
+          <button
+            onClick={() => navigate("services/live-exam")}
+            className="group flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-primary text-primary-foreground p-3 sm:p-4 transition-all hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5 font-semibold text-sm sm:text-base"
+          >
+            <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
+            {t("takeExam")}
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </button>
+          <button
+            onClick={() => navigate("settings")}
+            className="group flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl border bg-card p-3 sm:p-4 transition-all hover:border-primary hover:shadow-md hover:-translate-y-0.5 font-semibold text-sm sm:text-base"
+          >
+            <Settings className="h-5 w-5 sm:h-6 sm:w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            {t("settings")}
+          </button>
         </div>
 
         {/* Progress Stats */}
@@ -300,6 +330,44 @@ export function HomeView({ navigate }: HomeViewProps) {
               </button>
             );
           })}
+        </div>
+
+        {/* System Contents */}
+        <div className="mt-6 sm:mt-8">
+          <h2 className="mb-2 sm:mb-3 text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" />
+            {t("systemContents") || "System Contents"}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+            {[
+              { icon: BookOpen, titleKey: "courses", descKey: "coursesDesc", iconBg: "bg-blue-500/10", iconColor: "text-blue-500", view: "course", show: hasCourses },
+              { icon: FileText, titleKey: "takeExam", descKey: "takeExamDesc", iconBg: "bg-red-500/10", iconColor: "text-red-500", view: "services/live-exam", show: true },
+              { icon: Trophy, titleKey: "inviteFriendsExam", descKey: "inviteFriendsExamDesc", iconBg: "bg-amber-500/10", iconColor: "text-amber-500", view: "classmates", show: groupExamEnabled },
+              { icon: Users, titleKey: "classmates", descKey: "classmatesDesc", iconBg: "bg-purple-500/10", iconColor: "text-purple-500", view: "classmates", show: true },
+              { icon: GraduationCap, titleKey: "myResults", descKey: "viewExamHistory", iconBg: "bg-teal-500/10", iconColor: "text-teal-500", view: "results", show: true },
+              { icon: Settings, titleKey: "settings", descKey: "settingsDesc", iconBg: "bg-orange-500/10", iconColor: "text-orange-500", view: "settings", show: true },
+            ].filter((item) => item.show).map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => navigate(item.view)}
+                  className="group flex items-center gap-3 rounded-xl border bg-card p-3 sm:p-4 transition-all hover:border-primary hover:shadow-md hover:-translate-y-0.5 text-left"
+                >
+                  <div className={`flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-lg ${item.iconBg} ${item.iconColor}`}>
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-sm sm:text-base leading-tight">{t(item.titleKey)}</h3>
+                    <p className="mt-0.5 text-[11px] sm:text-xs text-muted-foreground line-clamp-1">
+                      {t(item.descKey)}
+                    </p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+              );
+            })}
+          </div>
         </div>
 
       </div>

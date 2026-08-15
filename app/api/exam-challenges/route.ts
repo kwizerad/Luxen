@@ -164,8 +164,12 @@ export async function POST(request: NextRequest) {
 
     const creatorName = myProfile?.full_name || myProfile?.username || "A friend";
 
+    const adminClient = createAdminClient();
+
+    // Verify each invitee has a relationship (friend or classmate) with the creator
+    // Use admin client to bypass RLS — we already verified the user is authenticated
     for (const inviteeId of invite_user_ids) {
-      const { data: relationship } = await supabase
+      const { data: relationship } = await adminClient
         .from("classmate_requests")
         .select("id, status")
         .or(`and(sender_id.eq.${user.id},receiver_id.eq.${inviteeId}),and(sender_id.eq.${inviteeId},receiver_id.eq.${user.id})`)
@@ -176,7 +180,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data: challenge, error: challengeError } = await supabase
+    const { data: challenge, error: challengeError } = await adminClient
       .from("exam_challenges")
       .insert([{
         creator_id: user.id,
@@ -198,13 +202,11 @@ export async function POST(request: NextRequest) {
       })),
     ];
 
-    const { error: participantError } = await supabase
+    const { error: participantError } = await adminClient
       .from("exam_challenge_participants")
       .insert(participants);
 
     if (participantError) throw new Error(participantError.message || "Failed to add participants");
-
-    const adminClient = createAdminClient();
 
     for (const inviteeId of invite_user_ids) {
       try {

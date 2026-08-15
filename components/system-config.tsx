@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Loader2, Settings2, Shield, ClipboardList, FileText, LayoutList, Globe } from "lucide-react";
+import { Loader2, Settings2, Shield, ClipboardList, FileText, LayoutList, Globe, Users } from "lucide-react";
 import { getSystemConfig, updateSystemConfig, getServicesConfig } from "@/lib/supabase/queries";
 import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
@@ -50,6 +50,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   // Individual settings
   const [examLimit, setExamLimit] = useState<number>(5);
   const [standaloneExamEnabled, setStandaloneExamEnabled] = useState<boolean>(false);
+  const [groupExamEnabled, setGroupExamEnabled] = useState<boolean>(true);
   const [security, setSecurity] = useState<SecuritySettings>(DEFAULT_SECURITY_SETTINGS);
 
   // Services settings
@@ -105,6 +106,9 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           }
           if (configMap["standalone_exam_enabled"]) {
             setStandaloneExamEnabled(configMap["standalone_exam_enabled"].value === "true");
+          }
+          if (configMap["group_exam_enabled"]) {
+            setGroupExamEnabled(configMap["group_exam_enabled"].value === "true");
           }
           setSecurity(parseSecuritySettings(configMap));
 
@@ -176,6 +180,22 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
       toast.success(t("securitySettingsSaved") || "Security settings saved");
     } catch (error: any) {
       toast.error((t("failedToUpdateSecuritySettings") || "Failed to save security settings: ") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveGroupExam = async () => {
+    try {
+      setSaving(true);
+      await updateSystemConfig(
+        "group_exam_enabled",
+        groupExamEnabled.toString(),
+        t("groupExamToggleDesc") || "Enable or disable the group exam functionality for students"
+      );
+      toast.success(t(groupExamEnabled ? "groupExamEnabled" : "groupExamDisabled") || "Group exam setting updated");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateGroupExam") || "Failed to update group exam setting: ") + error.message);
     } finally {
       setSaving(false);
     }
@@ -475,6 +495,51 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
 
           <Button
             onClick={handleSaveStandaloneExam}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("save") || "Save"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Group Exam Toggle */}
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            {t("groupExam") || "Group Exam"}
+          </CardTitle>
+          <CardDescription>
+            {t("groupExamToggleDesc") || "Enable or disable the group exam functionality for students"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="group-exam-toggle" className="text-base">
+                {t("groupExam") || "Group Exam"}
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {t("groupExamHint") || "When enabled, students can create group exams and invite friends to compete. When disabled, all group exam content is hidden."}
+              </p>
+            </div>
+            <Switch
+              id="group-exam-toggle"
+              checked={groupExamEnabled}
+              onCheckedChange={setGroupExamEnabled}
+            />
+          </div>
+
+          <Button
+            onClick={handleSaveGroupExam}
             disabled={saving}
             className="w-full sm:w-auto"
           >

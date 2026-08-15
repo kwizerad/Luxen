@@ -8,9 +8,10 @@ import { useLanguage } from "@/lib/language-context";
 
 interface ExamChoiceScreenProps {
   onNavigate: (choice: "individual" | "group") => void;
+  groupExamEnabled?: boolean;
 }
 
-export function ExamChoiceScreen({ onNavigate }: ExamChoiceScreenProps) {
+export function ExamChoiceScreen({ onNavigate, groupExamEnabled = true }: ExamChoiceScreenProps) {
   const { t } = useLanguage();
   const router = useRouter();
 
@@ -28,7 +29,7 @@ export function ExamChoiceScreen({ onNavigate }: ExamChoiceScreenProps) {
         </div>
 
         {/* Choice Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={`grid gap-6 ${groupExamEnabled ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 max-w-md mx-auto"}`}>
           {/* Individual Exam */}
           <Card 
             className="cursor-pointer hover:shadow-lg transition-all hover:scale-105 border-2 hover:border-primary"
@@ -50,26 +51,28 @@ export function ExamChoiceScreen({ onNavigate }: ExamChoiceScreenProps) {
             </CardContent>
           </Card>
 
-          {/* Group Exam */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-all hover:scale-105 border-2 hover:border-primary"
-            onClick={() => handleChoice("group")}
-          >
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>{t("groupExam") || "Group Exam"}</CardTitle>
-              <CardDescription>
-                {t("groupExamDescription") || "Compete with friends in real-time group exams"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" variant="outline">
-                {t("startGroupExam") || "Start Group Exam"}
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Group Exam - only show if enabled */}
+          {groupExamEnabled && (
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-all hover:scale-105 border-2 hover:border-primary"
+              onClick={() => handleChoice("group")}
+            >
+              <CardHeader>
+                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                  <Users className="h-6 w-6 text-primary" />
+                </div>
+                <CardTitle>{t("groupExam") || "Group Exam"}</CardTitle>
+                <CardDescription>
+                  {t("groupExamDescription") || "Compete with friends in real-time group exams"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full" variant="outline">
+                  {t("startGroupExam") || "Start Group Exam"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Back Button */}

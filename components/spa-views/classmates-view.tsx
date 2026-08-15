@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
+import { isGroupExamEnabled } from "@/lib/feature-flags";
 import { ChallengeCard } from "@/components/challenge-card";
 import { ClassmatesViewSkeleton } from "@/components/skeletons";
 import type { ChatMessage, ExamChallenge, ExamChallengeParticipant } from "@/lib/database.types";
@@ -366,6 +367,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const [unreadNotifications, setUnreadNotifications] = useState<{ senderId: string; senderName: string; message: string; conversationId: string }[]>([]);
   const [friendLastMessages, setFriendLastMessages] = useState<Map<string, { message: string; time: string; unread: number }>>(new Map());
   const [pendingExamInvites, setPendingExamInvites] = useState(0);
+  const [groupExamEnabled, setGroupExamEnabled] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const messageChannelRef = useRef<ReturnType<typeof createClient> extends infer T ? any : any>(null);
@@ -475,6 +477,10 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   useEffect(() => {
     fetchPendingExamInvites();
   }, [fetchPendingExamInvites]);
+
+  useEffect(() => {
+    void isGroupExamEnabled().then(setGroupExamEnabled);
+  }, []);
 
   // Realtime subscription for exam challenge updates
   useEffect(() => {
@@ -1191,6 +1197,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
               >
                 {t("classmatesList")}
               </button>
+              {groupExamEnabled && (
               <button
                 onClick={() => setActiveTab("invitations")}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
@@ -1204,6 +1211,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                   </span>
                 )}
               </button>
+              )}
             </div>
             <button
               onClick={handleToggleVisibility}
@@ -1232,7 +1240,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
           {activeTab === "friends" ? (
             <>
               {/* Invite to Group Exam button (available outside chat) */}
-              {friends.length > 0 && (
+              {friends.length > 0 && groupExamEnabled && (
                 <button
                   onClick={() => {
                     setSelectedInvitees(new Set());
@@ -1554,6 +1562,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
 
             {/* Message Input */}
             <div className="border-t px-4 py-3 flex items-center gap-2">
+              {groupExamEnabled && (
               <button
                 onClick={openInviteModal}
                 title={t("inviteToGroupExam")}
@@ -1561,6 +1570,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
               >
                 <Trophy className="h-5 w-5" />
               </button>
+              )}
               <input
                 type="text"
                 value={newMessage}
@@ -1678,6 +1688,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
             )}
 
           <div className="border-t px-4 py-3 flex items-center gap-2">
+            {groupExamEnabled && (
             <button
               onClick={openInviteModal}
               title={t("inviteToGroupExam")}
@@ -1685,6 +1696,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
             >
               <Trophy className="h-5 w-5" />
             </button>
+            )}
             <input
               type="text"
               value={newMessage}
@@ -1715,6 +1727,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
       )}
 
       {/* Invite to Group Exam Modal */}
+      {groupExamEnabled && (
       <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1874,6 +1887,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
 
       {/* Profile Picture Viewer */}
       <Dialog open={!!pictureViewer} onOpenChange={(open) => !open && setPictureViewer(null)}>

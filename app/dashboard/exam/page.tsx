@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Watermark } from "@/components/watermark";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { getExamCategories, getExamForTaking, createExamAttempt, isStandaloneExamEnabled } from "@/lib/supabase/queries";
+import { isGroupExamEnabled } from "@/lib/feature-flags";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings } from "@/lib/security-config";
@@ -83,6 +84,7 @@ export default function TakeExamPage() {
   const [pendingInviteeIds, setPendingInviteeIds] = useState<string[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [accessChecked, setAccessChecked] = useState(false);
+  const [groupExamEnabled, setGroupExamEnabled] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined" || authLoading) return;
@@ -102,6 +104,7 @@ export default function TakeExamPage() {
         return;
       }
       setAccessChecked(true);
+      void isGroupExamEnabled().then(setGroupExamEnabled);
     });
   }, [router, authLoading]);
 
@@ -1241,10 +1244,16 @@ export default function TakeExamPage() {
 
   if (!accessChecked) return null;
 
-  // Show exam choice screen first
+  // Show exam choice screen first (skip if group exam is disabled)
   if (examMode === "choice") {
+    if (!groupExamEnabled) {
+      setExamMode("individual");
+      setShowInstructions(false);
+      return null;
+    }
     return (
       <ExamChoiceScreen
+        groupExamEnabled={groupExamEnabled}
         onNavigate={(choice) => {
           if (choice === "individual") {
             setExamMode("individual");
