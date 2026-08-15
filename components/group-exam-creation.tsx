@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
+import { getExamCategories } from "@/lib/supabase/queries";
 import { toast } from "sonner";
 
 interface FriendProfile {
@@ -58,19 +59,15 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
     try {
       const supabase = createClient();
 
-      const [classmatesRes, requestsRes, categoriesRes] = await Promise.all([
+      const [classmatesRes, requestsRes, categoriesData] = await Promise.all([
         fetch("/api/classmate-requests/classmates").then((r) => r.json()),
         fetch("/api/classmate-requests").then((r) => r.json()),
-        supabase
-          .from("exam_categories")
-          .select("id, name")
-          .eq("is_published", true)
-          .order("name", { ascending: true }),
+        getExamCategories(),
       ]);
 
       const classmatesData = classmatesRes as { classmates?: FriendProfile[]; error?: string };
       const requestsData = requestsRes as { requests?: any[]; is_public?: boolean };
-      const categoriesData = categoriesRes.data || [];
+      const categoriesList = (categoriesData.categories || []).map((c: any) => ({ id: c.id, name: c.name, description: c.description }));
 
       const allRequests: any[] = requestsData.requests || [];
       const acceptedFriends = allRequests
@@ -87,7 +84,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
 
       setFriends(acceptedFriends);
       setClassmates(filteredClassmates);
-      setCategories(categoriesData as { id: string; name: string; description?: string }[]);
+      setCategories(categoriesList);
 
       // Auto-switch to classmates if no friends
       setShowFriends(acceptedFriends.length > 0);

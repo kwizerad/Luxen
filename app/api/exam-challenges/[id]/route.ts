@@ -77,3 +77,51 @@ export async function GET(
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data: challenge } = await supabase
+      .from("exam_challenges")
+      .select("creator_id, status")
+      .eq("id", params.id)
+      .maybeSingle();
+
+    if (!challenge) {
+      return NextResponse.json({ error: "Challenge not found" }, { status: 404 });
+    }
+
+    if (challenge.creator_id !== user.id) {
+      return NextResponse.json({ error: "Only the creator can cancel" }, { status: 403 });
+    }
+
+    if (challenge.status === "active" || challenge.status === "completed") {
+      return NextResponse.json({ error: "Cannot cancel an active or completed challenge" }, { status: 400 });
+    }
+
+    // Delete participants first (foreign key), then the challenge
+    await supabase
+      .from("exam_challenge_participants")
+      .delete()
+      .eq("challenge_id", params.id);
+
+    await supabase
+      .from("exam_challenges")
+      .delete()
+      .eq("id", params.id);
+
+    return NextResponse.json({ status: "success" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to delete challenge.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

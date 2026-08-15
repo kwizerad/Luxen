@@ -21,6 +21,8 @@ import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTrian
 import { ExamReview } from "@/components/exam-review";
 import { ExamChoiceScreen } from "@/components/exam-choice-screen";
 import { GroupExamCreation } from "@/components/group-exam-creation";
+import { GroupExamLobby } from "@/components/group-exam-lobby";
+import { GroupExamResults } from "@/components/group-exam-results";
 import {
   Dialog,
   DialogContent,
@@ -154,7 +156,7 @@ export default function TakeExamPage() {
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
   const [showQuestionPalette, setShowQuestionPalette] = useState(true);
-  const [examMode, setExamMode] = useState<"choice" | "individual" | "group">("choice");
+  const [examMode, setExamMode] = useState<"choice" | "individual" | "group" | "lobby">("choice");
 
   const cheatingAttemptsRef = useRef(cheatingAttempts);
   const fullscreenRetryCountRef = useRef(fullscreenRetryCount);
@@ -903,7 +905,8 @@ export default function TakeExamPage() {
     setLoadingExam(true);
 
     // If this is a group exam, create the challenge first
-    if (pendingInviteeIds.length > 0) {
+    // (skip if challenge already exists — e.g. from lobby flow)
+    if (pendingInviteeIds.length > 0 && !challengeId) {
       try {
         const categoryName = categories.find((c) => c.id === targetCategoryId)?.name || "Exam";
         const res = await fetch("/api/exam-challenges", {
@@ -933,6 +936,18 @@ export default function TakeExamPage() {
         return;
       }
     }
+
+    // If challenge already exists (from lobby flow), mark it as active
+    if (challengeId && pendingInviteeIds.length > 0) {
+      try {
+        await fetch(`/api/exam-challenges/${challengeId}/start`, {
+          method: "POST",
+        });
+      } catch (error) {
+        console.error("Failed to mark challenge as active:", error);
+      }
+    }
+
     try {
       const data = await getExamForTaking(targetCategoryId);
       setExam(data as TakeResponse);
@@ -1333,84 +1348,82 @@ export default function TakeExamPage() {
   // Show group exam creation (only when exam hasn't started yet)
   if (examMode === "group" && !exam) {
     return (
-      <>
-        <GroupExamCreation
-          onBack={() => setExamMode("choice")}
-          onStartExam={(selectedCategoryId, inviteeIds) => {
-            setCategoryId(selectedCategoryId);
-            setPendingInviteeIds(inviteeIds);
-            setShowInstructions(true);
-            setInstructionsAccepted(false);
-          }}
-        />
-        {/* Instructions Dialog */}
-        <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                {t("examInstructions")}
-              </DialogTitle>
-              <DialogDescription>
-                {t("readCarefullyBeforeStart")}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-2">
-              <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
-                <p className="font-medium">{t("examRulesTitle")}</p>
-                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                  <li>{t("examRule1")}</li>
-                  <li>{t("examRule2")}</li>
-                  <li>{t("examRule3")}</li>
-                  {securitySettings.fullscreenEnabled && <li>{t("examRuleFullscreen")}</li>}
-                  {securitySettings.tabSwitchEnabled && <li>{t("examRuleTabSwitch")}</li>}
-                  {securitySettings.rightClickEnabled && <li>{t("examRuleRightClick")}</li>}
-                  {securitySettings.aiDetectionEnabled && <li>{t("examRules.noAISidebars")}</li>}
-                  {securitySettings.aiDetectionEnabled && <li>{t("examSecurity.aiShortcutsBlocked")}</li>}
-                  <li>{t("examSecurity.keyboardLocked")}</li>
-                </ul>
-              </div>
-              <div className="flex items-start gap-2 sm:gap-3 pt-2 border-t">
-                <Checkbox
-                  id="accept-group"
-                  checked={instructionsAccepted}
-                  onCheckedChange={(checked) => setInstructionsAccepted(checked as boolean)}
-                />
-                <label
-                  htmlFor="accept-group"
-                  className="text-xs sm:text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                >
-                  {t("acceptExamInstructions")}
-                </label>
-              </div>
-            </div>
-            <DialogFooter className="gap-2 flex-col-reverse sm:flex-row">
-              <Button variant="outline" onClick={() => {
-                setShowInstructions(false);
-                setPendingInviteeIds([]);
-              }} className="w-full sm:w-auto">
-                {t("cancel")}
-              </Button>
-              <Button
-                onClick={() => {
-                  if (categoryId) {
-                    startExam(categoryId);
-                  }
-                }}
-                disabled={!instructionsAccepted || loadingExam}
-                className="w-full sm:w-auto sm:min-w-[120px]"
-              >
-                {loadingExam ? t("starting") : t("beginExam")}
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </>
+      <GroupExamCreation
+        onBack={() => setExamMode("choice")}
+        onStartExam={async (selectedCategoryId, inviteeIds) => {
+          setCategoryId(selectedCategoryId);
+          setPendingInviteeIds(inviteeIds);
+
+          // Create the challenge immediately
+          const categoryName = categories.find((c) => c.id === selectedCategoryId)?.name || "Exam";
+          try {
+            const res = await fetch("/api/exam-challenges", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                category_id: selectedCategoryId,
+                category_name: categoryName,
+                invite_user_ids: inviteeIds,
+              }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              toast.error(data?.error || t("failedToStartExam") || "Failed to create group exam");
+              return;
+            }
+            if (data?.challenge?.id) {
+              setChallengeId(data.challenge.id);
+              setExamMode("lobby");
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            toast.error(`${t("failedToStartExam") || "Failed to create group exam"}: ${message}`);
+          }
+        }}
+      />
+    );
+  }
+
+  // Show group exam lobby (waiting room)
+  if (examMode === "lobby" && !exam) {
+    const categoryName = categories.find((c) => c.id === categoryId)?.name || "Exam";
+    return (
+      <GroupExamLobby
+        challengeId={challengeId}
+        categoryName={categoryName}
+        securitySettings={{
+          fullscreenEnabled: securitySettings.fullscreenEnabled,
+          tabSwitchEnabled: securitySettings.tabSwitchEnabled,
+          rightClickEnabled: securitySettings.rightClickEnabled,
+          aiDetectionEnabled: securitySettings.aiDetectionEnabled,
+        }}
+        onStart={() => {
+          if (categoryId) {
+            startExam(categoryId);
+          }
+        }}
+        onCancel={() => {
+          setExamMode("choice");
+          setPendingInviteeIds([]);
+          setChallengeId("");
+        }}
+      />
     );
   }
 
   if (showResults && examResult) {
+    // If this is a group exam, show group results with leaderboard
+    if (challengeId) {
+      return (
+        <GroupExamResults
+          challengeId={challengeId}
+          examResult={examResult}
+          questions={(exam?.questions || []) as ExamQuestion[]}
+          onReset={reset}
+          onRetake={handleRetake}
+        />
+      );
+    }
     return (
       <ExamReview
         examResult={examResult}
