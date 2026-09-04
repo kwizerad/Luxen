@@ -1,0 +1,912 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { Loader2, Settings2, Shield, ClipboardList, FileText, LayoutList, Globe, Users, Trophy } from "lucide-react";
+import { getSystemConfig, updateSystemConfig, getServicesConfig } from "@/lib/supabase/queries";
+import { useLanguage } from "@/lib/language-context";
+import type { SystemConfig } from "@/lib/database.types";
+import { parseSecuritySettings, type SecuritySettings, SECURITY_CONFIG_KEYS, DEFAULT_SECURITY_SETTINGS } from "@/lib/security-config";
+
+interface SecurityFeatureToggleProps {
+  id: string;
+  label: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  disabled?: boolean;
+}
+
+function SecurityFeatureToggle({ id, label, description, checked, onCheckedChange, disabled }: SecurityFeatureToggleProps) {
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+      <div className="space-y-0.5 pr-3">
+        <Label htmlFor={id} className={`text-sm font-medium ${disabled ? "text-muted-foreground" : ""}`}>
+          {label}
+        </Label>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <Switch
+        id={id}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages" | "services" }) {
+  const { t } = useLanguage();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [configs, setConfigs] = useState<Record<string, SystemConfig>>({});
+  
+  // Individual settings
+  const [examLimit, setExamLimit] = useState<number>(5);
+  const [universalPassingPercentage, setUniversalPassingPercentage] = useState<number>(60);
+  const [standaloneExamEnabled, setStandaloneExamEnabled] = useState<boolean>(false);
+  const [groupExamEnabled, setGroupExamEnabled] = useState<boolean>(true);
+  const [groupExamJoinWindow, setGroupExamJoinWindow] = useState<number>(120);
+  const [security, setSecurity] = useState<SecuritySettings>(DEFAULT_SECURITY_SETTINGS);
+
+  // Services settings
+  const [servicesPageEnabled, setServicesPageEnabled] = useState<boolean>(true);
+  const [serviceToggles, setServiceToggles] = useState<Record<string, boolean>>({});
+
+  // Learning language toggles
+  const LEARNING_LANGUAGES = [
+    { key: "english", label: "English", nativeLabel: "English" },
+    { key: "french", label: "French", nativeLabel: "Français" },
+    { key: "kinyarwanda", label: "Kinyarwanda", nativeLabel: "Kinyarwanda" },
+  ];
+  const [languageToggles, setLanguageToggles] = useState<Record<string, boolean>>({
+    english: true,
+    french: true,
+    kinyarwanda: true,
+  });
+
+  // Interface language toggles (controls which languages students can select for the UI)
+  const INTERFACE_LANGUAGES = [
+    { key: "english", label: "English", nativeLabel: "English" },
+    { key: "french", label: "French", nativeLabel: "Français" },
+    { key: "kinyarwanda", label: "Kinyarwanda", nativeLabel: "Kinyarwanda" },
+  ];
+  const [interfaceLanguageToggles, setInterfaceLanguageToggles] = useState<Record<string, boolean>>({
+    english: true,
+    french: true,
+    kinyarwanda: true,
+  });
+
+  // Service definitions for the admin UI
+  const serviceDefinitions = [
+    { key: "live-exam", labelKey: "liveExamResults", descKey: "liveExamResultsDesc" },
+    { key: "group-exam", labelKey: "groupExamService", descKey: "groupExamServiceDesc" },
+    { key: "driver-hub", labelKey: "findDriver", descKey: "findDriverDesc" },
+  ];
+
+  const handleToggleService = async (key: string, checked: boolean) => {
+    setServiceToggles((prev) => ({ ...prev, [key]: checked }));
+    try {
+      await updateSystemConfig(
+        `service_${key}_enabled`,
+        checked.toString(),
+        `Enable or disable the ${key} service`
+      );
+      if (key === "group-exam") {
+        await updateSystemConfig(
+          "group_exam_enabled",
+          checked.toString(),
+          "Enable or disable group exam"
+        );
+        setGroupExamEnabled(checked);
+      }
+      toast.success(t("servicesSettingsSaved") || "Service setting updated");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateServicesSettings") || "Failed to update service: ") + error.message);
+    }
+  };
+
+  const handleToggleServicesPage = async (checked: boolean) => {
+    setServicesPageEnabled(checked);
+    try {
+      await updateSystemConfig(
+        "services_page_enabled",
+        checked.toString(),
+        t("servicesPageToggleDesc") || "Enable or disable the entire services page"
+      );
+      toast.success(t("servicesSettingsSaved") || "Services page setting updated");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateServicesSettings") || "Failed to update services page setting: ") + error.message);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const loadConfigs = async () => {
+      try {
+        const { configs: data } = await getSystemConfig();
+        if (data) {
+          const configMap: Record<string, SystemConfig> = {};
+          data.forEach((c: SystemConfig) => {
+            configMap[c.key] = c;
+          });
+          setConfigs(configMap);
+          
+          // Set individual values
+          if (configMap["universal_exam_limit"]) {
+            setExamLimit(parseInt(configMap["universal_exam_limit"].value, 10) || 5);
+          }
+          if (configMap["universal_passing_percentage"]) {
+            setUniversalPassingPercentage(parseInt(configMap["universal_passing_percentage"].value, 10) || 60);
+          }
+          if (configMap["standalone_exam_enabled"]) {
+            setStandaloneExamEnabled(configMap["standalone_exam_enabled"].value === "true");
+          }
+          if (configMap["group_exam_enabled"]) {
+            setGroupExamEnabled(configMap["group_exam_enabled"].value === "true");
+          }
+          if (configMap["group_exam_join_window_seconds"]) {
+            setGroupExamJoinWindow(parseInt(configMap["group_exam_join_window_seconds"].value, 10) || 120);
+          }
+          setSecurity(parseSecuritySettings(configMap));
+
+          // Load learning language toggles (default to enabled if not set)
+          const langToggles: Record<string, boolean> = { english: true, french: true, kinyarwanda: true };
+          for (const lang of ["english", "french", "kinyarwanda"]) {
+            const configKey = `learning_language_${lang}_enabled`;
+            if (configMap[configKey]) {
+              langToggles[lang] = configMap[configKey].value === "true";
+            }
+          }
+          setLanguageToggles(langToggles);
+
+          // Load interface language toggles (default to enabled if not set)
+          const ifaceLangToggles: Record<string, boolean> = { english: true, french: true, kinyarwanda: true };
+          for (const lang of ["english", "french", "kinyarwanda"]) {
+            const configKey = `interface_language_${lang}_enabled`;
+            if (configMap[configKey]) {
+              ifaceLangToggles[lang] = configMap[configKey].value === "true";
+            }
+          }
+          setInterfaceLanguageToggles(ifaceLangToggles);
+        }
+
+        // Load services config
+        const servicesConfig = await getServicesConfig();
+        setServicesPageEnabled(servicesConfig.pageEnabled);
+        setServiceToggles(servicesConfig.services);
+      } catch (error: any) {
+        toast.error(t("failedToLoadSystemConfig") + error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadConfigs();
+  }, [t]);
+
+  const handleSaveExamLimit = async () => {
+    try {
+      setSaving(true);
+      await updateSystemConfig(
+        "universal_exam_limit",
+        examLimit.toString(),
+        t("universalExamLimitDesc")
+      );
+      toast.success(t("universalExamLimitUpdated"));
+    } catch (error: any) {
+      toast.error(t("failedToUpdateExamLimit") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSavePassingPercentage = async () => {
+    try {
+      setSaving(true);
+      await updateSystemConfig(
+        "universal_passing_percentage",
+        universalPassingPercentage.toString(),
+        "Default minimum percentage required to pass exams"
+      );
+      toast.success(t("passingPercentageUpdated") || "Exam passing percentage saved successfully");
+    } catch (error: any) {
+      toast.error((t("failedToSavePassingPercentage") || "Failed to update passing percentage: ") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveSecurity = async () => {
+    try {
+      setSaving(true);
+      await Promise.all([
+        updateSystemConfig(SECURITY_CONFIG_KEYS.VIOLATION_MEASURES_ENABLED, security.violationMeasuresEnabled.toString(), t("violationMeasuresDesc")),
+        updateSystemConfig(SECURITY_CONFIG_KEYS.MAX_VIOLATIONS, security.maxViolations.toString(), t("maxViolationsDesc") || "Maximum allowed violation attempts before auto-submission"),
+        updateSystemConfig(SECURITY_CONFIG_KEYS.FULLSCREEN_ENABLED, security.fullscreenEnabled.toString(), t("fullscreenSecurityDesc") || "Enforce fullscreen during exams"),
+        updateSystemConfig(SECURITY_CONFIG_KEYS.TAB_SWITCH_ENABLED, security.tabSwitchEnabled.toString(), t("tabSwitchSecurityDesc") || "Detect tab or window switching"),
+        updateSystemConfig(SECURITY_CONFIG_KEYS.COPY_PASTE_ENABLED, security.copyPasteEnabled.toString(), t("copyPasteSecurityDesc") || "Prevent copy, paste, and cut"),
+        updateSystemConfig(SECURITY_CONFIG_KEYS.RIGHT_CLICK_ENABLED, security.rightClickEnabled.toString(), t("rightClickSecurityDesc") || "Disable right-click context menu"),
+        updateSystemConfig(SECURITY_CONFIG_KEYS.TEXT_SELECTION_ENABLED, security.textSelectionEnabled.toString(), t("textSelectionSecurityDesc") || "Prevent text selection"),
+        updateSystemConfig(SECURITY_CONFIG_KEYS.DRAG_DROP_ENABLED, security.dragDropEnabled.toString(), t("dragDropSecurityDesc") || "Prevent drag and drop"),
+        updateSystemConfig(SECURITY_CONFIG_KEYS.AI_DETECTION_ENABLED, security.aiDetectionEnabled.toString(), t("aiDetectionSecurityDesc") || "Detect AI sidebars and block AI shortcuts"),
+      ]);
+      toast.success(t("securitySettingsSaved") || "Security settings saved");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateSecuritySettings") || "Failed to save security settings: ") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveGroupExam = async () => {
+    try {
+      setSaving(true);
+      await Promise.all([
+        updateSystemConfig(
+          "group_exam_enabled",
+          groupExamEnabled.toString(),
+          t("groupExamToggleDesc") || "Enable or disable the group exam functionality for students"
+        ),
+        updateSystemConfig(
+          "service_group-exam_enabled",
+          groupExamEnabled.toString(),
+          "Enable or disable the group exam service"
+        ),
+        updateSystemConfig(
+          "group_exam_join_window_seconds",
+          groupExamJoinWindow.toString(),
+          "Time window in seconds during which invited students can enter the group exam room"
+        ),
+      ]);
+      setServiceToggles((prev) => ({ ...prev, "group-exam": groupExamEnabled }));
+      toast.success(t(groupExamEnabled ? "groupExamEnabled" : "groupExamDisabled") || "Group exam settings updated");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateGroupExam") || "Failed to update group exam setting: ") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveStandaloneExam = async () => {
+    try {
+      setSaving(true);
+      await updateSystemConfig(
+        "standalone_exam_enabled",
+        standaloneExamEnabled.toString(),
+        t("standaloneExamDesc") || "Enable or disable the standalone Take Exam page"
+      );
+      toast.success(t(standaloneExamEnabled ? "standaloneExamEnabled" : "standaloneExamDisabled"));
+    } catch (error: any) {
+      toast.error(t("failedToUpdateStandaloneExam") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveServices = async () => {
+    try {
+      setSaving(true);
+      await updateSystemConfig(
+        "services_page_enabled",
+        servicesPageEnabled.toString(),
+        t("servicesPageToggleDesc") || "Enable or disable the entire services page"
+      );
+      await Promise.all(
+        serviceDefinitions.map((svc) =>
+          updateSystemConfig(
+            `service_${svc.key}_enabled`,
+            (serviceToggles[svc.key] ?? true).toString(),
+            t(svc.descKey) || `Enable or disable the ${svc.key} service`
+          )
+        )
+      );
+      toast.success(t("servicesSettingsSaved") || "Services settings saved");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateServicesSettings") || "Failed to save services settings: ") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveLanguages = async () => {
+    try {
+      setSaving(true);
+      await Promise.all(
+        LEARNING_LANGUAGES.map((lang) =>
+          updateSystemConfig(
+            `learning_language_${lang.key}_enabled`,
+            (languageToggles[lang.key] ?? true).toString(),
+            t("learningLanguageToggleDesc") || `Enable or disable ${lang.label} as a learning language`
+          )
+        )
+      );
+      toast.success(t("learningLanguagesSaved") || "Learning language settings saved");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateLearningLanguages") || "Failed to save learning language settings: ") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveInterfaceLanguages = async () => {
+    try {
+      setSaving(true);
+      await Promise.all(
+        INTERFACE_LANGUAGES.map((lang) =>
+          updateSystemConfig(
+            `interface_language_${lang.key}_enabled`,
+            (interfaceLanguageToggles[lang.key] ?? true).toString(),
+            t("interfaceLanguageToggleDesc") || `Enable or disable ${lang.label} as an interface language`
+          )
+        )
+      );
+      toast.success(t("interfaceLanguagesSaved") || "Interface language settings saved");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateInterfaceLanguages") || "Failed to save interface language settings: ") + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {(!filter || filter === "exam") && (
+      <>
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-primary" />
+            {t("universalExamLimit")}
+          </CardTitle>
+          <CardDescription>
+            {t("setDailyExamLimit")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="exam-limit">{t("dailyExamLimitPerUser")}</Label>
+            <div className="flex items-center gap-4">
+              <Input
+                id="exam-limit"
+                type="number"
+                min={1}
+                max={100}
+                value={examLimit}
+                onChange={(e) => setExamLimit(parseInt(e.target.value, 10) || 1)}
+                className="w-32"
+              />
+              <span className="text-sm text-muted-foreground">
+                {t("examsPerDayPerUser")}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t("limitAppliedToAllUsers")}
+            </p>
+          </div>
+
+          <Button
+            onClick={handleSaveExamLimit}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("saveExamLimit")
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Universal Passing Percentage */}
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-primary" />
+            {t("examPassingPercentage") || "Exam Passing Percentage"}
+          </CardTitle>
+          <CardDescription>
+            {t("examPassingPercentageDesc") || "Set the default percentage required for candidates to pass exams"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="passing-percentage-config">{t("passingPercentage") || "Passing Percentage (%)"}</Label>
+            <div className="flex items-center gap-4">
+              <Input
+                id="passing-percentage-config"
+                type="number"
+                min={1}
+                max={100}
+                value={universalPassingPercentage}
+                onChange={(e) => setUniversalPassingPercentage(Math.min(100, Math.max(1, parseInt(e.target.value, 10) || 60)))}
+                className="w-32"
+              />
+              <span className="text-sm text-muted-foreground font-semibold">
+                % ({universalPassingPercentage >= 50 ? "Pass" : "Warning"})
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t("passingPercentageAppliedDesc") || "This percentage is used across regular and group exams to determine pass or fail status."}
+            </p>
+          </div>
+
+          <Button
+            onClick={handleSavePassingPercentage}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("savePassingPercentage") || "Save Passing Percentage"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Exam Security Settings */}
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            {t("examSecuritySettings")}
+          </CardTitle>
+          <CardDescription>
+            {t("enableEachSecurityFeature") || "Enable or disable each exam security feature individually"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="violations-toggle" className="text-base">
+                {t("violationMeasures")}
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {t("securityFeaturesList")}
+              </p>
+            </div>
+            <Switch
+              id="violations-toggle"
+              checked={security.violationMeasuresEnabled}
+              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, violationMeasuresEnabled: checked }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="max-violations">{t("maxViolations") || "Max Violations Before Auto-Submit"}</Label>
+            <div className="flex items-center gap-4">
+              <Input
+                id="max-violations"
+                type="number"
+                min={1}
+                max={10}
+                value={security.maxViolations}
+                onChange={(e) => setSecurity((s) => ({ ...s, maxViolations: parseInt(e.target.value, 10) || 1 }))}
+                className="w-32"
+              />
+              <span className="text-sm text-muted-foreground">
+                {t("maxViolationsHint") || "Number of cheating attempts before the exam is submitted automatically"}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SecurityFeatureToggle
+              id="security-fullscreen"
+              label={t("fullscreenSecurity") || "Fullscreen"}
+              description={t("fullscreenSecurityDesc") || "Require and enforce fullscreen"}
+              checked={security.fullscreenEnabled}
+              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, fullscreenEnabled: checked }))}
+              disabled={!security.violationMeasuresEnabled}
+            />
+            <SecurityFeatureToggle
+              id="security-tab-switch"
+              label={t("tabSwitchSecurity") || "Tab Switch"}
+              description={t("tabSwitchSecurityDesc") || "Detect switching tabs or windows"}
+              checked={security.tabSwitchEnabled}
+              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, tabSwitchEnabled: checked }))}
+              disabled={!security.violationMeasuresEnabled}
+            />
+            <SecurityFeatureToggle
+              id="security-copy-paste"
+              label={t("copyPasteSecurity") || "Copy / Paste"}
+              description={t("copyPasteSecurityDesc") || "Block copy, paste, and cut"}
+              checked={security.copyPasteEnabled}
+              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, copyPasteEnabled: checked }))}
+              disabled={!security.violationMeasuresEnabled}
+            />
+            <SecurityFeatureToggle
+              id="security-right-click"
+              label={t("rightClickSecurity") || "Right Click"}
+              description={t("rightClickSecurityDesc") || "Disable context menu"}
+              checked={security.rightClickEnabled}
+              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, rightClickEnabled: checked }))}
+              disabled={!security.violationMeasuresEnabled}
+            />
+            <SecurityFeatureToggle
+              id="security-text-selection"
+              label={t("textSelectionSecurity") || "Text Selection"}
+              description={t("textSelectionSecurityDesc") || "Prevent selecting text"}
+              checked={security.textSelectionEnabled}
+              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, textSelectionEnabled: checked }))}
+              disabled={!security.violationMeasuresEnabled}
+            />
+            <SecurityFeatureToggle
+              id="security-drag-drop"
+              label={t("dragDropSecurity") || "Drag & Drop"}
+              description={t("dragDropSecurityDesc") || "Prevent drag and drop"}
+              checked={security.dragDropEnabled}
+              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, dragDropEnabled: checked }))}
+              disabled={!security.violationMeasuresEnabled}
+            />
+            <SecurityFeatureToggle
+              id="security-ai-detection"
+              label={t("aiDetectionSecurity") || "AI Detection"}
+              description={t("aiDetectionSecurityDesc") || "Block AI shortcuts and detect AI sidebars"}
+              checked={security.aiDetectionEnabled}
+              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, aiDetectionEnabled: checked }))}
+              disabled={!security.violationMeasuresEnabled}
+            />
+          </div>
+
+          <Button
+            onClick={handleSaveSecurity}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("saveSecuritySettings")
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Standalone Exam Toggle */}
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            {t("standaloneExam") || "Standalone Exam Page"}
+          </CardTitle>
+          <CardDescription>
+            {t("standaloneExamDesc") || "Enable or disable the standalone Take Exam page for students"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="standalone-exam-toggle" className="text-base">
+                {t("standaloneExam") || "Standalone Exam Page"}
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {t("standaloneExamHint") || "When enabled, students can access the Take Exam page directly from the navigation."}
+              </p>
+            </div>
+            <Switch
+              id="standalone-exam-toggle"
+              checked={standaloneExamEnabled}
+              onCheckedChange={setStandaloneExamEnabled}
+            />
+          </div>
+
+          <Button
+            onClick={handleSaveStandaloneExam}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("save") || "Save"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Group Exam Toggle */}
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            {t("groupExam") || "Group Exam"}
+          </CardTitle>
+          <CardDescription>
+            {t("groupExamToggleDesc") || "Enable or disable the group exam functionality for students"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="group-exam-toggle" className="text-base">
+                {t("groupExam") || "Group Exam"}
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {t("groupExamHint") || "When enabled, students can create group exams and invite friends to compete. When disabled, all group exam content is hidden."}
+              </p>
+            </div>
+            <Switch
+              id="group-exam-toggle"
+              checked={groupExamEnabled}
+              onCheckedChange={setGroupExamEnabled}
+            />
+          </div>
+
+          {/* Join Window Configuration */}
+          <div className="space-y-2 pt-2 border-t">
+            <Label htmlFor="join-window" className="text-sm font-semibold">
+              {t("groupExamJoinWindow") || "Participant Join Window Limit"}
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              {t("groupExamJoinWindowDesc") || "The time window during which invited students can enter the exam room lobby or accept invitations."}
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {[
+                { label: "30s", value: 30 },
+                { label: "1 min", value: 60 },
+                { label: "2 min", value: 120 },
+                { label: "5 min", value: 300 },
+                { label: "10 min", value: 600 },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setGroupExamJoinWindow(opt.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    groupExamJoinWindow === opt.value
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-muted/40 hover:bg-muted text-foreground border-border"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <div className="flex items-center gap-1.5 ml-1">
+                <Input
+                  id="join-window"
+                  type="number"
+                  min={15}
+                  max={3600}
+                  value={groupExamJoinWindow}
+                  onChange={(e) => setGroupExamJoinWindow(Math.max(15, parseInt(e.target.value, 10) || 15))}
+                  className="w-24 h-8 text-xs"
+                />
+                <span className="text-xs text-muted-foreground">{t("seconds") || "sec"}</span>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleSaveGroupExam}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("save") || "Save"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+      </>
+      )}
+
+      {/* Services Settings */}
+      {(!filter || filter === "services") && (
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LayoutList className="h-5 w-5 text-primary" />
+            {t("servicesSettings") || "Services Settings"}
+          </CardTitle>
+          <CardDescription>
+            {t("servicesSettingsDesc") || "Enable or disable the services page and individual services for students"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Master toggle for entire services page */}
+          <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+            <div className="space-y-0.5 pr-3">
+              <Label htmlFor="services-page-toggle" className="text-sm font-medium">
+                {t("servicesPageToggle") || "Services Page"}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {t("servicesPageToggleDesc") || "When disabled, the entire services page is hidden from students."}
+              </p>
+            </div>
+            <Switch
+              id="services-page-toggle"
+              checked={servicesPageEnabled}
+              onCheckedChange={handleToggleServicesPage}
+            />
+          </div>
+
+          {/* Individual service toggles */}
+          <div className={`space-y-3 ${!servicesPageEnabled ? "opacity-50 pointer-events-none" : ""}`}>
+            <Label className="text-sm font-medium text-muted-foreground">
+              {t("individualServices") || "Individual Services"}
+            </Label>
+            {serviceDefinitions.map((svc) => (
+              <div key={svc.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                <div className="space-y-0.5 pr-3">
+                  <Label htmlFor={`service-${svc.key}-toggle`} className="text-sm font-medium">
+                    {t(svc.labelKey)}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t(svc.descKey)}
+                  </p>
+                </div>
+                <Switch
+                  id={`service-${svc.key}-toggle`}
+                  checked={serviceToggles[svc.key] ?? true}
+                  onCheckedChange={(checked) => handleToggleService(svc.key, checked)}
+                  disabled={!servicesPageEnabled}
+                />
+              </div>
+            ))}
+          </div>
+
+          <Button
+            onClick={handleSaveServices}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("save") || "Save"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+      )}
+
+      {/* Learning Language Toggles */}
+      {(!filter || filter === "languages") && (
+      <>
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            {t("learningLanguages") || "Learning Languages"}
+          </CardTitle>
+          <CardDescription>
+            {t("learningLanguagesDesc") || "Enable or disable languages that students can choose for learning"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-3">
+            {LEARNING_LANGUAGES.map((lang) => (
+              <div key={lang.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                <div className="space-y-0.5 pr-3">
+                  <Label htmlFor={`lang-${lang.key}-toggle`} className="text-sm font-medium">
+                    {lang.nativeLabel}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t("learningLanguageToggleDesc") || `Allow students to use ${lang.label} as their learning language`}
+                  </p>
+                </div>
+                <Switch
+                  id={`lang-${lang.key}-toggle`}
+                  checked={languageToggles[lang.key] ?? true}
+                  onCheckedChange={(checked) =>
+                    setLanguageToggles((prev) => ({ ...prev, [lang.key]: checked }))
+                  }
+                />
+              </div>
+            ))}
+          </div>
+
+          <Button
+            onClick={handleSaveLanguages}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("save") || "Save"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Interface Language Toggles */}
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            {t("interfaceLanguages") || "Interface Languages"}
+          </CardTitle>
+          <CardDescription>
+            {t("interfaceLanguagesDesc") || "Enable or disable languages that users can select for the app interface. Disable a language if its translations are not ready or need updating."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-3">
+            {INTERFACE_LANGUAGES.map((lang) => {
+              const isLastEnabled = Object.entries(interfaceLanguageToggles).filter(([k, v]) => v && k !== lang.key).length === 0 && interfaceLanguageToggles[lang.key];
+              return (
+                <div key={lang.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                  <div className="space-y-0.5 pr-3">
+                    <Label htmlFor={`iface-lang-${lang.key}-toggle`} className="text-sm font-medium">
+                      {lang.nativeLabel}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {t("interfaceLanguageToggleDesc") || `Allow users to use ${lang.label} as the app interface language`}
+                    </p>
+                  </div>
+                  <Switch
+                    id={`iface-lang-${lang.key}-toggle`}
+                    checked={interfaceLanguageToggles[lang.key] ?? true}
+                    disabled={isLastEnabled}
+                    onCheckedChange={(checked) =>
+                      setInterfaceLanguageToggles((prev) => ({ ...prev, [lang.key]: checked }))
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          <Button
+            onClick={handleSaveInterfaceLanguages}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("save") || "Save"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+      </>
+      )}
+    </div>
+  );
+}
