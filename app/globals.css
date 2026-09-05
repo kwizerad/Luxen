@@ -1,0 +1,2754 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@layer base {
+  :root {
+    /* Premium Light Theme - Apple-inspired Glass */
+    --background: 210 100% 96.07% / 64%; /* hsl(210deg 100% 96.07% / 64%) */
+    --foreground: 222 47% 11%; /* #0F172A */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 142 71% 45%; /* #22C55E */
+    --primary-foreground: 0 0% 100%;
+    --primary-readable: 142 71% 45%; /* Same as primary by default, darkened by JS when primary is light */
+    --secondary: 210 40% 96%; /* #F1F5F9 */
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 142 71% 55%; /* Lighter green */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%; /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%; /* #22C55E */
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%; /* #F59E0B */
+    --warning-foreground: 0 0% 100%;
+    --border: 214 25% 82%; /* #C3CAD6 */
+    --input: 214 25% 82%; /* #C3CAD6 */
+    --ring: 142 71% 45%;
+    --chart-1: 142 71% 45%;
+    --chart-2: 142 71% 55%;
+    --chart-3: 152 68% 50%;
+    --chart-4: 132 71% 40%;
+    --chart-5: 162 65% 45%;
+    --radius: 1.25rem;
+    --site-name: "System";
+
+    /* Dynamic glow & border accents */
+    --hover-border-color: #22C55E;
+    --glow-intensity: 24px;
+  }
+
+  .dark {
+    /* Deep Charcoal Dark Theme - ReactBits-inspired */
+    --background: 240 6% 4%; /* #060608 */
+    --foreground: 0 0% 95%;
+    --card: 240 5% 8%; /* #121217 */
+    --card-foreground: 0 0% 95%;
+    --popover: 240 5% 8%;
+    --popover-foreground: 0 0% 95%;
+    /* Primary, accent, ring and chart colors are set by ThemeConfigProvider */
+    --primary-readable: 142 71% 45%; /* Darkened by JS when primary is light */
+    --secondary: 240 4% 12%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 240 4% 10%;
+    --muted-foreground: 240 4% 56%; /* #888890 */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --border: 240 4% 14%; /* #222228 */
+    --input: 240 4% 14%;
+  }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: hsl(var(--border));
+  }
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    overflow-x: clip;
+    width: 100%;
+    max-width: 100%;
+    background-color: #f8fafc;
+    color-scheme: light;
+  }
+  html.dark {
+    background-color: #060608;
+    color-scheme: dark;
+  }
+  html.light, html:not(.dark) {
+    background-color: #f8fafc;
+    color-scheme: light;
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    overflow-x: clip;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100dvh;
+    -webkit-overflow-scrolling: touch;
+    /* Safe area insets for PWA installed mode (notch, status bar) */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .dark body,
+  html.dark body {
+    background-color: #060608;
+  }
+}
+
+/* Mesh gradient background (applied to <body>) */
+.mesh-gradient-bg {
+  background-color: #FBFCFE;
+  background-image:
+    radial-gradient(circle at 10% 10%, hsl(142 71% 95%) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, hsl(142 60% 96%) 0%, transparent 40%);
+  background-attachment: fixed;
+  background-size: 100% 100%;
+}
+
+.dark .mesh-gradient-bg,
+html.dark body.mesh-gradient-bg,
+html.dark .mesh-gradient-bg {
+  background-color: #060608;
+  background-image:
+    radial-gradient(circle at 12% 8%, hsl(var(--primary) / 0.28) 0, transparent 30%),
+    radial-gradient(circle at 86% 16%, hsl(186 100% 42% / 0.15) 0, transparent 28%),
+    radial-gradient(circle at 76% 86%, hsl(262 83% 67% / 0.18) 0, transparent 32%),
+    radial-gradient(circle at 12% 78%, hsl(213 94% 68% / 0.12) 0, transparent 28%),
+    radial-gradient(circle at 50% 45%, hsl(var(--primary) / 0.05) 0, transparent 50%);
+}
+
+/* Ensure Sonner toasts are always visible */
+[data-sonner-toaster] {
+  position: fixed !important;
+  z-index: 999999999 !important;
+  pointer-events: auto;
+}
+
+[data-sonner-toaster][data-theme="dark"] [data-sonner-toast] {
+  background: rgba(18, 18, 23, 0.9) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-sonner-toaster][data-theme="light"] [data-sonner-toast] {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Ensure dialog portals render correctly */
+[data-radix-dialog-portal] {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+[data-radix-dialog-portal] > * {
+  pointer-events: auto;
+}
+
+[role="dialog"] {
+  z-index: 50;
+}
+
+@layer utilities {
+  /* Primary-readable: auto-darkened primary for text visibility on light backgrounds */
+  .text-primary-readable {
+    color: hsl(var(--primary-readable));
+  }
+  .bg-primary-readable {
+    background-color: hsl(var(--primary-readable));
+  }
+  .border-primary-readable {
+    border-color: hsl(var(--primary-readable));
+  }
+  .text-primary-readable\/80 {
+    color: hsl(var(--primary-readable) / 0.8);
+  }
+  .text-primary-readable\/60 {
+    color: hsl(var(--primary-readable) / 0.6);
+  }
+  .bg-primary-readable\/10 {
+    background-color: hsl(var(--primary-readable) / 0.1);
+  }
+  .bg-primary-readable\/20 {
+    background-color: hsl(var(--primary-readable) / 0.2);
+  }
+  .border-primary-readable\/20 {
+    border-color: hsl(var(--primary-readable) / 0.2);
+  }
+
+  /* Hide scrollbar but keep scrollable */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Premium glass surfaces — Apple-inspired glassmorphism in light mode */
+  .premium-glass-card,
+  .glass-card,
+  .card-glass {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.28));
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(18, 18, 23, 0.14);
+    border-radius: 24px;
+    transition: border-color 300ms ease, backdrop-filter 300ms ease;
+  }
+
+  /* Reflective sheen overlay — light mode only */
+  .premium-glass-card::before,
+  .glass-card::before,
+  .card-glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.18) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(255, 255, 255, 0.06) 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .premium-glass-card > *,
+  .glass-card > *,
+  .card-glass > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .premium-glass-card:hover,
+  .glass-card:hover {
+    border-color: var(--hover-border-color, #3B82F6);
+    backdrop-filter: blur(16px) saturate(200%);
+    -webkit-backdrop-filter: blur(16px) saturate(200%);
+  }
+
+  .dark .premium-glass-card,
+  .dark .glass-card,
+  .dark .card-glass {
+    background: rgba(18, 18, 23, 0.8);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+  }
+
+  .dark .premium-glass-card::before,
+  .dark .glass-card::before,
+  .dark .card-glass::before {
+    display: none;
+  }
+
+  .dark .premium-glass-card:hover,
+  .dark .glass-card:hover {
+    background: rgba(18, 18, 23, 0.85);
+    border-color: var(--hover-border-color, rgba(255, 255, 255, 0.18));
+    backdrop-filter: blur(14px) saturate(200%);
+    -webkit-backdrop-filter: blur(14px) saturate(200%);
+  }
+
+  .premium-glass-panel,
+  .glass-panel,
+  .glassmorphism {
+    position: relative;
+    isolation: isolate;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.25));
+    backdrop-filter: blur(28px) saturate(190%);
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+    border-color: rgba(18, 18, 23, 0.12);
+    box-shadow:
+      18px 0 55px rgba(18, 18, 23, 0.1),
+      0 12px 35px rgba(18, 18, 23, 0.07);
+  }
+
+  /* Reflective sheen for panels — light mode only */
+  .premium-glass-panel::before,
+  .glass-panel::before,
+  .glassmorphism::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.15) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(255, 255, 255, 0.05) 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .premium-glass-panel > *,
+  .glass-panel > *,
+  .glassmorphism > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .dark .premium-glass-panel,
+  .dark .glass-panel,
+  .dark .glassmorphism {
+    background: rgba(18, 18, 23, 0.4);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .dark .premium-glass-panel::before,
+  .dark .glass-panel::before,
+  .dark .glassmorphism::before {
+    display: none;
+  }
+
+  /* Student nav pill — solid dark background so it stands out from content */
+  .student-nav-pill {
+    background:
+      linear-gradient(145deg, rgba(18, 18, 23, 0.62), rgba(30, 30, 35, 0.62)) !important;
+    border-color: rgba(18, 18, 23, 0.5) !important;
+  }
+
+  .dark .student-nav-pill {
+    background: rgba(18, 18, 23, 0.75) !important;
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  /* Student nav buttons — high contrast on the solid primary background */
+  .student-nav-pill .student-nav-btn {
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .student-nav-pill .student-nav-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .student-nav-pill .student-nav-btn.student-nav-active {
+    color: #ffffff;
+    background: hsl(var(--primary));
+  }
+
+  .student-nav-pill .student-nav-btn.student-nav-active .student-nav-icon-wrap {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Admin nav pill — solid dark background so it stands out from content */
+  .admin-nav-pill {
+    background:
+      linear-gradient(145deg, rgba(18, 18, 23, 0.62), rgba(30, 30, 35, 0.62)) !important;
+    border-color: rgba(18, 18, 23, 0.5) !important;
+  }
+
+  .dark .admin-nav-pill {
+    background:
+      linear-gradient(145deg, hsl(var(--primary) / 0.55), hsl(221 70% 38% / 0.6)) !important;
+    border-color: hsl(var(--primary) / 0.4) !important;
+  }
+
+  /* Admin nav buttons — high contrast on the solid primary background */
+  .admin-nav-pill .admin-nav-btn {
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .admin-nav-pill .admin-nav-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .admin-nav-pill .admin-nav-btn.admin-nav-active {
+    color: #ffffff;
+    background: hsl(var(--primary));
+  }
+
+  .admin-nav-pill .admin-nav-btn.admin-nav-active .admin-nav-icon-wrap {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Premium button gradient */
+  .premium-button {
+    background: hsl(var(--primary));
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: all 200ms ease;
+  }
+
+  .premium-button:hover {
+    filter: brightness(1.05);
+  }
+
+  /* Shimmer effect */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.15),
+      transparent
+    );
+    transform: translateX(-100%);
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Floating animation */
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  /* Gradient text removed — use text-primary instead */
+
+  .student-page,
+  .student-page-narrow {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    margin-inline: 0;
+    padding: 3.25rem 1rem calc(5.5rem + env(safe-area-inset-bottom));
+    overflow-x: clip;
+  }
+
+  /* Variant for pages without bottom navigation */
+  .student-page-no-nav,
+  .student-page-narrow.student-page-no-nav {
+    padding-bottom: 1.5rem;
+  }
+
+  .student-page {
+    max-width: 96rem;
+  }
+
+  .student-page-narrow {
+    max-width: 80rem;
+  }
+
+  .student-page > :not([hidden]) ~ :not([hidden]),
+  .student-page-narrow > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 1.25rem;
+  }
+
+  .student-page-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .student-page-title {
+    font-size: clamp(1.5rem, 1.25rem + 1vw, 2rem);
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    overflow-wrap: anywhere;
+  }
+
+  .student-page-description {
+    max-width: 42rem;
+    margin-top: 0.25rem;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+    line-height: 1.625;
+  }
+
+  .student-section > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 1rem;
+  }
+
+  .student-section-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .student-section-title {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+
+  .student-content-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .student-page,
+    .student-page-narrow {
+      padding-inline: 1.25rem;
+    }
+
+    .student-page-header,
+    .student-section-header {
+      flex-direction: row;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .student-page-title {
+      font-size: 1.875rem;
+      line-height: 2.25rem;
+    }
+
+    .student-page-description {
+      font-size: 1rem;
+      line-height: 1.625;
+    }
+
+    .student-section-title {
+      font-size: 1.25rem;
+      line-height: 1.75rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .student-page,
+    .student-page-narrow {
+      padding-block: 3.75rem calc(6rem + env(safe-area-inset-bottom));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .student-page,
+    .student-page-narrow {
+      padding-inline: 1.5rem;
+    }
+
+    .student-content-grid {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+  }
+
+  .neumorphic {
+    background: hsl(var(--background));
+    border-radius: var(--radius);
+    box-shadow:
+      8px 8px 16px hsl(var(--shadow-dark)),
+      -8px -8px 16px hsl(var(--shadow-light));
+  }
+
+  .neumorphic-inset {
+    background: hsl(var(--background));
+    border-radius: var(--radius);
+    box-shadow:
+      inset 4px 4px 8px hsl(var(--shadow-dark)),
+      inset -4px -4px 8px hsl(var(--shadow-light));
+  }
+
+  .neumorphic-flat {
+    background: hsl(var(--background));
+    border-radius: var(--radius);
+    box-shadow:
+      4px 4px 8px hsl(var(--shadow-dark)),
+      -4px -4px 8px hsl(var(--shadow-light));
+    transition: all 0.3s ease;
+  }
+
+  .neumorphic-flat:hover {
+    box-shadow:
+      6px 6px 12px hsl(var(--shadow-dark)),
+      -6px -6px 12px hsl(var(--shadow-light));
+  }
+
+  .neumorphic-flat:active {
+    box-shadow:
+      inset 2px 2px 4px hsl(var(--shadow-dark)),
+      inset -2px -2px 4px hsl(var(--shadow-light));
+  }
+
+  .soft-shadow {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06),
+      0 1px 3px -1px rgba(0, 0, 0, 0.05);
+  }
+
+  .smooth-surface {
+    background: hsl(var(--background));
+    border-radius: var(--radius);
+  }
+
+  .brand-no-select {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+
+  .brand-no-copy {
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+  }
+
+  /*
+   * Mobile scroll performance optimization.
+   *
+   * backdrop-filter: blur(30-34px) saturate(175-185%) on glass surfaces is
+   * extremely GPU-expensive on mobile devices. Each glass element forces the
+   * browser to re-rasterize the blurred backdrop on every scroll frame, which
+   * causes janky/slow scrolling when multiple glass cards are visible.
+   *
+   * On screens <= 768px we:
+   *  1. Reduce blur radius from 30-34px to 12px (visually similar, far cheaper)
+   *  2. Drop the saturate() filter (biggest single cost saver)
+   *  3. Promote each glass surface to its own compositor layer via
+   *     transform: translateZ(0) so the blur is rasterized once and cached
+   *     instead of recomputed every frame
+   *  4. Add -webkit-overflow-scrolling: touch for iOS momentum scrolling
+   *  5. Add overscroll-behavior to prevent scroll chaining to parent
+   *  6. Add content-visibility:auto on card-heavy sections so off-screen
+   *     content is skipped during layout/paint, dramatically speeding up
+   *     scrolling on long pages
+   *  7. Add touch-action: pan-y to let the browser handle vertical scrolling
+   *     natively without waiting for JS event listeners
+   *  8. Use text-rendering: optimizeSpeed for faster text paint
+   */
+  @media (max-width: 768px) {
+    .premium-glass-card,
+    .glass-card,
+    .card-glass {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transform: translateZ(0);
+    }
+
+    .premium-glass-panel,
+    .glass-panel,
+    .glassmorphism {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transform: translateZ(0);
+    }
+
+    /* Ensure the body itself uses smooth momentum scrolling on iOS and mobile */
+    body {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: auto;
+      text-rendering: optimizeSpeed;
+      -webkit-text-rendering: optimizeSpeed;
+    }
+
+    /* Allow natural vertical panning on mobile pages and sections */
+    .student-page,
+    .student-page-narrow,
+    .student-section {
+      touch-action: pan-y;
+      overscroll-behavior-y: auto;
+    }
+
+    /* Skip layout/paint for off-screen cards in grid/list sections */
+    .student-content-grid > *,
+    .student-section > Card {
+      content-visibility: auto;
+      contain-intrinsic-size: auto 120px;
+    }
+
+    /* Promote scrollable containers to their own compositor layer with native momentum scrolling */
+    .overflow-y-auto,
+    .overflow-auto,
+    [class*="overflow-y"] {
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      overscroll-behavior-y: auto;
+    }
+
+    /* Reduce box-shadow paint cost on scroll */
+    .navo-card-brand {
+      will-change: transform;
+    }
+  }
+
+  .brand-protected {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+  }
+
+  .navo-watermark {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    font-size: 120px;
+    font-weight: 900;
+    color: hsl(var(--primary) / 0.05);
+    pointer-events: none;
+    z-index: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+
+  .navo-card-brand {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .navo-card-brand [data-radix-popper-content-wrapper],
+  .navo-card-brand [data-radix-dialog-content] {
+    position: fixed !important;
+  }
+
+  .navo-card-brand::after {
+    content: var(--site-name, "System");
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 40px;
+    font-weight: 900;
+    color: hsl(var(--primary) / 0.08);
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    white-space: nowrap;
+  }
+
+  /* Google One Tap Custom Styles */
+  .google-one-tap-card {
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+  }
+
+  .google-one-tap-card .google-login-button {
+    width: 100%;
+    height: 40px;
+    border-radius: 4px;
+    background: #fff;
+    border: 1px solid #dadce0;
+    transition: all 0.2s ease;
+  }
+
+  .google-one-tap-card .google-login-button:hover {
+    background: #f7f8f8;
+    border-color: #d2e3fc;
+  }
+
+  .google-one-tap-card .google-login-button:active {
+    background: #f1f3f4;
+  }
+}
+
+/* ============================================================= */
+/*  ADMIN PORTAL — Premium Dark Glassmorphism Design System      */
+/*  Scoped under .admin-portal so student pages are unaffected   */
+/* ============================================================= */
+
+/* Force deep charcoal background for the admin portal */
+.admin-portal {
+  --admin-bg: #060608;
+  --admin-bg-2: #0B0B0E;
+  --admin-card: rgba(18, 18, 23, 0.8);
+  --admin-card-hover: rgba(255, 255, 255, 0.06);
+  --admin-border: rgba(255, 255, 255, 0.08);
+  --admin-border-hover: var(--hover-border-color, rgba(255, 255, 255, 0.14));
+  --admin-text: #F1F5F9;
+  --admin-muted: #888890;
+  --admin-primary: hsl(var(--primary, 221 83% 53%));
+  --admin-primary-readable: hsl(var(--primary-readable, 221 83% 53%));
+  --admin-secondary: hsl(var(--primary, 221 83% 53%));
+  --admin-success: #22C55E;
+  --admin-warning: #F59E0B;
+  --admin-danger: #EF4444;
+  --admin-glass-bg: rgba(18, 18, 23, 0.8);
+  --admin-glass-bg-hover: rgba(255, 255, 255, 0.04);
+  --admin-glass-border: rgba(255, 255, 255, 0.08);
+  --admin-shadow: rgba(0, 0, 0, 0.5);
+  --admin-shadow-soft: rgba(0, 0, 0, 0.3);
+  --admin-input-bg: rgba(255, 255, 255, 0.03);
+  --admin-input-bg-focus: rgba(255, 255, 255, 0.05);
+  --admin-hover-bg: rgba(255, 255, 255, 0.04);
+  --admin-overlay-bg: rgba(6, 6, 8, 0.9);
+  --admin-overlay-bg-strong: rgba(6, 6, 8, 0.95);
+  background-color: var(--admin-bg);
+  color: var(--admin-text);
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Solid background mode — transparent so body's hsl(240 6% 4%) + particles show through */
+.admin-portal.admin-bg-solid {
+  background-color: transparent;
+}
+
+/* Gradient background mode — keep the admin's own background color */
+.admin-portal.admin-bg-gradient {
+  background-color: var(--admin-bg);
+}
+
+/* ---------- Light theme overrides for admin portal ---------- */
+:root:not(.dark) .admin-portal {
+  --admin-bg: #F1F5F9;
+  --admin-bg-2: #E2E8F0;
+  --admin-card: rgba(255, 255, 255, 0.72);
+  --admin-card-hover: rgba(255, 255, 255, 0.85);
+  --admin-border: rgba(18, 18, 23, 0.10);
+  --admin-border-hover: var(--hover-border-color, rgba(18, 18, 23, 0.18));
+  --admin-text: #0F172A;
+  --admin-muted: #64748B;
+  --admin-primary: hsl(var(--primary, 221 83% 53%));
+  --admin-primary-readable: hsl(var(--primary-readable, 221 83% 53%));
+  --admin-secondary: hsl(var(--primary, 221 83% 53%));
+  --admin-success: #16A34A;
+  --admin-warning: #D97706;
+  --admin-danger: #DC2626;
+  --admin-glass-bg: rgba(255, 255, 255, 0.72);
+  --admin-glass-bg-hover: rgba(255, 255, 255, 0.85);
+  --admin-glass-border: rgba(18, 18, 23, 0.10);
+  --admin-shadow: rgba(18, 18, 23, 0.10);
+  --admin-shadow-soft: rgba(18, 18, 23, 0.06);
+  --admin-input-bg: rgba(255, 255, 255, 0.6);
+  --admin-input-bg-focus: rgba(255, 255, 255, 0.85);
+  --admin-hover-bg: rgba(18, 18, 23, 0.04);
+  --admin-overlay-bg: rgba(255, 255, 255, 0.92);
+  --admin-overlay-bg-strong: rgba(255, 255, 255, 0.95);
+}
+
+/* Aurora mesh gradient — soft blue/purple/indigo, low opacity */
+.admin-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--admin-bg);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 15% 10%, rgba(34, 197, 94, 0.18) 0, transparent 55%),
+    radial-gradient(ellipse 70% 55% at 85% 15%, rgba(34, 197, 94, 0.14) 0, transparent 55%),
+    radial-gradient(ellipse 75% 60% at 75% 85%, rgba(74, 222, 128, 0.12) 0, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 20% 80%, rgba(34, 197, 94, 0.10) 0, transparent 55%);
+  background-attachment: fixed;
+  background-size: 100% 100%;
+}
+
+/* Light mode aurora — Green Tint Glass */
+:root:not(.dark) .admin-aurora {
+  background-color: #FBFCFE;
+  background-image:
+    radial-gradient(circle at 10% 10%, hsl(142 71% 95%) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, hsl(142 60% 96%) 0%, transparent 40%);
+}
+
+/* Animated aurora drift */
+@keyframes admin-aurora-drift {
+  0%, 100% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%; }
+  50% { background-position: 10% 5%, -8% 3%, 6% -4%, -6% -3%; }
+}
+.admin-aurora {
+  animation: admin-aurora-drift 24s ease-in-out infinite;
+}
+
+/* ---------- Floating Sidebar ---------- */
+.admin-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  border-radius: 24px;
+  background: var(--admin-glass-bg);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid var(--admin-border);
+  box-shadow: 0 20px 60px transparent;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.admin-sidebar::-webkit-scrollbar { width: 4px; }
+.admin-sidebar::-webkit-scrollbar-thumb { background: var(--admin-hover-bg); border-radius: 4px; }
+.admin-sidebar::-webkit-scrollbar-track { background: transparent; }
+
+/* Sidebar nav pill buttons */
+.admin-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--admin-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 250ms ease, color 250ms ease, border-color 250ms ease;
+  text-align: left;
+  width: 100%;
+  position: relative;
+}
+
+.admin-sidebar-item:hover {
+  background: var(--admin-hover-bg);
+  color: var(--admin-text);
+  transform: translateX(6px);
+}
+
+.admin-sidebar-item.active {
+  background: linear-gradient(90deg, var(--admin-primary), var(--admin-secondary));
+  color: #ffffff;
+}
+
+.admin-sidebar-item.active:hover {
+  transform: none;
+}
+
+.admin-sidebar-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Sidebar section label */
+.admin-sidebar-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+  opacity: 0.6;
+  padding: 0 16px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+/* ---------- Top Navigation Bar ---------- */
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  border-radius: 20px;
+  background: var(--admin-glass-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--admin-border);
+  position: sticky;
+  top: 16px;
+  z-index: 30;
+}
+
+.admin-topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-radius: 14px;
+  background: var(--admin-input-bg);
+  border: 1px solid var(--admin-border);
+  transition: border-color 200ms ease, background 200ms ease;
+  min-width: 200px;
+  flex: 1;
+  max-width: 420px;
+}
+
+.admin-topbar-search:focus-within {
+  border-color: hsl(var(--primary, 221 83% 53%) / 0.4);
+  background: var(--admin-input-bg-focus);
+}
+
+.admin-topbar-search input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--admin-text);
+  font-size: 14px;
+  width: 100%;
+}
+
+.admin-topbar-search input::placeholder {
+  color: var(--admin-muted);
+}
+
+.admin-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--admin-input-bg);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-muted);
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.admin-icon-btn:hover {
+  background: var(--admin-hover-bg);
+  color: var(--admin-text);
+  border-color: var(--admin-border-hover);
+}
+
+.admin-icon-btn svg { width: 20px; height: 20px; }
+
+/* ---------- Admin Cards ---------- */
+.admin-card {
+  border-radius: 20px;
+  background: var(--admin-glass-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--admin-glass-border);
+  transition: border-color 250ms ease;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.admin-card > * { position: relative; z-index: 1; }
+
+.admin-card:hover {
+  border-color: var(--admin-border-hover);
+}
+
+/* Stat card variant */
+.admin-stat-card {
+  border-radius: 20px;
+  background: var(--admin-glass-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--admin-glass-border);
+  padding: 24px;
+  transition: border-color 250ms ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.admin-stat-card:hover {
+  border-color: var(--admin-border-hover);
+}
+
+.admin-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 250ms ease;
+}
+
+/* ---------- Admin Buttons ---------- */
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 200ms ease;
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+}
+
+.admin-btn-primary {
+  background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary));
+  color: #ffffff;
+}
+
+.admin-btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.admin-btn-secondary {
+  background: var(--admin-hover-bg);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-btn-secondary:hover {
+  background: var(--admin-card-hover);
+}
+
+.admin-btn-ghost {
+  background: transparent;
+  color: var(--admin-muted);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-btn-ghost:hover {
+  color: var(--admin-text);
+  border-color: var(--admin-border-hover);
+  background: var(--admin-input-bg);
+}
+
+/* ---------- Admin Tables ---------- */
+.admin-table-wrap {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-glass-bg);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--admin-hover-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 14px 18px;
+  text-align: left;
+  border-bottom: 1px solid var(--admin-border);
+  z-index: 2;
+}
+
+.admin-table tbody td {
+  padding: 14px 18px;
+  font-size: 14px;
+  color: var(--admin-text);
+  border-bottom: 1px solid var(--admin-border);
+  transition: background 200ms ease;
+}
+
+.admin-table tbody tr:last-child td { border-bottom: none; }
+
+.admin-table tbody tr {
+  transition: background 200ms ease;
+}
+
+.admin-table tbody tr:hover {
+  background: var(--admin-hover-bg);
+}
+
+/* ---------- Admin Badges ---------- */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-badge-success { background: rgba(34, 197, 94, 0.12); color: var(--admin-success); border: 1px solid rgba(34,197,94,0.2); }
+.admin-badge-warning { background: rgba(245, 158, 11, 0.12); color: var(--admin-warning); border: 1px solid rgba(245,158,11,0.2); }
+.admin-badge-danger  { background: rgba(239, 68, 68, 0.12); color: var(--admin-danger); border: 1px solid rgba(239,68,68,0.2); }
+.admin-badge-info    { background: hsl(var(--primary, 221 83% 53%) / 0.12); color: var(--admin-primary); border: 1px solid hsl(var(--primary, 221 83% 53%) / 0.2); }
+.admin-badge-purple  { background: hsl(var(--primary, 221 83% 53%) / 0.12); color: var(--admin-secondary); border: 1px solid hsl(var(--primary, 221 83% 53%) / 0.2); }
+
+/* ---------- Admin Progress Ring ---------- */
+.admin-progress-ring {
+  transform: rotate(-90deg);
+}
+
+.admin-progress-ring circle {
+  transition: stroke-dashoffset 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- Admin Inputs ---------- */
+.admin-input {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: var(--admin-input-bg);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  font-size: 14px;
+  transition: border-color 200ms ease, background 200ms ease;
+  outline: none;
+}
+
+.admin-input::placeholder { color: var(--admin-muted); }
+
+/* ---------- Settings aside inputs — borderless, rounded ---------- */
+.settings-aside .admin-input {
+  border: none;
+  border-radius: 9999px;
+  background: var(--admin-hover-bg);
+  padding: 6px 14px;
+  font-size: 13px;
+}
+.settings-aside .admin-input:focus {
+  border: none;
+  background: var(--admin-input-bg-focus);
+  box-shadow: 0 0 0 1px hsl(var(--primary, 221 83% 53%) / 0.3);
+}
+
+.admin-input:focus {
+  border-color: hsl(var(--primary, 221 83% 53%) / 0.4);
+  background: var(--admin-input-bg-focus);
+}
+
+/* ---------- Course Page — non-rounded inputs ---------- */
+.course-page .admin-input,
+.course-page input,
+.course-page textarea,
+.course-page select,
+.course-page [class*="rounded"]:not([class*="rounded-full"]):not(button):not([role="tab"]):not([class*="checkbox"]):not([class*="switch"]):not(.course-tree-sidebar *):not(.course-tree-sidebar) {
+  border-radius: 0 !important;
+}
+.course-page .settings-aside .admin-input {
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 0 !important;
+  background: var(--admin-input-bg) !important;
+  box-shadow: none !important;
+}
+.course-page .ProseMirror,
+.course-page .rich-editor-toolbar {
+  border-radius: 0 !important;
+}
+
+/* ---------- Admin Section Title ---------- */
+.admin-page-title {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--admin-text);
+}
+
+.admin-page-subtitle {
+  font-size: 14px;
+  color: var(--admin-muted);
+  margin-top: 4px;
+}
+
+.admin-section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.admin-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+/* ---------- Admin Layout Shell ---------- */
+.admin-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 24px;
+  padding: 24px;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.admin-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ---------- Admin Mobile Bottom Nav (small screens) ---------- */
+@media (max-width: 1023px) {
+  .admin-sidebar { display: none; }
+  .admin-shell { padding: 16px; }
+}
+
+/* ---------- Admin scrollbar styling ---------- */
+.admin-portal ::-webkit-scrollbar { width: 8px; height: 8px; }
+.admin-portal ::-webkit-scrollbar-track { background: transparent; }
+.admin-portal ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }
+.admin-portal ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+
+/* Light mode scrollbar — visible dark thumb */
+:not(.dark) .admin-portal ::-webkit-scrollbar-thumb { background: rgba(18, 18, 23, 0.15); border-radius: 8px; }
+:not(.dark) .admin-portal ::-webkit-scrollbar-thumb:hover { background: rgba(18, 18, 23, 0.25); }
+
+/* ---------- Admin chart tooltip ---------- */
+.admin-chart-tooltip {
+  border-radius: 12px;
+  background: rgba(18, 18, 23, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--admin-border);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--admin-text);
+}
+
+/* Light mode chart tooltip */
+:not(.dark) .admin-chart-tooltip {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.12);
+}
+
+/* ---------- Admin shadcn component overrides ---------- */
+/* Restyle shadcn Card/Table/Button/Input/Badge inside admin-portal so all
+   admin sub-pages inherit the premium dark glass look without page rewrites.
+   The shadcn Card component applies the `premium-glass-card` class, so we
+   override that directly (the [data-slot] selector never matched because
+   Card has no data-slot attribute). */
+
+/* Override premium-glass-card inside admin portal to match dashboard cards */
+.admin-portal .premium-glass-card,
+.admin-portal .glass-card,
+.admin-portal .card-glass {
+  border-radius: 20px !important;
+  background: var(--admin-glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid var(--admin-glass-border) !important;
+  box-shadow: 0 12px 40px var(--admin-shadow) !important;
+  color: var(--admin-text) !important;
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 250ms ease,
+              border-color 250ms ease !important;
+  isolation: isolate;
+}
+
+.admin-portal .premium-glass-card:hover,
+.admin-portal .glass-card:hover,
+.admin-portal .card-glass:hover {
+  border-color: var(--admin-border-hover) !important;
+}
+
+/* Dark mode is the default look for admin portal — same values apply.
+   Override the .dark premium-glass-card dark variant too so it doesn't
+   override our admin values. */
+.dark .admin-portal .premium-glass-card,
+.dark .admin-portal .glass-card,
+.dark .admin-portal .card-glass {
+  background: var(--admin-glass-bg) !important;
+  border-color: var(--admin-glass-border) !important;
+  box-shadow: 0 12px 40px var(--admin-shadow) !important;
+}
+
+.dark .admin-portal .premium-glass-card:hover,
+.dark .admin-portal .glass-card:hover,
+.dark .admin-portal .card-glass:hover {
+  border-color: var(--admin-border-hover) !important;
+}
+
+/* Card text colors — shadcn Card renders CardTitle/CardDescription with
+   these utility classes. The [data-slot] selectors never matched because
+   this version of shadcn/ui doesn't use data-slot attributes. */
+.admin-portal .text-lg.font-semibold,
+.admin-portal .text-2xl.font-semibold,
+.admin-portal .text-xl.font-semibold,
+.admin-portal .font-semibold.leading-none {
+  color: var(--admin-text) !important;
+}
+
+.admin-portal .text-sm.text-muted-foreground,
+.admin-portal .text-muted-foreground {
+  color: var(--admin-muted) !important;
+}
+
+/* Admin Buttons — shadcn Button renders a <button> with cva variant classes.
+   Target by the actual Tailwind utility classes each variant applies. */
+.admin-portal button {
+  border-radius: 14px !important;
+  font-weight: 600 !important;
+  transition: all 200ms ease !important;
+}
+
+/* Default variant: bg-primary text-primary-foreground */
+.admin-portal button.bg-primary {
+  background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary)) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 20px hsl(var(--primary, 221 83% 53%) / 0.3) !important;
+}
+
+.admin-portal button.bg-primary:hover {
+  filter: brightness(1.05) !important;
+}
+
+/* Destructive variant: bg-destructive */
+.admin-portal button.bg-destructive {
+  background: linear-gradient(135deg, #EF4444, #F87171) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Secondary variant: bg-secondary */
+.admin-portal button.bg-secondary {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-text) !important;
+  border: 1px solid var(--admin-border) !important;
+}
+
+/* Outline variant: border border-input bg-background/50 */
+.admin-portal button.border.border-input,
+.admin-portal button.border-input {
+  background: transparent !important;
+  color: var(--admin-muted) !important;
+  border: 1px solid var(--admin-border) !important;
+}
+
+.admin-portal button.border.border-input:hover,
+.admin-portal button.border-input:hover {
+  color: var(--admin-text) !important;
+  border-color: var(--admin-border-hover) !important;
+  background: var(--admin-input-bg) !important;
+}
+
+/* Ghost variant: hover:bg-accent */
+.admin-portal button.hover\:bg-accent {
+  background: transparent !important;
+  color: var(--admin-muted) !important;
+}
+
+.admin-portal button.hover\:bg-accent:hover {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Admin Inputs — shadcn Input renders <input> with bg-background/60 border-input */
+.admin-portal input[type="text"],
+.admin-portal input[type="email"],
+.admin-portal input[type="password"],
+.admin-portal input[type="number"],
+.admin-portal input[type="search"],
+.admin-portal input[type="tel"],
+.admin-portal input[type="url"],
+.admin-portal input:not([type]),
+.admin-portal textarea {
+  border-radius: 14px !important;
+  background: var(--admin-input-bg) !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+  transition: border-color 200ms ease, background 200ms ease !important;
+}
+
+.admin-portal input:focus,
+.admin-portal textarea:focus {
+  border-color: hsl(var(--primary, 221 83% 53%) / 0.4) !important;
+  background: var(--admin-input-bg-focus) !important;
+  outline: none !important;
+}
+
+.admin-portal input::placeholder,
+.admin-portal textarea::placeholder {
+  color: var(--admin-muted) !important;
+}
+
+/* Admin Labels */
+.admin-portal label {
+  color: var(--admin-text) !important;
+}
+
+/* Admin Tables — shadcn Table renders a wrapper div + <table>/<thead>/<tr>/<th>/<td>.
+   Target the actual HTML elements inside .admin-portal. */
+.admin-portal table {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.admin-portal thead {
+  background: var(--admin-hover-bg) !important;
+}
+
+.admin-portal th {
+  color: var(--admin-muted) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--admin-border) !important;
+}
+
+.admin-portal tr {
+  transition: background 200ms ease;
+  border-bottom: 1px solid var(--admin-border) !important;
+}
+
+.admin-portal tbody tr:hover {
+  background: var(--admin-hover-bg) !important;
+}
+
+.admin-portal td {
+  color: var(--admin-text) !important;
+  border-bottom: 1px solid var(--admin-border) !important;
+}
+
+/* Table wrapper div — has rounded-[20px] border-border/20 bg-card/40 */
+.admin-portal .relative.w-full.overflow-hidden.rounded-\[20px\] {
+  background: var(--admin-glass-bg) !important;
+  border-color: var(--admin-border) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Admin Badges — shadcn Badge renders a <div> with rounded-full border classes.
+   Target by the rounded-full + border-transparent pattern. */
+.admin-portal .rounded-full.border-transparent {
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+/* Default badge: bg-primary */
+.admin-portal .rounded-full.border-transparent.bg-primary {
+  background: hsl(var(--primary, 221 83% 53%) / 0.12) !important;
+  color: var(--admin-primary) !important;
+  border: 1px solid hsl(var(--primary, 221 83% 53%) / 0.2) !important;
+}
+
+/* Secondary badge: bg-secondary */
+.admin-portal .rounded-full.border-transparent.bg-secondary {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-muted) !important;
+  border: 1px solid var(--admin-border) !important;
+}
+
+/* Outline badge: bg-background/50 backdrop-blur-sm */
+.admin-portal .rounded-full.bg-background\/50 {
+  background: transparent !important;
+  color: var(--admin-muted) !important;
+  border: 1px solid var(--admin-border) !important;
+}
+
+/* Destructive badge: bg-destructive */
+.admin-portal .rounded-full.border-transparent.bg-destructive {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: var(--admin-danger) !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Success badge: bg-[#22C55E] */
+.admin-portal .rounded-full.border-transparent.bg-\[\#22C55E\] {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: var(--admin-success) !important;
+  border: 1px solid rgba(34, 197, 94, 0.2) !important;
+}
+
+/* Warning badge: bg-[#F59E0B] */
+.admin-portal .rounded-full.border-transparent.bg-\[\#F59E0B\] {
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: var(--admin-warning) !important;
+  border: 1px solid rgba(245, 158, 11, 0.2) !important;
+}
+
+/* Admin Dialog — portaled to body, use body.admin-portal-active scope.
+   shadcn DialogContent has role="dialog" (via Radix) + bg-card/80 class. */
+body.admin-portal-active [role="dialog"] {
+  border-radius: 22px !important;
+  background: var(--admin-overlay-bg) !important;
+  backdrop-filter: blur(24px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+  border: 1px solid var(--admin-border) !important;
+  box-shadow: 0 24px 60px var(--admin-shadow) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="dialog"] .text-lg.font-semibold,
+body.admin-portal-active [role="dialog"] .font-semibold {
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="dialog"] .text-sm.text-muted-foreground,
+body.admin-portal-active [role="dialog"] .text-muted-foreground {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-portal-active [role="dialog"] label {
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="dialog"] input,
+body.admin-portal-active [role="dialog"] textarea {
+  border-radius: 14px !important;
+  background: var(--admin-input-bg) !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="dialog"] input:focus,
+body.admin-portal-active [role="dialog"] textarea:focus {
+  border-color: hsl(var(--primary, 221 83% 53%) / 0.4) !important;
+  background: var(--admin-input-bg-focus) !important;
+  outline: none !important;
+}
+
+body.admin-portal-active [role="dialog"] input::placeholder,
+body.admin-portal-active [role="dialog"] textarea::placeholder {
+  color: var(--admin-muted) !important;
+}
+
+/* Dialog overlay */
+body.admin-portal-active .fixed.inset-0.z-50.bg-black\/60 {
+  background: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Light mode dialog overlay — lighter */
+:not(.dark) body.admin-portal-active .fixed.inset-0.z-50.bg-black\/60 {
+  background: rgba(18, 18, 23, 0.25) !important;
+}
+
+/* Admin Dropdown menus — portaled to body, Radix sets role="menu" */
+body.admin-portal-active [role="menu"] {
+  border-radius: 16px !important;
+  background: var(--admin-overlay-bg-strong) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid var(--admin-border) !important;
+  box-shadow: 0 16px 48px var(--admin-shadow) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="menuitem"] {
+  color: var(--admin-muted) !important;
+  border-radius: 10px !important;
+}
+
+body.admin-portal-active [role="menuitem"]:hover,
+body.admin-portal-active [role="menuitem"]:focus {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Admin Select — trigger is inside .admin-portal, content is portaled.
+   SelectTrigger renders a <button> with bg-background/60 border-input. */
+.admin-portal button[role="combobox"] {
+  border-radius: 14px !important;
+  background: var(--admin-input-bg) !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Select content — portaled, Radix sets role="listbox" */
+body.admin-portal-active [role="listbox"] {
+  border-radius: 16px !important;
+  background: var(--admin-overlay-bg-strong) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-portal-active [role="option"] {
+  color: var(--admin-muted) !important;
+  border-radius: 10px !important;
+}
+
+body.admin-portal-active [role="option"]:hover,
+body.admin-portal-active [role="option"][data-highlighted],
+body.admin-portal-active [role="option"]:focus {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Admin Textarea */
+.admin-portal textarea {
+  border-radius: 14px !important;
+  background: var(--admin-input-bg) !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Admin Switch — Radix renders button[role="switch"] */
+.admin-portal button[role="switch"] {
+  background: var(--admin-hover-bg) !important;
+  border: none !important;
+}
+
+.admin-portal button[role="switch"][data-state="checked"] {
+  background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary)) !important;
+}
+
+/* Admin Tabs — Radix renders button[role="tab"] inside [role="tablist"] */
+.admin-portal [role="tablist"] {
+  background: var(--admin-input-bg) !important;
+  border-radius: 14px !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.admin-portal [role="tab"] {
+  border-radius: 10px !important;
+  color: var(--admin-muted) !important;
+  transition: all 200ms ease !important;
+}
+
+.admin-portal [role="tab"][data-state="active"] {
+  background: var(--admin-card-hover) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-portal [role="tab"]:hover {
+  color: var(--admin-text) !important;
+}
+
+/* Admin text utility overrides */
+.admin-portal .text-foreground { color: var(--admin-text) !important; }
+.admin-portal .bg-secondary { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-muted { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-muted\/40 { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-muted\/70 { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-card { background: var(--admin-glass-bg) !important; }
+.admin-portal .bg-card\/40 { background: var(--admin-glass-bg) !important; }
+.admin-portal .bg-card\/80 { background: var(--admin-overlay-bg) !important; }
+.admin-portal .bg-card\/70 { background: var(--admin-overlay-bg) !important; }
+.admin-portal .border-border { border-color: var(--admin-border) !important; }
+.admin-portal .border-border\/20 { border-color: var(--admin-border) !important; }
+.admin-portal .border-border\/30 { border-color: var(--admin-border) !important; }
+.admin-portal .border-input { border-color: var(--admin-border) !important; }
+.admin-portal .bg-background\/50 { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-background\/60 { background: var(--admin-input-bg) !important; }
+.admin-portal .bg-background\/80 { background: var(--admin-glass-bg) !important; }
+.admin-portal .bg-popover\/85 { background: var(--admin-overlay-bg-strong) !important; }
+.admin-portal .bg-accent\/80 { background: var(--admin-hover-bg) !important; }
+.admin-portal .bg-accent { background: var(--admin-hover-bg) !important; }
+.admin-portal .text-popover-foreground { color: var(--admin-text) !important; }
+.admin-portal .text-card-foreground { color: var(--admin-text) !important; }
+.admin-portal .text-primary-foreground { color: #ffffff !important; }
+.admin-portal .text-accent-foreground { color: var(--admin-text) !important; }
+
+/* Admin scrollbar */
+.admin-portal ::-webkit-scrollbar { width: 6px; height: 6px; }
+.admin-portal ::-webkit-scrollbar-thumb { background: var(--admin-hover-bg); border-radius: 6px; }
+.admin-portal ::-webkit-scrollbar-track { background: transparent; }
+
+/* Light mode admin scrollbar — visible dark thumb */
+:not(.dark) .admin-portal ::-webkit-scrollbar-thumb { background: rgba(18, 18, 23, 0.15); border-radius: 6px; }
+:not(.dark) .admin-portal ::-webkit-scrollbar-thumb:hover { background: rgba(18, 18, 23, 0.25); }
+
+/* ============================================================= */
+/*  PREMIUM DASHBOARD CARDS — Dark Glassmorphism                 */
+/*  Used by student dashboard components (KPICard, etc.)         */
+/*  Works in dark mode; degrades gracefully in light mode        */
+/* ============================================================= */
+
+/* Base premium dashboard card */
+.premium-dash-card {
+  position: relative;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 250ms ease,
+              border-color 250ms ease;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.premium-dash-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.premium-dash-card:hover {
+  border-color: rgba(18, 18, 23, 0.14);
+}
+
+/* Dark mode */
+.dark .premium-dash-card {
+  background: rgba(18, 18, 23, 0.8);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.dark .premium-dash-card:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(34, 197, 94, 0.12),
+    0 0 48px rgba(34, 197, 94, 0.08);
+}
+
+/* Light mode — Apple-inspired frosted glass */
+:not(.dark) .premium-dash-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  border-color: rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
+}
+
+:not(.dark) .premium-dash-card:hover {
+  border-color: rgba(18, 18, 23, 0.14);
+  box-shadow:
+    0 20px 50px rgba(18, 18, 23, 0.1),
+    0 0 24px rgba(34, 197, 94, 0.08);
+}
+
+/* Premium KPI stat card — spacious, with icon in gradient circle */
+.premium-kpi-card {
+  position: relative;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 250ms ease,
+              border-color 250ms ease;
+  overflow: hidden;
+  isolation: isolate;
+  cursor: pointer;
+}
+
+.premium-kpi-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.premium-kpi-card:hover {
+  border-color: rgba(18, 18, 23, 0.14);
+}
+
+/* Dark mode */
+.dark .premium-kpi-card {
+  background: rgba(18, 18, 23, 0.8);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.3),
+    0 6px 18px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dark .premium-kpi-card:hover {
+  background: rgba(18, 18, 23, 0.85);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 28px 60px rgba(0, 0, 0, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+:not(.dark) .premium-kpi-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  border-color: rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
+}
+
+:not(.dark) .premium-kpi-card:hover {
+  border-color: rgba(18, 18, 23, 0.14);
+  box-shadow: 0 20px 50px rgba(18, 18, 23, 0.1), 0 0 24px rgba(37, 99, 235, 0.08);
+}
+
+/* Icon in soft circular gradient background */
+.premium-dash-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 250ms ease;
+}
+
+/* Premium sparkline container */
+.premium-sparkline {
+  width: 100%;
+  height: 32px;
+  opacity: 0.8;
+}
+
+/* Premium progress bar */
+.premium-progress-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(18, 18, 23, 0.08);
+  overflow: hidden;
+}
+
+/* Dark mode — visible track */
+.dark .premium-progress-track {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+:not(.dark) .premium-progress-track {
+  background: rgba(18, 18, 23, 0.08);
+}
+
+.premium-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)));
+  transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 12px hsl(var(--primary) / 0.4);
+}
+
+.dark .premium-progress-fill {
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)));
+  box-shadow: 0 0 16px hsl(var(--primary) / 0.5);
+}
+
+/* Premium card text styles */
+.premium-dash-value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: #FFFFFF;
+}
+
+.dark .premium-dash-value {
+  color: #FFFFFF;
+}
+
+:not(.dark) .premium-dash-value {
+  color: #0F172A;
+}
+
+.premium-dash-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #94A3B8;
+}
+
+:not(.dark) .premium-dash-label {
+  color: #64748B;
+}
+
+.dark .premium-dash-label {
+  color: #D1D5DB;
+}
+
+.premium-dash-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.dark .premium-dash-title {
+  color: #FFFFFF;
+}
+
+:not(.dark) .premium-dash-title {
+  color: #0F172A;
+}
+
+.premium-dash-subtitle {
+  font-size: 13px;
+  color: #94A3B8;
+}
+
+.dark .premium-dash-subtitle {
+  color: #D1D5DB;
+}
+
+:not(.dark) .premium-dash-subtitle {
+  color: #64748B;
+}
+
+/* Premium trend badge */
+.premium-trend-up {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4ADE80;
+}
+
+.premium-trend-down {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #F87171;
+}
+
+.premium-trend-stable {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94A3B8;
+}
+
+:not(.dark) .premium-trend-up {
+  color: #16A34A;
+}
+
+:not(.dark) .premium-trend-down {
+  color: #DC2626;
+}
+
+:not(.dark) .premium-trend-stable {
+  color: #64748B;
+}
+
+/* Premium empty state */
+.premium-empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 18, 23, 0.04);
+  border: 1px solid rgba(18, 18, 23, 0.08);
+  margin: 0 auto 16px;
+}
+
+/* Dark mode — visible dark glass */
+.dark .premium-empty-icon {
+  background: rgba(30, 30, 35, 0.3);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border-color: rgba(45, 45, 50, 0.3);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+:not(.dark) .premium-empty-icon {
+  background: rgba(18, 18, 23, 0.04);
+  border-color: rgba(18, 18, 23, 0.08);
+}
+
+/* Premium quick action card */
+.premium-quick-action {
+  position: relative;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 250ms ease,
+              border-color 250ms ease;
+  overflow: hidden;
+  isolation: isolate;
+  cursor: pointer;
+}
+
+.premium-quick-action > * {
+  position: relative;
+  z-index: 1;
+}
+
+.premium-quick-action:hover {
+  border-color: rgba(18, 18, 23, 0.14);
+}
+
+/* Dark mode */
+.dark .premium-quick-action {
+  background: rgba(18, 18, 23, 0.8);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.3),
+    0 6px 18px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dark .premium-quick-action:hover {
+  background: rgba(18, 18, 23, 0.85);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 28px 60px rgba(0, 0, 0, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+:not(.dark) .premium-quick-action {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  border-color: rgba(18, 18, 23, 0.08);
+  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
+}
+
+:not(.dark) .premium-quick-action:hover {
+  border-color: rgba(18, 18, 23, 0.14);
+  box-shadow: 0 20px 50px rgba(18, 18, 23, 0.1), 0 0 24px rgba(34, 197, 94, 0.08);
+}
+
+/* Premium quick action primary variant */
+:not(.dark) .premium-quick-action-primary {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.08));
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.dark .premium-quick-action-primary {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.premium-quick-action-primary:hover {
+  border-color: rgba(34, 197, 94, 0.35);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.4),
+    0 0 32px rgba(34, 197, 94, 0.2);
+}
+
+/* Premium list item (for recent attempts, score distribution rows) */
+.premium-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(18, 18, 23, 0.02);
+  border: 1px solid rgba(18, 18, 23, 0.04);
+  transition: background 200ms ease, border-color 200ms ease;
+}
+
+.premium-list-item:hover {
+  background: rgba(18, 18, 23, 0.04);
+  border-color: rgba(18, 18, 23, 0.08);
+}
+
+/* Dark mode — visible dark glass */
+.dark .premium-list-item {
+  background: rgba(30, 30, 35, 0.25);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border-color: rgba(45, 45, 50, 0.25);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.dark .premium-list-item:hover {
+  background: rgba(30, 30, 35, 0.4);
+  border-color: rgba(60, 60, 65, 0.4);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+:not(.dark) .premium-list-item {
+  background: rgba(18, 18, 23, 0.02);
+  border-color: rgba(18, 18, 23, 0.04);
+}
+
+:not(.dark) .premium-list-item:hover {
+  background: rgba(18, 18, 23, 0.04);
+  border-color: rgba(18, 18, 23, 0.08);
+}
+
+/* Premium circular gradient icon backgrounds */
+.premium-icon-blue {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(74, 222, 128, 0.08));
+  color: #22C55E;
+}
+
+.dark .premium-icon-blue {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(74, 222, 128, 0.15));
+  color: #4ADE80;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.3);
+}
+
+.premium-icon-purple {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.08));
+  color: #6366F1;
+}
+
+.dark .premium-icon-purple {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.15));
+  color: #A5B4FC;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.3);
+}
+
+.premium-icon-green {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(74, 222, 128, 0.08));
+  color: #22C55E;
+}
+
+.dark .premium-icon-green {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(74, 222, 128, 0.15));
+  color: #4ADE80;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.3);
+}
+
+.premium-icon-orange {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.08));
+  color: #D97706;
+}
+
+.dark .premium-icon-orange {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(251, 191, 36, 0.15));
+  color: #FBBF24;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.3);
+}
+
+.premium-icon-pink {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(244, 114, 182, 0.08));
+  color: #EC4899;
+}
+
+.dark .premium-icon-pink {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.25), rgba(244, 114, 182, 0.15));
+  color: #F472B6;
+  box-shadow: 0 0 16px rgba(236, 72, 153, 0.3);
+}
+
+.premium-icon-teal {
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.15), rgba(45, 212, 191, 0.08));
+  color: #14B8A6;
+}
+
+.dark .premium-icon-teal {
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.25), rgba(45, 212, 191, 0.15));
+  color: #2DD4BF;
+  box-shadow: 0 0 16px rgba(20, 184, 166, 0.3);
+}
+
+/* Premium progress ring (SVG) */
+.premium-ring-bg {
+  stroke: rgba(18, 18, 23, 0.08);
+}
+
+/* Dark mode — visible ring track */
+.dark .premium-ring-bg {
+  stroke: rgba(255, 255, 255, 0.10);
+}
+
+:not(.dark) .premium-ring-bg {
+  stroke: rgba(18, 18, 23, 0.08);
+}
+
+.premium-ring-fill {
+  stroke: url(#premium-ring-gradient);
+  transition: stroke-dashoffset 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Tiptap editor styles */
+.ProseMirror {
+  outline: none;
+}
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: var(--admin-muted);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.ProseMirror .resize-cursor {
+  cursor: col-resize;
+}
+.ProseMirror img,
+.ProseMirror video {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+}
+.ProseMirror iframe {
+  max-width: 100%;
+}
+
+/* Student-facing lesson content (read-only ProseMirror) */
+.prose-sm.ProseMirror {
+  color: inherit;
+  line-height: 1.6;
+}
+.prose-sm.ProseMirror h1 { font-size: 1.5em; font-weight: 700; margin: 0.8em 0 0.4em; }
+.prose-sm.ProseMirror h2 { font-size: 1.3em; font-weight: 700; margin: 0.8em 0 0.4em; }
+.prose-sm.ProseMirror h3 { font-size: 1.15em; font-weight: 600; margin: 0.6em 0 0.3em; }
+.prose-sm.ProseMirror p { margin: 0.4em 0; }
+.prose-sm.ProseMirror ul,
+.prose-sm.ProseMirror ol { padding-left: 1.5em; margin: 0.4em 0; }
+.prose-sm.ProseMirror li { margin: 0.2em 0; }
+.prose-sm.ProseMirror blockquote { border-left: 3px solid var(--border, #e5e7eb); padding-left: 1em; margin: 0.6em 0; opacity: 0.8; }
+.prose-sm.ProseMirror pre { background: rgba(0,0,0,0.06); padding: 0.6em; border-radius: 6px; overflow-x: auto; font-size: 0.85em; margin: 0.6em 0; }
+.prose-sm.ProseMirror a { color: #3b82f6; text-decoration: underline; }
+.prose-sm.ProseMirror img { border-radius: 8px; margin: 0.5em 0; }
+.prose-sm.ProseMirror iframe { border-radius: 8px; border: none; margin: 0.5em 0; }
+.prose-sm.ProseMirror video { max-width: 100%; border-radius: 8px; margin: 0.5em 0; }
+.prose-sm.ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.prose-sm.ProseMirror ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5em; }
+.prose-sm.ProseMirror ul[data-type="taskList"] li > label { flex-shrink: 0; }
+
+/* ---------- Theme-reactive prose for admin portal ---------- */
+/* Admin portal prose follows --admin-text / --admin-muted which switch with theme */
+/* Higher specificity (.admin-portal + 3 classes) to override student-facing dark rules */
+.admin-portal .prose.ProseMirror,
+.admin-portal .prose-sm.ProseMirror {
+  color: var(--admin-text) !important;
+}
+.admin-portal .prose.ProseMirror h1,
+.admin-portal .prose.ProseMirror h2,
+.admin-portal .prose.ProseMirror h3,
+.admin-portal .prose.ProseMirror h4,
+.admin-portal .prose.ProseMirror strong,
+.admin-portal .prose-sm.ProseMirror h1,
+.admin-portal .prose-sm.ProseMirror h2,
+.admin-portal .prose-sm.ProseMirror h3,
+.admin-portal .prose-sm.ProseMirror h4,
+.admin-portal .prose-sm.ProseMirror strong {
+  color: var(--admin-text) !important;
+}
+.admin-portal .prose.ProseMirror blockquote,
+.admin-portal .prose-sm.ProseMirror blockquote {
+  border-left-color: var(--admin-border) !important;
+  color: var(--admin-muted) !important;
+}
+.admin-portal .prose.ProseMirror pre,
+.admin-portal .prose-sm.ProseMirror pre {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-text) !important;
+}
+.admin-portal .prose.ProseMirror code,
+.admin-portal .prose-sm.ProseMirror code {
+  background: var(--admin-hover-bg) !important;
+  color: var(--admin-text) !important;
+}
+.admin-portal .prose.ProseMirror a,
+.admin-portal .prose-sm.ProseMirror a {
+  color: var(--admin-primary) !important;
+}
+.admin-portal .prose.ProseMirror hr,
+.admin-portal .prose-sm.ProseMirror hr {
+  border-color: var(--admin-border) !important;
+}
+.admin-portal .prose.ProseMirror th,
+.admin-portal .prose-sm.ProseMirror th {
+  color: var(--admin-text) !important;
+  border-color: var(--admin-border) !important;
+}
+.admin-portal .prose.ProseMirror td,
+.admin-portal .prose-sm.ProseMirror td {
+  color: var(--admin-text) !important;
+  border-color: var(--admin-border) !important;
+}
+
+/* ---------- Theme-reactive prose for student-facing pages ---------- */
+/* Student pages use .dark class from next-themes for dark mode */
+.prose-sm.ProseMirror {
+  color: hsl(var(--foreground, 0 0% 10%));
+}
+.dark .prose-sm.ProseMirror {
+  color: hsl(var(--foreground, 0 0% 95%));
+}
+.prose-sm.ProseMirror h1,
+.prose-sm.ProseMirror h2,
+.prose-sm.ProseMirror h3,
+.prose-sm.ProseMirror h4,
+.prose-sm.ProseMirror strong {
+  color: hsl(var(--foreground, 0 0% 10%));
+}
+.dark .prose-sm.ProseMirror h1,
+.dark .prose-sm.ProseMirror h2,
+.dark .prose-sm.ProseMirror h3,
+.dark .prose-sm.ProseMirror h4,
+.dark .prose-sm.ProseMirror strong {
+  color: hsl(var(--foreground, 0 0% 95%));
+}
+.prose-sm.ProseMirror blockquote {
+  border-left-color: hsl(var(--border, 220 13% 91%));
+}
+.dark .prose-sm.ProseMirror blockquote {
+  border-left-color: hsl(var(--border, 220 13% 30%));
+}
+.prose-sm.ProseMirror pre {
+  background: rgba(0, 0, 0, 0.06);
+}
+.dark .prose-sm.ProseMirror pre {
+  background: rgba(255, 255, 255, 0.08);
+}
+.prose-sm.ProseMirror code {
+  background: rgba(0, 0, 0, 0.06);
+}
+.dark .prose-sm.ProseMirror code {
+  background: rgba(255, 255, 255, 0.08);
+}
+.prose-sm.ProseMirror a {
+  color: hsl(var(--primary, 221 83% 53%));
+}
+.prose-sm.ProseMirror hr {
+  border-color: hsl(var(--border, 220 13% 91%));
+}
+.dark .prose-sm.ProseMirror hr {
+  border-color: hsl(var(--border, 220 13% 30%));
+}
+
+/* Hide YouTube native UI elements inside custom player */
+[data-youtube-player] iframe {
+  pointer-events: none !important;
+}
+.ytp-title-channel,
+.ytp-title-text,
+.ytp-title-link,
+.ytp-watermark,
+.ytp-cued-thumbnail-overlay,
+.ytp-show-cards-title,
+.ytp-ce-element,
+.ytp-ce-video,
+.ytp-ce-playlist,
+.ytp-ce-channel,
+.ytp-ce-channel-this,
+.ytp-endscreen-content,
+.ytp-endscreen-element,
+.ytp-share-button,
+.ytp-watch-later-button,
+.ytp-watch-later-icon,
+.ytp-settings-button,
+.ytp-subtitles-button,
+.ytp-menuitem,
+.ytp-popup {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* ---------- ProseMirror Table styles ---------- */
+.ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+.ProseMirror table td,
+.ProseMirror table th {
+  min-width: 1em;
+  border: 1px solid var(--admin-border);
+  padding: 6px 10px;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+  color: var(--admin-text);
+}
+.ProseMirror table th {
+  font-weight: 600;
+  background: var(--admin-hover-bg);
+  text-align: left;
+}
+.ProseMirror table .selectedCell:after {
+  z-index: 2;
+  position: absolute;
+  content: "";
+  left: 0; top: 0; right: 0; bottom: 0;
+  background: var(--admin-primary);
+  opacity: 0.15;
+  pointer-events: none;
+}
+.ProseMirror table .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  z-index: 20;
+  background: var(--admin-primary);
+  opacity: 0;
+  cursor: col-resize;
+}
+.ProseMirror table .column-resize-handle:hover {
+  opacity: 0.5;
+}
+.ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+.ProseMirror table p {
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .ProseMirror table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+/* Course Journey Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes confetti {
+  0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(100vh) rotate(360deg); }
+}
+
+/* ===========================================
+   Dark UI Overrides for shadcn Components
+   =========================================== */
+
+/* --- Card --- */
+.dark [data-slot="card"] {
+  background: rgba(18, 18, 23, 0.6) !important;
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+/* --- Input --- */
+.dark [data-slot="input"] {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  transition: all 200ms ease;
+}
+
+.dark [data-slot="input"]:focus {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* --- Outline Button --- */
+.dark [data-slot="button"][data-variant="outline"] {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.dark [data-slot="button"][data-variant="outline"]:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* --- Dialog / Modal --- */
+.dark [data-radix-dialog-content] {
+  background: rgba(18, 18, 23, 0.95) !important;
+  backdrop-filter: blur(32px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+/* --- Dropdown Menu --- */
+.dark [data-radix-popper-content] {
+  background: rgba(18, 18, 23, 0.95) !important;
+  backdrop-filter: blur(24px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* --- Tabs --- */
+.dark [data-radix-tabs-list] {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(12px);
+}
+
+.dark [role="tab"][data-state="active"] {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px hsl(var(--primary) / 0.1) !important;
+}
+
+/* --- Scrollbar --- */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  transition: background 200ms ease;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* --- Text Selection --- */
+.dark ::selection {
+  background: hsl(var(--primary) / 0.3);
+  color: #fff;
+}
+
+/* --- Focus Ring --- */
+.dark *:focus-visible {
+  outline: 2px solid hsl(var(--primary) / 0.5);
+  outline-offset: 2px;
+}
+
+/* --- Dark mode translucent cards (reflect particles) --- */
+.dark [data-slot="card"]:not(.admin-portal [data-slot="card"]) {
+  background: rgba(18, 18, 23, 0.35) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.dark .border.bg-card {
+  background: rgba(18, 18, 23, 0.35) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* --- Body Background --- */
+.dark body {
+  background-color: #060608;
+}
+
+/* --- Student Page Hover Borders (matches admin panel behavior) --- */
+
+/* Light mode: visible blue border on hover for cards */
+.premium-glass-card:hover,
+.glass-card:hover {
+  border-color: var(--hover-border-color, #3B82F6);
+}
+
+/* Dark mode: blue glow border on hover for cards */
+.dark .premium-glass-card:hover,
+.dark .glass-card:hover {
+  border-color: var(--hover-border-color, rgba(255, 255, 255, 0.14));
+}
+
+/* shadcn Card hover border (student pages) */
+:not(.admin-portal) [data-slot="card"]:hover {
+  border-color: var(--hover-border-color, #3B82F6);
+}
+
+/* Bordered elements with bg-card on student pages */
+:not(.admin-portal) .border.bg-card:hover {
+  border-color: var(--hover-border-color, #3B82F6);
+}
+
+/* shadcn Input hover border */
+:not(.admin-portal) [data-slot="input"]:hover {
+  border-color: var(--hover-border-color, #3B82F6);
+}
+
+/* shadcn Button outline hover border */
+:not(.admin-portal) [data-slot="button"][data-variant="outline"]:hover {
+  border-color: var(--hover-border-color, #3B82F6);
+}
+
+/* ─── ScrollStack ─── */
+.scroll-stack-scroller {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: visible;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: scroll-position;
+}
+
+.scroll-stack-inner {
+  padding: 20vh 1rem 50rem;
+  min-height: 100vh;
+}
+
+@media (min-width: 768px) {
+  .scroll-stack-inner {
+    padding: 20vh 5rem 50rem;
+  }
+}
+
+.scroll-stack-card-wrapper {
+  position: relative;
+}
+
+.scroll-stack-card {
+  transform-origin: top center;
+  will-change: transform, filter;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  margin: 30px 0;
+  border-radius: 24px;
+  box-sizing: border-box;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  position: relative;
+}
+
+.scroll-stack-end {
+  width: 100%;
+  height: 1px;
+}

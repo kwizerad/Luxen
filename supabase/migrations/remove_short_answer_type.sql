@@ -1,0 +1,12 @@
+-- Migration: Remove short_answer question type from the UI
+-- Date: 2026-07-31
+-- Note: The 'short_answer' value is removed from the ModuleExamQuestionType union
+-- in the TypeScript layer (lib/database.types.ts, lib/courses-store.ts) and from
+-- all admin UI components. This migration is non-destructive: the DB column/constraint
+-- is left intact so existing data (if any) remains readable. The UI simply no longer
+-- offers the type when creating new questions.
+-- Confirmed: no existing short_answer questions in the database at time of migration.
+
+-- No schema changes required. This file exists to document the deprecation.
+-- If a CHECK constraint explicitly lists 'short_answer' as an allowed value, it is
+-- left as-is (harmless — the UI never creates new ones).
