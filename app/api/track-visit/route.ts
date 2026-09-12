@@ -233,6 +233,7 @@ export async function POST(req: Request) {
       screenWidth,
       screenHeight,
       deviceType,
+      deviceName: customDeviceName,
       language,
       timezone,
       referrer,
@@ -373,7 +374,7 @@ export async function POST(req: Request) {
         const devicePayload = {
           user_id: effectiveUserId,
           fingerprint,
-          device_name: parsed.deviceName || undefined,
+          device_name: customDeviceName || parsed.deviceName || undefined,
           ip_address: resolvedIp || undefined,
           browser_info: `${browser || ""} ${browserVersion || ""}`.trim() || undefined,
           device_type: deviceType || null,

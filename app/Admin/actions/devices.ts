@@ -21,22 +21,26 @@ function isOnline(lastSeen?: string | null): boolean {
   return diff >= 0 && diff <= ONLINE_THRESHOLD_MINUTES * 60 * 1000;
 }
 
-function normalizeDeviceType(rawType?: string): "Desktop" | "Mobile" | "Tablet" {
-  if (!rawType) return "Desktop";
-  const lower = rawType.toLowerCase();
+function normalizeDeviceType(rawType?: string, deviceName?: string, os?: string): "Desktop" | "Mobile" | "Tablet" {
+  const combined = `${rawType || ""} ${deviceName || ""} ${os || ""}`.toLowerCase();
   if (
-    lower.includes("tablet") ||
-    lower.includes("ipad") ||
-    lower.includes("tabuleti") ||
-    lower.includes("tablette") ||
-    lower.includes("tab ") ||
-    lower.includes("tab-") ||
-    lower.includes("surface") ||
-    lower.includes("pad")
+    combined.includes("tablet") ||
+    combined.includes("ipad") ||
+    combined.includes("tabuleti") ||
+    combined.includes("tablette") ||
+    combined.includes("tab ") ||
+    combined.includes("tab-") ||
+    combined.includes("tab_") ||
+    combined.includes("surface") ||
+    combined.includes("sm-t") ||
+    combined.includes("sm-x") ||
+    combined.includes("sm-p") ||
+    combined.includes("tb-") ||
+    combined.includes("pad")
   ) {
     return "Tablet";
   }
-  if (lower.includes("mobile") || lower.includes("phone") || lower.includes("android") || lower.includes("iphone") || lower.includes("telefoni")) {
+  if (combined.includes("mobile") || combined.includes("phone") || combined.includes("android") || combined.includes("iphone") || combined.includes("telefoni")) {
     return "Mobile";
   }
   return "Desktop";
@@ -167,7 +171,7 @@ export async function getUserDevices(userId: string): Promise<UserDevice[]> {
   // Normalize device properties
   return devices.map((d) => ({
     ...d,
-    device_type: normalizeDeviceType(d.device_type),
+    device_type: normalizeDeviceType(d.device_type, d.device_name, d.os),
   }));
 }
 
@@ -310,7 +314,7 @@ export async function getUserDeviceAnalytics(
   let totalTablet = 0;
 
   for (const d of devices) {
-    const normalizedType = normalizeDeviceType(d.device_type);
+    const normalizedType = normalizeDeviceType(d.device_type, d.device_name, d.os);
     typeCounts[normalizedType] = (typeCounts[normalizedType] || 0) + 1;
 
     const browserKey = d.browser ? d.browser.trim() : "Unknown Browser";

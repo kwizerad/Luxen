@@ -139,7 +139,7 @@ export async function parseDeviceInfo(): Promise<ParsedDeviceInfo> {
   const browserVersion = detectBrowserVersion(ua, browser, uaData, highEntropyData);
   const os = detectOS(ua, uaData);
   const osVersion = detectOSVersion(ua, os, highEntropyData);
-  const deviceType = detectDeviceType(ua, uaData);
+  const deviceType = detectDeviceType(ua, uaData, highEntropyData);
   
   const { deviceName, deviceModel, deviceVendor } = detectDeviceName(
     ua,
@@ -465,13 +465,33 @@ function detectOSVersion(
 
 function detectDeviceType(
   ua: string,
-  uaData: NavigatorUAData | null
+  uaData: NavigatorUAData | null,
+  highEntropy?: Record<string, unknown> | null
 ): "Desktop" | "Laptop" | "Tablet" | "Mobile" | "Unknown" {
   const hasTouch =
     typeof window !== "undefined" &&
     ("ontouchstart" in window || (typeof navigator !== "undefined" && (navigator?.maxTouchPoints || 0) > 0));
   const maxTouchPoints = typeof navigator !== "undefined" ? navigator.maxTouchPoints || 0 : 0;
   const isCoarsePointer = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+
+  // 0. Modern Client Hints Form Factors (Chromium 121+)
+  const formFactors = (highEntropy?.formFactors as string[]) || (navigator as any)?.userAgentData?.formFactors;
+  if (Array.isArray(formFactors)) {
+    if (formFactors.some((f) => String(f).toLowerCase() === "tablet")) return "Tablet";
+    if (formFactors.some((f) => String(f).toLowerCase() === "mobile")) {
+      // Check if tablet dimensions contradict mobile hint (e.g. tablet requesting mobile view)
+      if (typeof window !== "undefined") {
+        const sw = window.screen.width;
+        const sh = window.screen.height;
+        const dpr = window.devicePixelRatio || 1;
+        const minDim = Math.min(sw, sh);
+        const maxDim = Math.max(sw, sh);
+        const aspect = maxDim / (minDim || 1);
+        if (minDim >= 500 || (minDim * dpr >= 600 && aspect <= 1.82)) return "Tablet";
+      }
+      return "Mobile";
+    }
+  }
 
   // 1. Explicit iPad detection (including iPadOS Desktop Mode in Safari)
   const isIPad =
@@ -482,16 +502,14 @@ function detectDeviceType(
 
   if (isIPad) return "Tablet";
 
-  // 2. Explicit tablet keywords in UA string
-  if (
-    /Tablet|PlayBook|Silk|Kindle|MediaPad|MatePad|SM-T|SM-X|SM-P|TB-[A-Z0-9]|KFTUWI|KFTRWI|KFMAWI|KFSOWI|Redmi Pad|Xiaomi Pad|OnePlus Pad|Pixel Tablet/i.test(
-      ua
-    )
-  ) {
+  // 2. Explicit tablet keywords in UA string or model
+  const tabletRegex =
+    /iPad|Tablet|PlayBook|Silk|Kindle|MediaPad|MatePad|Honor\s*Pad|Xiaomi\s*Pad|Redmi\s*Pad|POCO\s*Pad|OnePlus\s*Pad|Oppo\s*Pad|Realme\s*Pad|vivo\s*Pad|iQOO\s*Pad|Pixel\s*Tablet|Tangorpro|Surface|Teclast|Alldocube|Chuwi|Blackview\s*Tab|Doogee\s*T\d|TCL\s*Tab|Nokia\s*T\d\d?|Tab\s+[A-Z0-9]|Tab\d|SM-T\d|SM-X\d|SM-P\d|GT-P\d|GT-N\d|TB-?[A-Z0-9]|TB\d|YT-?[A-Z0-9]|KFT[A-Z0-9]|KF[A-Z]{3,}|KF[A-Z]{2}|23043RP|23073RP|23046PN|2405CR|2405CP|23120RP|22081283|21051182|OPD2[0-9]|RMP2[0-9]|BAH[2-4]|DBY-|WGR-|GOT-|MRX-|SCM-|BTK-|ELP-|HEY|ROD-/i;
+  if (tabletRegex.test(ua) || (typeof highEntropy?.model === "string" && tabletRegex.test(highEntropy.model))) {
     return "Tablet";
   }
 
-  // 3. iPhone / iPod
+  // 3. iPhone / iPod (definite mobile)
   if (/iPhone|iPod/.test(ua)) return "Mobile";
 
   // 4. Android Device Type Detection
@@ -499,13 +517,18 @@ function detectDeviceType(
     // Standard Chromium rule: Chrome on Android tablet does NOT include the "Mobile" keyword
     if (!/Mobile/i.test(ua)) return "Tablet";
 
-    // Client-side viewport dimension analysis (in CSS points)
+    // Client-side viewport dimension & aspect ratio analysis
     if (typeof window !== "undefined") {
-      const minScreenDim = Math.min(window.screen.width, window.screen.height);
-      const maxScreenDim = Math.max(window.screen.width, window.screen.height);
+      const sw = window.screen.width;
+      const sh = window.screen.height;
+      const dpr = window.devicePixelRatio || 1;
+      const minScreenDim = Math.min(sw, sh);
+      const maxScreenDim = Math.max(sw, sh);
+      const aspect = maxScreenDim / (minScreenDim || 1);
+      const physMin = minScreenDim * dpr;
 
-      // Tablets have a minimum dimension of 540px+ and maximum of 800px+ (e.g. 600x1024, 768x1024, 800x1280, 834x1194)
-      if (minScreenDim >= 600 || (minScreenDim >= 540 && maxScreenDim >= 960)) {
+      // Tablets have CSS width >= 500px OR physical width >= 600px with a squarer aspect ratio (<= 1.85)
+      if (minScreenDim >= 500 || (physMin >= 600 && aspect <= 1.85) || (minScreenDim >= 410 && aspect <= 1.7)) {
         return "Tablet";
       }
     }
@@ -530,7 +553,7 @@ function detectDeviceType(
     if (hasTouch && maxTouchPoints > 0) {
       if (typeof window !== "undefined") {
         const minDim = Math.min(window.screen.width, window.screen.height);
-        if (minDim <= 900 || isCoarsePointer || /Tablet PC|Touch/i.test(ua)) {
+        if (minDim <= 900 || isCoarsePointer || /Tablet PC|Touch|Surface/i.test(ua)) {
           return "Tablet";
         }
       }
@@ -541,8 +564,15 @@ function detectDeviceType(
 
   // 7. General touch screen heuristic for tablets
   if (hasTouch && maxTouchPoints > 0 && typeof window !== "undefined") {
-    const minScreenDim = Math.min(window.screen.width, window.screen.height);
-    if (minScreenDim >= 540 && minScreenDim <= 1024 && isCoarsePointer) {
+    const sw = window.screen.width;
+    const sh = window.screen.height;
+    const dpr = window.devicePixelRatio || 1;
+    const minScreenDim = Math.min(sw, sh);
+    const maxScreenDim = Math.max(sw, sh);
+    const aspect = maxScreenDim / (minScreenDim || 1);
+    const physMin = minScreenDim * dpr;
+
+    if (minScreenDim >= 500 || (physMin >= 600 && aspect <= 1.85)) {
       return "Tablet";
     }
   }
@@ -554,9 +584,9 @@ function detectDeviceType(
 
   // 9. Linux
   if (/Linux/.test(ua)) {
-    if (hasTouch && isCoarsePointer && typeof window !== "undefined") {
+    if (hasTouch && typeof window !== "undefined") {
       const minScreenDim = Math.min(window.screen.width, window.screen.height);
-      if (minScreenDim >= 540 && minScreenDim <= 1024) return "Tablet";
+      if (minScreenDim >= 480 && minScreenDim <= 1200) return "Tablet";
     }
     return "Desktop";
   }
@@ -926,20 +956,21 @@ function detectDeviceName(
 
     // Heuristic device name based on GPU / Chipset
     if (gpuRenderer) {
+      const typeLabel = deviceType === "Tablet" ? "Tablet" : "Smartphone";
       if (/Adreno\s*\(TM\)\s*(7\d\d|8\d\d)/i.test(gpuRenderer)) {
-        return { deviceName: "Flagship Android Smartphone (Snapdragon)", deviceVendor: "Qualcomm Snapdragon" };
+        return { deviceName: `Flagship Android ${typeLabel} (Snapdragon)`, deviceVendor: "Qualcomm Snapdragon" };
       }
       if (/Adreno\s*\(TM\)\s*6\d\d/i.test(gpuRenderer)) {
-        return { deviceName: "Android Smartphone (Snapdragon 6/7 Series)", deviceVendor: "Qualcomm Snapdragon" };
+        return { deviceName: `Android ${typeLabel} (Snapdragon 6/7 Series)`, deviceVendor: "Qualcomm Snapdragon" };
       }
       if (/Mali-G(7\d|7\d\d)/i.test(gpuRenderer)) {
-        return { deviceName: "High-Performance Android Smartphone (MediaTek/Mali)", deviceVendor: "MediaTek" };
+        return { deviceName: `High-Performance Android ${typeLabel} (MediaTek/Mali)`, deviceVendor: "MediaTek" };
       }
       if (/Mali-G(5\d)/i.test(gpuRenderer)) {
-        return { deviceName: "Android Smartphone (MediaTek Helio / Mali)", deviceVendor: "MediaTek" };
+        return { deviceName: `Android ${typeLabel} (MediaTek Helio / Mali)`, deviceVendor: "MediaTek" };
       }
       if (/PowerVR/i.test(gpuRenderer)) {
-        return { deviceName: "Android Smartphone (PowerVR Series)", deviceVendor: "PowerVR" };
+        return { deviceName: `Android ${typeLabel} (PowerVR Series)`, deviceVendor: "PowerVR" };
       }
     }
 

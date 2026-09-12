@@ -196,11 +196,11 @@ export function UserDevicesList({
 
   const getDeviceIcon = (deviceType?: string) => {
     const type = (deviceType || "").toLowerCase();
-    if (type.includes("mobile") || type.includes("phone")) {
-      return <Smartphone className="h-5 w-5 text-blue-500" />;
-    }
     if (type.includes("tablet") || type.includes("ipad")) {
       return <Tablet className="h-5 w-5 text-indigo-500" />;
+    }
+    if (type.includes("mobile") || type.includes("phone")) {
+      return <Smartphone className="h-5 w-5 text-blue-500" />;
     }
     if (type.includes("laptop") || type.includes("macbook")) {
       return <Laptop className="h-5 w-5 text-purple-500" />;
