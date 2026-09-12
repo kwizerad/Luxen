@@ -1022,12 +1022,11 @@ export function HomeView({ navigate }: HomeViewProps) {
           {/* 1. Take Exam Card */}
           {standaloneExamEnabled && (
             <div className={hasCourses ? "lg:col-span-2" : "lg:col-span-3"}>
-              <div className="h-full rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 via-card to-card p-6 sm:p-7 shadow-md flex flex-col justify-between relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/15 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+              <div className="h-full rounded-2xl border border-border/70 bg-card p-6 sm:p-7 shadow-sm flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3.5">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                      <Award className="w-4 h-4" />
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-muted text-foreground border border-border">
+                      <Award className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       {t("officialSimulation") || "Official Provisional License Simulation"}
                     </span>
                     <span className="text-xs font-semibold text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-full">
@@ -1035,14 +1034,14 @@ export function HomeView({ navigate }: HomeViewProps) {
                     </span>
                   </div>
 
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-foreground mb-2">
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mb-2">
                     {t("takeExam") || "Take exam"}
                   </h2>
                   <p className="text-xs sm:text-sm text-muted-foreground mb-6 leading-relaxed max-w-xl">
                     {t("examSimulationDesc") || "Test your understanding of national traffic regulations, road signs, and right-of-way priorities under timed exam conditions."}
                   </p>
 
-                  <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-card/80 border border-border/70 backdrop-blur-sm text-xs mb-6 shadow-sm">
+                  <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-muted/40 border border-border/50 text-xs mb-6">
                     <div>
                       <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{t("duration") || "Duration"}</div>
                       <div className="text-sm sm:text-base font-bold text-foreground mt-0.5">20 min</div>
@@ -1064,7 +1063,7 @@ export function HomeView({ navigate }: HomeViewProps) {
                     onClick={() => {
                       router.push("/dashboard/exam");
                     }}
-                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-sm shadow-md hover:shadow-xl hover:shadow-emerald-600/20 transition-all"
+                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-semibold text-sm shadow-sm hover:shadow transition-all"
                   >
                     <Play className="w-4 h-4 fill-current" />
                     <span>{t("takeExam") || "Take exam"}</span>
@@ -1077,7 +1076,7 @@ export function HomeView({ navigate }: HomeViewProps) {
           {/* 2. Course Curriculum / Continue Learning Card */}
           {hasCourses && (
             <div className={standaloneExamEnabled ? "lg:col-span-1" : "lg:col-span-3"}>
-              <div className="h-full rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card p-6 shadow-sm flex flex-col justify-between">
+              <div className="h-full rounded-2xl border border-border/70 bg-card p-6 shadow-sm flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
