@@ -1,0 +1,74 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const adminClient = createAdminClient();
+
+    const { data: existing, error: queryError } = await adminClient
+      .from("classmate_requests")
+      .select("*")
+      .eq("id", params.id)
+      .maybeSingle();
+
+    if (queryError) {
+      console.error("Accept request query error:", queryError);
+      return NextResponse.json({ error: queryError.message }, { status: 500 });
+    }
+
+    if (!existing) {
+      return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
+
+    if (existing.receiver_id !== user.id) {
+      return NextResponse.json({ error: "Only the receiver can accept" }, { status: 403 });
+    }
+
+    const { data: updated, error } = await adminClient
+      .from("classmate_requests")
+      .update({ status: "accepted", responded_at: new Date().toISOString() })
+      .eq("id", params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Notify the sender that their friend request was accepted
+    try {
+      const receiverName = user.user_metadata?.full_name || user.user_metadata?.username || user.email;
+      await adminClient.from("notifications").insert({
+        target_user_id: existing.sender_id,
+        type: "friend_request_accepted",
+        title: "Friend Request Accepted",
+        message: `${receiverName} accepted your friend request!`,
+        data: {
+          receiver_id: user.id,
+          receiver_name: receiverName,
+          request_id: existing.id,
+        },
+        sender_id: user.id,
+        sender_name: receiverName,
+        action_url: "/dashboard#classmates",
+        priority: "normal",
+      });
+    } catch (notifError) {
+      console.error("Failed to send acceptance notification:", notifError);
+    }
+
+    return NextResponse.json({ request: updated, status: "success" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to accept request.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

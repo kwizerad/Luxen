@@ -1,0 +1,2502 @@
+"use client";
+
+import { createClient } from "./client";
+import { isAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
+import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
+import type { ExamCategory, ExamQuestion, ExamAnswer, ExamAttempt, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
+
+// Helper function to handle Supabase auth lock errors
+async function getAuthUser() {
+  const supabase = createClient();
+  try {
+    const result = await supabase.auth.getUser();
+    return result.data.user;
+  } catch (error: any) {
+    // Suppress lock errors - they're internal Supabase timing issues
+    if (error?.message?.includes("lock") || error?.message?.includes("Lock")) {
+      console.warn("Supabase auth lock error (non-critical):", error.message);
+      throw new Error("Auth temporarily unavailable, please try again");
+    }
+    throw error;
+  }
+}
+
+// ============================================================================
+// EXAM CATEGORIES QUERIES
+// ============================================================================
+
+export async function getExamCategories() {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  let query = supabase
+    .from("exam_categories")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (!isUserAdmin) {
+    query = query.eq("is_published", true);
+  }
+
+  const { data: categories, error } = await query;
+
+  if (error) throw error;
+
+  // Fetch exam settings for all categories to get duration and question count
+  const { data: settingsData, error: settingsError } = await supabase
+    .from("exam_settings")
+    .select("category_id,duration_minutes,question_count");
+
+  if (settingsError && !settingsError.message.toLowerCase().includes("does not exist")) {
+    console.error("Error fetching exam settings:", settingsError);
+  }
+
+  const settingsMap = new Map<string, { duration_minutes?: number; question_count?: number }>();
+  for (const s of settingsData || []) {
+    settingsMap.set(s.category_id, { duration_minutes: s.duration_minutes, question_count: s.question_count });
+  }
+
+  const categoriesWithSettings = (categories || []).map((c: ExamCategory) => ({
+    ...c,
+    duration_minutes: settingsMap.get(c.id)?.duration_minutes ?? undefined,
+    question_count: settingsMap.get(c.id)?.question_count ?? undefined,
+  }));
+
+  return { categories: categoriesWithSettings, is_admin: isUserAdmin };
+}
+
+export async function createExamCategory(name: string, is_published = false) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  const isPrimaryAdmin = user?.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
+
+  if (!user || !isPrimaryAdmin) {
+    throw new Error("Unauthorized. Only primary admin can create categories.");
+  }
+
+  if (!name || name.trim() === "") {
+    throw new Error("Category name is required");
+  }
+
+  const { data, error } = await supabase
+    .from("exam_categories")
+    .insert([{ name: name.trim(), created_by: user.id, is_published }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return { category: data };
+}
+
+export async function updateExamCategory(id: string, name: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  const isPrimaryAdmin = user?.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
+
+  if (!user || !isPrimaryAdmin) {
+    throw new Error("Unauthorized. Only primary admin can update categories.");
+  }
+
+  if (!id || !name || name.trim() === "") {
+    throw new Error("Category ID and name are required");
+  }
+
+  const { data, error } = await supabase
+    .from("exam_categories")
+    .update({ name: name.trim(), updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return { category: data };
+}
+
+export async function deleteExamCategory(id: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  const isPrimaryAdmin = user?.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
+
+  if (!user || !isPrimaryAdmin) {
+    throw new Error("Unauthorized. Only primary admin can delete categories.");
+  }
+
+  if (!id) {
+    throw new Error("Category ID is required");
+  }
+
+  // First, delete all questions in this category
+  const { error: questionsError } = await supabase
+    .from("exam_questions")
+    .delete()
+    .eq("category_id", id);
+
+  if (questionsError) throw questionsError;
+
+  // Then delete the category
+  const { error } = await supabase
+    .from("exam_categories")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+  return { success: true };
+}
+
+export async function toggleCategoryPublishStatus(id: string, is_published: boolean) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  if (!user || !isUserAdmin) {
+    throw new Error("Unauthorized. Admin access required.");
+  }
+
+  if (!id || typeof is_published !== "boolean") {
+    throw new Error("Category ID and is_published are required");
+  }
+
+  const { data, error } = await supabase
+    .from("exam_categories")
+    .update({ is_published, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  
+  return { 
+    success: true, 
+    category: data,
+    message: is_published ? "Category published" : "Category unpublished"
+  };
+}
+
+// ============================================================================
+// EXAM QUESTIONS QUERIES
+// ============================================================================
+
+export async function getExamQuestions(categoryId?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  let query = supabase.from("exam_questions").select("*");
+
+  if (categoryId) {
+    query = query.eq("category_id", categoryId);
+  }
+
+  const { data: questions, error } = await query.order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return { questions: questions || [] };
+}
+
+export async function getPublicExamQuestions(categoryId?: string, search?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  let query = supabase.from("exam_questions").select("*");
+
+  if (categoryId) {
+    query = query.eq("category_id", categoryId);
+  }
+
+  if (search) {
+    query = query.or(`question.ilike.%${search}%,option_a.ilike.%${search}%,option_b.ilike.%${search}%,option_c.ilike.%${search}%,option_d.ilike.%${search}%,explanation.ilike.%${search}%`);
+  }
+
+  const { data: questions, error } = await query.order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return { questions: questions || [] };
+}
+
+export async function createExamQuestion(questionData: {
+  category_id: string;
+  question?: string;
+  question_image?: string;
+  option_a?: string;
+  option_a_image?: string;
+  option_b?: string;
+  option_b_image?: string;
+  option_c?: string;
+  option_c_image?: string;
+  option_d?: string;
+  option_d_image?: string;
+  correct_answer: string;
+  explanation?: string;
+}) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized. You must be an admin to add questions.");
+  }
+
+  if (!canAddQuestions(user)) {
+    throw new Error("You don't have permission to add questions");
+  }
+
+  const {
+    category_id,
+    question,
+    question_image,
+    option_a,
+    option_a_image,
+    option_b,
+    option_b_image,
+    option_c,
+    option_c_image,
+    option_d,
+    option_d_image,
+    correct_answer,
+    explanation,
+  } = questionData;
+
+  if (!category_id || !correct_answer) {
+    throw new Error("Missing required fields");
+  }
+
+  // Validate that question has at least text OR image
+  if ((!question || question.trim() === "") && (!question_image || question_image.trim() === "")) {
+    throw new Error("Question must have either text or an image");
+  }
+
+  // Validate that each option has at least text OR image
+  const validateOption = (text: string | undefined, image: string | undefined, optionName: string) => {
+    if ((!text || text.trim() === "") && (!image || image.trim() === "")) {
+      return `${optionName} must have either text or an image`;
+    }
+    return null;
+  };
+
+  const optionErrors = [
+    validateOption(option_a, option_a_image, "Option A"),
+    validateOption(option_b, option_b_image, "Option B"),
+    validateOption(option_c, option_c_image, "Option C"),
+    validateOption(option_d, option_d_image, "Option D"),
+  ].filter(Boolean);
+
+  if (optionErrors.length > 0) {
+    throw new Error(optionErrors.join("; "));
+  }
+
+  if (!['A', 'B', 'C', 'D'].includes(correct_answer)) {
+    throw new Error("Invalid correct answer");
+  }
+
+  // Check for duplicate question
+  const normalizedQuestion = question?.trim().toLowerCase() || "";
+  const { data: existingQuestions, error: checkError } = await supabase
+    .from("exam_questions")
+    .select("id, question, option_a, option_b, option_c, option_d")
+    .eq("category_id", category_id)
+    .ilike("question", normalizedQuestion);
+
+  if (checkError) {
+    throw new Error("Error checking for duplicates");
+  }
+
+  const isDuplicate = existingQuestions?.some((q: { question: string | null; option_a: string | null; option_b: string | null; option_c: string | null; option_d: string | null }) => {
+    const normalize = (str: string | null | undefined) => (str?.trim().toLowerCase() || "");
+    const questionTextMatch = normalize(q.question) === normalizedQuestion;
+    const optionAMatch = normalize(q.option_a) === normalize(option_a);
+    const optionBMatch = normalize(q.option_b) === normalize(option_b);
+    const optionCMatch = normalize(q.option_c) === normalize(option_c);
+    const optionDMatch = normalize(q.option_d) === normalize(option_d);
+
+    return questionTextMatch && optionAMatch && optionBMatch && optionCMatch && optionDMatch;
+  });
+
+  if (isDuplicate) {
+    throw new Error("A question with the same text and identical options already exists in this category");
+  }
+
+  const { data, error } = await supabase
+    .from("exam_questions")
+    .insert([{
+      category_id,
+      question,
+      question_image,
+      option_a,
+      option_a_image,
+      option_b,
+      option_b_image,
+      option_c,
+      option_c_image,
+      option_d,
+      option_d_image,
+      correct_answer,
+      explanation,
+      created_by: user.id,
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return { question: data };
+}
+
+export async function updateExamQuestion(id: string, updateData: Partial<ExamQuestion>) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!hasReadWriteQuestionAccess(user)) {
+    throw new Error("You don't have permission to edit questions");
+  }
+
+  if (!id) {
+    throw new Error("Question ID is required");
+  }
+
+  const { data, error } = await supabase
+    .from("exam_questions")
+    .update(updateData)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return { question: data };
+}
+
+export async function deleteExamQuestion(id: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!hasReadWriteQuestionAccess(user)) {
+    throw new Error("You don't have permission to delete questions");
+  }
+
+  if (!id) {
+    throw new Error("Question ID is required");
+  }
+
+  const { error } = await supabase
+    .from("exam_questions")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+  return { success: true };
+}
+
+// ============================================================================
+// EXAM ATTEMPTS QUERIES
+// ============================================================================
+
+const EXAM_ATTEMPT_COLUMNS =
+  "id, user_id, category_id, category_name, started_at, completed_at, duration_seconds, total_questions, correct_answers, score_percentage, answers, status, created_at, updated_at";
+
+export async function getExamAttempts(userId?: string, attemptId?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const isUserAdmin = isAdmin(user);
+
+  // If requesting specific attempt
+  if (attemptId) {
+    const { data: attempt, error } = await supabase
+      .from("exam_attempts")
+      .select(EXAM_ATTEMPT_COLUMNS)
+      .eq("id", attemptId)
+      .single();
+
+    if (error) throw error;
+
+    // Users can only see their own attempts, admins can see all
+    if (attempt.user_id !== user.id && !isUserAdmin) {
+      throw new Error("Unauthorized");
+    }
+
+    return { attempt };
+  }
+
+  // If requesting user's attempts
+  if (userId) {
+    if (userId !== user.id && !isUserAdmin) {
+      throw new Error("Unauthorized");
+    }
+
+    const { data: attempts, error } = await supabase
+      .from("exam_attempts")
+      .select(EXAM_ATTEMPT_COLUMNS)
+      .eq("user_id", userId)
+      .order("started_at", { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+    return { attempts: attempts || [] };
+  }
+
+  // Return current user's attempts
+  const { data: attempts, error } = await supabase
+    .from("exam_attempts")
+    .select(EXAM_ATTEMPT_COLUMNS)
+    .eq("user_id", user.id)
+    .order("started_at", { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+  return { attempts: attempts || [] };
+}
+
+export async function deleteExamAttempt(attemptId: string) {
+  if (!attemptId) {
+    throw new Error("Attempt ID is required");
+  }
+
+  const supabase = createClient();
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+  if (sessionError) {
+    console.warn("Failed to get session before deleting exam attempt:", sessionError.message);
+  }
+
+  const accessToken = session?.access_token;
+
+  const response = await fetch(`/api/exam-attempts/${attemptId}`, {
+    method: "DELETE",
+    credentials: "same-origin",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result?.error || result?.details || "Failed to delete exam attempt");
+  }
+
+  return result;
+}
+
+export async function getExamAttemptsWithQuestions(attemptId?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  if (attemptId) {
+    // Get the specific attempt
+    const { data: attempt, error: attemptError } = await supabase
+      .from("exam_attempts")
+      .select(EXAM_ATTEMPT_COLUMNS)
+      .eq("id", attemptId)
+      .single();
+
+    if (attemptError) throw attemptError;
+
+    // Users can only see their own attempts, admins can see all
+    if (attempt.user_id !== user.id && !isAdmin(user)) {
+      throw new Error("Unauthorized");
+    }
+
+    // Get all question IDs from the answers
+    const questionIds = attempt.answers.map((answer: any) => answer.question_id);
+
+    if (questionIds.length === 0) {
+      return { attempt: { ...attempt, questions: [] } };
+    }
+
+    // Fetch the full question details
+    const { data: questions, error: questionsError } = await supabase
+      .from("exam_questions")
+      .select("*")
+      .in("id", questionIds);
+
+    if (questionsError) throw questionsError;
+
+    // Map questions to answers
+    const questionsWithAnswers = attempt.answers.map((answer: any) => {
+      const question = questions?.find((q: any) => q.id === answer.question_id);
+      return {
+        ...answer,
+        question: question || null
+      };
+    });
+
+    return { 
+      attempt: { 
+        ...attempt, 
+        answers: questionsWithAnswers,
+        questions: questions || []
+      } 
+    };
+  }
+
+  throw new Error("Attempt ID is required for detailed view");
+}
+
+export async function getExamSavingConfig(): Promise<{
+  saveIndividualExams: boolean;
+  saveGroupExams: boolean;
+}> {
+  const supabase = createClient();
+  try {
+    const { data, error } = await supabase
+      .from("system_config")
+      .select("key, value")
+      .in("key", ["save_individual_exams_enabled", "save_group_exams_enabled"]);
+
+    if (error || !data) {
+      return { saveIndividualExams: true, saveGroupExams: true };
+    }
+
+    let saveIndividualExams = true;
+    let saveGroupExams = true;
+
+    for (const row of data) {
+      if (row.key === "save_individual_exams_enabled") {
+        saveIndividualExams = row.value !== "false";
+      } else if (row.key === "save_group_exams_enabled") {
+        saveGroupExams = row.value !== "false";
+      }
+    }
+
+    return { saveIndividualExams, saveGroupExams };
+  } catch {
+    return { saveIndividualExams: true, saveGroupExams: true };
+  }
+}
+
+export async function updateExamSavingConfig(config: {
+  saveIndividualExams?: boolean;
+  saveGroupExams?: boolean;
+}): Promise<void> {
+  const updates: Promise<any>[] = [];
+  if (config.saveIndividualExams !== undefined) {
+    updates.push(
+      updateSystemConfig(
+        "save_individual_exams_enabled",
+        config.saveIndividualExams.toString(),
+        "Allow or disallow saving individual exam attempts to database and user history"
+      )
+    );
+  }
+  if (config.saveGroupExams !== undefined) {
+    updates.push(
+      updateSystemConfig(
+        "save_group_exams_enabled",
+        config.saveGroupExams.toString(),
+        "Allow or disallow saving group exam challenges and results to database and history"
+      )
+    );
+  }
+  await Promise.all(updates);
+}
+
+export async function createExamAttempt(attemptData: {
+  category_id: string;
+  category_name: string;
+  total_questions: number;
+  answers: ExamAnswer[];
+  duration_seconds: number;
+  status?: 'in_progress' | 'completed' | 'abandoned';
+  submission_reason?: 'manual' | 'page_closed' | 'cheating_violation' | 'time_expired';
+  violation_summary?: string;
+  is_group_challenge?: boolean;
+  challenge_id?: string;
+}) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const { category_id, category_name, total_questions, answers, duration_seconds, status = 'completed', is_group_challenge } = attemptData;
+
+  if (!category_id || !category_name || !total_questions || !answers) {
+    throw new Error("Missing required fields");
+  }
+
+  // Check admin saving settings
+  const savingConfig = await getExamSavingConfig();
+  const shouldSave = is_group_challenge
+    ? savingConfig.saveGroupExams
+    : savingConfig.saveIndividualExams;
+
+  // Never trust client-supplied is_correct — look up the real answer key
+  // server-side so a tampered request can't fake a passing score.
+  const questionIds = answers.map((ans) => ans.question_id);
+  const { data: answerKeyRows, error: answerKeyError } = await supabase
+    .from("exam_questions")
+    .select("id, correct_answer, explanation")
+    .in("id", questionIds);
+
+  if (answerKeyError) throw new Error(answerKeyError.message || "Failed to fetch answer key");
+
+  const answerKey = new Map<string, { correct_answer: string; explanation?: string }>(
+    (answerKeyRows || []).map((q: { id: string; correct_answer: string; explanation?: string }) => [
+      q.id,
+      { correct_answer: q.correct_answer, explanation: q.explanation },
+    ])
+  );
+
+  let correctAnswers = 0;
+  const processedAnswers: ExamAnswer[] = answers.map((ans) => {
+    const isCorrect = answerKey.get(ans.question_id)?.correct_answer === ans.selected_answer;
+    if (isCorrect) correctAnswers++;
+    return {
+      question_id: ans.question_id,
+      selected_answer: ans.selected_answer,
+      is_correct: isCorrect,
+      time_spent_seconds: ans.time_spent_seconds,
+    };
+  });
+
+  const scorePercentage = Math.round((correctAnswers / total_questions) * 100);
+  const questionDetails: Record<string, { correct_answer: string; explanation?: string }> = {};
+  answerKey.forEach((value, id) => {
+    questionDetails[id] = { correct_answer: value.correct_answer as string, explanation: value.explanation };
+  });
+
+  // If exam saving is disabled by Admin, return transient result without database insertion
+  if (!shouldSave) {
+    const transientAttempt: ExamAttempt = {
+      id: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      user_id: user.id,
+      category_id,
+      category_name,
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      duration_seconds,
+      total_questions,
+      correct_answers: correctAnswers,
+      score_percentage: scorePercentage,
+      answers: processedAnswers,
+      status,
+      submission_reason: attemptData.submission_reason || 'manual',
+      violation_summary: attemptData.violation_summary || null,
+    };
+
+    return {
+      attempt: transientAttempt,
+      questionDetails,
+      is_saved: false,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("exam_attempts")
+    .insert([{
+      user_id: user.id,
+      category_id,
+      category_name,
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      duration_seconds,
+      total_questions,
+      correct_answers: correctAnswers,
+      score_percentage: scorePercentage,
+      answers: processedAnswers,
+      status,
+      submission_reason: attemptData.submission_reason || 'manual',
+      violation_summary: attemptData.violation_summary || null,
+    }])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message || "Failed to submit exam attempt");
+
+  // If the student passed (score >= 50), auto-verify provision (category P)
+  if (scorePercentage >= 50) {
+    try {
+      await supabase
+        .from("user_profiles")
+        .update({
+          provision_verified: true,
+          provision_category: "P",
+          provision_verified_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+    } catch (provError) {
+      console.error("Failed to auto-verify provision:", provError);
+    }
+  }
+
+  // Notify the student that their exam result is available
+  try {
+    await createNotification({
+      type: "exam_result",
+      title: "Exam Result Available",
+      message: `Your ${category_name} exam result is now available. Score: ${scorePercentage}%`,
+      priority: scorePercentage >= 50 ? "normal" : "urgent",
+      target_user_id: user.id,
+      related_entity_type: "exam_attempt",
+      related_entity_id: data.id,
+      action_url: "/dashboard",
+    });
+  } catch (notifyError) {
+    console.error("Failed to send exam result notification:", notifyError);
+  }
+
+  return { attempt: data, questionDetails, is_saved: true };
+}
+
+// ============================================================================
+// EXAM SETTINGS QUERIES
+// ============================================================================
+
+export async function getExamSettings(categoryId: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const { data, error } = await supabase
+    .from("exam_settings")
+    .select("*")
+    .eq("category_id", categoryId)
+    .maybeSingle();
+
+  if (error) {
+    const message = error.message || "";
+    if (!message.toLowerCase().includes("does not exist") && 
+        !message.toLowerCase().includes("could not find the table") &&
+        !message.toLowerCase().includes("schema cache")) {
+      throw error;
+    }
+  }
+
+  return {
+    categoryId,
+    settings: normalizeExamSettings(data ?? undefined),
+  };
+}
+
+export async function updateExamSettings(
+  categoryId: string,
+  settings: {
+    question_count: number;
+    duration_minutes: number;
+    sorting_mode: ExamQuestionSortingMode;
+    passing_percentage?: number;
+    available_from?: string | null;
+    available_to?: string | null;
+  }
+) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !canManageExamSettings(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!categoryId) {
+    throw new Error("categoryId is required");
+  }
+
+  const { question_count, duration_minutes, sorting_mode, passing_percentage, available_from, available_to } = settings;
+
+  if (!Number.isFinite(question_count) || question_count < 1 || question_count > 200) {
+    throw new Error("question_count must be between 1 and 200");
+  }
+  if (!Number.isFinite(duration_minutes) || duration_minutes < 1 || duration_minutes > 300) {
+    throw new Error("duration_minutes must be between 1 and 300");
+  }
+  if (passing_percentage !== undefined && (!Number.isFinite(passing_percentage) || passing_percentage < 1 || passing_percentage > 100)) {
+    throw new Error("passing_percentage must be between 1 and 100");
+  }
+  if (!["RANDOM", "TEXT_ONLY", "WITH_PICTURE", "MIXED_50"].includes(sorting_mode)) {
+    throw new Error("Invalid sorting_mode");
+  }
+
+  const payload: Record<string, any> = {
+    category_id: categoryId,
+    question_count,
+    duration_minutes,
+    sorting_mode,
+    available_from,
+    available_to,
+    updated_by: user.id,
+  };
+  if (passing_percentage !== undefined) {
+    payload.passing_percentage = passing_percentage;
+  }
+
+  let { data, error } = await supabase
+    .from("exam_settings")
+    .upsert([payload], { onConflict: "category_id" })
+    .select("*")
+    .single();
+
+  if (error && error.message?.includes("passing_percentage")) {
+    // If column doesn't exist yet, retry without passing_percentage
+    delete payload.passing_percentage;
+    const retry = await supabase
+      .from("exam_settings")
+      .upsert([payload], { onConflict: "category_id" })
+      .select("*")
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
+
+  if (error) {
+    const message = error.message || "";
+    if (message.toLowerCase().includes("does not exist") || 
+        message.toLowerCase().includes("could not find the table") ||
+        message.toLowerCase().includes("schema cache")) {
+      throw new Error("Missing database table exam_settings. Create it in Supabase first.");
+    }
+    throw error;
+  }
+
+  return {
+    categoryId,
+    settings: normalizeExamSettings(data ? { ...data, passing_percentage: passing_percentage ?? data.passing_percentage } : undefined),
+  };
+}
+
+// ============================================================================
+// EXAM LIMITS QUERIES
+// ============================================================================
+
+export async function getExamLimits(userId?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // If userId provided, check permissions
+  if (userId) {
+    if (userId !== user.id && !isAdmin(user)) {
+      throw new Error("Unauthorized");
+    }
+
+    const { data: limit, error } = await supabase
+      .from("user_exam_limits")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+
+    const { count: attemptsToday, error: countError } = await supabase
+      .from("exam_attempts")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("started_at", today.toISOString())
+      .lt("started_at", tomorrow.toISOString());
+
+    if (countError) console.error("Error counting attempts:", countError);
+
+    const isLimited = limit?.is_limited ?? true;
+    const dailyLimit = limit?.daily_limit ?? 5;
+    const remaining = isLimited ? Math.max(0, dailyLimit - (attemptsToday || 0)) : 999999;
+
+    return {
+      user_id: userId,
+      daily_limit: dailyLimit,
+      is_limited: isLimited,
+      attempts_today: attemptsToday || 0,
+      remaining_attempts: remaining,
+      limit_exists: !!limit,
+      unlimited: !isLimited,
+    };
+  }
+
+  // If admin, return all limits
+  if (isAdmin(user)) {
+    const { data: limits, error } = await supabase
+      .from("user_exam_limits")
+      .select("*");
+
+    if (error) throw error;
+    return { limits: limits || [] };
+  }
+
+  // Return current user's limit
+  const { data: limit, error } = await supabase
+    .from("user_exam_limits")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw error;
+
+  const { count: attemptsToday, error: countError } = await supabase
+    .from("exam_attempts")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .gte("started_at", today.toISOString())
+    .lt("started_at", tomorrow.toISOString());
+
+  if (countError) console.error("Error counting attempts:", countError);
+
+  const isLimited = limit?.is_limited ?? true;
+  const dailyLimit = limit?.daily_limit ?? 5;
+  const remaining = isLimited ? Math.max(0, dailyLimit - (attemptsToday || 0)) : 999999;
+
+  return {
+    user_id: user.id,
+    daily_limit: dailyLimit,
+    is_limited: isLimited,
+    attempts_today: attemptsToday || 0,
+    remaining_attempts: remaining,
+    limit_exists: !!limit,
+    unlimited: !isLimited,
+  };
+}
+
+export async function updateExamLimit(user_id: string, daily_limit?: number, is_limited?: boolean) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!isAdmin(user)) {
+    throw new Error("Admin access required");
+  }
+
+  if (!user_id || (daily_limit !== undefined && typeof daily_limit !== "number")) {
+    throw new Error("user_id is required, daily_limit must be a number if provided");
+  }
+
+  if (daily_limit !== undefined && (daily_limit < 1 || daily_limit > 100)) {
+    throw new Error("daily_limit must be between 1 and 100");
+  }
+
+  const upsertData: Record<string, unknown> = {
+    user_id,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (daily_limit !== undefined) {
+    upsertData.daily_limit = daily_limit;
+  }
+
+  if (is_limited !== undefined) {
+    upsertData.is_limited = is_limited;
+  }
+
+  // Use the regular client; RLS policies allow admins to manage exam limits.
+  const { data, error } = await supabase
+    .from("user_exam_limits")
+    .upsert(upsertData, { onConflict: "user_id" })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return {
+    success: true,
+    message: "Exam limit updated successfully",
+    limit: data,
+  };
+}
+
+export async function deleteExamLimit(userId: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!isAdmin(user)) {
+    throw new Error("Admin access required");
+  }
+
+  if (!userId) {
+    throw new Error("userId is required");
+  }
+
+  // Use the regular client; RLS policies allow admins to manage exam limits.
+  const { error } = await supabase
+    .from("user_exam_limits")
+    .delete()
+    .eq("user_id", userId);
+
+  if (error) throw error;
+
+  return {
+    success: true,
+    message: "Exam limit removed. User will use default limit (5).",
+  };
+}
+
+// ============================================================================
+// EXAM TAKE QUERIES
+// ============================================================================
+
+function createSeededRng(seed: string) {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return function () {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return ((h ^= h >>> 16) >>> 0) / 4294967296;
+  };
+}
+
+function seededShuffle<T>(array: T[], seed: string): T[] {
+  const rng = createSeededRng(seed);
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+export async function getExamForTaking(categoryId: string, challengeId?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!categoryId) {
+    throw new Error("categoryId is required");
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // Get universal exam limit
+  const { data: universalLimit, error: universalError } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", "universal_exam_limit")
+    .single();
+
+  const universalExamLimit = universalLimit ? parseInt(universalLimit.value, 10) : 5;
+
+  // Get user's daily limit and unlimited status (user limit can override universal)
+  const { data: userLimit, error: limitError } = await supabase
+    .from("user_exam_limits")
+    .select("daily_limit, is_limited")
+    .eq("user_id", user.id)
+    .single();
+
+  if (limitError && limitError.code !== "PGRST116") {
+    console.error("Error fetching user limit:", limitError);
+  }
+
+  const isLimited = userLimit?.is_limited ?? true;
+  // Use user limit if set and less than universal, otherwise use universal
+  const userLimitValue = userLimit?.daily_limit ?? universalExamLimit;
+  const dailyLimit = Math.min(userLimitValue, universalExamLimit);
+
+  // Count today's attempts
+  const { count: attemptsToday, error: countError } = await supabase
+    .from("exam_attempts")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .gte("started_at", today.toISOString())
+    .lt("started_at", tomorrow.toISOString());
+
+  if (countError) {
+    console.error("Error counting attempts:", countError);
+  }
+
+  const attemptsCount = attemptsToday || 0;
+
+  // Only enforce limit if user is in limited mode
+  if (isLimited && attemptsCount >= dailyLimit) {
+    throw new Error(`Daily exam limit reached. You can take ${dailyLimit} exam(s) per day. Please try again tomorrow.`);
+  }
+
+  // Load settings
+  const { data: rawSettings, error: settingsError } = await supabase
+    .from("exam_settings")
+    .select("*")
+    .eq("category_id", categoryId)
+    .maybeSingle();
+
+  if (settingsError) {
+    const message = settingsError.message || "";
+    if (!message.toLowerCase().includes("does not exist") && 
+        !message.toLowerCase().includes("could not find the table") &&
+        !message.toLowerCase().includes("schema cache")) {
+      throw settingsError;
+    }
+  }
+
+  const settings = normalizeExamSettings(rawSettings ?? undefined);
+  const now = new Date();
+  
+  if (!isWithinAvailabilityWindow(now, settings.available_from, settings.available_to)) {
+    throw new Error("Exam is not available at this time.");
+  }
+
+  const { data: questions, error: qError } = await supabase
+    .from("exam_questions")
+    .select("*")
+    .eq("category_id", categoryId);
+
+  if (qError) throw qError;
+
+  // Pick questions based on sorting mode
+  // Sort deterministically first so that seeded shuffle produces the identical list across all clients
+  const typedQuestions = ((questions || []) as ExamQuestion[]).sort((a, b) => a.id.localeCompare(b.id));
+  const withPic = typedQuestions.filter(questionHasAnyImage);
+  const textOnly = typedQuestions.filter((q) => !questionHasAnyImage(q));
+
+  const doShuffle = <T>(arr: T[]) => (challengeId ? seededShuffle(arr, challengeId) : shuffle(arr));
+
+  let picked: ExamQuestion[] = [];
+  const mode = settings.sorting_mode;
+  const count = settings.question_count;
+
+  if (mode === "TEXT_ONLY") {
+    picked = doShuffle(textOnly).slice(0, count);
+  } else if (mode === "WITH_PICTURE") {
+    picked = doShuffle(withPic).slice(0, count);
+  } else if (mode === "MIXED_50") {
+    const half = Math.floor(count / 2);
+    const first = doShuffle(withPic).slice(0, half);
+    const second = doShuffle(textOnly).slice(0, count - first.length);
+    picked = doShuffle([...first, ...second]).slice(0, count);
+  } else {
+    // RANDOM
+    picked = doShuffle(typedQuestions).slice(0, count);
+  }
+
+  const remainingAttempts = isLimited ? dailyLimit - attemptsCount - 1 : 999999;
+
+  // Never send correct_answer/explanation to the client before submission —
+  // otherwise anyone can read the answer key straight from the network tab.
+  const sanitizedQuestions = picked.map(({ correct_answer, explanation, ...rest }) => rest);
+
+  return {
+    categoryId,
+    settings,
+    totalAvailable: (questions || []).length,
+    questions: sanitizedQuestions,
+    serverTime: now.toISOString(),
+    daily_limit: dailyLimit,
+    is_limited: isLimited,
+    unlimited: !isLimited,
+    attempts_today: attemptsCount,
+    remaining_attempts: remainingAttempts,
+  };
+}
+
+// ============================================================================
+// NOTIFICATIONS QUERIES
+// ============================================================================
+
+export async function getNotifications(unreadOnly = false, limit = 50) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const isUserAdmin = isAdmin(user);
+
+  // Build the OR conditions properly
+  let orConditions = [`target_user_id.eq.${user.id}`, `target_role.eq.all`];
+  
+  if (isUserAdmin) {
+    orConditions.push("target_role.eq.admin");
+  } else {
+    orConditions.push("target_role.eq.student");
+  }
+
+  // Use OR filter
+  const targetFilter = orConditions.join(",");
+
+  let query = supabase
+    .from("notifications")
+    .select("*")
+    .or(targetFilter);
+
+  query = query.order("created_at", { ascending: false });
+
+  if (limit > 0) {
+    query = query.limit(limit);
+  }
+
+  const { data: notifications, error } = await query;
+
+  if (error) {
+    console.error('Supabase query error:', error);
+    throw error;
+  }
+
+  // Get read status for each notification
+  const { data: readStatuses, error: readError } = await supabase
+    .from("notification_reads")
+    .select("notification_id")
+    .eq("user_id", user.id)
+    .in("notification_id", notifications?.map((n: { id: string }) => n.id) || []);
+
+  if (readError) {
+    console.error("Error fetching read statuses:", readError);
+  }
+
+  const readNotificationIds = new Set(readStatuses?.map((r: { notification_id: string }) => r.notification_id) || []);
+
+  const notificationsWithReadStatus = notifications?.map((n: { id: string } & Record<string, unknown>) => ({
+    ...n,
+    is_read: readNotificationIds.has(n.id),
+  })) || [];
+
+  const result = unreadOnly
+    ? notificationsWithReadStatus.filter((n: { is_read: boolean }) => !n.is_read)
+    : notificationsWithReadStatus;
+
+  return {
+    notifications: result,
+    unread_count: notificationsWithReadStatus.filter((n: { is_read: boolean }) => !n.is_read).length,
+  };
+}
+
+export async function createNotification(notification: {
+  title: string;
+  message: string;
+  type?: string;
+  priority?: "urgent" | "normal" | "low";
+  target_role?: string;
+  target_user_id?: string;
+  expires_at?: string;
+  related_entity_type?: string;
+  related_entity_id?: string;
+  action_url?: string;
+}) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!isAdmin(user)) {
+    throw new Error("Admin access required");
+  }
+
+  const {
+    title,
+    message,
+    type = "info",
+    priority = "normal",
+    target_role = "all",
+    target_user_id,
+    expires_at,
+    related_entity_type,
+    related_entity_id,
+    action_url,
+  } = notification;
+
+  if (!title || !message) {
+    throw new Error("title and message are required");
+  }
+
+  const validRoles = ["all", "student", "admin"];
+  if (!validRoles.includes(target_role)) {
+    throw new Error(`target_role must be one of: ${validRoles.join(", ")}`);
+  }
+
+  const { data, error } = await supabase
+    .from("notifications")
+    .insert([{
+      title,
+      message,
+      type,
+      priority,
+      target_role,
+      target_user_id,
+      sender_id: user.id,
+      sender_name: user.user_metadata?.full_name || user.email,
+      expires_at,
+      related_entity_type,
+      related_entity_id,
+      action_url,
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return {
+    success: true,
+    message: "Notification created successfully",
+    notification: data,
+  };
+}
+
+export async function markNotificationAsRead(notificationId: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!notificationId) {
+    throw new Error("notificationId is required");
+  }
+
+  const { error } = await supabase
+    .from("notification_reads")
+    .upsert({
+      notification_id: notificationId,
+      user_id: user.id,
+    }, { onConflict: "notification_id,user_id" });
+
+  if (error) throw error;
+
+  return {
+    success: true,
+    message: "Notification marked as read",
+  };
+}
+
+export async function markAllNotificationsAsRead() {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const { data: notifications } = await supabase
+    .from("notifications")
+    .select("id")
+    .or(`target_user_id.eq.${user.id},target_role.eq.all`);
+
+  if (!notifications || notifications.length === 0) {
+    return { success: true, marked_count: 0 };
+  }
+
+  const readRecords = notifications.map((n: { id: string }) => ({
+    notification_id: n.id,
+    user_id: user.id,
+  }));
+
+  const { error } = await supabase
+    .from("notification_reads")
+    .upsert(readRecords, { onConflict: "notification_id,user_id" });
+
+  if (error) throw error;
+
+  return {
+    success: true,
+    marked_count: notifications.length,
+  };
+}
+
+export async function deleteNotification(notificationId: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!isAdmin(user)) {
+    throw new Error("Admin access required");
+  }
+
+  if (!notificationId) {
+    throw new Error("notificationId is required");
+  }
+
+  const { error } = await supabase
+    .from("notifications")
+    .delete()
+    .eq("id", notificationId);
+
+  if (error) throw error;
+
+  return {
+    success: true,
+    message: "Notification deleted",
+  };
+}
+
+// ============================================================================
+// ADMIN STATS QUERIES
+// ============================================================================
+
+export async function getAdminStats() {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+
+  if (!user || !isUserAdmin) {
+    throw new Error("Unauthorized");
+  }
+
+  // Get user counts from Supabase Auth via a function or RPC if available
+  // For now, we'll query from a user_profiles table or similar
+  // Since we can't use admin client, we rely on RLS and user metadata
+  
+  // Get exam categories count
+  const { count: categoryCount } = await supabase
+    .from("exam_categories")
+    .select("*", { count: "exact", head: true });
+
+  // Get questions count
+  const { count: questionCount } = await supabase
+    .from("exam_questions")
+    .select("*", { count: "exact", head: true });
+
+  // Get attempts count for stats
+  const { count: attemptsCount } = await supabase
+    .from("exam_attempts")
+    .select("*", { count: "exact", head: true });
+
+  // Get recent categories
+  const { data: recentCategories } = await supabase
+    .from("exam_categories")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  // Get recent questions
+  const { data: recentQuestions } = await supabase
+    .from("exam_questions")
+    .select("*, exam_categories(name)")
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  // System status checks
+  const systemStatus = {
+    database: "healthy",
+    supabase: "connected",
+    lastUpdated: new Date().toISOString(),
+  };
+
+  return {
+    stats: {
+      totalCategories: categoryCount || 0,
+      totalQuestions: questionCount || 0,
+      totalAttempts: attemptsCount || 0,
+    },
+    recentActivity: {
+      categories: recentCategories || [],
+      questions: recentQuestions || [],
+    },
+    systemStatus,
+  };
+}
+
+// ============================================================================
+// USERS QUERIES
+// ============================================================================
+
+export async function getUsers(type: "students" | "admins" = "students") {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized - Admin access required");
+  }
+
+  // Get users from user_profiles table
+  const { data: profiles, error } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq(type === "admins" ? "role" : "role", type === "admins" ? "Admin" : "Student");
+
+  if (error) {
+    console.error("Failed to fetch users from user_profiles:", error);
+    return { users: [] };
+  }
+
+  return { users: profiles || [] };
+}
+
+// SYSTEM CONFIGURATION QUERIES
+// ============================================================================
+
+function isMissingTableError(error: any) {
+  const message = error?.message?.toLowerCase() || "";
+  return (
+    message.includes("could not find the table") ||
+    message.includes("does not exist") ||
+    message.includes("schema cache")
+  );
+}
+
+export async function getSystemConfig(key?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  // Only admins can access system config
+  if (!isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  if (key) {
+    const { data, error } = await supabase
+      .from("system_config")
+      .select("*")
+      .eq("key", key)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      if (isMissingTableError(error)) return { config: null };
+      throw error;
+    }
+    return { config: data };
+  }
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("*")
+    .order("key");
+
+  if (error) {
+    if (isMissingTableError(error)) return { configs: [] };
+    throw error;
+  }
+
+  return { configs: data || [] };
+}
+
+export async function updateSystemConfig(key: string, value: string, description?: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  // Only admins can update system config
+  if (!isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .upsert(
+      {
+        key,
+        value,
+        description,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "key" }
+    )
+    .select()
+    .single();
+
+  if (error) throw error;
+  return { config: data };
+}
+
+// Get universal exam limit for all users
+export async function getUniversalExamLimit(): Promise<number> {
+  const supabase = createClient();
+  
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", "universal_exam_limit")
+    .single();
+
+  if (error || !data) {
+    return 5; // Default limit
+  }
+
+  return parseInt(data.value, 10) || 5;
+}
+
+// Check if violation measures are enabled
+export async function areViolationMeasuresEnabled(): Promise<boolean> {
+  const supabase = createClient();
+  
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", "violation_measures_enabled")
+    .single();
+
+  if (error || !data) {
+    return true; // Default to enabled
+  }
+
+  return data.value === "true";
+}
+
+export async function isStandaloneExamEnabled(): Promise<boolean> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", "standalone_exam_enabled")
+    .single();
+
+  if (error || !data) {
+    return false;
+  }
+
+  return data.value === "true";
+}
+
+export async function isServicesPageEnabled(): Promise<boolean> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", "services_page_enabled")
+    .single();
+
+  if (error || !data) {
+    return true; // Default to enabled
+  }
+
+  return data.value === "true";
+}
+
+export async function isServiceEnabled(serviceKey: string): Promise<boolean> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", `service_${serviceKey}_enabled`)
+    .single();
+
+  if (error || !data) {
+    return true; // Default to enabled
+  }
+
+  return data.value === "true";
+}
+
+export async function getServicesConfig(): Promise<{
+  pageEnabled: boolean;
+  services: Record<string, boolean>;
+}> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("key, value");
+
+  if (error) {
+    return { pageEnabled: true, services: {} };
+  }
+
+  let pageEnabled = true;
+  const services: Record<string, boolean> = {};
+
+  for (const row of data || []) {
+    if (row.key === "services_page_enabled") {
+      pageEnabled = row.value === "true";
+    } else {
+      // Extract service key from "service_{key}_enabled"
+      const match = row.key.match(/^service_(.+)_enabled$/);
+      if (match) {
+        services[match[1]] = row.value === "true";
+      }
+    }
+  }
+
+  return { pageEnabled, services };
+}
+
+// ============================================================================
+// MODULE EXAM QUERIES (Module Journey System)
+// ============================================================================
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export interface ModuleExamTakeData {
+  settings: ModuleExamSettings;
+  questions: ModuleExamQuestion[];
+}
+
+export async function getModuleExamForTaking(
+  moduleId: string
+): Promise<ModuleExamTakeData> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: settings, error: settingsError } = await supabase
+    .from("module_exam_settings")
+    .select("*")
+    .eq("module_id", moduleId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (settingsError) throw settingsError;
+  if (!settings) throw new Error("No exam found for this module");
+
+  const { data: questions, error: questionsError } = await supabase
+    .from("module_exam_questions")
+    .select("*")
+    .eq("module_id", moduleId)
+    .is("deleted_at", null)
+    .eq("is_published", true)
+    .order("order_index", { ascending: true });
+
+  if (questionsError) throw questionsError;
+
+  let finalQuestions = questions || [];
+  if ((settings as ModuleExamSettings).randomize_questions) {
+    finalQuestions = shuffleArray(finalQuestions);
+  }
+  const questionCount = (settings as ModuleExamSettings).question_count;
+  if (questionCount && finalQuestions.length > questionCount) {
+    finalQuestions = finalQuestions.slice(0, questionCount);
+  }
+
+  return {
+    settings: settings as ModuleExamSettings,
+    questions: finalQuestions as ModuleExamQuestion[],
+  };
+}
+
+export async function getMidtermExamForTaking(
+  completedModuleIds: string[],
+  questionCount: number,
+  durationMinutes: number
+): Promise<{ questions: ModuleExamQuestion[]; durationMinutes: number; questionCount: number }> {
+  if (completedModuleIds.length === 0) {
+    return { questions: [], durationMinutes, questionCount };
+  }
+
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: questions, error } = await supabase
+    .from("module_exam_questions")
+    .select("*")
+    .in("module_id", completedModuleIds)
+    .is("deleted_at", null)
+    .eq("is_published", true);
+
+  if (error) throw error;
+
+  const shuffled = shuffleArray(questions || []);
+  const sliced = shuffled.slice(0, questionCount);
+
+  return {
+    questions: sliced as ModuleExamQuestion[],
+    durationMinutes,
+    questionCount,
+  };
+}
+
+export async function getFinalExamForTaking(
+  allModuleIds: string[],
+  questionCount: number,
+  durationMinutes: number
+): Promise<{ questions: ModuleExamQuestion[]; durationMinutes: number; questionCount: number }> {
+  if (allModuleIds.length === 0) {
+    return { questions: [], durationMinutes, questionCount };
+  }
+
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: questions, error } = await supabase
+    .from("module_exam_questions")
+    .select("*")
+    .in("module_id", allModuleIds)
+    .is("deleted_at", null)
+    .eq("is_published", true);
+
+  if (error) throw error;
+
+  const shuffled = shuffleArray(questions || []);
+  const sliced = shuffled.slice(0, questionCount);
+
+  return {
+    questions: sliced as ModuleExamQuestion[],
+    durationMinutes,
+    questionCount,
+  };
+}
+
+export async function createModuleExamAttempt(
+  attemptData: {
+    module_id: string | null;
+    module_title: string | null;
+    exam_type: "module" | "midterm" | "final";
+    total_questions: number;
+    correct_answers: number;
+    score_percentage: number;
+    passed: boolean;
+    duration_seconds: number;
+    answers: ModuleExamAnswer[];
+    status: "completed" | "abandoned";
+  }
+): Promise<ModuleExamAttempt> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("module_exam_attempts")
+    .insert({
+      user_id: user.id,
+      module_id: attemptData.module_id,
+      module_title: attemptData.module_title,
+      exam_type: attemptData.exam_type,
+      started_at: new Date(Date.now() - attemptData.duration_seconds * 1000).toISOString(),
+      completed_at: new Date().toISOString(),
+      duration_seconds: attemptData.duration_seconds,
+      total_questions: attemptData.total_questions,
+      correct_answers: attemptData.correct_answers,
+      score_percentage: attemptData.score_percentage,
+      passed: attemptData.passed,
+      answers: attemptData.answers,
+      status: attemptData.status,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+
+  // Update student_module_progress for module exams
+  if (attemptData.exam_type === "module" && attemptData.module_id) {
+    await updateModuleProgressAfterExam(attemptData.module_id, attemptData.passed, attemptData.score_percentage);
+  }
+
+  return data as ModuleExamAttempt;
+}
+
+async function updateModuleProgressAfterExam(
+  moduleId: string,
+  passed: boolean,
+  scorePercentage: number
+): Promise<void> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) return;
+
+  // Get existing progress
+  const { data: existing } = await supabase
+    .from("student_module_progress")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("module_id", moduleId)
+    .maybeSingle();
+
+  const attempts = (existing?.exam_attempts || 0) + 1;
+  const bestScore = Math.max(existing?.best_score || 0, scorePercentage);
+  const examPassed = passed || existing?.exam_passed || false;
+
+  if (existing) {
+    await supabase
+      .from("student_module_progress")
+      .update({
+        exam_attempts: attempts,
+        best_score: bestScore,
+        exam_passed: examPassed,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+  } else {
+    await supabase.from("student_module_progress").insert({
+      user_id: user.id,
+      module_id: moduleId,
+      lessons_completed: 0,
+      total_lessons: 0,
+      exam_passed: examPassed,
+      exam_attempts: attempts,
+      best_score: bestScore,
+      time_spent_seconds: 0,
+      completed_at: new Date().toISOString(),
+    });
+  }
+}
+
+export async function getModuleExamAttempts(
+  moduleId?: string,
+  examType?: "module" | "midterm" | "final"
+): Promise<ModuleExamAttempt[]> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  let query = supabase
+    .from("module_exam_attempts")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (moduleId) {
+    query = query.eq("module_id", moduleId);
+  }
+  if (examType) {
+    query = query.eq("exam_type", examType);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []) as ModuleExamAttempt[];
+}
+
+export async function getStudentModuleProgress(moduleIds: string[]) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) return [];
+
+  if (moduleIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("student_module_progress")
+    .select("*")
+    .eq("user_id", user.id)
+    .in("module_id", moduleIds);
+
+  if (error) return [];
+  return data || [];
+}
+
+export async function getStudentLessonProgress(moduleIds: string[]) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) return [];
+
+  if (moduleIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("student_lesson_progress")
+    .select("*")
+    .eq("user_id", user.id)
+    .in("module_id", moduleIds);
+
+  if (error) return [];
+  return data || [];
+}
+
+export async function upsertLessonProgress(
+  lessonId: string,
+  moduleId: string,
+  completed: boolean,
+  timeSpentSeconds: number,
+  exceededTimeSeconds: number = 0
+): Promise<void> {
+  // First try direct API endpoint for guaranteed server-side execution
+  try {
+    if (typeof window !== "undefined") {
+      await fetch("/api/course/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lessonId,
+          moduleId,
+          completed,
+          timeSpentSeconds,
+          exceededTimeSeconds,
+        }),
+      });
+      return;
+    }
+  } catch (err) {
+    console.warn("API progress sync failed, attempting Supabase direct:", err);
+  }
+
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) return;
+
+  const { data: existing } = await supabase
+    .from("student_lesson_progress")
+    .select("id, time_spent_seconds, exceeded_time_seconds, completed")
+    .eq("user_id", user.id)
+    .eq("lesson_id", lessonId)
+    .maybeSingle();
+
+  const isCompleted = completed || (existing?.completed ?? false);
+
+  if (existing) {
+    await supabase
+      .from("student_lesson_progress")
+      .update({
+        completed: isCompleted,
+        completed_at: isCompleted ? new Date().toISOString() : null,
+        time_spent_seconds: (existing.time_spent_seconds || 0) + timeSpentSeconds,
+        exceeded_time_seconds: (existing.exceeded_time_seconds || 0) + exceededTimeSeconds,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+  } else {
+    await supabase.from("student_lesson_progress").insert({
+      user_id: user.id,
+      lesson_id: lessonId,
+      module_id: moduleId,
+      completed: isCompleted,
+      completed_at: isCompleted ? new Date().toISOString() : null,
+      time_spent_seconds: timeSpentSeconds,
+      exceeded_time_seconds: exceededTimeSeconds,
+    });
+  }
+}
+
+export async function updateModuleTimeSpent(
+  moduleId: string,
+  additionalSeconds: number,
+  exceededSeconds: number = 0
+): Promise<void> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) return;
+
+  const { data: existing } = await supabase
+    .from("student_module_progress")
+    .select("id, time_spent_seconds, exceeded_time_seconds")
+    .eq("user_id", user.id)
+    .eq("module_id", moduleId)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("student_module_progress")
+      .update({
+        time_spent_seconds: (existing.time_spent_seconds || 0) + additionalSeconds,
+        exceeded_time_seconds: (existing.exceeded_time_seconds || 0) + exceededSeconds,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+  } else {
+    // Need total_lessons — fetch from course_lessons
+    const { count } = await supabase
+      .from("course_lessons")
+      .select("*", { count: "exact", head: true })
+      .eq("module_id", moduleId)
+      .is("deleted_at", null);
+
+    await supabase.from("student_module_progress").insert({
+      user_id: user.id,
+      module_id: moduleId,
+      lessons_completed: 0,
+      total_lessons: count || 0,
+      exam_passed: false,
+      exam_attempts: 0,
+      time_spent_seconds: additionalSeconds,
+      exceeded_time_seconds: exceededSeconds,
+    });
+  }
+}
+
+export interface UserCourseProgressData {
+  lessons: Array<{
+    lesson_id: string;
+    module_id: string;
+    completed: boolean;
+    time_spent_seconds: number;
+    exceeded_time_seconds: number;
+  }>;
+  modules: Array<{
+    module_id: string;
+    time_spent_seconds: number;
+    exceeded_time_seconds: number;
+    lessons_completed: number;
+    total_lessons: number;
+  }>;
+  totalExceededTime: number;
+  totalTimeSpent: number;
+}
+
+export async function getUserCourseProgress(userId: string): Promise<UserCourseProgressData> {
+  const supabase = createClient();
+  const admin = await getAuthUser();
+  if (!admin) throw new Error("Not authenticated");
+
+  const [lessonResult, moduleResult] = await Promise.all([
+    supabase
+      .from("student_lesson_progress")
+      .select("lesson_id, module_id, completed, time_spent_seconds, exceeded_time_seconds")
+      .eq("user_id", userId),
+    supabase
+      .from("student_module_progress")
+      .select("module_id, time_spent_seconds, exceeded_time_seconds, lessons_completed, total_lessons")
+      .eq("user_id", userId),
+  ]);
+
+  const lessons = (lessonResult.data || []) as UserCourseProgressData["lessons"];
+  const modules = (moduleResult.data || []) as UserCourseProgressData["modules"];
+
+  const totalExceededTime = lessons.reduce((sum, l) => sum + (l.exceeded_time_seconds || 0), 0);
+  const totalTimeSpent = lessons.reduce((sum, l) => sum + (l.time_spent_seconds || 0), 0);
+
+  return { lessons, modules, totalExceededTime, totalTimeSpent };
+}
+
+export async function canRetakeExam(
+  moduleId: string,
+  examType: ExamRetakeType
+): Promise<{ canRetake: boolean; needsApproval: boolean; reason?: string }> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  // Midterm and final exams have no retake limit
+  if (examType === "midterm") {
+    return { canRetake: true, needsApproval: false };
+  }
+
+  // For module exams, check retake_limit from exam settings
+  if (examType === "module") {
+    const { data: settings } = await supabase
+      .from("module_exam_settings")
+      .select("retake_limit, max_attempts")
+      .eq("module_id", moduleId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    const retakeLimit = settings?.retake_limit ?? settings?.max_attempts ?? 2;
+
+    // Count completed attempts
+    const { count } = await supabase
+      .from("module_exam_attempts")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("module_id", moduleId)
+      .eq("exam_type", "module")
+      .eq("status", "completed");
+
+    const attempts = count || 0;
+
+    if (attempts <= retakeLimit) {
+      return { canRetake: true, needsApproval: false };
+    }
+
+    // Over limit — check for approved retake request
+    const { data: approvedRequest } = await supabase
+      .from("exam_retake_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("module_id", moduleId)
+      .eq("exam_type", "module")
+      .eq("status", "approved")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (approvedRequest) {
+      return { canRetake: true, needsApproval: false };
+    }
+
+    // Check if there's already a pending request
+    const { data: pendingRequest } = await supabase
+      .from("exam_retake_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("module_id", moduleId)
+      .eq("exam_type", "module")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pendingRequest) {
+      return { canRetake: false, needsApproval: true, reason: "pending" };
+    }
+
+    return { canRetake: false, needsApproval: true, reason: "over_limit" };
+  }
+
+  // Final exam — similar to module exam but no module_id
+  return { canRetake: true, needsApproval: false };
+}
+
+// ============================================================================
+// RETAKE REQUEST QUERIES
+// ============================================================================
+
+export async function requestExamRetake(
+  moduleId: string | null,
+  examType: ExamRetakeType,
+  reason: string
+): Promise<ExamRetakeRequest> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  // Check for existing pending request
+  let query = supabase
+    .from("exam_retake_requests")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("exam_type", examType)
+    .eq("status", "pending");
+
+  if (moduleId) {
+    query = query.eq("module_id", moduleId);
+  } else {
+    query = query.is("module_id", null);
+  }
+
+  const { data: existing } = await query.maybeSingle();
+  if (existing) {
+    throw new Error("You already have a pending retake request");
+  }
+
+  const { data, error } = await supabase
+    .from("exam_retake_requests")
+    .insert({
+      user_id: user.id,
+      module_id: moduleId,
+      exam_type: examType,
+      reason,
+      status: "pending",
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data as ExamRetakeRequest;
+}
+
+export async function getStudentRetakeRequests(): Promise<ExamRetakeRequest[]> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("exam_retake_requests")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as ExamRetakeRequest[];
+}
+
+export async function getAllRetakeRequests(
+  statusFilter?: ExamRetakeStatus
+): Promise<(ExamRetakeRequest & { user_email?: string; user_name?: string })[]> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  let query = supabase
+    .from("exam_retake_requests")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (statusFilter) {
+    query = query.eq("status", statusFilter);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  // Fetch user emails
+  const requests = (data || []) as ExamRetakeRequest[];
+  const userIds = [...new Set(requests.map((r: ExamRetakeRequest) => r.user_id).filter(Boolean))] as string[];
+  if (userIds.length === 0) return requests as (ExamRetakeRequest & { user_email?: string; user_name?: string })[];
+
+  const { data: profiles } = await supabase
+    .from("user_profiles")
+    .select("id, email, full_name, username")
+    .in("id", userIds);
+
+  type ProfileInfo = { id: string; email: string; full_name: string | null; username: string | null };
+  const profileMap = new Map<string, ProfileInfo>((profiles || []).map((p: ProfileInfo) => [p.id, p]));
+
+  return requests.map((r: ExamRetakeRequest) => ({
+    ...r,
+    user_email: profileMap.get(r.user_id)?.email,
+    user_name: profileMap.get(r.user_id)?.full_name || profileMap.get(r.user_id)?.username || undefined,
+  }));
+}
+
+export async function approveRetakeRequest(
+  requestId: string,
+  adminNote?: string
+): Promise<void> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  const { error } = await supabase
+    .from("exam_retake_requests")
+    .update({
+      status: "approved",
+      admin_id: user.id,
+      admin_note: adminNote,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", requestId);
+
+  if (error) throw error;
+}
+
+export async function denyRetakeRequest(
+  requestId: string,
+  adminNote?: string
+): Promise<void> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  const { error } = await supabase
+    .from("exam_retake_requests")
+    .update({
+      status: "denied",
+      admin_id: user.id,
+      admin_note: adminNote,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", requestId);
+
+  if (error) throw error;
+}
+
+export async function getPendingRetakeCount(): Promise<number> {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    return 0;
+  }
+
+  const { count, error } = await supabase
+    .from("exam_retake_requests")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending");
+
+  if (error) return 0;
+  return count || 0;
+}
+
+
+export async function getAllAnonymousVisits() {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  const { data, error } = await supabase
+    .from("anonymous_visits")
+    .select("*")
+    .order("last_seen", { ascending: false });
+
+  if (error) throw error;
+  return { visits: data || [] };
+}
+
+export async function getAnonymousVisitsByUser(userId: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  const { data, error } = await supabase
+    .from("anonymous_visits")
+    .select("*")
+    .eq("linked_user_id", userId)
+    .order("last_seen", { ascending: false });
+
+  if (error) throw error;
+  return { visits: data || [] };
+}
+
+export async function getAnonymousVisitByFingerprint(fingerprint: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  const { data, error } = await supabase
+    .from("anonymous_visits")
+    .select("*")
+    .eq("fingerprint", fingerprint)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return { visit: data };
+}
+
+export async function linkAnonymousVisitToUser(fingerprint: string, userId: string) {
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  const { data, error } = await supabase
+    .from("anonymous_visits")
+    .update({ linked_user_id: userId, updated_at: new Date().toISOString() })
+    .eq("fingerprint", fingerprint)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return { visit: data };
+}
