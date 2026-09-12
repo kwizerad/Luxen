@@ -349,7 +349,7 @@ export function HomeView({ navigate }: HomeViewProps) {
                     completed_at: att.completed_at || att.created_at || att.started_at,
                     created_at: att.created_at,
                     passed: att.passed,
-                    is_passed: att.passed !== undefined ? att.passed : scorePct >= 50,
+                    is_passed: att.passed !== undefined ? att.passed : scorePct >= 60,
                     answers: att.answers,
                     exam_type: att.exam_type || "module",
                   };
@@ -525,7 +525,7 @@ export function HomeView({ navigate }: HomeViewProps) {
       } else if (score === 0 && pct > 0) {
         score = Math.round((pct / 100) * qCount);
       }
-      const isPassed = att.is_passed ?? att.passed ?? (pct >= 50);
+      const isPassed = att.is_passed ?? att.passed ?? (pct >= 60);
 
       if (isPassed) passedCount++;
       sumScorePct += pct;
@@ -1019,39 +1019,41 @@ export function HomeView({ navigate }: HomeViewProps) {
       {/* Primary Hero Row: Practice Exam Card + Theory Curriculum Progress */}
       {(standaloneExamEnabled || hasCourses) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* 1. Take Practice Exam Card */}
+          {/* 1. Take Exam Card */}
           {standaloneExamEnabled && (
             <div className={hasCourses ? "lg:col-span-2" : "lg:col-span-3"}>
-              <div className="h-full rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-card to-card p-6 shadow-sm flex flex-col justify-between relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
+              <div className="h-full rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 via-card to-card p-6 sm:p-7 shadow-md flex flex-col justify-between relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/15 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
                 <div>
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                      <Award className="w-3.5 h-3.5" />
-                      {t("officialSimulation") || "Provisional License Mock"}
+                  <div className="flex items-center justify-between gap-2 mb-3.5">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                      <Award className="w-4 h-4" />
+                      {t("officialSimulation") || "Official Provisional License Simulation"}
                     </span>
-                    <span className="text-xs font-medium text-muted-foreground">20 Questions · Timed</span>
+                    <span className="text-xs font-semibold text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-full">
+                      20 Questions · Timed
+                    </span>
                   </div>
 
-                  <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground mb-1.5">
-                    {t("takePracticeExam") || "Standard Practice Examination"}
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-foreground mb-2">
+                    {t("takeExam") || "Take exam"}
                   </h2>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-5 leading-relaxed max-w-xl">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-6 leading-relaxed max-w-xl">
                     {t("examSimulationDesc") || "Test your understanding of national traffic regulations, road signs, and right-of-way priorities under timed exam conditions."}
                   </p>
 
-                  <div className="grid grid-cols-3 gap-3 p-3.5 rounded-xl bg-muted/40 border border-border/50 text-xs text-muted-foreground mb-5">
+                  <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-card/80 border border-border/70 backdrop-blur-sm text-xs mb-6 shadow-sm">
                     <div>
                       <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{t("duration") || "Duration"}</div>
-                      <div className="text-sm font-bold text-foreground mt-0.5">20 min</div>
+                      <div className="text-sm sm:text-base font-bold text-foreground mt-0.5">20 min</div>
                     </div>
                     <div>
                       <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{t("passingScore") || "Passing Mark"}</div>
-                      <div className="text-sm font-bold text-foreground mt-0.5">80% (16/20)</div>
+                      <div className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">60% (12/20)</div>
                     </div>
                     <div>
                       <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{t("yourPassRate") || "Pass Rate"}</div>
-                      <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{examStats.passRate}%</div>
+                      <div className="text-sm sm:text-base font-bold text-foreground mt-0.5">{examStats.passRate}%</div>
                     </div>
                   </div>
                 </div>
@@ -1062,10 +1064,10 @@ export function HomeView({ navigate }: HomeViewProps) {
                     onClick={() => {
                       router.push("/dashboard/exam");
                     }}
-                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all"
+                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-sm shadow-md hover:shadow-xl hover:shadow-emerald-600/20 transition-all"
                   >
                     <Play className="w-4 h-4 fill-current" />
-                    <span>{t("startExamNow") || "Start Practice Exam"}</span>
+                    <span>{t("takeExam") || "Take exam"}</span>
                   </button>
                 </div>
               </div>
@@ -1135,86 +1137,6 @@ export function HomeView({ navigate }: HomeViewProps) {
           )}
         </div>
       )}
-
-      {/* KPI Performance Stat Cards */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Total Exams & Pass Rate */}
-        <div className="rounded-2xl border border-border/60 bg-card p-4 sm:p-5 shadow-sm space-y-2 hover:border-emerald-500/40 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {t("totalExamsTaken") || "Exams Taken"}
-            </span>
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <FileText className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            {examStats.total}
-          </div>
-          <div className="text-xs text-muted-foreground font-medium">
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{examStats.passRate}%</span>
-            <span> pass rate</span>
-          </div>
-        </div>
-
-        {/* Metric 2: Average Score & Best Mark */}
-        <div className="rounded-2xl border border-border/60 bg-card p-4 sm:p-5 shadow-sm space-y-2 hover:border-amber-500/40 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {t("averageExamScore") || "Average Score"}
-            </span>
-            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <Trophy className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            {examStats.total > 0 ? `${examStats.avgScore}%` : "—"}
-          </div>
-          <div className="text-xs text-muted-foreground font-medium">
-            <span>Best attempt: </span>
-            <span className="text-foreground font-semibold">{examStats.bestScore}%</span>
-          </div>
-        </div>
-
-        {/* Metric 3: Total Study Duration & Avg Time */}
-        <div className="rounded-2xl border border-border/60 bg-card p-4 sm:p-5 shadow-sm space-y-2 hover:border-blue-500/40 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {t("totalStudyTime") || "Practice Time"}
-            </span>
-            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            {formattedStudyTime}
-          </div>
-          <div className="text-xs text-muted-foreground font-medium">
-            <span>Avg per test: </span>
-            <span className="text-foreground font-semibold">{formattedAvgDuration}</span>
-          </div>
-        </div>
-
-        {/* Metric 4: Theory Lessons / Curriculum Mastered */}
-        <div className="rounded-2xl border border-border/60 bg-card p-4 sm:p-5 shadow-sm space-y-2 hover:border-purple-500/40 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {t("lessonsCompleted") || "Lessons Completed"}
-            </span>
-            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
-              <BookOpen className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            {stats?.lessonsCompleted ?? 0}
-            <span className="text-xs font-normal text-muted-foreground ml-1">/ {stats?.totalLessons ?? 0}</span>
-          </div>
-          <div className="text-xs text-muted-foreground font-medium">
-            <span className="text-purple-600 dark:text-purple-400 font-semibold">{stats?.modulesCompleted ?? 0}</span>
-            <span> modules mastered</span>
-          </div>
-        </div>
-      </section>
 
       {/* Practical Driving Training Status (if booking exists) */}
       {upcomingBooking && (
@@ -1358,7 +1280,7 @@ export function HomeView({ navigate }: HomeViewProps) {
                 } else if (score === 0 && percent > 0) {
                   score = Math.round((percent / 100) * total);
                 }
-                const isPassed = attempt.is_passed ?? attempt.passed ?? (percent >= 50);
+                const isPassed = attempt.is_passed ?? attempt.passed ?? (percent >= 60);
                 const attemptDate = attempt.completed_at || attempt.created_at || attempt.started_at;
                 const isAbandoned = attempt.status === "abandoned";
                 const isInProgress = attempt.status === "in_progress";

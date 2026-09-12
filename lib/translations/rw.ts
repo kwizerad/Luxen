@@ -2160,7 +2160,7 @@ const rw: Record<string, string> = {
   "takeExamDesc": "Genzura ubumenyi bwawe binyuze mu bizamini by'imyitozo",
   "takeFirstExamToSeePerformance": "Kora ikizamini cyawe cya mbere kugira ngo ubone isesengura ry'uko witwaye.",
   "takeModuleExam": "Kora ikizamini cy'umutwe w'isomo",
-  "takePracticeExam": "Kora Ikizamini cy'Imyitozo",
+  "takePracticeExam": "Kora Ikizamini",
   "takeYourFirstExam": "Kora Ikizamini cya Mbere cy'Imyitozo",
   "taken": "taken",
   "tapShareInSafari": "Tap the share button in Safari",

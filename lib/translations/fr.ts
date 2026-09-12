@@ -2160,7 +2160,7 @@ const fr: Record<string, string> = {
   "takeExamDesc": "Testez vos connaissances avec des examens pratiques",
   "takeFirstExamToSeePerformance": "Passez votre premier examen pour voir vos données de performance.",
   "takeModuleExam": "Kora ikizamini cy'umutwe w'isomo",
-  "takePracticeExam": "Passer un examen blanc",
+  "takePracticeExam": "Passer un examen",
   "takeYourFirstExam": "Passer votre premier examen",
   "taken": "passés",
   "tapShareInSafari": "Appuyez sur le bouton de partage dans Safari",
