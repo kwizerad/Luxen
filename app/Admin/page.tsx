@@ -28,6 +28,7 @@ import {
   RadialBarChart, RadialBar, BarChart, Bar, Legend
 } from "recharts";
 import { VisitorGeoMap } from "@/components/admin/visitor-map";
+import { DashboardWidget } from "@/components/admin/dashboard-widget";
 import { toast } from "sonner";
 
 export type DashboardTab = "overview" | "exams" | "students" | "drivers" | "devices" | "operations" | "broadcast";
@@ -868,29 +869,48 @@ export default function AdminDashboard() {
             className="space-y-6"
           >
             {/* Live Realtime Ticker Feed */}
-            {realtimeEvents.length > 0 && (
-              <div className="p-3.5 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 flex items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-semibold text-[11px] whitespace-nowrap">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
-                    LIVE FEED
-                  </span>
-                  <span className="font-semibold text-[var(--admin-text)] truncate">
-                    {realtimeEvents[0].title}
-                  </span>
-                  <span className="text-[var(--admin-muted)] hidden md:inline truncate">
-                    ({realtimeEvents[0].details})
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleTabChange("operations")}
-                  className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 whitespace-nowrap flex items-center gap-1"
+            <AnimatePresence mode="wait">
+              {realtimeEvents.length > 0 && (
+                <motion.div
+                  key={realtimeEvents[0].id}
+                  initial={{ opacity: 0, x: 40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -40 }}
+                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  className="p-3.5 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 flex items-center justify-between gap-3 text-xs"
                 >
-                  <span>View All Logs</span>
-                  <ChevronRight className="w-3 h-3" />
-                </button>
-              </div>
-            )}
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-semibold text-[11px] whitespace-nowrap">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+                      LIVE FEED
+                    </span>
+                    <span className="font-semibold text-[var(--admin-text)] truncate">
+                      {realtimeEvents[0].title}
+                    </span>
+                    <span className="text-[var(--admin-muted)] hidden md:inline truncate">
+                      ({realtimeEvents[0].details})
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleTabChange("operations")}
+                    className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 whitespace-nowrap flex items-center gap-1"
+                  >
+                    <span>View All Logs</span>
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Realtime Database Row Counts Widget */}
+            <DashboardWidget
+              initialExamAttemptsCount={totalAttempts}
+              initialUserProfilesCount={totalUsers}
+              initialStudentsCount={totalStudents}
+              initialDriversCount={totalDrivers}
+              initialAdminsCount={totalAdmins}
+              realtimeEventCount={realtimeEventCount}
+            />
 
             {/* Visual Analytics Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1465,28 +1485,52 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              <div className="divide-y divide-[var(--admin-border)]">
-                {realtimeEvents.map((evt) => (
-                  <div key={evt.id} className="py-3 flex items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">
-                        <Activity className="w-4 h-4" />
+              <div className="divide-y divide-[var(--admin-border)] overflow-hidden">
+                <AnimatePresence initial={false}>
+                  {realtimeEvents.map((evt) => (
+                    <motion.div
+                      key={evt.id}
+                      initial={{ opacity: 0, x: 50, scale: 0.98 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -30, height: 0 }}
+                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                      className="py-3 flex items-center justify-between gap-3 text-xs bg-indigo-500/[0.03] hover:bg-indigo-500/[0.08] px-2 rounded-xl transition-colors my-1 border border-indigo-500/10"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                          evt.badgeType === "success"
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : evt.badgeType === "warning"
+                            ? "bg-amber-500/15 text-amber-400"
+                            : "bg-indigo-500/15 text-indigo-400"
+                        }`}>
+                          <Activity className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-[var(--admin-text)] flex items-center gap-2">
+                            <span>{evt.title}</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                          </div>
+                          <div className="text-[11px] text-[var(--admin-muted)]">{evt.details}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-bold text-[var(--admin-text)]">{evt.title}</div>
-                        <div className="text-[11px] text-[var(--admin-muted)]">{evt.details}</div>
+                      <div className="text-right flex flex-col items-end gap-1">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                          evt.badgeType === "success"
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : evt.badgeType === "warning"
+                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                            : "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                        }`}>
+                          {evt.source}
+                        </span>
+                        <div className="text-[10px] text-[var(--admin-muted)]">
+                          {new Date(evt.timestamp).toLocaleTimeString()}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-semibold">
-                        {evt.source}
-                      </span>
-                      <div className="text-[10px] text-[var(--admin-muted)] mt-0.5">
-                        {new Date(evt.timestamp).toLocaleTimeString()}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
 
                 {(statsData?.auditStream || []).map((audit) => (
                   <div key={audit.id} className="py-3 flex items-center justify-between gap-3 text-xs">
