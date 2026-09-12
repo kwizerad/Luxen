@@ -75,11 +75,23 @@ export function extractClientIp(req: NextRequest): string {
 export function resolveDeviceType(
   rawType: string | undefined,
   isMobileHint: string | null,
-  isBot: boolean
+  isBot: boolean,
+  ua: string = ""
 ): DeviceType {
   if (isBot) return "bot";
-  if (rawType === "mobile" || isMobileHint === "?1") return "mobile";
-  if (rawType === "tablet") return "tablet";
+
+  // 1. Explicit tablet indicators in rawType or User-Agent
+  if (
+    rawType === "tablet" ||
+    /iPad|tablet|playbook|silk|kindle|sm-t\d|sm-x\d|sm-p\d|lenovo.*tb|lenovo.*tab|tab[ -]|mediapad|matepad|xiaomi pad|redmi pad|oneplus pad|pixel tablet|kftuwi|kftrwi|kfmawi/i.test(
+      ua
+    ) ||
+    (/Android/i.test(ua) && !/Mobile/i.test(ua))
+  ) {
+    return "tablet";
+  }
+
+  if (rawType === "mobile" || isMobileHint === "?1" || /iPhone|iPod|Mobile/i.test(ua)) return "mobile";
   if (rawType === "smarttv") return "smarttv";
   if (rawType === "wearable") return "wearable";
   if (!rawType || rawType === "desktop") return "desktop";
@@ -90,6 +102,51 @@ export function resolveDeviceType(
 // Comprehensive Phone & Device Model Database
 // ---------------------------------------------------------------------------
 const PHONE_MODEL_DATABASE: Record<string, { vendor: string; name: string }> = {
+  // Samsung Galaxy Tab Series
+  "SM-X910": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 Ultra" },
+  "SM-X916B": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 Ultra 5G" },
+  "SM-X916U": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 Ultra 5G" },
+  "SM-X810": { vendor: "Samsung", name: "Samsung Galaxy Tab S9+" },
+  "SM-X816B": { vendor: "Samsung", name: "Samsung Galaxy Tab S9+ 5G" },
+  "SM-X710": { vendor: "Samsung", name: "Samsung Galaxy Tab S9" },
+  "SM-X716B": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 5G" },
+  "SM-X610": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 FE+" },
+  "SM-X616B": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 FE+ 5G" },
+  "SM-X510": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 FE" },
+  "SM-X516B": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 FE 5G" },
+  "SM-X210": { vendor: "Samsung", name: "Samsung Galaxy Tab A9+" },
+  "SM-X216B": { vendor: "Samsung", name: "Samsung Galaxy Tab A9+ 5G" },
+  "SM-X110": { vendor: "Samsung", name: "Samsung Galaxy Tab A9" },
+  "SM-X115": { vendor: "Samsung", name: "Samsung Galaxy Tab A9 LTE" },
+  "SM-X900": { vendor: "Samsung", name: "Samsung Galaxy Tab S8 Ultra" },
+  "SM-X906B": { vendor: "Samsung", name: "Samsung Galaxy Tab S8 Ultra 5G" },
+  "SM-X800": { vendor: "Samsung", name: "Samsung Galaxy Tab S8+" },
+  "SM-X806B": { vendor: "Samsung", name: "Samsung Galaxy Tab S8+ 5G" },
+  "SM-X700": { vendor: "Samsung", name: "Samsung Galaxy Tab S8" },
+  "SM-X706B": { vendor: "Samsung", name: "Samsung Galaxy Tab S8 5G" },
+  "SM-X200": { vendor: "Samsung", name: "Samsung Galaxy Tab A8 10.5" },
+  "SM-X205": { vendor: "Samsung", name: "Samsung Galaxy Tab A8 LTE" },
+  "SM-T970": { vendor: "Samsung", name: "Samsung Galaxy Tab S7+" },
+  "SM-T975": { vendor: "Samsung", name: "Samsung Galaxy Tab S7+ LTE" },
+  "SM-T870": { vendor: "Samsung", name: "Samsung Galaxy Tab S7" },
+  "SM-T875": { vendor: "Samsung", name: "Samsung Galaxy Tab S7 LTE" },
+  "SM-T730": { vendor: "Samsung", name: "Samsung Galaxy Tab S7 FE" },
+  "SM-T733": { vendor: "Samsung", name: "Samsung Galaxy Tab S7 FE Wi-Fi" },
+  "SM-T736B": { vendor: "Samsung", name: "Samsung Galaxy Tab S7 FE 5G" },
+  "SM-T500": { vendor: "Samsung", name: "Samsung Galaxy Tab A7 10.4" },
+  "SM-T505": { vendor: "Samsung", name: "Samsung Galaxy Tab A7 LTE" },
+  "SM-T220": { vendor: "Samsung", name: "Samsung Galaxy Tab A7 Lite" },
+  "SM-T225": { vendor: "Samsung", name: "Samsung Galaxy Tab A7 Lite LTE" },
+  "SM-T510": { vendor: "Samsung", name: "Samsung Galaxy Tab A 10.1" },
+  "SM-T515": { vendor: "Samsung", name: "Samsung Galaxy Tab A 10.1 LTE" },
+  "SM-T290": { vendor: "Samsung", name: "Samsung Galaxy Tab A 8.0" },
+  "SM-T295": { vendor: "Samsung", name: "Samsung Galaxy Tab A 8.0 LTE" },
+  "SM-T860": { vendor: "Samsung", name: "Samsung Galaxy Tab S6" },
+  "SM-P610": { vendor: "Samsung", name: "Samsung Galaxy Tab S6 Lite" },
+  "SM-P613": { vendor: "Samsung", name: "Samsung Galaxy Tab S6 Lite (2022)" },
+  "SM-P615": { vendor: "Samsung", name: "Samsung Galaxy Tab S6 Lite LTE" },
+  "SM-P619": { vendor: "Samsung", name: "Samsung Galaxy Tab S6 Lite LTE (2022)" },
+
   // Samsung Galaxy S Series
   "SM-S928B": { vendor: "Samsung", name: "Samsung Galaxy S24 Ultra" },
   "SM-S928U": { vendor: "Samsung", name: "Samsung Galaxy S24 Ultra" },
@@ -268,7 +325,8 @@ const PHONE_MODEL_DATABASE: Record<string, { vendor: string; name: string }> = {
   "2311DRK48G": { vendor: "Xiaomi", name: "POCO X6 Pro" },
   "M2007J20CG": { vendor: "Xiaomi", name: "POCO X3 NFC" },
 
-  // Google Pixel
+  // Google Pixel & Pixel Tablet
+  "PIXEL TABLET": { vendor: "Google", name: "Google Pixel Tablet" },
   "PIXEL 9 PRO FOLD": { vendor: "Google", name: "Google Pixel 9 Pro Fold" },
   "PIXEL 9 PRO XL": { vendor: "Google", name: "Google Pixel 9 Pro XL" },
   "PIXEL 9 PRO": { vendor: "Google", name: "Google Pixel 9 Pro" },
@@ -285,17 +343,57 @@ const PHONE_MODEL_DATABASE: Record<string, { vendor: string; name: string }> = {
   "PIXEL 5": { vendor: "Google", name: "Google Pixel 5" },
   "PIXEL 4A": { vendor: "Google", name: "Google Pixel 4a" },
 
-  // OnePlus
+  // Lenovo Tablets
+  "TB370FU": { vendor: "Lenovo", name: "Lenovo Tab P12" },
+  "TB350FU": { vendor: "Lenovo", name: "Lenovo Tab P11 Gen 2" },
+  "TB128FU": { vendor: "Lenovo", name: "Lenovo Tab M10 Plus (3rd Gen)" },
+  "TB125FU": { vendor: "Lenovo", name: "Lenovo Tab M10 Plus (3rd Gen)" },
+  "TB310FU": { vendor: "Lenovo", name: "Lenovo Tab M9" },
+  "TB-X606F": { vendor: "Lenovo", name: "Lenovo Tab M10 FHD Plus" },
+  "TB-X505F": { vendor: "Lenovo", name: "Lenovo Tab M10 HD" },
+  "TB-J606F": { vendor: "Lenovo", name: "Lenovo Tab P11" },
+  "TB-J706F": { vendor: "Lenovo", name: "Lenovo Tab P11 Pro" },
+
+  // Xiaomi & Redmi Tablets
+  "23043RP34G": { vendor: "Xiaomi", name: "Xiaomi Pad 6" },
+  "23073RPBFC": { vendor: "Xiaomi", name: "Xiaomi Pad 6 Max 14" },
+  "23046PNC9G": { vendor: "Xiaomi", name: "Xiaomi Pad 6 Pro" },
+  "22081283G": { vendor: "Xiaomi", name: "Redmi Pad" },
+  "2405CRPFDL": { vendor: "Xiaomi", name: "Redmi Pad Pro" },
+  "23120RP34C": { vendor: "Xiaomi", name: "Redmi Pad SE" },
+
+  // OnePlus Pad & Phones
+  "OPD2203": { vendor: "OnePlus", name: "OnePlus Pad" },
+  "OPD2304": { vendor: "OnePlus", name: "OnePlus Pad Go" },
+  "OPD2404": { vendor: "OnePlus", name: "OnePlus Pad 2" },
   "CPH2581": { vendor: "OnePlus", name: "OnePlus 12" },
   "CPH2609": { vendor: "OnePlus", name: "OnePlus 12R" },
   "CPH2449": { vendor: "OnePlus", name: "OnePlus 11" },
   "CPH2551": { vendor: "OnePlus", name: "OnePlus Open" },
   "CPH2493": { vendor: "OnePlus", name: "OnePlus Nord 3 5G" },
   "NE2213": { vendor: "OnePlus", name: "OnePlus 10 Pro" },
+
+  // Amazon Fire Tablets
+  "KFTUWI": { vendor: "Amazon", name: "Amazon Fire HD 10 (13th Gen)" },
+  "KFTRWI": { vendor: "Amazon", name: "Amazon Fire HD 8 (12th Gen)" },
+  "KFMAWI": { vendor: "Amazon", name: "Amazon Fire HD 10 (11th Gen)" },
+  "KFSOWI": { vendor: "Amazon", name: "Amazon Fire 7 (12th Gen)" },
 };
 
 function formatSamsungCode(code: string): string {
   const upper = code.toUpperCase().trim();
+  if (upper.startsWith("SM-X") || upper.startsWith("SM-T") || upper.startsWith("SM-P")) {
+    if (upper.startsWith("SM-X9")) return "Samsung Galaxy Tab S9/S8 Ultra Series";
+    if (upper.startsWith("SM-X8")) return "Samsung Galaxy Tab S9+/S8+ Series";
+    if (upper.startsWith("SM-X7")) return "Samsung Galaxy Tab S9/S8 Series";
+    if (upper.startsWith("SM-X6") || upper.startsWith("SM-X5")) return "Samsung Galaxy Tab S9 FE Series";
+    if (upper.startsWith("SM-X2") || upper.startsWith("SM-X1")) return "Samsung Galaxy Tab A9/A8 Series";
+    if (upper.startsWith("SM-T8") || upper.startsWith("SM-T9")) return "Samsung Galaxy Tab S7/S6 Series";
+    if (upper.startsWith("SM-T5") || upper.startsWith("SM-T2")) return "Samsung Galaxy Tab A Series";
+    if (upper.startsWith("SM-P")) return "Samsung Galaxy Tab S6 Lite Series";
+    return `Samsung Galaxy Tab (${code})`;
+  }
+
   const prefix = upper.slice(0, 6);
   const prefixMap: Record<string, string> = {
     "SM-S92": "Samsung Galaxy S24 Series",
@@ -317,8 +415,6 @@ function formatSamsungCode(code: string): string {
     "SM-A05": "Samsung Galaxy A05",
     "SM-A04": "Samsung Galaxy A04",
     "SM-A03": "Samsung Galaxy A03",
-    "SM-T": "Samsung Galaxy Tab",
-    "SM-X": "Samsung Galaxy Tab",
     "SM-F": "Samsung Galaxy Z Series",
   };
   return prefixMap[prefix] || `Samsung Galaxy (${code})`;
@@ -705,7 +801,7 @@ export function buildDevicePayload(req: NextRequest): ServerVisitorDevicePayload
   const chPlatformVersion = headers.get("sec-ch-ua-platform-version")?.replace(/"/g, "") || null;
   const chModel = headers.get("sec-ch-ua-model")?.replace(/"/g, "") || null;
   const ip = extractClientIp(req);
-  const deviceType = resolveDeviceType(device.type, chMobile, Boolean(isBot));
+  const deviceType = resolveDeviceType(device.type, chMobile, Boolean(isBot), ua);
 
   // Determine OS Name accurately
   let osName = chPlatform || nextOs.name || "Unknown OS";

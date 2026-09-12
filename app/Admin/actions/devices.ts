@@ -24,11 +24,20 @@ function isOnline(lastSeen?: string | null): boolean {
 function normalizeDeviceType(rawType?: string): "Desktop" | "Mobile" | "Tablet" {
   if (!rawType) return "Desktop";
   const lower = rawType.toLowerCase();
+  if (
+    lower.includes("tablet") ||
+    lower.includes("ipad") ||
+    lower.includes("tabuleti") ||
+    lower.includes("tablette") ||
+    lower.includes("tab ") ||
+    lower.includes("tab-") ||
+    lower.includes("surface") ||
+    lower.includes("pad")
+  ) {
+    return "Tablet";
+  }
   if (lower.includes("mobile") || lower.includes("phone") || lower.includes("android") || lower.includes("iphone") || lower.includes("telefoni")) {
     return "Mobile";
-  }
-  if (lower.includes("tablet") || lower.includes("ipad") || lower.includes("tabuleti")) {
-    return "Tablet";
   }
   return "Desktop";
 }

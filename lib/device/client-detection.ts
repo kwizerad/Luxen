@@ -339,6 +339,15 @@ function detectBrowserVersion(
 }
 
 function detectOS(ua: string, uaData: NavigatorUAData | null): string {
+  // Check iPad / iPadOS first: Safari on iPad presents MacIntel with touch support
+  const isIPad =
+    /iPad/i.test(ua) ||
+    (typeof navigator !== "undefined" &&
+      (navigator.platform === "MacIntel" || /Macintosh/i.test(ua)) &&
+      (navigator.maxTouchPoints > 1 || (typeof window !== "undefined" && "ontouchstart" in window)));
+
+  if (isIPad) return "iPadOS";
+
   if (uaData?.platform) {
     const p = uaData.platform;
     if (p === "Windows") return "Windows";
@@ -352,7 +361,7 @@ function detectOS(ua: string, uaData: NavigatorUAData | null): string {
   if (/Macintosh/.test(ua) && /Mac OS X/.test(ua)) return "macOS";
   if (/CrOS/.test(ua)) return "Chrome OS";
   if (/Android/.test(ua)) return "Android";
-  if (/iPhone|iPad|iPod/.test(ua)) return "iOS";
+  if (/iPhone|iPod/.test(ua)) return "iOS";
   if (/Linux/.test(ua)) return "Linux";
   return "Unknown";
 }
@@ -373,11 +382,9 @@ function detectOSVersion(
         return pv;
       }
       if (os === "Android") {
-        // Android platformVersion can be formatted as "14.0.0", "14", or API version (e.g. 34)
         const parts = pv.split(".");
         const majorNum = parseInt(parts[0], 10);
         if (majorNum >= 30) {
-          // Map API levels to Android version
           const apiMap: Record<number, string> = {
             35: "15",
             34: "14",
@@ -393,7 +400,7 @@ function detectOSVersion(
         }
         return pv;
       }
-      if (os === "macOS" || os === "iOS") {
+      if (os === "macOS" || os === "iOS" || os === "iPadOS") {
         return pv;
       }
     }
@@ -402,7 +409,6 @@ function detectOSVersion(
   // 2. Feature detection heuristic for Android version when UA is frozen to Android 10
   if (os === "Android" && typeof window !== "undefined") {
     try {
-      // Heuristics based on browser & OS API availability
       const hasColorMix = typeof CSS !== "undefined" && CSS.supports && CSS.supports("color", "color-mix(in srgb, red, blue)");
       const hasOklch = typeof CSS !== "undefined" && CSS.supports && CSS.supports("color", "oklch(0.5 0.2 180)");
       const hasVisualViewportSegments = "visualViewport" in window && "segments" in ((window as any).visualViewport || {});
@@ -443,12 +449,12 @@ function detectOSVersion(
       const match = /Android\s+([0-9.]+)/i.exec(ua);
       const extracted = match?.[1] || "";
       if (extracted === "10" || extracted === "10.0") {
-        // Modern Chrome freezes UA to 10; indicate modern Android
         return "13/14 (Modern)";
       }
       return extracted || "14";
     }
-    case "iOS": {
+    case "iOS":
+    case "iPadOS": {
       const match = /OS (\d+[._]\d+(?:[._]\d+)?)/.exec(ua);
       return match?.[1].replace(/_/g, ".") || "17.0";
     }
@@ -461,41 +467,97 @@ function detectDeviceType(
   ua: string,
   uaData: NavigatorUAData | null
 ): "Desktop" | "Laptop" | "Tablet" | "Mobile" | "Unknown" {
-  const hasTouch = typeof window !== "undefined" && ("ontouchstart" in window || (navigator?.maxTouchPoints || 0) > 0);
+  const hasTouch =
+    typeof window !== "undefined" &&
+    ("ontouchstart" in window || (typeof navigator !== "undefined" && (navigator?.maxTouchPoints || 0) > 0));
   const maxTouchPoints = typeof navigator !== "undefined" ? navigator.maxTouchPoints || 0 : 0;
+  const isCoarsePointer = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
 
-  if (/iPad/.test(ua)) return "Tablet";
+  // 1. Explicit iPad detection (including iPadOS Desktop Mode in Safari)
+  const isIPad =
+    /iPad/i.test(ua) ||
+    (typeof navigator !== "undefined" &&
+      (navigator.platform === "MacIntel" || /Macintosh/i.test(ua)) &&
+      (maxTouchPoints > 1 || (typeof window !== "undefined" && "ontouchstart" in window)));
+
+  if (isIPad) return "Tablet";
+
+  // 2. Explicit tablet keywords in UA string
+  if (
+    /Tablet|PlayBook|Silk|Kindle|MediaPad|MatePad|SM-T|SM-X|SM-P|TB-[A-Z0-9]|KFTUWI|KFTRWI|KFMAWI|KFSOWI|Redmi Pad|Xiaomi Pad|OnePlus Pad|Pixel Tablet/i.test(
+      ua
+    )
+  ) {
+    return "Tablet";
+  }
+
+  // 3. iPhone / iPod
   if (/iPhone|iPod/.test(ua)) return "Mobile";
 
+  // 4. Android Device Type Detection
   if (/Android/.test(ua) || uaData?.platform === "Android") {
-    if (/Tablet/i.test(ua)) return "Tablet";
+    // Standard Chromium rule: Chrome on Android tablet does NOT include the "Mobile" keyword
+    if (!/Mobile/i.test(ua)) return "Tablet";
+
+    // Client-side viewport dimension analysis (in CSS points)
     if (typeof window !== "undefined") {
       const minScreenDim = Math.min(window.screen.width, window.screen.height);
-      const dpr = window.devicePixelRatio || 1;
-      const cssWidth = minScreenDim / dpr;
-      if (cssWidth >= 600 || minScreenDim >= 1200) return "Tablet";
+      const maxScreenDim = Math.max(window.screen.width, window.screen.height);
+
+      // Tablets have a minimum dimension of 540px+ and maximum of 800px+ (e.g. 600x1024, 768x1024, 800x1280, 834x1194)
+      if (minScreenDim >= 600 || (minScreenDim >= 540 && maxScreenDim >= 960)) {
+        return "Tablet";
+      }
     }
+
+    if (uaData?.mobile === false) return "Tablet";
     return "Mobile";
   }
 
+  // 5. Chrome OS / CrOS
   if (/CrOS/.test(ua)) {
     if (uaData?.mobile) return "Tablet";
-    return hasTouch && maxTouchPoints > 0 ? "Tablet" : "Laptop";
+    if (hasTouch && maxTouchPoints > 0) {
+      if (typeof window !== "undefined" && Math.min(window.screen.width, window.screen.height) <= 900) {
+        return "Tablet";
+      }
+    }
+    return "Laptop";
   }
 
-  if (/Macintosh/.test(ua)) {
-    if (hasTouch && maxTouchPoints > 0) return "Tablet";
-    return "Desktop";
-  }
-
+  // 6. Windows 2-in-1 / Touch Tablets (Surface, etc.)
   if (/Windows/.test(ua)) {
-    if (hasTouch && maxTouchPoints > 0 && typeof window !== "undefined" && window.screen.width < 1200) {
-      return "Tablet";
+    if (hasTouch && maxTouchPoints > 0) {
+      if (typeof window !== "undefined") {
+        const minDim = Math.min(window.screen.width, window.screen.height);
+        if (minDim <= 900 || isCoarsePointer || /Tablet PC|Touch/i.test(ua)) {
+          return "Tablet";
+        }
+      }
+      return "Laptop";
     }
     return "Desktop";
   }
 
+  // 7. General touch screen heuristic for tablets
+  if (hasTouch && maxTouchPoints > 0 && typeof window !== "undefined") {
+    const minScreenDim = Math.min(window.screen.width, window.screen.height);
+    if (minScreenDim >= 540 && minScreenDim <= 1024 && isCoarsePointer) {
+      return "Tablet";
+    }
+  }
+
+  // 8. Desktop Mac
+  if (/Macintosh/.test(ua)) {
+    return "Desktop";
+  }
+
+  // 9. Linux
   if (/Linux/.test(ua)) {
+    if (hasTouch && isCoarsePointer && typeof window !== "undefined") {
+      const minScreenDim = Math.min(window.screen.width, window.screen.height);
+      if (minScreenDim >= 540 && minScreenDim <= 1024) return "Tablet";
+    }
     return "Desktop";
   }
 
@@ -503,6 +565,51 @@ function detectDeviceType(
 }
 
 const PHONE_MODEL_DATABASE: Record<string, { vendor: string; name: string }> = {
+  // Samsung Galaxy Tab Series
+  "SM-X910": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 Ultra" },
+  "SM-X916B": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 Ultra 5G" },
+  "SM-X916U": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 Ultra 5G" },
+  "SM-X810": { vendor: "Samsung", name: "Samsung Galaxy Tab S9+" },
+  "SM-X816B": { vendor: "Samsung", name: "Samsung Galaxy Tab S9+ 5G" },
+  "SM-X710": { vendor: "Samsung", name: "Samsung Galaxy Tab S9" },
+  "SM-X716B": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 5G" },
+  "SM-X610": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 FE+" },
+  "SM-X616B": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 FE+ 5G" },
+  "SM-X510": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 FE" },
+  "SM-X516B": { vendor: "Samsung", name: "Samsung Galaxy Tab S9 FE 5G" },
+  "SM-X210": { vendor: "Samsung", name: "Samsung Galaxy Tab A9+" },
+  "SM-X216B": { vendor: "Samsung", name: "Samsung Galaxy Tab A9+ 5G" },
+  "SM-X110": { vendor: "Samsung", name: "Samsung Galaxy Tab A9" },
+  "SM-X115": { vendor: "Samsung", name: "Samsung Galaxy Tab A9 LTE" },
+  "SM-X900": { vendor: "Samsung", name: "Samsung Galaxy Tab S8 Ultra" },
+  "SM-X906B": { vendor: "Samsung", name: "Samsung Galaxy Tab S8 Ultra 5G" },
+  "SM-X800": { vendor: "Samsung", name: "Samsung Galaxy Tab S8+" },
+  "SM-X806B": { vendor: "Samsung", name: "Samsung Galaxy Tab S8+ 5G" },
+  "SM-X700": { vendor: "Samsung", name: "Samsung Galaxy Tab S8" },
+  "SM-X706B": { vendor: "Samsung", name: "Samsung Galaxy Tab S8 5G" },
+  "SM-X200": { vendor: "Samsung", name: "Samsung Galaxy Tab A8 10.5" },
+  "SM-X205": { vendor: "Samsung", name: "Samsung Galaxy Tab A8 LTE" },
+  "SM-T970": { vendor: "Samsung", name: "Samsung Galaxy Tab S7+" },
+  "SM-T975": { vendor: "Samsung", name: "Samsung Galaxy Tab S7+ LTE" },
+  "SM-T870": { vendor: "Samsung", name: "Samsung Galaxy Tab S7" },
+  "SM-T875": { vendor: "Samsung", name: "Samsung Galaxy Tab S7 LTE" },
+  "SM-T730": { vendor: "Samsung", name: "Samsung Galaxy Tab S7 FE" },
+  "SM-T733": { vendor: "Samsung", name: "Samsung Galaxy Tab S7 FE Wi-Fi" },
+  "SM-T736B": { vendor: "Samsung", name: "Samsung Galaxy Tab S7 FE 5G" },
+  "SM-T500": { vendor: "Samsung", name: "Samsung Galaxy Tab A7 10.4" },
+  "SM-T505": { vendor: "Samsung", name: "Samsung Galaxy Tab A7 LTE" },
+  "SM-T220": { vendor: "Samsung", name: "Samsung Galaxy Tab A7 Lite" },
+  "SM-T225": { vendor: "Samsung", name: "Samsung Galaxy Tab A7 Lite LTE" },
+  "SM-T510": { vendor: "Samsung", name: "Samsung Galaxy Tab A 10.1" },
+  "SM-T515": { vendor: "Samsung", name: "Samsung Galaxy Tab A 10.1 LTE" },
+  "SM-T290": { vendor: "Samsung", name: "Samsung Galaxy Tab A 8.0" },
+  "SM-T295": { vendor: "Samsung", name: "Samsung Galaxy Tab A 8.0 LTE" },
+  "SM-T860": { vendor: "Samsung", name: "Samsung Galaxy Tab S6" },
+  "SM-P610": { vendor: "Samsung", name: "Samsung Galaxy Tab S6 Lite" },
+  "SM-P613": { vendor: "Samsung", name: "Samsung Galaxy Tab S6 Lite (2022)" },
+  "SM-P615": { vendor: "Samsung", name: "Samsung Galaxy Tab S6 Lite LTE" },
+  "SM-P619": { vendor: "Samsung", name: "Samsung Galaxy Tab S6 Lite LTE (2022)" },
+
   // Samsung Galaxy S Series
   "SM-S928B": { vendor: "Samsung", name: "Samsung Galaxy S24 Ultra" },
   "SM-S928U": { vendor: "Samsung", name: "Samsung Galaxy S24 Ultra" },
@@ -541,6 +648,48 @@ const PHONE_MODEL_DATABASE: Record<string, { vendor: string; name: string }> = {
   "SM-A045F": { vendor: "Samsung", name: "Samsung Galaxy A04" },
   "SM-A035F": { vendor: "Samsung", name: "Samsung Galaxy A03" },
 
+  // Google Pixel & Pixel Tablet
+  "PIXEL TABLET": { vendor: "Google", name: "Google Pixel Tablet" },
+  "PIXEL 8 PRO": { vendor: "Google", name: "Google Pixel 8 Pro" },
+  "PIXEL 8": { vendor: "Google", name: "Google Pixel 8" },
+  "PIXEL 7A": { vendor: "Google", name: "Google Pixel 7a" },
+  "PIXEL 7 PRO": { vendor: "Google", name: "Google Pixel 7 Pro" },
+  "PIXEL 7": { vendor: "Google", name: "Google Pixel 7" },
+  "PIXEL 6A": { vendor: "Google", name: "Google Pixel 6a" },
+  "PIXEL 6 PRO": { vendor: "Google", name: "Google Pixel 6 Pro" },
+  "PIXEL 6": { vendor: "Google", name: "Google Pixel 6" },
+
+  // Lenovo Tablets
+  "TB370FU": { vendor: "Lenovo", name: "Lenovo Tab P12" },
+  "TB350FU": { vendor: "Lenovo", name: "Lenovo Tab P11 Gen 2" },
+  "TB128FU": { vendor: "Lenovo", name: "Lenovo Tab M10 Plus (3rd Gen)" },
+  "TB125FU": { vendor: "Lenovo", name: "Lenovo Tab M10 Plus (3rd Gen)" },
+  "TB310FU": { vendor: "Lenovo", name: "Lenovo Tab M9" },
+  "TB-X606F": { vendor: "Lenovo", name: "Lenovo Tab M10 FHD Plus" },
+  "TB-X505F": { vendor: "Lenovo", name: "Lenovo Tab M10 HD" },
+  "TB-J606F": { vendor: "Lenovo", name: "Lenovo Tab P11" },
+  "TB-J706F": { vendor: "Lenovo", name: "Lenovo Tab P11 Pro" },
+
+  // Xiaomi & Redmi Tablets
+  "23043RP34G": { vendor: "Xiaomi", name: "Xiaomi Pad 6" },
+  "23073RPBFC": { vendor: "Xiaomi", name: "Xiaomi Pad 6 Max 14" },
+  "23046PNC9G": { vendor: "Xiaomi", name: "Xiaomi Pad 6 Pro" },
+  "22081283G": { vendor: "Xiaomi", name: "Redmi Pad" },
+  "23078PND5G": { vendor: "Xiaomi", name: "Xiaomi 13T Pro" },
+  "2405CRPFDL": { vendor: "Xiaomi", name: "Redmi Pad Pro" },
+  "23120RP34C": { vendor: "Xiaomi", name: "Redmi Pad SE" },
+
+  // OnePlus Pad
+  "OPD2203": { vendor: "OnePlus", name: "OnePlus Pad" },
+  "OPD2304": { vendor: "OnePlus", name: "OnePlus Pad Go" },
+  "OPD2404": { vendor: "OnePlus", name: "OnePlus Pad 2" },
+
+  // Amazon Fire Tablets
+  "KFTUWI": { vendor: "Amazon", name: "Amazon Fire HD 10 (13th Gen)" },
+  "KFTRWI": { vendor: "Amazon", name: "Amazon Fire HD 8 (12th Gen)" },
+  "KFMAWI": { vendor: "Amazon", name: "Amazon Fire HD 10 (11th Gen)" },
+  "KFSOWI": { vendor: "Amazon", name: "Amazon Fire 7 (12th Gen)" },
+
   // Tecno
   "CK8N": { vendor: "Tecno", name: "Tecno Camon 20 Pro 5G" },
   "CK7N": { vendor: "Tecno", name: "Tecno Camon 20 Pro" },
@@ -577,8 +726,7 @@ const PHONE_MODEL_DATABASE: Record<string, { vendor: string; name: string }> = {
   "S665L": { vendor: "Itel", name: "Itel S23" },
   "S666LN": { vendor: "Itel", name: "Itel S23+" },
 
-  // Xiaomi / Redmi
-  "23078PND5G": { vendor: "Xiaomi", name: "Xiaomi 13T Pro" },
+  // Xiaomi / Redmi Phones
   "2201116TG": { vendor: "Xiaomi", name: "Redmi Note 11" },
   "2201117TY": { vendor: "Xiaomi", name: "Redmi Note 11S" },
   "22101316G": { vendor: "Xiaomi", name: "Redmi Note 12 Pro" },
@@ -591,20 +739,22 @@ const PHONE_MODEL_DATABASE: Record<string, { vendor: string; name: string }> = {
   "M2007J20CG": { vendor: "Xiaomi", name: "POCO X3 NFC" },
   "2201116PG": { vendor: "Xiaomi", name: "POCO M4 Pro" },
   "23049PCD8G": { vendor: "Xiaomi", name: "POCO F5" },
-
-  // Google Pixel
-  "PIXEL 8 PRO": { vendor: "Google", name: "Google Pixel 8 Pro" },
-  "PIXEL 8": { vendor: "Google", name: "Google Pixel 8" },
-  "PIXEL 7A": { vendor: "Google", name: "Google Pixel 7a" },
-  "PIXEL 7 PRO": { vendor: "Google", name: "Google Pixel 7 Pro" },
-  "PIXEL 7": { vendor: "Google", name: "Google Pixel 7" },
-  "PIXEL 6A": { vendor: "Google", name: "Google Pixel 6a" },
-  "PIXEL 6 PRO": { vendor: "Google", name: "Google Pixel 6 Pro" },
-  "PIXEL 6": { vendor: "Google", name: "Google Pixel 6" },
 };
 
 function formatSamsungPrefix(model: string): string {
   const m = model.toUpperCase().trim();
+  if (m.startsWith("SM-X") || m.startsWith("SM-T") || m.startsWith("SM-P")) {
+    if (m.startsWith("SM-X9")) return "Samsung Galaxy Tab S9/S8 Ultra Series";
+    if (m.startsWith("SM-X8")) return "Samsung Galaxy Tab S9+/S8+ Series";
+    if (m.startsWith("SM-X7")) return "Samsung Galaxy Tab S9/S8 Series";
+    if (m.startsWith("SM-X6") || m.startsWith("SM-X5")) return "Samsung Galaxy Tab S9 FE Series";
+    if (m.startsWith("SM-X2") || m.startsWith("SM-X1")) return "Samsung Galaxy Tab A9/A8 Series";
+    if (m.startsWith("SM-T8") || m.startsWith("SM-T9")) return "Samsung Galaxy Tab S7/S6 Series";
+    if (m.startsWith("SM-T5") || m.startsWith("SM-T2")) return "Samsung Galaxy Tab A Series";
+    if (m.startsWith("SM-P")) return "Samsung Galaxy Tab S6 Lite Series";
+    return `Samsung Galaxy Tab (${model})`;
+  }
+
   const prefix = m.slice(0, 6);
   const map: Record<string, string> = {
     "SM-S92": "Samsung Galaxy S24 Series",
@@ -621,8 +771,6 @@ function formatSamsungPrefix(model: string): string {
     "SM-A05": "Samsung Galaxy A05",
     "SM-A04": "Samsung Galaxy A04",
     "SM-A03": "Samsung Galaxy A03",
-    "SM-T": "Samsung Galaxy Tab",
-    "SM-X": "Samsung Galaxy Tab",
   };
   return map[prefix] || `Samsung Galaxy (${model})`;
 }
@@ -712,7 +860,7 @@ function detectDeviceName(
     }
   }
 
-  // 2. iOS Devices
+  // 2. iOS & iPadOS Devices
   if (/iPhone/.test(ua)) {
     if (typeof window !== "undefined") {
       const sw = Math.min(window.screen.width, window.screen.height);
@@ -728,14 +876,14 @@ function detectDeviceName(
     return { deviceName: "Apple iPhone", deviceModel: "iPhone", deviceVendor: "Apple" };
   }
 
-  if (/iPad/.test(ua)) {
+  if (/iPad/.test(ua) || os === "iPadOS" || (deviceType === "Tablet" && (/Macintosh/.test(ua) || /MacIntel/.test(ua)))) {
     if (typeof window !== "undefined") {
       const sw = Math.min(window.screen.width, window.screen.height);
       const sh = Math.max(window.screen.width, window.screen.height);
-      if (sw >= 1024 && sh >= 1366) return { deviceName: 'Apple iPad Pro 12.9"', deviceModel: "iPad Pro", deviceVendor: "Apple" };
-      if (sw >= 834 && sh >= 1194) return { deviceName: 'Apple iPad Pro 11"', deviceModel: "iPad Pro", deviceVendor: "Apple" };
+      if (sw >= 1024 && sh >= 1366) return { deviceName: 'Apple iPad Pro 12.9" / 13"', deviceModel: "iPad Pro 12.9", deviceVendor: "Apple" };
+      if (sw >= 834 && sh >= 1194) return { deviceName: 'Apple iPad Pro 11"', deviceModel: "iPad Pro 11", deviceVendor: "Apple" };
       if (sw >= 810 && sh >= 1080) return { deviceName: "Apple iPad Air / 10th Gen", deviceModel: "iPad Air", deviceVendor: "Apple" };
-      if (sw <= 768) return { deviceName: "Apple iPad Mini", deviceModel: "iPad Mini", deviceVendor: "Apple" };
+      if (sw <= 768) return { deviceName: "Apple iPad Mini / 9th Gen", deviceModel: "iPad Mini", deviceVendor: "Apple" };
     }
     return { deviceName: "Apple iPad", deviceModel: "iPad", deviceVendor: "Apple" };
   }

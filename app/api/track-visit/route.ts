@@ -202,12 +202,12 @@ function parseBrowserInfo(userAgent: string, chPlatformVersion?: string | null, 
 
   const cleanOsString = osVersion && osVersion !== "Unknown" ? `${osName} ${osVersion}` : osName;
 
-  const rawDevType = /Mobile|Android|iPhone/i.test(userAgent) ? "mobile" : "desktop";
+  const resolvedType = resolveDeviceType(undefined, null, false, userAgent);
   const devDetails = parseDeviceDetails(
     userAgent,
     chModel || null,
     null,
-    rawDevType,
+    resolvedType,
     osName,
     osVersion
   );
@@ -218,6 +218,7 @@ function parseBrowserInfo(userAgent: string, chPlatformVersion?: string | null, 
     os: cleanOsString,
     browser,
     browserVersion,
+    deviceType: resolvedType.charAt(0).toUpperCase() + resolvedType.slice(1),
     deviceName: devDetails.deviceName,
     deviceModel: devDetails.deviceModel,
     deviceVendor: devDetails.deviceVendor,
@@ -287,7 +288,7 @@ export async function POST(req: Request) {
       browser_version: browserVersion || null,
       screen_width: screenWidth || null,
       screen_height: screenHeight || null,
-      device_type: deviceType || null,
+      device_type: deviceType || parsed.deviceType || null,
       language: language || null,
       timezone: timezone || null,
       referrer: referrer || null,
