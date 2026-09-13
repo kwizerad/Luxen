@@ -240,7 +240,7 @@ export function AdminAuditLogViewer() {
             <UserCheck className="w-4 h-4 text-sky-400" />
           </div>
           <div className="text-2xl font-bold text-[var(--admin-text)] tracking-tight">
-            {Math.max(stats.uniqueAdminsCount, 3)}
+            {stats.uniqueAdminsCount}
           </div>
           <div className="text-[11px] text-[var(--admin-muted)]">
             Distinct administrative actors

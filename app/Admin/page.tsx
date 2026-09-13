@@ -181,7 +181,7 @@ export default function AdminDashboard() {
               : `Exam ${newRow?.status === "completed" ? "Completed" : "Updated"}: ${newRow?.score_percentage ?? 0}%`;
 
           const eventItem: RealtimeEventItem = {
-            id: `evt-exam-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            id: `evt-exam-${newRow?.id || Date.now()}`,
             timestamp: new Date().toISOString(),
             source: "exam_attempts",
             type: eventType as any,
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
               : `User Profile Updated: ${newRow?.full_name || newRow?.username || "User"}`;
 
           const eventItem: RealtimeEventItem = {
-            id: `evt-usr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            id: `evt-usr-${newRow?.id || Date.now()}`,
             timestamp: new Date().toISOString(),
             source: "user_profiles",
             type: payload.eventType as any,
@@ -234,7 +234,7 @@ export default function AdminDashboard() {
           const title = `Live Visitor: ${modelName} (${deviceType})`;
 
           const eventItem: RealtimeEventItem = {
-            id: `evt-vis-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            id: `evt-vis-${newRow?.id || Date.now()}`,
             timestamp: new Date().toISOString(),
             source: "visitor_device_logs",
             type: "INSERT",
@@ -256,7 +256,7 @@ export default function AdminDashboard() {
           const newRow = payload.new as any;
           const title = `Broadcast Sent: ${newRow?.title || "Announcement"}`;
           const eventItem: RealtimeEventItem = {
-            id: `evt-notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            id: `evt-notif-${newRow?.id || Date.now()}`,
             timestamp: new Date().toISOString(),
             source: "notifications",
             type: "INSERT",
@@ -425,33 +425,6 @@ export default function AdminDashboard() {
     setExportOpen(false);
   };
 
-  // Simulate a Realtime Telemetry Pulse for Testing
-  const handleSimulateRealtimePulse = () => {
-    const simulatedTabletModels = [
-      { name: "Samsung Galaxy Tab S9 Ultra (SM-X910)", type: "TABLET" },
-      { name: "Lenovo Tab P12 (TB370FU)", type: "TABLET" },
-      { name: "Apple iPad Pro 12.9 (6th Gen)", type: "TABLET" },
-      { name: "Google Pixel Tablet", type: "TABLET" },
-      { name: "Xiaomi Pad 6 (23043RP34G)", type: "TABLET" },
-      { name: "OnePlus Pad (OPD2203)", type: "TABLET" },
-      { name: "Samsung Galaxy Tab A9+ (SM-X210)", type: "TABLET" },
-    ];
-    const picked = simulatedTabletModels[Math.floor(Math.random() * simulatedTabletModels.length)];
-    const simEvent: RealtimeEventItem = {
-      id: `sim-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      source: "visitor_device_logs",
-      type: "SIMULATION",
-      title: `Tablet Recognized: ${picked.name}`,
-      details: `Device Form Factor: Tablet • High-Entropy Model Match: Verified`,
-      badgeType: "warning",
-    };
-    setRealtimeEvents((prev) => [simEvent, ...prev.slice(0, 49)]);
-    setRealtimeEventCount((c) => c + 1);
-    triggerPulse(`📱 Tablet Detected: ${picked.name}`);
-    toast.success(`Simulated real-time tablet detection: ${picked.name}`);
-  };
-
   const distributionData = useMemo(() => {
     return [
       { name: "Students", value: totalStudents, color: "#22C55E" },
@@ -549,16 +522,6 @@ export default function AdminDashboard() {
           >
             <Send className="w-3.5 h-3.5" />
             <span>Broadcast</span>
-          </button>
-
-          {/* Test Realtime Pulse / Tablet Recognition Button */}
-          <button
-            onClick={handleSimulateRealtimePulse}
-            title="Simulate Realtime Event / Tablet Recognition"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 transition-all active:scale-95"
-          >
-            <Tablet className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Test Live Pulse</span>
           </button>
 
           {/* Export Report Button */}
@@ -1518,12 +1481,10 @@ export default function AdminDashboard() {
                   <h3 className="text-base font-bold text-[var(--admin-text)]">System Audit & Realtime Event Stream</h3>
                   <p className="text-xs text-[var(--admin-muted)]">Live chronological activity log across exams, registrations, and telemetry</p>
                 </div>
-                <button
-                  onClick={handleSimulateRealtimePulse}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-indigo-400 hover:bg-[var(--admin-hover-bg)]"
-                >
-                  Test Log Pulse
-                </button>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Live Sync
+                </div>
               </div>
 
               <div className="divide-y divide-[var(--admin-border)] overflow-hidden">
