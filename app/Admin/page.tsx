@@ -11,7 +11,7 @@ import {
   Radio, BarChart3, Globe, ChevronRight, Check, X, BellRing, Smartphone,
   Monitor, Tablet, Compass, Eye, Filter, ArrowDownRight, UserCheck,
   Car, Flag, AlertTriangle, PlayCircle, Cpu, Wifi, CheckCircle2,
-  HardDrive, Info
+  HardDrive, Info, Mail, ShieldAlert
 } from "lucide-react";
 import { getAdminStats } from "@/app/Admin/actions/stats";
 import type { AdminStats, CategoryMetric, ScoreDistribution, RecentRegistration, SystemAuditItem } from "@/app/Admin/actions/stats";
@@ -29,9 +29,20 @@ import {
 } from "recharts";
 import { VisitorGeoMap } from "@/components/admin/visitor-map";
 import { DashboardWidget } from "@/components/admin/dashboard-widget";
+import { WeeklyReportSchedulerCard } from "@/components/admin/weekly-report-scheduler-card";
+import { AdminAuditLogViewer } from "@/components/admin/admin-audit-log-viewer";
 import { toast } from "sonner";
 
-export type DashboardTab = "overview" | "exams" | "students" | "drivers" | "devices" | "operations" | "broadcast";
+export type DashboardTab =
+  | "overview"
+  | "exams"
+  | "reports"
+  | "audit"
+  | "students"
+  | "drivers"
+  | "devices"
+  | "operations"
+  | "broadcast";
 type TimeRange = "7d" | "30d" | "all";
 
 interface RealtimeEventItem {
@@ -810,10 +821,12 @@ export default function AdminDashboard() {
           {[
             { id: "overview", label: "Overview & Growth", icon: BarChart3 },
             { id: "exams", label: "Exam Telemetry", icon: Activity },
+            { id: "reports", label: "Weekly Reports", icon: Mail },
+            { id: "audit", label: "Admin Audit", icon: ShieldAlert },
             { id: "students", label: "Students & Users", icon: GraduationCap },
             { id: "drivers", label: "Fleet & Drivers", icon: Car },
             { id: "devices", label: "Device Intelligence & Map", icon: Tablet },
-            { id: "operations", label: "Operations & Audit", icon: Zap },
+            { id: "operations", label: "Operations & Health", icon: Zap },
             { id: "broadcast", label: "Broadcast Center", icon: Send },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -1180,6 +1193,34 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {/* TAB: WEEKLY EXAM REPORTS SCHEDULER */}
+        {activeTab === "reports" && (
+          <motion.div
+            key="reports"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            className="space-y-6"
+          >
+            <WeeklyReportSchedulerCard />
+          </motion.div>
+        )}
+
+        {/* TAB: ADMIN AUDIT LEDGER & SECONDARY ADMIN TRACKER */}
+        {activeTab === "audit" && (
+          <motion.div
+            key="audit"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            className="space-y-6"
+          >
+            <AdminAuditLogViewer />
           </motion.div>
         )}
 

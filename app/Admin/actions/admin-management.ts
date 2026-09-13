@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isPrimaryAdmin, migratePermissions, type AdminPermissions, type User } from "@/lib/permissions";
 import { PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
+import { logAdminAction } from "@/lib/admin-audit";
 
 async function requirePrimaryAdmin(): Promise<User> {
   const supabase = await createClient();
@@ -72,7 +73,7 @@ export async function inviteAdmin(
   fullName: string,
   permissions: AdminPermissions
 ): Promise<{ success: boolean; error?: string }> {
-  await requirePrimaryAdmin();
+  const actor = await requirePrimaryAdmin();
   const adminSupabase = createAdminClient();
 
   const { data, error } = await adminSupabase.auth.admin.inviteUserByEmail(
@@ -92,6 +93,17 @@ export async function inviteAdmin(
     return { success: false, error: error.message };
   }
 
+  await logAdminAction({
+    action: "ADMIN_INVITED",
+    actionLabel: "Sub-Admin Invited",
+    category: "USER_MANAGEMENT",
+    details: `Invited new administrator: ${fullName} (${email})`,
+    targetType: "admin_user",
+    targetLabel: `${fullName} (${email})`,
+    metadata: { email, fullName, permissions },
+    adminUser: actor,
+  });
+
   return { success: true };
 }
 
@@ -99,7 +111,7 @@ export async function updateAdminPermissions(
   userId: string,
   permissions: AdminPermissions
 ): Promise<{ success: boolean; error?: string }> {
-  await requirePrimaryAdmin();
+  const actor = await requirePrimaryAdmin();
   const adminSupabase = createAdminClient();
 
   // Fetch current user auth record to merge existing metadata
@@ -122,13 +134,25 @@ export async function updateAdminPermissions(
     return { success: false, error: error.message };
   }
 
+  await logAdminAction({
+    action: "ADMIN_PERMISSIONS_UPDATED",
+    actionLabel: "Admin Permissions Changed",
+    category: "USER_MANAGEMENT",
+    details: `Updated permission matrix for admin ${userData.user.email || userId}`,
+    targetType: "admin_user",
+    targetId: userId,
+    targetLabel: userData.user.email || userId,
+    metadata: { userId, permissions },
+    adminUser: actor,
+  });
+
   return { success: true };
 }
 
 export async function removeAdmin(
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
-  await requirePrimaryAdmin();
+  const actor = await requirePrimaryAdmin();
   const adminSupabase = createAdminClient();
 
   const { error } = await adminSupabase.auth.admin.deleteUser(userId);
@@ -136,6 +160,16 @@ export async function removeAdmin(
   if (error) {
     return { success: false, error: error.message };
   }
+
+  await logAdminAction({
+    action: "ADMIN_REMOVED",
+    actionLabel: "Administrator Revoked",
+    category: "USER_MANAGEMENT",
+    details: `Revoked admin privileges and removed account ${userId}`,
+    targetType: "admin_user",
+    targetId: userId,
+    adminUser: actor,
+  });
 
   return { success: true };
 }

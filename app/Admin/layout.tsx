@@ -19,6 +19,8 @@ import { useLoginRecorder } from "@/hooks/use-login-recorder";
 import { FloatingHeader } from "@/components/floating-header";
 import { AdminDockNav } from "@/components/admin-dock-nav";
 import { useThemeConfig } from "@/lib/theme-config";
+import { ViewTransition } from "@/components/spa-views/view-transition";
+import { usePathname } from "next/navigation";
 
 const ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
 
@@ -34,6 +36,7 @@ export default function AdminLayout({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const { t } = useLanguage();
   const { config } = useThemeConfig();
 
@@ -156,7 +159,9 @@ export default function AdminLayout({
         <div className="admin-content">
           {/* Page content */}
           <main className="flex-1 pb-28">
-            {children}
+            <ViewTransition viewKey={pathname}>
+              {children}
+            </ViewTransition>
           </main>
         </div>
       </div>
