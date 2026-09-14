@@ -1126,32 +1126,50 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--admin-border)]">
-                    {filteredAttempts.map((a) => (
-                      <tr key={a.id} className="hover:bg-[var(--admin-hover-bg)]">
-                        <td className="py-3 font-semibold text-[var(--admin-text)]">
-                          {a.full_name || a.username || a.email || "Student"}
-                        </td>
-                        <td className="py-3 text-[var(--admin-muted)]">{a.category_name || "Exam"}</td>
-                        <td className="py-3">
-                          <span className={`px-2 py-0.5 rounded-full font-semibold text-[10px] ${
-                            a.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
-                          }`}>
-                            {a.status}
-                          </span>
-                        </td>
-                        <td className="py-3 font-bold">
-                          <span className={a.score_percentage >= 50 ? "text-emerald-400" : "text-rose-400"}>
-                            {a.score_percentage}%
-                          </span>
-                        </td>
-                        <td className="py-3 text-[var(--admin-muted)]">
-                          {a.duration_seconds > 0 ? `${Math.round(a.duration_seconds / 60)}m` : "-"}
-                        </td>
-                        <td className="py-3 text-[var(--admin-muted)]">
-                          {new Date(a.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredAttempts.map((a) => {
+                      const studentName = a.full_name || a.username || (a.email ? a.email.split("@")[0] : (a.user_id ? `Student (${a.user_id.slice(0, 6)})` : "Student"));
+                      const initial = (studentName || "S")[0].toUpperCase();
+                      return (
+                        <tr key={a.id} className="hover:bg-[var(--admin-hover-bg)]">
+                          <td className="py-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
+                                {initial}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-semibold text-[var(--admin-text)] truncate">
+                                  {studentName}
+                                </div>
+                                {a.email && (
+                                  <div className="text-[11px] text-[var(--admin-muted)] truncate">
+                                    {a.email}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 text-[var(--admin-muted)]">{a.category_name || "Exam"}</td>
+                          <td className="py-3">
+                            <span className={`px-2 py-0.5 rounded-full font-semibold text-[10px] ${
+                              a.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                            }`}>
+                              {a.status}
+                            </span>
+                          </td>
+                          <td className="py-3 font-bold">
+                            <span className={a.score_percentage >= 50 ? "text-emerald-400" : "text-rose-400"}>
+                              {a.score_percentage}%
+                            </span>
+                          </td>
+                          <td className="py-3 text-[var(--admin-muted)]">
+                            {a.duration_seconds > 0 ? `${Math.round(a.duration_seconds / 60)}m` : "-"}
+                          </td>
+                          <td className="py-3 text-[var(--admin-muted)]">
+                            {new Date(a.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

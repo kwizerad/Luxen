@@ -148,13 +148,105 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
       supabase.from("course_modules").select("*", { count: "exact", head: true }),
     ]);
 
-    // 2. User Profiles Analysis
+    // 2. User Profiles & Auth Accounts Analysis
     const { data: userProfiles } = await supabase
       .from("user_profiles")
-      .select("id, role, username, full_name, email, avatar_url, last_seen, created_at, provision_verified")
+      .select("id, role, username, full_name, first_name, last_name, email, avatar_url, last_seen, created_at, provision_verified, national_id")
       .order("created_at", { ascending: false });
 
+    // Fetch auth users metadata in parallel to resolve any missing student names
+    const authUserMap = new Map<string, { full_name?: string | null; username?: string | null; email?: string | null }>();
+    try {
+      const { data: authData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+      if (authData?.users) {
+        for (const u of authData.users) {
+          const meta = (u.user_metadata || {}) as Record<string, any>;
+          const metaFullName =
+            meta.full_name ||
+            meta.name ||
+            [meta.first_name, meta.last_name].filter(Boolean).join(" ").trim() ||
+            meta.preferred_username;
+
+          authUserMap.set(u.id, {
+            full_name: metaFullName || null,
+            username: meta.username || meta.user_name || null,
+            email: u.email || null,
+          });
+        }
+      }
+    } catch (e) {
+      // Non-blocking fallback if auth listing is restricted
+    }
+
+    // Fetch national ID records mapping if available
+    const nationalIdMap = new Map<string, string>();
+    try {
+      const { data: nidRows } = await supabase.from("national_id_records").select("user_id, national_id");
+      if (nidRows) {
+        for (const r of nidRows) {
+          if (r.user_id && r.national_id) {
+            nationalIdMap.set(r.user_id, r.national_id);
+          }
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+
     const allUsers = userProfiles || [];
+    const profileMap = new Map((allUsers || []).map((p) => [p.id, p]));
+
+    // Helper to resolve the best human-readable student name
+    const resolveStudentDisplayName = (
+      userId: string
+    ): {
+      fullName: string | null;
+      username: string | null;
+      email: string | null;
+      avatarUrl: string | null;
+      displayName: string;
+    } => {
+      const profile = profileMap.get(userId);
+      const authUser = authUserMap.get(userId);
+      const nationalId = profile?.national_id || nationalIdMap.get(userId);
+
+      const profileFullName = profile?.full_name?.trim();
+      const profileCombinedName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
+      const metaName = authUser?.full_name?.trim();
+      const username = profile?.username?.trim() || authUser?.username?.trim() || null;
+      const email = profile?.email?.trim() || authUser?.email?.trim() || null;
+      const avatarUrl = profile?.avatar_url || null;
+
+      let displayName = profileFullName || profileCombinedName || metaName || username;
+
+      if (!displayName && email) {
+        const local = email.split("@")[0];
+        const formatted = local
+          .replace(/[._-]/g, " ")
+          .replace(/\b\w/g, (c: string) => c.toUpperCase())
+          .trim();
+        displayName = formatted && formatted.length > 1 ? formatted : email;
+      }
+
+      if (!displayName && nationalId) {
+        displayName = `Student (ID: ${nationalId})`;
+      }
+
+      if (!displayName && userId) {
+        displayName = `Student #${userId.slice(0, 6)}`;
+      }
+
+      const finalName = profileFullName || profileCombinedName || metaName || displayName || null;
+
+      return {
+        fullName: finalName,
+        username,
+        email,
+        avatarUrl,
+        displayName: displayName || "Student",
+      };
+    };
+
     const now = Date.now();
     const totalUsers = allUsers.length;
     const totalAdmins = allUsers.filter((u) => u.role === "Admin").length;
@@ -162,17 +254,20 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
     const totalDrivers = allUsers.filter((u) => u.role === "Driver").length;
     const onlineUsers = allUsers.filter((u) => u.last_seen && now - new Date(u.last_seen).getTime() <= ONLINE_WINDOW_MS).length;
 
-    const recentRegistrations: RecentRegistration[] = allUsers.slice(0, 8).map((u) => ({
-      id: u.id,
-      username: u.username || null,
-      full_name: u.full_name || null,
-      email: u.email || null,
-      avatar_url: u.avatar_url || null,
-      role: u.role || "Student",
-      created_at: u.created_at,
-      is_online: !!(u.last_seen && now - new Date(u.last_seen).getTime() <= ONLINE_WINDOW_MS),
-      provision_verified: u.provision_verified || false,
-    }));
+    const recentRegistrations: RecentRegistration[] = allUsers.slice(0, 8).map((u) => {
+      const resolved = resolveStudentDisplayName(u.id);
+      return {
+        id: u.id,
+        username: u.username || resolved.username,
+        full_name: resolved.fullName || resolved.displayName,
+        email: u.email || resolved.email,
+        avatar_url: u.avatar_url || resolved.avatarUrl,
+        role: u.role || "Student",
+        created_at: u.created_at,
+        is_online: !!(u.last_seen && now - new Date(u.last_seen).getTime() <= ONLINE_WINDOW_MS),
+        provision_verified: u.provision_verified || false,
+      };
+    });
 
     // 3. Completed Attempts & Score Distribution
     const { data: completedAttempts } = await supabase
@@ -375,16 +470,15 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
 
     let topPerformers: AdminStats["topPerformers"] = [];
     if (topPerformerIds.length > 0) {
-      const profileMap = new Map((allUsers || []).map((p) => [p.id, p]));
       topPerformers = topPerformerIds.map((id) => {
-        const profile = profileMap.get(id);
+        const resolved = resolveStudentDisplayName(id);
         const stats = performerMap.get(id)!;
         return {
           id,
-          username: profile?.username || null,
-          full_name: profile?.full_name || null,
-          email: profile?.email || null,
-          avatar_url: profile?.avatar_url || null,
+          username: resolved.username,
+          full_name: resolved.fullName || resolved.displayName,
+          email: resolved.email,
+          avatar_url: resolved.avatarUrl,
           avg_score: Math.round(stats.sum / stats.total),
           total_attempts: stats.total,
         };
@@ -396,16 +490,15 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
       .from("exam_attempts")
       .select("id, user_id, category_name, score_percentage, status, started_at, duration_seconds")
       .order("started_at", { ascending: false })
-      .limit(10);
+      .limit(20);
 
-    const profileMap = new Map((allUsers || []).map((p) => [p.id, p]));
     const recentAttempts: AdminStats["recentAttempts"] = (recentAttemptRows || []).map((a) => {
-      const profile = profileMap.get(a.user_id);
+      const resolved = resolveStudentDisplayName(a.user_id);
       return {
         ...a,
-        username: profile?.username || null,
-        full_name: profile?.full_name || null,
-        email: profile?.email || null,
+        username: resolved.username,
+        full_name: resolved.fullName || resolved.displayName,
+        email: resolved.email,
       };
     });
 
@@ -414,8 +507,8 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
 
     // Add recent attempts to stream
     for (const a of (recentAttemptRows || []).slice(0, 4)) {
-      const profile = profileMap.get(a.user_id);
-      const name = profile?.full_name || profile?.username || "Student";
+      const resolved = resolveStudentDisplayName(a.user_id);
+      const name = resolved.displayName;
       auditStream.push({
         id: `att-${a.id}`,
         type: "exam_completed",
