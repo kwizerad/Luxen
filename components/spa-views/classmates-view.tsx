@@ -403,41 +403,50 @@ function ExamInvitationsContent({
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  const isWithin60Min = (c: ChallengeWithParticipants) => {
-    if (!c.created_at) return true;
-    return Date.now() - new Date(c.created_at).getTime() <= 60 * 60 * 1000;
+  const isChallengeOngoing = (c: ChallengeWithParticipants) => {
+    if (!c.created_at) return false;
+    if (c.status === "completed" || c.status === "cancelled") return false;
+
+    const p = c.participants?.find((x) => x.user_id === user?.id);
+    const hasCompleted = p?.status === "completed" || p?.status === "abandoned" || p?.status === "rejected" || Boolean(p?.exam_attempt_id);
+    if (hasCompleted) return false;
+
+    const isCreator = c.creator_id === user?.id;
+    const age = now - new Date(c.created_at).getTime();
+
+    if (c.status === "pending") {
+      if (isCreator) return age <= 60 * 1000;
+      if (p?.status === "pending") return age <= 30 * 1000;
+      if (p?.status === "joined" || p?.status === "ready") return age <= 60 * 1000;
+      return false;
+    }
+
+    if (c.status === "active") {
+      const isParticipantOrCreator = isCreator || p?.status === "joined" || p?.status === "ready" || p?.status === "in_progress";
+      return isParticipantOrCreator && age <= 30 * 60 * 1000;
+    }
+
+    return false;
   };
 
-  const ongoingCount = challenges.filter((c) => {
-    if (!isWithin60Min(c)) return false;
-    const p = c.participants?.find((x) => x.user_id === user?.id);
-    const hasCompleted = p?.status === "completed" || Boolean(p?.exam_attempt_id) || c.status === "completed";
-    if (hasCompleted) return false;
-    const isParticipantOrCreator = p?.status === "joined" || p?.status === "ready" || p?.status === "pending" || p?.status === "in_progress" || c.creator_id === user?.id;
-    return isParticipantOrCreator && (c.status === "active" || c.status === "pending");
-  }).length;
+  const ongoingCount = challenges.filter((c) => isChallengeOngoing(c)).length;
 
-  const completedCount = challenges.filter((c) => {
-    if (!isWithin60Min(c)) return false;
-    const p = c.participants?.find((x) => x.user_id === user?.id);
-    return c.status === "completed" || p?.status === "completed" || Boolean(p?.exam_attempt_id);
-  }).length;
+  const completedCount = challenges.filter((c) => !isChallengeOngoing(c)).length;
 
   const filteredChallenges = challenges
-    .filter((c) => isWithin60Min(c))
     .filter((challenge) => {
       const userParticipation = challenge.participants?.find((p) => p.user_id === user?.id);
       if (!userParticipation && challenge.creator_id !== user?.id) return false;
 
-      const hasCompleted = userParticipation?.status === "completed" || Boolean(userParticipation?.exam_attempt_id) || challenge.status === "completed";
+      const isOngoing = isChallengeOngoing(challenge);
 
       if (activeTab === "ongoing") {
-        return !hasCompleted && (challenge.status === "pending" || challenge.status === "active");
+        return isOngoing;
       }
       if (activeTab === "completed") {
-        return hasCompleted;
+        return !isOngoing;
       }
-      return false;
+      return true;
     })
     .filter((challenge) => {
       if (!searchQuery?.trim()) return true;
@@ -537,14 +546,16 @@ function ExamInvitationsContent({
         ) : (
           filteredChallenges.map((challenge) => {
             const userParticipation = challenge.participants?.find((p) => p.user_id === user?.id);
+            const isCancelled = challenge.status === "cancelled";
+            const isDbExpired = challenge.status === "expired" || userParticipation?.status === "expired";
             const hasCompleted = userParticipation?.status === "completed" || Boolean(userParticipation?.exam_attempt_id) || challenge.status === "completed";
-            const isPending = userParticipation?.status === "pending" && !hasCompleted;
-            const isOngoing = (userParticipation?.status === "joined" || challenge.creator_id === user?.id) && challenge.status === "active" && !hasCompleted;
-            const isCompleted = hasCompleted;
+            const isPending = userParticipation?.status === "pending" && !hasCompleted && !isCancelled && !isDbExpired;
+            const isOngoing = (userParticipation?.status === "joined" || userParticipation?.status === "ready" || userParticipation?.status === "in_progress" || challenge.creator_id === user?.id) && challenge.status === "active" && !hasCompleted;
+            const isCompleted = hasCompleted || challenge.status === "completed";
 
             const createdAt = challenge.created_at ? new Date(challenge.created_at).getTime() : Date.now();
             const secondsLeft = Math.max(0, 30 - Math.floor((now - createdAt) / 1000));
-            const isExpired = isPending && secondsLeft <= 0;
+            const isExpired = isDbExpired || (isPending && secondsLeft <= 0);
             const isActivePending = isPending && secondsLeft > 0;
 
             return (
@@ -553,8 +564,10 @@ function ExamInvitationsContent({
                 className={`rounded-2xl border transition-all duration-200 p-3.5 sm:p-4 shadow-sm ${
                   isActivePending
                     ? "bg-card border-primary/40 ring-1 ring-primary/20 shadow-md"
+                    : isCancelled
+                    ? "bg-slate-500/5 dark:bg-slate-950/10 border-slate-500/20 opacity-80"
                     : isExpired
-                    ? "bg-card/40 border-border/60 opacity-85"
+                    ? "bg-rose-500/5 dark:bg-rose-950/10 border-rose-500/30 dark:border-rose-500/20"
                     : isOngoing
                     ? "bg-card border-blue-500/40 ring-1 ring-blue-500/20"
                     : "bg-card border-border hover:border-primary/30"
@@ -567,8 +580,10 @@ function ExamInvitationsContent({
                       className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold ${
                         isActivePending
                           ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                          : isCancelled
+                          ? "bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/30"
                           : isExpired
-                          ? "bg-muted text-muted-foreground"
+                          ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
                           : isOngoing
                           ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
                           : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
@@ -576,6 +591,8 @@ function ExamInvitationsContent({
                     >
                       {isCompleted ? (
                         <Trophy className="h-4 w-4" />
+                      ) : isCancelled ? (
+                        <X className="h-4 w-4" />
                       ) : isOngoing ? (
                         <Play className="h-4 w-4 fill-current" />
                       ) : (
@@ -602,12 +619,21 @@ function ExamInvitationsContent({
                         <Clock className="h-3 w-3 animate-spin" />
                         <span>{secondsLeft}s {t("left") || "zisigaye"}</span>
                       </Badge>
+                    ) : isCancelled ? (
+                      <Badge
+                        variant="outline"
+                        className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-500/10 border-slate-500/30 px-2.5 py-0.5 flex items-center gap-1"
+                      >
+                        <X className="h-3 w-3" />
+                        <span>{t("cancelled") || "Cyahagaritswe"}</span>
+                      </Badge>
                     ) : isExpired ? (
                       <Badge
                         variant="outline"
-                        className="text-[11px] font-medium text-muted-foreground bg-muted/40 border-border/60 px-2.5 py-0.5"
+                        className="text-[11px] font-bold text-rose-700 dark:text-rose-300 bg-rose-500/20 border-rose-500/40 px-2.5 py-0.5 flex items-center gap-1 shadow-xs"
                       >
-                        {t("expired") || "Byarenze Igihe"}
+                        <Clock className="h-3 w-3 text-rose-500" />
+                        <span>0s • {t("expired") || "Byarenze Igihe"}</span>
                       </Badge>
                     ) : isOngoing ? (
                       <Badge
@@ -795,6 +821,38 @@ function ExamInvitationsContent({
                         <span>{t("viewRankings") || t("viewDetails") || "Reba Uko Bakurikirana mu Manota"}</span>
                       </Button>
                     </div>
+                  ) : isCancelled ? (
+                    <div className="space-y-2 pt-0.5">
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-500/10 border border-slate-500/20 text-slate-600 dark:text-slate-400 text-xs font-medium">
+                        <X className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                        <span>{t("examWasCancelled") || "Iki kizamini cyahagaritswe cyangwa nticyatangiye."}</span>
+                      </div>
+                    </div>
+                  ) : challenge.status === "expired" ? (
+                    <div className="space-y-2 pt-0.5">
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-medium">
+                        <Clock className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                        <span>{t("examExpiredNotice") || "Iki kizamini cyarengeje igihe cyagenwe."}</span>
+                      </div>
+                    </div>
+                  ) : challenge.status === "completed" ? (
+                    <div className="space-y-2 pt-0.5">
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/40 border border-border/60 text-muted-foreground text-xs font-medium">
+                        <Trophy className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        <span>{t("examCompletedNotice") || "Iki kizamini cyararangiye."}</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          navigate?.("classmates/group-results", { id: challenge.id });
+                        }}
+                        className="w-full h-9 rounded-xl text-xs font-semibold gap-1.5 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
+                      >
+                        <Trophy className="h-3.5 w-3.5 text-amber-500" />
+                        <span>{t("viewRankings") || t("viewDetails") || "Reba Uko Bakurikirana mu Manota"}</span>
+                      </Button>
+                    </div>
                   ) : (
                     <>
                       {/* Case 1: Creator of Pending Challenge */}
@@ -903,9 +961,9 @@ function ExamInvitationsContent({
 
                       {/* Case 4: Expired Pending */}
                       {challenge.status === "pending" && challenge.creator_id !== user?.id && isExpired && (
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/40 border border-border/50 text-muted-foreground text-xs">
-                          <Clock className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
-                          <span className="font-medium truncate">
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+                          <Clock className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                          <span className="truncate">
                             {t("invitationExpired") || "Igihe cyo kwinjira cyarangiye (Amasegonda 30 yarenze)"}
                           </span>
                         </div>

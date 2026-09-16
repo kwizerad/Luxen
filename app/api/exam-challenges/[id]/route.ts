@@ -207,15 +207,16 @@ export async function DELETE(
       return NextResponse.json({ error: "Cannot cancel an active or completed challenge" }, { status: 400 });
     }
 
-    // Delete participants first (foreign key), then the challenge
+    // Soft-cancel challenge and update uncompleted participants so history and invitations are preserved
     await adminClient
       .from("exam_challenge_participants")
-      .delete()
-      .eq("challenge_id", params.id);
+      .update({ status: "abandoned" })
+      .eq("challenge_id", params.id)
+      .in("status", ["pending", "joined", "ready"]);
 
     await adminClient
       .from("exam_challenges")
-      .delete()
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
       .eq("id", params.id);
 
     return NextResponse.json({ status: "success" });

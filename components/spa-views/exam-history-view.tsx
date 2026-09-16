@@ -97,12 +97,31 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
         if (ongoingRes.status === "fulfilled") {
           const list = (ongoingRes.value as any)?.challenges || [];
+          const now = Date.now();
           const activeList = list.filter((c: any) => {
+            if (!user || !c?.created_at) return false;
+            if (c.status === "completed" || c.status === "cancelled") return false;
+
             const p = c.participants?.find((x: any) => x.user_id === user.id);
-            const hasCompleted = p?.status === "completed" || Boolean(p?.exam_attempt_id) || c.status === "completed";
+            const hasCompleted = p?.status === "completed" || p?.status === "abandoned" || p?.status === "rejected" || Boolean(p?.exam_attempt_id);
             if (hasCompleted) return false;
-            const isParticipantOrCreator = p?.status === "joined" || p?.status === "ready" || p?.status === "pending" || p?.status === "in_progress" || c.creator_id === user.id;
-            return isParticipantOrCreator && (c.status === "active" || c.status === "pending");
+
+            const isCreator = c.creator_id === user.id;
+            const ageMs = now - new Date(c.created_at).getTime();
+
+            if (c.status === "pending") {
+              if (isCreator) return ageMs <= 60 * 1000;
+              if (p?.status === "pending") return ageMs <= 30 * 1000;
+              if (p?.status === "joined" || p?.status === "ready") return ageMs <= 60 * 1000;
+              return false;
+            }
+
+            if (c.status === "active") {
+              const isParticipantOrCreator = isCreator || p?.status === "joined" || p?.status === "ready" || p?.status === "in_progress";
+              return isParticipantOrCreator && ageMs <= 30 * 60 * 1000;
+            }
+
+            return false;
           });
           setOngoingChallenges(activeList);
         }

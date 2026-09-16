@@ -607,8 +607,8 @@ export interface ClassmateRequest {
 // EXAM CHALLENGE (GROUP EXAM) TYPES
 // ============================================================================
 
-export type ExamChallengeStatus = 'pending' | 'active' | 'completed' | 'cancelled';
-export type ChallengeParticipantStatus = 'pending' | 'joined' | 'ready' | 'in_progress' | 'rejected' | 'completed' | 'abandoned' | string;
+export type ExamChallengeStatus = 'pending' | 'active' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
+export type ChallengeParticipantStatus = 'pending' | 'joined' | 'ready' | 'in_progress' | 'rejected' | 'completed' | 'abandoned' | 'declined' | 'expired' | string;
 
 export interface ExamChallenge {
   id: string;

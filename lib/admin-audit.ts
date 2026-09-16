@@ -397,15 +397,19 @@ export async function getAdminAuditLogs(
     allLogs = allLogs.filter((l) => l.action === action);
   }
   if (search) {
-    const q = search.toLowerCase();
+    const q = search.toLowerCase().trim();
     allLogs = allLogs.filter(
       (l) =>
         l.admin_name?.toLowerCase().includes(q) ||
         l.admin_email?.toLowerCase().includes(q) ||
+        l.admin_role?.toLowerCase().includes(q) ||
         l.action?.toLowerCase().includes(q) ||
         l.action_label?.toLowerCase().includes(q) ||
         l.details?.toLowerCase().includes(q) ||
-        l.target_label?.toLowerCase().includes(q)
+        l.target_label?.toLowerCase().includes(q) ||
+        l.target_type?.toLowerCase().includes(q) ||
+        l.category?.toLowerCase().includes(q) ||
+        (l.metadata && JSON.stringify(l.metadata).toLowerCase().includes(q))
     );
   }
 

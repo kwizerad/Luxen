@@ -45,7 +45,7 @@ export async function POST(
 
     const doneAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " (" + new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) + ")";
 
-    // If no one took the exam, delete it and leave notifications
+    // If no one took the exam, mark as expired/cancelled and leave notifications
     if (!hasActiveTakers) {
       const allUserIds = Array.from(
         new Set([
@@ -58,12 +58,12 @@ export async function POST(
         const notifRows = allUserIds.map((uid) => ({
           target_user_id: uid,
           type: "warning",
-          title: "Group Exam Cancelled",
-          message: `The group exam for "${challenge.category_name || "Driving Knowledge"}" was automatically cancelled and removed because no one took or joined the exam before the waiting time expired. Done at ${doneAt}.`,
+          title: "Group Exam Expired",
+          message: `The group exam for "${challenge.category_name || "Driving Knowledge"}" was automatically marked as expired because the waiting window elapsed. Done at ${doneAt}.`,
           data: {
             challenge_id: challenge.id,
             category_name: challenge.category_name,
-            action: "auto_deleted_expired_exam",
+            action: "auto_expired_exam",
             done_at: doneAt,
           },
           sender_name: "System",
@@ -73,19 +73,22 @@ export async function POST(
         await adminClient.from("notifications").insert(notifRows);
       }
 
+      // Update participant statuses from pending/joined/ready to expired
       await adminClient
         .from("exam_challenge_participants")
-        .delete()
-        .eq("challenge_id", challengeId);
+        .update({ status: "expired" })
+        .eq("challenge_id", challengeId)
+        .in("status", ["pending", "joined", "ready"]);
 
+      // Update challenge status to expired
       await adminClient
         .from("exam_challenges")
-        .delete()
+        .update({ status: "expired", updated_at: new Date().toISOString() })
         .eq("id", challengeId);
 
       return NextResponse.json({
-        status: "deleted",
-        message: `Challenge removed and notification created. Done at ${doneAt}`,
+        status: "expired",
+        message: `Challenge marked as expired and stored in history. Done at ${doneAt}`,
         doneAt,
       });
     }

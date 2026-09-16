@@ -213,29 +213,46 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
     }
   };
 
-  const isWithin60Min = (c: ChallengeWithParticipants) => {
-    if (!c.created_at) return true;
-    return Date.now() - new Date(c.created_at).getTime() <= 60 * 60 * 1000;
+  const now = Date.now();
+
+  const isChallengeOngoing = (c: ChallengeWithParticipants) => {
+    if (!c.created_at) return false;
+    if (c.status === "completed" || c.status === "cancelled") return false;
+
+    const myP = c.participants?.find((p) => p.user_id === user?.id);
+    const hasCompleted = myP?.status === "completed" || myP?.status === "abandoned" || myP?.status === "rejected" || Boolean(myP?.exam_attempt_id);
+    if (hasCompleted) return false;
+
+    const isCreator = c.creator_id === user?.id;
+    const age = now - new Date(c.created_at).getTime();
+
+    if (c.status === "pending") {
+      if (isCreator) return age <= 60 * 1000;
+      if (myP?.status === "pending") return age <= 30 * 1000;
+      if (myP?.status === "joined" || myP?.status === "ready") return age <= 60 * 1000;
+      return false;
+    }
+
+    if (c.status === "active") {
+      const isParticipantOrCreator = isCreator || myP?.status === "joined" || myP?.status === "ready" || myP?.status === "in_progress";
+      return isParticipantOrCreator && age <= 30 * 60 * 1000;
+    }
+
+    return false;
   };
 
-  const validChallenges = challenges.filter(isWithin60Min);
-
-  const pendingChallenges = validChallenges.filter((c) => {
-    const myP = c.participants?.find((p) => p.user_id === user?.id);
-    const hasCompleted = myP?.status === "completed" || Boolean(myP?.exam_attempt_id) || c.status === "completed";
-    return c.status === "pending" && !hasCompleted;
+  const pendingChallenges = challenges.filter((c) => {
+    if (!isChallengeOngoing(c)) return false;
+    return c.status === "pending";
   });
 
-  const activeChallenges = validChallenges.filter((c) => {
-    const myP = c.participants?.find((p) => p.user_id === user?.id);
-    const hasCompleted = myP?.status === "completed" || Boolean(myP?.exam_attempt_id) || c.status === "completed";
-    return c.status === "active" && !hasCompleted;
+  const activeChallenges = challenges.filter((c) => {
+    if (!isChallengeOngoing(c)) return false;
+    return c.status === "active";
   });
 
-  const completedChallenges = validChallenges.filter((c) => {
-    const myP = c.participants?.find((p) => p.user_id === user?.id);
-    const hasCompleted = myP?.status === "completed" || Boolean(myP?.exam_attempt_id) || c.status === "completed";
-    return hasCompleted || c.status === "cancelled";
+  const completedChallenges = challenges.filter((c) => {
+    return !isChallengeOngoing(c);
   });
 
   if (loading) return <GroupExamViewSkeleton />;

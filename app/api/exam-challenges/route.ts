@@ -13,66 +13,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Auto-cleanup expired unstarted pending challenges older than 60s when waiting time is due
+    // Auto-update expired pending & active challenges to ensure they leave ongoing status while preserving history
     const adminClient = createAdminClient();
-    const waitingWindowCutoff = new Date(Date.now() - 60 * 1000).toISOString();
     try {
-      const { data: expiredPending } = await adminClient
+      const now = Date.now();
+      // 1. Any active challenge older than 30 minutes is expired / completed
+      const activeCutoff = new Date(now - 30 * 60 * 1000).toISOString();
+      await adminClient
         .from("exam_challenges")
-        .select("id, creator_id, category_name, created_at, status")
+        .update({ status: "completed", updated_at: new Date().toISOString() })
+        .eq("status", "active")
+        .lt("created_at", activeCutoff);
+
+      // 2. Any pending challenge older than 2 minutes where no one took the exam is cancelled
+      const pendingCutoff = new Date(now - 2 * 60 * 1000).toISOString();
+      await adminClient
+        .from("exam_challenges")
+        .update({ status: "cancelled", updated_at: new Date().toISOString() })
         .eq("status", "pending")
-        .lt("created_at", waitingWindowCutoff);
-
-      if (expiredPending && expiredPending.length > 0) {
-        for (const challenge of expiredPending) {
-          try {
-            const { data: participants } = await adminClient
-              .from("exam_challenge_participants")
-              .select("user_id, status, exam_attempt_id, score")
-              .eq("challenge_id", challenge.id);
-
-            const hasActiveTakers = (participants || []).some(
-              (p) => p.status === "in_progress" || p.status === "completed" || p.score !== null || p.exam_attempt_id !== null
-            );
-
-            if (!hasActiveTakers) {
-              const doneAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " (" + new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) + ")";
-              const allUserIds = Array.from(
-                new Set([
-                  challenge.creator_id,
-                  ...(participants || []).map((p) => p.user_id),
-                ].filter(Boolean))
-              );
-
-              if (allUserIds.length > 0) {
-                const notifRows = allUserIds.map((uid) => ({
-                  target_user_id: uid,
-                  type: "warning",
-                  title: "Group Exam Cancelled",
-                  message: `The group exam for "${challenge.category_name || "Driving Knowledge"}" was automatically cancelled and removed because no one took or joined the exam before the waiting time expired. Done at ${doneAt}.`,
-                  data: {
-                    challenge_id: challenge.id,
-                    category_name: challenge.category_name,
-                    action: "auto_deleted_expired_exam",
-                    done_at: doneAt,
-                  },
-                  sender_name: "System",
-                  action_url: "/dashboard#classmates",
-                }));
-
-                await adminClient.from("notifications").insert(notifRows);
-              }
-
-              await adminClient.from("exam_challenge_participants").delete().eq("challenge_id", challenge.id);
-              await adminClient.from("exam_challenges").delete().eq("id", challenge.id);
-            }
-          } catch (innerErr) {
-            console.error("Error auto-deleting expired challenge:", innerErr);
-          }
-        }
-      }
+        .lt("created_at", pendingCutoff);
     } catch (cleanupErr) {
-      console.error("Failed to cleanup stale challenges:", cleanupErr);
+      console.error("Failed to auto-update stale challenges status:", cleanupErr);
     }
 
     const { searchParams } = new URL(request.url);

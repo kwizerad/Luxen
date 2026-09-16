@@ -684,31 +684,35 @@ export function HomeView({ navigate }: HomeViewProps) {
     if (!user) return [];
     return groupChallenges.filter((c) => {
       if (!c.created_at) return false;
-      const age = now - new Date(c.created_at).getTime();
-      if (age > 60 * 60 * 1000) return false;
-      if (c.status === "cancelled") return false;
+      if (c.status === "cancelled" || c.status === "completed") return false;
 
+      const age = now - new Date(c.created_at).getTime();
       const isCreator = c.creator_id === user.id;
       const myParticipation = c.participants?.find((p: any) => p.user_id === user.id);
       if (!isCreator && !myParticipation) return false;
 
-      if (myParticipation?.status === "abandoned" || myParticipation?.status === "declined") {
+      if (
+        myParticipation?.status === "abandoned" ||
+        myParticipation?.status === "declined" ||
+        myParticipation?.status === "rejected" ||
+        myParticipation?.status === "completed" ||
+        Boolean(myParticipation?.exam_attempt_id)
+      ) {
         return false;
       }
 
-      const hasCompleted =
-        myParticipation?.status === "completed" ||
-        Boolean(myParticipation?.exam_attempt_id) ||
-        c.status === "completed";
+      if (c.status === "pending") {
+        if (isCreator) return age <= 60 * 1000;
+        if (myParticipation?.status === "pending") return age <= 30 * 1000;
+        if (myParticipation?.status === "joined" || myParticipation?.status === "ready") return age <= 60 * 1000;
+        return false;
+      }
 
-      const isPendingInvite = myParticipation?.status === "pending" && !isCreator;
-      const isJoinedOrReady =
-        myParticipation &&
-        (myParticipation.status === "joined" ||
-          myParticipation.status === "ready" ||
-          myParticipation.status === "in_progress");
+      if (c.status === "active") {
+        return age <= 30 * 60 * 1000;
+      }
 
-      return isPendingInvite || isJoinedOrReady || isCreator || hasCompleted;
+      return false;
     });
   }, [groupChallenges, user, now]);
 

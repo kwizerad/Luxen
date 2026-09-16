@@ -114,82 +114,67 @@ export async function cleanupStaleExamAttempts(options: {
       console.warn("[ExamCleanup] module_exam_attempts cleanup notice:", e);
     }
 
-    // 3. Clean up expired unstarted pending exam_challenges where no one took the exam
-    // Deletes them and leaves a persistent notification for creator and invitees with "Done at [time]"
+    // 3. Clean up expired unstarted pending exam_challenges and expired active challenges
     try {
       const now = Date.now();
-      const waitingWindowMs = 60 * 1000; // 60 seconds waiting window default
-      const windowCutoff = new Date(now - waitingWindowMs).toISOString();
+      const nowIso = new Date(now).toISOString();
+      const activeCutoff = new Date(now - 30 * 60 * 1000).toISOString();
+      const pendingCutoff = new Date(now - 2 * 60 * 1000).toISOString();
 
-      const { data: pendingChallenges, error: chalErr } = await adminClient
+      // Check categories where available_to has passed
+      const { data: expiredSettings } = await adminClient
+        .from("exam_settings")
+        .select("category_id")
+        .not("available_to", "is", null)
+        .lt("available_to", nowIso);
+
+      if (expiredSettings && expiredSettings.length > 0) {
+        const expiredCategoryIds = expiredSettings.map((s) => s.category_id);
+        
+        // Expire pending and active challenges in expired categories
+        await adminClient
+          .from("exam_challenges")
+          .update({ status: "expired", updated_at: nowIso })
+          .in("category_id", expiredCategoryIds)
+          .in("status", ["pending", "active"]);
+
+        // Expire in-progress attempts in expired categories
+        await adminClient
+          .from("exam_attempts")
+          .update({
+            status: "completed",
+            submission_reason: "time_expired",
+            completed_at: nowIso,
+            updated_at: nowIso,
+          })
+          .in("category_id", expiredCategoryIds)
+          .eq("status", "in_progress");
+      }
+
+      // Auto-complete active challenges older than 30 minutes
+      const { data: expiredActive } = await adminClient
         .from("exam_challenges")
-        .select("id, creator_id, category_name, created_at, status")
+        .update({ status: "completed", updated_at: nowIso })
+        .eq("status", "active")
+        .lt("created_at", activeCutoff)
+        .select("id");
+
+      if (expiredActive && expiredActive.length > 0) {
+        deletedChallengesCount += expiredActive.length;
+        console.log(`[ExamCleanup] Auto-completed ${expiredActive.length} expired active challenge(s)`);
+      }
+
+      // Auto-cancel pending challenges older than 2 minutes
+      const { data: expiredPending } = await adminClient
+        .from("exam_challenges")
+        .update({ status: "cancelled", updated_at: nowIso })
         .eq("status", "pending")
-        .lt("created_at", windowCutoff);
+        .lt("created_at", pendingCutoff)
+        .select("id");
 
-      if (!chalErr && pendingChallenges && pendingChallenges.length > 0) {
-        for (const challenge of pendingChallenges) {
-          try {
-            // Check participants for this challenge
-            const { data: participants } = await adminClient
-              .from("exam_challenge_participants")
-              .select("user_id, status, exam_attempt_id, score")
-              .eq("challenge_id", challenge.id);
-
-            const hasActiveTakers = (participants || []).some(
-              (p) => p.status === "in_progress" || p.status === "completed" || p.score !== null || p.exam_attempt_id !== null
-            );
-
-            // If no one took the exam, delete the challenge and leave a notification
-            if (!hasActiveTakers) {
-              const doneAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " (" + new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) + ")";
-              const allUserIds = Array.from(
-                new Set([
-                  challenge.creator_id,
-                  ...(participants || []).map((p) => p.user_id),
-                ].filter(Boolean))
-              );
-
-              // Leave notification for creator and invited participants
-              if (allUserIds.length > 0) {
-                const notifRows = allUserIds.map((uid) => ({
-                  target_user_id: uid,
-                  type: "warning",
-                  title: "Group Exam Cancelled",
-                  message: `The group exam for "${challenge.category_name || "Driving Knowledge"}" was automatically cancelled and removed because no one took or joined the exam before the waiting time expired. Done at ${doneAt}.`,
-                  data: {
-                    challenge_id: challenge.id,
-                    category_name: challenge.category_name,
-                    action: "auto_deleted_expired_exam",
-                    done_at: doneAt,
-                  },
-                  sender_name: "System",
-                  action_url: "/dashboard#classmates",
-                }));
-
-                await adminClient.from("notifications").insert(notifRows);
-              }
-
-              // Delete participants and challenge
-              await adminClient
-                .from("exam_challenge_participants")
-                .delete()
-                .eq("challenge_id", challenge.id);
-
-              await adminClient
-                .from("exam_challenges")
-                .delete()
-                .eq("id", challenge.id);
-
-              deletedChallengesCount++;
-              console.log(
-                `[ExamCleanup] Auto-deleted expired unstarted challenge ${challenge.id} ("${challenge.category_name}"). Done at ${doneAt}. Notified ${allUserIds.length} users.`
-              );
-            }
-          } catch (chalErr) {
-            console.error(`[ExamCleanup] Failed to process expired challenge ${challenge.id}:`, chalErr);
-          }
-        }
+      if (expiredPending && expiredPending.length > 0) {
+        deletedChallengesCount += expiredPending.length;
+        console.log(`[ExamCleanup] Auto-cancelled ${expiredPending.length} expired pending challenge(s)`);
       }
     } catch (e) {
       console.warn("[ExamCleanup] challenges cleanup notice:", e);

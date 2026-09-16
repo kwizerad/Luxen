@@ -32,6 +32,7 @@ export function AdminAuditLogViewer() {
   const [otherAdminsOnly, setOtherAdminsOnly] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedLogForModal, setSelectedLogForModal] = useState<AdminAuditLog | null>(null);
   const [stats, setStats] = useState({
     totalActions: 0,
@@ -40,14 +41,23 @@ export function AdminAuditLogViewer() {
     uniqueAdminsCount: 0,
   });
 
-  const loadLogs = async (showToast = false) => {
+  // Debounce search query for server requests
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const loadLogs = async (showToast = false, searchOverride?: string) => {
     try {
       setLoading(true);
+      const activeSearch = searchOverride !== undefined ? searchOverride : debouncedSearch;
       const res = await fetchAdminAuditLogs({
         otherAdminsOnly,
         category: selectedCategory === "ALL" ? undefined : selectedCategory,
-        search: searchQuery || undefined,
-        limit: 150,
+        search: activeSearch || undefined,
+        limit: 250,
       });
 
       setLogs(res.logs);
@@ -70,16 +80,52 @@ export function AdminAuditLogViewer() {
   };
 
   useEffect(() => {
-    loadLogs(false);
-  }, [otherAdminsOnly, selectedCategory]);
+    loadLogs(false, debouncedSearch);
+  }, [otherAdminsOnly, selectedCategory, debouncedSearch]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    loadLogs(false);
+    loadLogs(false, searchQuery);
   };
 
+  // Client-side real-time multi-field search across:
+  // 1. Event Titles (action_label, action, title)
+  // 2. Subtitles & Descriptions (details, target_label, target_type, category)
+  // 3. User & Admin Names (admin_name, admin_email, admin_role, target usernames)
+  const filteredLogs = useMemo(() => {
+    if (!searchQuery.trim()) return logs;
+    const q = searchQuery.toLowerCase().trim();
+
+    return logs.filter((log) => {
+      // 1. Event Titles
+      const matchesTitle =
+        log.action_label?.toLowerCase().includes(q) ||
+        log.action?.toLowerCase().includes(q);
+
+      // 2. Event Subtitles & Details / Targets
+      const matchesSubtitleAndDetails =
+        log.details?.toLowerCase().includes(q) ||
+        log.target_label?.toLowerCase().includes(q) ||
+        log.target_type?.toLowerCase().includes(q) ||
+        log.category?.toLowerCase().includes(q);
+
+      // 3. User & Admin Names
+      const matchesUserNames =
+        log.admin_name?.toLowerCase().includes(q) ||
+        log.admin_email?.toLowerCase().includes(q) ||
+        log.admin_role?.toLowerCase().includes(q);
+
+      // 4. Metadata Payload (e.g. target user's email, name, etc.)
+      const matchesMetadata =
+        log.metadata && JSON.stringify(log.metadata).toLowerCase().includes(q);
+
+      return matchesTitle || matchesSubtitleAndDetails || matchesUserNames || matchesMetadata;
+    });
+  }, [logs, searchQuery]);
+
   const handleExportCSV = () => {
-    if (logs.length === 0) {
+    const datasetToExport = filteredLogs.length > 0 ? filteredLogs : logs;
+    if (datasetToExport.length === 0) {
       toast.error("No audit logs to export");
       return;
     }
@@ -98,7 +144,7 @@ export function AdminAuditLogViewer() {
       "Details",
     ];
 
-    const rows = logs.map((l) => [
+    const rows = datasetToExport.map((l) => [
       `"${l.id}"`,
       `"${l.timestamp}"`,
       `"${l.admin_name}"`,
@@ -120,7 +166,7 @@ export function AdminAuditLogViewer() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Audit log CSV exported successfully");
+    toast.success(`Exported ${datasetToExport.length} audit records to CSV`);
   };
 
   const categories: { id: string; label: string }[] = [
@@ -132,6 +178,14 @@ export function AdminAuditLogViewer() {
     { id: "REPORTS_SUPPORT", label: "Reports & Retakes" },
     { id: "SETTINGS_SECURITY", label: "Settings & Security" },
     { id: "SYSTEM_CRON", label: "Scheduler & Cron" },
+  ];
+
+  const quickSearchFilters = [
+    { label: "Delete / Remove", query: "delete" },
+    { label: "User Accounts", query: "user" },
+    { label: "Exam Updates", query: "exam" },
+    { label: "Drivers & Fleet", query: "driver" },
+    { label: "Permissions", query: "role" },
   ];
 
   const getActionBadgeColor = (action: string, category: string) => {
@@ -171,6 +225,26 @@ export function AdminAuditLogViewer() {
     if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
     return `${Math.floor(diffSec / 86400)}d ago`;
   }
+
+  // Highlight matches function for high scannability
+  const renderHighlighted = (text: string, query: string) => {
+    if (!query.trim() || !text) return text;
+    const q = query.trim().toLowerCase();
+    const parts = text.split(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === q ? (
+            <mark key={i} className="bg-amber-500/30 text-amber-200 px-0.5 rounded font-semibold">
+              {part}
+            </mark>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -248,9 +322,75 @@ export function AdminAuditLogViewer() {
         </div>
       </div>
 
-      {/* 2. FILTER CONTROLS & SEARCH BAR */}
-      <div className="p-4 rounded-2xl bg-[var(--admin-card-bg)] border border-[var(--admin-border)] shadow-sm space-y-3">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      {/* 2. GLOBAL SEARCH & FILTER CONTROLS */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-[var(--admin-card-bg)] border border-[var(--admin-border)] shadow-sm space-y-4">
+        {/* Global Search Input Box */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-[var(--admin-text)] flex items-center gap-1.5">
+              <Search className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Global Audit Search</span>
+            </label>
+            <div className="flex items-center gap-2">
+              {searchQuery && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 font-medium">
+                  {filteredLogs.length} {filteredLogs.length === 1 ? "match" : "matches"} found
+                </span>
+              )}
+              <span className="text-[11px] text-[var(--admin-muted)] hidden sm:inline-block">
+                Searches across Event Titles, Subtitles/Details & User Names
+              </span>
+            </div>
+          </div>
+
+          <form onSubmit={handleSearchSubmit} className="relative w-full">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--admin-muted)]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by event title (e.g. User Created, Question Updated), subtitle/details, or user/admin name..."
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-xs sm:text-sm text-[var(--admin-text)] placeholder-[var(--admin-muted)] focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  loadLogs(false, "");
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-[var(--admin-muted)] hover:text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </form>
+
+          {/* Quick Search Suggestions */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <span className="text-[10px] text-[var(--admin-muted)] uppercase tracking-wider font-semibold mr-1 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-amber-400" />
+              Quick search:
+            </span>
+            {quickSearchFilters.map((qs) => (
+              <button
+                key={qs.query}
+                type="button"
+                onClick={() => setSearchQuery(qs.query)}
+                className={`px-2.5 py-0.5 rounded-lg text-[11px] font-medium border transition-all ${
+                  searchQuery.toLowerCase() === qs.query.toLowerCase()
+                    ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300 font-semibold"
+                    : "bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-muted)] hover:text-[var(--admin-text)] hover:border-[var(--admin-muted)]"
+                }`}
+              >
+                {qs.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-[var(--admin-border)] pt-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Main Filter Toggle: All Admins vs Other Admins Only */}
           <div className="flex items-center p-1 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)]">
             <button
@@ -275,45 +415,23 @@ export function AdminAuditLogViewer() {
               <ShieldAlert className="w-3.5 h-3.5 text-amber-300" />
               <span>🚨 Other Admins Only</span>
               {stats.actionsByOtherAdmins > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20">
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20 ml-1">
                   {stats.actionsByOtherAdmins}
                 </span>
               )}
             </button>
           </div>
 
-          {/* Search bar & Export */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-64">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--admin-muted)]" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search admin, action, target..."
-                className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-xs text-[var(--admin-text)] placeholder-[var(--admin-muted)] focus:outline-none focus:border-indigo-500"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    loadLogs(false);
-                  }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </form>
-
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
             <button
               onClick={() => loadLogs(true)}
               disabled={loading}
-              className="p-2 rounded-xl bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] text-[var(--admin-text)] text-xs transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] text-[var(--admin-text)] text-xs font-semibold transition-all active:scale-95"
               title="Refresh Audit Stream"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-indigo-400" : ""}`} />
+              <span>Sync</span>
             </button>
 
             <button
@@ -346,13 +464,13 @@ export function AdminAuditLogViewer() {
 
       {/* 3. AUDIT LOG LEDGER TABLE */}
       <div className="rounded-2xl bg-[var(--admin-card-bg)] border border-[var(--admin-border)] shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-[var(--admin-border)] flex items-center justify-between">
+        <div className="p-4 border-b border-[var(--admin-border)] flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <h4 className="text-sm font-bold text-[var(--admin-text)]">
               {otherAdminsOnly ? "Secondary Admin Actions Audit Stream" : "Universal Admin Audit Ledger"}
             </h4>
             <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--admin-input-bg)] text-[var(--admin-muted)] font-mono">
-              {logs.length} events
+              {filteredLogs.length} of {logs.length} events
             </span>
           </div>
           <div className="text-xs text-[var(--admin-muted)] flex items-center gap-1.5">
@@ -366,11 +484,30 @@ export function AdminAuditLogViewer() {
             <RefreshCw className="w-6 h-6 animate-spin text-indigo-400" />
             <span>Retrieving administrative audit records...</span>
           </div>
-        ) : logs.length === 0 ? (
-          <div className="p-12 text-center space-y-2 text-[var(--admin-muted)]">
+        ) : filteredLogs.length === 0 ? (
+          <div className="p-12 text-center space-y-3 text-[var(--admin-muted)]">
             <ShieldCheck className="w-8 h-8 mx-auto text-indigo-400 opacity-60" />
-            <p className="text-sm font-semibold text-[var(--admin-text)]">No audit entries matching filter</p>
-            <p className="text-xs">Adjust your search terms or category selector</p>
+            <p className="text-sm font-semibold text-[var(--admin-text)]">
+              {searchQuery ? `No audit entries match "${searchQuery}"` : "No audit entries matching filter"}
+            </p>
+            <p className="text-xs max-w-sm mx-auto">
+              {searchQuery
+                ? "Try searching for a different keyword, admin name, entity type, or clear the search filter."
+                : "Adjust your category selector or check back later for new administrative activity."}
+            </p>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  loadLogs(false, "");
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all mt-2"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Clear Global Search</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -378,15 +515,15 @@ export function AdminAuditLogViewer() {
               <thead>
                 <tr className="border-b border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-muted)] uppercase tracking-wider font-semibold">
                   <th className="py-3 px-4">Date & Time</th>
-                  <th className="py-3 px-3">Admin Actor</th>
-                  <th className="py-3 px-3">Action Type</th>
+                  <th className="py-3 px-3">Admin / User Actor</th>
+                  <th className="py-3 px-3">Event Title & Action</th>
                   <th className="py-3 px-3">Target Entity</th>
-                  <th className="py-3 px-3">Description / Details</th>
+                  <th className="py-3 px-3">Event Subtitle / Details</th>
                   <th className="py-3 px-4 text-right">Inspect</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--admin-border)]">
-                {logs.map((log) => {
+                {filteredLogs.map((log) => {
                   const dt = formatDateTime(log.timestamp);
                   return (
                     <tr
@@ -422,7 +559,7 @@ export function AdminAuditLogViewer() {
                           </div>
                           <div>
                             <div className="font-bold text-[var(--admin-text)] flex items-center gap-1.5">
-                              <span>{log.admin_name}</span>
+                              <span>{renderHighlighted(log.admin_name, searchQuery)}</span>
                               {log.is_primary_admin ? (
                                 <span className="text-[9px] px-1.5 py-0.2 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                   PRIMARY
@@ -434,13 +571,13 @@ export function AdminAuditLogViewer() {
                               )}
                             </div>
                             <div className="text-[10px] text-[var(--admin-muted)] font-mono">
-                              {log.admin_email}
+                              {renderHighlighted(log.admin_email, searchQuery)}
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      {/* Action Type */}
+                      {/* Event Title & Action Type */}
                       <td className="py-3 px-3 whitespace-nowrap">
                         <span
                           className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${getActionBadgeColor(
@@ -448,30 +585,33 @@ export function AdminAuditLogViewer() {
                             log.category
                           )}`}
                         >
-                          {log.action_label}
+                          {renderHighlighted(log.action_label, searchQuery)}
                         </span>
+                        <div className="text-[10px] text-[var(--admin-muted)] mt-0.5 font-mono">
+                          {log.action}
+                        </div>
                       </td>
 
                       {/* Target Entity */}
                       <td className="py-3 px-3 whitespace-nowrap">
                         {log.target_label ? (
                           <div className="font-medium text-[var(--admin-text)] truncate max-w-[160px]">
-                            {log.target_label}
+                            {renderHighlighted(log.target_label, searchQuery)}
                           </div>
                         ) : (
                           <span className="text-[var(--admin-muted)] italic">System / Config</span>
                         )}
                         {log.target_type && (
                           <div className="text-[10px] text-[var(--admin-muted)] uppercase">
-                            {log.target_type}
+                            {renderHighlighted(log.target_type, searchQuery)}
                           </div>
                         )}
                       </td>
 
-                      {/* Description / Details */}
+                      {/* Description / Details (Subtitle) */}
                       <td className="py-3 px-3">
                         <p className="text-[var(--admin-text)] line-clamp-2 max-w-md font-normal leading-relaxed">
-                          {log.details}
+                          {renderHighlighted(log.details, searchQuery)}
                         </p>
                       </td>
 

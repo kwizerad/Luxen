@@ -279,11 +279,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Focus-aware Timer state
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  // Focus-aware Timer state: tracks continuous study time in current lesson & topic
+  const [lessonElapsedSeconds, setLessonElapsedSeconds] = useState(0);
+  const [topicElapsedSeconds, setTopicElapsedSeconds] = useState(0);
   const [isFocusActive, setIsFocusActive] = useState(true);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lessonTotalSecondsRef = useRef<number>(0);
+  const currentLessonIdRef = useRef<string | null>(null);
+  const topicTimesRef = useRef<Record<string, number>>({});
 
   // Accessibility & UX tools
   const [textSize, setTextSize] = useState<TextSize>("base");
@@ -477,6 +479,25 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     };
   }, []);
 
+  // Track lesson switching vs topic switching within the same lesson
+  useEffect(() => {
+    if (!currentItem) return;
+    const lessonId = currentItem.lessonId;
+    const isNewLesson = currentLessonIdRef.current !== lessonId;
+
+    if (isNewLesson) {
+      // Switched to a new lesson -> initialize lesson timer
+      currentLessonIdRef.current = lessonId;
+      setLessonElapsedSeconds(0);
+      setTopicElapsedSeconds(0);
+      topicTimesRef.current = {};
+    } else {
+      // Navigating between topics within the same lesson -> KEEP lesson timer accumulating!
+      const topicKey = currentItem.topicId || currentItem.lessonId;
+      setTopicElapsedSeconds(topicTimesRef.current[topicKey] || 0);
+    }
+  }, [currentItemIndex, currentItem]);
+
   // Timer Tick: ticks only when active in study mode, on a valid topic/lesson, and window has focus
   useEffect(() => {
     if (
@@ -496,8 +517,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
 
     timerIntervalRef.current = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
-      lessonTotalSecondsRef.current += 1;
+      setLessonElapsedSeconds((prev) => prev + 1);
+      setTopicElapsedSeconds((prev) => prev + 1);
+      if (currentItem) {
+        const topicKey = currentItem.topicId || currentItem.lessonId;
+        topicTimesRef.current[topicKey] = (topicTimesRef.current[topicKey] || 0) + 1;
+      }
     }, 1000);
 
     return () => {
@@ -507,11 +532,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       }
     };
   }, [viewMode, currentItem, activeExam, showLessonCompleteModal, showCelebration, isFocusActive]);
-
-  // Reset per-topic elapsed time when switching topic/lesson
-  useEffect(() => {
-    setElapsedSeconds(0);
-  }, [currentItemIndex]);
 
   const selectLearningLanguage = async (selectedLanguage: LearningLanguage) => {
     const supabase = createClient();
@@ -614,9 +634,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     return lastLessonItem ? itemKey(item) === itemKey(lastLessonItem) : false;
   };
 
-  const saveLessonProgress = useCallback(async (item: FlatItem, isFullyCompleted = true) => {
+  const saveLessonProgress = useCallback(async (item: FlatItem, isFullyCompleted = true, customTimeSpent?: number) => {
     if (item.type === "exam") return;
-    const timeSpent = Math.max(elapsedSeconds, 1);
+    const timeSpent = Math.max(customTimeSpent ?? lessonElapsedSeconds, 1);
 
     const mod = course?.modules.find((m) => m.id === item.moduleId);
     const lesson = mod?.lessons.find((l) => l.id === item.lessonId);
@@ -637,12 +657,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     } catch (error) {
       console.error("Failed to save lesson progress:", error);
     }
-  }, [course, elapsedSeconds]);
+  }, [course, lessonElapsedSeconds]);
 
   /**
    * Mark current topic / lesson complete and advance.
    * Requirement: NO animation or complete popup on topic completion.
-   * Animation is ONLY shown on completing the entire lesson!
+   * Animation and completion modal is ONLY shown on completing the entire lesson!
    */
   const markCompleteAndAdvance = async () => {
     if (!currentItem) return;
@@ -654,23 +674,34 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     const wasLastInLesson = isLastItemInLesson(currentItem);
 
     if (wasLastInLesson) {
-      await saveLessonProgress(currentItem, true);
+      // Calculate total cumulative time taken across ALL topics of this lesson
+      const totalLessonTime = Math.max(lessonElapsedSeconds, 1);
       const nextItem = flatList[currentItemIndex + 1];
 
+      // Mark lesson completed immediately in memory
+      setLessonProgress((prev) => {
+        const next = new Map(prev);
+        next.set(currentItem.lessonId, { lesson_id: currentItem.lessonId, module_id: currentItem.moduleId, completed: true });
+        return next;
+      });
+
+      // Set completion meta and pop up modal INSTANTLY with zero network delay
       setCompletedLessonMeta({
         lessonTitle: currentItem.lessonTitle,
         topicsCount: currentItem.topicCount || 1,
-        timeSpentSeconds: lessonTotalSecondsRef.current || elapsedSeconds || 60,
+        timeSpentSeconds: totalLessonTime,
         nextLessonTitle: nextItem ? (nextItem.type === "topic" ? nextItem.lessonTitle : nextItem.moduleTitle) : undefined,
         hasNextLesson: currentItemIndex < flatList.length - 1,
       });
-      lessonTotalSecondsRef.current = 0;
       setShowLessonCompleteModal(true);
+
+      // Save progress to database in background
+      void saveLessonProgress(currentItem, true, totalLessonTime);
       return;
     }
 
     // Save intermediate progress without marking full lesson complete
-    void saveLessonProgress(currentItem, false);
+    void saveLessonProgress(currentItem, false, topicElapsedSeconds);
 
     // Intermediate topic: Smooth and instant transition with ZERO distracting popup animation!
     if (currentItemIndex < flatList.length - 1) {
@@ -679,12 +710,18 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   };
 
   const goToPrevious = () => {
+    if (showLessonCompleteModal) return;
     if (currentItemIndex > 0) {
       setCurrentItemIndex(currentItemIndex - 1);
     }
   };
 
   const goToNext = () => {
+    if (showLessonCompleteModal) return;
+    if (currentItem && isLastItemInLesson(currentItem) && !isLessonCompleted(currentItem.lessonId)) {
+      void markCompleteAndAdvance();
+      return;
+    }
     if (currentItemIndex < flatList.length - 1) {
       const nextIndex = currentItemIndex + 1;
       if (isItemUnlocked(nextIndex)) {
@@ -826,7 +863,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const continueToNextLesson = () => {
     setShowLessonCompleteModal(false);
     if (currentItemIndex < flatList.length - 1) {
-      setCurrentItemIndex(currentItemIndex + 1);
+      const nextIdx = currentItemIndex + 1;
+      if (isItemUnlocked(nextIdx)) {
+        setCurrentItemIndex(nextIdx);
+      }
     }
   };
 
@@ -1353,10 +1393,21 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               <div className="rounded-[14px] bg-secondary/60 p-3 text-center space-y-1">
                 <span className="text-[10px] text-muted-foreground font-semibold uppercase">{t("topicsMastered") || "Topics Mastered"}</span>
                 <p className="text-lg font-bold">{completedLessonMeta.topicsCount}</p>
+                <span className="text-[10px] text-muted-foreground block">Completed all</span>
               </div>
-              <div className="rounded-[14px] bg-secondary/60 p-3 text-center space-y-1">
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase">{t("studyTime") || "Study Time"}</span>
-                <p className="text-lg font-bold">{formatTimer(completedLessonMeta.timeSpentSeconds)}</p>
+              <div className="rounded-[14px] bg-emerald-500/10 border border-emerald-500/20 p-3 text-center space-y-1">
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold uppercase flex items-center justify-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {t("totalLessonTime") || "Total Time Taken"}
+                </span>
+                <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                  {formatTimer(completedLessonMeta.timeSpentSeconds)}
+                </p>
+                <span className="text-[10px] text-muted-foreground block">
+                  {completedLessonMeta.timeSpentSeconds < 60
+                    ? `${completedLessonMeta.timeSpentSeconds}s (all ${completedLessonMeta.topicsCount} topics)`
+                    : `${Math.floor(completedLessonMeta.timeSpentSeconds / 60)}m ${completedLessonMeta.timeSpentSeconds % 60}s total`}
+                </span>
               </div>
             </div>
 
@@ -1377,7 +1428,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               {completedLessonMeta.hasNextLesson ? (
                 <Button
                   size="lg"
-                  className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold"
+                  className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm cursor-pointer"
                   onClick={continueToNextLesson}
                 >
                   <ArrowRight className="h-4 w-4" />
@@ -1386,7 +1437,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               ) : (
                 <Button
                   size="lg"
-                  className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold"
+                  className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm cursor-pointer"
                   onClick={backToModuleLessonsFromModal}
                 >
                   <Trophy className="h-4 w-4" />
@@ -1397,7 +1448,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               <Button
                 size="lg"
                 variant="outline"
-                className="w-full gap-2 rounded-xl font-medium"
+                className="w-full gap-2 rounded-xl font-medium cursor-pointer"
                 onClick={backToModuleLessonsFromModal}
               >
                 <BookMarked className="h-4 w-4" />
@@ -1452,7 +1503,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
         {/* Action / Reader Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Active Topic Timer */}
+          {/* Active Lesson Study Timer */}
           <div
             className={cn(
               "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tabular-nums border transition-colors",
@@ -1460,10 +1511,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                 : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
             )}
-            title="Active Topic Timer"
+            title="Lesson Study Timer"
           >
             <Clock className={cn("h-3 w-3", isFocusActive && "animate-pulse")} />
-            <span>{formatTimer(elapsedSeconds)}</span>
+            <span>{formatTimer(lessonElapsedSeconds)}</span>
           </div>
 
           {/* Text Size Control */}

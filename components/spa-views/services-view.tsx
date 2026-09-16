@@ -40,18 +40,40 @@ export function ServicesView({ navigate }: ServicesViewProps) {
         setGroupExamOn(isGroupEnabled);
 
         const list = (challengesData as any)?.challenges || [];
+        const now = Date.now();
         const activeList = list.filter((c: any) => {
-          if (!user) return false;
+          if (!user || !c?.created_at) return false;
+          if (c.status === "completed" || c.status === "cancelled" || c.status === "expired") return false;
+
           const p = c.participants?.find((x: any) => x.user_id === user.id);
-          const hasCompleted = p?.status === "completed" || Boolean(p?.exam_attempt_id) || c.status === "completed";
+          const hasCompleted = p?.status === "completed" || p?.status === "abandoned" || p?.status === "rejected" || p?.status === "declined" || p?.status === "expired" || Boolean(p?.exam_attempt_id);
           if (hasCompleted) return false;
-          const isParticipantOrCreator = p?.status === "joined" || p?.status === "ready" || p?.status === "pending" || p?.status === "in_progress" || c.creator_id === user.id;
-          return isParticipantOrCreator && (c.status === "active" || c.status === "pending");
+
+          const isCreator = c.creator_id === user.id;
+          const ageMs = now - new Date(c.created_at).getTime();
+
+          // Pending challenge: creator/lobby has 60s, pending invitee has 30s
+          if (c.status === "pending") {
+            if (isCreator) return ageMs <= 60 * 1000;
+            if (p?.status === "pending") return ageMs <= 30 * 1000;
+            if (p?.status === "joined" || p?.status === "ready") return ageMs <= 60 * 1000;
+            return false;
+          }
+
+          // Active exam: standard duration is 20m, max active lifetime is 30m
+          if (c.status === "active") {
+            const isParticipantOrCreator = isCreator || p?.status === "joined" || p?.status === "ready" || p?.status === "in_progress";
+            return isParticipantOrCreator && ageMs <= 30 * 60 * 1000;
+          }
+
+          return false;
         });
 
         setOngoingCount(activeList.length);
         if (activeList.length > 0) {
           setOngoingExam(activeList[0]);
+        } else {
+          setOngoingExam(null);
         }
       })
       .catch(() => {
