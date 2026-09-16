@@ -31,6 +31,7 @@ import { VisitorGeoMap } from "@/components/admin/visitor-map";
 import { DashboardWidget } from "@/components/admin/dashboard-widget";
 import { WeeklyReportSchedulerCard } from "@/components/admin/weekly-report-scheduler-card";
 import { AdminAuditLogViewer } from "@/components/admin/admin-audit-log-viewer";
+import { AdminAuditReportModal } from "@/components/admin/admin-audit-report-modal";
 import { toast } from "sonner";
 
 export type DashboardTab =
@@ -90,6 +91,9 @@ export default function AdminDashboard() {
 
   // Export Snapshot Modal State
   const [exportOpen, setExportOpen] = useState(false);
+
+  // Course & Exam System Audit Report Modal State
+  const [auditReportOpen, setAuditReportOpen] = useState(false);
 
   // Synchronize Tab with URL query without reloading the page (SPA routing)
   const handleTabChange = useCallback((tabId: DashboardTab) => {
@@ -514,6 +518,15 @@ export default function AdminDashboard() {
               </button>
             ))}
           </div>
+
+          {/* System Audit Report Button */}
+          <button
+            onClick={() => setAuditReportOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600/90 hover:bg-emerald-600 text-white shadow-sm transition-all active:scale-95 cursor-pointer"
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>Audit System</span>
+          </button>
 
           {/* Quick Broadcast Button */}
           <button
@@ -1865,6 +1878,12 @@ export default function AdminDashboard() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* 7. COURSE & EXAM SYSTEM AUDIT REPORT MODAL */}
+      <AdminAuditReportModal
+        isOpen={auditReportOpen}
+        onClose={() => setAuditReportOpen(false)}
+      />
     </div>
   );
 }
