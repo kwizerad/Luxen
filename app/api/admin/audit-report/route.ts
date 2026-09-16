@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logAdminAction } from "@/lib/admin-audit";
 
 export interface AuditReportData {
   generatedAt: string;
@@ -324,6 +325,46 @@ export async function GET() {
         recommendations: examRecommendations,
       },
     };
+
+    // Save audit snapshot to database
+    try {
+      const auditId = `audit_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      await supabase.from("system_audit_reports").insert({
+        id: auditId,
+        created_at: responseData.generatedAt,
+        audit_type: "FULL_COURSE_EXAM_AUDIT",
+        courses_health_score: courseHealth,
+        exams_health_score: examHealth,
+        total_modules: totalModules,
+        published_modules: publishedModules,
+        total_lessons: totalLessons,
+        published_lessons: publishedLessons,
+        total_questions: totalQuestions,
+        total_exam_attempts: attempts.length,
+        pass_rate: passRate,
+        average_score: averageScore,
+        issues_count: courseIssues.length + examIssues.length,
+        report_data: responseData,
+        generated_by: "ADMIN_DASHBOARD",
+      });
+
+      // Also record in administrative action audit logs
+      await logAdminAction({
+        action: "SYSTEM_AUDIT_EXECUTED",
+        actionLabel: "Course & Exam System Audit Executed",
+        category: "SYSTEM_CRON",
+        details: `Course & Exam system audit executed with Course Health: ${courseHealth}%, Exam Health: ${examHealth}%, ${totalQuestions} questions, ${attempts.length} attempts audited.`,
+        metadata: {
+          coursesHealth: courseHealth,
+          examsHealth: examHealth,
+          totalQuestions,
+          totalLessons,
+          passRate,
+        },
+      });
+    } catch (saveError) {
+      console.warn("[AuditReportAPI] Optional DB snapshot save failed (table may be pending migration):", saveError);
+    }
 
     return NextResponse.json({ success: true, data: responseData });
   } catch (error: any) {
