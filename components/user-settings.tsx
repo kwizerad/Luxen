@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import { UserDevicesList } from "@/components/user-devices-list";
+import { VerifyIdModal } from "@/components/verify-id-modal";
 
 type TextSize = "sm" | "md" | "lg";
 type Language = "English" | "Kinyarwanda" | "French";
@@ -54,6 +55,7 @@ export default function UserSettings({
   const [gender, setGender] = useState(user?.user_metadata?.gender || "");
   const [nationality, setNationality] = useState(user?.user_metadata?.nationality || "");
   const [birthdate, setBirthdate] = useState(user?.user_metadata?.birthdate || "");
+  const [nationalId, setNationalId] = useState(user?.user_metadata?.national_id || user?.national_id || "");
   const [avatarUrl, setAvatarUrl] = useState(
     user?.avatar_url ||
     user?.user_metadata?.avatar_url ||
@@ -71,6 +73,7 @@ export default function UserSettings({
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showEditProfileDialog, setShowEditProfileDialog] = useState(false);
   const [showDevicesDialog, setShowDevicesDialog] = useState(false);
+  const [showVerifyIdModal, setShowVerifyIdModal] = useState(false);
 
   // Password state
   const [newPassword, setNewPassword] = useState("");
@@ -472,6 +475,26 @@ export default function UserSettings({
                   <Badge variant={firstName || lastName ? "default" : "secondary"} className="text-xs">
                     {firstName || lastName ? t("completed") : t("userSettings.incomplete")}
                   </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">{t("nationalId") || "National ID"}</span>
+                  {nationalId ? (
+                    <Badge variant="default" className="text-xs bg-emerald-600 hover:bg-emerald-600 text-white font-mono">
+                      {nationalId}
+                    </Badge>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs px-2.5 rounded-lg border-primary/40 text-primary hover:bg-primary/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowVerifyIdModal(true);
+                      }}
+                    >
+                      + {t("verifyNationalId") || "Verify ID"}
+                    </Button>
+                  )}
                 </div>
                 {showUsernameChange && (
                   <div className="flex items-center justify-between">
@@ -1272,6 +1295,34 @@ export default function UserSettings({
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ID Verification Modal */}
+      <VerifyIdModal
+        open={showVerifyIdModal}
+        onOpenChange={setShowVerifyIdModal}
+        initialNationalId={nationalId}
+        onSuccess={(citizen) => {
+          setNationalId(citizen.nationalId);
+          if (citizen.firstName) setFirstName(citizen.firstName);
+          if (citizen.lastName) setLastName(citizen.lastName);
+          if (citizen.photoUrl) setAvatarUrl(citizen.photoUrl);
+          if (citizen.dateOfBirth) setBirthdate(citizen.dateOfBirth);
+          if (onUserUpdate && user) {
+            onUserUpdate({
+              ...user,
+              user_metadata: {
+                ...user.user_metadata,
+                national_id: citizen.nationalId,
+                first_name: citizen.firstName || user.user_metadata?.first_name,
+                last_name: citizen.lastName || user.user_metadata?.last_name,
+                full_name: citizen.fullName || user.user_metadata?.full_name,
+                avatar_url: citizen.photoUrl || user.user_metadata?.avatar_url,
+                birthdate: citizen.dateOfBirth || user.user_metadata?.birthdate,
+              },
+            });
+          }
+        }}
+      />
     </div>
   );
 }

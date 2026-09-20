@@ -53,6 +53,7 @@ import type {
   TheoryExamDLInfoAPIResponse,
 } from "@/lib/live-exam/types";
 import type { CitizenFullProfile } from "@/lib/live-exam/irembo";
+import { UserFullActionReport } from "@/components/admin/user-full-action-report";
 
 interface UserInfoDetailDialogProps {
   user: UserWithStatus | null;
@@ -563,12 +564,27 @@ export function UserInfoDetailDialog({
                     </Badge>
                   )}
                 </TabsTrigger>
+
+                <TabsTrigger value="action_dossier" className="gap-2 text-xs sm:text-sm rounded-lg px-3 data-[state=active]:bg-background data-[state=active]:shadow-xs">
+                  <FileText className="h-4 w-4 text-indigo-500" />
+                  <span>{t("fullActionReport") || "Action Dossier & Report"}</span>
+                </TabsTrigger>
               </TabsList>
             </div>
 
             {/* Scrollable Content Container (Smooth native scroll) */}
             <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 overscroll-contain">
               <div ref={exportRef}>
+                {/* Action Dossier Tab (Always available) */}
+                <TabsContent value="action_dossier" className="m-0 space-y-5">
+                  <UserFullActionReport
+                    userId={user.id}
+                    nationalId={currentNationalId}
+                    userFallback={user}
+                    onRefreshParent={() => fetchIremboData(undefined, true)}
+                  />
+                </TabsContent>
+
                 {!currentNationalId ? (
                   /* Callout to Link National ID */
                   <div className="max-w-xl mx-auto py-10 px-4 text-center space-y-4">

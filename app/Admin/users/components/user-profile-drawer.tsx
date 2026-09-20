@@ -50,6 +50,7 @@ import type { UserWithStatus, UserProgressSummary } from "./types";
 import { getUserActivity, getStudentProgressSummary, getStudentLessonProgressDetail, type UserLessonProgressDetail } from "../../actions/users";
 import { DeviceInfoTab } from "./device-info-tab";
 import { sendPasswordReset } from "@/app/Admin/actions/devices";
+import { UserFullActionReport } from "@/components/admin/user-full-action-report";
 
 interface UserProfileDrawerProps {
   user: UserWithStatus | null;
@@ -308,6 +309,7 @@ export function UserProfileDrawer({
               <TabsList className="w-full justify-start rounded-xl h-auto flex-wrap p-1 gap-1">
                 {[
                   { id: "personal", label: t("personalInfo") || "Personal Info", icon: <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
+                  { id: "full_report", label: t("fullActionReport") || "Action Dossier", icon: <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" /> },
                   { id: "exams", label: t("exams") || "Exams", icon: <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
                   { id: "device", label: t("deviceInfo") || "Device Info", icon: <Monitor className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
                   { id: "userInfo", label: t("userInfoTab") || "User Info", icon: <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> },
@@ -331,6 +333,15 @@ export function UserProfileDrawer({
                       <InfoItem icon={<User className="h-4 w-4" />} label={t("gender")} value={user.gender} />
                       <InfoItem icon={<Mail className="h-4 w-4" />} label={t("email")} value={user.email} />
                     </div>
+                  </TabsContent>
+
+                  {/* Comprehensive Action Dossier Tab */}
+                  <TabsContent value="full_report" className="space-y-4 mt-4">
+                    <UserFullActionReport
+                      userId={user.id}
+                      nationalId={user.national_id}
+                      userFallback={user}
+                    />
                   </TabsContent>
 
                   {/* Exams Tab — exam history + course analytics */}

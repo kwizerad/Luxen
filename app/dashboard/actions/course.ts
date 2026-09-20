@@ -94,6 +94,10 @@ export interface ContinueLearningData {
   moduleId: string;
   lessonId: string;
   lessonTitle: string;
+  topicId?: string;
+  topicTitle?: string;
+  topicIndex?: number;
+  totalTopics?: number;
 }
 
 export interface DashboardStats {
@@ -347,7 +351,43 @@ export async function getDashboardData(
     });
   }
 
-  const allLessons: { moduleId: string; moduleTitle: string; lessonId: string; lessonTitle: string }[] = [];
+  function parseTopicsList(raw: unknown): { id: string; title: string }[] {
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+      return raw.map((t, idx) => {
+        if (typeof t === "string") {
+          try {
+            const p = JSON.parse(t);
+            if (p && typeof p === "object") {
+              return { id: p.id || `topic-${idx}`, title: p.title || "" };
+            }
+          } catch {}
+          return { id: `topic-${idx}`, title: t };
+        }
+        if (typeof t === "object" && t !== null) {
+          const obj = t as { id?: string; title?: string };
+          return { id: obj.id || `topic-${idx}`, title: obj.title || "" };
+        }
+        return { id: `topic-${idx}`, title: "" };
+      });
+    }
+    if (typeof raw === "string") {
+      try {
+        const p = JSON.parse(raw);
+        if (Array.isArray(p)) return parseTopicsList(p);
+      } catch {}
+    }
+    return [];
+  }
+
+  const allLessons: {
+    moduleId: string;
+    moduleTitle: string;
+    lessonId: string;
+    lessonTitle: string;
+    topics: { id: string; title: string }[];
+  }[] = [];
+
   for (const mod of course.modules) {
     for (const lesson of mod.lessons) {
       allLessons.push({
@@ -355,6 +395,7 @@ export async function getDashboardData(
         moduleTitle: mod.title,
         lessonId: lesson.id,
         lessonTitle: lesson.title,
+        topics: parseTopicsList(lesson.topics),
       });
     }
   }
@@ -373,6 +414,7 @@ export async function getDashboardData(
       const target = incompleteStarted[0];
       const lessonInfo = allLessons.find((l) => l.lessonId === target.lesson_id);
       if (lessonInfo) {
+        const firstTopic = lessonInfo.topics.length > 0 ? lessonInfo.topics[0] : undefined;
         continueLearning = {
           courseTitle: course.title,
           courseLanguage: course.language,
@@ -380,6 +422,10 @@ export async function getDashboardData(
           moduleId: lessonInfo.moduleId,
           lessonId: lessonInfo.lessonId,
           lessonTitle: lessonInfo.lessonTitle,
+          topicId: firstTopic?.id,
+          topicTitle: firstTopic?.title,
+          topicIndex: firstTopic ? 0 : undefined,
+          totalTopics: lessonInfo.topics.length > 0 ? lessonInfo.topics.length : undefined,
         };
       }
     }
@@ -388,6 +434,7 @@ export async function getDashboardData(
       // Strategy 2: first unstarted lesson
       const firstUnstarted = allLessons.find((l) => !progressMap.has(l.lessonId));
       if (firstUnstarted) {
+        const firstTopic = firstUnstarted.topics.length > 0 ? firstUnstarted.topics[0] : undefined;
         continueLearning = {
           courseTitle: course.title,
           courseLanguage: course.language,
@@ -395,6 +442,10 @@ export async function getDashboardData(
           moduleId: firstUnstarted.moduleId,
           lessonId: firstUnstarted.lessonId,
           lessonTitle: firstUnstarted.lessonTitle,
+          topicId: firstTopic?.id,
+          topicTitle: firstTopic?.title,
+          topicIndex: firstTopic ? 0 : undefined,
+          totalTopics: firstUnstarted.topics.length > 0 ? firstUnstarted.topics.length : undefined,
         };
       }
     }
@@ -402,6 +453,7 @@ export async function getDashboardData(
     if (!continueLearning) {
       // Strategy 3: last lesson (all completed)
       const last = allLessons[allLessons.length - 1];
+      const firstTopic = last.topics.length > 0 ? last.topics[0] : undefined;
       continueLearning = {
         courseTitle: course.title,
         courseLanguage: course.language,
@@ -409,6 +461,10 @@ export async function getDashboardData(
         moduleId: last.moduleId,
         lessonId: last.lessonId,
         lessonTitle: last.lessonTitle,
+        topicId: firstTopic?.id,
+        topicTitle: firstTopic?.title,
+        topicIndex: firstTopic ? 0 : undefined,
+        totalTopics: last.topics.length > 0 ? last.topics.length : undefined,
       };
     }
   }

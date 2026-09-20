@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Settings2, Shield, ClipboardList, FileText, LayoutList, Globe, Users, Trophy, Database } from "lucide-react";
+import { Loader2, Settings2, Shield, ShieldCheck, ClipboardList, FileText, LayoutList, Globe, Users, Trophy, Database } from "lucide-react";
 import { getSystemConfig, updateSystemConfig, getServicesConfig } from "@/lib/supabase/queries";
 import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
@@ -92,6 +92,21 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
     { key: "group-exam", labelKey: "groupExamService", descKey: "groupExamServiceDesc" },
     { key: "driver-hub", labelKey: "findDriver", descKey: "findDriverDesc" },
   ];
+  const [liveExamIdVerificationRequired, setLiveExamIdVerificationRequired] = useState<boolean>(true);
+
+  const handleToggleLiveExamIdVerification = async (checked: boolean) => {
+    setLiveExamIdVerificationRequired(checked);
+    try {
+      await updateSystemConfig(
+        "live_exam_id_verification_required",
+        checked.toString(),
+        "Require National ID verification before viewing driving exam results"
+      );
+      toast.success(t("servicesSettingsSaved") || "ID verification requirement setting updated");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateServicesSettings") || "Failed to update setting: ") + error.message);
+    }
+  };
 
   const handleToggleService = async (key: string, checked: boolean) => {
     setServiceToggles((prev) => ({ ...prev, [key]: checked }));
@@ -185,12 +200,19 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
             }
           }
           setInterfaceLanguageToggles(ifaceLangToggles);
+
+          if (configMap["live_exam_id_verification_required"]) {
+            setLiveExamIdVerificationRequired(configMap["live_exam_id_verification_required"].value === "true");
+          }
         }
 
         // Load services config
         const servicesConfig = await getServicesConfig();
         setServicesPageEnabled(servicesConfig.pageEnabled);
         setServiceToggles(servicesConfig.services);
+        if (servicesConfig.idVerificationRequired !== undefined) {
+          setLiveExamIdVerificationRequired(servicesConfig.idVerificationRequired);
+        }
       } catch (error: any) {
         toast.error(t("failedToLoadSystemConfig") + error.message);
       } finally {
@@ -330,6 +352,11 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
         "services_page_enabled",
         servicesPageEnabled.toString(),
         t("servicesPageToggleDesc") || "Enable or disable the entire services page"
+      );
+      await updateSystemConfig(
+        "live_exam_id_verification_required",
+        liveExamIdVerificationRequired.toString(),
+        "Require National ID verification before viewing driving exam results"
       );
       await Promise.all(
         serviceDefinitions.map((svc) =>
@@ -885,6 +912,33 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
                 />
               </div>
             ))}
+
+            {/* National ID Verification toggle for Driving Exam Results */}
+            <div className="mt-4 pt-4 border-t border-border/60">
+              <div className="flex items-start justify-between gap-3 p-3.5 rounded-xl border border-primary/20 bg-primary/5">
+                <div className="space-y-1 pr-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                    <Label htmlFor="live-exam-id-verification-toggle" className="text-sm font-semibold cursor-pointer">
+                      {t("liveExamIdVerificationRequired") || "Require ID Verification for Exam Results"}
+                    </Label>
+                    <Badge variant={liveExamIdVerificationRequired ? "default" : "secondary"} className={`text-[10px] py-0 px-2 ${liveExamIdVerificationRequired ? "bg-emerald-600 hover:bg-emerald-600 text-white" : ""}`}>
+                      {liveExamIdVerificationRequired ? (t("required") || "Required") : (t("optional") || "Optional")}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {t("liveExamIdVerificationRequiredDesc") ||
+                      "When enabled, candidates must verify their 16-digit Rwandan National ID with their Names & Date of Birth before accessing driving exam results. When disabled, candidates can look up results freely."}
+                  </p>
+                </div>
+                <Switch
+                  id="live-exam-id-verification-toggle"
+                  checked={liveExamIdVerificationRequired}
+                  onCheckedChange={handleToggleLiveExamIdVerification}
+                  disabled={!servicesPageEnabled || serviceToggles["live-exam"] === false}
+                />
+              </div>
+            </div>
           </div>
 
           <Button

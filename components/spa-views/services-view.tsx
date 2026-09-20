@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Car, ArrowLeft, Users, Trophy, ShieldAlert, LayoutGrid, History, Clock, ArrowRight } from "lucide-react";
+import { Car, ArrowLeft, Users, Trophy, ShieldAlert, LayoutGrid, History, Clock, ArrowRight, UserCheck, ShieldCheck } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -223,16 +223,44 @@ export function ServicesView({ navigate }: ServicesViewProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             {services.map((service) => {
               const Icon = service.icon;
+              const isLiveExam = service.view === "live-exam";
+              const isVerified = Boolean(user?.user_metadata?.national_id);
+
               return (
                 <button
                   key={service.view}
                   onClick={() => navigate(service.view)}
-                  className="group flex flex-col gap-3 rounded-2xl border bg-card p-5 transition-all hover:border-primary hover:shadow-lg hover:-translate-y-0.5 text-left"
+                  className="group flex flex-col gap-3 rounded-2xl border bg-card p-5 transition-all hover:border-primary hover:shadow-lg hover:-translate-y-0.5 text-left relative"
                 >
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl ${service.bg} ${service.color}`}
-                  >
-                    <Icon className="h-6 w-6" />
+                  <div className="flex items-center justify-between w-full">
+                    <div
+                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${service.bg} ${service.color}`}
+                    >
+                      <Icon className="h-6 w-6" />
+                    </div>
+
+                    {isLiveExam && (
+                      <Badge
+                        variant="outline"
+                        className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                          isVerified
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                        }`}
+                      >
+                        {isVerified ? (
+                          <span className="flex items-center gap-1">
+                            <UserCheck className="h-3 w-3" />
+                            {t("verified") || "ID Verified"}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <ShieldCheck className="h-3 w-3" />
+                            {t("idRequired") || "ID Check Required"}
+                          </span>
+                        )}
+                      </Badge>
+                    )}
                   </div>
                   <div>
                     <h3 className="font-bold text-base">{t(service.titleKey)}</h3>

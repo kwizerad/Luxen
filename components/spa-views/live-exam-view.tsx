@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Car, ArrowLeft, ShieldAlert } from "lucide-react";
+import { Car, ArrowLeft, ShieldAlert, ShieldCheck, UserCheck, Loader2 } from "lucide-react";
 import TabBar, { type TabType } from "@/components/live-exam/TabBar";
 import ExamSearchTab from "@/components/live-exam/ExamSearchTab";
 import QuickCodeTab from "@/components/live-exam/QuickCodeTab";
 import ResultModal from "@/components/live-exam/ResultModal";
+import { VerifyIdModal } from "@/components/verify-id-modal";
+import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/lib/language-context";
+import { useAuth } from "@/lib/auth-context";
 import { getCachedServicesConfig } from "@/lib/feature-flags";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { ExamResultDetails } from "@/lib/live-exam/types";
 
@@ -17,6 +21,7 @@ export interface LiveExamViewProps {
 
 export function LiveExamView({ navigate }: LiveExamViewProps) {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("full");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
@@ -24,18 +29,79 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
   const [modalData, setModalData] = useState<ExamResultDetails | null>(null);
   const [resultCache, setResultCache] = useState<Record<string, ExamResultDetails>>({});
   const [isServiceEnabled, setIsServiceEnabled] = useState<boolean | null>(null);
+  const [idVerificationRequired, setIdVerificationRequired] = useState<boolean>(true);
+
+  // User National ID verification state
+  const [checkingIdStatus, setCheckingIdStatus] = useState(true);
+  const [verifiedNationalId, setVerifiedNationalId] = useState<string | null>(null);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   useEffect(() => {
-    getCachedServicesConfig().then((cfg) => {
-      if (!cfg.pageEnabled || cfg.services["live-exam"] === false) {
-        setIsServiceEnabled(false);
-      } else {
+    getCachedServicesConfig()
+      .then((cfg) => {
+        if (!cfg.pageEnabled || cfg.services["live-exam"] === false) {
+          setIsServiceEnabled(false);
+        } else {
+          setIsServiceEnabled(true);
+        }
+        if (cfg.idVerificationRequired !== undefined) {
+          setIdVerificationRequired(cfg.idVerificationRequired);
+        }
+      })
+      .catch(() => {
         setIsServiceEnabled(true);
-      }
-    }).catch(() => {
-      setIsServiceEnabled(true);
-    });
+        setIdVerificationRequired(true);
+      });
   }, []);
+
+  // Fetch and check current user's verified National ID
+  useEffect(() => {
+    let isMounted = true;
+    async function checkUserId() {
+      if (!user) {
+        if (isMounted) {
+          setVerifiedNationalId(null);
+          setCheckingIdStatus(false);
+        }
+        return;
+      }
+
+      try {
+        const supabase = createClient();
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("national_id, is_id_verified")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (isMounted) {
+          const userMetaId = user.user_metadata?.national_id;
+          const nid = profile?.national_id || userMetaId || null;
+          if (nid && String(nid).trim().length === 16) {
+            setVerifiedNationalId(String(nid).trim());
+          } else {
+            setVerifiedNationalId(null);
+          }
+          setCheckingIdStatus(false);
+        }
+      } catch {
+        if (isMounted) {
+          const userMetaId = user.user_metadata?.national_id;
+          if (userMetaId && String(userMetaId).trim().length === 16) {
+            setVerifiedNationalId(String(userMetaId).trim());
+          } else {
+            setVerifiedNationalId(null);
+          }
+          setCheckingIdStatus(false);
+        }
+      }
+    }
+
+    checkUserId();
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const copyToClipboard = useCallback(
     (text: string) => {
@@ -88,7 +154,7 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            national_id: "0000000000000000",
+            national_id: verifiedNationalId || "0000000000000000",
             selected_code: code,
           }),
         });
@@ -108,7 +174,7 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
         setModalLoading(false);
       }
     },
-    [resultCache, t]
+    [resultCache, t, verifiedNationalId]
   );
 
   const handleTabChange = (tab: TabType) => {
@@ -166,43 +232,93 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
         {/* Main card */}
         <div className="w-full rounded-3xl border bg-card/95 p-7 shadow-lg backdrop-blur-md transition-all hover:shadow-xl sm:p-8">
           {/* Header */}
-          <div className="mb-5 flex items-center gap-3 border-b pb-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Car className="text-xl" />
+          <div className="mb-5 flex items-center justify-between border-b pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Car className="text-xl" />
+              </div>
+              <div>
+                <h2 className="text-xl font-extrabold tracking-tight">
+                  {t("liveExamResults")}
+                </h2>
+                <span className="text-sm font-medium text-muted-foreground">
+                  {t("liveExamResultsSubtitle")}
+                </span>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-extrabold tracking-tight">
-                {t("liveExamResults")}
-              </h2>
-              <span className="text-sm font-medium text-muted-foreground">
-                {t("liveExamResultsSubtitle")}
+
+            {verifiedNationalId && (
+              <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                <UserCheck className="w-3.5 h-3.5" />
+                ID Verified
               </span>
-            </div>
+            )}
           </div>
 
-          {/* Tab Bar */}
-          <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
+          {/* ID Check Loading */}
+          {checkingIdStatus ? (
+            <div className="py-12 text-center space-y-3">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+              <p className="text-xs text-muted-foreground">
+                {t("checkingIdentity") || "Checking National ID verification status..."}
+              </p>
+            </div>
+          ) : idVerificationRequired && !verifiedNationalId ? (
+            /* Unverified ID Guard when verification is enforced by admin */
+            <div className="py-6 px-2 text-center space-y-5 animate-in fade-in duration-200">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                <ShieldAlert className="h-8 w-8" />
+              </div>
 
-          {/* Tab Content */}
-          {activeTab === "full" && (
-            <ExamSearchTab
-              resultCache={resultCache}
-              onViewResult={viewCodeResult}
-              onCopy={copyToClipboard}
-              onResultsLoaded={(results) =>
-                setResultCache((prev) => ({ ...prev, ...results }))
-              }
-            />
-          )}
-          {activeTab === "simple" && (
-            <QuickCodeTab
-              onViewResult={viewCodeResult}
-            />
+              <div className="space-y-2 max-w-md mx-auto">
+                <h3 className="text-lg font-bold tracking-tight text-foreground">
+                  {t("idVerificationRequired") || "National ID Verification Required"}
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {t("idVerificationRequiredExamDesc") ||
+                    "To protect candidate privacy and display official Driving Exam Results, you must verify your Rwandan National ID with your Names and Date of Birth first."}
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  onClick={() => setShowVerifyModal(true)}
+                  className="rounded-xl font-semibold gap-2 px-6 h-10 shadow-sm"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  <span>{t("verifyNationalIdNow") || "Verify National ID Now"}</span>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* Verified OR Verification Disabled by Admin: Show Driving Exam Results Tabs */
+            <>
+              {/* Tab Bar */}
+              <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
+
+              {/* Tab Content */}
+              {activeTab === "full" && (
+                <ExamSearchTab
+                  resultCache={resultCache}
+                  verifiedNationalId={verifiedNationalId}
+                  onViewResult={viewCodeResult}
+                  onCopy={copyToClipboard}
+                  onResultsLoaded={(results) =>
+                    setResultCache((prev) => ({ ...prev, ...results }))
+                  }
+                />
+              )}
+              {activeTab === "simple" && (
+                <QuickCodeTab
+                  onViewResult={viewCodeResult}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Result Modal */}
       <ResultModal
         open={modalOpen}
         loading={modalLoading}
@@ -210,6 +326,16 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
         data={modalData}
         onClose={closeModal}
         onCopy={copyToClipboard}
+      />
+
+      {/* ID Verification Modal */}
+      <VerifyIdModal
+        open={showVerifyModal}
+        onOpenChange={setShowVerifyModal}
+        onSuccess={(citizen) => {
+          setVerifiedNationalId(citizen.nationalId);
+          toast.success(t("idVerifiedSuccess") || "ID verified! You can now view exam results.");
+        }}
       />
     </div>
   );

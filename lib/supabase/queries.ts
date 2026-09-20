@@ -1718,6 +1718,7 @@ export async function isServiceEnabled(serviceKey: string): Promise<boolean> {
 export async function getServicesConfig(): Promise<{
   pageEnabled: boolean;
   services: Record<string, boolean>;
+  idVerificationRequired: boolean;
 }> {
   const supabase = createClient();
 
@@ -1726,15 +1727,18 @@ export async function getServicesConfig(): Promise<{
     .select("key, value");
 
   if (error) {
-    return { pageEnabled: true, services: {} };
+    return { pageEnabled: true, services: {}, idVerificationRequired: true };
   }
 
   let pageEnabled = true;
+  let idVerificationRequired = true;
   const services: Record<string, boolean> = {};
 
   for (const row of data || []) {
     if (row.key === "services_page_enabled") {
       pageEnabled = row.value === "true";
+    } else if (row.key === "live_exam_id_verification_required") {
+      idVerificationRequired = row.value === "true";
     } else {
       // Extract service key from "service_{key}_enabled"
       const match = row.key.match(/^service_(.+)_enabled$/);
@@ -1744,7 +1748,7 @@ export async function getServicesConfig(): Promise<{
     }
   }
 
-  return { pageEnabled, services };
+  return { pageEnabled, services, idVerificationRequired };
 }
 
 // ============================================================================

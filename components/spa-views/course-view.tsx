@@ -444,17 +444,72 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     void loadLearningLanguage();
   }, [interfaceLanguage, loadCourse]);
 
-  // Deep-linking: jump to a specific lesson via ?lesson=<id>
+  // Deep-linking: jump to a specific topic or lesson via ?lesson=<id>&topic=<id>
   useEffect(() => {
-    const lessonId = params.get("lesson");
-    if (!lessonId || flatList.length === 0) return;
-    const idx = flatList.findIndex((f) => f.lessonId === lessonId);
-    if (idx >= 0) {
-      setCurrentItemIndex(idx);
-      setSelectedModuleId(flatList[idx].moduleId);
+    const lessonId = params.get("lesson") || params.get("lessonId");
+    const topicId = params.get("topic") || params.get("topicId");
+    const moduleId = params.get("module") || params.get("moduleId");
+
+    if ((!lessonId && !topicId && !moduleId) || flatList.length === 0) return;
+
+    let targetIdx = -1;
+
+    // 1. Try finding exact topic
+    if (topicId) {
+      targetIdx = flatList.findIndex((f) => f.topicId === topicId || f.lessonId === topicId);
+    }
+
+    // 2. Try finding lesson, preferring first uncompleted topic in that lesson
+    if (targetIdx < 0 && lessonId) {
+      targetIdx = flatList.findIndex(
+        (f) => f.lessonId === lessonId && !completedItems.has(itemKey(f))
+      );
+      if (targetIdx < 0) {
+        targetIdx = flatList.findIndex((f) => f.lessonId === lessonId);
+      }
+    }
+
+    // 3. Fallback to module
+    if (targetIdx < 0 && moduleId) {
+      targetIdx = flatList.findIndex(
+        (f) => f.moduleId === moduleId && !completedItems.has(itemKey(f))
+      );
+      if (targetIdx < 0) {
+        targetIdx = flatList.findIndex((f) => f.moduleId === moduleId);
+      }
+    }
+
+    if (targetIdx >= 0) {
+      setCurrentItemIndex(targetIdx);
+      setSelectedModuleId(flatList[targetIdx].moduleId);
       setViewMode("study");
     }
-  }, [params, flatList]);
+  }, [params, flatList, completedItems]);
+
+  // Persist last active topic and study position in localStorage for cross-view resumption
+  useEffect(() => {
+    if (viewMode === "study" && currentItem && currentItem.type !== "exam") {
+      try {
+        const itemInfo = {
+          courseId: course?.id,
+          language: learningLanguage,
+          moduleId: currentItem.moduleId,
+          moduleTitle: currentItem.moduleTitle,
+          lessonId: currentItem.lessonId,
+          lessonTitle: currentItem.lessonTitle,
+          topicId: currentItem.topicId || "",
+          topicTitle: currentItem.topicTitle || "",
+          topicIndex: currentItem.topicIndex ?? 0,
+          topicCount: currentItem.topicCount ?? 0,
+          updatedAt: new Date().toISOString(),
+        };
+        localStorage.setItem("luxen_last_topic_global", JSON.stringify(itemInfo));
+        if (learningLanguage) {
+          localStorage.setItem(`luxen_last_topic_${learningLanguage}`, JSON.stringify(itemInfo));
+        }
+      } catch {}
+    }
+  }, [viewMode, currentItem, course?.id, learningLanguage]);
 
   // Focus Detection: Pause timer if window/tab loses focus, resume on refocus
   useEffect(() => {
@@ -804,8 +859,23 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     setViewMode("module-lessons");
   };
 
-  const startLesson = (moduleId: string, lessonId: string) => {
-    const targetIdx = flatList.findIndex((f) => f.moduleId === moduleId && f.lessonId === lessonId);
+  const startLesson = (moduleId: string, lessonId: string, topicId?: string) => {
+    let targetIdx = -1;
+    if (topicId) {
+      targetIdx = flatList.findIndex(
+        (f) => f.moduleId === moduleId && f.lessonId === lessonId && (f.topicId === topicId || f.lessonId === topicId)
+      );
+    }
+    if (targetIdx < 0) {
+      // Find first uncompleted topic within this lesson
+      targetIdx = flatList.findIndex(
+        (f) => f.moduleId === moduleId && f.lessonId === lessonId && !completedItems.has(itemKey(f))
+      );
+    }
+    if (targetIdx < 0) {
+      targetIdx = flatList.findIndex((f) => f.moduleId === moduleId && f.lessonId === lessonId);
+    }
+
     if (targetIdx >= 0 && isItemUnlocked(targetIdx)) {
       setSelectedModuleId(moduleId);
       setCurrentItemIndex(targetIdx);
@@ -907,6 +977,70 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       ? currentTopic?.estimated_minutes || 3
       : currentLesson ? lessonTime(currentLesson) : 5;
 
+  const resumeTarget = useMemo(() => {
+    if (!course || flatList.length === 0) return null;
+
+    // 1. Try saved position from localStorage
+    if (typeof window !== "undefined") {
+      try {
+        const raw =
+          (learningLanguage ? localStorage.getItem(`luxen_last_topic_${learningLanguage}`) : null) ||
+          localStorage.getItem("luxen_last_topic_global");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && (parsed.topicId || parsed.lessonId)) {
+            const matchIdx = flatList.findIndex(
+              (f) => (parsed.topicId && f.topicId === parsed.topicId) || f.lessonId === parsed.lessonId
+            );
+            if (matchIdx >= 0) {
+              const matchedItem = flatList[matchIdx];
+              return {
+                item: matchedItem,
+                index: matchIdx,
+                topicTitle: matchedItem.topicTitle || parsed.topicTitle || matchedItem.lessonTitle,
+                topicIndex: matchedItem.topicIndex ?? parsed.topicIndex ?? 0,
+                topicCount: matchedItem.topicCount ?? parsed.topicCount ?? 1,
+                lessonTitle: matchedItem.lessonTitle,
+                moduleTitle: matchedItem.moduleTitle,
+              };
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // 2. First uncompleted topic or lesson
+    const firstUnfinishedIdx = flatList.findIndex((item) => !completedItems.has(itemKey(item)));
+    if (firstUnfinishedIdx >= 0) {
+      const item = flatList[firstUnfinishedIdx];
+      return {
+        item,
+        index: firstUnfinishedIdx,
+        topicTitle: item.topicTitle || item.lessonTitle,
+        topicIndex: item.topicIndex ?? 0,
+        topicCount: item.topicCount ?? 1,
+        lessonTitle: item.lessonTitle,
+        moduleTitle: item.moduleTitle,
+      };
+    }
+
+    // 3. If all completed, first item
+    if (flatList.length > 0) {
+      const item = flatList[0];
+      return {
+        item,
+        index: 0,
+        topicTitle: item.topicTitle || item.lessonTitle,
+        topicIndex: item.topicIndex ?? 0,
+        topicCount: item.topicCount ?? 1,
+        lessonTitle: item.lessonTitle,
+        moduleTitle: item.moduleTitle,
+      };
+    }
+
+    return null;
+  }, [course, flatList, learningLanguage, completedItems]);
+
   if (loading) {
     return <CourseViewSkeleton />;
   }
@@ -994,23 +1128,62 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            {course.modules.some((m) => isModuleCompleted(m.id)) && (
+            {resumeTarget && (
               <Button
                 onClick={() => {
-                  const firstUnfinished = flatList.findIndex((item) => !completedItems.has(itemKey(item)));
-                  const targetIdx = firstUnfinished >= 0 ? firstUnfinished : 0;
-                  setCurrentItemIndex(targetIdx);
-                  setSelectedModuleId(flatList[targetIdx].moduleId);
+                  setCurrentItemIndex(resumeTarget.index);
+                  setSelectedModuleId(resumeTarget.item.moduleId);
                   setViewMode("study");
                 }}
                 className="gap-2 font-medium shadow-xs"
               >
-                <Play className="h-4 w-4" />
-                {t("resumeLearning") || "Resume Course"}
+                <Play className="h-4 w-4 fill-current" />
+                <span>{t("continueFromLastTopic") || t("resumeLearning") || "Continue from Last Topic"}</span>
               </Button>
             )}
           </div>
         </div>
+
+        {/* Continue from Last Topic Card */}
+        {resumeTarget && (
+          <div className="rounded-[22px] border border-primary/25 bg-gradient-to-r from-primary/10 via-primary/5 to-card p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1.5 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/20 text-primary-readable">
+                  <BookMarked className="w-3.5 h-3.5" />
+                  {t("continueFromLastTopic") || "Continue from Last Topic"}
+                </span>
+                {resumeTarget.topicCount > 1 && (
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Topic {resumeTarget.topicIndex + 1} of {resumeTarget.topicCount}
+                  </span>
+                )}
+              </div>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground truncate">
+                {resumeTarget.topicTitle}
+              </h2>
+              <p className="text-xs text-muted-foreground truncate">
+                <span className="font-semibold text-foreground/80">{resumeTarget.moduleTitle}</span>
+                {resumeTarget.lessonTitle && ` · ${resumeTarget.lessonTitle}`}
+              </p>
+            </div>
+
+            <div className="shrink-0">
+              <Button
+                size="default"
+                onClick={() => {
+                  setCurrentItemIndex(resumeTarget.index);
+                  setSelectedModuleId(resumeTarget.item.moduleId);
+                  setViewMode("study");
+                }}
+                className="w-full sm:w-auto gap-2 px-5 rounded-xl font-semibold shadow-sm"
+              >
+                <Play className="h-4 w-4 fill-current" />
+                <span>{t("continueFromLastTopic") || "Continue from Last Topic"}</span>
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Modules Grid */}
         <div className="space-y-4">
@@ -1203,6 +1376,35 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               />
             </div>
           </div>
+
+          {/* Module-level Continue from Last Topic Action */}
+          {resumeTarget && resumeTarget.item.moduleId === currentModule.id && !isModuleCompleted(currentModule.id) && (
+            <div className="rounded-[16px] border border-primary/30 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5 min-w-0">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-primary-readable">
+                  {t("continueFromLastTopic") || "Continue from Last Topic"}
+                </span>
+                <p className="text-sm font-bold text-foreground truncate">
+                  {resumeTarget.topicTitle}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {resumeTarget.lessonTitle} · Topic {resumeTarget.topicIndex + 1} of {resumeTarget.topicCount}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setCurrentItemIndex(resumeTarget.index);
+                  setSelectedModuleId(resumeTarget.item.moduleId);
+                  setViewMode("study");
+                }}
+                className="gap-1.5 rounded-xl font-medium text-xs shrink-0"
+              >
+                <Play className="h-3.5 w-3.5 fill-current" />
+                <span>{t("continueFromLastTopic") || "Continue"}</span>
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Lessons List */}
@@ -1222,6 +1424,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               const isComplete = isLessonCompleted(lesson.id);
               const topics = parseTopics(lesson.topics);
               const calcLessonTime = lessonTime(lesson);
+              const completedTopicsInLesson = topics.filter((tp) =>
+                completedItems.has(`${lesson.id}:${tp.id}`)
+              ).length;
+              const isInProgress = !isComplete && isUnlocked && completedTopicsInLesson > 0;
 
               return (
                 <div
@@ -1264,6 +1470,11 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                               {t("completed") || "Completed"}
                             </span>
                           )}
+                          {isInProgress && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary-readable font-semibold">
+                              {t("inProgress") || "In Progress"} ({completedTopicsInLesson}/{topics.length})
+                            </span>
+                          )}
                           {!isUnlocked && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-1">
                               <Lock className="h-2.5 w-2.5" /> {t("completePreviousLessonToUnlock") || "Locked · Complete prior lesson"}
@@ -1295,8 +1506,14 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                             isComplete ? "bg-secondary text-secondary-foreground hover:bg-secondary/80" : ""
                           )}
                         >
-                          <Play className="h-3.5 w-3.5" />
-                          <span>{isComplete ? (t("reviewLesson") || "Review") : (t("startLesson") || "Start Lesson")}</span>
+                          <Play className="h-3.5 w-3.5 fill-current" />
+                          <span>
+                            {isComplete
+                              ? (t("reviewLesson") || "Review")
+                              : isInProgress
+                              ? (t("continueFromLastTopic") || "Continue Topic")
+                              : (t("startLesson") || "Start Lesson")}
+                          </span>
                         </Button>
                       ) : (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded-lg">

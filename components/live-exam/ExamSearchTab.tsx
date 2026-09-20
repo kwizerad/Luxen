@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   IdCard,
   Search,
@@ -8,6 +8,7 @@ import {
   BookOpen,
   Wrench,
   AlertCircle,
+  UserCheck,
 } from "lucide-react";
 import CodeItem from "./CodeItem";
 import { useLanguage } from "@/lib/language-context";
@@ -18,6 +19,7 @@ import type {
 
 interface ExamSearchTabProps {
   resultCache: Record<string, ExamResultDetails>;
+  verifiedNationalId?: string | null;
   onViewResult: (code: string) => void;
   onCopy: (text: string) => void;
   onResultsLoaded: (results: Record<string, ExamResultDetails>) => void;
@@ -55,21 +57,27 @@ function setCachedExamData(id: string, data: CodesResponse): void {
   }
 }
 
-
 export default function ExamSearchTab({
   resultCache,
+  verifiedNationalId,
   onViewResult,
   onCopy,
   onResultsLoaded,
 }: ExamSearchTabProps) {
   const { t } = useLanguage();
-  const [nationalId, setNationalId] = useState("");
+  const [nationalId, setNationalId] = useState(verifiedNationalId || "");
   const [loading, setLoading] = useState(false);
   const [showCodes, setShowCodes] = useState(false);
   const [codesLoading, setCodesLoading] = useState(false);
   const [theoryCodes, setTheoryCodes] = useState<string[]>([]);
   const [practicalCodes, setPracticalCodes] = useState<string[]>([]);
   const [noCodesMessage, setNoCodesMessage] = useState(false);
+
+  useEffect(() => {
+    if (verifiedNationalId) {
+      setNationalId(verifiedNationalId);
+    }
+  }, [verifiedNationalId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,6 +208,20 @@ export default function ExamSearchTab({
 
   return (
     <div>
+      {verifiedNationalId && (
+        <div className="mb-4 flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs">
+          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+            <UserCheck className="h-4 w-4 shrink-0" />
+            <span className="font-semibold">
+              {t("verifiedCandidate") || "Verified Candidate Account"}
+            </span>
+          </div>
+          <span className="font-mono font-bold text-foreground">
+            {verifiedNationalId}
+          </span>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label className="mb-1.5 block text-sm font-bold text-muted-foreground">
@@ -213,7 +235,7 @@ export default function ExamSearchTab({
             onChange={(e) => setNationalId(e.target.value)}
             placeholder={t("liveExamIdPlaceholder")}
             required
-            className="w-full rounded-xl border bg-card px-3.5 py-3 text-[15px] transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/12"
+            className="w-full rounded-xl border bg-card px-3.5 py-3 text-[15px] transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/12 font-mono"
           />
         </div>
         <button

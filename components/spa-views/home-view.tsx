@@ -48,6 +48,7 @@ import { createClient } from "@/lib/supabase/client";
 import { HomeViewSkeleton } from "@/components/skeletons";
 import { formatDistanceToNow } from "date-fns";
 import type { UserProfile } from "@/lib/database.types";
+import { VerifyIdModal } from "@/components/verify-id-modal";
 
 interface HomeViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -132,7 +133,38 @@ export function HomeView({ navigate }: HomeViewProps) {
     wins: 0,
   });
   const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
+  const [showVerifyIdModal, setShowVerifyIdModal] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [localLastTopic, setLocalLastTopic] = useState<{
+    moduleId?: string;
+    moduleTitle?: string;
+    lessonId?: string;
+    lessonTitle?: string;
+    topicId?: string;
+    topicTitle?: string;
+    topicIndex?: number;
+    topicCount?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const readLocalLastTopic = () => {
+      try {
+        const raw =
+          localStorage.getItem("luxen_last_topic_global") ||
+          (interfaceLanguage ? localStorage.getItem(`luxen_last_topic_${interfaceLanguage}`) : null);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object") {
+            setLocalLastTopic(parsed);
+          }
+        }
+      } catch {}
+    };
+
+    readLocalLastTopic();
+    window.addEventListener("focus", readLocalLastTopic);
+    return () => window.removeEventListener("focus", readLocalLastTopic);
+  }, [interfaceLanguage]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -944,7 +976,7 @@ export function HomeView({ navigate }: HomeViewProps) {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => navigate("settings")}
+                    onClick={() => setShowVerifyIdModal(true)}
                     className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground bg-muted/60 px-2.5 py-0.5 rounded-full transition-colors"
                   >
                     + {t("unverifiedCandidate") || "Add National ID"}
@@ -1093,7 +1125,7 @@ export function HomeView({ navigate }: HomeViewProps) {
                   </div>
 
                   <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground mb-1">
-                    {continueData?.moduleTitle || t("theoryCourse") || "Theory Curriculum"}
+                    {localLastTopic?.moduleTitle || continueData?.moduleTitle || t("theoryCourse") || "Theory Curriculum"}
                   </h2>
                   <p className="text-xs text-muted-foreground mb-4">
                     {stats ? `${stats.lessonsCompleted} of ${stats.totalLessons} lessons completed` : t("loading")}
@@ -1107,14 +1139,27 @@ export function HomeView({ navigate }: HomeViewProps) {
                     />
                   </div>
 
-                  {/* Active Lesson status */}
-                  <div className="p-3 rounded-xl bg-muted/40 border border-border/50 mb-4">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                      Next Step
+                  {/* Active Lesson & Topic status */}
+                  <div className="p-3.5 rounded-xl bg-muted/40 border border-border/50 mb-4 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                        {localLastTopic?.topicTitle || continueData?.topicTitle ? (t("lastActiveTopic") || "Current Topic") : "Next Step"}
+                      </span>
+                      {(localLastTopic?.topicIndex !== undefined && localLastTopic.topicCount) ||
+                      (continueData?.topicIndex !== undefined && continueData.totalTopics) ? (
+                        <span className="text-[10px] font-semibold text-primary px-1.5 py-0.5 rounded-md bg-primary/10">
+                          Topic {(localLastTopic?.topicIndex ?? continueData?.topicIndex ?? 0) + 1}/{(localLastTopic?.topicCount ?? continueData?.totalTopics ?? 1)}
+                        </span>
+                      ) : null}
                     </div>
-                    <p className="text-xs font-semibold text-foreground truncate mt-0.5">
-                      {continueData?.lessonTitle || t("continueNextLesson") || "Continue to next lesson"}
+                    <p className="text-xs font-bold text-foreground truncate">
+                      {localLastTopic?.topicTitle || continueData?.topicTitle || localLastTopic?.lessonTitle || continueData?.lessonTitle || t("continueNextLesson") || "Continue to next lesson"}
                     </p>
+                    {(localLastTopic?.topicTitle || continueData?.topicTitle) && (
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {localLastTopic?.lessonTitle || continueData?.lessonTitle}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1123,16 +1168,25 @@ export function HomeView({ navigate }: HomeViewProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      if (continueData?.lessonId) {
-                        navigate("course", { lessonId: continueData.lessonId });
+                      const targetLessonId = localLastTopic?.lessonId || continueData?.lessonId;
+                      const targetTopicId = localLastTopic?.topicId || continueData?.topicId;
+                      const targetModuleId = localLastTopic?.moduleId || continueData?.moduleId;
+
+                      const navParams: Record<string, string> = {};
+                      if (targetLessonId) navParams.lesson = targetLessonId;
+                      if (targetTopicId) navParams.topic = targetTopicId;
+                      if (targetModuleId) navParams.module = targetModuleId;
+
+                      if (Object.keys(navParams).length > 0) {
+                        navigate("course", navParams);
                       } else {
                         navigate("course");
                       }
                     }}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs sm:text-sm hover:bg-primary/90 shadow-sm transition-all"
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs sm:text-sm hover:bg-primary/90 shadow-sm transition-all"
                   >
-                    <span>{t("continueLearning") || "Resume Lesson"}</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <Play className="w-4 h-4 fill-current" />
+                    <span>{t("continueFromLastTopic") || t("continueLearning") || "Continue from Last Topic"}</span>
                   </button>
                 </div>
               </div>
@@ -1387,6 +1441,26 @@ export function HomeView({ navigate }: HomeViewProps) {
           </div>
         </section>
       </div>
+
+      {/* ID Verification Modal */}
+      <VerifyIdModal
+        open={showVerifyIdModal}
+        onOpenChange={setShowVerifyIdModal}
+        initialNationalId={userProfile?.national_id || ""}
+        onSuccess={(citizen) => {
+          if (userProfile) {
+            setUserProfile({
+              ...userProfile,
+              national_id: citizen.nationalId,
+              first_name: citizen.firstName || userProfile.first_name,
+              last_name: citizen.lastName || userProfile.last_name,
+              full_name: citizen.fullName || userProfile.full_name,
+              birthdate: citizen.dateOfBirth || userProfile.birthdate,
+              avatar_url: citizen.photoUrl || userProfile.avatar_url,
+            });
+          }
+        }}
+      />
     </div>
   );
 }

@@ -8,9 +8,18 @@ export default function CourseRedirect() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const lessonId = searchParams.get("lesson");
-    if (lessonId) {
-      router.replace(`/dashboard#course?lesson=${lessonId}`);
+    const params = new URLSearchParams();
+    const lessonId = searchParams.get("lesson") || searchParams.get("lessonId");
+    const topicId = searchParams.get("topic") || searchParams.get("topicId");
+    const moduleId = searchParams.get("module") || searchParams.get("moduleId");
+
+    if (lessonId) params.set("lesson", lessonId);
+    if (topicId) params.set("topic", topicId);
+    if (moduleId) params.set("module", moduleId);
+
+    const queryString = params.toString();
+    if (queryString) {
+      router.replace(`/dashboard#course?${queryString}`);
     } else {
       router.replace("/dashboard#course");
     }
