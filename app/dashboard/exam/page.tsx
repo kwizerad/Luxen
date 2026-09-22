@@ -1547,76 +1547,82 @@ export default function TakeExamPage() {
                 }
               }
             }}
-            className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="mb-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-100 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" />
-            {t("back") || t("backToDashboard") || "Back"}
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>{t("back") || t("backToDashboard") || "Back"}</span>
           </button>
 
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold mb-2">{t("selectExamCategory") || "Select Exam Category"}</h1>
-            <p className="text-muted-foreground">{t("chooseCategoryToStart") || "Choose a category to start your individual exam"}</p>
+          <div className="mb-6 space-y-1">
+            <div className="text-[11px] font-mono tracking-wider text-zinc-400 lowercase">
+              categories · traffic curriculum modules
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-100">{t("selectExamCategory") || "Select Exam Category"}</h1>
+            <p className="text-xs sm:text-sm text-zinc-400">{t("chooseCategoryToStart") || "Choose a category to start your individual exam"}</p>
           </div>
 
           {/* Categories */}
           {loadingCategories ? (
             <ExamCategorySkeleton count={6} />
           ) : categories.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <p className="text-muted-foreground">{t("noCategoriesAvailable") || "No exam categories available"}</p>
+            <div className="text-center py-12 rounded-xl border border-zinc-800 bg-zinc-900/30">
+              <FileText className="h-10 w-10 text-zinc-600 mx-auto mb-3" />
+              <p className="text-xs text-zinc-400">{t("noCategoriesAvailable") || "No exam categories available"}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {categories.map((category) => (
-                <Card 
+                <div 
                   key={category.id}
-                  className="cursor-pointer hover:shadow-lg transition-all hover:scale-105 border-2 hover:border-primary rounded-[14px] sm:rounded-[24px]"
+                  className="cursor-pointer transition-colors rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900/80 hover:border-zinc-700 p-4 sm:p-5 flex flex-col justify-between group shadow-none"
                   onClick={() => {
                     setCategoryId(category.id);
                     setShowInstructions(true);
                     setInstructionsAccepted(false);
                   }}
                 >
-                  <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                        <FileText className="h-4 w-4" />
                       </div>
-                      <Badge variant="secondary" className="bg-primary/10 text-primary text-[10px] sm:text-xs">
+                      <span className="text-[10px] font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2 py-0.5 rounded">
                         {t("available") || "Available"}
-                      </Badge>
+                      </span>
                     </div>
-                    <CardTitle className="text-base sm:text-lg font-bold">{category.name}</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm line-clamp-2">
-                      {category.description || t("examCategoryDescription") || "Take exam in this category"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-                    <div className="space-y-2 mb-4 pt-1">
-                      <div className="flex items-center justify-between text-xs sm:text-sm">
-                        <span className="text-muted-foreground flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5 text-primary" />
-                          {t("examDurationLabel") || "Exam Time"}
-                        </span>
-                        <span className="font-semibold">
-                          {category.duration_minutes ? `${category.duration_minutes} ${t("minutes") || "min"}` : `20 ${t("minutes") || "min"}`}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs sm:text-sm">
-                        <span className="text-muted-foreground flex items-center gap-1.5">
-                          <Hash className="h-3.5 w-3.5 text-primary" />
-                          {t("examQuestionsLabel") || "Questions"}
-                        </span>
-                        <span className="font-semibold">{category.question_count ?? 20}</span>
-                      </div>
+                    
+                    <div className="space-y-1">
+                      <h3 className="text-sm sm:text-base font-bold text-zinc-100 group-hover:text-emerald-400 transition-colors">{category.name}</h3>
+                      <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
+                        {category.description || t("examCategoryDescription") || "Take exam in this category"}
+                      </p>
                     </div>
-                    <Button className="w-full" variant="outline" size="sm">
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-zinc-800/80 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 text-zinc-500" />
+                        {t("examDurationLabel") || "Exam Time"}
+                      </span>
+                      <span className="font-mono text-zinc-200">
+                        {category.duration_minutes ? `${category.duration_minutes} ${t("minutes") || "min"}` : `20 ${t("minutes") || "min"}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                      <span className="flex items-center gap-1.5">
+                        <Hash className="h-3.5 w-3.5 text-zinc-500" />
+                        {t("examQuestionsLabel") || "Questions"}
+                      </span>
+                      <span className="font-mono text-zinc-200">{category.question_count ?? 20}</span>
+                    </div>
+
+                    <Button className="w-full h-8 sm:h-9 text-xs font-semibold bg-zinc-800 hover:bg-emerald-600 hover:text-white text-zinc-200 border border-zinc-700/60 rounded-lg shadow-none transition-colors" size="sm">
                       {t("select") || "Select"}
                     </Button>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
           )}
