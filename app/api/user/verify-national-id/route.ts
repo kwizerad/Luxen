@@ -3,10 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchCitizenFullDetails, type CitizenFullProfile } from "@/lib/live-exam/irembo";
 import { saveNationalIdRecord } from "@/lib/live-exam/save-record";
-import { isPrimaryAdmin } from "@/lib/permissions";
 
 interface VerifyIdBody {
   national_id?: string;
+  verification_type?: "name" | "dob";
+  verification_value?: string;
+  name?: string;
   first_name?: string;
   last_name?: string;
   dob?: string;
@@ -66,25 +68,32 @@ function levenshteinDistance(a: string, b: string): number {
   return dp[m][n];
 }
 
-function checkNameMatch(inputName: string, citizen: CitizenFullProfile): boolean {
+function checkSingleNameMatch(
+  inputName: string,
+  citizen: CitizenFullProfile,
+  existingNames: (string | null | undefined)[] = []
+): boolean {
   const cleanInput = (inputName || "").trim();
   if (!cleanInput) return false;
 
   const inputNorm = normalizeText(cleanInput);
   if (inputNorm.length < 2) return false;
 
-  const docFull = [
+  const allNamesList = [
     citizen.firstName,
     citizen.lastName,
     citizen.middleName,
     citizen.fullName,
+    ...existingNames,
   ]
     .filter(Boolean)
     .join(" ");
 
-  const docFullNorm = normalizeText(docFull);
+  if (!allNamesList.trim()) return false;
+
+  const docFullNorm = normalizeText(allNamesList);
   if (docFullNorm && (docFullNorm.includes(inputNorm) || inputNorm.includes(docFullNorm))) {
-    return true;
+    if (inputNorm.length >= 3) return true;
   }
 
   const inputTokens = cleanInput
@@ -92,10 +101,12 @@ function checkNameMatch(inputName: string, citizen: CitizenFullProfile): boolean
     .map(normalizeText)
     .filter((t) => t.length >= 2);
 
-  const docTokens = docFull
+  const docTokens = allNamesList
     .split(/[\s,.-]+/)
     .map(normalizeText)
     .filter((t) => t.length >= 2);
+
+  if (inputTokens.length === 0 || docTokens.length === 0) return false;
 
   for (const inTok of inputTokens) {
     for (const docTok of docTokens) {
@@ -111,21 +122,32 @@ function checkNameMatch(inputName: string, citizen: CitizenFullProfile): boolean
   return false;
 }
 
-function checkDobMatch(inputDob: string, citizen: CitizenFullProfile, cleanId: string): boolean {
+function checkDobMatch(
+  inputDob: string,
+  citizen: CitizenFullProfile,
+  cleanId: string,
+  existingBirthdate?: string | null
+): boolean {
   const cleanInput = (inputDob || "").trim();
   if (!cleanInput) return false;
 
   const inputDates = parseDates(cleanInput);
-  const docDates = parseDates(citizen.dateOfBirth);
+  const docDates = [
+    ...parseDates(citizen.dateOfBirth),
+    ...(existingBirthdate ? parseDates(existingBirthdate) : []),
+  ];
   const embeddedYear = citizen.embeddedBirthYear || (cleanId.length === 16 ? cleanId.substring(1, 5) : "");
+
+  if (docDates.length === 0 && !embeddedYear) return false;
 
   for (const inD of inputDates) {
     for (const docD of docDates) {
       if (inD === docD) return true;
       if (inD.length === 4 && docD.startsWith(inD)) return true;
     }
+    // Only match embeddedYear if year string matches exactly and is valid
     if (inD.length === 4 && embeddedYear && inD === embeddedYear) return true;
-    if (inD.startsWith(embeddedYear)) return true;
+    if (inD.startsWith(embeddedYear) && docDates.length === 0) return true;
   }
 
   return false;
@@ -153,9 +175,6 @@ export async function POST(request: NextRequest) {
 
   const rawId = body.national_id || "";
   const cleanId = rawId.trim().replace(/\D/g, "");
-  const firstName = (body.first_name || "").trim();
-  const lastName = (body.last_name || "").trim();
-  const dob = (body.dob || "").trim();
 
   if (!cleanId || cleanId.length !== 16) {
     return NextResponse.json(
@@ -164,9 +183,34 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!firstName && !lastName && !dob) {
+  // Determine verification method: Single Name or Date of Birth alone
+  let verificationType: "name" | "dob" = body.verification_type || "name";
+  let nameValue = (body.name || body.verification_value || body.first_name || body.last_name || "").trim();
+  let dobValue = (body.dob || (body.verification_type === "dob" ? body.verification_value : "") || "").trim();
+
+  // If verification_value was sent without explicit type, check if it looks like a date
+  if (!body.verification_type && body.verification_value) {
+    if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(body.verification_value) || /^\d{1,2}[-/.]\d{1,2}[-/.]\d{4}$/.test(body.verification_value) || /^\d{4}$/.test(body.verification_value)) {
+      verificationType = "dob";
+      dobValue = body.verification_value;
+    } else {
+      verificationType = "name";
+      nameValue = body.verification_value;
+    }
+  } else if (body.dob && !body.name && !body.first_name && !body.last_name && !body.verification_value) {
+    verificationType = "dob";
+  }
+
+  if (verificationType === "dob" && !dobValue) {
     return NextResponse.json(
-      { error: "Please provide your First Name, Last Name, and Date of Birth to verify your ID." },
+      { error: "Please provide your Date of Birth as it appears on your National ID." },
+      { status: 400 }
+    );
+  }
+
+  if (verificationType === "name" && !nameValue) {
+    return NextResponse.json(
+      { error: "Please provide either your First Name or Last Name to verify your ID." },
       { status: 400 }
     );
   }
@@ -201,7 +245,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Reset attempt record if lockout has passed or last fail was over 15 mins ago
-    if (attemptRecord && (attemptRecord.lockedUntil && attemptRecord.lockedUntil <= now || now - attemptRecord.lastFailedAt > LOCKOUT_DURATION_MS)) {
+    if (
+      attemptRecord &&
+      ((attemptRecord.lockedUntil && attemptRecord.lockedUntil <= now) ||
+        now - attemptRecord.lastFailedAt > LOCKOUT_DURATION_MS)
+    ) {
       verificationAttemptsMap.delete(userAttemptKey);
       attemptRecord = undefined;
     }
@@ -211,7 +259,7 @@ export async function POST(request: NextRequest) {
     // Check if this National ID is already registered to ANOTHER user profile
     const { data: existingUser } = await adminSupabase
       .from("user_profiles")
-      .select("id, email, full_name")
+      .select("id, email, full_name, first_name, last_name, birthdate, avatar_url")
       .eq("national_id", cleanId)
       .neq("id", user.id)
       .maybeSingle();
@@ -225,34 +273,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Query Irembo APIs for full citizen profile
+    // Query Irembo / Police / Theory Exam APIs for official citizen profile
     const citizen = await fetchCitizenFullDetails(cleanId);
 
-    const hasAnyDoc =
+    // Also check if current user or national_id_records has existing record
+    const { data: existingRecord } = await adminSupabase
+      .from("national_id_records")
+      .select("national_id, user_name, user_email, is_verified")
+      .eq("national_id", cleanId)
+      .maybeSingle();
+
+    const { data: currentProfile } = await adminSupabase
+      .from("user_profiles")
+      .select("id, full_name, first_name, last_name, birthdate")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const hasOfficialRecord =
       citizen.hasOfficialRecord ||
       Boolean(citizen.firstName) ||
       Boolean(citizen.lastName) ||
-      Boolean(citizen.dateOfBirth) ||
-      Boolean(citizen.fullName);
+      Boolean(existingRecord?.user_name);
 
-    // Matching logic
-    const firstNameMatch = firstName ? checkNameMatch(firstName, citizen) : false;
-    const lastNameMatch = lastName ? checkNameMatch(lastName, citizen) : false;
-    const fullNameMatch =
-      firstName && lastName ? checkNameMatch(`${firstName} ${lastName}`, citizen) : false;
-    const dobMatch = dob ? checkDobMatch(dob, citizen, cleanId) : false;
-
-    // Check if at least some of the data matches
-    const isMatching =
-      (firstNameMatch && lastNameMatch) ||
-      fullNameMatch ||
-      ((firstNameMatch || lastNameMatch) && dobMatch) ||
-      (dobMatch && (Boolean(firstName) || Boolean(lastName))) ||
-      firstNameMatch ||
-      lastNameMatch;
-
-    if (!hasAnyDoc || !isMatching) {
-      // Record failed attempt
+    const helperRecordFailed = () => {
       const currentAttempts = (attemptRecord?.failedCount || 0) + 1;
       const remainingAttempts = Math.max(0, MAX_VERIFICATION_ATTEMPTS - currentAttempts);
       const isLockedNow = remainingAttempts === 0;
@@ -265,12 +308,69 @@ export async function POST(request: NextRequest) {
         lockedUntil: lockedUntilTime,
       });
 
+      return { remainingAttempts, isLockedNow, lockedUntilTime };
+    };
+
+    // If ID doesn't exist in official registry or database, REJECT immediately!
+    if (!hasOfficialRecord) {
+      const { remainingAttempts, isLockedNow, lockedUntilTime } = helperRecordFailed();
+
       if (isLockedNow) {
         return NextResponse.json(
           {
             success: false,
             error:
-              "The entered information (Name, Date of Birth) does not match the official National ID records from Irembo. You have used all 3 attempts. Please wait 15 minutes before trying again.",
+              "National ID was not found in the official registry. You have used all 3 attempts. Please wait 15 minutes before trying again.",
+            attempts_remaining: 0,
+            locked: true,
+            locked_until: lockedUntilTime,
+          },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: `National ID was not found in the official registry. Please check your 16-digit ID. (${remainingAttempts} ${remainingAttempts === 1 ? "attempt" : "attempts"} remaining)`,
+          attempts_remaining: remainingAttempts,
+          locked: false,
+        },
+        { status: 404 }
+      );
+    }
+
+    // Check verification using either Single Name OR DOB
+    let isMatching = false;
+    let mismatchMessage = "";
+
+    if (verificationType === "name") {
+      const existingNames = [
+        existingRecord?.user_name,
+        currentProfile?.full_name,
+        currentProfile?.first_name,
+        currentProfile?.last_name,
+      ];
+      isMatching = checkSingleNameMatch(nameValue, citizen, existingNames);
+      if (!isMatching) {
+        mismatchMessage = "The name you entered does not match the official names on this National ID. Please try again.";
+      }
+    } else {
+      // DOB alone verification
+      isMatching = checkDobMatch(dobValue, citizen, cleanId, currentProfile?.birthdate);
+      if (!isMatching) {
+        mismatchMessage = "The date of birth does not match this National ID. Please try again.";
+      }
+    }
+
+    if (!isMatching) {
+      const { remainingAttempts, isLockedNow, lockedUntilTime } = helperRecordFailed();
+
+      if (isLockedNow) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `${mismatchMessage} You have used all 3 attempts. Please wait 15 minutes before trying again.`,
             attempts_remaining: 0,
             locked: true,
             locked_until: lockedUntilTime,
@@ -282,7 +382,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `The entered information (Name, Date of Birth) does not match the official National ID records from Irembo. You have ${remainingAttempts} ${remainingAttempts === 1 ? "attempt" : "attempts"} remaining.`,
+          error: `${mismatchMessage} (${remainingAttempts} ${remainingAttempts === 1 ? "attempt" : "attempts"} remaining)`,
           attempts_remaining: remainingAttempts,
           locked: false,
         },
@@ -293,19 +393,26 @@ export async function POST(request: NextRequest) {
     // Success: Match verified! Clear failed attempts
     verificationAttemptsMap.delete(userAttemptKey);
 
-    const resolvedFirstName = citizen.firstName || firstName;
-    const resolvedLastName = citizen.lastName || lastName;
+    const resolvedFirstName = citizen.firstName || currentProfile?.first_name || (nameValue ? nameValue.split(" ")[0] : "");
+    const resolvedLastName = citizen.lastName || currentProfile?.last_name || (nameValue ? nameValue.split(" ").slice(1).join(" ") : "");
     const resolvedFullName =
-      citizen.fullName || [resolvedFirstName, resolvedLastName].filter(Boolean).join(" ");
+      citizen.fullName ||
+      existingRecord?.user_name ||
+      currentProfile?.full_name ||
+      [resolvedFirstName, resolvedLastName].filter(Boolean).join(" ");
+
     const resolvedBirthdate =
       citizen.dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(citizen.dateOfBirth)
         ? citizen.dateOfBirth
-        : dob && /^\d{4}-\d{2}-\d{2}$/.test(dob)
-        ? dob
+        : dobValue && /^\d{4}-\d{2}-\d{2}$/.test(dobValue)
+        ? dobValue
+        : citizen.embeddedBirthYear
+        ? `${citizen.embeddedBirthYear}-01-01`
         : undefined;
 
     const profileUpdates: Record<string, any> = {
       national_id: cleanId,
+      is_id_verified: true,
       updated_at: new Date().toISOString(),
     };
 
@@ -332,7 +439,12 @@ export async function POST(request: NextRequest) {
       console.error("Error updating user profile:", updateError);
     }
 
-    // Update user auth metadata
+    // Update user auth metadata (safely avoiding large base64 data URIs)
+    const safeMetaAvatarUrl =
+      citizen.photoUrl && !citizen.photoUrl.startsWith("data:")
+        ? citizen.photoUrl
+        : user.user_metadata?.avatar_url;
+
     try {
       await adminSupabase.auth.admin.updateUserById(user.id, {
         user_metadata: {
@@ -342,7 +454,7 @@ export async function POST(request: NextRequest) {
           first_name: resolvedFirstName || user.user_metadata?.first_name,
           last_name: resolvedLastName || user.user_metadata?.last_name,
           full_name: resolvedFullName || user.user_metadata?.full_name,
-          avatar_url: citizen.photoUrl || user.user_metadata?.avatar_url,
+          avatar_url: safeMetaAvatarUrl || null,
           birthdate: resolvedBirthdate || user.user_metadata?.birthdate,
         },
       });

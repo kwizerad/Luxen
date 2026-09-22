@@ -440,8 +440,8 @@ export async function fetchCitizenFullDetails(
     }
   }
 
-  // Fallback date of birth to embedded birth year if exact DOB is absent
-  if (!profile.dateOfBirth && profile.embeddedBirthYear) {
+  // Fallback date of birth to embedded birth year only if official record actually exists
+  if (!profile.dateOfBirth && profile.embeddedBirthYear && profile.hasOfficialRecord) {
     profile.dateOfBirth = profile.embeddedBirthYear;
   }
 
