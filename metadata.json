@@ -1,0 +1,8 @@
+{
+  "name": "Luxen",
+  "description": "A modern learning and exam platform with courses, live driving exams, classmate collaboration, and administrative portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
