@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   ArrowLeft,
   FileText,
@@ -12,10 +12,24 @@ import {
   ChevronRight,
   AlertTriangle,
   ShieldAlert,
-  UserX,
   Users,
   User,
-  Layers
+  Layers,
+  FolderCheck,
+  FolderX,
+  FolderArchive,
+  FolderOpen,
+  FileCheck2,
+  FileX2,
+  FileWarning,
+  Calendar,
+  Sparkles,
+  LayoutGrid,
+  List,
+  Search,
+  ArrowRight,
+  Award,
+  Timer,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
@@ -48,6 +62,8 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   const [attempts, setAttempts] = useState<ExamAttemptWithAnswers[]>(cached?.attempts || []);
   const [ongoingChallenges, setOngoingChallenges] = useState<any[]>(cached?.ongoingChallenges || []);
   const [activeTab, setActiveTab] = useState<HistoryTab>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedAttempt, setSelectedAttempt] = useState<ExamAttemptWithAnswers | null>(null);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
 
@@ -287,12 +303,23 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   const individualAttempts = attempts.filter((a) => !a.challenge_id);
   const groupAttempts = attempts.filter((a) => !!a.challenge_id);
 
-  const displayedAttempts =
+  const baseAttempts =
     activeTab === "individual"
       ? individualAttempts
       : activeTab === "group"
       ? groupAttempts
       : attempts;
+
+  const displayedAttempts = useMemo(() => {
+    if (!searchQuery.trim()) return baseAttempts;
+    const q = searchQuery.toLowerCase().trim();
+    return baseAttempts.filter(
+      (a) =>
+        (a.category_name || "").toLowerCase().includes(q) ||
+        (a.submission_reason || "").toLowerCase().includes(q) ||
+        (a.violation_summary || "").toLowerCase().includes(q)
+    );
+  }, [baseAttempts, searchQuery]);
 
   if (loading) {
     return <ExamHistorySkeleton />;
@@ -333,7 +360,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   const passedCount = validCompletedAttempts.filter((a) => (a.score_percentage || 0) >= 50).length;
 
   return (
-    <div className="min-h-[calc(100vh-80px)] max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 pb-24 animate-in fade-in duration-200">
+    <div className="min-h-[calc(100vh-80px)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 pb-24 animate-in fade-in duration-200">
       {/* Top Bar Header */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
@@ -345,18 +372,59 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             <span>{t("back") || t("backToHome") || "Back"}</span>
           </button>
           <span className="text-[11px] font-mono tracking-wider text-zinc-400 lowercase hidden sm:inline-block">
-            telemetry · exam records
+            telemetry · exam archive vaults
           </span>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="text-[11px] font-mono tracking-wider text-zinc-400 lowercase">
-              performance ledger · history
+            <div className="text-[11px] font-mono tracking-wider text-zinc-400 lowercase flex items-center gap-1.5">
+              <FolderArchive className="h-3.5 w-3.5 text-zinc-400" />
+              <span>performance ledger · exam dossier archive</span>
             </div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-zinc-100">
-              {t("examHistory") || "Exam History"}
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-zinc-100 mt-0.5">
+              {t("examHistory") || "Exam History Archive"}
             </h1>
+          </div>
+
+          {/* Search and Grid / List Switcher */}
+          <div className="flex items-center gap-2 self-start sm:self-auto w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t("search") || "Search exam dossiers..."}
+                className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-zinc-900/70 border border-zinc-800 text-xs text-zinc-200 placeholder:text-zinc-400 focus:outline-hidden focus:border-zinc-600 font-mono transition-colors"
+              />
+            </div>
+            <div className="flex items-center p-1 bg-zinc-900/80 rounded-lg border border-zinc-800 shrink-0">
+              <button
+                onClick={() => setViewMode("grid")}
+                title="Grid View"
+                className={cn(
+                  "p-1.5 rounded-md text-xs transition-colors",
+                  viewMode === "grid"
+                    ? "bg-zinc-800 text-zinc-100 shadow-xs"
+                    : "text-zinc-400 hover:text-zinc-200"
+                )}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                title="List View"
+                className={cn(
+                  "p-1.5 rounded-md text-xs transition-colors",
+                  viewMode === "list"
+                    ? "bg-zinc-800 text-zinc-100 shadow-xs"
+                    : "text-zinc-400 hover:text-zinc-200"
+                )}
+              >
+                <List className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -364,19 +432,31 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
       {/* Bento Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3.5 sm:p-4 space-y-1">
-          <div className="text-[10px] font-mono text-zinc-400 lowercase">total attempts</div>
+          <div className="text-[10px] font-mono text-zinc-400 lowercase flex items-center gap-1">
+            <FolderOpen className="h-3 w-3 text-zinc-400" />
+            <span>total files</span>
+          </div>
           <div className="text-xl sm:text-2xl font-mono font-bold text-zinc-100">{attempts.length}</div>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3.5 sm:p-4 space-y-1">
-          <div className="text-[10px] font-mono text-zinc-400 lowercase">passed exams</div>
+          <div className="text-[10px] font-mono text-zinc-400 lowercase flex items-center gap-1">
+            <FolderCheck className="h-3 w-3 text-emerald-400" />
+            <span>passed dossiers</span>
+          </div>
           <div className="text-xl sm:text-2xl font-mono font-bold text-emerald-400">{passedCount}</div>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3.5 sm:p-4 space-y-1">
-          <div className="text-[10px] font-mono text-zinc-400 lowercase">avg score</div>
+          <div className="text-[10px] font-mono text-zinc-400 lowercase flex items-center gap-1">
+            <Award className="h-3 w-3 text-sky-400" />
+            <span>avg score</span>
+          </div>
           <div className="text-xl sm:text-2xl font-mono font-bold text-sky-400">{avgScore}%</div>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3.5 sm:p-4 space-y-1">
-          <div className="text-[10px] font-mono text-zinc-400 lowercase">group battles</div>
+          <div className="text-[10px] font-mono text-zinc-400 lowercase flex items-center gap-1">
+            <Users className="h-3 w-3 text-purple-400" />
+            <span>group battles</span>
+          </div>
           <div className="text-xl sm:text-2xl font-mono font-bold text-purple-400">{groupAttempts.length}</div>
         </div>
       </div>
@@ -393,7 +473,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           )}
         >
           <Layers className="h-3.5 w-3.5 shrink-0" />
-          <span>all</span>
+          <span>all dossiers</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-700/60 text-zinc-300">
             {attempts.length}
           </span>
@@ -410,7 +490,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             )}
           >
             <Clock className="h-3.5 w-3.5 shrink-0 animate-pulse text-amber-400" />
-            <span>ongoing</span>
+            <span>active sessions</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-900/60 text-amber-300 font-bold">
               {ongoingChallenges.length}
             </span>
@@ -427,7 +507,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           )}
         >
           <User className="h-3.5 w-3.5 shrink-0" />
-          <span>solo</span>
+          <span>solo practice</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-700/60 text-zinc-300">
             {individualAttempts.length}
           </span>
@@ -443,7 +523,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           )}
         >
           <Users className="h-3.5 w-3.5 shrink-0" />
-          <span>group</span>
+          <span>group battles</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-900/60 text-purple-300 font-bold">
             {groupAttempts.length}
           </span>
@@ -515,26 +595,228 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
       )}
 
       {activeTab !== "ongoing" && displayedAttempts.length === 0 ? (
-        <div className="py-12 text-center border border-dashed border-zinc-800 rounded-xl p-6 bg-zinc-950/30">
-          {activeTab === "group" ? (
-            <Users className="mx-auto mb-3 h-10 w-10 text-zinc-600" />
-          ) : (
-            <FileText className="mx-auto mb-3 h-10 w-10 text-zinc-600" />
-          )}
-          <p className="text-sm font-medium text-zinc-300">
-            {activeTab === "group"
-              ? (t("noGroupExamHistory") || "No group exams completed yet")
-              : activeTab === "individual"
-              ? (t("noIndividualExamHistory") || "No individual exams completed yet")
-              : (t("noExamHistory") || "No exam attempts found")}
+        <div className="py-16 text-center border border-dashed border-zinc-800 rounded-xl p-8 bg-zinc-950/30">
+          <FolderArchive className="mx-auto mb-3 h-12 w-12 text-zinc-600" />
+          <p className="text-base font-semibold text-zinc-200">
+            {searchQuery ? "No matching exam dossiers found" : activeTab === "group" ? (t("noGroupExamHistory") || "No group exams completed yet") : (t("noExamHistory") || "No exam attempts found")}
           </p>
-          <p className="mt-1 text-xs text-zinc-400 font-mono">
-            {activeTab === "group"
+          <p className="mt-1 text-xs text-zinc-400 font-mono max-w-sm mx-auto">
+            {searchQuery
+              ? `Try adjusting your query "${searchQuery}" or clear the search filter.`
+              : activeTab === "group"
               ? (t("noGroupExamHint") || "Challenge your classmates to a group exam to see results here.")
               : (t("noExamHistoryHint") || "Take an exam from the exams page to start recording your progress.")}
           </p>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="mt-4 px-3 py-1.5 rounded-lg text-xs font-mono bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors"
+            >
+              Clear Search Filter
+            </button>
+          )}
         </div>
-      ) : activeTab !== "ongoing" ? (
+      ) : activeTab !== "ongoing" && viewMode === "grid" ? (
+        /* Awesome Dossier Folder / File Grid */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+          {displayedAttempts.map((attempt) => {
+            const isPassed = attempt.score_percentage >= 50;
+            const answeredCount = (attempt.answers || []).filter((a) => a.selected_answer !== null).length;
+            const isAbandoned = attempt.status === "abandoned" || answeredCount === 0;
+            const isCheating = attempt.submission_reason === "cheating_violation";
+            const isAutoSubmitted =
+              attempt.submission_reason === "page_closed" ||
+              attempt.submission_reason === "time_expired" ||
+              isCheating;
+            const isGroup = !!attempt.challenge_id;
+            const scorePct = isAbandoned ? 0 : Math.max(0, Math.min(100, attempt.score_percentage || 0));
+
+            return (
+              <div
+                key={attempt.id}
+                onClick={() => handleReview(attempt)}
+                className={cn(
+                  "group relative flex flex-col justify-between rounded-xl border p-4 sm:p-5 text-left transition-all duration-200 cursor-pointer overflow-hidden",
+                  isCheating
+                    ? "border-orange-500/30 bg-gradient-to-b from-orange-950/25 to-zinc-900/80 hover:border-orange-500/60 hover:shadow-lg hover:shadow-orange-950/20"
+                    : isAbandoned
+                    ? "border-amber-500/30 bg-gradient-to-b from-amber-950/25 to-zinc-900/80 hover:border-amber-500/60 hover:shadow-lg hover:shadow-amber-950/20"
+                    : isGroup
+                    ? "border-purple-500/30 bg-gradient-to-b from-purple-950/25 to-zinc-900/80 hover:border-purple-500/60 hover:shadow-lg hover:shadow-purple-950/20"
+                    : isPassed
+                    ? "border-emerald-500/30 bg-gradient-to-b from-emerald-950/20 to-zinc-900/80 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-950/20"
+                    : "border-red-500/30 bg-gradient-to-b from-red-950/20 to-zinc-900/80 hover:border-red-500/50 hover:shadow-lg hover:shadow-red-950/20"
+                )}
+              >
+                {/* Folder Top Tab Badge & Status */}
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-transform group-hover:scale-105",
+                        isCheating
+                          ? "bg-orange-500/15 border-orange-500/30 text-orange-400"
+                          : isAbandoned
+                          ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
+                          : isGroup
+                          ? "bg-purple-500/15 border-purple-500/30 text-purple-400"
+                          : isPassed
+                          ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                          : "bg-red-500/15 border-red-500/30 text-red-400"
+                      )}
+                    >
+                      {isCheating ? (
+                        <ShieldAlert className="h-4.5 w-4.5" />
+                      ) : isAbandoned ? (
+                        <FileWarning className="h-4.5 w-4.5" />
+                      ) : isGroup ? (
+                        <FolderArchive className="h-4.5 w-4.5" />
+                      ) : isPassed ? (
+                        <FolderCheck className="h-4.5 w-4.5" />
+                      ) : (
+                        <FolderX className="h-4.5 w-4.5" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-mono tracking-wider uppercase text-zinc-400">
+                        {isGroup ? "group clash dossier" : "exam record file"}
+                      </div>
+                      <div className="text-[11px] font-mono text-zinc-400">
+                        {new Date(attempt.started_at || attempt.completed_at || "").toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric"
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Score Pill */}
+                  <div className="shrink-0 text-right">
+                    <div
+                      className={cn(
+                        "inline-flex items-center gap-1 font-mono font-bold text-xs px-2.5 py-1 rounded-md border",
+                        isAbandoned
+                          ? "bg-amber-950/40 border-amber-800/40 text-amber-400"
+                          : isCheating
+                          ? "bg-orange-950/40 border-orange-800/40 text-orange-400"
+                          : isPassed
+                          ? "bg-emerald-950/40 border-emerald-800/40 text-emerald-300"
+                          : "bg-red-950/40 border-red-800/40 text-red-300"
+                      )}
+                    >
+                      {isAbandoned ? "VOID" : `${attempt.score_percentage}%`}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Main Body */}
+                <div className="space-y-2.5 my-1">
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-100 group-hover:text-white transition-colors line-clamp-2">
+                      {attempt.category_name || "Official Driving Simulation Exam"}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {isGroup ? (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-950/50 border border-purple-800/50 text-purple-300 font-semibold lowercase flex items-center gap-1">
+                          <Users className="h-2.5 w-2.5" /> classroom battle
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800/80 border border-zinc-700/60 text-zinc-400 lowercase flex items-center gap-1">
+                          <User className="h-2.5 w-2.5" /> solo practice
+                        </span>
+                      )}
+                      <span
+                        className={cn(
+                          "text-[10px] font-mono px-2 py-0.5 rounded border lowercase",
+                          isAbandoned
+                            ? "bg-amber-950/30 border-amber-800/30 text-amber-400"
+                            : isCheating
+                            ? "bg-orange-950/30 border-orange-800/30 text-orange-400"
+                            : isPassed
+                            ? "bg-emerald-950/30 border-emerald-800/30 text-emerald-400"
+                            : "bg-red-950/30 border-red-800/30 text-red-400"
+                        )}
+                      >
+                        {isAbandoned ? "incomplete" : isPassed ? "passed" : "failed"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Visual Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="h-1.5 w-full rounded-full bg-zinc-800/80 overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500",
+                          isCheating
+                            ? "bg-orange-500"
+                            : isAbandoned
+                            ? "bg-amber-500"
+                            : isPassed
+                            ? "bg-emerald-500"
+                            : "bg-red-500"
+                        )}
+                        style={{ width: `${scorePct}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                      <span>
+                        {isAbandoned
+                          ? `${answeredCount}/${attempt.total_questions || 20} answered`
+                          : `${attempt.correct_answers ?? 0}/${attempt.total_questions || 20} correct`}
+                      </span>
+                      <span>{scorePct}%</span>
+                    </div>
+                  </div>
+
+                  {/* Violation Tag if needed */}
+                  {(() => {
+                    if (!isAutoSubmitted && !isCheating) return null;
+                    let reasonLabel = "";
+                    const sum = (attempt.violation_summary || "").toLowerCase();
+                    if (attempt.submission_reason === "time_expired") {
+                      reasonLabel = "Time expired";
+                    } else if (attempt.submission_reason === "page_closed") {
+                      reasonLabel = "Page closed early";
+                    } else if (isCheating) {
+                      if (sum.includes("tab_switch") || sum.includes("blur") || sum.includes("tab")) {
+                        reasonLabel = "Tab switch violation";
+                      } else if (sum.includes("fullscreen")) {
+                        reasonLabel = "Exited fullscreen";
+                      } else if (sum.includes("dev_tools") || sum.includes("inspect")) {
+                        reasonLabel = "DevTools inspection";
+                      } else {
+                        reasonLabel = "Security violation";
+                      }
+                    }
+                    if (!reasonLabel) return null;
+                    return (
+                      <div className="p-1.5 rounded-md bg-orange-950/40 border border-orange-800/40 text-[11px] font-mono text-orange-400 flex items-center gap-1.5">
+                        <ShieldAlert className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{reasonLabel}</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Card Footer Actions */}
+                <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs font-mono text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                  <div className="flex items-center gap-1.5">
+                    <Timer className="h-3 w-3 text-zinc-400" />
+                    <span>{attempt.duration_seconds != null ? formatDuration(attempt.duration_seconds) : "15m 00s"}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs font-semibold text-zinc-300 group-hover:text-primary transition-colors">
+                    <span>Inspect Dossier</span>
+                    <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : activeTab !== "ongoing" && viewMode === "list" ? (
+        /* Alternate List View */
         <div className="space-y-2.5">
           {displayedAttempts.map((attempt) => {
             const isPassed = attempt.score_percentage >= 50;
@@ -577,11 +859,13 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                   {isCheating ? (
                     <ShieldAlert className="h-5 w-5" />
                   ) : isAbandoned ? (
-                    <AlertTriangle className="h-5 w-5" />
+                    <FileWarning className="h-5 w-5" />
+                  ) : isGroup ? (
+                    <FolderArchive className="h-5 w-5" />
                   ) : isPassed ? (
-                    <CheckCircle2 className="h-5 w-5" />
+                    <FolderCheck className="h-5 w-5" />
                   ) : (
-                    <XCircle className="h-5 w-5" />
+                    <FolderX className="h-5 w-5" />
                   )}
                 </div>
 
@@ -608,41 +892,6 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                       </span>
                     )}
                   </div>
-
-                  {isAbandoned && !isCheating && !isAutoSubmitted && (
-                    <p className="text-xs text-amber-400 font-mono">
-                      {t("noQuestionsAnswered") || "No questions answered"}
-                    </p>
-                  )}
-                  {(() => {
-                    if (!isAutoSubmitted && !isCheating) return null;
-                    let reasonLabel = "";
-                    const sum = (attempt.violation_summary || "").toLowerCase();
-                    if (attempt.submission_reason === "time_expired") {
-                      reasonLabel = t("autoSubmittedTimeExpired") || "Auto-submitted: Time expired";
-                    } else if (attempt.submission_reason === "page_closed") {
-                      reasonLabel = t("autoSubmittedPageClosed") || "Auto-submitted: Page closed";
-                    } else if (isCheating) {
-                      if (sum.includes("tab_switch") || sum.includes("blur") || sum.includes("tab")) {
-                        reasonLabel = language === "rw" ? "Yatsinzwe ku ngufu: Guhindura paji" : language === "fr" ? "Soumission forcée : Changement d'onglet" : "Forced submission: Tab switching";
-                      } else if (sum.includes("fullscreen")) {
-                        reasonLabel = language === "rw" ? "Yatsinzwe ku ngufu: Gusohoka muri fullscreen" : language === "fr" ? "Soumission forcée : Sortie du plein écran" : "Forced submission: Exited fullscreen";
-                      } else if (sum.includes("dev_tools") || sum.includes("inspect")) {
-                        reasonLabel = language === "rw" ? "Yatsinzwe ku ngufu: Gufungura dev tools" : language === "fr" ? "Soumission forcée : Outils d'inspection" : "Forced submission: Developer tools";
-                      } else if (sum.includes("copy") || sum.includes("paste")) {
-                        reasonLabel = language === "rw" ? "Yatsinzwe ku ngufu: Gukoporora" : language === "fr" ? "Soumission forcée : Copier/Coller" : "Forced submission: Copy/paste";
-                      } else {
-                        reasonLabel = language === "rw" ? "Yatsinzwe ku ngufu: Umutekano w'ikizamini" : language === "fr" ? "Soumission forcée : Violation des règles" : "Forced submission: Security rule violation";
-                      }
-                    }
-                    if (!reasonLabel) return null;
-                    return (
-                      <p className="text-xs text-orange-400 font-mono inline-flex items-center gap-1.5">
-                        <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-                        <span>{reasonLabel}</span>
-                      </p>
-                    );
-                  })()}
                 </div>
 
                 <div className="text-right shrink-0">
