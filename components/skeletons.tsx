@@ -668,9 +668,9 @@ export function ExamHistorySkeleton() {
         ))}
       </div>
 
-      {/* 4 to 6 Columns Dossier Grid Skeleton */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2.5 sm:gap-3">
-        {Array.from({ length: 12 }).map((_, i) => (
+      {/* 5 Columns Dossier Grid Skeleton */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3">
+        {Array.from({ length: 10 }).map((_, i) => (
           <div
             key={i}
             className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 sm:p-3.5 flex flex-col justify-between space-y-3 min-h-[170px]"
@@ -939,13 +939,13 @@ export function HomeContinueLearningSkeleton() {
 }
 
 // ============================================================================
-// SERVICES VIEW SKELETON (Matches Bento Grid Layout)
+// SERVICES VIEW SKELETON (Matches 5-Column Grid Layout)
 // ============================================================================
 
 export function ServicesViewSkeleton() {
   return (
-    <div className="min-h-[calc(100vh-80px)] pb-32 px-3 sm:px-6 lg:px-8 py-4 sm:py-8 animate-in fade-in duration-200">
-      <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-6">
+    <div className="min-h-[calc(100vh-80px)] pb-32 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 animate-in fade-in duration-200">
+      <div className="w-full max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Navigation & Header */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
@@ -961,9 +961,9 @@ export function ServicesViewSkeleton() {
         </div>
 
         {/* Ongoing Active Exam Telemetry Banner */}
-        <div className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0 animate-pulse" />
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0 animate-pulse" />
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <div className="h-4 w-40 rounded bg-zinc-800/90 animate-pulse" />
@@ -975,30 +975,28 @@ export function ServicesViewSkeleton() {
           <div className="h-4 w-24 rounded bg-amber-500/20 animate-pulse" />
         </div>
 
-        {/* Bento Grid Services List (2 Columns) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-          {[0, 1, 2, 3].map((i) => (
+        {/* Bento Grid Services List (5 Columns) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3.5">
+          {[0, 1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-5 flex flex-col justify-between space-y-4"
+              className="rounded-xl border border-zinc-800/90 bg-zinc-900/50 p-3.5 sm:p-4 flex flex-col justify-between space-y-3 min-h-[160px]"
             >
-              <div className="space-y-3.5">
+              <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="space-y-1.5 flex-1">
-                    <div className="h-3 w-28 rounded bg-zinc-800/60 animate-pulse" />
-                    <div className="h-5 w-44 rounded bg-zinc-800/90 animate-pulse" />
-                  </div>
-                  <div className="h-10 w-10 rounded-lg bg-zinc-800/80 shrink-0 animate-pulse" />
+                  <div className="h-9 w-9 rounded-lg bg-zinc-800/80 shrink-0 animate-pulse" />
+                  <div className="h-4.5 w-16 rounded bg-zinc-800/60 animate-pulse" />
                 </div>
                 <div className="space-y-1.5">
-                  <div className="h-3.5 w-full rounded bg-zinc-800/50 animate-pulse" />
-                  <div className="h-3.5 w-3/4 rounded bg-zinc-800/40 animate-pulse" />
+                  <div className="h-3 w-24 rounded bg-zinc-800/50 animate-pulse" />
+                  <div className="h-4 w-32 rounded bg-zinc-800/90 animate-pulse" />
+                  <div className="h-3 w-full rounded bg-zinc-800/40 animate-pulse" />
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between">
-                <div className="h-3 w-24 rounded bg-zinc-800/60 animate-pulse" />
-                <div className="h-3.5 w-14 rounded bg-zinc-800/50 animate-pulse" />
+              <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex items-center justify-between">
+                <div className="h-3 w-16 rounded bg-zinc-800/50 animate-pulse" />
+                <div className="h-3.5 w-12 rounded bg-zinc-800/60 animate-pulse" />
               </div>
             </div>
           ))}

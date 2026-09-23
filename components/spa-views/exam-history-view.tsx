@@ -1172,7 +1172,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                   {!isCollapsed && (
                     <>
                       {viewMode === "grid" ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2.5 sm:gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3">
                           {group.items.map((attempt) => {
                             const isPassed = (attempt.score_percentage || 0) >= 50;
                             const answeredCount = (attempt.answers || []).filter(
