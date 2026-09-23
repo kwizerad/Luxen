@@ -46,6 +46,7 @@ import { ModuleExamRunner, type ExamType } from "@/components/module-exam-runner
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { loadCourseByLanguage } from "@/app/dashboard/actions/course";
+import { spaCache } from "@/lib/spa-cache";
 import {
   getStudentModuleProgress,
   getStudentLessonProgress,
@@ -405,14 +406,28 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       return;
     }
 
-    setLoading(true);
+    const cachedCourse = spaCache.get<CourseWithModules>(`spa_course_${selectedLanguage}`);
+    if (cachedCourse) {
+      setCourse(cachedCourse);
+      if (cachedCourse.modules.length > 0 && !selectedModuleId) {
+        setSelectedModuleId(cachedCourse.modules[0].id);
+      }
+      setLoading(false);
+      void loadProgress(cachedCourse);
+    } else {
+      setLoading(true);
+    }
+
     const { course } = await loadCourseByLanguage(selectedLanguage);
     if (!course) {
-      setCourse(null);
-      setLoading(false);
+      if (!cachedCourse) {
+        setCourse(null);
+        setLoading(false);
+      }
       return;
     }
 
+    spaCache.set(`spa_course_${selectedLanguage}`, course);
     setCourse(course);
     if (course.modules.length > 0 && !selectedModuleId) {
       setSelectedModuleId(course.modules[0].id);
@@ -1107,27 +1122,36 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // ─────────────────────────────────────────────────────────────────────────────
   if (viewMode === "modules") {
     return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="min-h-[calc(100vh-4rem)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-5 animate-in fade-in duration-200">
         {/* Course Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5">
-          <div className="space-y-1">
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
             <button
               onClick={() => navigate("back", { fallback: "home" })}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-1"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-100 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              {t("back") || t("backToHome") || "Back"}
+              <span>{t("back") || t("backToHome") || "Back"}</span>
             </button>
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-6 w-6 text-primary-readable shrink-0" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{course.title}</h1>
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              {course.modules.length} {t("modules") || "Modules"} · {formatMinutes(courseTime(course))} {t("totalEstimatedTime") || "total study time"}
-            </p>
+
+            <span className="text-[11px] font-mono tracking-wider text-zinc-400 lowercase hidden sm:inline-block">
+              curriculum · driving theory
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="text-[11px] font-mono tracking-wider text-zinc-400 lowercase">
+                official highway syllabus · rwanda
+              </div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-zinc-100">
+                {course.title}
+              </h1>
+              <p className="text-xs sm:text-sm text-zinc-400">
+                {course.modules.length} {t("modules") || "Modules"} · {formatMinutes(courseTime(course))} {t("totalEstimatedTime") || "total study time"}
+              </p>
+            </div>
+
             {resumeTarget && (
               <Button
                 onClick={() => {
@@ -1135,68 +1159,68 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   setSelectedModuleId(resumeTarget.item.moduleId);
                   setViewMode("study");
                 }}
-                className="gap-2 font-medium shadow-xs"
+                className="gap-2 font-semibold text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-none px-4 py-2 self-start sm:self-auto"
               >
-                <Play className="h-4 w-4 fill-current" />
-                <span>{t("continueFromLastTopic") || t("resumeLearning") || "Continue from Last Topic"}</span>
+                <Play className="h-3.5 w-3.5 fill-current" />
+                <span>{t("continueFromLastTopic") || t("resumeLearning") || "Resume Topic"}</span>
               </Button>
             )}
           </div>
         </div>
 
-        {/* Continue from Last Topic Card */}
+        {/* Continue from Last Topic Bento Card */}
         {resumeTarget && (
-          <div className="rounded-[22px] border border-primary/25 bg-gradient-to-r from-primary/10 via-primary/5 to-card p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-950/30 p-4 sm:p-5 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-none">
             <div className="space-y-1.5 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/20 text-primary-readable">
-                  <BookMarked className="w-3.5 h-3.5" />
-                  {t("continueFromLastTopic") || "Continue from Last Topic"}
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 lowercase">
+                  <BookMarked className="w-3 h-3" />
+                  <span>resume · last studied</span>
                 </span>
                 {resumeTarget.topicCount > 1 && (
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Topic {resumeTarget.topicIndex + 1} of {resumeTarget.topicCount}
+                  <span className="text-[11px] font-mono text-zinc-400">
+                    topic {resumeTarget.topicIndex + 1}/{resumeTarget.topicCount}
                   </span>
                 )}
               </div>
-              <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground truncate">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-zinc-100 truncate">
                 {resumeTarget.topicTitle}
               </h2>
-              <p className="text-xs text-muted-foreground truncate">
-                <span className="font-semibold text-foreground/80">{resumeTarget.moduleTitle}</span>
+              <p className="text-xs text-zinc-400 truncate">
+                <span className="font-semibold text-zinc-300">{resumeTarget.moduleTitle}</span>
                 {resumeTarget.lessonTitle && ` · ${resumeTarget.lessonTitle}`}
               </p>
             </div>
 
             <div className="shrink-0">
               <Button
-                size="default"
+                size="sm"
                 onClick={() => {
                   setCurrentItemIndex(resumeTarget.index);
                   setSelectedModuleId(resumeTarget.item.moduleId);
                   setViewMode("study");
                 }}
-                className="w-full sm:w-auto gap-2 px-5 rounded-xl font-semibold shadow-sm"
+                className="w-full sm:w-auto gap-2 px-4 py-2 rounded-lg font-semibold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-none"
               >
-                <Play className="h-4 w-4 fill-current" />
-                <span>{t("continueFromLastTopic") || "Continue from Last Topic"}</span>
+                <Play className="h-3.5 w-3.5 fill-current" />
+                <span>{t("continueFromLastTopic") || "Continue Learning"}</span>
               </Button>
             </div>
           </div>
         )}
 
         {/* Modules Grid */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-              {t("courseModules") || "Course Modules"}
-            </h2>
-            <span className="text-xs text-muted-foreground font-medium">
+            <span className="text-[11px] font-mono tracking-wide text-zinc-400 lowercase">
+              modules · structured curriculum
+            </span>
+            <span className="text-[11px] font-mono text-zinc-400 lowercase">
               {course.modules.length} {course.modules.length === 1 ? (t("module") || "Module") : (t("modules") || "Modules")}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {course.modules.map((module, modIdx) => {
               const isUnlocked = isModuleUnlocked(modIdx);
               const isComplete = isModuleCompleted(module.id);
@@ -1210,75 +1234,75 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   key={module.id}
                   onClick={() => isUnlocked && openModuleLessons(module.id)}
                   className={cn(
-                    "relative flex flex-col justify-between rounded-[20px] border bg-card p-5 sm:p-6 transition-all space-y-4 shadow-sm",
+                    "relative flex flex-col justify-between rounded-xl border p-4 sm:p-5 transition-colors space-y-4 shadow-none select-none",
                     isUnlocked
-                      ? "hover:border-primary/50 hover:shadow-md cursor-pointer group"
-                      : "opacity-60 cursor-not-allowed bg-muted/30"
+                      ? "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900/80 cursor-pointer group"
+                      : "border-zinc-800/50 bg-zinc-950/40 opacity-60 cursor-not-allowed"
                   )}
                 >
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div
                         className={cn(
-                          "flex items-center justify-center h-12 w-12 rounded-[14px] shrink-0 font-bold text-sm",
+                          "flex items-center justify-center h-10 w-10 rounded-lg shrink-0 font-mono text-xs font-bold border",
                           isComplete
-                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                             : isUnlocked
-                            ? "bg-primary/10 text-primary-readable"
-                            : "bg-muted text-muted-foreground"
+                            ? "bg-sky-500/10 border-sky-500/20 text-sky-400"
+                            : "bg-zinc-800/60 border-zinc-700/40 text-zinc-500"
                         )}
                       >
                         {isComplete ? (
-                          <CheckCircle2 className="h-6 w-6" />
+                          <CheckCircle2 className="h-5 w-5" />
                         ) : isUnlocked ? (
-                          <Layers className="h-6 w-6" />
+                          <Layers className="h-5 w-5" />
                         ) : (
-                          <Lock className="h-5 w-5" />
+                          <Lock className="h-4 w-4" />
                         )}
                       </div>
 
                       <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted">
-                          {t("module") || "Module"} {modIdx + 1}
+                        <span className="text-[10px] font-mono text-zinc-400 lowercase px-2 py-0.5 rounded bg-zinc-800/80 border border-zinc-700/50">
+                          mod 0{modIdx + 1}
                         </span>
                         {isComplete && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold">
-                            {t("completed") || "Completed"}
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 font-semibold lowercase">
+                            {t("completed") || "done"}
                           </span>
                         )}
                         {!isComplete && isUnlocked && completedLessonsCount > 0 && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary-readable font-semibold">
-                            {t("inProgress") || "In Progress"}
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-950/40 border border-amber-800/40 text-amber-400 font-semibold lowercase">
+                            {t("inProgress") || "in-progress"}
                           </span>
                         )}
                         {!isUnlocked && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold flex items-center gap-1">
-                            <Lock className="h-2.5 w-2.5" /> {t("locked") || "Locked"}
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800/50 text-zinc-500 font-semibold flex items-center gap-1 border border-zinc-700/40 lowercase">
+                            <Lock className="h-2.5 w-2.5" /> {t("locked") || "locked"}
                           </span>
                         )}
                       </div>
                     </div>
 
                     <div>
-                      <h3 className="font-bold text-base sm:text-lg text-foreground group-hover:text-primary-readable transition-colors line-clamp-2">
+                      <h3 className="font-bold text-base text-zinc-100 group-hover:text-zinc-200 transition-colors line-clamp-2">
                         {module.title}
                       </h3>
 
                       {module.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                        <p className="text-xs text-zinc-400 line-clamp-2 mt-1">
                           {module.description}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1 flex-wrap font-medium">
+                    <div className="flex items-center gap-3 text-xs text-zinc-400 pt-1 flex-wrap font-mono">
                       <span>{totalLessons} {t("lessons") || "Lessons"}</span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {formatMinutes(calcModuleTime)}
                       </span>
                       {module.examSettings && (
-                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+                        <span className="flex items-center gap-1 text-amber-400 font-medium">
                           <FileText className="h-3 w-3" />
                           {t("moduleExam") || "Module Exam"}
                         </span>
@@ -1286,14 +1310,14 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                     </div>
                   </div>
 
-                  <div className="space-y-3 pt-2 border-t">
+                  <div className="space-y-3 pt-3 border-t border-zinc-800/80">
                     {/* Module Progress Bar */}
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
-                        <span>{t("moduleProgress") || "Module Progress"}</span>
-                        <span>{completedLessonsCount} / {totalLessons} ({modulePct}%)</span>
+                      <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 lowercase">
+                        <span>progress</span>
+                        <span className="text-zinc-300 font-bold">{completedLessonsCount}/{totalLessons} ({modulePct}%)</span>
                       </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
                         <div
                           className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
                           style={{ width: `${modulePct}%` }}
@@ -1302,18 +1326,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                     </div>
 
                     {isUnlocked && (
-                      <Button
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openModuleLessons(module.id);
-                        }}
-                        variant="outline"
-                        className="w-full gap-1.5 rounded-xl font-medium text-xs group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-transparent transition-colors"
-                      >
+                      <div className="w-full pt-1 flex items-center justify-between text-xs font-semibold text-zinc-300 group-hover:text-white transition-colors">
                         <span>{t("viewLessons") || "View Lessons"}</span>
                         <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
-                      </Button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1335,86 +1351,57 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     const modulePct = totalLessons > 0 ? Math.round((completedLessonsCount / totalLessons) * 100) : 0;
 
     return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="min-h-[calc(100vh-4rem)] max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-5 animate-in fade-in duration-200">
         {/* Navigation Breadcrumb */}
-        <div className="space-y-2 border-b pb-5">
+        <div className="space-y-3 border-b border-zinc-800 pb-5">
           <button
             onClick={() => setViewMode("modules")}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-100 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            {t("allModules") || "All Modules"}
+            <span>{t("allModules") || "All Modules"}</span>
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-primary-readable px-2 py-0.5 rounded-full bg-primary/10">
-              {t("module") || "Module"} {modIdx + 1}
-            </span>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
+          <div className="space-y-1">
+            <div className="text-[11px] font-mono tracking-wide text-zinc-400 lowercase">
+              module 0{modIdx + 1} · lessons directory
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-100">
               {currentModule.title}
             </h1>
           </div>
 
           {currentModule.description && (
-            <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl">
+            <p className="text-xs sm:text-sm text-zinc-400 max-w-2xl">
               {currentModule.description}
             </p>
           )}
 
           {/* Module Progress Overview */}
-          <div className="rounded-[16px] border bg-card p-4 space-y-2 mt-3">
-            <div className="flex items-center justify-between text-xs font-semibold">
-              <span className="text-muted-foreground">{t("moduleProgress") || "Module Progress"}</span>
-              <span className="text-emerald-600 dark:text-emerald-400">
-                {completedLessonsCount} of {totalLessons} {t("lessonsMastered") || "Lessons Mastered"} ({modulePct}%)
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 space-y-2 mt-3 shadow-none">
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="text-zinc-400 lowercase">module progress</span>
+              <span className="text-emerald-400 font-bold">
+                {completedLessonsCount} / {totalLessons} {t("lessonsMastered") || "Mastered"} ({modulePct}%)
               </span>
             </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
+            <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
               <div
                 className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
                 style={{ width: `${modulePct}%` }}
               />
             </div>
           </div>
-
-          {/* Module-level Continue from Last Topic Action */}
-          {resumeTarget && resumeTarget.item.moduleId === currentModule.id && !isModuleCompleted(currentModule.id) && (
-            <div className="rounded-[16px] border border-primary/30 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="space-y-0.5 min-w-0">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-primary-readable">
-                  {t("continueFromLastTopic") || "Continue from Last Topic"}
-                </span>
-                <p className="text-sm font-bold text-foreground truncate">
-                  {resumeTarget.topicTitle}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {resumeTarget.lessonTitle} · Topic {resumeTarget.topicIndex + 1} of {resumeTarget.topicCount}
-                </p>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => {
-                  setCurrentItemIndex(resumeTarget.index);
-                  setSelectedModuleId(resumeTarget.item.moduleId);
-                  setViewMode("study");
-                }}
-                className="gap-1.5 rounded-xl font-medium text-xs shrink-0"
-              >
-                <Play className="h-3.5 w-3.5 fill-current" />
-                <span>{t("continueFromLastTopic") || "Continue"}</span>
-              </Button>
-            </div>
-          )}
         </div>
 
         {/* Lessons List */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-              {t("availableLessons") || "Available Lessons"}
-            </h2>
-            <span className="text-xs text-muted-foreground font-medium">
-              {t("sequentialUnlockingNote") || "Lessons unlock sequentially as you complete them"}
+            <span className="text-[11px] font-mono tracking-wide text-zinc-400 lowercase">
+              available lessons · sequential syllabus
+            </span>
+            <span className="text-[11px] font-mono text-zinc-400 lowercase">
+              {currentModule.lessons.length} lessons
             </span>
           </div>
 
@@ -1433,61 +1420,51 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 <div
                   key={lesson.id}
                   className={cn(
-                    "rounded-[18px] border p-4 sm:p-5 transition-all space-y-3",
+                    "rounded-xl border p-4 sm:p-5 transition-colors space-y-3 shadow-none",
                     isUnlocked
-                      ? "bg-card hover:border-primary/50 shadow-xs"
-                      : "bg-muted/30 border-dashed opacity-60 cursor-not-allowed"
+                      ? "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900/80 cursor-pointer"
+                      : "border-zinc-800/50 bg-zinc-950/40 opacity-60 cursor-not-allowed"
                   )}
+                  onClick={() => {
+                    if (!isUnlocked) return;
+                    const idx = flatList.findIndex((item) => item.lessonId === lesson.id);
+                    if (idx >= 0) {
+                      setCurrentItemIndex(idx);
+                      setSelectedModuleId(currentModule.id);
+                      setViewMode("study");
+                    }
+                  }}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
                       <div
                         className={cn(
-                          "flex items-center justify-center h-10 w-10 rounded-[12px] shrink-0 font-bold text-xs",
+                          "flex items-center justify-center h-9 w-9 rounded-lg shrink-0 font-mono text-xs font-bold border",
                           isComplete
-                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                             : isUnlocked
-                            ? "bg-primary/10 text-primary-readable"
-                            : "bg-muted text-muted-foreground"
+                            ? "bg-sky-500/10 border-sky-500/20 text-sky-400"
+                            : "bg-zinc-800/60 border-zinc-700/40 text-zinc-500"
                         )}
                       >
                         {isComplete ? (
-                          <CheckCircle2 className="h-5 w-5" />
+                          <CheckCircle2 className="h-4 w-4" />
                         ) : isUnlocked ? (
                           <span>{lessonIdx + 1}</span>
                         ) : (
-                          <Lock className="h-4 w-4" />
+                          <Lock className="h-3.5 w-3.5" />
                         )}
                       </div>
 
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[11px] font-bold text-muted-foreground">
-                            {t("lesson") || "Lesson"} {lessonIdx + 1}
-                          </span>
-                          {isComplete && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold">
-                              {t("completed") || "Completed"}
-                            </span>
-                          )}
-                          {isInProgress && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary-readable font-semibold">
-                              {t("inProgress") || "In Progress"} ({completedTopicsInLesson}/{topics.length})
-                            </span>
-                          )}
-                          {!isUnlocked && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-1">
-                              <Lock className="h-2.5 w-2.5" /> {t("completePreviousLessonToUnlock") || "Locked · Complete prior lesson"}
-                            </span>
-                          )}
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-sm sm:text-base text-zinc-100 truncate">
+                            {lesson.title}
+                          </h3>
                         </div>
-
-                        <h3 className="font-bold text-base text-foreground truncate">
-                          {lesson.title}
-                        </h3>
-
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium">
-                          <span>{topics.length} {t("topics") || "Topics"}</span>
+                        <div className="flex items-center gap-3 text-xs text-zinc-400 font-mono">
+                          <span>{topics.length} {topics.length === 1 ? "topic" : "topics"}</span>
+                          <span>•</span>
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {formatMinutes(calcLessonTime)}
@@ -1496,30 +1473,19 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                       </div>
                     </div>
 
-                    <div className="shrink-0 self-center">
-                      {isUnlocked ? (
-                        <Button
-                          size="sm"
-                          onClick={() => startLesson(currentModule.id, lesson.id)}
-                          className={cn(
-                            "gap-1.5 rounded-xl font-medium text-xs",
-                            isComplete ? "bg-secondary text-secondary-foreground hover:bg-secondary/80" : ""
-                          )}
-                        >
-                          <Play className="h-3.5 w-3.5 fill-current" />
-                          <span>
-                            {isComplete
-                              ? (t("reviewLesson") || "Review")
-                              : isInProgress
-                              ? (t("continueFromLastTopic") || "Continue Topic")
-                              : (t("startLesson") || "Start Lesson")}
-                          </span>
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded-lg">
-                          <Lock className="h-3.5 w-3.5" />
-                          <span>{t("locked") || "Locked"}</span>
-                        </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isComplete && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 font-semibold lowercase">
+                          completed
+                        </span>
+                      )}
+                      {isInProgress && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-950/40 border border-amber-800/40 text-amber-400 font-semibold lowercase">
+                          in-progress
+                        </span>
+                      )}
+                      {isUnlocked && (
+                        <ArrowRight className="h-4 w-4 text-zinc-400" />
                       )}
                     </div>
                   </div>
@@ -1529,32 +1495,30 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
             {/* Module Exam Card if available */}
             {currentModule.examSettings && (
-              <div className="rounded-[18px] border border-amber-500/30 bg-amber-500/5 p-4 sm:p-5 space-y-3">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-[12px] bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                      <Trophy className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider block">
-                        {t("moduleExam") || "Module Exam"}
-                      </span>
-                      <h3 className="font-bold text-sm sm:text-base">{currentModule.examSettings.title || "Module Test"}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {currentModule.examSettings.question_count} {t("questions") || "questions"} · {currentModule.examSettings.duration_minutes} min
-                      </p>
-                    </div>
+              <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 sm:p-5 flex items-center justify-between gap-4 shadow-none">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                    <Trophy className="h-5 w-5" />
                   </div>
-
-                  <Button
-                    size="sm"
-                    onClick={() => startModuleExam(currentModule.id, currentModule.examSettings?.title || currentModule.title)}
-                    className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs gap-1.5"
-                  >
-                    <Play className="h-3.5 w-3.5" />
-                    <span>{t("takeExam") || "Take Exam"}</span>
-                  </Button>
+                  <div>
+                    <span className="text-[10px] font-mono text-amber-400 lowercase tracking-wider block">
+                      assessment · {t("moduleExam") || "module exam"}
+                    </span>
+                    <h3 className="font-bold text-sm sm:text-base text-zinc-100">{currentModule.examSettings.title || "Module Test"}</h3>
+                    <p className="text-xs text-zinc-400 font-mono">
+                      {currentModule.examSettings.question_count} {t("questions") || "questions"} · {currentModule.examSettings.duration_minutes} min
+                    </p>
+                  </div>
                 </div>
+
+                <Button
+                  size="sm"
+                  onClick={() => startModuleExam(currentModule.id, currentModule.examSettings?.title || currentModule.title)}
+                  className="bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold gap-1.5 shadow-none shrink-0"
+                >
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                  <span>{t("takeExam") || "Take Exam"}</span>
+                </Button>
               </div>
             )}
           </div>

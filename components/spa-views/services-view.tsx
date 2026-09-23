@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Car, ArrowLeft, Users, Trophy, ShieldAlert, LayoutGrid, History, Clock, ArrowRight, UserCheck, ShieldCheck } from "lucide-react";
+import { Car, ArrowLeft, Users, Trophy, ShieldAlert, LayoutGrid, History, Clock, ArrowRight, UserCheck, ShieldCheck, Sparkles } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -9,8 +9,8 @@ import {
   isGroupExamEnabled,
   getCachedGroupExamEnabled,
 } from "@/lib/feature-flags";
+import { spaCache } from "@/lib/spa-cache";
 import { ServicesViewSkeleton } from "@/components/skeletons";
-import { Badge } from "@/components/ui/badge";
 
 export interface ServicesViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -19,13 +19,22 @@ export interface ServicesViewProps {
 export function ServicesView({ navigate }: ServicesViewProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const cachedGroup = getCachedGroupExamEnabled();
-  const [serviceToggles, setServiceToggles] = useState<Record<string, boolean> | null>(null);
-  const [groupExamOn, setGroupExamOn] = useState<boolean>(cachedGroup !== null ? cachedGroup : true);
-  const [pageEnabled, setPageEnabled] = useState<boolean>(true);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [ongoingCount, setOngoingCount] = useState<number>(0);
-  const [ongoingExam, setOngoingExam] = useState<any | null>(null);
+  
+  // Instant in-memory cache read
+  const cachedData = spaCache.get<{
+    serviceToggles: Record<string, boolean>;
+    groupExamOn: boolean;
+    pageEnabled: boolean;
+    ongoingCount: number;
+    ongoingExam: any;
+  }>("spa_services_view");
+
+  const [serviceToggles, setServiceToggles] = useState<Record<string, boolean> | null>(cachedData?.serviceToggles || null);
+  const [groupExamOn, setGroupExamOn] = useState<boolean>(cachedData ? cachedData.groupExamOn : true);
+  const [pageEnabled, setPageEnabled] = useState<boolean>(cachedData ? cachedData.pageEnabled : true);
+  const [isLoading, setIsLoading] = useState<boolean>(!cachedData);
+  const [ongoingCount, setOngoingCount] = useState<number>(cachedData?.ongoingCount || 0);
+  const [ongoingExam, setOngoingExam] = useState<any | null>(cachedData?.ongoingExam || null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -35,8 +44,10 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       user ? fetch("/api/exam-challenges").then((r) => r.json()).catch(() => ({ challenges: [] })) : Promise.resolve({ challenges: [] }),
     ])
       .then(([config, isGroupEnabled, challengesData]) => {
-        setPageEnabled(config.pageEnabled ?? true);
-        setServiceToggles(config.services || {});
+        const pEnabled = config.pageEnabled ?? true;
+        const sToggles = config.services || {};
+        setPageEnabled(pEnabled);
+        setServiceToggles(sToggles);
         setGroupExamOn(isGroupEnabled);
 
         const list = (challengesData as any)?.challenges || [];
@@ -69,12 +80,19 @@ export function ServicesView({ navigate }: ServicesViewProps) {
           return false;
         });
 
-        setOngoingCount(activeList.length);
-        if (activeList.length > 0) {
-          setOngoingExam(activeList[0]);
-        } else {
-          setOngoingExam(null);
-        }
+        const count = activeList.length;
+        const firstExam = count > 0 ? activeList[0] : null;
+        setOngoingCount(count);
+        setOngoingExam(firstExam);
+
+        // Store into SPA in-memory cache for instant subsequent tab switching
+        spaCache.set("spa_services_view", {
+          serviceToggles: sToggles,
+          groupExamOn: isGroupEnabled,
+          pageEnabled: pEnabled,
+          ongoingCount: count,
+          ongoingExam: firstExam,
+        });
       })
       .catch(() => {
         setServiceToggles({});
@@ -84,8 +102,8 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       });
   }, [user]);
 
-  // During loading / permission evaluation, display skeleton without exposing any restricted UI
-  if (isLoading) {
+  // During initial cold load without cache, display skeleton
+  if (isLoading && !cachedData) {
     return <ServicesViewSkeleton />;
   }
 
@@ -96,16 +114,16 @@ export function ServicesView({ navigate }: ServicesViewProps) {
         <div className="container mx-auto max-w-xl px-4 py-12 text-center">
           <button
             onClick={() => navigate("back", { fallback: "home" })}
-            className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="mb-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-100 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" />
-            {t("back") || t("backToHome") || "Back"}
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>{t("back") || t("backToHome") || "Back"}</span>
           </button>
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-            <ShieldAlert className="h-7 w-7" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <ShieldAlert className="h-6 w-6" />
           </div>
-          <h2 className="text-xl font-bold tracking-tight">{t("services") || "Services"}</h2>
-          <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+          <h2 className="text-xl font-bold tracking-tight text-zinc-100">{t("services") || "Services"}</h2>
+          <p className="mt-2 text-xs sm:text-sm text-zinc-400 max-w-md mx-auto">
             {t("servicesDisabledMessage") || "Services are currently disabled by administration."}
           </p>
         </div>
@@ -118,40 +136,56 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       key: "live-exam",
       view: "services/live-exam",
       icon: Car,
+      tag: "service · live exam check",
+      badge: "Real-Time Registry",
       titleKey: "liveExamResults",
       descKey: "liveExamResultsDesc",
-      color: "text-primary",
-      bg: "bg-primary/10",
+      accentColor: "emerald",
+      iconBox: "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400",
+      badgeClass: "bg-emerald-950/40 border border-emerald-800/40 text-emerald-400",
+      btnClass: "bg-emerald-600 hover:bg-emerald-500 text-white",
       openLabelKey: "liveExamOpen",
     },
     {
       key: "group-exam",
       view: "services/group-exam",
       icon: Trophy,
+      tag: "service · multiplayer arena",
+      badge: "Live Arena",
       titleKey: "groupExamService",
       descKey: "groupExamServiceDesc",
-      color: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-500/10",
+      accentColor: "amber",
+      iconBox: "bg-amber-500/10 border border-amber-500/20 text-amber-400",
+      badgeClass: "bg-amber-950/40 border border-amber-800/40 text-amber-400",
+      btnClass: "bg-amber-600 hover:bg-amber-500 text-white",
       openLabelKey: "groupExamOpen",
     },
     {
       key: "exam-history",
       view: "exam-history",
       icon: History,
+      tag: "telemetry · score logs",
+      badge: "Full History",
       titleKey: "examHistory",
       descKey: "examHistoryDesc",
-      color: "text-emerald-600 dark:text-emerald-400",
-      bg: "bg-emerald-500/10",
+      accentColor: "sky",
+      iconBox: "bg-sky-500/10 border border-sky-500/20 text-sky-400",
+      badgeClass: "bg-sky-950/40 border border-sky-800/40 text-sky-400",
+      btnClass: "bg-sky-600 hover:bg-sky-500 text-white",
       openLabelKey: "examHistory",
     },
     {
       key: "driver-hub",
       view: "driver-hub",
       icon: Users,
+      tag: "network · professional drivers",
+      badge: "Driver Directory",
       titleKey: "findDriver",
       descKey: "findDriverDesc",
-      color: "text-blue-600 dark:text-blue-400",
-      bg: "bg-blue-500/10",
+      accentColor: "violet",
+      iconBox: "bg-violet-500/10 border border-violet-500/20 text-violet-400",
+      badgeClass: "bg-violet-950/40 border border-violet-800/40 text-violet-400",
+      btnClass: "bg-violet-600 hover:bg-violet-500 text-white",
       openLabelKey: "openDrivers",
     },
   ];
@@ -163,122 +197,158 @@ export function ServicesView({ navigate }: ServicesViewProps) {
   });
 
   return (
-    <div className="min-h-[calc(100vh-80px)] pb-24 animate-in fade-in duration-200">
-      <div className="container mx-auto max-w-2xl px-4 py-3 sm:py-5">
-        {/* Back link */}
-        <button
-          onClick={() => navigate("back", { fallback: "home" })}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("back") || t("backToHome") || "Back"}
-        </button>
+    <div className="min-h-[calc(100vh-80px)] pb-32 px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-6 animate-in fade-in duration-200">
+        
+        {/* Navigation & Header */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigate("back", { fallback: "home" })}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-100 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>{t("back") || t("backToHome") || "Back"}</span>
+            </button>
 
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">{t("services")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("servicesDesc")}</p>
+            <span className="text-[11px] font-mono tracking-wider text-zinc-400 lowercase hidden sm:inline-block">
+              services · ecosystem & tools
+            </span>
+          </div>
+
+          <div className="space-y-1">
+            <div className="text-[11px] font-mono tracking-wider text-zinc-400 lowercase">
+              transport & exam services
+            </div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-zinc-100">
+              {t("services")}
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-400 max-w-3xl leading-snug">
+              {t("servicesDesc") || "Explore comprehensive traffic, mock driving exam, and verified driver solutions."}
+            </p>
+          </div>
         </div>
 
-        {/* Ongoing Exams Banner */}
+        {/* Ongoing Active Exam Telemetry Banner */}
         {ongoingCount > 0 && (
           <div
             onClick={() => navigate("classmates", { tab: "invitations" })}
-            className="mb-6 flex items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-primary/10 to-primary/5 border border-amber-500/30 hover:border-amber-500/50 cursor-pointer shadow-xs transition-all hover:shadow-md"
+            className="rounded-xl border border-amber-500/30 bg-amber-950/20 hover:bg-amber-950/30 p-4 transition-colors cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-none"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="h-10 w-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
                 <Clock className="h-5 w-5 animate-pulse" />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-foreground truncate">
+                  <span className="text-sm font-bold text-zinc-100 truncate">
                     {t("ongoingExams") || "Ongoing Exams & Invitations"}
-                  </h3>
-                  <Badge variant="default" className="bg-amber-600 hover:bg-amber-600 text-white text-[10px] px-1.5 py-0 shrink-0">
+                  </span>
+                  <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded">
                     {ongoingCount} {t("active") || "Active"}
-                  </Badge>
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                <p className="text-xs text-zinc-400 truncate">
                   {ongoingExam?.category_name ? `${ongoingExam.category_name} • ` : ""}{t("viewOngoingOrJoin") || "Click to view active challenges and join your session."}
                 </p>
               </div>
             </div>
-            <ArrowRight className="h-4 w-4 text-amber-600 shrink-0" />
+            <div className="flex items-center gap-1 text-xs font-semibold text-amber-400 shrink-0">
+              <span>Join Session</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </div>
           </div>
         )}
 
-        {/* Services grid */}
+        {/* Bento Grid Services List */}
         {services.length === 0 ? (
-          <div className="rounded-2xl border bg-card p-8 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-              <LayoutGrid className="h-6 w-6" />
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-12 text-center">
+            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-800 text-zinc-400">
+              <LayoutGrid className="h-5 w-5" />
             </div>
-            <h3 className="font-semibold text-base">{t("noServicesAvailable") || "No services currently available"}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h3 className="font-semibold text-sm text-zinc-200">{t("noServicesAvailable") || "No services currently available"}</h3>
+            <p className="mt-1 text-xs text-zinc-400">
               {t("noServicesDesc") || "Please check back later or explore other sections."}
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {services.map((service) => {
               const Icon = service.icon;
-              const isLiveExam = service.view === "live-exam";
+              const isLiveExam = service.view === "services/live-exam";
               const isVerified = Boolean(user?.user_metadata?.national_id);
 
               return (
-                <button
+                <div
                   key={service.view}
                   onClick={() => navigate(service.view)}
-                  className="group flex flex-col gap-3 rounded-2xl border bg-card p-5 transition-all hover:border-primary hover:shadow-lg hover:-translate-y-0.5 text-left relative"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") navigate(service.view);
+                  }}
+                  className="rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900/80 p-4 sm:p-5 transition-colors cursor-pointer group flex flex-col justify-between select-none shadow-none"
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <div
-                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${service.bg} ${service.color}`}
-                    >
-                      <Icon className="h-6 w-6" />
-                    </div>
-
-                    {isLiveExam && (
-                      <Badge
-                        variant="outline"
-                        className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                          isVerified
-                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
-                        }`}
-                      >
-                        {isVerified ? (
-                          <span className="flex items-center gap-1">
-                            <UserCheck className="h-3 w-3" />
-                            {t("verified") || "ID Verified"}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1">
-                            <ShieldCheck className="h-3 w-3" />
-                            {t("idRequired") || "ID Check Required"}
+                  <div className="space-y-3.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <span className="text-[11px] font-mono tracking-wide text-zinc-400 lowercase">
+                          {service.tag}
+                        </span>
+                        <h2 className="text-base sm:text-lg font-bold text-zinc-100 group-hover:text-zinc-200 transition-colors">
+                          {t(service.titleKey)}
+                        </h2>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {isLiveExam && (
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded border ${
+                            isVerified
+                              ? "bg-emerald-950/40 border-emerald-800/40 text-emerald-400"
+                              : "bg-amber-950/40 border-amber-800/40 text-amber-400"
+                          }`}>
+                            {isVerified ? (
+                              <span className="flex items-center gap-1">
+                                <UserCheck className="h-3 w-3" />
+                                {t("verified") || "Verified"}
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <ShieldCheck className="h-3 w-3" />
+                                {t("idRequired") || "ID Check"}
+                              </span>
+                            )}
                           </span>
                         )}
-                      </Badge>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-base">{t(service.titleKey)}</h3>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
+                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${service.iconBox}`}>
+                          <Icon className="h-5 w-5" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-zinc-400 leading-relaxed">
                       {t(service.descKey)}
                     </p>
                   </div>
-                  <div className="mt-auto flex items-center gap-1 text-sm font-semibold text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                    {t(service.openLabelKey)}
-                    <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+
+                  <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between">
+                    <span className="text-[11px] font-mono text-zinc-400 lowercase">
+                      {service.badge}
+                    </span>
+                    <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-300 group-hover:text-white transition-colors">
+                      <span>{t(service.openLabelKey) || "Open"}</span>
+                      <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
         )}
+
       </div>
     </div>
   );
 }
+
 

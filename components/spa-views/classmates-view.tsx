@@ -19,6 +19,7 @@ import {
   getCachedGroupExamEnabled,
 } from "@/lib/feature-flags";
 import { ClassmatesViewSkeleton } from "@/components/skeletons";
+import { spaCache } from "@/lib/spa-cache";
 import type { ChatMessage, ExamChallenge, ExamChallengeParticipant } from "@/lib/database.types";
 import { toast } from "sonner";
 
@@ -999,14 +1000,24 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const { user } = useAuth();
   const supabase = createClient();
 
+  const cachedData = user ? spaCache.get<{
+    friends: FriendProfile[];
+    classmates: FriendProfile[];
+    requests: ClassmateRequestWithProfile[];
+    sentRequestIds: [string, string][];
+    isPublic: boolean;
+  }>(`spa_classmates_${user.id}`) : null;
+
   const [activeTab, setActiveTab] = useState<"friends" | "classmates" | "invitations">("friends");
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [friends, setFriends] = useState<FriendProfile[]>([]);
-  const [classmates, setClassmates] = useState<FriendProfile[]>([]);
-  const [requests, setRequests] = useState<ClassmateRequestWithProfile[]>([]);
-  const [sentRequestIds, setSentRequestIds] = useState<Map<string, string>>(new Map());
-  const [isPublic, setIsPublic] = useState(true);
+  const [loading, setLoading] = useState(!cachedData);
+  const [friends, setFriends] = useState<FriendProfile[]>(cachedData?.friends || []);
+  const [classmates, setClassmates] = useState<FriendProfile[]>(cachedData?.classmates || []);
+  const [requests, setRequests] = useState<ClassmateRequestWithProfile[]>(cachedData?.requests || []);
+  const [sentRequestIds, setSentRequestIds] = useState<Map<string, string>>(
+    cachedData?.sentRequestIds ? new Map(cachedData.sentRequestIds) : new Map()
+  );
+  const [isPublic, setIsPublic] = useState(cachedData?.isPublic ?? true);
 
   const [selectedFriend, setSelectedFriend] = useState<FriendProfile | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -1176,6 +1187,16 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
       const allKnownUserIds = new Set([...friendIds, ...pendingRequestIds]);
       const filteredClassmates = classmatesList.filter((c: FriendProfile) => !allKnownUserIds.has(c.id));
       setClassmates(filteredClassmates);
+
+      if (user?.id) {
+        spaCache.set(`spa_classmates_${user.id}`, {
+          friends: filteredFriends,
+          classmates: filteredClassmates,
+          requests: allRequests.filter((r) => r.status === "pending"),
+          sentRequestIds: Array.from(sentMap.entries()),
+          isPublic: requestsData.is_public ?? true,
+        });
+      }
     } catch (error) {
       console.error("Failed to fetch classmates data:", error);
     } finally {
