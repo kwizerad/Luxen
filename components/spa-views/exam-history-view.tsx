@@ -645,9 +645,9 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             </h1>
           </div>
 
-          {/* Quick Search and Grid / List Switcher */}
-          <div className="flex items-center gap-2 self-start sm:self-auto w-full sm:w-auto">
-            <div className="relative flex-1 sm:w-56">
+          {/* Quick Search, Grouping Selector, Filter & Grid/List Switcher */}
+          <div className="flex items-center gap-2 self-start sm:self-auto w-full sm:w-auto flex-wrap sm:flex-nowrap">
+            <div className="relative flex-1 sm:w-48">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
               <input
                 type="text"
@@ -666,6 +666,32 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
               )}
             </div>
 
+            {/* Quick Top Grouping Selector */}
+            <div className="relative shrink-0">
+              <div
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-colors bg-zinc-900/80",
+                  groupBy !== "none"
+                    ? "border-primary/50 text-primary font-bold bg-primary/10"
+                    : "border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+                )}
+              >
+                <Layers className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline text-[11px] text-zinc-400">group:</span>
+                <select
+                  value={groupBy}
+                  onChange={(e) => setGroupBy(e.target.value as GroupByOption)}
+                  className="bg-transparent border-0 text-xs font-mono text-inherit focus:outline-hidden cursor-pointer pr-1"
+                >
+                  <option value="none" className="bg-zinc-900 text-zinc-300">none (flat)</option>
+                  <option value="date" className="bg-zinc-900 text-zinc-300">by date</option>
+                  <option value="outcome" className="bg-zinc-900 text-zinc-300">by outcome</option>
+                  <option value="category" className="bg-zinc-900 text-zinc-300">by subject</option>
+                  <option value="type" className="bg-zinc-900 text-zinc-300">by exam type</option>
+                </select>
+              </div>
+            </div>
+
             {/* Filter Toggle Button with Badge */}
             <button
               onClick={() => setShowFiltersPanel(!showFiltersPanel)}
@@ -673,7 +699,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                 "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-colors shrink-0",
                 showFiltersPanel || activeFilterCount > 0
                   ? "bg-primary/15 border-primary/40 text-primary font-bold"
-                  : "bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:text-zinc-200"
+                  : "bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
               )}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />

@@ -623,10 +623,22 @@ export function ExamHistorySkeleton() {
           <div className="h-3.5 w-44 rounded bg-zinc-800/50 animate-pulse hidden sm:block" />
         </div>
 
-        <div className="space-y-1.5">
-          <div className="h-3 w-32 rounded bg-zinc-800/60 animate-pulse" />
-          <div className="h-7 sm:h-9 w-48 sm:w-64 rounded-lg bg-zinc-800/80 animate-pulse" />
-          <div className="h-3.5 sm:h-4 w-72 sm:w-96 rounded bg-zinc-800/50 animate-pulse" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1.5">
+            <div className="h-3 w-32 rounded bg-zinc-800/60 animate-pulse" />
+            <div className="h-7 sm:h-9 w-48 sm:w-64 rounded-lg bg-zinc-800/80 animate-pulse" />
+          </div>
+
+          {/* Quick Search, Grouping, Filter & View Mode Controls */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <div className="h-8 w-44 sm:w-48 rounded-lg bg-zinc-900 border border-zinc-800 animate-pulse" />
+            <div className="h-8 w-28 rounded-lg bg-zinc-900 border border-zinc-800 animate-pulse" />
+            <div className="h-8 w-16 rounded-lg bg-zinc-900 border border-zinc-800 animate-pulse" />
+            <div className="flex items-center p-0.5 rounded-lg border border-zinc-800 bg-zinc-900/80 gap-1">
+              <div className="h-7 w-7 rounded-md bg-zinc-800/80 animate-pulse" />
+              <div className="h-7 w-7 rounded-md bg-zinc-800/40 animate-pulse" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -646,26 +658,14 @@ export function ExamHistorySkeleton() {
         ))}
       </div>
 
-      {/* Filter Tabs & Search Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Tabs */}
-        <div className="flex items-center p-1 bg-zinc-900/80 rounded-xl border border-zinc-800 gap-1 overflow-x-auto no-scrollbar">
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-7 w-16 sm:w-20 rounded-lg bg-zinc-800/60 animate-pulse shrink-0"
-            />
-          ))}
-        </div>
-
-        {/* Search & View Mode */}
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-44 sm:w-56 rounded-lg bg-zinc-900 border border-zinc-800 animate-pulse" />
-          <div className="flex items-center p-0.5 rounded-lg border border-zinc-800 bg-zinc-900/80 gap-1">
-            <div className="h-7 w-7 rounded-md bg-zinc-800/80 animate-pulse" />
-            <div className="h-7 w-7 rounded-md bg-zinc-800/40 animate-pulse" />
-          </div>
-        </div>
+      {/* Filter Tabs */}
+      <div className="flex p-1 bg-zinc-900/80 rounded-xl border border-zinc-800 gap-1 overflow-x-auto no-scrollbar">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="h-8 flex-1 rounded-lg bg-zinc-800/60 animate-pulse shrink-0"
+          />
+        ))}
       </div>
 
       {/* 4 to 6 Columns Dossier Grid Skeleton */}
