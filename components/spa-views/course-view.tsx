@@ -1189,6 +1189,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         body: JSON.stringify({
           content: translatedContent || currentContent,
           title: translatedTitle || currentTopic?.title || currentLesson?.title,
+          entityId: currentKey,
           language: activeLang,
         }),
       });
@@ -1233,6 +1234,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: rawText,
+          entityId: currentKey,
           language: activeLang,
           voice: activeLang === "French" ? "Charon" : "Kore",
         }),
