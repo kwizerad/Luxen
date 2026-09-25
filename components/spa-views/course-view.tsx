@@ -37,7 +37,16 @@ import {
   CheckSquare,
   Square,
   StickyNote,
+  Languages,
+  Loader2,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { CourseLanguageCourse, CourseModule, CourseLesson, ModuleExamSettings } from "@/lib/database.types";
 import { LessonContentView } from "@/app/dashboard/course/LessonContentView";
 import { TopicAudioPlayer } from "@/components/topic-audio-player";
@@ -293,6 +302,56 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [comprehensionChecked, setComprehensionChecked] = useState<Record<string, boolean>>({});
+
+  // AI Note translation state (on-the-fly study translator)
+  const [translatedContent, setTranslatedContent] = useState<string | null>(null);
+  const [translatedTitle, setTranslatedTitle] = useState<string | null>(null);
+  const [translatedLang, setTranslatedLang] = useState<string | null>(null);
+  const [isTranslatingNote, setIsTranslatingNote] = useState(false);
+
+  // Reset translation when moving between topics
+  useEffect(() => {
+    setTranslatedContent(null);
+    setTranslatedTitle(null);
+    setTranslatedLang(null);
+  }, [currentItemIndex]);
+
+  const handleTranslateNote = async (targetLang: "English" | "French" | "Kinyarwanda") => {
+    if (!currentContent && !currentTopic?.title && !currentLesson?.title) return;
+    setIsTranslatingNote(true);
+    const toastId = toast.loading(`Translating notes to ${targetLang} with official road code terminology...`);
+    try {
+      const res = await fetch("/api/course/translate-note", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: currentContent,
+          topicTitle: currentTopic?.title || currentLesson?.title,
+          sourceLang: learningLanguage || "English",
+          targetLang,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Translation failed");
+      }
+      setTranslatedContent(data.translatedContent);
+      setTranslatedTitle(data.translatedTitle);
+      setTranslatedLang(targetLang);
+      toast.success(`Notes translated into ${targetLang}! All road signs and styles preserved.`, { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to translate note", { id: toastId });
+    } finally {
+      setIsTranslatingNote(false);
+    }
+  };
+
+  const handleResetTranslation = () => {
+    setTranslatedContent(null);
+    setTranslatedTitle(null);
+    setTranslatedLang(null);
+    toast.info("Reverted to original course note");
+  };
 
   // Touch swipe handling
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -1739,6 +1798,55 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             <StickyNote className="h-4 w-4" />
           </button>
 
+          {/* AI Note Translation Toggle */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                disabled={isTranslatingNote || !currentContent}
+                className={cn(
+                  "p-1.5 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1",
+                  translatedLang
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                    : "bg-background hover:bg-muted text-muted-foreground"
+                )}
+                title="Translate note to another language with AI (Rwanda Road Code)"
+              >
+                {isTranslatingNote ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <Languages className="h-4 w-4" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 text-xs">
+              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                AI Translate Note (Rwanda Traffic Code)
+              </DropdownMenuLabel>
+              {(["English", "French", "Kinyarwanda"] as const)
+                .filter((l) => l !== (translatedLang || learningLanguage))
+                .map((lang) => (
+                  <DropdownMenuItem
+                    key={lang}
+                    onClick={() => handleTranslateNote(lang)}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <span>{lang === "English" ? "🇬🇧" : lang === "French" ? "🇫🇷" : "🇷🇼"}</span>
+                    <span>Translate to {lang === "French" ? "Français" : lang}</span>
+                  </DropdownMenuItem>
+                ))}
+              {translatedLang && (
+                <DropdownMenuItem
+                  onClick={handleResetTranslation}
+                  className="gap-2 cursor-pointer text-rose-500"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>Revert to original ({learningLanguage || "Original"})</span>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {/* Distraction-Free Focus Mode Toggle */}
           <button
             type="button"
@@ -1957,8 +2065,27 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   )}
                 </div>
 
+                {/* Active AI Translation Banner */}
+                {translatedLang && (
+                  <div className="flex items-center justify-between p-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-800 dark:text-emerald-300">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <span>
+                        AI Translated into <strong>{translatedLang}</strong> using Rwanda Traffic Code terminology (all signs & styles preserved).
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleResetTranslation}
+                      className="underline text-[11px] hover:text-foreground font-semibold ml-2 shrink-0 cursor-pointer"
+                    >
+                      Revert
+                    </button>
+                  </div>
+                )}
+
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                  {currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle}
+                  {translatedTitle || (currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle)}
                 </h1>
               </div>
 
@@ -1973,7 +2100,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               {/* Topic Body Content */}
               <div className="w-full transition-all leading-relaxed">
                 {currentContent ? (
-                  <LessonContentView content={currentContent} textSize={textSize} />
+                  <LessonContentView content={translatedContent || currentContent} textSize={textSize} />
                 ) : (
                   <p className="text-muted-foreground italic">{t("noContent") || "No content available yet."}</p>
                 )}

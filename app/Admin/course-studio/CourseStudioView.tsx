@@ -39,11 +39,17 @@ import {
   Volume2,
   Check,
   CheckCircle2,
+  Sparkles,
+  BarChart3,
 } from "lucide-react";
 import type { Editor } from "@tiptap/core";
 import { ContextSettingsPanel } from "./components/context-settings-panel";
 import { LessonContentView } from "@/app/dashboard/course/LessonContentView";
 import { ExamPreview } from "./components/exam-preview";
+import { TranslationSyncBar } from "./components/translation-sync-bar";
+import { GazetteModal } from "./components/gazette-modal";
+import { AIInsightsModal } from "./components/ai-insights-modal";
+import { importGazetteModule } from "@/app/Admin/actions/courses";
 
 export function CourseStudioView() {
   const { t } = useLanguage();
@@ -78,11 +84,22 @@ export function CourseStudioView() {
 
   const [showDeleteExam, setShowDeleteExam] = useState(false);
   const [showDeleteTopic, setShowDeleteTopic] = useState(false);
+  const [showGazetteModal, setShowGazetteModal] = useState(false);
+  const [showAIInsightsModal, setShowAIInsightsModal] = useState(false);
   const [settingsCollapsed, setSettingsCollapsed] = useState(false);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const editorRef = useRef<Editor | null>(null);
   const [, forceUpdate] = useState(0);
   const [previewMode, setPreviewMode] = useState(false);
+
+  const handleImportGazetteModule = async (result: any) => {
+    if (!course) return;
+    const res = await importGazetteModule(course.id, result);
+    if (!res.success) {
+      throw new Error(res.error || "Failed to import gazette module");
+    }
+    requestSelectCourse(course.id);
+  };
 
   // Reset preview mode and active question when selection changes
   useEffect(() => {
@@ -426,6 +443,29 @@ export function CourseStudioView() {
                     {previewMode ? <><Pencil className="h-3.5 w-3.5" /> {t("edit") || "Edit"}</> : <><Eye className="h-3.5 w-3.5" /> {t("preview") || "Preview"}</>}
                   </Button>
                 )}
+                {/* AI Intelligence & Rwanda Gazette buttons */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAIInsightsModal(true)}
+                  className="admin-btn-secondary h-8 text-xs px-2.5 gap-1.5 border-blue-500/30 hover:border-blue-500/60"
+                  title="AI Course & Student Performance Analytics"
+                >
+                  <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
+                  <span className="hidden xl:inline">AI Analytics</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowGazetteModal(true)}
+                  className="admin-btn-secondary h-8 text-xs px-2.5 gap-1.5 border-amber-500/30 hover:border-amber-500/60"
+                  title="Rwanda Traffic Gazette AI Curriculum Generator"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="hidden xl:inline">Gazette AI</span>
+                </Button>
                 <div className="w-px h-5 bg-[var(--admin-border)] mx-0.5" />
                 {/* Save status & last saved timestamp */}
                 {isSaving ? (
@@ -489,17 +529,29 @@ export function CourseStudioView() {
 
                 {/* Module overview */}
                 {selection.type === "module" && selectedModule && (
-                  <ModuleOverview
-                    module={selectedModule}
-                    onSelectLesson={(lessonId) => select({ type: "lesson", moduleId: selectedModule.id, lessonId })}
-                    onSelectExam={() => {
-                      if (selectedModule.exam) {
-                        select({ type: "exam", moduleId: selectedModule.id, examId: selectedModule.exam.id });
-                      }
-                    }}
-                    onAddLesson={() => actions.addLesson(selectedModule.id)}
-                    onAddExam={() => actions.addExam(selectedModule.id)}
-                  />
+                  <div className="space-y-3">
+                    <TranslationSyncBar
+                      currentCourse={course}
+                      courses={courses}
+                      activeModule={selectedModule}
+                      activeLesson={null}
+                      activeTopicId={null}
+                      moduleIndex={course.modules.findIndex((m) => m.id === selectedModule.id)}
+                      onReloadCourses={() => requestSelectCourse(course.id)}
+                      onOpenGazetteModal={() => setShowGazetteModal(true)}
+                    />
+                    <ModuleOverview
+                      module={selectedModule}
+                      onSelectLesson={(lessonId) => select({ type: "lesson", moduleId: selectedModule.id, lessonId })}
+                      onSelectExam={() => {
+                        if (selectedModule.exam) {
+                          select({ type: "exam", moduleId: selectedModule.id, examId: selectedModule.exam.id });
+                        }
+                      }}
+                      onAddLesson={() => actions.addLesson(selectedModule.id)}
+                      onAddExam={() => actions.addExam(selectedModule.id)}
+                    />
+                  </div>
                 )}
 
                 {/* Lesson folder overview */}
@@ -535,33 +587,46 @@ export function CourseStudioView() {
                       )}
                     </div>
                   ) : (
-                    <LessonFolderOverview
-                      lesson={selectedLesson}
-                      onSelectTopic={(topicId) => {
-                        if (selectedModule) {
-                          select({ type: "topic", moduleId: selectedModule.id, lessonId: selectedLesson.id, topicId });
-                        }
-                      }}
-                      onAddTopic={() => {
-                        const newTopic = {
-                          id: crypto.randomUUID(),
-                          title: `${t("topic") || "Topic"} ${(selectedLesson.topics?.length || 0) + 1}`,
-                          content: JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }),
-                          estimated_minutes: 5,
-                        };
-                        actions.updateLesson(selectedLesson.id, {
-                          ...selectedLesson,
-                          topics: [...(selectedLesson.topics || []), newTopic],
-                        });
-                      }}
-                      onDeleteTopic={(topicId) => {
-                        const updatedTopics = (selectedLesson.topics || []).filter((tp) => tp.id !== topicId);
-                        actions.updateLesson(selectedLesson.id, {
-                          ...selectedLesson,
-                          topics: updatedTopics,
-                        });
-                      }}
-                    />
+                    <div className="space-y-3">
+                      <TranslationSyncBar
+                        currentCourse={course}
+                        courses={courses}
+                        activeModule={selectedModule}
+                        activeLesson={selectedLesson}
+                        activeTopicId={null}
+                        moduleIndex={course.modules.findIndex((m) => m.id === selectedModule?.id)}
+                        lessonIndex={selectedModule?.lessons.findIndex((l) => l.id === selectedLesson.id)}
+                        onReloadCourses={() => requestSelectCourse(course.id)}
+                        onOpenGazetteModal={() => setShowGazetteModal(true)}
+                      />
+                      <LessonFolderOverview
+                        lesson={selectedLesson}
+                        onSelectTopic={(topicId) => {
+                          if (selectedModule) {
+                            select({ type: "topic", moduleId: selectedModule.id, lessonId: selectedLesson.id, topicId });
+                          }
+                        }}
+                        onAddTopic={() => {
+                          const newTopic = {
+                            id: crypto.randomUUID(),
+                            title: `${t("topic") || "Topic"} ${(selectedLesson.topics?.length || 0) + 1}`,
+                            content: JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }),
+                            estimated_minutes: 5,
+                          };
+                          actions.updateLesson(selectedLesson.id, {
+                            ...selectedLesson,
+                            topics: [...(selectedLesson.topics || []), newTopic],
+                          });
+                        }}
+                        onDeleteTopic={(topicId) => {
+                          const updatedTopics = (selectedLesson.topics || []).filter((tp) => tp.id !== topicId);
+                          actions.updateLesson(selectedLesson.id, {
+                            ...selectedLesson,
+                            topics: updatedTopics,
+                          });
+                        }}
+                      />
+                    </div>
                   )
                 )}
 
@@ -645,6 +710,25 @@ export function CourseStudioView() {
                           </div>
                         </div>
                       )}
+
+                      {/* Multilingual Translation & Format Sync Bar */}
+                      <TranslationSyncBar
+                        currentCourse={course}
+                        courses={courses}
+                        activeModule={selectedModule}
+                        activeLesson={selectedLesson}
+                        activeTopicId={selectedTopic.id}
+                        moduleIndex={course.modules.findIndex((m) => m.id === selectedModule?.id)}
+                        lessonIndex={selectedModule?.lessons.findIndex((l) => l.id === selectedLesson.id)}
+                        onTopicContentUpdate={(newContent) => {
+                          const updatedTopics = selectedLesson.topics?.map((tp) =>
+                            tp.id === selectedTopic.id ? { ...tp, content: newContent } : tp
+                          );
+                          actions.updateLesson(selectedLesson.id, { ...selectedLesson, topics: updatedTopics });
+                        }}
+                        onReloadCourses={() => requestSelectCourse(course.id)}
+                        onOpenGazetteModal={() => setShowGazetteModal(true)}
+                      />
 
                       <LessonEditor
                         lesson={{ ...selectedLesson, content: selectedTopic.content }}
@@ -819,6 +903,22 @@ export function CourseStudioView() {
           }
           setShowDeleteTopic(false);
         }}
+      />
+
+      {/* Rwanda Traffic Gazette AI Generator Modal */}
+      {course && (
+        <GazetteModal
+          open={showGazetteModal}
+          onOpenChange={setShowGazetteModal}
+          targetCourseId={course.id}
+          onImportModule={handleImportGazetteModule}
+        />
+      )}
+
+      {/* AI Performance Intelligence Modal */}
+      <AIInsightsModal
+        open={showAIInsightsModal}
+        onOpenChange={setShowAIInsightsModal}
       />
     </div>
   );

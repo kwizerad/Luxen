@@ -1245,3 +1245,138 @@ export async function deleteStorageObject(path: string): Promise<ActionResult<nu
     return handleError(error);
   }
 }
+
+// ============================================================================
+// RWANDA GAZETTE IMPORT
+// ============================================================================
+
+export async function importGazetteModule(
+  courseId: string,
+  result: {
+    moduleTitle: string;
+    moduleDescription: string;
+    lessons: Array<{
+      title: string;
+      short_description?: string;
+      topics: Array<{
+        title: string;
+        estimated_minutes: number;
+        content: string;
+      }>;
+    }>;
+    questions: Array<{
+      question: string;
+      type: "multiple_choice" | "true_false";
+      option_a: string;
+      option_b: string;
+      option_c?: string;
+      option_d?: string;
+      correct_answer: "A" | "B" | "C" | "D";
+      explanation: string;
+    }>;
+  }
+): Promise<ActionResult<{ moduleId: string }>> {
+  try {
+    const admin = await requireAdmin();
+    const supabase = createAdminClient();
+
+    // 1. Get module count for order_index
+    const { count } = await supabase
+      .from("course_modules")
+      .select("*", { count: "exact", head: true })
+      .eq("language_id", courseId)
+      .is("deleted_at", null);
+
+    // 2. Insert new module
+    const { data: moduleData, error: moduleError } = await supabase
+      .from("course_modules")
+      .insert({
+        language_id: courseId,
+        title: result.moduleTitle || "Rwanda Traffic Gazette Module",
+        description: result.moduleDescription || "Updated rules from the Official Traffic Gazette.",
+        order_index: count || 0,
+        status: "published",
+        is_published: true,
+        created_by: admin.id,
+        updated_by: admin.id,
+      })
+      .select()
+      .single();
+
+    if (moduleError || !moduleData) {
+      throw moduleError || new Error("Failed to create module");
+    }
+
+    const moduleId = moduleData.id;
+
+    // 3. Insert lessons
+    for (let lIdx = 0; lIdx < (result.lessons || []).length; lIdx++) {
+      const les = result.lessons[lIdx];
+      const topicsWithIds = (les.topics || []).map((tp) => ({
+        id: crypto.randomUUID(),
+        title: tp.title,
+        content: tp.content,
+        estimated_minutes: tp.estimated_minutes || 5,
+      }));
+
+      await supabase.from("course_lessons").insert({
+        module_id: moduleId,
+        title: les.title,
+        content: "",
+        content_type: "rich_text",
+        status: "published",
+        is_published: true,
+        order_index: lIdx,
+        topics: topicsWithIds,
+        created_by: admin.id,
+        updated_by: admin.id,
+      });
+    }
+
+    // 4. Insert exam & questions if provided
+    if (result.questions && result.questions.length > 0) {
+      const { data: examData, error: examError } = await supabase
+        .from("module_exam_settings")
+        .insert({
+          module_id: moduleId,
+          title: `Exam: ${result.moduleTitle}`,
+          status: "published",
+          passing_percentage: 70,
+          duration_minutes: 20,
+          max_attempts: 3,
+          created_by: admin.id,
+          updated_by: admin.id,
+        })
+        .select()
+        .single();
+
+      if (!examError && examData) {
+        for (let qIdx = 0; qIdx < result.questions.length; qIdx++) {
+          const q = result.questions[qIdx];
+          await supabase.from("module_exam_questions").insert({
+            module_id: moduleId,
+            question: q.question,
+            type: q.type,
+            option_a: q.option_a,
+            option_b: q.option_b,
+            option_c: q.option_c || "",
+            option_d: q.option_d || "",
+            correct_answer: q.correct_answer,
+            explanation: q.explanation || "",
+            points: 1,
+            order_index: qIdx,
+            created_by: admin.id,
+            updated_by: admin.id,
+          });
+        }
+      }
+    }
+
+    revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
+    return { success: true, data: { moduleId } };
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
