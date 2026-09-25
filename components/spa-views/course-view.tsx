@@ -39,6 +39,12 @@ import {
   StickyNote,
   Languages,
   Loader2,
+  Columns2,
+  Lightbulb,
+  Play,
+  Volume2,
+  VolumeX,
+  Keyboard,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -51,6 +57,9 @@ import type { CourseLanguageCourse, CourseModule, CourseLesson, ModuleExamSettin
 import { LessonContentView } from "@/app/dashboard/course/LessonContentView";
 import { TopicAudioPlayer } from "@/components/topic-audio-player";
 import { TopicNotes } from "@/components/topic-notes";
+import { TermLookupTooltip } from "@/components/course/term-lookup-tooltip";
+import { PlainLanguageCard, type PlainLanguageData } from "@/components/course/plain-language-card";
+import { AINeuralVoicePlayer } from "@/components/course/ai-neural-voice-player";
 import { ModuleExamRunner, type ExamType } from "@/components/module-exam-runner";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -257,6 +266,37 @@ export interface CourseViewProps {
 
 type TextSize = "sm" | "base" | "lg" | "xl";
 
+function extractPlainText(content: any): string {
+  if (!content) return "";
+  if (typeof content === "string") {
+    if (content.trim().startsWith("{")) {
+      try {
+        const parsed = JSON.parse(content);
+        return extractFromTiptapNode(parsed);
+      } catch {
+        // fall through to regex
+      }
+    }
+    return content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
+  if (typeof content === "object") {
+    return extractFromTiptapNode(content);
+  }
+  return "";
+}
+
+function extractFromTiptapNode(node: any): string {
+  if (!node) return "";
+  let text = "";
+  if (node.text) text += node.text + " ";
+  if (Array.isArray(node.content)) {
+    for (const child of node.content) {
+      text += extractFromTiptapNode(child);
+    }
+  }
+  return text.trim();
+}
+
 export function CourseView({ navigate, params }: CourseViewProps) {
   const { t, language: interfaceLanguage } = useLanguage();
   const { enabledLanguages } = useLearningLanguages();
@@ -303,55 +343,47 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [showNotes, setShowNotes] = useState(false);
   const [comprehensionChecked, setComprehensionChecked] = useState<Record<string, boolean>>({});
 
-  // AI Note translation state (on-the-fly study translator)
+  // AI Note translation & Study Booster state
   const [translatedContent, setTranslatedContent] = useState<string | null>(null);
   const [translatedTitle, setTranslatedTitle] = useState<string | null>(null);
-  const [translatedLang, setTranslatedLang] = useState<string | null>(null);
+  const [translatedLang, setTranslatedLang] = useState<"English" | "French" | "Kinyarwanda" | null>(null);
   const [isTranslatingNote, setIsTranslatingNote] = useState(false);
+  const [pendingLang, setPendingLang] = useState<string | null>(null);
 
-  // Reset translation when moving between topics
+  // Side-by-side Dual View (PC Mode)
+  const [isDualView, setIsDualView] = useState(false);
+
+  // Plain Terms Legal Explainer
+  const [isPlainLanguageOpen, setIsPlainLanguageOpen] = useState(false);
+  const [plainData, setPlainData] = useState<PlainLanguageData | null>(null);
+  const [isLoadingPlain, setIsLoadingPlain] = useState(false);
+
+  // AI Cloud Neural Voice Player
+  const [isTTSOpen, setIsTTSOpen] = useState(false);
+  const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  const [isLoadingTTS, setIsLoadingTTS] = useState(false);
+
+  // Instant In-Memory Caches (0ms response on revisit)
+  const translationCacheRef = useRef<Map<string, { content: string; title: string }>>(new Map());
+  const plainCacheRef = useRef<Map<string, PlainLanguageData>>(new Map());
+  const ttsCacheRef = useRef<Map<string, string>>(new Map());
+
+  // Interactive Floating Term Gloss
+  const [selectedTerm, setSelectedTerm] = useState<string | null>(null);
+  const [termPosition, setTermPosition] = useState<{ x: number; y: number } | null>(null);
+
+  // Reset transient translation on topic change
   useEffect(() => {
     setTranslatedContent(null);
     setTranslatedTitle(null);
     setTranslatedLang(null);
+    setPlainData(null);
+    setIsPlainLanguageOpen(false);
+    setIsTTSOpen(false);
+    setTtsAudioUrl(null);
+    setSelectedTerm(null);
+    setTermPosition(null);
   }, [currentItemIndex]);
-
-  const handleTranslateNote = async (targetLang: "English" | "French" | "Kinyarwanda") => {
-    if (!currentContent && !currentTopic?.title && !currentLesson?.title) return;
-    setIsTranslatingNote(true);
-    const toastId = toast.loading(`Translating notes to ${targetLang} with official road code terminology...`);
-    try {
-      const res = await fetch("/api/course/translate-note", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: currentContent,
-          topicTitle: currentTopic?.title || currentLesson?.title,
-          sourceLang: learningLanguage || "English",
-          targetLang,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Translation failed");
-      }
-      setTranslatedContent(data.translatedContent);
-      setTranslatedTitle(data.translatedTitle);
-      setTranslatedLang(targetLang);
-      toast.success(`Notes translated into ${targetLang}! All road signs and styles preserved.`, { id: toastId });
-    } catch (err: any) {
-      toast.error(err.message || "Failed to translate note", { id: toastId });
-    } finally {
-      setIsTranslatingNote(false);
-    }
-  };
-
-  const handleResetTranslation = () => {
-    setTranslatedContent(null);
-    setTranslatedTitle(null);
-    setTranslatedLang(null);
-    toast.info("Reverted to original course note");
-  };
 
   // Touch swipe handling
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -1050,6 +1082,217 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     currentItem?.type === "topic"
       ? currentTopic?.estimated_minutes || 3
       : currentLesson ? lessonTime(currentLesson) : 5;
+
+  // 1-Click Language Switcher (Instant Cache or API Fetch)
+  const handleLanguageSelect = async (targetLang: "English" | "French" | "Kinyarwanda") => {
+    const activeBaseLang = (learningLanguage as "English" | "French" | "Kinyarwanda") || "English";
+
+    // Revert to original
+    if (targetLang === activeBaseLang) {
+      setTranslatedContent(null);
+      setTranslatedTitle(null);
+      setTranslatedLang(null);
+      return;
+    }
+
+    const currentKey = currentItem?.type === "topic" ? currentTopic?.id : currentLesson?.id;
+    if (!currentKey) return;
+    const cacheKey = `${currentKey}_${targetLang}`;
+
+    // Instant Cache Hit (0ms)
+    if (translationCacheRef.current.has(cacheKey)) {
+      const cached = translationCacheRef.current.get(cacheKey)!;
+      setTranslatedContent(cached.content);
+      setTranslatedTitle(cached.title);
+      setTranslatedLang(targetLang);
+      return;
+    }
+
+    if (!currentContent && !currentTopic?.title && !currentLesson?.title) return;
+    setIsTranslatingNote(true);
+    setPendingLang(targetLang);
+    const toastId = toast.loading(`Translating to ${targetLang}...`);
+
+    try {
+      const res = await fetch("/api/course/translate-note", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: currentContent,
+          topicTitle: currentTopic?.title || currentLesson?.title,
+          sourceLang: activeBaseLang,
+          targetLang,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Translation failed");
+      }
+      translationCacheRef.current.set(cacheKey, {
+        content: data.translatedContent,
+        title: data.translatedTitle,
+      });
+      setTranslatedContent(data.translatedContent);
+      setTranslatedTitle(data.translatedTitle);
+      setTranslatedLang(targetLang);
+      toast.success(`Notes translated into ${targetLang}! All road signs and styles preserved.`, { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to translate note", { id: toastId });
+    } finally {
+      setIsTranslatingNote(false);
+      setPendingLang(null);
+    }
+  };
+
+  const handleResetTranslation = () => {
+    setTranslatedContent(null);
+    setTranslatedTitle(null);
+    setTranslatedLang(null);
+    toast.info("Reverted to original note");
+  };
+
+  // Toggle Bilingual Dual View (PC Side-by-Side)
+  const handleToggleDualView = () => {
+    const nextVal = !isDualView;
+    setIsDualView(nextVal);
+    if (nextVal && !translatedContent) {
+      const target: "English" | "Kinyarwanda" =
+        learningLanguage === "Kinyarwanda" ? "English" : "Kinyarwanda";
+      handleLanguageSelect(target);
+    }
+  };
+
+  // Plain Terms Legal Explainer
+  const handleTogglePlainLanguage = async () => {
+    if (isPlainLanguageOpen) {
+      setIsPlainLanguageOpen(false);
+      return;
+    }
+    const currentKey = currentItem?.type === "topic" ? currentTopic?.id : currentLesson?.id;
+    if (!currentKey) return;
+
+    const activeLang = translatedLang || learningLanguage || "English";
+    const cacheKey = `${currentKey}_${activeLang}`;
+
+    if (plainCacheRef.current.has(cacheKey)) {
+      setPlainData(plainCacheRef.current.get(cacheKey)!);
+      setIsPlainLanguageOpen(true);
+      return;
+    }
+
+    setIsLoadingPlain(true);
+    setIsPlainLanguageOpen(true);
+    try {
+      const res = await fetch("/api/course/simplify-note", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: translatedContent || currentContent,
+          title: translatedTitle || currentTopic?.title || currentLesson?.title,
+          language: activeLang,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to simplify");
+      }
+      plainCacheRef.current.set(cacheKey, data.explanation);
+      setPlainData(data.explanation);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to simplify road code");
+      setIsPlainLanguageOpen(false);
+    } finally {
+      setIsLoadingPlain(false);
+    }
+  };
+
+  // AI Neural Cloud Voice Player
+  const handleToggleTTS = async () => {
+    if (isTTSOpen && ttsAudioUrl) {
+      setIsTTSOpen(false);
+      return;
+    }
+    setIsTTSOpen(true);
+
+    const currentKey = currentItem?.type === "topic" ? currentTopic?.id : currentLesson?.id;
+    if (!currentKey) return;
+
+    const activeLang = translatedLang || learningLanguage || "English";
+    const cacheKey = `${currentKey}_${activeLang}`;
+
+    if (ttsCacheRef.current.has(cacheKey)) {
+      setTtsAudioUrl(ttsCacheRef.current.get(cacheKey)!);
+      return;
+    }
+
+    setIsLoadingTTS(true);
+    try {
+      const rawText = extractPlainText(translatedContent || currentContent);
+      const res = await fetch("/api/ai/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: rawText,
+          language: activeLang,
+          voice: activeLang === "French" ? "Charon" : "Kore",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to synthesize voice");
+      }
+      ttsCacheRef.current.set(cacheKey, data.audioUrl);
+      setTtsAudioUrl(data.audioUrl);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate neural speech");
+    } finally {
+      setIsLoadingTTS(false);
+    }
+  };
+
+  // Text selection for instant terminology lookups
+  const handleMouseUpContent = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) return;
+    const text = selection.toString().trim();
+    if (text.length >= 2 && text.length <= 60) {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      setTermPosition({ x: rect.left + rect.width / 2, y: rect.top - 10 });
+      setSelectedTerm(text);
+    }
+  };
+
+  // Keyboard Shortcuts for PC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === "b" || e.key === "B") {
+        e.preventDefault();
+        handleToggleDualView();
+      } else if (e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        handleTogglePlainLanguage();
+      } else if (e.key === "t" || e.key === "T") {
+        e.preventDefault();
+        if (translatedLang) {
+          handleResetTranslation();
+        } else {
+          handleLanguageSelect("Kinyarwanda");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [translatedLang, currentContent, currentTopic, isDualView, isPlainLanguageOpen, learningLanguage]);
 
   const resumeTarget = useMemo(() => {
     if (!course || flatList.length === 0) return null;
@@ -1798,54 +2041,85 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             <StickyNote className="h-4 w-4" />
           </button>
 
-          {/* AI Note Translation Toggle */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                disabled={isTranslatingNote || !currentContent}
-                className={cn(
-                  "p-1.5 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1",
-                  translatedLang
-                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                    : "bg-background hover:bg-muted text-muted-foreground"
-                )}
-                title="Translate note to another language with AI (Rwanda Road Code)"
-              >
-                {isTranslatingNote ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                ) : (
-                  <Languages className="h-4 w-4" />
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 text-xs">
-              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                AI Translate Note (Rwanda Traffic Code)
-              </DropdownMenuLabel>
-              {(["English", "French", "Kinyarwanda"] as const)
-                .filter((l) => l !== (translatedLang || learningLanguage))
-                .map((lang) => (
-                  <DropdownMenuItem
-                    key={lang}
-                    onClick={() => handleTranslateNote(lang)}
-                    className="gap-2 cursor-pointer"
-                  >
-                    <span>{lang === "English" ? "🇬🇧" : lang === "French" ? "🇫🇷" : "🇷🇼"}</span>
-                    <span>Translate to {lang === "French" ? "Français" : lang}</span>
-                  </DropdownMenuItem>
-                ))}
-              {translatedLang && (
-                <DropdownMenuItem
-                  onClick={handleResetTranslation}
-                  className="gap-2 cursor-pointer text-rose-500"
+          {/* 1-Click Segmented Language Switcher (Zero Dropdown Hunting, 0ms Cache) */}
+          <div className="flex items-center p-0.5 rounded-xl bg-muted/70 border border-border/50 text-xs">
+            {(["English", "French", "Kinyarwanda"] as const).map((lang) => {
+              const activeLang = translatedLang || learningLanguage || "English";
+              const isActive = activeLang === lang;
+              const isPending = isTranslatingNote && pendingLang === lang;
+              return (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => handleLanguageSelect(lang)}
+                  disabled={isTranslatingNote}
+                  className={cn(
+                    "px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer",
+                    isActive
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title={`Read note in ${lang === "French" ? "Français" : lang} [Hotkey: T]`}
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  <span>Revert to original ({learningLanguage || "Original"})</span>
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <span>{lang === "English" ? "🇬🇧" : lang === "French" ? "🇫🇷" : "🇷🇼"}</span>
+                  <span className="hidden sm:inline">{lang === "French" ? "FR" : lang === "English" ? "EN" : "RW"}</span>
+                  {isPending && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Bilingual Dual View Split Toggle (PC Mode) */}
+          <button
+            type="button"
+            onClick={handleToggleDualView}
+            className={cn(
+              "hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
+              isDualView
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-background hover:bg-muted text-muted-foreground border-border"
+            )}
+            title="Side-by-side bilingual comparison (PC Mode) [Press B]"
+          >
+            <Columns2 className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">Dual View</span>
+          </button>
+
+          {/* Plain Terms Legal Explainer Toggle */}
+          <button
+            type="button"
+            onClick={handleTogglePlainLanguage}
+            className={cn(
+              "hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
+              isPlainLanguageOpen
+                ? "bg-amber-500 text-white border-amber-600 shadow-sm"
+                : "bg-background hover:bg-muted text-muted-foreground border-border"
+            )}
+            title="Explain road rules in plain, simple terms [Press P]"
+          >
+            <Lightbulb className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">Plain Terms</span>
+          </button>
+
+          {/* AI Neural Cloud Voice Player Toggle */}
+          <button
+            type="button"
+            onClick={handleToggleTTS}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
+              isTTSOpen
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-background hover:bg-muted text-muted-foreground border-border"
+            )}
+            title="Listen with AI Cloud Voice (Gemini Neural TTS)"
+          >
+            {isLoadingTTS ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Volume2 className="h-3.5 w-3.5" />
+            )}
+            <span className="hidden sm:inline">AI Voice</span>
+          </button>
 
           {/* Distraction-Free Focus Mode Toggle */}
           <button
@@ -2066,12 +2340,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 </div>
 
                 {/* Active AI Translation Banner */}
-                {translatedLang && (
+                {translatedLang && !isDualView && (
                   <div className="flex items-center justify-between p-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-800 dark:text-emerald-300">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-emerald-500 shrink-0" />
                       <span>
-                        AI Translated into <strong>{translatedLang}</strong> using Rwanda Traffic Code terminology (all signs & styles preserved).
+                        AI Translated into <strong>{translatedLang}</strong> using Rwanda Traffic Code terminology (all signs &amp; styles preserved).
                       </span>
                     </div>
                     <button
@@ -2089,21 +2363,106 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 </h1>
               </div>
 
-              {/* Advanced Audio Player if Topic has Audio */}
-              {currentTopic?.audioUrl && (
+              {/* AI Cloud Neural Voice Player (Gemini TTS) */}
+              {isTTSOpen && (
+                <AINeuralVoicePlayer
+                  audioUrl={ttsAudioUrl}
+                  isLoading={isLoadingTTS}
+                  language={translatedLang || learningLanguage || "English"}
+                  topicTitle={translatedTitle || currentTopic?.title || currentLesson?.title || "Lesson Note"}
+                  onClose={() => setIsTTSOpen(false)}
+                  onRetry={handleToggleTTS}
+                />
+              )}
+
+              {/* Plain Language Explainer Card (Rwanda Traffic Code Simplified) */}
+              {isPlainLanguageOpen && plainData && (
+                <PlainLanguageCard
+                  data={plainData}
+                  language={translatedLang || learningLanguage || "English"}
+                  onClose={() => setIsPlainLanguageOpen(false)}
+                />
+              )}
+
+              {/* Advanced Audio Player if Topic has pre-uploaded Audio */}
+              {currentTopic?.audioUrl && !isTTSOpen && (
                 <TopicAudioPlayer
                   audioUrl={currentTopic.audioUrl}
                   topicTitle={currentTopic.title}
                 />
               )}
 
-              {/* Topic Body Content */}
-              <div className="w-full transition-all leading-relaxed">
-                {currentContent ? (
-                  <LessonContentView content={translatedContent || currentContent} textSize={textSize} />
+              {/* Topic Body Content: Side-by-Side Bilingual Dual View on PC or Standard View */}
+              <div onMouseUp={handleMouseUpContent}>
+                {isDualView && translatedContent ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    {/* Left: Original Note */}
+                    <div className="space-y-3 p-4 sm:p-5 rounded-2xl border bg-muted/20 border-border/60">
+                      <div className="flex items-center justify-between pb-2 border-b text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground flex items-center gap-1.5">
+                          <span>{learningLanguage === "French" ? "🇫🇷" : learningLanguage === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
+                          Original Note ({learningLanguage || "Original"})
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted">Source</span>
+                      </div>
+                      <div className="text-base sm:text-lg font-bold text-foreground">
+                        {currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle}
+                      </div>
+                      <LessonContentView content={currentContent} textSize={textSize} />
+                    </div>
+
+                    {/* Right: Translated Note */}
+                    <div className="space-y-3 p-4 sm:p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5">
+                      <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300">
+                        <span className="font-semibold flex items-center gap-1.5">
+                          <span>{translatedLang === "French" ? "🇫🇷" : translatedLang === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
+                          Translated Note ({translatedLang || "Translation"})
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">AI Synced</span>
+                      </div>
+                      <div className="text-base sm:text-lg font-bold text-foreground">
+                        {translatedTitle || (currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle)}
+                      </div>
+                      <LessonContentView content={translatedContent} textSize={textSize} />
+                    </div>
+                  </div>
                 ) : (
-                  <p className="text-muted-foreground italic">{t("noContent") || "No content available yet."}</p>
+                  <div className="w-full transition-all leading-relaxed">
+                    {currentContent ? (
+                      <LessonContentView content={translatedContent || currentContent} textSize={textSize} />
+                    ) : (
+                      <p className="text-muted-foreground italic">{t("noContent") || "No content available yet."}</p>
+                    )}
+                  </div>
                 )}
+              </div>
+
+              {/* Floating Term Tooltip on Selection */}
+              {selectedTerm && termPosition && (
+                <TermLookupTooltip
+                  term={selectedTerm}
+                  position={termPosition}
+                  onClose={() => {
+                    setSelectedTerm(null);
+                    setTermPosition(null);
+                  }}
+                />
+              )}
+
+              {/* PC Desktop Hotkey Hints */}
+              <div className="hidden md:flex items-center justify-end gap-3 pt-2 text-[11px] text-muted-foreground border-t border-border/40">
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[10px]">T</kbd>
+                  <span>Translate</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[10px]">B</kbd>
+                  <span>Bilingual Split</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[10px]">P</kbd>
+                  <span>Plain Terms</span>
+                </span>
               </div>
 
               {/* Study Scratchpad & Notes Drawer if toggled */}
