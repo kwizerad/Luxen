@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return new Response(wavBuffer, {
+    return new NextResponse(new Uint8Array(wavBuffer), {
       headers: {
         "Content-Type": "audio/wav",
         "Content-Length": wavBuffer.length.toString(),
