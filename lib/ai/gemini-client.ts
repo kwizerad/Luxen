@@ -1,11 +1,30 @@
 import { GoogleGenAI } from "@google/genai";
 
-if (!process.env.GEMINI_API_KEY) {
-  console.warn("GEMINI_API_KEY environment variable is not defined");
+export function getGeminiApiKey(): string {
+  return (
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_AI_API_KEY ||
+    process.env.GOOGLE_GENAI_API_KEY ||
+    ""
+  );
 }
 
-export const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || "",
+export function getAiClient(): GoogleGenAI {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    throw new Error(
+      "GEMINI_API_KEY is not defined in environment variables. Please add GEMINI_API_KEY in your Vercel Project Settings > Environment Variables."
+    );
+  }
+  return new GoogleGenAI({ apiKey });
+}
+
+export const ai: GoogleGenAI = new Proxy({} as GoogleGenAI, {
+  get(_target, prop) {
+    const client = getAiClient();
+    const val = (client as any)[prop];
+    return typeof val === "function" ? val.bind(client) : val;
+  },
 });
 
 const CANDIDATE_MODELS = [

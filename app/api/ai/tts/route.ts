@@ -13,6 +13,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Text is required for TTS generation" }, { status: 400 });
     }
 
+    const apiKey =
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_AI_API_KEY ||
+      process.env.GOOGLE_GENAI_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          error:
+            "GEMINI_API_KEY is not configured in your environment. Please add GEMINI_API_KEY in your Vercel Project Settings > Environment Variables.",
+        },
+        { status: 500 }
+      );
+    }
+
     // Limit length to ~2500 characters to keep synthesis snappy and responsive
     const trimmedText = text.trim().slice(0, 2500);
     const contentHash = crypto.createHash("md5").update(trimmedText).digest("hex");
