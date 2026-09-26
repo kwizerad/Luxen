@@ -41,8 +41,6 @@ import {
   Loader2,
   Columns2,
   Lightbulb,
-  Play,
-  Volume2,
   VolumeX,
   Keyboard,
 } from "lucide-react";
@@ -1944,19 +1942,26 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         </div>
       )}
 
-      {/* Focus Lost Paused Alert Banner */}
-      {!isFocusActive && (
-        <div
-          onClick={() => setIsFocusActive(true)}
-          className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 text-center text-xs font-medium text-amber-700 dark:text-amber-300 flex items-center justify-center gap-2 cursor-pointer sticky top-0 z-40"
-        >
-          <Pause className="h-3.5 w-3.5 shrink-0" />
-          <span>{t("studyTimerPausedFocusLost") || "Study timer paused (Focus lost) — Click anywhere to resume studying"}</span>
-        </div>
-      )}
+      {/* Top Study Header (Single Sticky Container to prevent headers overlapping) */}
+      <div className="sticky top-0 z-30 flex flex-col bg-card/90 backdrop-blur-md border-b shadow-sm">
+        {/* Focus Lost Paused Alert Banner */}
+        {!isFocusActive && (
+          <div
+            onClick={() => setIsFocusActive(true)}
+            className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 text-center text-xs font-medium text-amber-700 dark:text-amber-300 flex items-center justify-center gap-2 cursor-pointer transition-colors hover:bg-amber-500/20"
+          >
+            <Pause className="h-3.5 w-3.5 shrink-0" />
+            <span>{t("studyTimerPausedFocusLost") || "Study timer paused (Focus lost) — Click anywhere to resume studying"}</span>
+          </div>
+        )}
 
-      {/* Top Study Navigation Bar */}
-      <div className="border-b bg-card/80 backdrop-blur-md px-4 sm:px-6 py-3 sticky top-0 z-30 flex items-center justify-between gap-4">
+        {/* Top Study Navigation Bar */}
+        <div
+          className={cn(
+            "px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar",
+            !isFocusMode && "pr-24 sm:pr-28 md:pr-32"
+          )}
+        >
         {/* Breadcrumb path */}
         <div className="flex items-center gap-2 min-w-0 text-xs">
           <button
@@ -2134,6 +2139,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           </button>
         </div>
       </div>
+    </div>
 
       {/* Main Study Layout */}
       <div className="flex flex-1 min-h-0 relative">

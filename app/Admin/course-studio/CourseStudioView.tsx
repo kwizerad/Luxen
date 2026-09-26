@@ -424,7 +424,7 @@ export function CourseStudioView() {
         {course && (
           <>
             {/* Top Action Toolbar */}
-            <div className="sticky top-[48px] z-30 flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] h-auto border-b border-[var(--admin-border)] bg-[var(--admin-card)]">
+            <div className="sticky top-[48px] z-30 flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] h-auto border-b border-[var(--admin-border)] bg-[var(--admin-card)] pr-24 sm:pr-28 md:pr-32">
               <div className="flex-1 min-w-0 overflow-hidden">
                 {renderBreadcrumb()}
               </div>

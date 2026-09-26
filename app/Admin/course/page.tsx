@@ -118,7 +118,7 @@ export default function CoursePage() {
     <div className="course-page space-y-4 sm:space-y-5">
       {/* Tab switcher — sticky at top, auto-hides on scroll down */}
       <div
-        className={`sticky top-0 z-30 -mx-1 px-1 py-2 flex flex-wrap gap-2 backdrop-blur-md bg-[#0B1020]/80 border-b border-[var(--admin-border)] transition-transform duration-300 ${tabsVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"}`}
+        className={`sticky top-0 z-30 -mx-1 px-1 py-2 flex flex-wrap gap-2 backdrop-blur-md bg-[#0B1020]/80 border-b border-[var(--admin-border)] pr-24 sm:pr-28 md:pr-32 transition-transform duration-300 ${tabsVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"}`}
         role="tablist"
         aria-label={t("courseManagementNav") || "Course"}
       >
