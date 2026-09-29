@@ -255,7 +255,7 @@ export interface CitizenFullProfile {
   nationalId: string;
   firstName: string;
   lastName: string;
-  middleName: string;
+  middleName?: string;
   fullName: string;
   dateOfBirth: string;
   embeddedBirthYear?: string;

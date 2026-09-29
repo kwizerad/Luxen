@@ -404,7 +404,7 @@ export function GazetteModal({
                         className="p-3 rounded-xl border border-border dark:border-slate-800 bg-muted/40 dark:bg-slate-900/60 text-xs text-foreground dark:text-slate-200 flex items-start gap-2.5"
                       >
                         <span className="font-bold text-primary shrink-0">Q{idx + 1}:</span>
-                        <span>{q.text}</span>
+                        <span>{q.question}</span>
                       </div>
                     ))}
                     {analysisResult.questions.length > 3 && (

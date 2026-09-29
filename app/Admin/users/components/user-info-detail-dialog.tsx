@@ -265,6 +265,7 @@ export function UserInfoDetailDialog({
     const initialBaseProfile: CitizenFullProfile = {
       nationalId: rawId,
       firstName: user.first_name || "",
+      middleName: (user as any).middle_name || "",
       lastName: user.last_name || "",
       fullName:
         user.full_name ||
