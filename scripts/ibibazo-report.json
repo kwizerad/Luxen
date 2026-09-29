@@ -1,0 +1,217 @@
+{
+  "total": 362,
+  "with_issues": 42,
+  "picture_questions": 76,
+  "issues": [
+    {
+      "question_number": 153,
+      "issue": "no correct-answer marker found",
+      "question": "Mugihe ukurikiranye na romoruki,n’ukubera iki ugomba gusiga umwanya uhagije hagati yawe nayo?"
+    },
+    {
+      "question_number": 158,
+      "issue": "no correct-answer marker found",
+      "question": "Niki wakora igihe utabona neza usubira inyuma ?"
+    },
+    {
+      "question_number": 160,
+      "issue": "no correct-answer marker found",
+      "question": "Wifuza kugana ibumoso imbere yawe. kubera iki ushaka umwanya mwiza kandi uhagije?"
+    },
+    {
+      "question_number": 252,
+      "issue": "no correct-answer marker found",
+      "question": "Niki umuyobozi w’ ikinyabiziga akwiriye kumenya mugihe akurikiye umuyobozi wikinyamitende ibiri kandi imodoka y’ umweru iri gusubira inyuma ijya mumuhanda?"
+    },
+    {
+      "question_number": 262,
+      "issue": "no correct-answer marker found",
+      "question": "Umurongo w’umweru urombereje uciye hagati mu muhanda uvuze iki?"
+    },
+    {
+      "question_number": 263,
+      "issue": "no correct-answer marker found",
+      "question": "Umuyobozi w’ikinyabiziga ugeze mu isangano ry’umuhanda ugenzurwa ni ibimenyetso by’amatara yaka agasanga ataka (adakora), yakora iki?"
+    },
+    {
+      "question_number": 264,
+      "issue": "no correct-answer marker found",
+      "question": "Ni iki umuyobozi w’ikinyabiziga yakora ahuye n’ishyo ry’amatungo munzira nyabagendwa?"
+    },
+    {
+      "question_number": 265,
+      "issue": "no correct-answer marker found",
+      "question": "Umuyobozi w’ikinyabiziga yakora iki igihe ageze ku kazamuko gashinze cyane ?"
+    },
+    {
+      "question_number": 266,
+      "issue": "no correct-answer marker found",
+      "question": "Umuyobozi w’ikinyabiziga yakora iki ahuye n’ikinyabiziga giturutse mukindi kerekezo, gicanye amatara yumuhondo aburira ?"
+    },
+    {
+      "question_number": 267,
+      "issue": "no correct-answer marker found",
+      "question": "Niki umuyobozi w’ikinyabiziga yakora ageze hafi y’inzira ifunganye igihe ahuye n’ikindi kinyabiziga giturutse mukindi cyerekezo?"
+    },
+    {
+      "question_number": 268,
+      "issue": "no correct-answer marker found",
+      "question": "Umuyobozi w’ ikinyabiziga agendera inyuma y’ikindi kinyabizaga akaba adateganya kukinyuraho yakora iki ?"
+    },
+    {
+      "question_number": 269,
+      "issue": "no correct-answer marker found",
+      "question": "Niryari amatara ndanga cyerekezo agomba kugaragazwa kubandi bakoresha umuhanda ?"
+    },
+    {
+      "question_number": 270,
+      "issue": "no correct-answer marker found",
+      "question": "Gutinda gutanga ibimenyetso ku muyobozi w’ikinyabiziga ni gute bibangamira abandi bakoresha umuhanda ?"
+    },
+    {
+      "question_number": 271,
+      "issue": "no correct-answer marker found",
+      "question": "Ni ubuhe buryo bwiza bwakurikizwa igihe hari umuntu wakomerekeye mu mpanuka yo mu muhanda ?"
+    },
+    {
+      "question_number": 272,
+      "issue": "no correct-answer marker found",
+      "question": "Niki umuyobozi w’ikinyabiziga yakora igihe agize uruhare mu mpanuka yo mu muhanda , aho ntawakometese ariko ibinyabiziga bikaba byateza icyago cyangwa byafunze umuhanda ?"
+    },
+    {
+      "question_number": 273,
+      "issue": "no correct-answer marker found",
+      "question": "Igihe umuyobozi w’ikinyabiziga agendera munzira y’icyerekezo kimwe akifuza gukata ibumoso yakora iki?"
+    },
+    {
+      "question_number": 274,
+      "issue": "no correct-answer marker found",
+      "question": "Umuyobozi w’ikinyabizaga uri kugendera mu muhanda w’ibyerekezo bibiri nuruhe ruhande rw’umuhanda agomba gukoresha ?"
+    },
+    {
+      "question_number": 275,
+      "issue": "no correct-answer marker found",
+      "question": "Igihe umuyobozi w’ikinyabiziga atwaye mu muhanda urombereje w’ibice byinshi agomba kugendera mu kihe gice cy’umuhanda ?"
+    },
+    {
+      "question_number": 276,
+      "issue": "no correct-answer marker found",
+      "question": "Umuyobozi w’ikinyabiziga yakora iki igihe ageze aho banyura bazenguruka?"
+    },
+    {
+      "question_number": 277,
+      "issue": "no correct-answer marker found",
+      "question": "Ni kihe cyerekezo umuyobozi w’ikinyabiziga yinjiriramo iyo ageze aho banyura bazenguruka ?"
+    },
+    {
+      "question_number": 278,
+      "issue": "no correct-answer marker found",
+      "question": "Mbere yuko umuyobozi w’ikinyabiziga akata ibumoso mu nzira nyabagendwa, nihe ikinyabiziga kigomba kuba kiri ?"
+    },
+    {
+      "question_number": 279,
+      "issue": "no correct-answer marker found",
+      "question": "Umuyobozi w’ikinyabiziga yakwitondera iki mbere yuko y’injira munzira banyuramo bazengurutse ?"
+    },
+    {
+      "question_number": 280,
+      "issue": "no correct-answer marker found",
+      "question": "Umuyobozi w’ikinyabiziga ugendera inyuma y’ikinyabaziga gitwara abagenzi gihagaze gikuramo cyangwa gishyiramo abagenzi agomba :"
+    },
+    {
+      "question_number": 281,
+      "issue": "no correct-answer marker found",
+      "question": "Igihe ubonye icyapa kigaragaza ishuli wakora iki?"
+    },
+    {
+      "question_number": 282,
+      "issue": "no correct-answer marker found",
+      "question": "Umubare w’abagenzi bemewe gutwarwa mukinyabiziga wanditswe mu :"
+    },
+    {
+      "question_number": 283,
+      "issue": "no correct-answer marker found",
+      "question": "Gutwara ikinyabiziga wasinze:"
+    },
+    {
+      "question_number": 284,
+      "issue": "no correct-answer marker found",
+      "question": "Ugeze ahari inzira yabanyamaguru barindiriye kwambuka. Ntibatangiye kwambuka , wakora iki?"
+    },
+    {
+      "question_number": 285,
+      "issue": "no correct-answer marker found",
+      "question": "Igihe utwaye umuntu mu kinyabiziga cyawe, akibagirwa kwambara umukandara wo kwirinda ibyago ugomba:"
+    },
+    {
+      "question_number": 286,
+      "issue": "no correct-answer marker found",
+      "question": "Igihe za otobisi zigenewe gutwara banyeshuli zihagaze kugirango zibafate cyangwa bavemo ugomba :"
+    },
+    {
+      "question_number": 287,
+      "issue": "no correct-answer marker found",
+      "question": "Igihe imodoka iparitse ku nkengero z’umuhanda mugihe cy’ ijoro :"
+    },
+    {
+      "question_number": 294,
+      "issue": "no correct-answer marker found",
+      "question": "Umuyobozi w’ikinyabiziga igihe atwaye ikinyabiziga akagira umunaniro utuma y+asinzira yakora iki ? yaka 158. yasinzira yakora iki ?"
+    },
+    {
+      "question_number": 288,
+      "issue": "no correct-answer marker found",
+      "question": "Mu gihe hari undi muyobozi w’ikinyabiziga ugukurikiye watangiye kukunyuraho :"
+    },
+    {
+      "question_number": 289,
+      "issue": "no correct-answer marker found",
+      "question": "Utwaye ikinyabiziga mu muhanda ufite ibyerekezo bibiri .ikinyabiziga imbere yawe cyiragenda buhoro, imbere yawe umuhanda nta kibazo kunyuranaho, ugomba :"
+    },
+    {
+      "question_number": 290,
+      "issue": "no correct-answer marker found",
+      "question": "Ibice by’umuhanda byera bigari biteganye n’umurongo ugabanya umuhanda mo ,kabiri bisobanura:"
+    },
+    {
+      "question_number": 291,
+      "issue": "no correct-answer marker found",
+      "question": "Uturebanyuma dukoreshwa:"
+    },
+    {
+      "question_number": 292,
+      "issue": "no correct-answer marker found",
+      "question": "Kuki abanyamaguru batemerewe kwambuka umuhanda mw’ikoni cyangwa hafi y’imodoka ihagaze?"
+    },
+    {
+      "question_number": 293,
+      "issue": "no correct-answer marker found",
+      "question": "Kunyuranaho mw’ikoni :"
+    },
+    {
+      "question_number": 295,
+      "issue": "no correct-answer marker found",
+      "question": "Niki umuyobozi w’ikinyabiziga yakora igihe atwaye ikinyabiziga mugihe cy’ibihu,imvura nyinshi, umwuzure cyangwa umukungugu mwinshi ?"
+    },
+    {
+      "question_number": 296,
+      "issue": "no correct-answer marker found",
+      "question": "Muri ibi byapa ni ubuhe bwoko bw’ibyapa bitegeka byo mu muhanda?"
+    },
+    {
+      "question_number": 323,
+      "issue": "no correct-answer marker found",
+      "question": "Ibi byapa byo mu muhanda birambuza kunyuranaho ibumoso ?"
+    },
+    {
+      "question_number": 324,
+      "issue": "multiple marked options (a,b,c,d)",
+      "question": "Umuhanda urombereje w’ibice byinshi. Ndashaka kunyura kuri izi kamyo ibyiri mugihe gito ibumoso icyarimwe , biremewe ?"
+    },
+    {
+      "question_number": 339,
+      "issue": "multiple marked options (b,a)",
+      "question": "Iki cyapa gisobanura iki aho banyura bazengurutse ?"
+    }
+  ]
+}
