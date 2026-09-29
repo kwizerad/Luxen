@@ -70,6 +70,27 @@
         }
         document.documentElement.style.setProperty('--hover-border-color', themeColors.hoverBorderColor);
         document.documentElement.style.setProperty('--glow-intensity', config.glowIntensity + 'px');
+
+        if (themeColors.primaryColor) {
+          var metas = document.querySelectorAll('meta[name="theme-color"]');
+          if (metas.length > 0) {
+            metas.forEach(function(m) {
+              var med = m.getAttribute('media');
+              if (med && med.indexOf('light') !== -1 && config.light) {
+                m.setAttribute('content', config.light.primaryColor);
+              } else if (med && med.indexOf('dark') !== -1 && config.dark) {
+                m.setAttribute('content', config.dark.primaryColor);
+              } else {
+                m.setAttribute('content', themeColors.primaryColor);
+              }
+            });
+          } else {
+            var m = document.createElement('meta');
+            m.name = 'theme-color';
+            m.content = themeColors.primaryColor;
+            document.head.appendChild(m);
+          }
+        }
       }
       
       applyThemeColors(config);

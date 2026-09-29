@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useThemeConfig } from "@/lib/theme-config";
+import { useThemeConfig, updateBrowserThemeColor } from "@/lib/theme-config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Palette, Sparkles, RectangleHorizontal, RotateCcw, Save, Sun, Moon, Check, X, Star, Wand2, MousePointer2, Eye } from "lucide-react";
+import { Palette, Sparkles, RectangleHorizontal, RotateCcw, Save, Sun, Moon, Check, X, Star, Wand2, MousePointer2, Eye, Smartphone, Monitor } from "lucide-react";
 import { toast } from "sonner";
 
 export function ThemeCustomizer() {
@@ -142,6 +142,13 @@ export function ThemeCustomizer() {
     }
     root.style.setProperty("--hover-border-color", themeColors.hoverBorderColor);
     root.style.setProperty("--glow-intensity", `${themeConfig.glowIntensity}px`);
+
+    // Instantly update browser status bar / theme-color on small and big devices
+    updateBrowserThemeColor(
+      themeColors.primaryColor,
+      themeConfig.light?.primaryColor,
+      themeConfig.dark?.primaryColor
+    );
   };
 
   const handleSave = () => {
@@ -531,10 +538,59 @@ export function ThemeCustomizer() {
             Live Preview
           </CardTitle>
           <CardDescription className="text-xs">
-            See your theme changes in action
+            See your theme changes in action across small (mobile) and big (desktop) devices
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Small Device & Big Device Status Bar Simulation */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* Small Device Preview */}
+            <div className="rounded-xl border border-border p-2.5 bg-secondary/30 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Smartphone className="h-3.5 w-3.5 text-primary" />
+                  Small Device (Mobile)
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary">Status Bar</span>
+              </div>
+              <div
+                className="h-6 rounded-md flex items-center justify-between px-2 text-[10px] font-semibold text-white shadow-xs transition-colors duration-300"
+                style={{ backgroundColor: previewConfig.light.primaryColor }}
+              >
+                <span>10:53</span>
+                <span className="flex items-center gap-1 text-[9px]">4G ▮▮▮ 54%</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Controls the top phone notch, Android status bar, and mobile browser address bar.
+              </p>
+            </div>
+
+            {/* Big Device Preview */}
+            <div className="rounded-xl border border-border p-2.5 bg-secondary/30 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Monitor className="h-3.5 w-3.5 text-primary" />
+                  Big Device (Desktop)
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary">Safari / PWA</span>
+              </div>
+              <div
+                className="h-6 rounded-md flex items-center gap-1.5 px-2 text-[10px] font-medium text-white shadow-xs transition-colors duration-300"
+                style={{ backgroundColor: previewConfig.light.primaryColor }}
+              >
+                <div className="flex gap-1 shrink-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                </div>
+                <span className="truncate opacity-90 text-[9px] font-mono">Navo Platform — navo.rw</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Controls macOS Safari tab headers, browser window tinting, and desktop app headers.
+              </p>
+            </div>
+          </div>
+
           {/* Demo Buttons */}
           <div className="flex gap-2 flex-wrap">
             <Button size="sm">Primary Button</Button>
@@ -546,7 +602,7 @@ export function ThemeCustomizer() {
           {/* Demo Status */}
           <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg border border-primary/20">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-            <p className="text-xs text-primary">Theme changes apply instantly</p>
+            <p className="text-xs text-primary">Theme changes apply instantly to all devices and browser chrome</p>
           </div>
         </CardContent>
       </Card>

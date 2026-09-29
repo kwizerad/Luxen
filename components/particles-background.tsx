@@ -54,7 +54,7 @@ export function ParticlesBackground() {
           particleCount={150}
           particleSpread={12}
           speed={0.15}
-          particleColors={["#22C55E", "#4ADE80", "#86EFAC", "#ffffff"]}
+          particleColors={[config.dark.primaryColor || "#22C55E", config.dark.hoverBorderColor || "#4ADE80", "#ffffff"]}
           alphaParticles
           particleBaseSize={80}
           sizeRandomness={0.8}

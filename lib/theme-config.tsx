@@ -51,6 +51,55 @@ const defaultConfig: ThemeConfig = {
   backgroundMode: 'solid', // Default to solid dark background
 };
 
+export function updateBrowserThemeColor(activeColor: string, lightColor?: string, darkColor?: string) {
+  if (typeof document === 'undefined') return;
+
+  try {
+    // 1. Update all <meta name="theme-color"> tags
+    const metas = document.querySelectorAll('meta[name="theme-color"]');
+    if (metas.length > 0) {
+      metas.forEach((m) => {
+        const media = m.getAttribute('media');
+        if (media && media.includes('light') && lightColor) {
+          m.setAttribute('content', lightColor);
+        } else if (media && media.includes('dark') && darkColor) {
+          m.setAttribute('content', darkColor);
+        } else {
+          m.setAttribute('content', activeColor);
+        }
+      });
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      meta.content = activeColor;
+      document.head.appendChild(meta);
+    }
+
+    // 2. Mobile status bar & Windows tile colors
+    let msNavMeta = document.querySelector('meta[name="msapplication-navbutton-color"]') as HTMLMetaElement | null;
+    if (msNavMeta) {
+      msNavMeta.content = activeColor;
+    } else {
+      msNavMeta = document.createElement('meta');
+      msNavMeta.name = 'msapplication-navbutton-color';
+      msNavMeta.content = activeColor;
+      document.head.appendChild(msNavMeta);
+    }
+
+    let msTileMeta = document.querySelector('meta[name="msapplication-TileColor"]') as HTMLMetaElement | null;
+    if (msTileMeta) {
+      msTileMeta.content = activeColor;
+    } else {
+      msTileMeta = document.createElement('meta');
+      msTileMeta.name = 'msapplication-TileColor';
+      msTileMeta.content = activeColor;
+      document.head.appendChild(msTileMeta);
+    }
+  } catch (err) {
+    console.error("Error updating browser theme color:", err);
+  }
+}
+
 const STORAGE_KEY = "navo-theme-config";
 
 const ThemeConfigContext = createContext<ThemeConfigContextType | undefined>(undefined);
@@ -79,6 +128,9 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
             const dbConfig = JSON.parse(data.value);
             setConfig(dbConfig);
             applyThemeConfig(dbConfig);
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(dbConfig));
+            } catch {}
             console.log("Theme config loaded from API:", dbConfig);
             setMounted(true);
             return;
@@ -139,7 +191,31 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
       });
       observer.observe(document.documentElement, { attributes: true });
 
-      return () => observer.disconnect();
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === STORAGE_KEY && e.newValue) {
+          try {
+            const newConfig = JSON.parse(e.newValue);
+            setConfig(newConfig);
+            applyThemeConfig(newConfig);
+          } catch {}
+        }
+      };
+
+      const handleCustomThemeChange = (e: any) => {
+        if (e.detail) {
+          setConfig(e.detail);
+          applyThemeConfig(e.detail);
+        }
+      };
+
+      window.addEventListener("storage", handleStorageChange);
+      window.addEventListener("theme-config-change", handleCustomThemeChange);
+
+      return () => {
+        observer.disconnect();
+        window.removeEventListener("storage", handleStorageChange);
+        window.removeEventListener("theme-config-change", handleCustomThemeChange);
+      };
     };
 
     loadThemeConfig();
@@ -219,6 +295,13 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
     
     // Apply glow intensity as CSS variable
     root.style.setProperty("--glow-intensity", `${themeConfig.glowIntensity}px`);
+
+    // Update browser theme-color meta tags for mobile (status bar) and desktop (Safari/PWA)
+    updateBrowserThemeColor(
+      themeColors.primaryColor,
+      themeConfig.light?.primaryColor,
+      themeConfig.dark?.primaryColor
+    );
     
     console.log("Theme config applied successfully");
   };
@@ -383,6 +466,7 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
     setConfig(newConfig);
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+      window.dispatchEvent(new CustomEvent("theme-config-change", { detail: newConfig }));
     }
     applyThemeConfig(newConfig);
     if (isAdmin) {
@@ -394,6 +478,7 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
     setConfig(defaultConfig);
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultConfig));
+      window.dispatchEvent(new CustomEvent("theme-config-change", { detail: defaultConfig }));
     }
     applyThemeConfig(defaultConfig);
     if (isAdmin) {

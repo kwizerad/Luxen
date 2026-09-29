@@ -1,14 +1,47 @@
 import { MetadataRoute } from "next";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  let themeColor = "#22C55E";
+  let systemName = "Navo";
+
+  try {
+    const adminSupabase = createAdminClient();
+    const { data: themeData } = await adminSupabase
+      .from("system_config")
+      .select("value")
+      .eq("key", "theme_config")
+      .single();
+
+    if (themeData?.value) {
+      const parsed = JSON.parse(themeData.value);
+      if (parsed.light?.primaryColor) {
+        themeColor = parsed.light.primaryColor;
+      }
+    }
+
+    const { data: brandData } = await adminSupabase
+      .from("system_config")
+      .select("value")
+      .eq("key", "branding_config")
+      .single();
+
+    if (brandData?.value) {
+      const parsedBrand = JSON.parse(brandData.value);
+      if (parsedBrand.systemName) {
+        systemName = parsedBrand.systemName;
+      }
+    }
+  } catch {}
+
   return {
-    name: "Navo",
-    short_name: "Navo",
-    description: "Navo - Your lightweight modern learning platform. Access exams and learning materials offline.",
+    name: systemName,
+    short_name: systemName,
+    description: `${systemName} - Your lightweight modern learning platform. Access exams and learning materials offline.`,
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
-    theme_color: "#3b82f6",
+    theme_color: themeColor,
     orientation: "portrait-primary",
     scope: "/",
     lang: "en",

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/permissions";
 
-// GET system config value by key (all authenticated users can read)
+// GET system config value by key (all authenticated users can read; public configs can be read anonymously)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ key: string }> }
@@ -20,7 +20,10 @@ export async function GET(
       ? await supabase.auth.getUser(accessToken)
       : await supabase.auth.getUser();
 
-    if (authError || !user) {
+    const PUBLIC_CONFIG_KEYS = ["theme_config", "branding_config", "system_name", "public_config"];
+    const isPublic = PUBLIC_CONFIG_KEYS.includes(key);
+
+    if (!isPublic && (authError || !user)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
