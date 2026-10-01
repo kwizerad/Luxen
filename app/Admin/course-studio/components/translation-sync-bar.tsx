@@ -329,20 +329,20 @@ export function TranslationSyncBar({
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 py-1 px-1 w-full">
+    <div className="flex flex-wrap items-center justify-between gap-2.5 w-full">
       {/* Current language tag */}
-      <div className="flex items-center gap-2">
-        <span className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold bg-[var(--admin-primary)]/15 text-[var(--admin-primary)] border border-[var(--admin-primary)]/30">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-[var(--admin-primary)]/15 text-[var(--admin-primary)] border border-[var(--admin-primary)]/30 shrink-0">
           <span>{getLanguageFlag(currentCourse.language)}</span>
           <span>{getLanguageLabel(currentCourse.language)}</span>
         </span>
-        <span className="text-[11px] text-[var(--admin-muted)] hidden md:inline truncate max-w-xs">
-          {activeTopic ? `Topic: ${activeTopic.title}` : activeLesson ? `Lesson: ${activeLesson.title}` : ""}
+        <span className="text-[11px] text-[var(--admin-muted)] hidden md:inline truncate max-w-sm">
+          {activeTopic ? `Topic: ${activeTopic.title}` : activeLesson ? `Lesson: ${activeLesson.title}` : activeModule ? `Module: ${activeModule.title}` : `Course: ${currentCourse.title}`}
         </span>
       </div>
 
       {/* Multilingual Actions */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap shrink-0">
         {/* Translate dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -350,7 +350,7 @@ export function TranslationSyncBar({
               variant="outline"
               size="sm"
               disabled={isTranslating}
-              className="admin-btn-secondary h-7 text-xs px-2.5 gap-1.5"
+              className="admin-btn-secondary h-7.5 text-xs px-2.5 gap-1.5"
             >
               {isTranslating ? (
                 <>
@@ -366,7 +366,7 @@ export function TranslationSyncBar({
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64 text-xs bg-[var(--admin-card)] border-[var(--admin-border)]">
+          <DropdownMenuContent align="end" className="w-64 text-xs bg-[var(--admin-card)] border-[var(--admin-border)] z-50 shadow-xl">
             {activeTopic && (
               <>
                 <DropdownMenuLabel className="text-[11px] text-[var(--admin-muted)]">

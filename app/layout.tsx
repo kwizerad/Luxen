@@ -36,11 +36,11 @@ const systemName = getSystemName();
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
   title: {
-    default: "Navo - Rwanda Driving Theory & Irembo Exam Preparation | Amategeko y'Umuhanda",
+    default: "Navo - Rwanda Driving Theory in collaboration with RNP | Amategeko y'Umuhanda",
     template: "%s | Navo - Rwanda Driving Theory",
   },
   description:
-    "Pass your Rwanda Police theory exam (Irembo). Study official traffic regulations (Amategeko y'Umuhanda), practice real mock exams, road signs, and audio lessons in Kinyarwanda, English, and French.",
+    "Pass your Rwanda Police theory exam in collaboration with RNP. Study official traffic regulations (Amategeko y'Umuhanda), practice real mock exams, road signs, and audio lessons in Kinyarwanda, English, and French.",
   keywords: [
     "navo",
     "navo.rw",
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
     alternateLocale: ["en_US", "fr_FR"],
     url: "https://navo.rw",
     siteName: "Navo",
-    title: "Navo - Rwanda Driving Theory & Irembo Exam Preparation | Amategeko y'Umuhanda",
+    title: "Navo - Rwanda Driving Theory in collaboration with RNP | Amategeko y'Umuhanda",
     description:
       "Pass your Rwanda Police theory exam with official practice tests, traffic regulations, AI explanations, and multilingual study guides in Kinyarwanda, English, and French.",
     images: [
@@ -84,7 +84,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Navo - Rwanda Driving Theory & Irembo Exam Prep",
+    title: "Navo - Rwanda Driving Theory in collaboration with RNP",
     description: "Official Rwanda traffic regulations, police mock exams, road signs, and voice explanations.",
     images: ["/icons/icon-512x512.png"],
   },

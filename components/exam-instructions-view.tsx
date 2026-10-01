@@ -11,7 +11,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Hand,
-  Sparkles,
   HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -98,7 +97,7 @@ export function ExamInstructionsView({
       hint: "Glissez à gauche ou cliquez sur le bouton pour commencer",
     },
     en: {
-      badge: "Exam Instructions",
+      badge: "Exams navigation tips",
       title: "Quick Navigation",
       subtitle: "Simple shortcuts to navigate and answer your questions:",
       mobileTitle: "On Mobile",
@@ -130,7 +129,6 @@ export function ExamInstructionsView({
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border/80 bg-card/90 dark:bg-card/80 backdrop-blur-xl p-5 sm:p-8 text-center shadow-md">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20 mb-2.5">
-          <Sparkles className="h-3.5 w-3.5" />
           <span>{text.badge}</span>
         </div>
 

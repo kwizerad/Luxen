@@ -278,6 +278,10 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
         root.style.setProperty("--accent-foreground", "0 0% 0%");
       }
       
+      // Set success and toast accent colors to match primary brand color
+      root.style.setProperty("--success", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
+      root.style.setProperty("--success-foreground", hsl.l < 50 ? "0 0% 100%" : "0 0% 0%");
+
       // Set chart colors (variations of primary)
       root.style.setProperty("--chart-1", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
       root.style.setProperty("--chart-2", `${hsl.h} ${hsl.s}% ${Math.max(0, hsl.l - 5)}%`);

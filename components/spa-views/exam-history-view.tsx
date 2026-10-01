@@ -742,35 +742,85 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
         </div>
       </div>
 
-      {/* Stats Row - Professional & Compact Primary Focus */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-zinc-900/50 p-2.5 sm:p-3 space-y-0.5">
-          <div className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase flex items-center gap-1">
-            <FolderOpen className="h-3 w-3 text-primary" />
-            <span>total attempts</span>
+      {/* Performance Telemetry Strip - Replaced separate stats cards with unified horizontal telemetry */}
+      <div className="rounded-xl border border-border dark:border-zinc-800 bg-card/70 dark:bg-zinc-900/50 backdrop-blur-xs p-2 sm:p-2.5">
+        <div className="grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border/60 dark:divide-zinc-800/80">
+          
+          {/* Total Attempts */}
+          <div className="flex items-center gap-2.5 px-3 py-1.5 sm:py-0">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+              <FolderOpen className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase tracking-wide truncate">
+                total attempts
+              </div>
+              <div className="text-base sm:text-lg font-mono font-bold text-foreground dark:text-zinc-100 leading-tight">
+                {attempts.length}
+              </div>
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-mono font-bold text-foreground dark:text-zinc-100">{attempts.length}</div>
-        </div>
-        <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-zinc-900/50 p-2.5 sm:p-3 space-y-0.5">
-          <div className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase flex items-center gap-1">
-            <FolderCheck className="h-3 w-3 text-primary" />
-            <span>passed files</span>
+
+          {/* Passed Files */}
+          <div className="flex items-center gap-2.5 px-3 py-1.5 sm:py-0">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+              <FolderCheck className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase tracking-wide truncate">
+                passed files
+              </div>
+              <div className="flex items-baseline gap-1.5 leading-tight">
+                <span className="text-base sm:text-lg font-mono font-bold text-foreground dark:text-zinc-100">
+                  {passedCount}
+                </span>
+                {attempts.length > 0 && (
+                  <span className="text-[11px] font-mono text-muted-foreground dark:text-zinc-400">
+                    ({Math.round((passedCount / attempts.length) * 100)}%)
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-mono font-bold text-foreground dark:text-zinc-100">{passedCount}</div>
-        </div>
-        <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-zinc-900/50 p-2.5 sm:p-3 space-y-0.5">
-          <div className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase flex items-center gap-1">
-            <Award className="h-3 w-3 text-primary" />
-            <span>avg score</span>
+
+          {/* Avg Score */}
+          <div className="flex items-center gap-2.5 px-3 py-1.5 sm:py-0">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+              <Award className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase tracking-wide truncate">
+                  avg score
+                </span>
+                <span className="text-xs font-mono font-bold text-primary">
+                  {avgScore}%
+                </span>
+              </div>
+              <div className="mt-1 h-1.5 w-full rounded-full bg-muted dark:bg-zinc-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-300"
+                  style={{ width: `${Math.min(100, Math.max(0, avgScore))}%` }}
+                />
+              </div>
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-mono font-bold text-primary">{avgScore}%</div>
-        </div>
-        <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-zinc-900/50 p-2.5 sm:p-3 space-y-0.5">
-          <div className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase flex items-center gap-1">
-            <Users className="h-3 w-3 text-primary" />
-            <span>group battles</span>
+
+          {/* Group Battles */}
+          <div className="flex items-center gap-2.5 px-3 py-1.5 sm:py-0">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+              <Users className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase tracking-wide truncate">
+                group battles
+              </div>
+              <div className="text-base sm:text-lg font-mono font-bold text-foreground dark:text-zinc-100 leading-tight">
+                {groupCount}
+              </div>
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-mono font-bold text-foreground dark:text-zinc-100">{groupCount}</div>
+
         </div>
       </div>
 
@@ -1123,7 +1173,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           {(searchQuery || activeFilterCount > 0) && (
             <button
               onClick={resetAllFilters}
-              className="mt-3 px-3 py-1.2 rounded-lg text-xs font-mono bg-zinc-800 hover:bg-zinc-700 text-foreground dark:text-zinc-200 transition-colors inline-flex items-center gap-1.5"
+              className="mt-3 px-3 py-1.2 rounded-lg text-xs font-mono bg-muted hover:bg-muted/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-border dark:border-zinc-700 text-foreground dark:text-zinc-200 transition-colors inline-flex items-center gap-1.5"
             >
               <RotateCcw className="h-3 w-3" />
               <span>Reset Filters</span>
@@ -1148,7 +1198,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                       <div className="flex items-center gap-2 min-w-0">
                         <GroupIcon className="h-3.5 w-3.5 text-primary shrink-0" />
                         <span className="text-xs font-bold text-foreground dark:text-zinc-200 truncate">{group.label}</span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-muted-foreground dark:text-zinc-400 border border-zinc-700/60 shrink-0">
+                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 text-muted-foreground dark:text-zinc-400 border border-border dark:border-zinc-700/60 shrink-0">
                           {group.items.length} {group.items.length === 1 ? "file" : "files"}
                         </span>
                       </div>
@@ -1239,11 +1289,11 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
                                   {/* Sleek Minimal Progress Meter */}
                                   <div className="space-y-1 pt-1">
-                                    <div className="h-1 w-full rounded-full bg-zinc-800 overflow-hidden">
+                                    <div className="h-1 w-full rounded-full bg-muted dark:bg-zinc-800 overflow-hidden">
                                       <div
                                         className={cn(
                                           "h-full rounded-full transition-all duration-300",
-                                          isPassed ? "bg-primary" : "bg-zinc-500"
+                                          isPassed ? "bg-primary" : "bg-muted-foreground/40 dark:bg-zinc-500"
                                         )}
                                         style={{ width: `${scorePct}%` }}
                                       />
@@ -1300,7 +1350,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                 onClick={() => handleReview(attempt)}
                                 className="group w-full flex items-center gap-3 rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-zinc-900/50 hover:bg-muted/40 dark:hover:bg-zinc-800/60 hover:border-primary/40 p-3 text-left transition-colors"
                               >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-primary">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted dark:bg-zinc-800/80 border border-border dark:border-zinc-700 text-primary group-hover:bg-primary/10 group-hover:border-primary/30 transition-colors">
                                   {isCheating ? (
                                     <ShieldAlert className="h-4 w-4" />
                                   ) : isAbandoned ? (
@@ -1320,12 +1370,12 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                       {attempt.category_name}
                                     </p>
                                     {isGroup && (
-                                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-800 border border-zinc-700 text-foreground/80 dark:text-zinc-300">
+                                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 border border-border dark:border-zinc-700 text-muted-foreground dark:text-zinc-300">
                                         group
                                       </span>
                                     )}
                                     {isModule && (
-                                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-800 border border-zinc-700 text-foreground/80 dark:text-zinc-300">
+                                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 border border-border dark:border-zinc-700 text-muted-foreground dark:text-zinc-300">
                                         module
                                       </span>
                                     )}
@@ -1337,7 +1387,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                       <span>{formatDate(attempt.started_at || attempt.completed_at)}</span>
                                     </span>
                                     {attempt.duration_seconds != null && (
-                                      <span className="px-1.5 py-0.2 rounded bg-zinc-800 text-muted-foreground dark:text-zinc-400">
+                                      <span className="px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 border border-border/60 dark:border-zinc-700 text-muted-foreground dark:text-zinc-400">
                                         {formatDuration(attempt.duration_seconds)}
                                       </span>
                                     )}

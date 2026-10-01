@@ -8,13 +8,10 @@ import {
   Trophy,
   ShieldAlert,
   LayoutGrid,
-  History,
   Clock,
   ArrowRight,
   UserCheck,
   ShieldCheck,
-  Sparkles,
-  GraduationCap,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
@@ -181,23 +178,6 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       openFallback: "Enter Arena",
     },
     {
-      key: "exam-history",
-      view: "exam-history",
-      icon: History,
-      tag: "telemetry · score logs",
-      badge: "Full History",
-      titleKey: "examHistory",
-      descKey: "examHistoryDesc",
-      titleFallback: "Exam Dossier Vault",
-      descFallback: "Inspect detailed records, security violation telemetry, score breakdowns, and question reviews.",
-      accentColor: "sky",
-      iconBox: "bg-sky-500/10 border border-sky-500/20 text-sky-600 dark:text-sky-400",
-      badgeClass: "bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-400",
-      btnClass: "bg-sky-600 hover:bg-sky-500 text-white",
-      openLabelKey: "examHistory",
-      openFallback: "View Vault",
-    },
-    {
       key: "driver-hub",
       view: "driver-hub",
       icon: Users,
@@ -213,23 +193,6 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       btnClass: "bg-violet-600 hover:bg-violet-500 text-white",
       openLabelKey: "openDrivers",
       openFallback: "Browse Drivers",
-    },
-    {
-      key: "student-training",
-      view: "student-training",
-      icon: GraduationCap,
-      tag: "curriculum · practical log",
-      badge: "Practical Training",
-      titleKey: "studentTraining",
-      descKey: "studentTrainingDesc",
-      titleFallback: "Student Training Log",
-      descFallback: "Track verified on-road practice hours, driving milestones, instructor feedback, and session logs.",
-      accentColor: "indigo",
-      iconBox: "bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400",
-      badgeClass: "bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-400",
-      btnClass: "bg-indigo-600 hover:bg-indigo-500 text-white",
-      openLabelKey: "openTraining",
-      openFallback: "Open Logbook",
     },
   ];
 
@@ -303,7 +266,7 @@ export function ServicesView({ navigate }: ServicesViewProps) {
           </div>
         )}
 
-        {/* Bento Grid Services List - 5 Columns across line */}
+        {/* Services Grid List */}
         {services.length === 0 ? (
           <div className="rounded-2xl border border-border dark:border-zinc-800 bg-card/60 dark:bg-zinc-900/30 p-12 text-center shadow-xs">
             <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-muted dark:bg-zinc-800 text-muted-foreground dark:text-zinc-400">
@@ -315,7 +278,7 @@ export function ServicesView({ navigate }: ServicesViewProps) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {services.map((service) => {
               const Icon = service.icon;
               const isLiveExam = service.view === "services/live-exam";

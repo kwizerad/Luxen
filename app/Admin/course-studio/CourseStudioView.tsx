@@ -423,95 +423,122 @@ export function CourseStudioView() {
       <main className="flex-1 min-w-0 flex flex-col overflow-visible border-t lg:border-t-0 lg:border-l border-[var(--admin-border)]">
         {course && (
           <>
-            {/* Top Action Toolbar */}
-            <div className="sticky top-[48px] z-30 flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] h-auto border-b border-[var(--admin-border)] bg-[var(--admin-card)] pr-24 sm:pr-28 md:pr-32">
-              <div className="flex-1 min-w-0 overflow-hidden">
-                {renderBreadcrumb()}
-              </div>
-              <div className="flex items-center flex-wrap gap-1.5 flex-shrink-0">
-                {/* Context actions */}
-                {renderContextActions()}
-                {/* Preview/Edit toggle */}
-                {(selection.type === "lesson" || selection.type === "topic" || selection.type === "exam") && (
+            {/* Top Studio Header Block - Clean Stacked Vertical Layout */}
+            <div className="sticky top-[48px] z-30 flex flex-col border-b border-[var(--admin-border)] bg-[var(--admin-card)] shadow-xs">
+              {/* Row 1: Breadcrumb Navigation & Studio Action Buttons */}
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 min-h-[44px] border-b border-[var(--admin-border)]/60 pr-24 sm:pr-28 md:pr-32">
+                <div className="flex-1 min-w-0">
+                  {renderBreadcrumb()}
+                </div>
+                <div className="flex items-center flex-wrap gap-1.5 flex-shrink-0">
+                  {/* Context actions */}
+                  {renderContextActions()}
+                  {/* Preview/Edit toggle */}
+                  {(selection.type === "lesson" || selection.type === "topic" || selection.type === "exam") && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewMode((p) => !p)}
+                      className="admin-btn-secondary h-8 text-xs px-3 gap-1.5"
+                    >
+                      {previewMode ? <><Pencil className="h-3.5 w-3.5" /> {t("edit") || "Edit"}</> : <><Eye className="h-3.5 w-3.5" /> {t("preview") || "Preview"}</>}
+                    </Button>
+                  )}
+                  {/* AI Intelligence & Rwanda Gazette buttons */}
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setPreviewMode((p) => !p)}
-                    className="admin-btn-secondary h-8 text-xs px-3 gap-1.5"
+                    onClick={() => setShowAIInsightsModal(true)}
+                    className="admin-btn-secondary h-8 text-xs px-2.5 gap-1.5 border-blue-500/30 hover:border-blue-500/60"
+                    title="AI Course & Student Performance Analytics"
                   >
-                    {previewMode ? <><Pencil className="h-3.5 w-3.5" /> {t("edit") || "Edit"}</> : <><Eye className="h-3.5 w-3.5" /> {t("preview") || "Preview"}</>}
+                    <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="hidden xl:inline">AI Analytics</span>
                   </Button>
-                )}
-                {/* AI Intelligence & Rwanda Gazette buttons */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAIInsightsModal(true)}
-                  className="admin-btn-secondary h-8 text-xs px-2.5 gap-1.5 border-blue-500/30 hover:border-blue-500/60"
-                  title="AI Course & Student Performance Analytics"
-                >
-                  <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
-                  <span className="hidden xl:inline">AI Analytics</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowGazetteModal(true)}
-                  className="admin-btn-secondary h-8 text-xs px-2.5 gap-1.5 border-amber-500/30 hover:border-amber-500/60"
-                  title="Rwanda Traffic Gazette AI Curriculum Generator"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="hidden xl:inline">Gazette AI</span>
-                </Button>
-                <div className="w-px h-5 bg-[var(--admin-border)] mx-0.5" />
-                {/* Save status & last saved timestamp */}
-                {isSaving ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-[var(--admin-muted)] px-1">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--admin-primary)]" />
-                    <span className="hidden sm:inline">{t("saving") || "Saving..."}</span>
-                  </span>
-                ) : isAutoSaving ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-[var(--admin-muted)] opacity-70 px-1">
-                    <Loader2 className="h-3 w-3 animate-spin text-[var(--admin-muted)]" />
-                    <span className="hidden sm:inline">{t("autoSaving") || "Saving..."}</span>
-                  </span>
-                ) : justSaved ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium px-1">
-                    <Check className="h-3.5 w-3.5 text-emerald-500" />
-                    <span className="hidden sm:inline">{t("saved") || "Saved"}</span>
-                  </span>
-                ) : hasUnsavedChanges ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium px-1">
-                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                    <span className="hidden sm:inline">{t("unsavedChanges") || "Unsaved"}</span>
-                  </span>
-                ) : lastSavedAt ? (
-                  <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-[var(--admin-muted)] opacity-70 px-1">
-                    <Check className="h-3 w-3 text-emerald-500/70" />
-                    <span>{t("saved") || "Saved"} {lastSavedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
-                  </span>
-                ) : null}
-
-                {/* Save button */}
-                <Button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={!hasUnsavedChanges || isSaving}
-                  className="admin-btn-primary shrink-0 h-8 text-xs px-3 py-1.5 gap-1.5"
-                  title="Ctrl + S / Cmd + S to save"
-                >
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowGazetteModal(true)}
+                    className="admin-btn-secondary h-8 text-xs px-2.5 gap-1.5 border-amber-500/30 hover:border-amber-500/60"
+                    title="Rwanda Traffic Gazette AI Curriculum Generator"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="hidden xl:inline">Gazette AI</span>
+                  </Button>
+                  <div className="w-px h-5 bg-[var(--admin-border)] mx-0.5" />
+                  {/* Save status & last saved timestamp */}
                   {isSaving ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span className="inline-flex items-center gap-1.5 text-xs text-[var(--admin-muted)] px-1">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--admin-primary)]" />
+                      <span className="hidden sm:inline">{t("saving") || "Saving..."}</span>
+                    </span>
+                  ) : isAutoSaving ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-[var(--admin-muted)] opacity-70 px-1">
+                      <Loader2 className="h-3 w-3 animate-spin text-[var(--admin-muted)]" />
+                      <span className="hidden sm:inline">{t("autoSaving") || "Saving..."}</span>
+                    </span>
                   ) : justSaved ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    <Save className="h-3.5 w-3.5" />
-                  )}
-                  {saveButtonLabel()}
-                </Button>
+                    <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium px-1">
+                      <Check className="h-3.5 w-3.5 text-emerald-500" />
+                      <span className="hidden sm:inline">{t("saved") || "Saved"}</span>
+                    </span>
+                  ) : hasUnsavedChanges ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium px-1">
+                      <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                      <span className="hidden sm:inline">{t("unsavedChanges") || "Unsaved"}</span>
+                    </span>
+                  ) : lastSavedAt ? (
+                    <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-[var(--admin-muted)] opacity-70 px-1">
+                      <Check className="h-3 w-3 text-emerald-500/70" />
+                      <span>{t("saved") || "Saved"} {lastSavedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+                    </span>
+                  ) : null}
+
+                  {/* Save button */}
+                  <Button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={!hasUnsavedChanges || isSaving}
+                    className="admin-btn-primary shrink-0 h-8 text-xs px-3 py-1.5 gap-1.5"
+                    title="Ctrl + S / Cmd + S to save"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : justSaved ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : (
+                      <Save className="h-3.5 w-3.5" />
+                    )}
+                    {saveButtonLabel()}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Row 2: Multilingual Language Context & Sync Toolbar */}
+              <div className="px-3 sm:px-4 py-1.5 bg-[var(--admin-card)] min-h-[38px] flex items-center pr-24 sm:pr-28 md:pr-32">
+                <TranslationSyncBar
+                  currentCourse={course}
+                  courses={courses}
+                  activeModule={selectedModule}
+                  activeLesson={selectedLesson}
+                  activeTopicId={selectedTopic?.id || null}
+                  moduleIndex={course.modules.findIndex((m) => m.id === selectedModule?.id)}
+                  lessonIndex={selectedModule?.lessons.findIndex((l) => l.id === selectedLesson?.id)}
+                  onTopicContentUpdate={(newContent) => {
+                    if (selectedLesson && selectedTopic) {
+                      const updatedTopics = selectedLesson.topics?.map((tp) =>
+                        tp.id === selectedTopic.id ? { ...tp, content: newContent } : tp
+                      );
+                      actions.updateLesson(selectedLesson.id, { ...selectedLesson, topics: updatedTopics });
+                    }
+                  }}
+                  onReloadCourses={(targetId?: string) => requestSelectCourse(targetId || course.id)}
+                  onSelectCourse={requestSelectCourse}
+                  onOpenGazetteModal={() => setShowGazetteModal(true)}
+                />
               </div>
             </div>
 
@@ -529,30 +556,17 @@ export function CourseStudioView() {
 
                 {/* Module overview */}
                 {selection.type === "module" && selectedModule && (
-                  <div className="space-y-3">
-                    <TranslationSyncBar
-                      currentCourse={course}
-                      courses={courses}
-                      activeModule={selectedModule}
-                      activeLesson={null}
-                      activeTopicId={null}
-                      moduleIndex={course.modules.findIndex((m) => m.id === selectedModule.id)}
-                      onReloadCourses={(targetId?: string) => requestSelectCourse(targetId || course.id)}
-                      onSelectCourse={requestSelectCourse}
-                      onOpenGazetteModal={() => setShowGazetteModal(true)}
-                    />
-                    <ModuleOverview
-                      module={selectedModule}
-                      onSelectLesson={(lessonId) => select({ type: "lesson", moduleId: selectedModule.id, lessonId })}
-                      onSelectExam={() => {
-                        if (selectedModule.exam) {
-                          select({ type: "exam", moduleId: selectedModule.id, examId: selectedModule.exam.id });
-                        }
-                      }}
-                      onAddLesson={() => actions.addLesson(selectedModule.id)}
-                      onAddExam={() => actions.addExam(selectedModule.id)}
-                    />
-                  </div>
+                  <ModuleOverview
+                    module={selectedModule}
+                    onSelectLesson={(lessonId) => select({ type: "lesson", moduleId: selectedModule.id, lessonId })}
+                    onSelectExam={() => {
+                      if (selectedModule.exam) {
+                        select({ type: "exam", moduleId: selectedModule.id, examId: selectedModule.exam.id });
+                      }
+                    }}
+                    onAddLesson={() => actions.addLesson(selectedModule.id)}
+                    onAddExam={() => actions.addExam(selectedModule.id)}
+                  />
                 )}
 
                 {/* Lesson folder overview */}
@@ -588,27 +602,14 @@ export function CourseStudioView() {
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      <TranslationSyncBar
-                        currentCourse={course}
-                        courses={courses}
-                        activeModule={selectedModule}
-                        activeLesson={selectedLesson}
-                        activeTopicId={null}
-                        moduleIndex={course.modules.findIndex((m) => m.id === selectedModule?.id)}
-                        lessonIndex={selectedModule?.lessons.findIndex((l) => l.id === selectedLesson.id)}
-                        onReloadCourses={(targetId?: string) => requestSelectCourse(targetId || course.id)}
-                        onSelectCourse={requestSelectCourse}
-                        onOpenGazetteModal={() => setShowGazetteModal(true)}
-                      />
-                      <LessonFolderOverview
-                        lesson={selectedLesson}
-                        onSelectTopic={(topicId) => {
-                          if (selectedModule) {
-                            select({ type: "topic", moduleId: selectedModule.id, lessonId: selectedLesson.id, topicId });
-                          }
-                        }}
-                        onAddTopic={() => {
+                    <LessonFolderOverview
+                      lesson={selectedLesson}
+                      onSelectTopic={(topicId) => {
+                        if (selectedModule) {
+                          select({ type: "topic", moduleId: selectedModule.id, lessonId: selectedLesson.id, topicId });
+                        }
+                      }}
+                      onAddTopic={() => {
                           const newTopic = {
                             id: crypto.randomUUID(),
                             title: `${t("topic") || "Topic"} ${(selectedLesson.topics?.length || 0) + 1}`,
@@ -628,7 +629,6 @@ export function CourseStudioView() {
                           });
                         }}
                       />
-                    </div>
                   )
                 )}
 
@@ -712,26 +712,6 @@ export function CourseStudioView() {
                           </div>
                         </div>
                       )}
-
-                      {/* Multilingual Translation & Format Sync Bar */}
-                      <TranslationSyncBar
-                        currentCourse={course}
-                        courses={courses}
-                        activeModule={selectedModule}
-                        activeLesson={selectedLesson}
-                        activeTopicId={selectedTopic.id}
-                        moduleIndex={course.modules.findIndex((m) => m.id === selectedModule?.id)}
-                        lessonIndex={selectedModule?.lessons.findIndex((l) => l.id === selectedLesson.id)}
-                        onTopicContentUpdate={(newContent) => {
-                          const updatedTopics = selectedLesson.topics?.map((tp) =>
-                            tp.id === selectedTopic.id ? { ...tp, content: newContent } : tp
-                          );
-                          actions.updateLesson(selectedLesson.id, { ...selectedLesson, topics: updatedTopics });
-                        }}
-                        onReloadCourses={(targetId?: string) => requestSelectCourse(targetId || course.id)}
-                        onSelectCourse={requestSelectCourse}
-                        onOpenGazetteModal={() => setShowGazetteModal(true)}
-                      />
 
                       <LessonEditor
                         lesson={{ ...selectedLesson, content: selectedTopic.content }}
