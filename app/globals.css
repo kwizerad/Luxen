@@ -79,7 +79,7 @@
     overflow-x: clip;
     width: 100%;
     max-width: 100%;
-    background-color: #f8fafc;
+    background-color: #f1f5f9;
     color-scheme: light;
   }
   html.dark {
@@ -87,11 +87,11 @@
     color-scheme: dark;
   }
   html.light, html:not(.dark) {
-    background-color: #f8fafc;
+    background-color: #f1f5f9;
     color-scheme: light;
   }
   body {
-    background-color: hsl(var(--background));
+    background-color: transparent;
     color: hsl(var(--foreground));
     overflow-x: clip;
     width: 100%;
@@ -106,20 +106,22 @@
   }
   .dark body,
   html.dark body {
-    background-color: #060608;
+    background-color: transparent;
   }
 }
 
-/* Mesh gradient background (applied to <body>) */
+/* Mesh gradient background (applied to <html> or <body>) */
+html.mesh-gradient-bg,
 .mesh-gradient-bg {
-  background-color: #FBFCFE;
+  background-color: #F1F5F9;
   background-image:
-    radial-gradient(circle at 10% 10%, hsl(142 71% 95%) 0%, transparent 40%),
-    radial-gradient(circle at 90% 90%, hsl(142 60% 96%) 0%, transparent 40%);
+    radial-gradient(circle at 10% 10%, hsl(142 71% 92%) 0%, transparent 45%),
+    radial-gradient(circle at 90% 90%, hsl(142 60% 93%) 0%, transparent 45%);
   background-attachment: fixed;
   background-size: 100% 100%;
 }
 
+html.dark.mesh-gradient-bg,
 .dark .mesh-gradient-bg,
 html.dark body.mesh-gradient-bg,
 html.dark .mesh-gradient-bg {
@@ -259,8 +261,8 @@ html.dark .mesh-gradient-bg {
     isolation: isolate;
     overflow: hidden;
     background: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.05);
     border-radius: 24px;
     transition: border-color 200ms ease, box-shadow 200ms ease;
   }
@@ -298,11 +300,11 @@ html.dark .mesh-gradient-bg {
   .dark .premium-glass-card,
   .dark .glass-card,
   .dark .card-glass {
-    background: rgba(18, 18, 23, 0.85);
+    background: rgba(24, 24, 34, 0.85);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 8px 28px -2px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   }
 
   .dark .premium-glass-card::before,
@@ -833,44 +835,44 @@ html.dark .mesh-gradient-bg {
 .admin-portal {
   --admin-bg: #060608;
   --admin-bg-2: #0B0B0E;
-  --admin-card: rgba(18, 18, 23, 0.8);
-  --admin-card-hover: rgba(255, 255, 255, 0.06);
-  --admin-border: rgba(255, 255, 255, 0.08);
-  --admin-border-hover: var(--hover-border-color, rgba(255, 255, 255, 0.14));
+  --admin-card: rgba(24, 24, 34, 0.86);
+  --admin-card-hover: rgba(255, 255, 255, 0.08);
+  --admin-border: rgba(255, 255, 255, 0.14);
+  --admin-border-hover: var(--hover-border-color, rgba(255, 255, 255, 0.24));
   --admin-text: #F1F5F9;
-  --admin-muted: #888890;
+  --admin-muted: #94A3B8;
   --admin-primary: hsl(var(--primary, 221 83% 53%));
   --admin-primary-readable: hsl(var(--primary-readable, 221 83% 53%));
   --admin-secondary: hsl(var(--primary, 221 83% 53%));
   --admin-success: #22C55E;
   --admin-warning: #F59E0B;
   --admin-danger: #EF4444;
-  --admin-glass-bg: rgba(18, 18, 23, 0.8);
-  --admin-glass-bg-hover: rgba(255, 255, 255, 0.04);
-  --admin-glass-border: rgba(255, 255, 255, 0.08);
-  --admin-shadow: rgba(0, 0, 0, 0.5);
-  --admin-shadow-soft: rgba(0, 0, 0, 0.3);
-  --admin-input-bg: rgba(255, 255, 255, 0.03);
-  --admin-input-bg-focus: rgba(255, 255, 255, 0.05);
-  --admin-hover-bg: rgba(255, 255, 255, 0.04);
-  --admin-overlay-bg: rgba(6, 6, 8, 0.9);
-  --admin-overlay-bg-strong: rgba(6, 6, 8, 0.95);
-  background-color: var(--admin-bg);
+  --admin-glass-bg: rgba(24, 24, 34, 0.86);
+  --admin-glass-bg-hover: rgba(255, 255, 255, 0.06);
+  --admin-glass-border: rgba(255, 255, 255, 0.14);
+  --admin-shadow: rgba(0, 0, 0, 0.6);
+  --admin-shadow-soft: rgba(0, 0, 0, 0.35);
+  --admin-input-bg: rgba(255, 255, 255, 0.05);
+  --admin-input-bg-focus: rgba(255, 255, 255, 0.08);
+  --admin-hover-bg: rgba(255, 255, 255, 0.06);
+  --admin-overlay-bg: rgba(15, 15, 22, 0.94);
+  --admin-overlay-bg-strong: rgba(12, 12, 18, 0.97);
+  background-color: transparent;
   color: var(--admin-text);
   min-height: 100dvh;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
-/* Solid background mode — transparent so body's hsl(240 6% 4%) + particles show through */
+/* Solid background mode — transparent so html background + particles show through */
 .admin-portal.admin-bg-solid {
   background-color: transparent;
 }
 
-/* Gradient background mode — keep the admin's own background color */
+/* Gradient background mode — transparent so html gradient + particles show through */
 .admin-portal.admin-bg-gradient {
-  background-color: var(--admin-bg);
+  background-color: transparent;
 }
 
 /* ---------- Light theme overrides for admin portal ---------- */
@@ -878,30 +880,30 @@ html.dark .mesh-gradient-bg {
 html.light .admin-portal,
 html:not(.dark) .admin-portal,
 .light .admin-portal {
-  --admin-bg: #F1F5F9;
-  --admin-bg-2: #E2E8F0;
-  --admin-card: rgba(255, 255, 255, 0.85);
-  --admin-card-hover: rgba(255, 255, 255, 0.95);
-  --admin-border: rgba(18, 18, 23, 0.10);
-  --admin-border-hover: var(--hover-border-color, rgba(18, 18, 23, 0.18));
+  --admin-bg: #E2E8F0;
+  --admin-bg-2: #CBD5E1;
+  --admin-card: #FFFFFF;
+  --admin-card-hover: #F8FAFC;
+  --admin-border: rgba(15, 23, 42, 0.14);
+  --admin-border-hover: var(--hover-border-color, rgba(15, 23, 42, 0.25));
   --admin-text: #0F172A;
-  --admin-muted: #64748B;
+  --admin-muted: #475569;
   --admin-primary: hsl(var(--primary, 221 83% 53%));
   --admin-primary-readable: hsl(var(--primary-readable, 221 83% 53%));
   --admin-secondary: hsl(var(--primary, 221 83% 53%));
   --admin-success: #16A34A;
   --admin-warning: #D97706;
   --admin-danger: #DC2626;
-  --admin-glass-bg: rgba(255, 255, 255, 0.85);
-  --admin-glass-bg-hover: rgba(255, 255, 255, 0.95);
-  --admin-glass-border: rgba(18, 18, 23, 0.10);
-  --admin-shadow: rgba(18, 18, 23, 0.10);
-  --admin-shadow-soft: rgba(18, 18, 23, 0.06);
-  --admin-input-bg: rgba(255, 255, 255, 0.85);
+  --admin-glass-bg: #FFFFFF;
+  --admin-glass-bg-hover: #F8FAFC;
+  --admin-glass-border: rgba(15, 23, 42, 0.14);
+  --admin-shadow: rgba(15, 23, 42, 0.10);
+  --admin-shadow-soft: rgba(15, 23, 42, 0.06);
+  --admin-input-bg: #F8FAFC;
   --admin-input-bg-focus: #FFFFFF;
-  --admin-hover-bg: rgba(18, 18, 23, 0.05);
-  --admin-overlay-bg: rgba(255, 255, 255, 0.92);
-  --admin-overlay-bg-strong: rgba(255, 255, 255, 0.95);
+  --admin-hover-bg: rgba(15, 23, 42, 0.06);
+  --admin-overlay-bg: rgba(255, 255, 255, 0.96);
+  --admin-overlay-bg-strong: rgba(255, 255, 255, 0.99);
 }
 
 /* Aurora mesh gradient — soft blue/purple/indigo, low opacity */
@@ -910,7 +912,7 @@ html:not(.dark) .admin-portal,
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-color: var(--admin-bg);
+  background-color: transparent;
   background-image:
     radial-gradient(ellipse 80% 60% at 15% 10%, rgba(34, 197, 94, 0.18) 0, transparent 55%),
     radial-gradient(ellipse 70% 55% at 85% 15%, rgba(34, 197, 94, 0.14) 0, transparent 55%),
@@ -922,10 +924,10 @@ html:not(.dark) .admin-portal,
 
 /* Light mode aurora — Green Tint Glass */
 :root:not(.dark) .admin-aurora {
-  background-color: #FBFCFE;
+  background-color: transparent;
   background-image:
-    radial-gradient(circle at 10% 10%, hsl(142 71% 95%) 0%, transparent 40%),
-    radial-gradient(circle at 90% 90%, hsl(142 60% 96%) 0%, transparent 40%);
+    radial-gradient(circle at 10% 10%, hsl(142 71% 92% / 0.6) 0%, transparent 45%),
+    radial-gradient(circle at 90% 90%, hsl(142 60% 93% / 0.6) 0%, transparent 45%);
 }
 
 /* Animated aurora drift */
@@ -1845,11 +1847,11 @@ body.admin-portal-active [role="option"]:focus {
 .premium-dash-card {
   position: relative;
   border-radius: 20px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  background: #FFFFFF;
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgba(18, 18, 23, 0.08);
-  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
   transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 250ms ease,
               border-color 250ms ease;
@@ -1863,35 +1865,35 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 .premium-dash-card:hover {
-  border-color: rgba(18, 18, 23, 0.14);
+  border-color: var(--hover-border-color, rgba(15, 23, 42, 0.24));
 }
 
 /* Dark mode */
 .dark .premium-dash-card {
-  background: rgba(18, 18, 23, 0.8);
-  border-color: rgba(255, 255, 255, 0.10);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  background: rgba(24, 24, 34, 0.85);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .dark .premium-dash-card:hover {
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: var(--hover-border-color, rgba(255, 255, 255, 0.24));
   box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.5),
+    0 20px 50px rgba(0, 0, 0, 0.6),
     0 0 24px rgba(34, 197, 94, 0.12),
     0 0 48px rgba(34, 197, 94, 0.08);
 }
 
-/* Light mode — Apple-inspired frosted glass */
+/* Light mode — Crisp elevated card */
 :not(.dark) .premium-dash-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
-  border-color: rgba(18, 18, 23, 0.08);
-  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
+  background: #FFFFFF;
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
 }
 
 :not(.dark) .premium-dash-card:hover {
-  border-color: rgba(18, 18, 23, 0.14);
+  border-color: var(--hover-border-color, rgba(15, 23, 42, 0.24));
   box-shadow:
-    0 20px 50px rgba(18, 18, 23, 0.1),
+    0 16px 40px -4px rgba(15, 23, 42, 0.12),
     0 0 24px rgba(34, 197, 94, 0.08);
 }
 
@@ -1899,11 +1901,11 @@ body.admin-portal-active [role="option"]:focus {
 .premium-kpi-card {
   position: relative;
   border-radius: 20px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  background: #FFFFFF;
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgba(18, 18, 23, 0.08);
-  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
   transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 250ms ease,
               border-color 250ms ease;
@@ -1918,35 +1920,35 @@ body.admin-portal-active [role="option"]:focus {
 }
 
 .premium-kpi-card:hover {
-  border-color: rgba(18, 18, 23, 0.14);
+  border-color: var(--hover-border-color, rgba(15, 23, 42, 0.24));
 }
 
 /* Dark mode */
 .dark .premium-kpi-card {
-  background: rgba(18, 18, 23, 0.8);
+  background: rgba(24, 24, 34, 0.85);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border-color: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.14);
   box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.3),
-    0 6px 18px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 20px 50px rgba(0, 0, 0, 0.4),
+    0 6px 18px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .dark .premium-kpi-card:hover {
-  background: rgba(18, 18, 23, 0.85);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(28, 28, 40, 0.90);
+  border-color: var(--hover-border-color, rgba(255, 255, 255, 0.24));
   box-shadow:
-    0 28px 60px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
+    0 28px 60px rgba(0, 0, 0, 0.5),
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 :not(.dark) .premium-kpi-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
-  border-color: rgba(18, 18, 23, 0.08);
-  box-shadow: 0 12px 40px rgba(18, 18, 23, 0.08);
+  background: #FFFFFF;
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
 }
 
 :not(.dark) .premium-kpi-card:hover {
@@ -2759,20 +2761,23 @@ html.dark .admin-portal .prose th,
 
 /* --- Dark mode translucent cards (reflect particles) --- */
 .dark [data-slot="card"]:not(.admin-portal [data-slot="card"]) {
-  background: rgba(18, 18, 23, 0.35) !important;
+  background: rgba(24, 24, 34, 0.72) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
 }
 
 .dark .border.bg-card {
-  background: rgba(18, 18, 23, 0.35) !important;
+  background: rgba(24, 24, 34, 0.72) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
 /* --- Body Background --- */
 .dark body {
-  background-color: #060608;
+  background-color: transparent;
 }
 
 /* --- Student Page Hover Borders (matches admin panel behavior) --- */

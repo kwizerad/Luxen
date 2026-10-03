@@ -213,7 +213,7 @@ function Dock({
         onTouchStart={() => {
           mouseX.set(Infinity);
         }}
-        className={`${className} pointer-events-auto absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 flex items-center justify-center w-fit gap-1.5 md:gap-2 rounded-2xl border border-black/10 dark:border-white/10 px-2 md:px-3 backdrop-blur-xl bg-white/85 dark:bg-[#121217]/85 shadow-2xl z-50`}
+        className={`${className} pointer-events-auto absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 flex items-center justify-start sm:justify-center w-fit max-w-[calc(100vw-16px)] overflow-x-auto no-scrollbar gap-1 sm:gap-1.5 md:gap-2 rounded-2xl border border-black/10 dark:border-white/10 px-2 md:px-3 backdrop-blur-xl bg-white/85 dark:bg-[#121217]/85 shadow-2xl z-50`}
         style={{ height: effectivePanelHeight }}
         role="toolbar"
         aria-label="Application dock"

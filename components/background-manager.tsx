@@ -7,13 +7,15 @@ export function BackgroundManager() {
   const { config } = useThemeConfig();
 
   useEffect(() => {
+    const html = document.documentElement;
     const body = document.body;
     const mode = config.backgroundMode || "solid";
 
+    body.classList.remove("mesh-gradient-bg");
     if (mode === "gradient") {
-      body.classList.add("mesh-gradient-bg");
+      html.classList.add("mesh-gradient-bg");
     } else {
-      body.classList.remove("mesh-gradient-bg");
+      html.classList.remove("mesh-gradient-bg");
     }
   }, [config.backgroundMode]);
 

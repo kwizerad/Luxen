@@ -402,9 +402,9 @@ export function CourseStudioView() {
   const settingsHeader = getSettingsHeader();
 
   return (
-    <div className="min-h-[calc(100vh-7rem)] admin-card !rounded-[5px] !transform-none hover:!transform-none flex flex-col lg:flex-row overflow-visible">
+    <div className="min-h-[calc(100vh-7rem)] lg:h-[calc(100vh-7rem)] admin-card !rounded-[5px] !transform-none hover:!transform-none flex flex-col lg:flex-row !overflow-visible">
       {course && (
-        <div className="lg:sticky lg:top-[48px] lg:h-[calc(100vh-7rem-48px)] lg:flex-shrink-0 lg:self-start lg:overflow-y-auto border-b lg:border-b-0 lg:border-r border-[var(--admin-border)]">
+        <div className="lg:h-full lg:flex-shrink-0 flex flex-col min-h-0 border-b lg:border-b-0 border-[var(--admin-border)]">
         <CourseTree
           courses={courses}
           course={course}
@@ -424,7 +424,7 @@ export function CourseStudioView() {
         </div>
       )}
 
-      <main className="flex-1 min-w-0 flex flex-col lg:h-[calc(100vh-7rem-48px)] lg:overflow-hidden border-t lg:border-t-0 lg:border-l border-[var(--admin-border)]">
+      <main className="flex-1 min-w-0 flex flex-col lg:h-full min-h-0 lg:overflow-hidden">
         {course && (
           <>
             {/* Top Studio Header Block - Clean Stacked Vertical Layout, 100% Solid & Opaque */}
@@ -772,7 +772,7 @@ export function CourseStudioView() {
       {/* Right aside — auto-switching settings panel */}
       {course && (
         settingsCollapsed ? (
-          <aside className="settings-aside w-10 flex-shrink-0 p-2 flex flex-col items-center gap-2 overflow-hidden border-t lg:border-t-0 lg:border-l border-[var(--admin-border)] lg:sticky lg:top-[48px] lg:h-[calc(100vh-7rem-48px)] lg:self-start lg:overflow-y-auto">
+          <aside className="settings-aside w-10 flex-shrink-0 p-2 flex flex-col items-center gap-2 overflow-hidden border-t lg:border-t-0 lg:border-l border-[var(--admin-border)] lg:h-full min-h-0">
             <button
               type="button"
               onClick={() => setSettingsCollapsed(false)}
@@ -793,7 +793,7 @@ export function CourseStudioView() {
             </button>
           </aside>
         ) : (
-        <aside className="settings-aside w-full lg:w-72 flex-shrink-0 p-3 sm:p-4 flex flex-col gap-2 overflow-hidden border-t lg:border-t-0 lg:border-l border-[var(--admin-border)] lg:sticky lg:top-[48px] lg:h-[calc(100vh-7rem-48px)] lg:self-start lg:overflow-y-auto">
+        <aside className="settings-aside w-full lg:w-72 flex-shrink-0 p-3 sm:p-4 flex flex-col gap-2 overflow-hidden border-t lg:border-t-0 lg:border-l border-[var(--admin-border)] lg:h-full min-h-0">
           <div className="flex items-center justify-between">
             <h2 className="admin-card-title flex items-center gap-2 text-sm">
               {settingsHeader.icon}

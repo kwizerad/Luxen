@@ -93,6 +93,21 @@ export function TranslationSyncBar({
     ? selectedTargetLang
     : targetLanguages[0] || "French";
 
+  // Safe JSON response parser to prevent `Unexpected token 'A', "An error o"... is not valid JSON`
+  const safeParseResponse = async (res: Response) => {
+    const rawText = await res.text();
+    try {
+      return JSON.parse(rawText);
+    } catch {
+      const preview = rawText.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 140);
+      throw new Error(
+        res.status === 504 || rawText.includes("timeout") || rawText.includes("An error occurred")
+          ? `Server timeout or overload (${res.status}): ${preview || "Request took too long."}`
+          : `Server returned non-JSON response (${res.status}): ${preview || "Unknown error"}`
+      );
+    }
+  };
+
   // 1. TRANSLATE WHOLE TOPIC
   const executeTranslateTopic = async (targetLang: "English" | "French" | "Kinyarwanda") => {
     if (!activeTopic) {
@@ -102,8 +117,8 @@ export function TranslationSyncBar({
 
     const targetCourse = courses.find((c) => c.language === targetLang);
     setIsTranslating(true);
-    setTranslationProgress(`Translating topic notes to ${getLanguageLabel(targetLang)}...`);
-    const toastId = toast.loading(`Translating topic notes & title to ${getLanguageLabel(targetLang)}...`);
+    setTranslationProgress(`Translating topic "${activeTopic.title}" to ${getLanguageLabel(targetLang)}...`);
+    const toastId = toast.loading(`Translating topic notes & tree path to ${getLanguageLabel(targetLang)}...`);
 
     try {
       const res = await fetch("/api/admin/courses/translate", {
@@ -124,15 +139,17 @@ export function TranslationSyncBar({
           sourceModuleIndex: moduleIndex >= 0 ? moduleIndex : 0,
           sourceLessonIndex: lessonIndex >= 0 ? lessonIndex : 0,
           sourceTopicIndex: activeTopicIndex >= 0 ? activeTopicIndex : 0,
+          sourceModuleTitle: activeModule?.title || undefined,
+          sourceModuleDescription: activeModule?.description || undefined,
+          sourceLessonTitle: activeLesson?.title || undefined,
         }),
       });
 
-      const data = await res.json();
+      const data = await safeParseResponse(res);
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Topic translation failed");
       }
 
-      const newContent = data.translatedTopic?.content;
       const newTitle = data.translatedTopic?.title;
 
       // Invalidate course caches
@@ -140,7 +157,7 @@ export function TranslationSyncBar({
       mutate((key) => typeof key === "string" && (key.startsWith("admin/course") || key.includes("courses")));
 
       toast.success(
-        `Topic "${newTitle || activeTopic.title}" translated into ${getLanguageLabel(targetLang)} and updated in database!`,
+        `Topic "${newTitle || activeTopic.title}" translated into ${getLanguageLabel(targetLang)} with its Module & Lesson tree!`,
         {
           id: toastId,
           duration: 7000,
@@ -179,38 +196,82 @@ export function TranslationSyncBar({
     }
 
     setIsTranslating(true);
-    setTranslationProgress(`Translating lesson "${activeLesson.title}" & all topics to ${getLanguageLabel(targetLang)}...`);
+    const topicsList = Array.isArray(activeLesson.topics) ? activeLesson.topics : [];
+
+    // If lesson has many topics (> 3), translate topic-by-topic to prevent serverless gateway timeouts
     const toastId = toast.loading(
-      `Translating lesson & topics to ${getLanguageLabel(targetLang)} and updating existing notes...`
+      `Translating lesson "${activeLesson.title}" (${topicsList.length} topics) to ${getLanguageLabel(targetLang)}...`
     );
 
     try {
-      const res = await fetch("/api/admin/courses/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "lesson",
-          sourceLang: currentCourse.language,
-          targetLang,
-          lesson: activeLesson,
-          saveToDatabase: true,
-          targetCourseId: targetCourse.id,
-          sourceCourseId: currentCourse.id,
-          sourceModuleIndex: moduleIndex >= 0 ? moduleIndex : 0,
-          sourceLessonIndex: lessonIndex >= 0 ? lessonIndex : 0,
-        }),
-      });
+      if (topicsList.length <= 3) {
+        setTranslationProgress(`Translating lesson "${activeLesson.title}" & topics to ${getLanguageLabel(targetLang)}...`);
+        const res = await fetch("/api/admin/courses/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "lesson",
+            sourceLang: currentCourse.language,
+            targetLang,
+            lesson: activeLesson,
+            saveToDatabase: true,
+            targetCourseId: targetCourse.id,
+            sourceCourseId: currentCourse.id,
+            sourceModuleIndex: moduleIndex >= 0 ? moduleIndex : 0,
+            sourceLessonIndex: lessonIndex >= 0 ? lessonIndex : 0,
+            sourceModuleTitle: activeModule?.title || undefined,
+            sourceModuleDescription: activeModule?.description || undefined,
+          }),
+        });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Lesson translation failed");
+        const data = await safeParseResponse(res);
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Lesson translation failed");
+        }
+      } else {
+        // Step-by-step topic translation under this lesson so it never times out
+        for (let tIdx = 0; tIdx < topicsList.length; tIdx++) {
+          const tp = topicsList[tIdx];
+          const progressMsg = `Translating topic ${tIdx + 1}/${topicsList.length}: "${tp.title}"...`;
+          setTranslationProgress(progressMsg);
+          toast.loading(progressMsg, { id: toastId });
+
+          const res = await fetch("/api/admin/courses/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "topic",
+              sourceLang: currentCourse.language,
+              targetLang,
+              topic: {
+                id: tp.id,
+                title: tp.title,
+                content: tp.content,
+              },
+              saveToDatabase: true,
+              targetCourseId: targetCourse.id,
+              sourceCourseId: currentCourse.id,
+              sourceModuleIndex: moduleIndex >= 0 ? moduleIndex : 0,
+              sourceLessonIndex: lessonIndex >= 0 ? lessonIndex : 0,
+              sourceTopicIndex: tIdx,
+              sourceModuleTitle: activeModule?.title || undefined,
+              sourceModuleDescription: activeModule?.description || undefined,
+              sourceLessonTitle: activeLesson.title,
+            }),
+          });
+
+          const data = await safeParseResponse(res);
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || `Failed on topic "${tp.title}"`);
+          }
+        }
       }
 
       mutate("admin/courses");
       mutate((key) => typeof key === "string" && (key.startsWith("admin/course") || key.includes("courses")));
 
       toast.success(
-        `Lesson "${activeLesson.title}" successfully translated to ${getLanguageLabel(targetLang)}! Existing records updated.`,
+        `Lesson "${activeLesson.title}" successfully translated to ${getLanguageLabel(targetLang)}!`,
         {
           id: toastId,
           duration: 7000,
@@ -233,7 +294,7 @@ export function TranslationSyncBar({
     }
   };
 
-  // 3. TRANSLATE WHOLE MODULE
+  // 3. TRANSLATE WHOLE MODULE (Chunked lesson-by-lesson to prevent gateway timeout / Unexpected token 'A')
   const executeTranslateModule = async (targetLang: "English" | "French" | "Kinyarwanda") => {
     if (!activeModule) {
       toast.error("Please select a module to translate.");
@@ -247,38 +308,118 @@ export function TranslationSyncBar({
     }
 
     setIsTranslating(true);
-    setTranslationProgress(`Translating module "${activeModule.title}" and all contents...`);
+    const modIdx = moduleIndex >= 0 ? moduleIndex : 0;
+    const lessonsList = Array.isArray(activeModule.lessons) ? activeModule.lessons : [];
+
+    setTranslationProgress(`Translating module "${activeModule.title}" header...`);
     const toastId = toast.loading(
-      `Translating entire module "${activeModule.title}" to ${getLanguageLabel(targetLang)}...`
+      `Translating module "${activeModule.title}" to ${getLanguageLabel(targetLang)}...`
     );
 
     try {
-      const res = await fetch("/api/admin/courses/translate", {
+      // Step 1: Translate & create/update module metadata
+      const metaRes = await fetch("/api/admin/courses/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "module",
+          type: "module_meta",
           sourceLang: currentCourse.language,
           targetLang,
-          module: activeModule,
+          module: {
+            id: activeModule.id,
+            title: activeModule.title,
+            description: activeModule.description,
+          },
           saveToDatabase: true,
           targetCourseId: targetCourse.id,
           sourceCourseId: currentCourse.id,
-          sourceModuleIndex: moduleIndex >= 0 ? moduleIndex : 0,
+          sourceModuleIndex: modIdx,
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Module translation failed");
+      const metaData = await safeParseResponse(metaRes);
+      if (!metaRes.ok || !metaData.success) {
+        throw new Error(metaData.error || "Module header translation failed");
+      }
+
+      const transModTitle = metaData.translatedModuleTitle || activeModule.title;
+
+      // Step 2: Translate each lesson sequentially (and if a lesson has > 3 topics, topic-by-topic)
+      for (let lIdx = 0; lIdx < lessonsList.length; lIdx++) {
+        const les = lessonsList[lIdx];
+        const topicsList = Array.isArray(les.topics) ? les.topics : [];
+
+        if (topicsList.length <= 3) {
+          const progressMsg = `Module "${transModTitle}": Translating lesson ${lIdx + 1}/${lessonsList.length} ("${les.title}")...`;
+          setTranslationProgress(progressMsg);
+          toast.loading(progressMsg, { id: toastId });
+
+          const lesRes = await fetch("/api/admin/courses/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "lesson",
+              sourceLang: currentCourse.language,
+              targetLang,
+              lesson: les,
+              saveToDatabase: true,
+              targetCourseId: targetCourse.id,
+              sourceCourseId: currentCourse.id,
+              sourceModuleIndex: modIdx,
+              sourceLessonIndex: lIdx,
+              sourceModuleTitle: activeModule.title,
+              sourceModuleDescription: activeModule.description,
+            }),
+          });
+
+          const lesData = await safeParseResponse(lesRes);
+          if (!lesRes.ok || !lesData.success) {
+            throw new Error(lesData.error || `Failed translating lesson "${les.title}"`);
+          }
+        } else {
+          for (let tIdx = 0; tIdx < topicsList.length; tIdx++) {
+            const tp = topicsList[tIdx];
+            const progressMsg = `Lesson ${lIdx + 1}/${lessonsList.length} • Topic ${tIdx + 1}/${topicsList.length}: "${tp.title}"...`;
+            setTranslationProgress(progressMsg);
+            toast.loading(progressMsg, { id: toastId });
+
+            const tpRes = await fetch("/api/admin/courses/translate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "topic",
+                sourceLang: currentCourse.language,
+                targetLang,
+                topic: {
+                  id: tp.id,
+                  title: tp.title,
+                  content: tp.content,
+                },
+                saveToDatabase: true,
+                targetCourseId: targetCourse.id,
+                sourceCourseId: currentCourse.id,
+                sourceModuleIndex: modIdx,
+                sourceLessonIndex: lIdx,
+                sourceTopicIndex: tIdx,
+                sourceModuleTitle: activeModule.title,
+                sourceModuleDescription: activeModule.description,
+                sourceLessonTitle: les.title,
+              }),
+            });
+
+            const tpData = await safeParseResponse(tpRes);
+            if (!tpRes.ok || !tpData.success) {
+              throw new Error(tpData.error || `Failed translating topic "${tp.title}"`);
+            }
+          }
+        }
       }
 
       mutate("admin/courses");
       mutate((key) => typeof key === "string" && (key.startsWith("admin/course") || key.includes("courses")));
 
-      const transTitle = data.translatedModule?.title || activeModule.title;
       toast.success(
-        `Module "${transTitle}" successfully translated to ${getLanguageLabel(targetLang)}!`,
+        `Module "${transModTitle}" (${lessonsList.length} lessons) successfully translated to ${getLanguageLabel(targetLang)}!`,
         {
           id: toastId,
           duration: 8000,
@@ -301,7 +442,7 @@ export function TranslationSyncBar({
     }
   };
 
-  // 4. TRANSLATE WHOLE COURSE
+  // 4. TRANSLATE WHOLE COURSE (Chunked module-by-module & lesson-by-lesson to prevent gateway timeout)
   const executeTranslateCourse = async (targetLang: "English" | "French" | "Kinyarwanda") => {
     const targetCourse = courses.find((c) => c.language === targetLang);
     if (!targetCourse) {
@@ -310,34 +451,119 @@ export function TranslationSyncBar({
     }
 
     setIsTranslating(true);
-    setTranslationProgress(`Translating entire course into ${getLanguageLabel(targetLang)}...`);
+    const modulesList = Array.isArray(currentCourse.modules) ? currentCourse.modules : [];
+    setTranslationProgress(`Translating course (${modulesList.length} modules) into ${getLanguageLabel(targetLang)}...`);
     const toastId = toast.loading(
-      `Translating entire course into ${getLanguageLabel(targetLang)}... Updating existing notes without duplication.`
+      `Translating entire course into ${getLanguageLabel(targetLang)}...`
     );
 
     try {
-      const res = await fetch("/api/admin/courses/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "course",
-          sourceLang: currentCourse.language,
-          targetLang,
-          sourceCourseId: currentCourse.id,
-          targetCourseId: targetCourse.id,
-        }),
-      });
+      for (let mIdx = 0; mIdx < modulesList.length; mIdx++) {
+        const mod = modulesList[mIdx];
+        setTranslationProgress(`Module ${mIdx + 1}/${modulesList.length}: "${mod.title}"...`);
+        toast.loading(`Translating module ${mIdx + 1}/${modulesList.length}: "${mod.title}"...`, { id: toastId });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Course translation failed");
+        const metaRes = await fetch("/api/admin/courses/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "module_meta",
+            sourceLang: currentCourse.language,
+            targetLang,
+            module: {
+              id: mod.id,
+              title: mod.title,
+              description: mod.description,
+            },
+            saveToDatabase: true,
+            targetCourseId: targetCourse.id,
+            sourceCourseId: currentCourse.id,
+            sourceModuleIndex: mIdx,
+          }),
+        });
+
+        const metaData = await safeParseResponse(metaRes);
+        if (!metaRes.ok || !metaData.success) {
+          throw new Error(metaData.error || `Failed on module "${mod.title}"`);
+        }
+
+        const lessonsList = Array.isArray(mod.lessons) ? mod.lessons : [];
+        for (let lIdx = 0; lIdx < lessonsList.length; lIdx++) {
+          const les = lessonsList[lIdx];
+          const topicsList = Array.isArray(les.topics) ? les.topics : [];
+
+          if (topicsList.length <= 3) {
+            const msg = `Module ${mIdx + 1}/${modulesList.length} • Lesson ${lIdx + 1}/${lessonsList.length}: "${les.title}"...`;
+            setTranslationProgress(msg);
+            toast.loading(msg, { id: toastId });
+
+            const lesRes = await fetch("/api/admin/courses/translate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "lesson",
+                sourceLang: currentCourse.language,
+                targetLang,
+                lesson: les,
+                saveToDatabase: true,
+                targetCourseId: targetCourse.id,
+                sourceCourseId: currentCourse.id,
+                sourceModuleIndex: mIdx,
+                sourceLessonIndex: lIdx,
+                sourceModuleTitle: mod.title,
+                sourceModuleDescription: mod.description,
+              }),
+            });
+
+            const lesData = await safeParseResponse(lesRes);
+            if (!lesRes.ok || !lesData.success) {
+              throw new Error(lesData.error || `Failed on lesson "${les.title}"`);
+            }
+          } else {
+            for (let tIdx = 0; tIdx < topicsList.length; tIdx++) {
+              const tp = topicsList[tIdx];
+              const msg = `M${mIdx + 1}/${modulesList.length} • L${lIdx + 1}/${lessonsList.length} • Topic ${tIdx + 1}/${topicsList.length}: "${tp.title}"...`;
+              setTranslationProgress(msg);
+              toast.loading(msg, { id: toastId });
+
+              const tpRes = await fetch("/api/admin/courses/translate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  type: "topic",
+                  sourceLang: currentCourse.language,
+                  targetLang,
+                  topic: {
+                    id: tp.id,
+                    title: tp.title,
+                    content: tp.content,
+                  },
+                  saveToDatabase: true,
+                  targetCourseId: targetCourse.id,
+                  sourceCourseId: currentCourse.id,
+                  sourceModuleIndex: mIdx,
+                  sourceLessonIndex: lIdx,
+                  sourceTopicIndex: tIdx,
+                  sourceModuleTitle: mod.title,
+                  sourceModuleDescription: mod.description,
+                  sourceLessonTitle: les.title,
+                }),
+              });
+
+              const tpData = await safeParseResponse(tpRes);
+              if (!tpRes.ok || !tpData.success) {
+                throw new Error(tpData.error || `Failed on topic "${tp.title}"`);
+              }
+            }
+          }
+        }
       }
 
       mutate("admin/courses");
       mutate((key) => typeof key === "string" && (key.startsWith("admin/course") || key.includes("courses")));
 
       toast.success(
-        data.message || `Course successfully translated into ${getLanguageLabel(targetLang)}!`,
+        `Course successfully translated into ${getLanguageLabel(targetLang)}!`,
         {
           id: toastId,
           duration: 9000,

@@ -229,7 +229,8 @@ export async function POST(request: NextRequest) {
                 }
               } else {
                 // Exam code exists on Irembo but marks are awaiting police approval or exam is upcoming
-                const isPracticalCode = code.startsWith("PR") || code.includes("02") || code.includes("03");
+                const typeMatch = String(code || "").trim().toUpperCase().match(/^[A-Z]{3}(\d{2})/);
+                const isPracticalCode = typeMatch ? typeMatch[1] === "01" : /^\d+[A-Za-z]+\d*$/.test(String(code || "").trim());
                 if (isPracticalCode) {
                   if (!practicalCodes.includes(code)) practicalCodes.push(code);
                 } else {

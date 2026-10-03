@@ -88,20 +88,39 @@ export function formatTestCenter(examCenters?: ExamCenter[]): string {
   return centerName || locationName || "N/A";
 }
 
+function isLikelyPracticalCode(code: string): boolean {
+  const trimmed = (code || "").trim().toUpperCase();
+  if (!trimmed) return false;
+  // Irembo registration code format: [3-letter Center][2-digit Type][Date/Seq]
+  // e.g. MUS0125082507071 -> Type "01" = PRACTICAL
+  // e.g. NYG0211122413018 -> Type "02" = THEORY
+  const typeMatch = trimmed.match(/^[A-Z]{3}(\d{2})/);
+  if (typeMatch) {
+    if (typeMatch[1] === "01") return true;
+    if (typeMatch[1] === "02") return false;
+  }
+  // Legacy numeric or category-suffixed codes (e.g. "0050125951635B15")
+  if (/^\d+[A-Z]+\d*$/.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
 function createDefaultDetails(code: string): ExamResultDetails {
+  const likelyPractical = isLikelyPracticalCode(code);
   return {
     registrationCode: code,
     status: "N/A",
-    examType: "UNKNOWN",
-    examTypeRaw: "UNKNOWN",
-    isPractical: false,
-    isTheory: false,
+    examType: likelyPractical ? "Practical" : "Theory",
+    examTypeRaw: likelyPractical ? "PRACTICAL" : "THEORY",
+    isPractical: likelyPractical,
+    isTheory: !likelyPractical,
     licenseCategory: "N/A",
     examDate: "N/A",
     testCenter: "N/A",
     marksObtained: 0,
     totalMarks: 20,
-    passMark: 20,
+    passMark: likelyPractical ? 20 : 12,
     passed: false,
     grade: "N/A",
     candidateName: "N/A",
@@ -120,56 +139,72 @@ export async function fetchCodeDetails(code: string): Promise<ExamResultDetails>
   };
 
   const details = createDefaultDetails(code);
+  let shouldCache = false;
 
-  try {
-    const response = await fetch(REGISTRATION_CODE_URL, {
-      headers,
-      signal: AbortSignal.timeout(10000),
-    });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetch(REGISTRATION_CODE_URL, {
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(12000),
+      });
 
-    if (response.ok) {
-      const detailData = await response.json();
-      if (detailData.status && detailData.data) {
-        const reg = detailData.data.dlExamRegistration;
-        if (reg) {
-          const schedule = reg.dlExamSchedule || {};
-          const exam = reg.dlExamination || {};
-          const candidate = reg.dlExamCandidate || {};
+      if (response.ok) {
+        const detailData = await response.json();
+        if (detailData.status && detailData.data) {
+          const reg = detailData.data.dlExamRegistration;
+          if (reg) {
+            shouldCache = true;
+            const schedule = reg.dlExamSchedule || {};
+            const exam = reg.dlExamination || {};
+            const candidate = reg.dlExamCandidate || {};
 
-          const examType = schedule.examType || "UNKNOWN";
-          details.status = reg.status || "N/A";
-          details.examType =
-            examType === "PRACTICAL"
-              ? "Practical"
-              : examType === "THEORY"
-                ? "Theory"
-                : examType;
-          details.examTypeRaw = examType;
-          details.isPractical = examType === "PRACTICAL";
-          details.isTheory = examType === "THEORY";
-          details.licenseCategory = schedule.licenseCategoryName || "N/A";
-          details.examDate = formatExamDate(
-            schedule.examStartDate || schedule.examEndDate || ""
-          );
-          details.testCenter = formatTestCenter(schedule.examCenters);
-          details.marksObtained = exam.gainedMark || 0;
-          details.totalMarks = exam.totalMark || 20;
-          details.passMark = exam.passMark || 20;
-          details.passed = exam.grade === "PASS";
-          details.grade = exam.grade || "N/A";
-          const firstName = candidate.firstName || "";
-          const lastName = candidate.lastName || "";
-          details.candidateName =
-            `${firstName} ${lastName}`.trim() || "N/A";
-          details.nationalId = candidate.nid || "N/A";
+            const rawType = String(schedule.examType || "").trim().toUpperCase();
+            const isPractical =
+              rawType === "PRACTICAL"
+                ? true
+                : rawType === "THEORY"
+                ? false
+                : isLikelyPracticalCode(code);
+            const isTheory = !isPractical;
+
+            details.status = reg.status || "N/A";
+            details.examType = isPractical ? "Practical" : "Theory";
+            details.examTypeRaw = isPractical ? "PRACTICAL" : "THEORY";
+            details.isPractical = isPractical;
+            details.isTheory = isTheory;
+            details.licenseCategory = schedule.licenseCategoryName || "N/A";
+            details.examDate = formatExamDate(
+              schedule.examStartDate || schedule.examEndDate || ""
+            );
+            details.testCenter = formatTestCenter(schedule.examCenters);
+            details.marksObtained = exam.gainedMark ?? 0;
+            details.totalMarks = exam.totalMark || 20;
+            details.passMark = exam.passMark || (isPractical ? 20 : 12);
+            details.passed =
+              exam.grade === "PASS" ||
+              (typeof exam.gainedMark === "number" &&
+                typeof exam.passMark === "number" &&
+                exam.passMark > 0 &&
+                exam.gainedMark >= exam.passMark);
+            details.grade = exam.grade || "N/A";
+            const firstName = candidate.firstName || "";
+            const lastName = candidate.lastName || "";
+            details.candidateName =
+              `${firstName} ${lastName}`.trim() || "N/A";
+            details.nationalId = candidate.nid || "N/A";
+            break;
+          }
         }
       }
+    } catch {
+      // Retry once if network or timeout occurred
     }
-  } catch {
-    // Silently fail — return default details
   }
 
-  setCachedResult(code, details);
+  if (shouldCache) {
+    setCachedResult(code, details);
+  }
   return details;
 }
 

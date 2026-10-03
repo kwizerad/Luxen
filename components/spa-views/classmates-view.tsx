@@ -2076,7 +2076,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   return (
     <div className="flex h-[calc(100dvh-56px)] sm:h-[calc(100dvh-64px)] overflow-hidden">
       {/* Left Sidebar */}
-      <div className={`${selectedFriend ? 'hidden sm:flex' : 'flex'} w-full sm:w-80 border-r flex flex-col bg-background h-full`}>
+      <div className={`${selectedFriend ? 'hidden sm:flex' : 'flex'} w-full sm:w-96 md:w-[400px] border-r flex flex-col bg-background h-full`}>
         {/* Back button */}
         <div className="p-3 pb-0">
           <button
@@ -2183,25 +2183,35 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                     {t("pendingRequests")} ({pendingReceivedRequests.length})
                   </span>
                   {pendingReceivedRequests.map((req) => (
-                    <div key={req.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50">
-                      <ProfileAvatar profile={req.other_user} size="h-8 w-8" />
+                    <div key={req.id} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/50">
+                      <ProfileAvatar profile={req.other_user} size="h-9 w-9" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
+                        <p className="text-sm font-medium leading-snug break-words">
                           {req.other_user.full_name || req.other_user.username}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">@{req.other_user.username}</p>
+                        {req.other_user.username && (
+                          <p className="text-xs text-muted-foreground break-words">@{req.other_user.username}</p>
+                        )}
                       </div>
                       <button
                         onClick={() => handleAcceptRequest(req.id)}
-                        className="p-1.5 rounded-lg bg-green-100 text-green-600 hover:bg-green-200"
+                        className="group/btn inline-flex items-center justify-center rounded-lg bg-green-100 text-green-600 hover:bg-green-200 h-8 px-2 transition-all duration-200 shrink-0"
+                        title={t("accept") || "Accept"}
                       >
-                        <Check className="h-3.5 w-3.5" />
+                        <Check className="h-3.5 w-3.5 shrink-0" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap text-xs font-medium">
+                          {t("accept") || "Accept"}
+                        </span>
                       </button>
                       <button
                         onClick={() => handleRejectRequest(req.id)}
-                        className="p-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
+                        className="group/btn inline-flex items-center justify-center rounded-lg bg-red-100 text-red-600 hover:bg-red-200 h-8 px-2 transition-all duration-200 shrink-0"
+                        title={t("deny") || "Reject"}
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <X className="h-3.5 w-3.5 shrink-0" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap text-xs font-medium">
+                          {t("deny") || "Reject"}
+                        </span>
                       </button>
                     </div>
                   ))}
@@ -2215,20 +2225,25 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                     {t("requestSent")} ({pendingSentRequests.length})
                   </span>
                   {pendingSentRequests.map((req) => (
-                    <div key={req.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50">
-                      <ProfileAvatar profile={req.other_user} size="h-8 w-8" />
+                    <div key={req.id} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/50">
+                      <ProfileAvatar profile={req.other_user} size="h-9 w-9" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
+                        <p className="text-sm font-medium leading-snug break-words">
                           {req.other_user.full_name || req.other_user.username}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">@{req.other_user.username}</p>
+                        {req.other_user.username && (
+                          <p className="text-xs text-muted-foreground break-words">@{req.other_user.username}</p>
+                        )}
                       </div>
                       <button
                         onClick={() => handleCancelRequest(req.id)}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted"
+                        className="group/btn inline-flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-500/10 h-8 px-2 transition-all duration-200 shrink-0"
                         title={t("cancelRequest")}
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <X className="h-3.5 w-3.5 shrink-0" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[140px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap text-xs font-medium">
+                          {t("cancelRequest")}
+                        </span>
                       </button>
                     </div>
                   ))}
@@ -2252,29 +2267,29 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                         selectedFriend?.id === friend.id ? "bg-muted" : ""
                       }`}
                     >
-                      <div className="relative">
+                      <div className="relative shrink-0">
                         <ProfileAvatar profile={friend} size="h-10 w-10" />
                         {isOnline(friend.last_seen) && (
                           <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium truncate">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-medium leading-snug break-words">
                             {friend.full_name || friend.username}
                           </p>
                           {lastMessageData?.time && (
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-[10px] text-muted-foreground shrink-0 mt-0.5">
                               {new Date(lastMessageData.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
                           <p className="text-xs text-muted-foreground truncate flex-1">
                             {lastMessageData?.message || (isOnline(friend.last_seen) ? t("online") : (formatLastSeen(friend.last_seen) || `@${friend.username}`))}
                           </p>
                           {lastMessageData?.unread && lastMessageData.unread > 0 && (
-                            <span className="ml-2 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1">
+                            <span className="ml-2 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1 shrink-0">
                               {lastMessageData.unread > 9 ? "9+" : lastMessageData.unread}
                             </span>
                           )}
@@ -2311,17 +2326,17 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                     key={classmate.id}
                     className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors"
                   >
-                    <div className="relative">
+                    <div className="relative shrink-0">
                       <ProfileAvatar profile={classmate} size="h-10 w-10" />
                       {isOnline(classmate.last_seen) && (
                         <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm font-medium leading-snug break-words text-foreground">
                         {classmate.full_name || classmate.username}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {isOnline(classmate.last_seen)
                           ? t("online")
                           : (formatLastSeen(classmate.last_seen) || `@${classmate.username}`)}
@@ -2338,11 +2353,13 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                             setInviteTab("classmates");
                             openInviteModal();
                           }}
-                          className="text-xs h-7 px-2 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 hover:text-amber-700"
+                          className="group/btn text-xs h-8 px-2 rounded-full text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 hover:text-amber-700 transition-all duration-200"
                           title={t("inviteToGroupExam") || "Invite to Exam"}
                         >
-                          <Trophy className="h-3.5 w-3.5 mr-1" />
-                          <span className="hidden xs:inline">{t("invite") || "Invite"}</span>
+                          <Trophy className="h-4 w-4 shrink-0" />
+                          <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[140px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap">
+                            {t("invite") || "Invite"}
+                          </span>
                         </Button>
                       )}
 
@@ -2357,18 +2374,25 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                                 size="sm"
                                 variant="default"
                                 onClick={() => handleAcceptRequest(receivedReq.id)}
-                                className="text-xs h-7 px-2 bg-green-600 hover:bg-green-700 text-white"
+                                className="group/btn text-xs h-8 px-2.5 rounded-full bg-green-600 hover:bg-green-700 text-white transition-all duration-200"
+                                title={t("accept") || "Accept"}
                               >
-                                <Check className="h-3 w-3 mr-1" />
-                                {t("accept") || "Accept"}
+                                <Check className="h-3.5 w-3.5 shrink-0" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap">
+                                  {t("accept") || "Accept"}
+                                </span>
                               </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleRejectRequest(receivedReq.id)}
-                                className="text-xs h-7 px-1.5 text-destructive hover:bg-destructive/10"
+                                className="group/btn text-xs h-8 px-2 rounded-full text-destructive hover:bg-destructive/10 transition-all duration-200"
+                                title={t("deny") || "Reject"}
                               >
-                                <X className="h-3 w-3" />
+                                <X className="h-3.5 w-3.5 shrink-0" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap">
+                                  {t("deny") || "Reject"}
+                                </span>
                               </Button>
                             </div>
                           );
@@ -2380,10 +2404,13 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                               size="sm"
                               variant="ghost"
                               onClick={() => handleCancelRequest(sentReqId)}
-                              className="text-xs h-7 text-muted-foreground hover:text-red-600 shrink-0"
+                              className="group/btn text-xs h-8 px-2.5 rounded-full text-muted-foreground hover:text-red-600 hover:bg-red-500/10 shrink-0 transition-all duration-200"
+                              title={t("cancelRequest")}
                             >
-                              <X className="h-3 w-3 mr-1" />
-                              {t("cancelRequest")}
+                              <X className="h-3.5 w-3.5 shrink-0" />
+                              <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[160px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap">
+                                {t("cancelRequest")}
+                              </span>
                             </Button>
                           );
                         }
@@ -2393,10 +2420,13 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                             size="sm"
                             variant="outline"
                             onClick={() => handleSendRequest(classmate.id)}
-                            className="text-xs h-7 shrink-0"
+                            className="group/btn text-xs h-8 px-2.5 rounded-full shrink-0 transition-all duration-200"
+                            title={t("addClassmate")}
                           >
-                            <UserPlus className="h-3 w-3 mr-1" />
-                            {t("addClassmate")}
+                            <UserPlus className="h-3.5 w-3.5 shrink-0" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[160px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap">
+                              {t("addClassmate")}
+                            </span>
                           </Button>
                         );
                       })()}
@@ -2427,27 +2457,33 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                     <div key={req.id} className="flex items-center gap-3 rounded-xl border bg-card p-3">
                       <ProfileAvatar profile={req.other_user} size="h-12 w-12" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate text-foreground">
+                        <p className="text-sm font-semibold leading-snug break-words text-foreground">
                           {req.other_user.full_name || req.other_user.username}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">@{req.other_user.username}</p>
+                        <p className="text-xs text-muted-foreground break-words">@{req.other_user.username}</p>
                       </div>
                       <Button
                         size="sm"
                         onClick={() => handleAcceptRequest(req.id)}
-                        className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+                        className="group/btn h-8 px-2.5 rounded-full bg-green-600 hover:bg-green-700 text-white transition-all duration-200 shrink-0"
+                        title={t("accept") || "Accept"}
                       >
-                        <Check className="h-4 w-4" />
-                        {t("accept")}
+                        <Check className="h-4 w-4 shrink-0" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap text-xs font-medium">
+                          {t("accept")}
+                        </span>
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleRejectRequest(req.id)}
-                        className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+                        className="group/btn h-8 px-2.5 rounded-full text-red-600 border-red-200 hover:bg-red-50 transition-all duration-200 shrink-0"
+                        title={t("deny") || "Reject"}
                       >
-                        <X className="h-4 w-4" />
-                        {t("deny")}
+                        <X className="h-4 w-4 shrink-0" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap text-xs font-medium">
+                          {t("deny")}
+                        </span>
                       </Button>
                     </div>
                   ))}
@@ -3118,10 +3154,10 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                             />
                             <ProfileAvatar profile={friend} size="h-8 w-8" />
                             <div className="min-w-0 flex-1">
-                              <span className="text-xs sm:text-sm font-medium block truncate">
+                              <span className="text-xs sm:text-sm font-medium block leading-snug break-words">
                                 {friend.full_name || friend.username}
                               </span>
-                              <span className="text-[11px] text-muted-foreground truncate block">
+                              <span className="text-[11px] text-muted-foreground break-words block">
                                 @{friend.username || "student"}
                               </span>
                             </div>
@@ -3169,10 +3205,10 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                           />
                           <ProfileAvatar profile={classmate} size="h-8 w-8" />
                           <div className="min-w-0 flex-1">
-                            <span className="text-xs sm:text-sm font-medium block truncate">
+                            <span className="text-xs sm:text-sm font-medium block leading-snug break-words">
                               {classmate.full_name || classmate.username}
                             </span>
-                            <span className="text-[11px] text-muted-foreground truncate block">
+                            <span className="text-[11px] text-muted-foreground break-words block">
                               @{classmate.username || "student"}
                             </span>
                           </div>

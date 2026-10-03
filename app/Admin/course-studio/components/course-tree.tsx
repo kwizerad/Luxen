@@ -514,7 +514,7 @@ export function CourseTree({
 
   if (sidebarCollapsed) {
     return (
-      <aside className="course-tree-sidebar w-10 flex-shrink-0 p-2 flex flex-col items-center gap-1 overflow-y-auto overflow-x-hidden border-r border-[var(--admin-border)]">
+      <aside className="course-tree-sidebar w-10 lg:h-full min-h-0 flex-shrink-0 p-2 flex flex-col items-center gap-1 overflow-y-auto overflow-x-hidden lg:border-r border-[var(--admin-border)]">
         <button
           type="button"
           onClick={() => setSidebarCollapsed(false)}
@@ -583,7 +583,7 @@ export function CourseTree({
   }
 
   return (
-    <aside className="course-tree-sidebar w-full lg:w-80 flex-shrink-0 p-3 sm:p-4 flex flex-col gap-2.5 overflow-hidden border-r border-[var(--admin-border)]">
+    <aside className="course-tree-sidebar w-full lg:w-80 lg:h-full max-h-[60vh] lg:max-h-none min-h-0 flex-shrink-0 p-3 sm:p-4 flex flex-col gap-2.5 overflow-hidden lg:border-r border-[var(--admin-border)]">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="admin-card-title flex items-center gap-2 text-sm font-bold">
