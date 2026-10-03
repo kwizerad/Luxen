@@ -91,8 +91,7 @@ export function isPrimaryAdmin(user: User | null): boolean {
   return (
     emailLower === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
     emailLower === "navo@admin.jn" ||
-    emailLower === "kwizeradiementwari@gmail.com" ||
-    emailLower === "navoapp25@gmail.com"
+    emailLower === "kwizeradiementwari@gmail.com"
   );
 }
 
@@ -101,6 +100,7 @@ export function isPrimaryAdmin(user: User | null): boolean {
  */
 export function isNationalIdUser(user: User | null): boolean {
   if (!user) return false;
+  if (isPrimaryAdmin(user)) return false;
   if (user.national_id && typeof user.national_id === "string" && user.national_id.trim().length > 0) return true;
   if (user.user_metadata?.national_id && typeof user.user_metadata.national_id === "string" && user.user_metadata.national_id.trim().length > 0) return true;
   if (user.email && /@nid\.(rw|internal|local)$/i.test(user.email)) return true;
@@ -114,12 +114,18 @@ export function getUserRole(user: User | null): "Admin" | "Driver" | "Student" |
   if (!user) return "Guest";
   if (isPrimaryAdmin(user)) return "Admin";
 
-  const rawRole = (user.user_metadata?.role || user.role || "") as string;
-  const normalized = typeof rawRole === "string" ? rawRole.trim().toLowerCase() : "";
+  // National ID citizen accounts are strictly Students (or Drivers), never Admins
+  if (user.email && /@nid\.(rw|internal|local)$/i.test(user.email)) {
+    return "Student";
+  }
 
-  if (normalized === "admin") return "Admin";
-  if (normalized === "driver") return "Driver";
-  if (normalized === "student") return "Student";
+  // Prefer explicit profile role if present and set to Student or Driver
+  const profileRole = typeof user.role === "string" ? user.role.trim().toLowerCase() : "";
+  const metaRole = typeof user.user_metadata?.role === "string" ? user.user_metadata.role.trim().toLowerCase() : "";
+
+  if (profileRole === "student" || metaRole === "student") return "Student";
+  if (profileRole === "driver" || metaRole === "driver") return "Driver";
+  if (profileRole === "admin" || metaRole === "admin") return "Admin";
 
   // ID-based users and standard authenticated accounts default to Student role
   return "Student";

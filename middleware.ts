@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { buildDevicePayload } from "@/lib/tracking/server-tracker";
+import { isAdmin } from "@/lib/permissions";
 
 /**
- * Edge-optimized visitor device tracking middleware.
+ * Edge-optimized visitor device tracking and Admin route guard middleware.
  * Zero-latency impact: uses event.waitUntil for non-blocking telemetry.
  * Safe fallback: guarantees NextResponse.next() is always returned without interrupting user requests.
  */
-export function middleware(request: NextRequest, event?: NextFetchEvent) {
+export async function middleware(request: NextRequest, event?: NextFetchEvent) {
   try {
     const { pathname } = request.nextUrl;
 
@@ -17,6 +19,52 @@ export function middleware(request: NextRequest, event?: NextFetchEvent) {
       pathname.includes(".")
     ) {
       return NextResponse.next();
+    }
+
+    // Strict server-side route guard for /Admin (case-insensitive)
+    if (pathname.toLowerCase().startsWith("/admin")) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey =
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+      if (supabaseUrl && supabaseKey) {
+        try {
+          const supabase = createServerClient(supabaseUrl, supabaseKey, {
+            cookieOptions: {
+              name: "navo-auth-token",
+              sameSite: "lax",
+              secure: process.env.NODE_ENV === "production",
+            },
+            cookies: {
+              getAll() {
+                return request.cookies.getAll();
+              },
+              setAll() {
+                // Read-only in guard check
+              },
+            },
+          });
+
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          if (!user) {
+            const loginUrl = request.nextUrl.clone();
+            loginUrl.pathname = "/";
+            return NextResponse.redirect(loginUrl);
+          }
+
+          if (!isAdmin(user as any)) {
+            const studentUrl = request.nextUrl.clone();
+            studentUrl.pathname = "/dashboard";
+            return NextResponse.redirect(studentUrl);
+          }
+        } catch {
+          // If server cookie read fails, client layout guard will still enforce role check
+        }
+      }
     }
 
     // Skip router prefetch requests to prevent inflating view analytics

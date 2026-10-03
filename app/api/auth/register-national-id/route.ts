@@ -365,7 +365,7 @@ export async function POST(request: NextRequest) {
         gender: gender,
         birthdate: birthdate,
         avatar_url: safeMetaAvatarUrl || safeExistingMeta || null,
-        role: existingAuthUser.user_metadata?.role || "Student",
+        role: "Student",
       };
 
       const { error: updateAuthError } =
@@ -415,7 +415,7 @@ export async function POST(request: NextRequest) {
           gender: gender,
           birthdate: birthdate,
           avatar_url: avatarUrl || existingProfile?.avatar_url || null,
-          role: existingProfile?.role || existingAuthUser?.user_metadata?.role || "Student",
+          role: "Student",
           updated_at: new Date().toISOString(),
         },
         { onConflict: "id" }

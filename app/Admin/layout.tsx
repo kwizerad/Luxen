@@ -53,34 +53,51 @@ export default function AdminLayout({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const supabase = createClient();
+
     const checkAdmin = async () => {
       try {
-        const user = await getCurrentUser();
+        const currentUser = await getCurrentUser();
 
-        // Allow access if user is primary admin OR has Admin role
-        const isPrimary = checkIsPrimaryAdmin(user) || user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-        const hasAdminRole = isAdmin(user);
+        // Allow access ONLY if user is primary admin OR has Admin role
+        const isPrimary =
+          checkIsPrimaryAdmin(currentUser) ||
+          currentUser?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        const hasAdminRole = isAdmin(currentUser);
 
-        if (!user || (!isPrimary && !hasAdminRole)) {
-          router.push("/");
+        if (!currentUser) {
+          router.replace("/");
           return;
         }
 
-        setUser(user);
+        if (!isPrimary && !hasAdminRole) {
+          router.replace("/dashboard");
+          return;
+        }
+
+        setUser(currentUser);
 
         // Check if password change is required
-        if (user?.user_metadata?.require_password_change && !isPrimary) {
+        if (currentUser?.user_metadata?.require_password_change && !isPrimary) {
           setShowPasswordChange(true);
         }
 
         setLoading(false);
       } catch (error) {
         console.error("Check admin error:", error);
-        router.push("/");
+        router.replace("/");
       }
     };
 
     checkAdmin();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      checkAdmin();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   const isPrimaryAdmin = checkIsPrimaryAdmin(user) || user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();

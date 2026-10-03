@@ -12,6 +12,11 @@ export function LogoutButton() {
   const logout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("navo-is-admin");
+      sessionStorage.removeItem("navo-auth-token");
+      localStorage.removeItem("navo-auth-token");
+    }
     router.push("/");
   };
 

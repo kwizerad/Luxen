@@ -69,10 +69,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace("/");
       return;
     }
-
-    if (isPrimaryAdmin(user)) {
-      router.replace("/Admin");
-    }
   }, [authLoading, user, router]);
 
   if (authLoading) {

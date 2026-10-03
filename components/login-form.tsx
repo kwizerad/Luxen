@@ -240,7 +240,21 @@ export function LoginForm({
       if (onSuccess) onSuccess();
 
       const isPrimary = isPrimaryAdmin({ email: targetEmail || data.user?.email || "" });
-      const role = data.user?.user_metadata?.role;
+      let role = data.user?.user_metadata?.role;
+      if (!isPrimary && data.user?.id) {
+        try {
+          const { data: dbProfile } = await supabase
+            .from("user_profiles")
+            .select("role")
+            .eq("id", data.user.id)
+            .maybeSingle();
+          if (dbProfile?.role) {
+            role = dbProfile.role;
+          }
+        } catch {
+          // ignore
+        }
+      }
       const isAdminUser = isPrimary || role === "Admin";
 
       setAdminSessionFlag(isAdminUser);

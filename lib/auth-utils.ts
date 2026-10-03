@@ -1,4 +1,5 @@
 import { createClient } from "./supabase/client";
+import { isPrimaryAdmin } from "./permissions";
 
 let authRequestInProgress = false;
 let pendingAuthRequests: Array<{
@@ -85,6 +86,11 @@ export async function getCurrentUser(retryCount = 0): Promise<any> {
           bestAvatar = user.user_metadata?.google_avatar_url || user.user_metadata?.picture || null;
         }
 
+        const resolvedRole = isPrimaryAdmin(user)
+          ? "Admin"
+          : profile?.role || user.user_metadata?.role || "Student";
+
+        (user as any).role = resolvedRole;
         (user as any).avatar_url = bestAvatar;
         user.user_metadata = {
           ...user.user_metadata,
@@ -94,7 +100,7 @@ export async function getCurrentUser(retryCount = 0): Promise<any> {
           ...(profile?.last_name ? { last_name: profile.last_name } : {}),
           ...(profile?.username ? { username: profile.username } : {}),
           ...(profile?.national_id && !isAdminUser ? { national_id: profile.national_id } : {}),
-          ...(profile?.role ? { role: profile.role } : {}),
+          role: resolvedRole,
           ...(profile?.birthdate ? { birthdate: profile.birthdate } : {}),
           ...(profile?.gender ? { gender: profile.gender } : {}),
           ...(profile?.nationality ? { nationality: profile.nationality } : {}),

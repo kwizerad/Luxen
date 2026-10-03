@@ -39,6 +39,19 @@ function AuthCallbackContent() {
         const user = session.user;
         let role = user.user_metadata?.role;
 
+        // Check database user_profiles role first
+        const { data: dbProfile } = await supabase
+          .from("user_profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (isPrimaryAdmin(user)) {
+          role = "Admin";
+        } else if (dbProfile?.role) {
+          role = dbProfile.role;
+        }
+
         // Set default role for new OAuth users
         if (!role) {
           const metadata: Record<string, unknown> = { role: "Student" };

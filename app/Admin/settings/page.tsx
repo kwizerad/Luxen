@@ -36,26 +36,32 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     
-    // Set admin flag for both theme and branding config
-    setThemeIsAdmin(true);
-    setBrandingIsAdmin(true);
-    
     const loadUser = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
 
-      if (user) {
-        console.log("Admin settings user:", {
-          email: user.email,
-          expected: ADMIN_CREDENTIALS.email,
-          matches: user.email === ADMIN_CREDENTIALS.email,
-          role: user.user_metadata?.role,
-        });
+      if (!user) {
+        router.replace("/");
+        return;
       }
+
+      const permUser = user as PermUser;
+      const isUserPrimary =
+        user.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() ||
+        user.email?.toLowerCase() === "kwizeradiementwari@gmail.com";
+      const isUserAdmin = isUserPrimary || user.user_metadata?.role === "Admin";
+
+      if (!isUserAdmin) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      // Set admin flag for both theme and branding config only after confirming admin status
+      setThemeIsAdmin(true);
+      setBrandingIsAdmin(true);
 
       setUser(user);
 
-      const permUser = user as PermUser;
       const canReadSettings = canRead(permUser, "settings");
       setHasSettingsPerm(canReadSettings);
       setReadOnly(!canWrite(permUser, "settings"));

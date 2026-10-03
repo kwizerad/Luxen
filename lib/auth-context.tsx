@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { createClient, setAdminSessionFlag } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-utils";
-import { isAdmin } from "@/lib/permissions";
+import { isAdmin, isPrimaryAdmin } from "@/lib/permissions";
 
 interface User {
   id: string;
@@ -123,8 +123,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 null;
             }
 
+            const resolvedRole = isPrimaryAdmin(session.user as any)
+              ? "Admin"
+              : profile.role || session.user.user_metadata?.role || "Student";
+
             sessionUser = {
               ...sessionUser,
+              role: resolvedRole,
               avatar_url: resolvedAvatar,
               user_metadata: {
                 ...session.user.user_metadata,
@@ -134,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 ...(profile.last_name ? { last_name: profile.last_name } : {}),
                 ...(profile.username ? { username: profile.username } : {}),
                 ...(profile.national_id && !isAdminUser ? { national_id: profile.national_id } : {}),
-                ...(profile.role ? { role: profile.role } : {}),
+                role: resolvedRole,
                 ...(profile.birthdate ? { birthdate: profile.birthdate } : {}),
                 ...(profile.gender ? { gender: profile.gender } : {}),
                 ...(profile.nationality ? { nationality: profile.nationality } : {}),

@@ -102,6 +102,7 @@ export interface ModuleExam {
 export interface Module {
   id: string;
   title: string;
+  description?: string;
   status: CourseStatus;
   lessons: Lesson[];
   exam?: ModuleExam;

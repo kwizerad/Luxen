@@ -171,6 +171,11 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("navo-is-admin");
+      sessionStorage.removeItem("navo-auth-token");
+      localStorage.removeItem("navo-auth-token");
+    }
     router.push("/");
   };
 
@@ -287,7 +292,7 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
       </DropdownMenuItem>
 
       {/* Admin quick links */}
-      {adminMode && (
+      {adminMode && isAdmin(user) && (
         <>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => router.push("/Admin/exams")} className="cursor-pointer">

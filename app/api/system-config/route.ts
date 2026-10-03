@@ -80,8 +80,7 @@ export async function POST(request: NextRequest) {
       if (
         profile?.role?.toLowerCase() === "admin" ||
         profile?.email?.toLowerCase() === "kwizeradiementwari@gmail.com" ||
-        profile?.email?.toLowerCase() === "navo@admin.jn" ||
-        profile?.email?.toLowerCase() === "navoapp25@gmail.com"
+        profile?.email?.toLowerCase() === "navo@admin.jn"
       ) {
         userIsAdmin = true;
       }

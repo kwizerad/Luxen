@@ -233,9 +233,21 @@ export async function syncGoogleUserProfile(user: User): Promise<{
     baseMetadata.last_login_at = now;
     baseMetadata.login_count = currentCount + 1;
 
-    // Preserve existing role if present.
-    if (freshUser.user_metadata?.role) {
+    // Check database profile role so students never retain an invalid Admin metadata role
+    const { data: dbProfile } = await supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("id", freshUser.id)
+      .maybeSingle();
+
+    if (isPrimaryAdmin(freshUser)) {
+      baseMetadata.role = "Admin";
+    } else if (dbProfile?.role) {
+      baseMetadata.role = dbProfile.role;
+    } else if (freshUser.user_metadata?.role) {
       baseMetadata.role = freshUser.user_metadata.role;
+    } else {
+      baseMetadata.role = "Student";
     }
   }
 
