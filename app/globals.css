@@ -51,6 +51,7 @@
     --popover: 240 5% 8%;
     --popover-foreground: 0 0% 95%;
     /* Primary, accent, ring and chart colors are set by ThemeConfigProvider */
+    --primary-foreground: 0 0% 100%;
     --primary-readable: 142 71% 45%; /* Darkened by JS when primary is light */
     --secondary: 240 4% 12%;
     --secondary-foreground: 0 0% 95%;
@@ -873,11 +874,14 @@ html.dark .mesh-gradient-bg {
 }
 
 /* ---------- Light theme overrides for admin portal ---------- */
-:root:not(.dark) .admin-portal {
+:root:not(.dark) .admin-portal,
+html.light .admin-portal,
+html:not(.dark) .admin-portal,
+.light .admin-portal {
   --admin-bg: #F1F5F9;
   --admin-bg-2: #E2E8F0;
-  --admin-card: rgba(255, 255, 255, 0.72);
-  --admin-card-hover: rgba(255, 255, 255, 0.85);
+  --admin-card: rgba(255, 255, 255, 0.85);
+  --admin-card-hover: rgba(255, 255, 255, 0.95);
   --admin-border: rgba(18, 18, 23, 0.10);
   --admin-border-hover: var(--hover-border-color, rgba(18, 18, 23, 0.18));
   --admin-text: #0F172A;
@@ -888,14 +892,14 @@ html.dark .mesh-gradient-bg {
   --admin-success: #16A34A;
   --admin-warning: #D97706;
   --admin-danger: #DC2626;
-  --admin-glass-bg: rgba(255, 255, 255, 0.72);
-  --admin-glass-bg-hover: rgba(255, 255, 255, 0.85);
+  --admin-glass-bg: rgba(255, 255, 255, 0.85);
+  --admin-glass-bg-hover: rgba(255, 255, 255, 0.95);
   --admin-glass-border: rgba(18, 18, 23, 0.10);
   --admin-shadow: rgba(18, 18, 23, 0.10);
   --admin-shadow-soft: rgba(18, 18, 23, 0.06);
-  --admin-input-bg: rgba(255, 255, 255, 0.6);
-  --admin-input-bg-focus: rgba(255, 255, 255, 0.85);
-  --admin-hover-bg: rgba(18, 18, 23, 0.04);
+  --admin-input-bg: rgba(255, 255, 255, 0.85);
+  --admin-input-bg-focus: #FFFFFF;
+  --admin-hover-bg: rgba(18, 18, 23, 0.05);
   --admin-overlay-bg: rgba(255, 255, 255, 0.92);
   --admin-overlay-bg-strong: rgba(255, 255, 255, 0.95);
 }
@@ -1470,10 +1474,10 @@ html.dark .mesh-gradient-bg {
 
 /* Default variant: bg-primary text-primary-foreground */
 .admin-portal button.bg-primary {
-  background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary)) !important;
-  color: #ffffff !important;
-  border: none !important;
-  box-shadow: 0 4px 20px hsl(var(--primary, 221 83% 53%) / 0.3) !important;
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground, 0 0% 100%)) !important;
+  border: 1px solid hsl(var(--primary-foreground, 0 0% 100%) / 0.15) !important;
+  box-shadow: 0 4px 16px hsl(var(--primary, 221 83% 53%) / 0.25) !important;
 }
 
 .admin-portal button.bg-primary:hover {
@@ -1819,7 +1823,7 @@ body.admin-portal-active [role="option"]:focus {
 .admin-portal .bg-accent { background: var(--admin-hover-bg) !important; }
 .admin-portal .text-popover-foreground { color: var(--admin-text) !important; }
 .admin-portal .text-card-foreground { color: var(--admin-text) !important; }
-.admin-portal .text-primary-foreground { color: #ffffff !important; }
+.admin-portal .text-primary-foreground { color: hsl(var(--primary-foreground)) !important; }
 .admin-portal .text-accent-foreground { color: var(--admin-text) !important; }
 
 /* Admin scrollbar */
@@ -2383,25 +2387,88 @@ body.admin-portal-active [role="option"]:focus {
 .prose-sm.ProseMirror ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5em; }
 .prose-sm.ProseMirror ul[data-type="taskList"] li > label { flex-shrink: 0; }
 
-/* ---------- Theme-reactive prose for admin portal ---------- */
-/* Admin portal prose follows --admin-text / --admin-muted which switch with theme */
-/* Higher specificity (.admin-portal + 3 classes) to override student-facing dark rules */
-.admin-portal .prose.ProseMirror,
-.admin-portal .prose-sm.ProseMirror {
-  color: var(--admin-text) !important;
+/* ---------- Theme-reactive prose for admin portal & content view ---------- */
+/* In light mode: ensure dark, crisp text (#0F172A) */
+html:not(.dark) .admin-portal .prose,
+html.light .admin-portal .prose,
+.light .admin-portal .prose,
+:root:not(.dark) .admin-portal .prose,
+html:not(.dark) .ProseMirror,
+html.light .ProseMirror,
+.light .ProseMirror,
+:root:not(.dark) .ProseMirror {
+  color: #0F172A !important;
 }
-.admin-portal .prose.ProseMirror h1,
-.admin-portal .prose.ProseMirror h2,
-.admin-portal .prose.ProseMirror h3,
-.admin-portal .prose.ProseMirror h4,
-.admin-portal .prose.ProseMirror strong,
-.admin-portal .prose-sm.ProseMirror h1,
-.admin-portal .prose-sm.ProseMirror h2,
-.admin-portal .prose-sm.ProseMirror h3,
-.admin-portal .prose-sm.ProseMirror h4,
-.admin-portal .prose-sm.ProseMirror strong {
-  color: var(--admin-text) !important;
+
+html:not(.dark) .admin-portal .prose p,
+html:not(.dark) .admin-portal .prose span,
+html:not(.dark) .admin-portal .prose li,
+html:not(.dark) .admin-portal .prose div,
+html:not(.dark) .admin-portal .prose h1,
+html:not(.dark) .admin-portal .prose h2,
+html:not(.dark) .admin-portal .prose h3,
+html:not(.dark) .admin-portal .prose h4,
+html:not(.dark) .admin-portal .prose strong,
+html:not(.dark) .admin-portal .prose td,
+html:not(.dark) .admin-portal .prose th,
+html.light .ProseMirror p,
+html.light .ProseMirror span,
+html.light .ProseMirror li,
+html.light .ProseMirror div,
+html.light .ProseMirror h1,
+html.light .ProseMirror h2,
+html.light .ProseMirror h3,
+html.light .ProseMirror h4,
+html.light .ProseMirror strong,
+html.light .ProseMirror td,
+html.light .ProseMirror th,
+:root:not(.dark) .ProseMirror p,
+:root:not(.dark) .ProseMirror span,
+:root:not(.dark) .ProseMirror li,
+:root:not(.dark) .ProseMirror div,
+:root:not(.dark) .ProseMirror h1,
+:root:not(.dark) .ProseMirror h2,
+:root:not(.dark) .ProseMirror h3,
+:root:not(.dark) .ProseMirror h4,
+:root:not(.dark) .ProseMirror strong,
+:root:not(.dark) .ProseMirror td,
+:root:not(.dark) .ProseMirror th {
+  color: #0F172A !important;
 }
+
+/* In dark mode: ensure light text (#F1F5F9) */
+html.dark .admin-portal .prose,
+.dark .admin-portal .prose,
+html.dark .ProseMirror,
+.dark .ProseMirror {
+  color: #F1F5F9 !important;
+}
+
+html.dark .admin-portal .prose p,
+html.dark .admin-portal .prose span,
+html.dark .admin-portal .prose li,
+html.dark .admin-portal .prose div,
+html.dark .admin-portal .prose h1,
+html.dark .admin-portal .prose h2,
+html.dark .admin-portal .prose h3,
+html.dark .admin-portal .prose h4,
+html.dark .admin-portal .prose strong,
+html.dark .admin-portal .prose td,
+html.dark .admin-portal .prose th,
+.dark .ProseMirror p,
+.dark .ProseMirror span,
+.dark .ProseMirror li,
+.dark .ProseMirror div,
+.dark .ProseMirror h1,
+.dark .ProseMirror h2,
+.dark .ProseMirror h3,
+.dark .ProseMirror h4,
+.dark .ProseMirror strong,
+.dark .ProseMirror td,
+.dark .ProseMirror th {
+  color: #F1F5F9 !important;
+}
+
 .admin-portal .prose.ProseMirror blockquote,
 .admin-portal .prose-sm.ProseMirror blockquote {
   border-left-color: var(--admin-border) !important;
@@ -2427,12 +2494,10 @@ body.admin-portal-active [role="option"]:focus {
 }
 .admin-portal .prose.ProseMirror th,
 .admin-portal .prose-sm.ProseMirror th {
-  color: var(--admin-text) !important;
   border-color: var(--admin-border) !important;
 }
 .admin-portal .prose.ProseMirror td,
 .admin-portal .prose-sm.ProseMirror td {
-  color: var(--admin-text) !important;
   border-color: var(--admin-border) !important;
 }
 

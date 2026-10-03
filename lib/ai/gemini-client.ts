@@ -21,7 +21,14 @@ export function getAiClient(): GoogleGenAI {
       "GEMINI_API_KEY is not defined in environment variables. Please add GEMINI_API_KEY in your Vercel Project Settings > Environment Variables."
     );
   }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        "User-Agent": "aistudio-build",
+      },
+    },
+  });
 }
 
 export const ai: GoogleGenAI = new Proxy({} as GoogleGenAI, {
@@ -33,12 +40,27 @@ export const ai: GoogleGenAI = new Proxy({} as GoogleGenAI, {
 });
 
 const CANDIDATE_MODELS = [
-  "gemini-2.5-flash",
   "gemini-3.8-flash",
-  "gemini-2.5-pro",
   "gemini-flash-latest",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
   "gemini-3.1-flash-lite",
 ];
+
+function extractRetryDelayMs(err: any): number {
+  try {
+    const str = typeof err === "string" ? err : JSON.stringify(err) + " " + String(err?.message || "");
+    const match1 = str.match(/retryDelay["']?\s*:\s*["']?(\d+(?:\.\d+)?)s/i);
+    if (match1 && match1[1]) {
+      return Math.ceil(parseFloat(match1[1]) * 1000) + 600;
+    }
+    const match2 = str.match(/retry in\s+(\d+(?:\.\d+)?)s/i);
+    if (match2 && match2[1]) {
+      return Math.ceil(parseFloat(match2[1]) * 1000) + 600;
+    }
+  } catch {}
+  return 0;
+}
 
 export async function generateContentWithFallback(params: {
   contents: string | any;
@@ -46,37 +68,54 @@ export async function generateContentWithFallback(params: {
 }) {
   let lastError: any = null;
 
-  for (let attempt = 0; attempt < CANDIDATE_MODELS.length; attempt++) {
-    const model = CANDIDATE_MODELS[attempt];
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: params.contents,
-        config: params.config,
-      });
-      return response;
-    } catch (err: any) {
-      lastError = err;
-      const errMsg = String(err?.message || "").toLowerCase();
-      const isRetryable =
-        errMsg.includes("503") ||
-        errMsg.includes("high demand") ||
-        errMsg.includes("unavailable") ||
-        errMsg.includes("resource_exhausted") ||
-        errMsg.includes("429") ||
-        errMsg.includes("quota") ||
-        errMsg.includes("rate limit") ||
-        errMsg.includes("404") ||
-        errMsg.includes("not_found") ||
-        errMsg.includes("no longer available");
+  for (let modelIdx = 0; modelIdx < CANDIDATE_MODELS.length; modelIdx++) {
+    const model = CANDIDATE_MODELS[modelIdx];
 
-      if (isRetryable) {
-        console.warn(`Model ${model} error (${errMsg.slice(0, 80)}...), trying candidate ${attempt + 1}/${CANDIDATE_MODELS.length}...`);
-        // Exponential backoff before next model attempt
-        await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(1.5, attempt)));
-        continue;
+    // For each model, attempt up to 3 retries on 503/429 before moving to next candidate
+    for (let retry = 0; retry < 3; retry++) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: params.contents,
+          config: params.config,
+        });
+        return response;
+      } catch (err: any) {
+        lastError = err;
+        const errMsg = String(err?.message || JSON.stringify(err) || "").toLowerCase();
+        const isUnavailableOrThrottled =
+          errMsg.includes("503") ||
+          errMsg.includes("high demand") ||
+          errMsg.includes("unavailable") ||
+          errMsg.includes("resource_exhausted") ||
+          errMsg.includes("429") ||
+          errMsg.includes("quota") ||
+          errMsg.includes("rate limit") ||
+          errMsg.includes("overloaded");
+
+        if (isUnavailableOrThrottled) {
+          const suggestedDelay = extractRetryDelayMs(err);
+          const exponentialDelay = (retry + 1) * 2000;
+          const waitMs = Math.max(suggestedDelay, exponentialDelay);
+
+          console.warn(
+            `[Gemini] Model ${model} unavailable/throttled (attempt ${retry + 1}/3). Waiting ${waitMs}ms before retry...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+          continue;
+        }
+
+        // If error is model not found (404), break immediately to next candidate
+        if (
+          errMsg.includes("404") ||
+          errMsg.includes("not found") ||
+          errMsg.includes("no longer available")
+        ) {
+          break;
+        }
+
+        throw err;
       }
-      throw err;
     }
   }
 

@@ -84,7 +84,12 @@ export function BrandingCustomizer() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3 p-4 bg-secondary/50 rounded-lg">
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center overflow-hidden">
+            <div
+              className="w-10 h-10 bg-primary rounded-full flex items-center justify-center overflow-hidden border border-border/80 shadow-xs shrink-0"
+              style={{
+                color: "hsl(var(--primary-foreground))",
+              }}
+            >
               {previewLogoUrl ? (
                 <img
                   src={previewLogoUrl}
@@ -95,7 +100,10 @@ export function BrandingCustomizer() {
                   }}
                 />
               ) : (
-                <span className="text-primary-foreground font-bold text-sm">
+                <span
+                  className="text-primary-foreground font-black text-base select-none"
+                  style={{ color: "hsl(var(--primary-foreground))" }}
+                >
                   {previewLogoText || "N"}
                 </span>
               )}

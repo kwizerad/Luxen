@@ -193,7 +193,7 @@ export function TopicCarousel({
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs whitespace-nowrap transition-all flex-shrink-0",
                   isActive
-                    ? "bg-green-500 text-white font-medium"
+                    ? "bg-green-500/15 dark:bg-green-500/25 text-slate-900 dark:text-slate-100 font-semibold border border-green-500/40 shadow-xs"
                     : topic.isCompleted
                       ? "bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20"
                       : topic.isUnlocked

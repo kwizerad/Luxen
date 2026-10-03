@@ -27,6 +27,13 @@ export function ThemeCustomizer() {
   // Local state for preview before saving
   const [previewConfig, setPreviewConfig] = useState(config);
   const [hasChanges, setHasChanges] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"light" | "dark">("dark");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setPreviewMode(document.documentElement.classList.contains("dark") ? "dark" : "light");
+    }
+  }, []);
 
   // Sync previewConfig with config when config changes (e.g., on initial load or reset)
   useEffect(() => {
@@ -113,18 +120,18 @@ export function ThemeCustomizer() {
     
     const hsl = hexToHSL(themeColors.primaryColor);
     if (hsl) {
-      // Determine if color is dark (lightness < 40)
-      const isDarkColor = hsl.l < 40;
+      // Determine if color is light (lightness > 55)
+      const isLightBg = hsl.l > 55;
       
       root.style.setProperty("--primary", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
       
       // Auto-adjust foreground color based on primary color brightness
-      if (isDarkColor) {
+      if (isLightBg) {
+        // Light primary color → dark text
+        root.style.setProperty("--primary-foreground", "222 47% 11%");
+      } else {
         // Dark primary color → light text
         root.style.setProperty("--primary-foreground", "0 0% 100%");
-      } else {
-        // Light primary color → dark text
-        root.style.setProperty("--primary-foreground", "0 0% 0%");
       }
       
       root.style.setProperty("--ring", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
@@ -132,12 +139,12 @@ export function ThemeCustomizer() {
       root.style.setProperty("--accent", `${hsl.h} ${hsl.s}% ${accentL}%`);
       
       // Auto-adjust accent foreground based on accent brightness
-      if (accentL < 40) {
-        // Dark accent → light text
-        root.style.setProperty("--accent-foreground", "0 0% 100%");
-      } else {
+      if (accentL > 55) {
         // Light accent → dark text
         root.style.setProperty("--accent-foreground", "0 0% 0%");
+      } else {
+        // Dark accent → light text
+        root.style.setProperty("--accent-foreground", "0 0% 100%");
       }
     }
     root.style.setProperty("--hover-border-color", themeColors.hoverBorderColor);
@@ -531,81 +538,160 @@ export function ThemeCustomizer() {
       </Card>
 
       {/* Demo Content - Shows theme changes instantly */}
-      <Card className={cardHoverClass}>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Star className="h-3 w-3 text-primary" />
-            Live Preview
-          </CardTitle>
-          <CardDescription className="text-xs">
-            See your theme changes in action across small (mobile) and big (desktop) devices
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Small Device & Big Device Status Bar Simulation */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {/* Small Device Preview */}
-            <div className="rounded-xl border border-border p-2.5 bg-secondary/30 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-foreground">
-                <span className="flex items-center gap-1.5">
-                  <Smartphone className="h-3.5 w-3.5 text-primary" />
-                  Small Device (Mobile)
-                </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary">Status Bar</span>
-              </div>
-              <div
-                className="h-6 rounded-md flex items-center justify-between px-2 text-[10px] font-semibold text-white shadow-xs transition-colors duration-300"
-                style={{ backgroundColor: previewConfig.light.primaryColor }}
-              >
-                <span>10:53</span>
-                <span className="flex items-center gap-1 text-[9px]">4G ▮▮▮ 54%</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-tight">
-                Controls the top phone notch, Android status bar, and mobile browser address bar.
-              </p>
-            </div>
+      {(() => {
+        const isColorDark = (hex: string): boolean => {
+          if (!hex) return false;
+          const clean = hex.trim().replace("#", "");
+          let r = 0, g = 0, b = 0;
+          if (clean.length === 3) {
+            r = parseInt(clean[0] + clean[0], 16);
+            g = parseInt(clean[1] + clean[1], 16);
+            b = parseInt(clean[2] + clean[2], 16);
+          } else if (clean.length === 6) {
+            r = parseInt(clean.substring(0, 2), 16);
+            g = parseInt(clean.substring(2, 4), 16);
+            b = parseInt(clean.substring(4, 6), 16);
+          } else {
+            return false;
+          }
+          const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+          return yiq < 140;
+        };
 
-            {/* Big Device Preview */}
-            <div className="rounded-xl border border-border p-2.5 bg-secondary/30 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-foreground">
-                <span className="flex items-center gap-1.5">
-                  <Monitor className="h-3.5 w-3.5 text-primary" />
-                  Big Device (Desktop)
-                </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary">Safari / PWA</span>
-              </div>
-              <div
-                className="h-6 rounded-md flex items-center gap-1.5 px-2 text-[10px] font-medium text-white shadow-xs transition-colors duration-300"
-                style={{ backgroundColor: previewConfig.light.primaryColor }}
-              >
-                <div className="flex gap-1 shrink-0">
-                  <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+        const activePreviewColor =
+          previewMode === "dark" ? previewConfig.dark.primaryColor : previewConfig.light.primaryColor;
+        const isDarkBg = isColorDark(activePreviewColor);
+        const previewTextColor = isDarkBg ? "#FFFFFF" : "#0F172A";
+        const previewBorderStyle = isDarkBg
+          ? "1px solid rgba(255, 255, 255, 0.15)"
+          : "1px solid rgba(0, 0, 0, 0.15)";
+
+        return (
+          <Card className={cardHoverClass}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <Star className="h-3 w-3 text-primary" />
+                    Live Preview
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    See your theme changes in action across small (mobile) and big (desktop) devices
+                  </CardDescription>
                 </div>
-                <span className="truncate opacity-90 text-[9px] font-mono">Navo Platform — navo.rw</span>
+                {/* Preview Mode Selector */}
+                <div className="flex items-center gap-1 bg-secondary/80 p-0.5 rounded-lg border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewMode("light")}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all ${
+                      previewMode === "light"
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Sun className="h-3 w-3 text-amber-500" />
+                    <span>Light Preview</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewMode("dark")}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all ${
+                      previewMode === "dark"
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Moon className="h-3 w-3 text-blue-400" />
+                    <span>Dark Preview</span>
+                  </button>
+                </div>
               </div>
-              <p className="text-[10px] text-muted-foreground leading-tight">
-                Controls macOS Safari tab headers, browser window tinting, and desktop app headers.
-              </p>
-            </div>
-          </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Small Device & Big Device Status Bar Simulation */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Small Device Preview */}
+                <div className="rounded-xl border border-border p-2.5 bg-secondary/30 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Smartphone className="h-3.5 w-3.5 text-primary" />
+                      Small Device (Mobile)
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary">Status Bar</span>
+                  </div>
+                  <div
+                    className="h-6 rounded-md flex items-center justify-between px-2 text-[10px] font-semibold shadow-xs transition-colors duration-300"
+                    style={{
+                      backgroundColor: activePreviewColor,
+                      color: previewTextColor,
+                      border: previewBorderStyle,
+                    }}
+                  >
+                    <span>10:53</span>
+                    <span className="flex items-center gap-1 text-[9px]">4G ▮▮▮ 54%</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    Controls the top phone notch, Android status bar, and mobile browser address bar.
+                  </p>
+                </div>
 
-          {/* Demo Buttons */}
-          <div className="flex gap-2 flex-wrap">
-            <Button size="sm">Primary Button</Button>
-            <Button variant="secondary" size="sm">Secondary</Button>
-            <Button variant="outline" size="sm">Outline</Button>
-            <Button variant="destructive" size="sm">Destructive</Button>
-          </div>
+                {/* Big Device Preview */}
+                <div className="rounded-xl border border-border p-2.5 bg-secondary/30 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Monitor className="h-3.5 w-3.5 text-primary" />
+                      Big Device (Desktop)
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary">Safari / PWA</span>
+                  </div>
+                  <div
+                    className="h-6 rounded-md flex items-center gap-1.5 px-2 text-[10px] font-medium shadow-xs transition-colors duration-300"
+                    style={{
+                      backgroundColor: activePreviewColor,
+                      color: previewTextColor,
+                      border: previewBorderStyle,
+                    }}
+                  >
+                    <div className="flex gap-1 shrink-0">
+                      <div className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
+                    </div>
+                    <span className="truncate opacity-90 text-[9px] font-mono">Navo Platform — navo.rw</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    Controls macOS Safari tab headers, browser window tinting, and desktop app headers.
+                  </p>
+                </div>
+              </div>
 
-          {/* Demo Status */}
-          <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg border border-primary/20">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-            <p className="text-xs text-primary">Theme changes apply instantly to all devices and browser chrome</p>
-          </div>
-        </CardContent>
-      </Card>
+              {/* Demo Buttons */}
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  style={{
+                    backgroundColor: activePreviewColor,
+                    color: previewTextColor,
+                    border: previewBorderStyle,
+                  }}
+                >
+                  Primary Button
+                </Button>
+                <Button variant="secondary" size="sm">Secondary</Button>
+                <Button variant="outline" size="sm">Outline</Button>
+                <Button variant="destructive" size="sm">Destructive</Button>
+              </div>
+
+              {/* Demo Status */}
+              <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-lg border border-primary/20">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                <p className="text-xs text-primary">Theme changes apply instantly to all devices and browser chrome</p>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Action Buttons */}
       <div className="flex gap-2 flex-wrap">
@@ -614,6 +700,28 @@ export function ThemeCustomizer() {
           onClick={handleSave}
           disabled={!hasChanges}
           className="flex-1 min-w-[100px] h-8 text-sm"
+          style={(() => {
+            const isDark = previewMode === "dark";
+            const col = isDark ? previewConfig.dark.primaryColor : previewConfig.light.primaryColor;
+            const clean = (col || "").trim().replace("#", "");
+            let r = 0, g = 0, b = 0;
+            if (clean.length === 3) {
+              r = parseInt(clean[0] + clean[0], 16);
+              g = parseInt(clean[1] + clean[1], 16);
+              b = parseInt(clean[2] + clean[2], 16);
+            } else if (clean.length === 6) {
+              r = parseInt(clean.substring(0, 2), 16);
+              g = parseInt(clean.substring(2, 4), 16);
+              b = parseInt(clean.substring(4, 6), 16);
+            }
+            const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+            const textCol = yiq < 140 ? "#FFFFFF" : "#0F172A";
+            return {
+              backgroundColor: col,
+              color: textCol,
+              border: yiq >= 140 ? "1px solid rgba(0,0,0,0.15)" : undefined,
+            };
+          })()}
         >
           <Save className="h-3 w-3 mr-1" />
           Save Changes

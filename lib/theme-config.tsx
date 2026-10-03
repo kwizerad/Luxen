@@ -241,13 +241,15 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
       root.style.setProperty("--primary", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
       
       // Auto-adjust foreground color based on primary color brightness
-      const isDarkColor = hsl.l < 40;
-      if (isDarkColor) {
-        // Dark primary color → light text
-        root.style.setProperty("--primary-foreground", "0 0% 100%");
-      } else {
+      // Lightness > 55% means light background -> dark text
+      // Lightness <= 55% means dark background -> white text
+      const isLightBg = hsl.l > 55;
+      if (isLightBg) {
         // Light primary color → dark text
         root.style.setProperty("--primary-foreground", "0 0% 0%");
+      } else {
+        // Dark primary color → light text
+        root.style.setProperty("--primary-foreground", "0 0% 100%");
       }
       
       // Auto-adjust primary-readable: darken light primary colors for text visibility
@@ -270,12 +272,12 @@ export function ThemeConfigProvider({ children }: { children: React.ReactNode })
       root.style.setProperty("--accent", `${hsl.h} ${hsl.s}% ${accentL}%`);
       
       // Auto-adjust accent foreground based on accent brightness
-      if (accentL < 40) {
-        // Dark accent → light text
-        root.style.setProperty("--accent-foreground", "0 0% 100%");
-      } else {
+      if (accentL > 55) {
         // Light accent → dark text
         root.style.setProperty("--accent-foreground", "0 0% 0%");
+      } else {
+        // Dark accent → light text
+        root.style.setProperty("--accent-foreground", "0 0% 100%");
       }
       
       // Set success and toast accent colors to match primary brand color

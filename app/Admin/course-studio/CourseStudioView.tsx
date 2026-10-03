@@ -89,6 +89,7 @@ export function CourseStudioView() {
   const [settingsCollapsed, setSettingsCollapsed] = useState(false);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const editorRef = useRef<Editor | null>(null);
+  const contentAreaRef = useRef<HTMLDivElement | null>(null);
   const [, forceUpdate] = useState(0);
   const [previewMode, setPreviewMode] = useState(false);
 
@@ -101,10 +102,13 @@ export function CourseStudioView() {
     requestSelectCourse(course.id);
   };
 
-  // Reset preview mode and active question when selection changes
+  // Reset preview mode, active question, and scroll position when selection changes
   useEffect(() => {
     setPreviewMode(false);
     setActiveQuestionId(null);
+    if (contentAreaRef.current) {
+      contentAreaRef.current.scrollTop = 0;
+    }
   }, [selection]);
 
   // When the ?courseId= URL param changes, switch the studio to that course.
@@ -420,13 +424,13 @@ export function CourseStudioView() {
         </div>
       )}
 
-      <main className="flex-1 min-w-0 flex flex-col overflow-visible border-t lg:border-t-0 lg:border-l border-[var(--admin-border)]">
+      <main className="flex-1 min-w-0 flex flex-col lg:h-[calc(100vh-7rem-48px)] lg:overflow-hidden border-t lg:border-t-0 lg:border-l border-[var(--admin-border)]">
         {course && (
           <>
-            {/* Top Studio Header Block - Clean Stacked Vertical Layout */}
-            <div className="sticky top-[48px] z-30 flex flex-col border-b border-[var(--admin-border)] bg-[var(--admin-card)] shadow-xs">
+            {/* Top Studio Header Block - Clean Stacked Vertical Layout, 100% Solid & Opaque */}
+            <div className="flex-shrink-0 flex flex-col border-b border-[var(--admin-border)] bg-white dark:bg-[#0B1020] shadow-xs z-20">
               {/* Row 1: Breadcrumb Navigation & Studio Action Buttons */}
-              <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 min-h-[44px] border-b border-[var(--admin-border)]/60 pr-24 sm:pr-28 md:pr-32">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 min-h-[44px] border-b border-[var(--admin-border)]/60 pr-20 sm:pr-24 md:pr-28">
                 <div className="flex-1 min-w-0">
                   {renderBreadcrumb()}
                 </div>
@@ -518,7 +522,7 @@ export function CourseStudioView() {
               </div>
 
               {/* Row 2: Multilingual Language Context & Sync Toolbar */}
-              <div className="px-3 sm:px-4 py-1.5 bg-[var(--admin-card)] min-h-[38px] flex items-center pr-24 sm:pr-28 md:pr-32">
+              <div className="px-3 sm:px-4 py-1.5 bg-slate-50/90 dark:bg-[#0E1424] min-h-[38px] flex items-center pr-20 sm:pr-24 md:pr-28 border-t border-[var(--admin-border)]/40">
                 <TranslationSyncBar
                   currentCourse={course}
                   courses={courses}
@@ -527,10 +531,12 @@ export function CourseStudioView() {
                   activeTopicId={selectedTopic?.id || null}
                   moduleIndex={course.modules.findIndex((m) => m.id === selectedModule?.id)}
                   lessonIndex={selectedModule?.lessons.findIndex((l) => l.id === selectedLesson?.id)}
-                  onTopicContentUpdate={(newContent) => {
+                  onTopicContentUpdate={(newContent, newTitle) => {
                     if (selectedLesson && selectedTopic) {
                       const updatedTopics = selectedLesson.topics?.map((tp) =>
-                        tp.id === selectedTopic.id ? { ...tp, content: newContent } : tp
+                        tp.id === selectedTopic.id
+                          ? { ...tp, content: newContent, ...(newTitle ? { title: newTitle } : {}) }
+                          : tp
                       );
                       actions.updateLesson(selectedLesson.id, { ...selectedLesson, topics: updatedTopics });
                     }
@@ -542,9 +548,9 @@ export function CourseStudioView() {
               </div>
             </div>
 
-            {/* Content Area */}
-            <div className="flex-1 p-3 sm:p-4 lg:p-5">
-              <div className="space-y-3 sm:space-y-4">
+            {/* Content Area - Dedicated Scroll Container with Top Clearance */}
+            <div ref={contentAreaRef} className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
+              <div className="space-y-4">
                 {/* Course selection */}
                 {selection.type === "course" && (
                   <CourseOverview
@@ -640,7 +646,7 @@ export function CourseStudioView() {
                         <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="truncate">{selectedLesson.title}</span>
                         <span>/</span>
-                        <span className="text-[var(--admin-primary)] truncate">{selectedTopic.title}</span>
+                        <span className="text-slate-900 dark:text-slate-100 font-semibold truncate">{selectedTopic.title}</span>
                       </div>
                       {selectedTopic.audioUrl && (
                         <div className="p-3 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-hover-bg)]/40 flex items-center gap-3">
@@ -667,7 +673,7 @@ export function CourseStudioView() {
                             <span>{selectedLesson.title}</span>
                           </button>
                           <ChevronRight className="h-3 w-3 flex-shrink-0" />
-                          <span className="text-[var(--admin-primary)] font-medium truncate">{selectedTopic.title}</span>
+                          <span className="text-slate-900 dark:text-slate-100 font-semibold truncate">{selectedTopic.title}</span>
                         </div>
                         {selectedTopic.audioUrl && (
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-medium border border-emerald-500/20">

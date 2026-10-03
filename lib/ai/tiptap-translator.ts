@@ -135,8 +135,20 @@ OUTPUT RULES:
 3. Every single input item must have a matching entry with the exact same numeric ID.`;
 }
 
+function cleanJsonString(raw: string): string {
+  if (!raw) return "{}";
+  let cleaned = raw.trim();
+  // Strip markdown code fences if present
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "");
+    cleaned = cleaned.replace(/\s*```$/i, "");
+    cleaned = cleaned.trim();
+  }
+  return cleaned;
+}
+
 /**
- * Translates an array of text snippets using Gemini 3.8 Flash.
+ * Translates an array of text snippets using Gemini with fallback.
  */
 export async function translateTextSnippets(
   snippets: TextSnippet[],
@@ -168,29 +180,48 @@ export async function translateTextSnippets(
       });
 
       const rawText = response?.text || "{}";
-      const cleaned = rawText
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/```\s*$/i, "")
-        .trim();
+      const cleaned = cleanJsonString(rawText);
 
-      let parsed: any;
+      let parsed: any = null;
       try {
         parsed = JSON.parse(cleaned);
       } catch (parseErr) {
-        console.warn("JSON parse failed, attempting regex recovery:", parseErr);
-        parsed = null;
+        // Try extracting JSON object or array via regex
+        const arrayMatch = cleaned.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        const objMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (arrayMatch) {
+          try { parsed = JSON.parse(arrayMatch[0]); } catch {}
+        } else if (objMatch) {
+          try { parsed = JSON.parse(objMatch[0]); } catch {}
+        }
       }
 
-      const items: any[] = Array.isArray(parsed)
-        ? parsed
-        : Array.isArray(parsed?.translations)
-        ? parsed.translations
-        : Array.isArray(parsed?.data)
-        ? parsed.data
-        : Array.isArray(parsed?.items)
-        ? parsed.items
-        : [];
+      let items: any[] = [];
+      if (Array.isArray(parsed)) {
+        items = parsed;
+      } else if (Array.isArray(parsed?.translations)) {
+        items = parsed.translations;
+      } else if (Array.isArray(parsed?.data)) {
+        items = parsed.data;
+      } else if (Array.isArray(parsed?.items)) {
+        items = parsed.items;
+      } else if (parsed && typeof parsed === "object") {
+        // Check if single object returned with { id, translatedText }
+        if (parsed.id !== undefined && (parsed.translatedText || parsed.text || parsed.translation)) {
+          items = [parsed];
+        } else if (parsed.translatedText || parsed.translation || parsed.translated_text) {
+          // Single translation without explicit ID, map to first chunk item
+          items = [{ id: chunk[0]?.id ?? 0, translatedText: parsed.translatedText || parsed.translation || parsed.translated_text }];
+        } else {
+          // Check if object keys are IDs: { "0": "Translated Title", "1": "..." }
+          for (const key of Object.keys(parsed)) {
+            const numKey = Number(key);
+            if (!isNaN(numKey) && typeof parsed[key] === "string") {
+              items.push({ id: numKey, translatedText: parsed[key] });
+            }
+          }
+        }
+      }
 
       for (const item of items) {
         const idVal = item.id !== undefined ? Number(item.id) : undefined;
@@ -206,37 +237,61 @@ export async function translateTextSnippets(
             : null;
 
         if (idVal !== undefined && !isNaN(idVal) && textVal !== null && textVal.trim().length > 0) {
-          resultMap.set(idVal, textVal);
+          resultMap.set(idVal, textVal.trim());
         }
       }
 
-      // Check if any item in the chunk was missed
+      // Check if any item in the chunk was missed - retry missed items in ONE single fallback batch
+      const missed = chunk.filter((item) => !resultMap.has(item.id));
+      if (missed.length > 0 && missed.length <= chunk.length) {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          const retryPrompt =
+            `Translate the following remaining text snippets from ${sourceLang} to ${targetLang}:\n` +
+            JSON.stringify(missed, null, 2);
+          const retryRes = await generateContentWithFallback({
+            contents: retryPrompt,
+            config: {
+              systemInstruction: getSystemPrompt(sourceLang, targetLang),
+              responseMimeType: "application/json",
+              temperature: 0.1,
+            },
+          });
+          const retryCleaned = cleanJsonString(retryRes?.text || "{}");
+          let retryParsed: any = null;
+          try {
+            retryParsed = JSON.parse(retryCleaned);
+          } catch {}
+          const retryItems = Array.isArray(retryParsed)
+            ? retryParsed
+            : Array.isArray(retryParsed?.translations)
+            ? retryParsed.translations
+            : [];
+          for (const rItem of retryItems) {
+            const rId = rItem.id !== undefined ? Number(rItem.id) : undefined;
+            const rText = rItem.translatedText || rItem.text || rItem.translation;
+            if (rId !== undefined && typeof rText === "string" && rText.trim()) {
+              resultMap.set(rId, rText.trim());
+            }
+          }
+        } catch (retryErr) {
+          console.warn("[Translator] Batch retry missed items skipped:", retryErr);
+        }
+      }
+
+      // Fill any remaining unmapped items with original text to preserve document structure
       for (const item of chunk) {
         if (!resultMap.has(item.id)) {
-          // If translation missed this item, retry single snippet directly
-          try {
-            const singleRes = await generateContentWithFallback({
-              contents: `Translate this single text snippet from ${sourceLang} to ${targetLang}:\n"${item.text}"\nOutput JSON: {"translatedText": "..."}`,
-              config: {
-                systemInstruction: getSystemPrompt(sourceLang, targetLang),
-                responseMimeType: "application/json",
-              },
-            });
-            const singleParsed = JSON.parse(singleRes?.text || "{}");
-            const singleText = singleParsed.translatedText || singleParsed.translation || singleParsed.text;
-            if (singleText && typeof singleText === "string") {
-              resultMap.set(item.id, singleText);
-            } else {
-              resultMap.set(item.id, item.text);
-            }
-          } catch {
-            resultMap.set(item.id, item.text);
-          }
+          resultMap.set(item.id, item.text);
         }
+      }
+
+      // Small throttle between batches to avoid RPM quota spikes
+      if (i + BATCH_SIZE < snippets.length) {
+        await new Promise((resolve) => setTimeout(resolve, 600));
       }
     } catch (err: any) {
       console.error("Translation batch failed:", err);
-      // If we could not translate this batch, throw so the user and system know the translation failed
       throw new Error(`AI translation error: ${err?.message || "Failed to generate translated text. Please retry."}`);
     }
   }

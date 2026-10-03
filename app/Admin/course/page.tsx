@@ -49,9 +49,6 @@ export default function CoursePage() {
   })();
 
   const [activeTab, setActiveTab] = useState<CourseTab>(initialTab);
-  const [tabsVisible, setTabsVisible] = useState(true);
-  const lastScrollY = useRef(0);
-  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Adjust active tab if the selected tab is not visible
   useEffect(() => {
@@ -61,33 +58,6 @@ export default function CoursePage() {
       switchTab("management");
     }
   }, [canViewManagement, canViewStudio]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Auto-hide tabs on scroll down, show on scroll up or mouse near top
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY > lastScrollY.current && currentScrollY > 120) {
-        setTabsVisible(false);
-      } else {
-        setTabsVisible(true);
-      }
-      lastScrollY.current = currentScrollY;
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (e.clientY <= 120) {
-        setTabsVisible(true);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("mousemove", handleMouseMove);
-      if (hideTimer.current) clearTimeout(hideTimer.current);
-    };
-  }, []);
 
   // Sync activeTab when the URL ?tab= changes externally (e.g. Manage link).
   // Only updates state — never touches the URL, so no loop.
@@ -116,9 +86,9 @@ export default function CoursePage() {
 
   return (
     <div className="course-page space-y-4 sm:space-y-5">
-      {/* Tab switcher — sticky at top, auto-hides on scroll down */}
+      {/* Tab switcher — permanently stable at top, theme-adaptive */}
       <div
-        className={`sticky top-0 z-30 -mx-1 px-1 py-2 flex flex-wrap gap-2 backdrop-blur-md bg-[#0B1020]/80 border-b border-[var(--admin-border)] pr-24 sm:pr-28 md:pr-32 transition-transform duration-300 ${tabsVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"}`}
+        className="sticky top-0 z-30 -mx-1 px-2 py-2 flex flex-wrap items-center gap-2 backdrop-blur-md bg-white/95 dark:bg-[#0B1020]/95 border-b border-[var(--admin-border)] shadow-xs pr-20 sm:pr-24 md:pr-28"
         role="tablist"
         aria-label={t("courseManagementNav") || "Course"}
       >

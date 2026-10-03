@@ -276,11 +276,11 @@ function ModuleItem({
                             className={cn(
                               "flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer text-[11px] transition-all",
                               isThisTopicSelected
-                                ? "bg-[var(--admin-primary)]/15 text-[var(--admin-primary)] border border-[var(--admin-primary)]/30 font-medium"
+                                ? "bg-[var(--admin-primary)]/15 text-slate-900 dark:text-slate-100 border border-[var(--admin-primary)]/40 font-semibold shadow-xs"
                                 : "text-[var(--admin-muted)] hover:text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
                             )}
                           >
-                            <FileText className="h-3 w-3 flex-shrink-0 opacity-70" />
+                            <FileText className={cn("h-3 w-3 flex-shrink-0", isThisTopicSelected ? "text-[var(--admin-primary)]" : "opacity-70 text-[var(--admin-muted)]")} />
                             <span className="flex-1 min-w-0 truncate">{topic.title || t("untitledTopic") || "Untitled Topic"}</span>
                             {topic.audioUrl && (
                               <Volume2 className="h-3 w-3 flex-shrink-0 text-emerald-500" />

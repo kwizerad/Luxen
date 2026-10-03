@@ -530,11 +530,11 @@ export function CoursePreviewDialog({
                                         className={cn(
                                           "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[10px] text-left transition-colors",
                                           !selectedTopicId
-                                            ? "bg-[var(--admin-primary)]/10 text-[var(--admin-primary)] font-medium"
+                                            ? "bg-[var(--admin-primary)]/15 text-slate-900 dark:text-slate-100 font-semibold border border-[var(--admin-primary)]/40 shadow-xs"
                                             : "text-[var(--admin-muted)] hover:bg-[var(--admin-hover-bg)]"
                                         )}
                                       >
-                                        <BookOpen className="h-3 w-3 flex-shrink-0" />
+                                        <BookOpen className="h-3 w-3 flex-shrink-0 text-[var(--admin-primary)]" />
                                         <span className="flex-1 truncate">
                                           {t("introduction") || "Introduction"}
                                         </span>
@@ -547,11 +547,11 @@ export function CoursePreviewDialog({
                                           className={cn(
                                             "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[10px] text-left transition-colors",
                                             selectedTopicId === topic.id
-                                              ? "bg-[var(--admin-primary)]/10 text-[var(--admin-primary)] font-medium"
+                                              ? "bg-[var(--admin-primary)]/15 text-slate-900 dark:text-slate-100 font-semibold border border-[var(--admin-primary)]/40 shadow-xs"
                                               : "text-[var(--admin-muted)] hover:bg-[var(--admin-hover-bg)]"
                                           )}
                                         >
-                                          <Circle className="h-2.5 w-2.5 flex-shrink-0" />
+                                          <Circle className="h-2.5 w-2.5 flex-shrink-0 text-[var(--admin-primary)]" />
                                           <span className="flex-1 truncate">{topic.title}</span>
                                         </button>
                                       ))}
@@ -840,7 +840,7 @@ export function CoursePreviewDialog({
               className={cn(
                 "text-[11px] px-2.5 py-1.5 rounded-full border transition-colors",
                 !selectedTopicId
-                  ? "border-[var(--admin-primary)] bg-[var(--admin-primary)]/15 text-[var(--admin-primary)] font-medium"
+                  ? "border-[var(--admin-primary)] bg-[var(--admin-primary)]/15 text-slate-900 dark:text-slate-100 font-semibold shadow-xs"
                   : "border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-muted)] hover:bg-[var(--admin-hover-bg)]"
               )}
             >
@@ -854,7 +854,7 @@ export function CoursePreviewDialog({
                 className={cn(
                   "text-[11px] px-2.5 py-1.5 rounded-full border transition-colors",
                   selectedTopicId === topic.id
-                    ? "border-[var(--admin-primary)] bg-[var(--admin-primary)]/15 text-[var(--admin-primary)] font-medium"
+                    ? "border-[var(--admin-primary)] bg-[var(--admin-primary)]/15 text-slate-900 dark:text-slate-100 font-semibold shadow-xs"
                     : "border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-muted)] hover:bg-[var(--admin-hover-bg)]"
                 )}
               >

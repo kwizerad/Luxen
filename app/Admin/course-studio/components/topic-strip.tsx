@@ -50,7 +50,7 @@ export function TopicStrip({
             className={cn(
               "flex items-center gap-1.5 px-2.5 py-1.5 rounded-[5px] text-xs whitespace-nowrap transition-all flex-shrink-0 border",
               isActive
-                ? "bg-[var(--admin-primary)]/15 text-[var(--admin-primary)] border-[var(--admin-primary)]/40 font-medium"
+                ? "bg-[var(--admin-primary)]/15 text-slate-900 dark:text-slate-100 border-[var(--admin-primary)]/50 font-semibold shadow-xs"
                 : "text-[var(--admin-muted)] hover:text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)] border-transparent"
             )}
             title={topic.title}

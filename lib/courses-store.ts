@@ -31,6 +31,7 @@ export interface Lesson {
   content?: string; // Optional/legacy
   status: CourseStatus;
   audioUrl?: string; // Optional/legacy
+  content_type?: string;
   topics: LessonTopic[];
 }
 

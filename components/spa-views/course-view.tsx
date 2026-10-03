@@ -2240,18 +2240,18 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                                 className={cn(
                                   "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left",
                                   isTpCurrent
-                                    ? "bg-emerald-600 text-white font-semibold shadow-xs"
+                                    ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-slate-900 dark:text-slate-100 font-semibold border border-emerald-500/40 shadow-xs"
                                     : isTpDone
-                                    ? "text-emerald-600 dark:text-emerald-400 hover:bg-muted"
+                                    ? "text-emerald-700 dark:text-emerald-400 hover:bg-muted"
                                     : isTpUnlocked
-                                    ? "hover:bg-muted text-foreground"
+                                    ? "hover:bg-muted text-slate-800 dark:text-slate-200"
                                     : "opacity-40 cursor-not-allowed text-muted-foreground"
                                 )}
                               >
                                 {isTpDone ? (
-                                  <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-500" />
+                                  <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                 ) : isTpCurrent ? (
-                                  <FileText className="h-3 w-3 shrink-0 text-white" />
+                                  <FileText className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                 ) : isTpUnlocked ? (
                                   <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
                                 ) : (
@@ -2259,7 +2259,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                                 )}
                                 <span className="flex-1 truncate">{tp.title}</span>
                                 {tp.audioUrl && (
-                                  <Volume2 className={cn("h-3 w-3 shrink-0", isTpCurrent ? "text-white/80" : "text-emerald-500")} />
+                                  <Volume2 className={cn("h-3 w-3 shrink-0", isTpCurrent ? "text-emerald-600 dark:text-emerald-400" : "text-emerald-500")} />
                                 )}
                               </button>
                             );
