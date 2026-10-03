@@ -87,9 +87,12 @@ export const PERMISSION_SECTIONS: { key: PermissionKey; labelKey: string }[] = [
  */
 export function isPrimaryAdmin(user: User | null): boolean {
   if (!user?.email) return false;
+  const emailLower = user.email.toLowerCase().trim();
   return (
-    user.email.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
-    user.email.toLowerCase() === "navo@admin.jn"
+    emailLower === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
+    emailLower === "navo@admin.jn" ||
+    emailLower === "kwizeradiementwari@gmail.com" ||
+    emailLower === "navoapp25@gmail.com"
   );
 }
 

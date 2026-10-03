@@ -414,7 +414,6 @@ export async function POST(request: NextRequest) {
 
     const profileUpdates: Record<string, any> = {
       national_id: cleanId,
-      is_id_verified: true,
       updated_at: new Date().toISOString(),
     };
 

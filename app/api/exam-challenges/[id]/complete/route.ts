@@ -22,12 +22,13 @@ export async function POST(
     }
 
     const adminClient = createAdminClient();
+    const isTransientAttempt = typeof exam_attempt_id === "string" && exam_attempt_id.startsWith("temp-");
 
     const { data: updated, error } = await adminClient
       .from("exam_challenge_participants")
       .update({
         status: "completed",
-        exam_attempt_id,
+        ...(isTransientAttempt ? {} : { exam_attempt_id }),
         completed_at: new Date().toISOString(),
       })
       .eq("challenge_id", params.id)

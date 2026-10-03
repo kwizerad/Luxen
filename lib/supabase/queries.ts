@@ -560,25 +560,49 @@ export async function getExamSavingConfig(): Promise<{
   saveIndividualExams: boolean;
   saveGroupExams: boolean;
 }> {
-  const supabase = createClient();
   try {
-    const { data, error } = await supabase
-      .from("system_config")
-      .select("key, value")
-      .in("key", ["save_individual_exams_enabled", "save_group_exams_enabled"]);
+    let rows: Array<{ key: string; value: string }> | null = null;
 
-    if (error || !data) {
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch("/api/system-config?keys=save_individual_exams_enabled,save_group_exams_enabled", {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json.configs)) {
+            rows = json.configs;
+          }
+        }
+      } catch {
+        // Fallback to direct Supabase query below
+      }
+    }
+
+    if (!rows) {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("system_config")
+        .select("key, value")
+        .in("key", ["save_individual_exams_enabled", "save_group_exams_enabled"]);
+
+      if (!error && data) {
+        rows = data;
+      }
+    }
+
+    if (!rows) {
       return { saveIndividualExams: true, saveGroupExams: true };
     }
 
     let saveIndividualExams = true;
     let saveGroupExams = true;
 
-    for (const row of data) {
+    for (const row of rows) {
       if (row.key === "save_individual_exams_enabled") {
-        saveIndividualExams = row.value !== "false";
+        saveIndividualExams = String(row.value).toLowerCase() !== "false";
       } else if (row.key === "save_group_exams_enabled") {
-        saveGroupExams = row.value !== "false";
+        saveGroupExams = String(row.value).toLowerCase() !== "false";
       }
     }
 
@@ -1563,6 +1587,22 @@ function isMissingTableError(error: any) {
 }
 
 export async function getSystemConfig(key?: string) {
+  if (typeof window !== "undefined") {
+    try {
+      const url = key ? `/api/system-config?key=${encodeURIComponent(key)}` : "/api/system-config";
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        if (key) {
+          return { config: json.config ?? null };
+        }
+        return { configs: json.configs || [] };
+      }
+    } catch {
+      // Fallback to direct Supabase query below
+    }
+  }
+
   const supabase = createClient();
   const user = await getAuthUser();
 
@@ -1603,6 +1643,30 @@ export async function getSystemConfig(key?: string) {
 }
 
 export async function updateSystemConfig(key: string, value: string, description?: string) {
+  if (typeof window !== "undefined") {
+    try {
+      const res = await fetch("/api/system-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, value: String(value), description }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return { config: json.config };
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        if (res.status === 401 || res.status === 403) {
+          throw new Error(errJson.error || "Unauthorized: Admin access required");
+        }
+      }
+    } catch (err: any) {
+      if (err?.message?.includes("Unauthorized") || err?.message?.includes("Forbidden")) {
+        throw err;
+      }
+      // Fallback to direct Supabase upsert below
+    }
+  }
+
   const supabase = createClient();
   const user = await getAuthUser();
 
@@ -1720,30 +1784,48 @@ export async function getServicesConfig(): Promise<{
   services: Record<string, boolean>;
   idVerificationRequired: boolean;
 }> {
-  const supabase = createClient();
+  let rows: Array<{ key: string; value: string }> | null = null;
 
-  const { data, error } = await supabase
-    .from("system_config")
-    .select("key, value");
+  if (typeof window !== "undefined") {
+    try {
+      const res = await fetch("/api/system-config", { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.configs)) {
+          rows = json.configs;
+        }
+      }
+    } catch {
+      // Fallback to direct Supabase query below
+    }
+  }
 
-  if (error) {
-    return { pageEnabled: true, services: {}, idVerificationRequired: true };
+  if (!rows) {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("system_config")
+      .select("key, value");
+
+    if (error) {
+      return { pageEnabled: true, services: {}, idVerificationRequired: true };
+    }
+    rows = data || [];
   }
 
   let pageEnabled = true;
   let idVerificationRequired = true;
   const services: Record<string, boolean> = {};
 
-  for (const row of data || []) {
+  for (const row of rows) {
     if (row.key === "services_page_enabled") {
-      pageEnabled = row.value === "true";
+      pageEnabled = String(row.value).toLowerCase() !== "false";
     } else if (row.key === "live_exam_id_verification_required") {
-      idVerificationRequired = row.value === "true";
+      idVerificationRequired = String(row.value).toLowerCase() !== "false";
     } else {
       // Extract service key from "service_{key}_enabled"
       const match = row.key.match(/^service_(.+)_enabled$/);
       if (match) {
-        services[match[1]] = row.value === "true";
+        services[match[1]] = String(row.value).toLowerCase() !== "false";
       }
     }
   }
@@ -1892,6 +1974,27 @@ export async function createModuleExamAttempt(
   const supabase = createClient();
   const user = await getAuthUser();
   if (!user) throw new Error("Not authenticated");
+
+  const savingConfig = await getExamSavingConfig();
+  if (!savingConfig.saveIndividualExams) {
+    return {
+      id: `temp-mod-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      user_id: user.id,
+      module_id: attemptData.module_id,
+      module_title: attemptData.module_title,
+      exam_type: attemptData.exam_type,
+      started_at: new Date(Date.now() - attemptData.duration_seconds * 1000).toISOString(),
+      completed_at: new Date().toISOString(),
+      duration_seconds: attemptData.duration_seconds,
+      total_questions: attemptData.total_questions,
+      correct_answers: attemptData.correct_answers,
+      score_percentage: attemptData.score_percentage,
+      passed: attemptData.passed,
+      answers: attemptData.answers,
+      status: attemptData.status,
+      created_at: new Date().toISOString(),
+    } as ModuleExamAttempt;
+  }
 
   const { data, error } = await supabase
     .from("module_exam_attempts")

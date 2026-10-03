@@ -113,6 +113,34 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
     }
   };
 
+  const handleToggleSaveIndividualExams = async (checked: boolean) => {
+    setSaveIndividualExamsEnabled(checked);
+    try {
+      await updateSystemConfig(
+        "save_individual_exams_enabled",
+        checked.toString(),
+        "Allow or disallow saving individual exam attempts to database and user history"
+      );
+      toast.success(t("examPersistenceSettingsSaved") || "Individual exam saving setting updated");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateExamPersistence") || "Failed to update exam saving setting: ") + error.message);
+    }
+  };
+
+  const handleToggleSaveGroupExams = async (checked: boolean) => {
+    setSaveGroupExamsEnabled(checked);
+    try {
+      await updateSystemConfig(
+        "save_group_exams_enabled",
+        checked.toString(),
+        "Allow or disallow saving group exam challenges and results to database and history"
+      );
+      toast.success(t("examPersistenceSettingsSaved") || "Group exam saving setting updated");
+    } catch (error: any) {
+      toast.error((t("failedToUpdateExamPersistence") || "Failed to update exam saving setting: ") + error.message);
+    }
+  };
+
   const handleToggleService = async (key: string, checked: boolean) => {
     setServiceToggles((prev) => ({ ...prev, [key]: checked }));
     try {
@@ -372,6 +400,11 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           )
         )
       );
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("app_live_exam_id_verification_required", String(liveExamIdVerificationRequired));
+        sessionStorage.removeItem("app_services_config");
+        window.dispatchEvent(new CustomEvent("config-changed", { detail: { key: "live_exam_id_verification_required", value: liveExamIdVerificationRequired } }));
+      }
       toast.success(t("servicesSettingsSaved") || "Services settings saved");
     } catch (error: any) {
       toast.error((t("failedToUpdateServicesSettings") || "Failed to save services settings: ") + error.message);
@@ -818,7 +851,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
             <Switch
               id="save-individual-exams-toggle"
               checked={saveIndividualExamsEnabled}
-              onCheckedChange={setSaveIndividualExamsEnabled}
+              onCheckedChange={handleToggleSaveIndividualExams}
             />
           </div>
 
@@ -841,7 +874,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
             <Switch
               id="save-group-exams-toggle"
               checked={saveGroupExamsEnabled}
-              onCheckedChange={setSaveGroupExamsEnabled}
+              onCheckedChange={handleToggleSaveGroupExams}
             />
           </div>
 

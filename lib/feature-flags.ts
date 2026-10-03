@@ -98,6 +98,25 @@ export async function isStandaloneExamEnabled(): Promise<boolean> {
  */
 export async function isLiveExamIdVerificationRequired(): Promise<boolean> {
   try {
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch("/api/system-config?key=live_exam_id_verification_required", {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.config) {
+            const isRequired = String(json.config.value).toLowerCase() !== "false";
+            cachedLiveExamIdVerification = isRequired;
+            try {
+              sessionStorage.setItem("app_live_exam_id_verification_required", String(isRequired));
+            } catch {}
+            return isRequired;
+          }
+        }
+      } catch {}
+    }
+
     const supabase = createClient();
     const { data, error } = await supabase
       .from("system_config")
@@ -110,7 +129,7 @@ export async function isLiveExamIdVerificationRequired(): Promise<boolean> {
       return cachedLiveExamIdVerification !== null ? cachedLiveExamIdVerification : true;
     }
 
-    const isRequired = data ? data.value === "true" : true;
+    const isRequired = data ? String(data.value).toLowerCase() !== "false" : true;
     cachedLiveExamIdVerification = isRequired;
     if (typeof window !== "undefined") {
       try {
@@ -132,12 +151,32 @@ export async function getCachedServicesConfig(): Promise<{
   idVerificationRequired: boolean;
 }> {
   try {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("system_config")
-      .select("key, value");
+    let rows: Array<{ key: string; value: string }> | null = null;
 
-    if (error || !data) {
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch("/api/system-config", { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json.configs)) {
+            rows = json.configs;
+          }
+        }
+      } catch {}
+    }
+
+    if (!rows) {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("system_config")
+        .select("key, value");
+
+      if (!error && data) {
+        rows = data;
+      }
+    }
+
+    if (!rows) {
       return (
         (cachedServicesConfig as any) || {
           pageEnabled: true,
@@ -151,15 +190,15 @@ export async function getCachedServicesConfig(): Promise<{
     let idVerificationRequired = true;
     const services: Record<string, boolean> = {};
 
-    for (const row of data) {
+    for (const row of rows) {
       if (row.key === "services_page_enabled") {
-        pageEnabled = row.value === "true";
+        pageEnabled = String(row.value).toLowerCase() !== "false";
       } else if (row.key === "live_exam_id_verification_required") {
-        idVerificationRequired = row.value === "true";
+        idVerificationRequired = String(row.value).toLowerCase() !== "false";
       } else {
         const match = row.key.match(/^service_(.+)_enabled$/);
         if (match) {
-          services[match[1]] = row.value === "true";
+          services[match[1]] = String(row.value).toLowerCase() !== "false";
         }
       }
     }

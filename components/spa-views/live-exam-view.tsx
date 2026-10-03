@@ -38,23 +38,37 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
 
   const refreshConfig = useCallback(async () => {
     try {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("system_config")
-        .select("key, value");
+      let rows: Array<{ key: string; value: string }> | null = null;
+      try {
+        const res = await fetch("/api/system-config", { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json.configs)) {
+            rows = json.configs;
+          }
+        }
+      } catch {}
+
+      if (!rows) {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("system_config")
+          .select("key, value");
+        rows = data || [];
+      }
 
       let pageEnabled = true;
       let examServiceEnabled = true;
       let reqId = true;
 
-      if (data && data.length > 0) {
-        for (const row of data) {
+      if (rows && rows.length > 0) {
+        for (const row of rows) {
           if (row.key === "services_page_enabled") {
-            pageEnabled = row.value === "true";
+            pageEnabled = String(row.value).toLowerCase() !== "false";
           } else if (row.key === "service_live-exam_enabled") {
-            examServiceEnabled = row.value === "true";
+            examServiceEnabled = String(row.value).toLowerCase() !== "false";
           } else if (row.key === "live_exam_id_verification_required") {
-            reqId = row.value === "true";
+            reqId = String(row.value).toLowerCase() !== "false";
           }
         }
       }
@@ -99,15 +113,19 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
         const supabase = createClient();
         const { data: profile } = await supabase
           .from("user_profiles")
-          .select("national_id, is_id_verified")
+          .select("national_id")
           .eq("id", user.id)
           .maybeSingle();
 
         if (isMounted) {
           const userMetaId = user.user_metadata?.national_id;
           const nid = profile?.national_id || userMetaId || null;
-          const isVerified = Boolean(profile?.is_id_verified || user.user_metadata?.is_id_verified);
-          if (isVerified && nid && String(nid).trim().length === 16) {
+          const hasValidNid = Boolean(nid && String(nid).trim().length === 16);
+          const isVerified = Boolean(
+            user.user_metadata?.is_id_verified ||
+            (profile?.national_id && String(profile.national_id).trim().length === 16)
+          );
+          if (isVerified && hasValidNid) {
             setVerifiedNationalId(String(nid).trim());
           } else {
             setVerifiedNationalId(null);

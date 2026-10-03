@@ -20,8 +20,30 @@ export async function GET(
       ? await supabase.auth.getUser(accessToken)
       : await supabase.auth.getUser();
 
-    const PUBLIC_CONFIG_KEYS = ["theme_config", "branding_config", "system_name", "public_config"];
-    const isPublic = PUBLIC_CONFIG_KEYS.includes(key);
+    const PUBLIC_CONFIG_KEYS = [
+      "theme_config",
+      "branding_config",
+      "system_name",
+      "public_config",
+      "live_exam_id_verification_required",
+      "services_page_enabled",
+      "service_live-exam_enabled",
+      "service_group-exam_enabled",
+      "service_driver-hub_enabled",
+      "group_exam_enabled",
+      "standalone_exam_enabled",
+      "save_individual_exams_enabled",
+      "save_group_exams_enabled",
+      "universal_exam_limit",
+      "universal_passing_percentage",
+      "group_exam_join_window_seconds",
+    ];
+    const isPublic =
+      PUBLIC_CONFIG_KEYS.includes(key) ||
+      key.startsWith("service_") ||
+      key.startsWith("interface_language_") ||
+      key.startsWith("learning_language_") ||
+      key.startsWith("security_");
 
     if (!isPublic && (authError || !user)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

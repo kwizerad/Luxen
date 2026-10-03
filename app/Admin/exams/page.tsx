@@ -1224,7 +1224,15 @@ export default function ExamManagementPage() {
                     <Switch
                       id="admin-save-indiv"
                       checked={saveIndividualExams}
-                      onCheckedChange={setSaveIndividualExams}
+                      onCheckedChange={async (checked) => {
+                        setSaveIndividualExams(checked);
+                        try {
+                          await updateExamSavingConfig({ saveIndividualExams: checked });
+                          toast.success(t("examPersistenceSettingsSaved") || "Individual exam saving setting updated");
+                        } catch (e: any) {
+                          toast.error((t("failedToSaveSettings") || "Failed to save setting: ") + e.message);
+                        }
+                      }}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -1246,7 +1254,15 @@ export default function ExamManagementPage() {
                     <Switch
                       id="admin-save-group"
                       checked={saveGroupExams}
-                      onCheckedChange={setSaveGroupExams}
+                      onCheckedChange={async (checked) => {
+                        setSaveGroupExams(checked);
+                        try {
+                          await updateExamSavingConfig({ saveGroupExams: checked });
+                          toast.success(t("examPersistenceSettingsSaved") || "Group exam saving setting updated");
+                        } catch (e: any) {
+                          toast.error((t("failedToSaveSettings") || "Failed to save setting: ") + e.message);
+                        }
+                      }}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
