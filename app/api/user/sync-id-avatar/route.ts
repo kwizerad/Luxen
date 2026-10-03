@@ -21,7 +21,6 @@ export async function POST() {
     // Never sync citizen ID avatars for admins or primary admins
     if (
       isPrimaryAdmin(user) ||
-      user.email === "kwizeradiementwari@gmail.com" ||
       user.email === "navo@admin.jn"
     ) {
       return NextResponse.json({ avatar_url: null, message: "Admins do not sync citizen ID avatar" });

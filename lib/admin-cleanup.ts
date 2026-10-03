@@ -4,7 +4,6 @@ import { PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
 const KNOWN_ADMIN_EMAILS = [
   PRIMARY_ADMIN_EMAIL.toLowerCase(),
   "navo@admin.jn",
-  "kwizeradiementwari@gmail.com",
 ];
 
 /**

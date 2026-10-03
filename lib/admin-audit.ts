@@ -120,9 +120,8 @@ export function isUserPrimaryAdmin(user?: { email?: string | null; id?: string |
   const email = user.email.toLowerCase().trim();
   const primary1 = (process.env.NEXT_PUBLIC_PRIMARY_ADMIN_EMAIL || PRIMARY_ADMIN_EMAIL).toLowerCase().trim();
   const primary2 = DEFAULT_ADMIN_EMAIL.toLowerCase().trim();
-  const primary3 = "kwizeradiementwari@gmail.com";
-  const primary4 = "navo@admin.jn";
-  return email === primary1 || email === primary2 || email === primary3 || email === primary4;
+  const primary3 = "navo@admin.jn";
+  return email === primary1 || email === primary2 || email === primary3;
 }
 
 /**

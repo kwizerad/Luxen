@@ -33,7 +33,6 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
   const { user } = useAuth();
 
   const [allUsers, setAllUsers] = useState<ClassmateProfile[]>([]);
-  const [activeTab, setActiveTab] = useState<"all" | "friends" | "classmates">("all");
   const [categories, setCategories] = useState<{ id: string; name: string; description?: string; duration_minutes?: number; question_count?: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -67,9 +66,8 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
     if (!user) return;
     setLoading(true);
     try {
-      const [requestsRes, classmatesRes, categoriesData] = await Promise.all([
+      const [requestsRes, categoriesData] = await Promise.all([
         fetch("/api/classmate-requests").then((r) => r.json()).catch(() => ({ requests: [] })),
-        fetch("/api/classmate-requests/classmates?exclude_friends=false").then((r) => r.json()).catch(() => ({ classmates: [] })),
         getExamCategories(),
       ]);
 
@@ -83,29 +81,9 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
       }));
 
       const allRequests: any[] = requestsData.requests || [];
-      const acceptedFriendIds = new Set(
-        allRequests
-          .filter((r) => r.status === "accepted" && r.other_user?.id)
-          .map((r) => r.other_user.id)
-      );
-
-      const classmatesList: any[] = (classmatesRes as any)?.classmates || [];
       const combinedMap = new Map<string, ClassmateProfile>();
 
-      // 1. Add all from classmates API
-      for (const c of classmatesList) {
-        if (!c?.id || c.id === user.id) continue;
-        combinedMap.set(c.id, {
-          id: c.id,
-          full_name: c.full_name || c.username || "Student",
-          username: c.username,
-          avatar_url: c.avatar_url,
-          last_seen: c.last_seen,
-          is_friend: acceptedFriendIds.has(c.id),
-        });
-      }
-
-      // 2. Add any friends from requests that might not have been returned in classmates
+      // Only add accepted friends
       for (const r of allRequests) {
         if (r.status === "accepted" && r.other_user && r.other_user.id !== user.id) {
           const u = r.other_user;
@@ -118,18 +96,13 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
               last_seen: u.last_seen,
               is_friend: true,
             });
-          } else {
-            const existing = combinedMap.get(u.id)!;
-            existing.is_friend = true;
           }
         }
       }
 
-      const mergedList = Array.from(combinedMap.values()).sort((a, b) => {
-        if (a.is_friend && !b.is_friend) return -1;
-        if (!a.is_friend && b.is_friend) return 1;
-        return (a.full_name || "").localeCompare(b.full_name || "");
-      });
+      const mergedList = Array.from(combinedMap.values()).sort((a, b) =>
+        (a.full_name || "").localeCompare(b.full_name || "")
+      );
 
       setAllUsers(mergedList);
       setCategories(categoriesList);
@@ -141,10 +114,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
     }
   };
 
-  const friendsList = allUsers.filter((u) => u.is_friend);
-  const nonFriendsList = allUsers.filter((u) => !u.is_friend);
-
-  const displayedList = activeTab === "friends" ? friendsList : activeTab === "classmates" ? nonFriendsList : allUsers;
+  const displayedList = allUsers;
 
   const filteredInvitees = displayedList.filter((f) => {
     if (!searchQuery) return true;
@@ -385,48 +355,11 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
             </CardHeader>
 
             <CardContent className="p-4 sm:p-5 space-y-3">
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-1.5 p-1 bg-muted/70 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("all")}
-                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-                    activeTab === "all"
-                      ? "bg-background text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t("all") || "All"} ({allUsers.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("friends")}
-                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-                    activeTab === "friends"
-                      ? "bg-background text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t("friends") || "Friends"} ({friendsList.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("classmates")}
-                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-                    activeTab === "classmates"
-                      ? "bg-background text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t("classmatesList") || "Classmates"} ({nonFriendsList.length})
-                </button>
-              </div>
-
-              {/* Search Friends & Classmates */}
+              {/* Search Friends */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder={t("searchFriendsClassmates") || "Search by name or username..."}
+                  placeholder={t("searchFriends") || "Search friends by name or username..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 pr-8 h-10 rounded-xl"
@@ -444,20 +377,20 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
               {/* Status bar */}
               <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
                 <span>
-                  {filteredInvitees.length} {filteredInvitees.length === 1 ? t("student") || "student" : t("students") || "students"}
+                  {filteredInvitees.length} {filteredInvitees.length === 1 ? t("friend") || "friend" : t("friends") || "friends"}
                 </span>
                 <span className="font-semibold text-foreground">
                   {selectedInvitees.size} {selectedInvitees.size === 1 ? t("personSelected") || "selected" : t("peopleSelected") || "selected"}
                 </span>
               </div>
 
-              {/* List of Invitees */}
+              {/* List of Friends */}
               <div className="space-y-1.5 max-h-72 sm:max-h-80 overflow-y-auto pr-1">
                 {filteredInvitees.length === 0 ? (
                   <div className="text-center py-8 text-xs text-muted-foreground space-y-1">
                     <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
                     <p className="font-medium">
-                      {searchQuery ? t("noResults") || "No matching students found" : t("noClassmatesFound") || "No classmates found"}
+                      {searchQuery ? t("noResults") || "No matching friends found" : t("noFriendsToInvite") || "No friends to invite yet"}
                     </p>
                   </div>
                 ) : (
@@ -490,18 +423,12 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-bold truncate text-foreground">
+                            <p className="text-sm font-bold break-words text-foreground">
                               {invitee.full_name || invitee.username}
                             </p>
-                            {invitee.is_friend ? (
-                              <Badge variant="secondary" className="text-[9px] font-semibold bg-primary/10 text-primary px-1.5 py-0">
-                                {t("friend") || "Friend"}
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[9px] font-normal text-muted-foreground border-border/60 px-1.5 py-0">
-                                {t("classmate") || "Classmate"}
-                              </Badge>
-                            )}
+                            <Badge variant="secondary" className="text-[9px] font-semibold bg-primary/10 text-primary px-1.5 py-0 shrink-0">
+                              {t("friend") || "Friend"}
+                            </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground truncate">@{invitee.username || "student"}</p>
                         </div>

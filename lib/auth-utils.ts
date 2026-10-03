@@ -67,7 +67,6 @@ export async function getCurrentUser(retryCount = 0): Promise<any> {
         const isAdminUser =
           profile?.role === "Admin" ||
           profile?.role === "admin" ||
-          user.email === "kwizeradiementwari@gmail.com" ||
           user.email === "navo@admin.jn";
 
         let bestAvatar =

@@ -226,8 +226,27 @@ export async function POST(request: NextRequest) {
 
     const adminClient = createAdminClient();
 
-    // Verify each invitee exists in the system
+    // Verify each invitee is an accepted friend of the creator
+    const { data: acceptedRequests } = await adminClient
+      .from("classmate_requests")
+      .select("sender_id, receiver_id")
+      .eq("status", "accepted")
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+
+    const acceptedFriendIds = new Set<string>();
+    for (const req of acceptedRequests || []) {
+      if (req.sender_id === user.id) acceptedFriendIds.add(req.receiver_id);
+      if (req.receiver_id === user.id) acceptedFriendIds.add(req.sender_id);
+    }
+
     for (const inviteeId of cleanInviteUserIds) {
+      if (!acceptedFriendIds.has(inviteeId)) {
+        return NextResponse.json(
+          { error: "You can only invite your accepted friends to a group exam." },
+          { status: 403 }
+        );
+      }
+
       const { data: inviteeProfile } = await adminClient
         .from("user_profiles")
         .select("id")

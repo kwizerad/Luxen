@@ -2343,26 +2343,6 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {groupExamEnabled && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedInvitees(new Set([classmate.id]));
-                            setInviteTab("classmates");
-                            openInviteModal();
-                          }}
-                          className="group/btn text-xs h-8 px-2 rounded-full text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 hover:text-amber-700 transition-all duration-200"
-                          title={t("inviteToGroupExam") || "Invite to Exam"}
-                        >
-                          <Trophy className="h-4 w-4 shrink-0" />
-                          <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[140px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap">
-                            {t("invite") || "Invite"}
-                          </span>
-                        </Button>
-                      )}
-
                       {(() => {
                         const receivedReq = pendingReceivedRequests.find((r) => r.other_user.id === classmate.id);
                         const sentReqId = sentRequestIds.get(classmate.id);
@@ -3038,152 +3018,77 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                   type="text"
                   value={inviteSearchQuery}
                   onChange={(e) => setInviteSearchQuery(e.target.value)}
-                  placeholder={t("searchFriendsClassmates") || "Search friends or classmates..."}
+                  placeholder={t("searchFriends") || "Search friends..."}
                   className="w-full rounded-lg border bg-background pl-9 pr-3 py-2 text-sm outline-none focus:border-primary"
                 />
               </div>
             </div>
 
-            {/* 3. Tabs and Bulk Selection */}
+            {/* 3. Friends Header and Bulk Selection */}
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setInviteTab("friends")}
-                  disabled={friends.length === 0}
-                  className={`flex-1 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
-                    inviteTab === "friends" && friends.length > 0
-                      ? "bg-primary text-primary-foreground shadow-xs"
-                      : "text-muted-foreground hover:bg-muted"
-                  } ${friends.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs sm:text-sm font-semibold text-foreground">
                   {t("friends") || "Friends"} ({friends.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInviteTab("classmates")}
-                  className={`flex-1 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
-                    inviteTab === "classmates"
-                      ? "bg-primary text-primary-foreground shadow-xs"
-                      : "text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {t("classmatesList") || "Classmates"} ({classmates.length})
-                </button>
+                </span>
+                {(() => {
+                  const filtered = friends.filter((item) => {
+                    if (!inviteSearchQuery) return true;
+                    const q = inviteSearchQuery.toLowerCase();
+                    return item.full_name?.toLowerCase().includes(q) || item.username?.toLowerCase().includes(q);
+                  });
+                  if (filtered.length === 0) return null;
+                  const allSelected = filtered.every((i) => selectedInvitees.has(i.id));
+
+                  return (
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>
+                        {selectedInvitees.size} {t("selected") || "selected"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedInvitees((prev) => {
+                            const next = new Set(prev);
+                            if (allSelected) {
+                              filtered.forEach((i) => next.delete(i.id));
+                            } else {
+                              filtered.forEach((i) => next.add(i.id));
+                            }
+                            return next;
+                          });
+                        }}
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        {allSelected ? t("deselectAll") || "Deselect All" : t("selectAll") || "Select All"}
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
-
-              {/* Bulk select toggle for current tab */}
-              {(() => {
-                const currentList = inviteTab === "friends" ? friends : classmates;
-                const filtered = currentList.filter((item) => {
-                  if (!inviteSearchQuery) return true;
-                  const q = inviteSearchQuery.toLowerCase();
-                  return item.full_name?.toLowerCase().includes(q) || item.username?.toLowerCase().includes(q);
-                });
-                if (filtered.length === 0) return null;
-                const allSelected = filtered.every((i) => selectedInvitees.has(i.id));
-
-                return (
-                  <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
-                    <span>
-                      {selectedInvitees.size} {selectedInvitees.size === 1 ? t("selected") || "selected" : t("selected") || "selected"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedInvitees((prev) => {
-                          const next = new Set(prev);
-                          if (allSelected) {
-                            filtered.forEach((i) => next.delete(i.id));
-                          } else {
-                            filtered.forEach((i) => next.add(i.id));
-                          }
-                          return next;
-                        });
-                      }}
-                      className="text-xs font-semibold text-primary hover:underline"
-                    >
-                      {allSelected ? t("deselectAll") || "Deselect All" : t("selectAll") || "Select All"}
-                    </button>
-                  </div>
-                );
-              })()}
             </div>
 
-            {/* 4. User list based on tab */}
+            {/* 4. Friends list */}
             <div>
               <div className="max-h-52 overflow-y-auto rounded-xl border divide-y divide-border/60">
-                {inviteTab === "friends" ? (
-                  friends.length === 0 ? (
-                    <p className="text-xs text-muted-foreground p-4 text-center">{t("noFriendsToInvite") || "No friends to invite yet"}</p>
-                  ) : (
-                    friends
-                      .filter((f) => {
-                        if (!inviteSearchQuery) return true;
-                        const q = inviteSearchQuery.toLowerCase();
-                        return f.full_name?.toLowerCase().includes(q) || f.username?.toLowerCase().includes(q);
-                      })
-                      .map((friend) => {
-                        const isSelected = selectedInvitees.has(friend.id);
-                        return (
-                          <div
-                            key={friend.id}
-                            onClick={() => {
-                              setSelectedInvitees((prev) => {
-                                const next = new Set(prev);
-                                if (isSelected) next.delete(friend.id);
-                                else next.add(friend.id);
-                                return next;
-                              });
-                            }}
-                            className={`flex items-center gap-3 p-2.5 hover:bg-muted/50 cursor-pointer select-none transition-colors ${
-                              isSelected ? "bg-primary/5" : ""
-                            }`}
-                          >
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={(checked) => {
-                                setSelectedInvitees((prev) => {
-                                  const next = new Set(prev);
-                                  if (checked) next.add(friend.id);
-                                  else next.delete(friend.id);
-                                  return next;
-                                });
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <ProfileAvatar profile={friend} size="h-8 w-8" />
-                            <div className="min-w-0 flex-1">
-                              <span className="text-xs sm:text-sm font-medium block leading-snug break-words">
-                                {friend.full_name || friend.username}
-                              </span>
-                              <span className="text-[11px] text-muted-foreground break-words block">
-                                @{friend.username || "student"}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })
-                  )
-                ) : classmates.length === 0 ? (
-                  <p className="text-xs text-muted-foreground p-4 text-center">{t("noClassmatesFound") || "No classmates found"}</p>
+                {friends.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-4 text-center">{t("noFriendsToInvite") || "No friends to invite yet"}</p>
                 ) : (
-                  classmates
-                    .filter((c) => {
+                  friends
+                    .filter((f) => {
                       if (!inviteSearchQuery) return true;
                       const q = inviteSearchQuery.toLowerCase();
-                      return c.full_name?.toLowerCase().includes(q) || c.username?.toLowerCase().includes(q);
+                      return f.full_name?.toLowerCase().includes(q) || f.username?.toLowerCase().includes(q);
                     })
-                    .map((classmate) => {
-                      const isSelected = selectedInvitees.has(classmate.id);
+                    .map((friend) => {
+                      const isSelected = selectedInvitees.has(friend.id);
                       return (
                         <div
-                          key={classmate.id}
+                          key={friend.id}
                           onClick={() => {
                             setSelectedInvitees((prev) => {
                               const next = new Set(prev);
-                              if (isSelected) next.delete(classmate.id);
-                              else next.add(classmate.id);
+                              if (isSelected) next.delete(friend.id);
+                              else next.add(friend.id);
                               return next;
                             });
                           }}
@@ -3196,20 +3101,20 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                             onCheckedChange={(checked) => {
                               setSelectedInvitees((prev) => {
                                 const next = new Set(prev);
-                                if (checked) next.add(classmate.id);
-                                else next.delete(classmate.id);
+                                if (checked) next.add(friend.id);
+                                else next.delete(friend.id);
                                 return next;
                               });
                             }}
                             onClick={(e) => e.stopPropagation()}
                           />
-                          <ProfileAvatar profile={classmate} size="h-8 w-8" />
+                          <ProfileAvatar profile={friend} size="h-8 w-8" />
                           <div className="min-w-0 flex-1">
                             <span className="text-xs sm:text-sm font-medium block leading-snug break-words">
-                              {classmate.full_name || classmate.username}
+                              {friend.full_name || friend.username}
                             </span>
                             <span className="text-[11px] text-muted-foreground break-words block">
-                              @{classmate.username || "student"}
+                              @{friend.username || "student"}
                             </span>
                           </div>
                         </div>

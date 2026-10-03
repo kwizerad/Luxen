@@ -79,7 +79,6 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
       if (
         profile?.role?.toLowerCase() === "admin" ||
-        profile?.email?.toLowerCase() === "kwizeradiementwari@gmail.com" ||
         profile?.email?.toLowerCase() === "navo@admin.jn"
       ) {
         userIsAdmin = true;

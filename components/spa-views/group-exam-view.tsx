@@ -51,7 +51,6 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
   const [selectedInvitees, setSelectedInvitees] = useState<Set<string>>(new Set());
   const [creatingChallenge, setCreatingChallenge] = useState(false);
   const [modalSearch, setModalSearch] = useState("");
-  const [modalTab, setModalTab] = useState<"all" | "friends" | "classmates">("all");
 
   const fetchChallenges = useCallback(async () => {
     try {
@@ -66,33 +65,13 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
   const fetchClassmates = useCallback(async () => {
     if (!user) return;
     try {
-      const [requestsRes, classmatesRes] = await Promise.all([
-        fetch("/api/classmate-requests").then((r) => r.json()).catch(() => ({ requests: [] })),
-        fetch("/api/classmate-requests/classmates?exclude_friends=false").then((r) => r.json()).catch(() => ({ classmates: [] })),
-      ]);
+      const requestsRes = await fetch("/api/classmate-requests")
+        .then((r) => r.json())
+        .catch(() => ({ requests: [] }));
 
       const requestsData = requestsRes as { requests?: any[] };
       const allRequests: any[] = requestsData.requests || [];
-      const acceptedFriendIds = new Set(
-        allRequests
-          .filter((r) => r.status === "accepted" && r.other_user?.id)
-          .map((r) => r.other_user.id)
-      );
-
-      const classmatesList: any[] = (classmatesRes as any)?.classmates || [];
       const combinedMap = new Map<string, ClassmateProfile>();
-
-      for (const c of classmatesList) {
-        if (!c?.id || c.id === user.id) continue;
-        combinedMap.set(c.id, {
-          id: c.id,
-          full_name: c.full_name || c.username || "Student",
-          username: c.username,
-          avatar_url: c.avatar_url,
-          last_seen: c.last_seen,
-          is_friend: acceptedFriendIds.has(c.id),
-        });
-      }
 
       for (const r of allRequests) {
         if (r.status === "accepted" && r.other_user && r.other_user.id !== user.id) {
@@ -106,17 +85,13 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
               last_seen: u.last_seen,
               is_friend: true,
             });
-          } else {
-            combinedMap.get(u.id)!.is_friend = true;
           }
         }
       }
 
-      const mergedList = Array.from(combinedMap.values()).sort((a, b) => {
-        if (a.is_friend && !b.is_friend) return -1;
-        if (!a.is_friend && b.is_friend) return 1;
-        return (a.full_name || "").localeCompare(b.full_name || "");
-      });
+      const mergedList = Array.from(combinedMap.values()).sort((a, b) =>
+        (a.full_name || "").localeCompare(b.full_name || "")
+      );
 
       setClassmates(mergedList);
     } catch {
@@ -414,10 +389,10 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
               </select>
             </div>
 
-            {/* Classmates/Friends Multi-Select */}
+            {/* Friends Multi-Select */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">{t("selectInvitees") || "Select Classmates & Friends"}</label>
+                <label className="text-sm font-medium">{t("selectFriends") || "Select Friends"}</label>
                 {selectedInvitees.size > 0 && (
                   <Badge variant="secondary" className="text-[10px] font-bold">
                     {selectedInvitees.size} {t("selected") || "selected"}
@@ -425,42 +400,11 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
                 )}
               </div>
 
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-1 p-0.5 bg-muted rounded-lg text-xs">
-                <button
-                  type="button"
-                  onClick={() => setModalTab("all")}
-                  className={`flex-1 py-1 px-2 rounded-md font-medium transition-all ${
-                    modalTab === "all" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"
-                  }`}
-                >
-                  {t("all") || "All"} ({classmates.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModalTab("friends")}
-                  className={`flex-1 py-1 px-2 rounded-md font-medium transition-all ${
-                    modalTab === "friends" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"
-                  }`}
-                >
-                  {t("friends") || "Friends"} ({classmates.filter((c) => c.is_friend).length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModalTab("classmates")}
-                  className={`flex-1 py-1 px-2 rounded-md font-medium transition-all ${
-                    modalTab === "classmates" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"
-                  }`}
-                >
-                  {t("classmatesList") || "Classmates"} ({classmates.filter((c) => !c.is_friend).length})
-                </button>
-              </div>
-
               {/* Search bar */}
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  placeholder={t("searchFriendsClassmates") || "Search by name or username..."}
+                  placeholder={t("searchFriends") || "Search friends by name or username..."}
                   value={modalSearch}
                   onChange={(e) => setModalSearch(e.target.value)}
                   className="pl-8 h-8 text-xs rounded-lg"
@@ -469,14 +413,7 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
 
               {/* List */}
               {(() => {
-                const tabList =
-                  modalTab === "friends"
-                    ? classmates.filter((c) => c.is_friend)
-                    : modalTab === "classmates"
-                    ? classmates.filter((c) => !c.is_friend)
-                    : classmates;
-
-                const filtered = tabList.filter((item) => {
+                const filtered = classmates.filter((item) => {
                   if (!modalSearch) return true;
                   const q = modalSearch.toLowerCase();
                   return item.full_name?.toLowerCase().includes(q) || item.username?.toLowerCase().includes(q);
@@ -486,7 +423,7 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
                   <div className="max-h-52 overflow-y-auto rounded-lg border divide-y">
                     {filtered.length === 0 ? (
                       <p className="text-xs text-muted-foreground p-4 text-center">
-                        {modalSearch ? t("noResults") || "No students found" : t("noClassmatesFound") || "No classmates found"}
+                        {modalSearch ? t("noResults") || "No matching friends found" : t("noFriendsToInvite") || "No friends to invite yet"}
                       </p>
                     ) : (
                       filtered.map((item) => {
@@ -518,18 +455,12 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
                             </Avatar>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-foreground truncate">
+                                <span className="font-semibold text-foreground break-words">
                                   {item.full_name || item.username}
                                 </span>
-                                {item.is_friend ? (
-                                  <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary px-1 py-0 h-4">
-                                    {t("friend") || "Friend"}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-[9px] text-muted-foreground px-1 py-0 h-4">
-                                    {t("classmate") || "Classmate"}
-                                  </Badge>
-                                )}
+                                <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary px-1 py-0 h-4 shrink-0">
+                                  {t("friend") || "Friend"}
+                                </Badge>
                               </div>
                               <span className="text-[11px] text-muted-foreground truncate block">@{item.username || "student"}</span>
                             </div>

@@ -90,8 +90,7 @@ export function isPrimaryAdmin(user: User | null): boolean {
   const emailLower = user.email.toLowerCase().trim();
   return (
     emailLower === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
-    emailLower === "navo@admin.jn" ||
-    emailLower === "kwizeradiementwari@gmail.com"
+    emailLower === "navo@admin.jn"
   );
 }
 

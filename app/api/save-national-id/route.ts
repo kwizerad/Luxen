@@ -46,7 +46,6 @@ export async function POST(request: NextRequest) {
       isPrimaryAdmin(user) ||
       userProfile?.role === "Admin" ||
       userProfile?.role === "admin" ||
-      user.email === "kwizeradiementwari@gmail.com" ||
       user.email === "navo@admin.jn";
 
     if (isUserAdmin) {

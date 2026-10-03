@@ -102,7 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const isAdminUser =
               profile.role === "Admin" ||
               profile.role === "admin" ||
-              session.user.email === "kwizeradiementwari@gmail.com" ||
               session.user.email === "navo@admin.jn";
 
             let resolvedAvatar =

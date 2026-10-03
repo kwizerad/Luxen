@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { BookOpen, Layers } from "lucide-react";
+import { BookOpen, Layers, Languages, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { CourseManagementView } from "../course-management/CourseManagementView";
 import { CourseStudioView } from "../course-studio/CourseStudioView";
+import { CourseTranslationStatusView } from "./CourseTranslationStatusView";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { canAccess, type User as PermUser } from "@/lib/permissions";
+import { translationQueue } from "@/lib/translation-queue";
 
-type CourseTab = "management" | "studio";
+type CourseTab = "management" | "translation" | "studio";
 
-const VALID_TABS: CourseTab[] = ["management", "studio"];
+const VALID_TABS: CourseTab[] = ["management", "translation", "studio"];
 
 export default function CoursePage() {
   const { t } = useLanguage();
@@ -20,16 +22,24 @@ export default function CoursePage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [currentUser, setCurrentUser] = useState<PermUser | null>(null);
   const [canViewManagement, setCanViewManagement] = useState(true);
   const [canViewStudio, setCanViewStudio] = useState(true);
+  const [runningTranslationCount, setRunningTranslationCount] = useState(0);
+
+  useEffect(() => {
+    const unsub = translationQueue.subscribe((jobs) => {
+      setRunningTranslationCount(jobs.filter((j) => j.status === "running").length);
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const loadUser = async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user as PermUser);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const mgmt = canAccess(user as PermUser, "courseManagement");
       const studio = canAccess(user as PermUser, "courseStudio");
       setCanViewManagement(mgmt);
@@ -59,8 +69,7 @@ export default function CoursePage() {
     }
   }, [canViewManagement, canViewStudio]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync activeTab when the URL ?tab= changes externally (e.g. Manage link).
-  // Only updates state — never touches the URL, so no loop.
+  // Sync activeTab when the URL ?tab= changes externally (e.g. Manage link or Translation Status link).
   useEffect(() => {
     const fromUrl = searchParams.get("tab");
     if ((VALID_TABS as string[]).includes(fromUrl || "") && fromUrl !== activeTab) {
@@ -68,20 +77,50 @@ export default function CoursePage() {
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Switch tab and update URL in one go — no effect, no loop.
   const switchTab = useCallback(
-    (tab: CourseTab) => {
+    (tab: CourseTab, extraParams?: Record<string, string>) => {
       setActiveTab(tab);
       const params = new URLSearchParams(Array.from(searchParams.entries()));
       params.set("tab", tab);
+      if (extraParams) {
+        Object.entries(extraParams).forEach(([k, v]) => params.set(k, v));
+      }
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [pathname, router, searchParams]
   );
 
-  const tabs: { id: CourseTab; label: string; icon: typeof BookOpen }[] = [
-    ...(canViewManagement ? [{ id: "management" as CourseTab, label: t("courseManagementNav") || "Course Management", icon: BookOpen }] : []),
-    ...(canViewStudio ? [{ id: "studio" as CourseTab, label: t("courseStudioNav") || "Course Studio", icon: Layers }] : []),
+  const canViewTranslation = canViewManagement || canViewStudio;
+
+  const tabs: { id: CourseTab; label: string; icon: typeof BookOpen; badgeCount?: number }[] = [
+    ...(canViewManagement
+      ? [
+          {
+            id: "management" as CourseTab,
+            label: t("courseManagementNav") || "Course Management",
+            icon: BookOpen,
+          },
+        ]
+      : []),
+    ...(canViewTranslation
+      ? [
+          {
+            id: "translation" as CourseTab,
+            label: "Translation",
+            icon: Languages,
+            badgeCount: runningTranslationCount,
+          },
+        ]
+      : []),
+    ...(canViewStudio
+      ? [
+          {
+            id: "studio" as CourseTab,
+            label: t("courseStudioNav") || "Course Studio",
+            icon: Layers,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -92,7 +131,7 @@ export default function CoursePage() {
         role="tablist"
         aria-label={t("courseManagementNav") || "Course"}
       >
-        {tabs.map(({ id, label, icon: Icon }) => (
+        {tabs.map(({ id, label, icon: Icon, badgeCount }) => (
           <Button
             key={id}
             type="button"
@@ -102,13 +141,22 @@ export default function CoursePage() {
             className="gap-2 text-xs sm:text-sm"
             onClick={() => switchTab(id)}
           >
-            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            {id === "translation" && badgeCount && badgeCount > 0 ? (
+              <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-blue-400" />
+            ) : (
+              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            )}
             <span className="truncate">{label}</span>
+            {badgeCount !== undefined && badgeCount > 0 && (
+              <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold bg-blue-500 text-white animate-pulse">
+                {badgeCount}
+              </span>
+            )}
           </Button>
         ))}
       </div>
 
-      {/* Tab panels — both kept mounted to preserve Course Studio state */}
+      {/* Tab panels — kept mounted to preserve state */}
       {canViewManagement && (
         <div
           role="tabpanel"
@@ -118,6 +166,23 @@ export default function CoursePage() {
           <CourseManagementView />
         </div>
       )}
+
+      {canViewTranslation && (
+        <div
+          role="tabpanel"
+          hidden={activeTab !== "translation"}
+          aria-hidden={activeTab !== "translation"}
+        >
+          <CourseTranslationStatusView
+            onOpenStudioCourse={(courseId) => {
+              if (canViewStudio) {
+                switchTab("studio", { courseId });
+              }
+            }}
+          />
+        </div>
+      )}
+
       {canViewStudio && (
         <div
           role="tabpanel"

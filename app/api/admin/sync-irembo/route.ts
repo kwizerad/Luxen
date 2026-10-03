@@ -291,7 +291,6 @@ export async function POST(request: NextRequest) {
           const isTargetAdmin =
             matchedProfile.role === "Admin" ||
             matchedProfile.role === "admin" ||
-            matchedProfile.email === "kwizeradiementwari@gmail.com" ||
             matchedProfile.email === "navo@admin.jn";
           if (!isTargetAdmin) {
             targetUserId = matchedProfile.id;
@@ -310,7 +309,6 @@ export async function POST(request: NextRequest) {
         if (
           checkTarget?.role === "Admin" ||
           checkTarget?.role === "admin" ||
-          checkTarget?.email === "kwizeradiementwari@gmail.com" ||
           checkTarget?.email === "navo@admin.jn"
         ) {
           isTargetAdmin = true;

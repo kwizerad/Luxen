@@ -47,8 +47,7 @@ export default function AdminSettingsPage() {
 
       const permUser = user as PermUser;
       const isUserPrimary =
-        user.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() ||
-        user.email?.toLowerCase() === "kwizeradiementwari@gmail.com";
+        user.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase();
       const isUserAdmin = isUserPrimary || user.user_metadata?.role === "Admin";
 
       if (!isUserAdmin) {
