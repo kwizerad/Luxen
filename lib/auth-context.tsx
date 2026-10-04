@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { createClient, setAdminSessionFlag } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-utils";
-import { isAdmin, isPrimaryAdmin } from "@/lib/permissions";
+import { isAdmin, isPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 
 interface User {
   id: string;
@@ -99,10 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .maybeSingle();
 
           if (profile) {
+            const isStrictlyStudent = isStrictlyStudentEmail(session.user.email);
             const isAdminUser =
-              profile.role === "Admin" ||
-              profile.role === "admin" ||
-              session.user.email === "navo@admin.jn";
+              !isStrictlyStudent &&
+              (profile.role === "Admin" ||
+                profile.role === "admin" ||
+                session.user.email === "navo@admin.jn");
 
             let resolvedAvatar =
               profile.avatar_url ||
@@ -122,7 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 null;
             }
 
-            const resolvedRole = isPrimaryAdmin(session.user as any)
+            const resolvedRole = isStrictlyStudent
+              ? "Student"
+              : isPrimaryAdmin(session.user as any)
               ? "Admin"
               : profile.role || session.user.user_metadata?.role || "Student";
 

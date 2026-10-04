@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin, requirePrimaryAdmin } from "./_shared";
+import { isStrictlyStudentEmail } from "@/lib/permissions";
 import type { UserProfile } from "@/lib/database.types";
 
 const ONLINE_THRESHOLD_MINUTES = 5;
@@ -37,6 +38,7 @@ export async function getAllUsers(): Promise<UserWithStatus[]> {
 
   return (profiles || []).map((u) => ({
     ...u,
+    role: isStrictlyStudentEmail(u.email) ? "Student" : u.role,
     is_online: isOnline(u.last_seen),
   }));
 }

@@ -82,12 +82,20 @@ export const PERMISSION_SECTIONS: { key: PermissionKey; labelKey: string }[] = [
   { key: "drivers", labelKey: "permDrivers" },
 ];
 
+export const STUDENT_ONLY_EMAILS = ["kwizeradiementwari@gmail.com"];
+
+export function isStrictlyStudentEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return STUDENT_ONLY_EMAILS.includes(email.toLowerCase().trim());
+}
+
 /**
  * Check if user is the primary admin
  */
 export function isPrimaryAdmin(user: User | null): boolean {
   if (!user?.email) return false;
   const emailLower = user.email.toLowerCase().trim();
+  if (isStrictlyStudentEmail(emailLower)) return false;
   return (
     emailLower === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
     emailLower === "navo@admin.jn"
@@ -111,6 +119,7 @@ export function isNationalIdUser(user: User | null): boolean {
  */
 export function getUserRole(user: User | null): "Admin" | "Driver" | "Student" | "Guest" {
   if (!user) return "Guest";
+  if (isStrictlyStudentEmail(user.email)) return "Student";
   if (isPrimaryAdmin(user)) return "Admin";
 
   // National ID citizen accounts are strictly Students (or Drivers), never Admins

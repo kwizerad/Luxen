@@ -40,10 +40,14 @@ export const ai: GoogleGenAI = new Proxy({} as GoogleGenAI, {
 });
 
 const CANDIDATE_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-flash-latest",
-  "gemini-2.5-flash-lite",
+  "gemini-3.5-flash-lite",
+  "gemini-flash-lite-latest",
+  "gemini-3.5-flash",
+  "gemini-3-flash-preview",
   "gemini-3.1-flash-lite",
+  "gemini-3.1-flash-lite-preview",
+  "gemini-3.6-flash",
+  "gemini-3.7-flash",
 ];
 
 function extractRetryDelayMs(err: any): number {
@@ -70,19 +74,41 @@ export async function generateContentWithFallback(params: {
   for (let modelIdx = 0; modelIdx < CANDIDATE_MODELS.length; modelIdx++) {
     const model = CANDIDATE_MODELS[modelIdx];
 
-    // For each model, attempt up to 3 retries on 503/429 before moving to next candidate
-    for (let retry = 0; retry < 3; retry++) {
+    // For each model, attempt up to 2 retries on short transient 503/429 before moving immediately to next candidate
+    for (let retry = 0; retry < 2; retry++) {
       try {
-        const response = await ai.models.generateContent({
-          model,
-          contents: params.contents,
-          config: params.config,
-        });
+        const response = await Promise.race([
+          ai.models.generateContent({
+            model,
+            contents: params.contents,
+            config: params.config,
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`Model ${model} timed out after 30s`)), 30000)
+          ),
+        ]);
         return response;
       } catch (err: any) {
         lastError = err;
         const errMsg = String(err?.message || JSON.stringify(err) || "").toLowerCase();
-        const isUnavailableOrThrottled =
+
+        // If error is model not found (404) or daily quota exhausted or long retryDelay (> 8s), immediately try next candidate model without sleeping!
+        const suggestedDelay = extractRetryDelayMs(err);
+        if (
+          errMsg.includes("404") ||
+          errMsg.includes("not found") ||
+          errMsg.includes("no longer available") ||
+          errMsg.includes("perday") ||
+          errMsg.includes("free_tier_requests") ||
+          suggestedDelay > 8000
+        ) {
+          console.warn(
+            `[Gemini] Model ${model} quota exhausted or unavailable (delay: ${suggestedDelay}ms). Switching to next model immediately...`
+          );
+          break;
+        }
+
+        const isTransient =
           errMsg.includes("503") ||
           errMsg.includes("high demand") ||
           errMsg.includes("unavailable") ||
@@ -90,30 +116,24 @@ export async function generateContentWithFallback(params: {
           errMsg.includes("429") ||
           errMsg.includes("quota") ||
           errMsg.includes("rate limit") ||
-          errMsg.includes("overloaded");
+          errMsg.includes("overloaded") ||
+          errMsg.includes("timed out");
 
-        if (isUnavailableOrThrottled) {
-          const suggestedDelay = extractRetryDelayMs(err);
-          const exponentialDelay = (retry + 1) * 2000;
-          const waitMs = Math.max(suggestedDelay, exponentialDelay);
-
-          console.warn(
-            `[Gemini] Model ${model} unavailable/throttled (attempt ${retry + 1}/3). Waiting ${waitMs}ms before retry...`
-          );
-          await new Promise((resolve) => setTimeout(resolve, waitMs));
-          continue;
-        }
-
-        // If error is model not found (404), break immediately to next candidate
-        if (
-          errMsg.includes("404") ||
-          errMsg.includes("not found") ||
-          errMsg.includes("no longer available")
-        ) {
+        if (isTransient) {
+          if (retry === 0) {
+            const waitMs = Math.min(Math.max(suggestedDelay, 1200), 3000);
+            console.warn(
+              `[Gemini] Model ${model} transient busy (attempt 1/2). Waiting ${waitMs}ms...`
+            );
+            await new Promise((resolve) => setTimeout(resolve, waitMs));
+            continue;
+          }
+          // On second transient failure for this model, immediately switch to next candidate model
           break;
         }
 
-        throw err;
+        // For any other unexpected error on this model, try next candidate model
+        break;
       }
     }
   }

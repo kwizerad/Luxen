@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isAdmin } from "@/lib/permissions";
+import { isAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -70,16 +70,17 @@ export async function POST(request: NextRequest) {
     const adminSupabase = createAdminClient();
 
     // Also check user_profiles role in case JWT metadata is stale
-    let userIsAdmin = isAdmin(user as any);
-    if (!userIsAdmin) {
+    let userIsAdmin = !isStrictlyStudentEmail(user.email) && isAdmin(user as any);
+    if (!userIsAdmin && !isStrictlyStudentEmail(user.email)) {
       const { data: profile } = await adminSupabase
         .from("user_profiles")
         .select("role, email")
         .eq("id", user.id)
         .maybeSingle();
       if (
-        profile?.role?.toLowerCase() === "admin" ||
-        profile?.email?.toLowerCase() === "navo@admin.jn"
+        !isStrictlyStudentEmail(profile?.email) &&
+        (profile?.role?.toLowerCase() === "admin" ||
+          profile?.email?.toLowerCase() === "navo@admin.jn")
       ) {
         userIsAdmin = true;
       }

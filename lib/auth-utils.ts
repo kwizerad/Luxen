@@ -1,5 +1,5 @@
 import { createClient } from "./supabase/client";
-import { isPrimaryAdmin } from "./permissions";
+import { isPrimaryAdmin, isStrictlyStudentEmail } from "./permissions";
 
 let authRequestInProgress = false;
 let pendingAuthRequests: Array<{
@@ -64,10 +64,12 @@ export async function getCurrentUser(retryCount = 0): Promise<any> {
           .eq("id", user.id)
           .maybeSingle();
 
+        const isStrictlyStudent = isStrictlyStudentEmail(user.email);
         const isAdminUser =
-          profile?.role === "Admin" ||
-          profile?.role === "admin" ||
-          user.email === "navo@admin.jn";
+          !isStrictlyStudent &&
+          (profile?.role === "Admin" ||
+            profile?.role === "admin" ||
+            user.email === "navo@admin.jn");
 
         let bestAvatar =
           profile?.avatar_url ||
@@ -85,7 +87,9 @@ export async function getCurrentUser(retryCount = 0): Promise<any> {
           bestAvatar = user.user_metadata?.google_avatar_url || user.user_metadata?.picture || null;
         }
 
-        const resolvedRole = isPrimaryAdmin(user)
+        const resolvedRole = isStrictlyStudent
+          ? "Student"
+          : isPrimaryAdmin(user)
           ? "Admin"
           : profile?.role || user.user_metadata?.role || "Student";
 

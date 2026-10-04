@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin, ActionResult } from "./_shared";
+import { isStrictlyStudentEmail } from "@/lib/permissions";
 
 export interface CategoryMetric {
   id: string;
@@ -193,7 +194,10 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
       // Non-blocking fallback
     }
 
-    const allUsers = userProfiles || [];
+    const allUsers = (userProfiles || []).map((u) => ({
+      ...u,
+      role: isStrictlyStudentEmail(u.email) ? "Student" : u.role,
+    }));
     const profileMap = new Map((allUsers || []).map((p) => [p.id, p]));
 
     // Helper to resolve the best human-readable student name

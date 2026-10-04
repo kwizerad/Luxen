@@ -159,8 +159,8 @@ export async function translateTextSnippets(
     return new Map();
   }
 
-  // Batch process in chunks of 40 to avoid token limits
-  const BATCH_SIZE = 40;
+  // Batch process in chunks of 80 to minimize API round-trips and prevent timeouts
+  const BATCH_SIZE = 80;
   const resultMap = new Map<number, string>();
 
   for (let i = 0; i < snippets.length; i += BATCH_SIZE) {

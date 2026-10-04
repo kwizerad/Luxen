@@ -2,7 +2,7 @@
 
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { isPrimaryAdmin } from "@/lib/permissions";
+import { isPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 import {
   getDeviceInfo,
   getCountryApproximate,
@@ -240,7 +240,9 @@ export async function syncGoogleUserProfile(user: User): Promise<{
       .eq("id", freshUser.id)
       .maybeSingle();
 
-    if (isPrimaryAdmin(freshUser)) {
+    if (isStrictlyStudentEmail(freshUser.email)) {
+      baseMetadata.role = "Student";
+    } else if (isPrimaryAdmin(freshUser)) {
       baseMetadata.role = "Admin";
     } else if (dbProfile?.role) {
       baseMetadata.role = dbProfile.role;
@@ -269,6 +271,9 @@ export function getRedirectPathForUser(
   user: User,
   roleOverride?: string
 ): string {
+  if (isStrictlyStudentEmail(user.email)) {
+    return "/dashboard";
+  }
   const effectiveRole = roleOverride || (user.user_metadata?.role as string);
 
   if (isPrimaryAdmin(user) || effectiveRole === "Admin") {

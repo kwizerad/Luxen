@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { isPrimaryAdmin } from "@/lib/permissions";
+import { isPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 import { useLanguage } from "@/lib/language-context";
 import {
   CreditCard,
@@ -239,9 +239,11 @@ export function LoginForm({
 
       if (onSuccess) onSuccess();
 
-      const isPrimary = isPrimaryAdmin({ email: targetEmail || data.user?.email || "" });
-      let role = data.user?.user_metadata?.role;
-      if (!isPrimary && data.user?.id) {
+      const resolvedEmail = targetEmail || data.user?.email || "";
+      const isStrictlyStudent = isStrictlyStudentEmail(resolvedEmail);
+      const isPrimary = !isStrictlyStudent && isPrimaryAdmin({ email: resolvedEmail });
+      let role = isStrictlyStudent ? "Student" : data.user?.user_metadata?.role;
+      if (!isPrimary && !isStrictlyStudent && data.user?.id) {
         try {
           const { data: dbProfile } = await supabase
             .from("user_profiles")
@@ -255,7 +257,7 @@ export function LoginForm({
           // ignore
         }
       }
-      const isAdminUser = isPrimary || role === "Admin";
+      const isAdminUser = !isStrictlyStudent && (isPrimary || role === "Admin");
 
       setAdminSessionFlag(isAdminUser);
 

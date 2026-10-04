@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isPrimaryAdmin, PRIMARY_ADMIN_EMAIL, type User } from "@/lib/permissions";
+import { isPrimaryAdmin, isStrictlyStudentEmail, PRIMARY_ADMIN_EMAIL, type User } from "@/lib/permissions";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 
 export interface AdminUser {
@@ -15,6 +15,7 @@ export interface AdminUser {
 
 function isAdminUser(user: { email?: string | null; user_metadata?: { role?: string } | null }): boolean {
   if (!user) return false;
+  if (isStrictlyStudentEmail(user.email)) return false;
   const isPrimary =
     isPrimaryAdmin(user as User) ||
     user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
@@ -32,6 +33,7 @@ export async function getAdminUser(): Promise<AdminUser | null> {
     const supabase = await createClient();
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return null;
+    if (isStrictlyStudentEmail(user.email)) return null;
 
     if (isAdminUser(user)) {
       return {

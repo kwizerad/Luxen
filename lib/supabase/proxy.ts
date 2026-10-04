@@ -59,6 +59,11 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     const emailLower = String(user.email || "").toLowerCase().trim();
+    if (emailLower === "kwizeradiementwari@gmail.com") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
     const isPrimary = emailLower === "navo@admin.jn";
     const metaRole = String((user as any).user_metadata?.role || "").toLowerCase().trim();
     if (!isPrimary && metaRole !== "admin") {

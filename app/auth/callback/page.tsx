@@ -3,7 +3,7 @@
 import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { isPrimaryAdmin } from "@/lib/permissions";
+import { isPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 
@@ -46,7 +46,12 @@ function AuthCallbackContent() {
           .eq("id", user.id)
           .maybeSingle();
 
-        if (isPrimaryAdmin(user)) {
+        if (isStrictlyStudentEmail(user.email)) {
+          role = "Student";
+          if (user.user_metadata?.role && user.user_metadata.role !== "Student") {
+            await supabase.auth.updateUser({ data: { role: "Student" } });
+          }
+        } else if (isPrimaryAdmin(user)) {
           role = "Admin";
         } else if (dbProfile?.role) {
           role = dbProfile.role;

@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isPrimaryAdmin, PRIMARY_ADMIN_EMAIL, type User } from "@/lib/permissions";
+import { isPrimaryAdmin, isStrictlyStudentEmail, PRIMARY_ADMIN_EMAIL, type User } from "@/lib/permissions";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import { notifyPrimaryAdmin } from "@/lib/admin-notifications";
 
@@ -118,6 +118,7 @@ export interface LogAdminActionParams {
 export function isUserPrimaryAdmin(user?: { email?: string | null; id?: string | null; [key: string]: any } | User | null): boolean {
   if (!user || !user.email) return false;
   const email = user.email.toLowerCase().trim();
+  if (isStrictlyStudentEmail(email)) return false;
   const primary1 = (process.env.NEXT_PUBLIC_PRIMARY_ADMIN_EMAIL || PRIMARY_ADMIN_EMAIL).toLowerCase().trim();
   const primary2 = DEFAULT_ADMIN_EMAIL.toLowerCase().trim();
   const primary3 = "navo@admin.jn";

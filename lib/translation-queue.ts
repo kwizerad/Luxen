@@ -205,44 +205,60 @@ class TranslationQueueManager {
   }
 
   private async fetchTranslateStep(jobId: string, payload: Record<string, any>) {
-    const jobController = this.abortControllers.get(jobId);
-    const stepController = new AbortController();
+    const MAX_STEP_ATTEMPTS = 2;
+    let lastErr: any = null;
 
-    const onJobAbort = () => stepController.abort();
-    if (jobController) {
-      if (jobController.signal.aborted) {
-        throw new Error("CANCELLED_BY_USER");
-      }
-      jobController.signal.addEventListener("abort", onJobAbort, { once: true });
-    }
+    for (let attempt = 1; attempt <= MAX_STEP_ATTEMPTS; attempt++) {
+      const jobController = this.abortControllers.get(jobId);
+      const stepController = new AbortController();
 
-    const timer = setTimeout(() => {
-      stepController.abort();
-    }, STEP_TIMEOUT_MS);
-
-    try {
-      const res = await fetch("/api/admin/courses/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: stepController.signal,
-      });
-      const data = await this.safeParseResponse(res);
-      return { res, data };
-    } catch (err: any) {
-      if (this.cancelledIds.has(jobId) || jobController?.signal.aborted) {
-        throw new Error("CANCELLED_BY_USER");
-      }
-      if (err?.name === "AbortError") {
-        throw new Error("Step timed out after 3 minutes. Click Continue to resume.");
-      }
-      throw err;
-    } finally {
-      clearTimeout(timer);
+      const onJobAbort = () => stepController.abort();
       if (jobController) {
-        jobController.signal.removeEventListener("abort", onJobAbort);
+        if (jobController.signal.aborted || this.cancelledIds.has(jobId)) {
+          throw new Error("CANCELLED_BY_USER");
+        }
+        jobController.signal.addEventListener("abort", onJobAbort, { once: true });
+      }
+
+      const timer = setTimeout(() => {
+        stepController.abort();
+      }, STEP_TIMEOUT_MS);
+
+      try {
+        const res = await fetch("/api/admin/courses/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: stepController.signal,
+        });
+        const data = await this.safeParseResponse(res);
+        if (!res.ok && attempt < MAX_STEP_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, 1500));
+          continue;
+        }
+        return { res, data };
+      } catch (err: any) {
+        lastErr = err;
+        if (this.cancelledIds.has(jobId) || jobController?.signal.aborted || err?.message === "CANCELLED_BY_USER") {
+          throw new Error("CANCELLED_BY_USER");
+        }
+        if (attempt < MAX_STEP_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, 1500));
+          continue;
+        }
+        if (err?.name === "AbortError") {
+          throw new Error("Step timed out after 3 minutes. Click Continue to resume.");
+        }
+        throw err;
+      } finally {
+        clearTimeout(timer);
+        if (jobController) {
+          jobController.signal.removeEventListener("abort", onJobAbort);
+        }
       }
     }
+
+    throw lastErr || new Error("Translation step failed");
   }
 
   private async safeParseResponse(res: Response) {

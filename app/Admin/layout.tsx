@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
-import { isAdmin, isPrimaryAdmin as checkIsPrimaryAdmin } from "@/lib/permissions";
+import { isAdmin, isPrimaryAdmin as checkIsPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
 import { useLoginRecorder } from "@/hooks/use-login-recorder";
 import { FloatingHeader } from "@/components/floating-header";
@@ -66,6 +66,11 @@ export default function AdminLayout({
 
         if (!currentUser) {
           router.replace("/");
+          return;
+        }
+
+        if (isStrictlyStudentEmail(currentUser.email)) {
+          router.replace("/dashboard");
           return;
         }
 
