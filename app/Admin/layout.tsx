@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Lock,
 } from "lucide-react";
@@ -179,7 +180,7 @@ export default function AdminLayout({
         {/* Main content area */}
         <div className="admin-content">
           {/* Page content */}
-          <main className="flex-1 pb-10">
+          <main className="flex-1 pb-24 md:pb-10">
             <ViewTransition viewKey={pathname}>
               {children}
             </ViewTransition>
@@ -188,67 +189,81 @@ export default function AdminLayout({
       </div>
 
       {/* Password Change Modal */}
-      {showPasswordChange && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="admin-card !rounded-[24px] max-w-md w-full p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-[#F59E0B]/15 rounded-full">
-                <Lock className="h-5 w-5 text-[#F59E0B]" />
-              </div>
-              <h2 className="text-xl font-bold text-[var(--admin-text)]">{t("changePasswordRequired")}</h2>
-            </div>
-
-            <p className="text-[var(--admin-muted)] mb-6 text-sm">
-              {t("changePasswordRequiredDesc")}
-            </p>
-
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="new-password" className="text-[var(--admin-text)]">{t("newPassword")}</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder={t("enterNewPassword")}
-                  required
-                  minLength={6}
-                />
+      <AnimatePresence>
+        {showPasswordChange && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
+              className="admin-card !rounded-[24px] max-w-md w-full p-6 transform-gpu"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-[#F59E0B]/15 rounded-full">
+                  <Lock className="h-5 w-5 text-[#F59E0B]" />
+                </div>
+                <h2 className="text-xl font-bold text-[var(--admin-text)]">{t("changePasswordRequired")}</h2>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password" className="text-[var(--admin-text)]">{t("confirmNewPassword")}</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder={t("confirmNewPassword")}
-                  required
-                />
-              </div>
+              <p className="text-[var(--admin-muted)] mb-6 text-sm">
+                {t("changePasswordRequiredDesc")}
+              </p>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={changingPassword}
-              >
-                {changingPassword ? (
-                  <>
-                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    {t("changingPassword")}
-                  </>
-                ) : (
-                  <>
-                    <Lock className="h-4 w-4 mr-2" />
-                    {t("changePassword")}
-                  </>
-                )}
-              </Button>
-            </form>
-          </div>
-        </div>
-      )}
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password" className="text-[var(--admin-text)]">{t("newPassword")}</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder={t("enterNewPassword")}
+                    required
+                    minLength={6}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password" className="text-[var(--admin-text)]">{t("confirmNewPassword")}</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder={t("confirmNewPassword")}
+                    required
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={changingPassword}
+                >
+                  {changingPassword ? (
+                    <>
+                      <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      {t("changingPassword")}
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-4 w-4 mr-2" />
+                      {t("changePassword")}
+                    </>
+                  )}
+                </Button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ImageIcon, X, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +29,11 @@ export function ImageUpload({
   const [preview, setPreview] = useState<string | null>(value || null);
   const [filePath, setFilePath] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Keep preview in sync when value prop changes externally
+  useEffect(() => {
+    setPreview(value || null);
+  }, [value]);
 
   const handleFileChange = async (file: File) => {
     // Validate file

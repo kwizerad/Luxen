@@ -5,12 +5,17 @@ import Image from "next/image";
 import { SettingsModal } from "@/components/settings-modal";
 import { AuthButton } from "@/components/auth-button";
 import { useBrandingConfig } from "@/lib/branding-config";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function SiteHeader() {
   const { config } = useBrandingConfig();
   const router = useRouter();
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [config.logoUrl]);
 
   useEffect(() => {
     // Prefetch frequently visited pages
@@ -24,21 +29,26 @@ export function SiteHeader() {
       <div className="container flex h-16 items-center justify-between pl-6 pr-6">
         <div className="flex items-center">
           <Link href="/" prefetch={true} className="flex items-center space-x-2">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative">
-              {config.logoUrl ? (
+            <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative shrink-0">
+              {config.logoUrl && !imgError ? (
                 <Image 
                   src={config.logoUrl} 
-                  alt={config.systemName} 
+                  alt={config.systemName || "Logo"} 
                   fill
+                  unoptimized
+                  referrerPolicy="no-referrer"
                   className="object-cover"
                   sizes="(max-width: 640px) 28px, (max-width: 768px) 32px, 36px"
+                  onError={() => setImgError(true)}
                 />
               ) : (
-                <span className="text-primary-foreground font-bold text-xs sm:text-sm">{config.logoText}</span>
+                <span className="text-primary-foreground font-bold text-xs sm:text-sm">
+                  {config.logoText || config.systemName?.charAt(0) || "N"}
+                </span>
               )}
             </div>
             <span className="font-bold text-xl tracking-tight">
-              {config.systemName === "Navo" || !config.systemName ? "Navo PVS" : config.systemName}
+              {config.systemName || "Navo"}
             </span>
           </Link>
         </div>

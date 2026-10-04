@@ -19,6 +19,7 @@ export function BrandingCustomizer() {
   const [previewLogoUrl, setPreviewLogoUrl] = useState(config.logoUrl || "");
   const [previewAdminEmail, setPreviewAdminEmail] = useState(config.adminEmail);
   const [hasChanges, setHasChanges] = useState(false);
+  const [previewLogoError, setPreviewLogoError] = useState(false);
 
   // Sync with config when it changes externally
   useEffect(() => {
@@ -28,6 +29,7 @@ export function BrandingCustomizer() {
     setPreviewLogoText(config.logoText);
     setPreviewLogoUrl(config.logoUrl || "");
     setPreviewAdminEmail(config.adminEmail);
+    setPreviewLogoError(false);
     setHasChanges(false);
   }, [config]);
 
@@ -43,6 +45,7 @@ export function BrandingCustomizer() {
 
   const handleLogoUrlChange = (value: string | undefined) => {
     setPreviewLogoUrl(value || "");
+    setPreviewLogoError(false);
     setHasChanges(true);
   };
 
@@ -90,14 +93,13 @@ export function BrandingCustomizer() {
                 color: "hsl(var(--primary-foreground))",
               }}
             >
-              {previewLogoUrl ? (
+              {previewLogoUrl && !previewLogoError ? (
                 <img
                   src={previewLogoUrl}
                   alt={previewName}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
+                  onError={() => setPreviewLogoError(true)}
                 />
               ) : (
                 <span

@@ -188,14 +188,25 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
     }
   };
 
-  const now = Date.now();
+  const [now, setNow] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const isChallengeOngoing = (c: ChallengeWithParticipants) => {
     if (!c.created_at) return false;
-    if (c.status === "completed" || c.status === "cancelled") return false;
+    if (c.status === "completed" || c.status === "cancelled" || c.status === "expired") return false;
 
     const myP = c.participants?.find((p) => p.user_id === user?.id);
-    const hasCompleted = myP?.status === "completed" || myP?.status === "abandoned" || myP?.status === "rejected" || Boolean(myP?.exam_attempt_id);
+    const hasCompleted =
+      myP?.status === "completed" ||
+      myP?.status === "abandoned" ||
+      myP?.status === "rejected" ||
+      myP?.status === "declined" ||
+      myP?.status === "expired" ||
+      Boolean(myP?.exam_attempt_id);
     if (hasCompleted) return false;
 
     const isCreator = c.creator_id === user?.id;

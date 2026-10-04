@@ -1793,28 +1793,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
   return (
     <div className={`bg-transparent ${isExamActive ? 'select-none' : ''}`}>
-      {/* Floating Navo Button */}
-      {!isExamActive && (
-        <div className="fixed top-4 left-4 z-50 md:hidden">
-          <button
-            type="button"
-            onClick={() => navigate("home")}
-            className="premium-glass-panel flex items-center gap-2 rounded-full border p-2 overflow-hidden"
-          >
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden relative">
-              {config.logoUrl ? (
-                <Image src={config.logoUrl} alt={config.systemName} fill unoptimized className="object-cover" sizes="32px" />
-              ) : (
-                <span className="text-xs font-bold">{config.logoText || "N"}</span>
-              )}
-            </div>
-            <span className="text-sm font-medium pr-1">{config.systemName}</span>
-          </button>
-        </div>
-      )}
-      
-      
-      <main className={isExamActive ? "relative mx-auto w-full max-w-5xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page student-page-no-nav !mx-auto max-w-5xl pb-36 sm:pb-28"}>
+      <main className={isExamActive ? "relative mx-auto w-full max-w-5xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page student-page-no-nav !mx-auto max-w-5xl !pt-4 pb-28 sm:pb-24"}>
         <Watermark />
         
         {/* Exam Categories - Top Left */}

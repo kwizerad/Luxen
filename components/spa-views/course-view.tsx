@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { CourseViewSkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
 import { useLearningLanguages } from "@/hooks/use-learning-languages";
@@ -1833,104 +1834,132 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       onTouchEnd={handleTouchEnd}
     >
       {/* Celebration Overlay for Final Course Completion */}
-      {showCelebration && (
-        <div className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-xs animate-[fadeIn_0.3s_ease-out]" />
-          <div className="relative z-10 text-center space-y-4 animate-[scaleIn_0.4s_ease-out] p-6 bg-card border-2 border-emerald-500 rounded-[28px] shadow-2xl">
-            <div className="text-6xl animate-bounce">🎉</div>
-            <h2 className="text-3xl font-bold tracking-tight">{t("courseCompleted") || "Course Completed!"}</h2>
-            <p className="text-base text-muted-foreground">{t("congratulations") || "Congratulations on finishing all modules!"}</p>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {showCelebration && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center"
+          >
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-xs" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 8 }}
+              transition={{ type: "spring", damping: 24, stiffness: 320 }}
+              className="relative z-10 text-center space-y-4 p-6 bg-card border-2 border-emerald-500 rounded-[28px] shadow-2xl transform-gpu"
+            >
+              <div className="text-6xl animate-bounce">🎉</div>
+              <h2 className="text-3xl font-bold tracking-tight">{t("courseCompleted") || "Course Completed!"}</h2>
+              <p className="text-base text-muted-foreground">{t("congratulations") || "Congratulations on finishing all modules!"}</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Lesson Complete Celebration Modal (Triggered ONLY on lesson completion) */}
-      {showLessonCompleteModal && completedLessonMeta && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-          <div className="relative max-w-md w-full rounded-[24px] border-2 border-emerald-500/40 bg-card shadow-2xl p-6 sm:p-8 space-y-6 animate-[scaleIn_0.3s_ease-out]">
-            <div className="text-center space-y-3">
-              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <Award className="h-9 w-9 animate-pulse" />
-              </div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
-                {t("lessonMastered") || "Lesson Mastered!"}
-              </span>
-              <h2 className="text-2xl font-bold tracking-tight">{completedLessonMeta.lessonTitle}</h2>
-              <p className="text-xs text-muted-foreground">
-                {t("lessonCompletedSummary") || "You have successfully finished all topics in this lesson."}
-              </p>
-            </div>
-
-            {/* Achievement Badges & Stats */}
-            <div className="grid grid-cols-2 gap-3 py-1">
-              <div className="rounded-[14px] bg-secondary/60 p-3 text-center space-y-1">
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase">{t("topicsMastered") || "Topics Mastered"}</span>
-                <p className="text-lg font-bold">{completedLessonMeta.topicsCount}</p>
-                <span className="text-[10px] text-muted-foreground block">Completed all</span>
-              </div>
-              <div className="rounded-[14px] bg-emerald-500/10 border border-emerald-500/20 p-3 text-center space-y-1">
-                <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold uppercase flex items-center justify-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {t("totalLessonTime") || "Total Time Taken"}
+      <AnimatePresence>
+        {showLessonCompleteModal && completedLessonMeta && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
+              className="relative max-w-md w-full rounded-[24px] border-2 border-emerald-500/40 bg-card shadow-2xl p-6 sm:p-8 space-y-6 transform-gpu"
+            >
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <Award className="h-9 w-9 animate-pulse" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
+                  {t("lessonMastered") || "Lesson Mastered!"}
                 </span>
-                <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                  {formatTimer(completedLessonMeta.timeSpentSeconds)}
-                </p>
-                <span className="text-[10px] text-muted-foreground block">
-                  {completedLessonMeta.timeSpentSeconds < 60
-                    ? `${completedLessonMeta.timeSpentSeconds}s (all ${completedLessonMeta.topicsCount} topics)`
-                    : `${Math.floor(completedLessonMeta.timeSpentSeconds / 60)}m ${completedLessonMeta.timeSpentSeconds % 60}s total`}
-                </span>
-              </div>
-            </div>
-
-            {/* Next Lesson Preview */}
-            {completedLessonMeta.hasNextLesson && completedLessonMeta.nextLessonTitle && (
-              <div className="rounded-[14px] border bg-emerald-500/5 border-emerald-500/20 p-3.5 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                  {t("nextUp") || "Next Up"}
-                </span>
-                <p className="text-xs font-semibold text-foreground truncate">
-                  {completedLessonMeta.nextLessonTitle}
+                <h2 className="text-2xl font-bold tracking-tight">{completedLessonMeta.lessonTitle}</h2>
+                <p className="text-xs text-muted-foreground">
+                  {t("lessonCompletedSummary") || "You have successfully finished all topics in this lesson."}
                 </p>
               </div>
-            )}
 
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-2.5">
-              {completedLessonMeta.hasNextLesson ? (
-                <Button
-                  size="lg"
-                  className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm cursor-pointer"
-                  onClick={continueToNextLesson}
-                >
-                  <ArrowRight className="h-4 w-4" />
-                  {t("continueToNextLesson") || "Continue to Next Lesson"}
-                </Button>
-              ) : (
-                <Button
-                  size="lg"
-                  className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm cursor-pointer"
-                  onClick={backToModuleLessonsFromModal}
-                >
-                  <Trophy className="h-4 w-4" />
-                  {t("viewModuleSummary") || "Module Completed · View Summary"}
-                </Button>
+              {/* Achievement Badges & Stats */}
+              <div className="grid grid-cols-2 gap-3 py-1">
+                <div className="rounded-[14px] bg-secondary/60 p-3 text-center space-y-1">
+                  <span className="text-[10px] text-muted-foreground font-semibold uppercase">{t("topicsMastered") || "Topics Mastered"}</span>
+                  <p className="text-lg font-bold">{completedLessonMeta.topicsCount}</p>
+                  <span className="text-[10px] text-muted-foreground block">Completed all</span>
+                </div>
+                <div className="rounded-[14px] bg-emerald-500/10 border border-emerald-500/20 p-3 text-center space-y-1">
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold uppercase flex items-center justify-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {t("totalLessonTime") || "Total Time Taken"}
+                  </span>
+                  <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                    {formatTimer(completedLessonMeta.timeSpentSeconds)}
+                  </p>
+                  <span className="text-[10px] text-muted-foreground block">
+                    {completedLessonMeta.timeSpentSeconds < 60
+                      ? `${completedLessonMeta.timeSpentSeconds}s (all ${completedLessonMeta.topicsCount} topics)`
+                      : `${Math.floor(completedLessonMeta.timeSpentSeconds / 60)}m ${completedLessonMeta.timeSpentSeconds % 60}s total`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Next Lesson Preview */}
+              {completedLessonMeta.hasNextLesson && completedLessonMeta.nextLessonTitle && (
+                <div className="rounded-[14px] border bg-emerald-500/5 border-emerald-500/20 p-3.5 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    {t("nextUp") || "Next Up"}
+                  </span>
+                  <p className="text-xs font-semibold text-foreground truncate">
+                    {completedLessonMeta.nextLessonTitle}
+                  </p>
+                </div>
               )}
 
-              <Button
-                size="lg"
-                variant="outline"
-                className="w-full gap-2 rounded-xl font-medium cursor-pointer"
-                onClick={backToModuleLessonsFromModal}
-              >
-                <BookMarked className="h-4 w-4" />
-                {t("backToLessons") || "Back to Lessons List"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2.5">
+                {completedLessonMeta.hasNextLesson ? (
+                  <Button
+                    size="lg"
+                    className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm cursor-pointer"
+                    onClick={continueToNextLesson}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                    {t("continueToNextLesson") || "Continue to Next Lesson"}
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm cursor-pointer"
+                    onClick={backToModuleLessonsFromModal}
+                  >
+                    <Trophy className="h-4 w-4" />
+                    {t("viewModuleSummary") || "Module Completed · View Summary"}
+                  </Button>
+                )}
+
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full gap-2 rounded-xl font-medium cursor-pointer"
+                  onClick={backToModuleLessonsFromModal}
+                >
+                  <BookMarked className="h-4 w-4" />
+                  {t("backToLessons") || "Back to Lessons List"}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Top Study Header (Single Sticky Container to prevent headers overlapping) */}
       <div className="sticky top-0 z-30 flex flex-col bg-card/90 backdrop-blur-md border-b shadow-sm">

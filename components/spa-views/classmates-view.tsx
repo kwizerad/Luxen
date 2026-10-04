@@ -107,15 +107,7 @@ function ChatExamInviteBanner({
   // If user is invited and pending
   if (myParticipation?.status === "pending" && !isCreator && challenge.status === "pending") {
     if (isExpired) {
-      return (
-        <div className="mb-2 rounded-xl border border-muted bg-muted/30 p-2.5 text-xs text-muted-foreground flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>{t("challengeExpired") || "Exam request expired (30s time limit reached)"}</span>
-          </div>
-          <Badge variant="outline" className="text-[10px] text-muted-foreground">30s Expired</Badge>
-        </div>
-      );
+      return null;
     }
 
     return (
@@ -182,6 +174,13 @@ function ChatExamInviteBanner({
 
   // If user is creator and invitation is pending
   if (isCreator && challenge.status === "pending") {
+    const creatorSecondsLeft = challenge.created_at
+      ? Math.max(0, 60 - Math.floor((Date.now() - new Date(challenge.created_at).getTime()) / 1000))
+      : 0;
+    if (creatorSecondsLeft <= 0) {
+      return null;
+    }
+
     return (
       <div className="mb-2 rounded-2xl border border-primary/30 bg-primary/5 p-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -193,13 +192,11 @@ function ChatExamInviteBanner({
               <span className="font-bold text-foreground truncate">
                 {t("examRequestSent") || "Group Exam Request Sent"}
               </span>
-              {secondsRemaining > 0 ? (
+              {secondsRemaining > 0 && (
                 <Badge variant="outline" className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 px-1.5 py-0.5">
                   <Clock className="h-2.5 w-2.5 mr-1 animate-spin" />
                   {secondsRemaining}s
                 </Badge>
-              ) : (
-                <Badge variant="outline" className="text-[10px] text-muted-foreground">30s Expired</Badge>
               )}
             </div>
             <p className="text-[11px] text-muted-foreground truncate">
@@ -222,8 +219,20 @@ function ChatExamInviteBanner({
     );
   }
 
-  // If challenge is active and joined by user
-  if (challenge.status === "active" && (myParticipation?.status === "joined" || isCreator)) {
+  // If challenge is active and joined by user (and not completed)
+  const hasCompleted =
+    myParticipation?.status === "completed" ||
+    myParticipation?.status === "abandoned" ||
+    myParticipation?.status === "rejected" ||
+    Boolean(myParticipation?.exam_attempt_id);
+  const isActiveValid =
+    challenge.status === "active" &&
+    !hasCompleted &&
+    challenge.created_at &&
+    Date.now() - new Date(challenge.created_at).getTime() <= 30 * 60 * 1000 &&
+    (myParticipation?.status === "joined" || myParticipation?.status === "ready" || myParticipation?.status === "in_progress" || isCreator);
+
+  if (isActiveValid) {
     return (
       <div className="mb-2 rounded-xl border border-green-500/30 bg-green-500/10 p-2.5 flex items-center justify-between gap-2 shadow-sm">
         <div className="flex items-center gap-2 min-w-0">
@@ -409,10 +418,16 @@ function ExamInvitationsContent({
 
   const isChallengeOngoing = (c: ChallengeWithParticipants) => {
     if (!c.created_at) return false;
-    if (c.status === "completed" || c.status === "cancelled") return false;
+    if (c.status === "completed" || c.status === "cancelled" || c.status === "expired") return false;
 
     const p = c.participants?.find((x) => x.user_id === user?.id);
-    const hasCompleted = p?.status === "completed" || p?.status === "abandoned" || p?.status === "rejected" || Boolean(p?.exam_attempt_id);
+    const hasCompleted =
+      p?.status === "completed" ||
+      p?.status === "abandoned" ||
+      p?.status === "rejected" ||
+      p?.status === "declined" ||
+      p?.status === "expired" ||
+      Boolean(p?.exam_attempt_id);
     if (hasCompleted) return false;
 
     const isCreator = c.creator_id === user?.id;
@@ -435,22 +450,18 @@ function ExamInvitationsContent({
 
   const ongoingCount = challenges.filter((c) => isChallengeOngoing(c)).length;
 
-  const completedCount = challenges.filter((c) => !isChallengeOngoing(c)).length;
+  useEffect(() => {
+    if (onPendingCountChange) {
+      onPendingCountChange(ongoingCount);
+    }
+  }, [ongoingCount, onPendingCountChange]);
 
   const filteredChallenges = challenges
     .filter((challenge) => {
       const userParticipation = challenge.participants?.find((p) => p.user_id === user?.id);
       if (!userParticipation && challenge.creator_id !== user?.id) return false;
 
-      const isOngoing = isChallengeOngoing(challenge);
-
-      if (activeTab === "ongoing") {
-        return isOngoing;
-      }
-      if (activeTab === "completed") {
-        return !isOngoing;
-      }
-      return true;
+      return isChallengeOngoing(challenge);
     })
     .filter((challenge) => {
       if (!searchQuery?.trim()) return true;
@@ -476,43 +487,17 @@ function ExamInvitationsContent({
 
   return (
     <div className="flex flex-col h-full bg-background/50">
-      {/* Sub Tabs Pill Navigation */}
-      <div className="p-3 border-b bg-card/60 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex gap-1.5 p-1 bg-muted/80 rounded-xl">
-          <button
-            onClick={() => setActiveTab("ongoing")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === "ongoing"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-            }`}
-          >
-            <Play className="h-3.5 w-3.5 fill-current" />
-            <span className="truncate">{t("ongoing") || "Biri Gukorwa"}</span>
-            {ongoingCount > 0 && (
-              <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-bold">
-                {ongoingCount > 99 ? "99+" : ongoingCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("completed")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === "completed"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-            }`}
-          >
-            <Trophy className="h-3.5 w-3.5" />
-            <span className="truncate">{t("completed") || "Byarangiye"}</span>
-            {completedCount > 0 && (
-              <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted-foreground/20 text-foreground text-[10px] font-bold">
-                {completedCount > 99 ? "99+" : completedCount}
-              </span>
-            )}
-          </button>
+      {/* Header Banner */}
+      <div className="p-3 border-b bg-card/60 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+          <Play className="h-3.5 w-3.5 fill-current text-blue-600 dark:text-blue-400" />
+          <span>{t("ongoing") || "Biri Gukorwa"}</span>
         </div>
+        {ongoingCount > 0 && (
+          <span className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-blue-600 text-white text-[10px] font-bold">
+            {ongoingCount > 99 ? "99+" : ongoingCount}
+          </span>
+        )}
       </div>
 
       {/* Challenges List View */}
@@ -520,21 +505,13 @@ function ExamInvitationsContent({
         {filteredChallenges.length === 0 ? (
           <div className="text-center py-12 px-4 rounded-2xl border border-dashed bg-card/40 my-4">
             <div className="h-12 w-12 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-3 text-muted-foreground">
-              {activeTab === "ongoing" ? (
-                <Play className="h-6 w-6" />
-              ) : (
-                <Trophy className="h-6 w-6" />
-              )}
+              <Play className="h-6 w-6" />
             </div>
             <h4 className="text-sm font-bold text-foreground mb-1">
-              {activeTab === "ongoing"
-                ? t("noOngoingExams") || "Nta kizamini kiri gukorwa ubu"
-                : t("noCompletedExams") || "Nta bizamini byarangiye biraboneka"}
+              {t("noOngoingExams") || "Nta kizamini kiri gukorwa ubu"}
             </h4>
             <p className="text-xs text-muted-foreground max-w-xs mx-auto mb-4">
-              {activeTab === "ongoing"
-                ? t("noOngoingExamsDesc") || "All group exams you joined that are in progress appear here."
-                : t("noCompletedExamsDesc") || "Group exams completed along with final scores are stored here."}
+              {t("noOngoingExamsDesc") || "All group exams you joined that are in progress appear here."}
             </p>
             {onOpenCreateExam && (
               <Button
@@ -1234,17 +1211,14 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
     }
   }, []);
 
-  // Fetch pending exam challenge invitations count
+  // Fetch pending / ongoing exam challenge invitations count
+  const [allChallengesList, setAllChallengesList] = useState<ChallengeWithParticipants[]>([]);
   const fetchPendingExamInvites = useCallback(async () => {
     if (!user) return;
     try {
       const res = await fetch("/api/exam-challenges");
       const data = await res.json();
-      const pending = (data.challenges || []).filter((c: any) => {
-        const participation = c.participants?.find((p: any) => p.user_id === user.id);
-        return participation?.status === "pending";
-      });
-      setPendingExamInvites(pending.length);
+      setAllChallengesList(data.challenges || []);
     } catch {
       // ignore
     }
@@ -1253,6 +1227,60 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   useEffect(() => {
     fetchPendingExamInvites();
   }, [fetchPendingExamInvites]);
+
+  useEffect(() => {
+    const computeOngoingCount = () => {
+      if (!user) {
+        setPendingExamInvites(0);
+        return;
+      }
+      const now = Date.now();
+      const ongoing = allChallengesList.filter((c: any) => {
+        if (!c?.created_at) return false;
+        if (c.status === "completed" || c.status === "cancelled" || c.status === "expired") return false;
+
+        const p = c.participants?.find((x: any) => x.user_id === user.id);
+        const hasCompleted =
+          p?.status === "completed" ||
+          p?.status === "abandoned" ||
+          p?.status === "rejected" ||
+          p?.status === "declined" ||
+          p?.status === "expired" ||
+          Boolean(p?.exam_attempt_id);
+        if (hasCompleted) return false;
+
+        const isCreator = c.creator_id === user.id;
+        const ageMs = now - new Date(c.created_at).getTime();
+
+        if (c.status === "pending") {
+          if (isCreator) return ageMs <= 60 * 1000;
+          if (p?.status === "pending") return ageMs <= 30 * 1000;
+          if (p?.status === "joined" || p?.status === "ready") return ageMs <= 60 * 1000;
+          return false;
+        }
+
+        if (c.status === "active") {
+          const isParticipantOrCreator = isCreator || p?.status === "joined" || p?.status === "ready" || p?.status === "in_progress";
+          return isParticipantOrCreator && ageMs <= 30 * 60 * 1000;
+        }
+
+        return false;
+      });
+      setPendingExamInvites(ongoing.length);
+    };
+
+    computeOngoingCount();
+    const timer = setInterval(computeOngoingCount, 1000);
+    return () => clearInterval(timer);
+  }, [allChallengesList, user]);
+
+  useEffect(() => {
+    const hasFriendsNow = friends.length > 0;
+    const hasPendingNow = requests.some((r) => r.direction === "received" || r.direction === "sent");
+    if (activeTab === "invitations" && pendingExamInvites === 0) {
+      setActiveTab(hasFriendsNow || hasPendingNow ? "friends" : "classmates");
+    }
+  }, [activeTab, pendingExamInvites, friends.length, requests]);
 
   useEffect(() => {
     void isGroupExamEnabled().then(setGroupExamEnabled);
@@ -2129,7 +2157,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
               >
                 {t("classmatesList")}
               </button>
-              {groupExamEnabled && (
+              {groupExamEnabled && pendingExamInvites > 0 && (
               <button
                 onClick={() => setActiveTab("invitations")}
                 className={`whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors shrink-0 ${
@@ -2137,11 +2165,9 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                 }`}
               >
                 {t("examInvitations") || "Exam Invitations"}
-                {pendingExamInvites > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold animate-pulse">
-                    {pendingExamInvites > 99 ? "99+" : pendingExamInvites}
-                  </span>
-                )}
+                <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold animate-pulse">
+                  {pendingExamInvites > 99 ? "99+" : pendingExamInvites}
+                </span>
               </button>
               )}
             </div>

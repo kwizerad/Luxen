@@ -940,92 +940,134 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
             </div>
 
             {/* Selected participant's review */}
-            {selectedParticipantAttempt && (
-              <div className="rounded-xl border bg-card p-3.5 sm:p-4 shadow-xs">
-                <div className="flex items-center gap-3 mb-4 pb-3 border-b">
-                  <ProfileAvatar profile={selectedParticipant?.profile} size="h-10 w-10" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm truncate">
-                      {selectedParticipant?.profile?.full_name || selectedParticipant?.profile?.username}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedParticipantAttempt.correct_answers}/{selectedParticipantAttempt.total_questions} {t("correct") || "correct"} ·{" "}
-                      {selectedParticipantAttempt.score_percentage}% ·{" "}
-                      {formatDuration(selectedParticipantAttempt.duration_seconds)}
-                    </p>
-                  </div>
-                  <Badge
-                    variant={selectedParticipantAttempt.score_percentage >= 50 ? "default" : "destructive"}
-                    className="text-xs font-semibold"
-                  >
-                    {selectedParticipantAttempt.score_percentage >= 50 ? (t("passed") || "Passed") : (t("failed") || "Failed")}
-                  </Badge>
-                </div>
+            {selectedParticipantAttempt && (() => {
+              const partAnsweredCount = (selectedParticipantAttempt.answers || []).filter(
+                (a) => Boolean(a?.selected_answer)
+              ).length;
+              const partIsCheating = selectedParticipantAttempt.submission_reason === "cheating_violation";
 
-                {/* Question filter */}
-                <div className="flex gap-1 mb-3">
-                  {(["all", "correct", "incorrect", "unanswered"] as const).map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setQuestionFilter(f)}
+              return (
+                <div className="rounded-xl border bg-card p-3.5 sm:p-4 shadow-xs">
+                  <div className="flex items-center gap-3 mb-4 pb-3 border-b">
+                    <ProfileAvatar profile={selectedParticipant?.profile} size="h-10 w-10" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm truncate">
+                        {selectedParticipant?.profile?.full_name || selectedParticipant?.profile?.username}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedParticipantAttempt.correct_answers}/{selectedParticipantAttempt.total_questions} {t("correct") || "correct"} ·{" "}
+                        {selectedParticipantAttempt.score_percentage}% ·{" "}
+                        {formatDuration(selectedParticipantAttempt.duration_seconds)}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={selectedParticipantAttempt.score_percentage >= 50 ? "default" : "destructive"}
+                      className="text-xs font-semibold"
+                    >
+                      {selectedParticipantAttempt.score_percentage >= 50 ? (t("passed") || "Passed") : (t("failed") || "Failed")}
+                    </Badge>
+                  </div>
+
+                  {partAnsweredCount === 0 ? (
+                    <div
                       className={cn(
-                        "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
-                        questionFilter === f ? "bg-muted text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
+                        "rounded-xl border-2 p-4 space-y-2",
+                        partIsCheating
+                          ? "border-orange-500/40 bg-orange-500/5"
+                          : "border-amber-500/35 bg-amber-500/5"
                       )}
                     >
-                      {f === "all" ? (t("all") || "All") : f === "correct" ? (t("correct") || "Correct") : f === "incorrect" ? (t("incorrect") || "Incorrect") : (t("unanswered") || "Unanswered")}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="space-y-2">
-                  {filteredQuestions.map((q, qIdx) => {
-                    const answer = selectedParticipantAttempt.answers?.find((a) => a.question_id === q.id);
-                    const isCorrect = answer?.is_correct;
-                    const selectedOption = answer?.selected_answer;
-
-                    return (
-                      <div
-                        key={q.id}
+                      <h4
                         className={cn(
-                          "rounded-lg border p-2.5 sm:p-3 transition-colors",
-                          isCorrect === true
-                            ? "border-emerald-500/40 bg-emerald-500/5"
-                            : isCorrect === false
-                            ? "border-rose-500/40 bg-rose-500/5"
-                            : "border-border bg-card"
+                          "text-sm font-bold",
+                          partIsCheating
+                            ? "text-orange-600 dark:text-orange-400"
+                            : "text-amber-600 dark:text-amber-400"
                         )}
                       >
-                        <div className="flex items-start gap-2">
-                          <span className="text-xs font-bold text-muted-foreground mt-0.5">{qIdx + 1}.</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs sm:text-sm font-medium leading-snug">{q.question}</p>
-                            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
-                              {isCorrect === true && (
-                                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                                  <CheckCircle className="h-3.5 w-3.5" />
-                                  <span>{selectedOption ? `${t("answer") || "Answer"}: ${selectedOption}` : t("correct") || "Correct"}</span>
-                                </span>
-                              )}
-                              {isCorrect === false && (
-                                <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold">
-                                  <XCircle className="h-3.5 w-3.5" />
-                                  <span>{selectedOption ? `${t("yourAnswer") || "Selected"}: ${selectedOption}` : t("unanswered") || "Unanswered"}</span>
-                                </span>
-                              )}
-                              <span className="text-muted-foreground">•</span>
-                              <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                                {t("correctAnswer") || "Correct Answer"}: {q.correct_answer}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
+                        {partIsCheating
+                          ? (t("examSubmittedDueToCheating") || "Exam Submitted Due to Exam Violations")
+                          : (t("noQuestionsAnsweredTitle") || "Incomplete Exam — 0 Questions Answered")}
+                      </h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {partIsCheating
+                          ? `This exam was automatically submitted with 0 answered questions due to exam security violations${selectedParticipantAttempt.violation_summary ? ` (${selectedParticipantAttempt.violation_summary})` : ""}.`
+                          : selectedParticipantAttempt.submission_reason === "page_closed"
+                          ? "This exam ended with 0 answered questions because the exam window or tab was closed before any answer was selected."
+                          : selectedParticipantAttempt.submission_reason === "time_expired"
+                          ? "This exam ended with 0 answered questions because the exam timer expired before any answer was selected."
+                          : (t("noQuestionsAnsweredExplanation") || "No questions were answered in this exam session, so question history details are not stored.")}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Question filter */}
+                      <div className="flex gap-1 mb-3">
+                        {(["all", "correct", "incorrect", "unanswered"] as const).map((f) => (
+                          <button
+                            key={f}
+                            onClick={() => setQuestionFilter(f)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                              questionFilter === f ? "bg-muted text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {f === "all" ? (t("all") || "All") : f === "correct" ? (t("correct") || "Correct") : f === "incorrect" ? (t("incorrect") || "Incorrect") : (t("unanswered") || "Unanswered")}
+                          </button>
+                        ))}
                       </div>
-                    );
-                  })}
+
+                      <div className="space-y-2">
+                        {filteredQuestions.map((q, qIdx) => {
+                          const answer = selectedParticipantAttempt.answers?.find((a) => a.question_id === q.id);
+                          const isCorrect = answer?.is_correct;
+                          const selectedOption = answer?.selected_answer;
+
+                          return (
+                            <div
+                              key={q.id}
+                              className={cn(
+                                "rounded-lg border p-2.5 sm:p-3 transition-colors",
+                                isCorrect === true
+                                  ? "border-emerald-500/40 bg-emerald-500/5"
+                                  : isCorrect === false
+                                  ? "border-rose-500/40 bg-rose-500/5"
+                                  : "border-border bg-card"
+                              )}
+                            >
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-bold text-muted-foreground mt-0.5">{qIdx + 1}.</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs sm:text-sm font-medium leading-snug">{q.question}</p>
+                                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                                    {isCorrect === true && (
+                                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                                        <CheckCircle className="h-3.5 w-3.5" />
+                                        <span>{selectedOption ? `${t("answer") || "Answer"}: ${selectedOption}` : t("correct") || "Correct"}</span>
+                                      </span>
+                                    )}
+                                    {isCorrect === false && (
+                                      <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold">
+                                        <XCircle className="h-3.5 w-3.5" />
+                                        <span>{selectedOption ? `${t("yourAnswer") || "Selected"}: ${selectedOption}` : t("unanswered") || "Unanswered"}</span>
+                                      </span>
+                                    )}
+                                    <span className="text-muted-foreground">•</span>
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                                      {t("correctAnswer") || "Correct Answer"}: {q.correct_answer}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
       </div>

@@ -4,8 +4,18 @@ const nextConfig = {
   output: 'standalone',
   images: {
     unoptimized: false,
-    domains: [],
-    remotePatterns: [],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
   reactStrictMode: true,
   swcMinify: true,

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Mail,
   Calendar,
@@ -346,51 +347,65 @@ export function WeeklyReportSchedulerCard() {
       </div>
 
       {/* 3. HTML PREVIEW MODAL */}
-      {previewOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#0B0F19] border border-[var(--admin-border)] rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-[var(--admin-border)] bg-[#131B2E]">
-              <div className="flex items-center gap-2">
-                <Mail className="w-5 h-5 text-indigo-400" />
-                <h3 className="font-bold text-sm text-white">
-                  Executive Weekly Summary Email Preview
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSendNow}
-                  disabled={dispatching}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send to Primary Admin</span>
-                </button>
-                <button
-                  onClick={() => setPreviewOpen(false)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4">
-              {previewLoading ? (
-                <div className="p-12 flex flex-col items-center justify-center gap-3 text-zinc-400 text-sm">
-                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
-                  <span>Compiling live email template...</span>
+      <AnimatePresence>
+        {previewOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
+              className="bg-[#0B0F19] border border-[var(--admin-border)] rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden transform-gpu"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-[var(--admin-border)] bg-[#131B2E]">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-indigo-400" />
+                  <h3 className="font-bold text-sm text-white">
+                    Executive Weekly Summary Email Preview
+                  </h3>
                 </div>
-              ) : (
-                <iframe
-                  srcDoc={previewHtml}
-                  title="Weekly Report Email Preview"
-                  className="w-full h-[650px] rounded-xl border border-zinc-800 bg-[#0B0F19]"
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSendNow}
+                    disabled={dispatching}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Send to Primary Admin</span>
+                  </button>
+                  <button
+                    onClick={() => setPreviewOpen(false)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4">
+                {previewLoading ? (
+                  <div className="p-12 flex flex-col items-center justify-center gap-3 text-zinc-400 text-sm">
+                    <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
+                    <span>Compiling live email template...</span>
+                  </div>
+                ) : (
+                  <iframe
+                    srcDoc={previewHtml}
+                    title="Weekly Report Email Preview"
+                    className="w-full h-[650px] rounded-xl border border-zinc-800 bg-[#0B0F19]"
+                  />
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -46,6 +46,49 @@ export function ServicesView({ navigate }: ServicesViewProps) {
   const [isLoading, setIsLoading] = useState<boolean>(!cachedData);
   const [ongoingCount, setOngoingCount] = useState<number>(cachedData?.ongoingCount || 0);
   const [ongoingExam, setOngoingExam] = useState<any | null>(cachedData?.ongoingExam || null);
+  const [rawChallenges, setRawChallenges] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user || rawChallenges.length === 0) return;
+    const checkOngoing = () => {
+      const now = Date.now();
+      const activeList = rawChallenges.filter((c: any) => {
+        if (!c?.created_at) return false;
+        if (c.status === "completed" || c.status === "cancelled" || c.status === "expired") return false;
+
+        const p = c.participants?.find((x: any) => x.user_id === user.id);
+        const hasCompleted =
+          p?.status === "completed" ||
+          p?.status === "abandoned" ||
+          p?.status === "rejected" ||
+          p?.status === "declined" ||
+          p?.status === "expired" ||
+          Boolean(p?.exam_attempt_id);
+        if (hasCompleted) return false;
+
+        const isCreator = c.creator_id === user.id;
+        const ageMs = now - new Date(c.created_at).getTime();
+
+        if (c.status === "pending") {
+          if (isCreator) return ageMs <= 60 * 1000;
+          if (p?.status === "pending") return ageMs <= 30 * 1000;
+          if (p?.status === "joined" || p?.status === "ready") return ageMs <= 60 * 1000;
+          return false;
+        }
+
+        if (c.status === "active") {
+          const isParticipantOrCreator = isCreator || p?.status === "joined" || p?.status === "ready" || p?.status === "in_progress";
+          return isParticipantOrCreator && ageMs <= 30 * 60 * 1000;
+        }
+
+        return false;
+      });
+      setOngoingCount(activeList.length);
+      setOngoingExam(activeList.length > 0 ? activeList[0] : null);
+    };
+    const timer = setInterval(checkOngoing, 1000);
+    return () => clearInterval(timer);
+  }, [rawChallenges, user]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -62,6 +105,7 @@ export function ServicesView({ navigate }: ServicesViewProps) {
         setGroupExamOn(isGroupEnabled);
 
         const list = (challengesData as any)?.challenges || [];
+        setRawChallenges(list);
         const now = Date.now();
         const activeList = list.filter((c: any) => {
           if (!user || !c?.created_at) return false;

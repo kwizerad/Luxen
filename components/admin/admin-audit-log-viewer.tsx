@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldAlert,
   ShieldCheck,
@@ -635,90 +636,104 @@ export function AdminAuditLogViewer() {
       </div>
 
       {/* 4. MODAL: AUDIT EVENT METADATA INSPECTOR */}
-      {selectedLogForModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[var(--admin-card-bg)] border border-[var(--admin-border)] rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-4 border-b border-[var(--admin-border)] bg-[var(--admin-input-bg)]">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="w-5 h-5 text-amber-400" />
-                <h3 className="font-bold text-sm text-[var(--admin-text)]">
-                  Audit Event Inspector: {selectedLogForModal.action_label}
-                </h3>
+      <AnimatePresence>
+        {selectedLogForModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
+              className="bg-[var(--admin-card-bg)] border border-[var(--admin-border)] rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden transform-gpu"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-[var(--admin-border)] bg-[var(--admin-input-bg)]">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-amber-400" />
+                  <h3 className="font-bold text-sm text-[var(--admin-text)]">
+                    Audit Event Inspector: {selectedLogForModal.action_label}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setSelectedLogForModal(null)}
+                  className="p-1 rounded-lg text-[var(--admin-muted)] hover:text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={() => setSelectedLogForModal(null)}
-                className="p-1 rounded-lg text-[var(--admin-muted)] hover:text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)]">
-                  <span className="text-[10px] text-[var(--admin-muted)] uppercase font-semibold block">
-                    Administrator
-                  </span>
-                  <div className="font-bold text-[var(--admin-text)] mt-1">
-                    {selectedLogForModal.admin_name}
-                  </div>
-                  <div className="text-[11px] text-[var(--admin-muted)] font-mono">
-                    {selectedLogForModal.admin_email}
-                  </div>
-                  <div className="mt-1">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      selectedLogForModal.is_primary_admin ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
-                    }`}>
-                      {selectedLogForModal.is_primary_admin ? "Primary Administrator" : "Secondary Admin"}
+              <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)]">
+                    <span className="text-[10px] text-[var(--admin-muted)] uppercase font-semibold block">
+                      Administrator
                     </span>
+                    <div className="font-bold text-[var(--admin-text)] mt-1">
+                      {selectedLogForModal.admin_name}
+                    </div>
+                    <div className="text-[11px] text-[var(--admin-muted)] font-mono">
+                      {selectedLogForModal.admin_email}
+                    </div>
+                    <div className="mt-1">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        selectedLogForModal.is_primary_admin ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                      }`}>
+                        {selectedLogForModal.is_primary_admin ? "Primary Administrator" : "Secondary Admin"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)]">
+                    <span className="text-[10px] text-[var(--admin-muted)] uppercase font-semibold block">
+                      Timestamp & Location
+                    </span>
+                    <div className="font-bold text-[var(--admin-text)] mt-1">
+                      {new Date(selectedLogForModal.timestamp).toLocaleString()}
+                    </div>
+                    <div className="text-[11px] text-[var(--admin-muted)] mt-1">
+                      Category: <strong>{selectedLogForModal.category}</strong>
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)]">
-                  <span className="text-[10px] text-[var(--admin-muted)] uppercase font-semibold block">
-                    Timestamp & Location
-                  </span>
-                  <div className="font-bold text-[var(--admin-text)] mt-1">
-                    {new Date(selectedLogForModal.timestamp).toLocaleString()}
-                  </div>
-                  <div className="text-[11px] text-[var(--admin-muted)] mt-1">
-                    Category: <strong>{selectedLogForModal.category}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-[var(--admin-muted)] uppercase font-semibold block mb-1">
-                  Full Action Summary
-                </span>
-                <div className="p-3 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-[var(--admin-text)] font-medium leading-relaxed">
-                  {selectedLogForModal.details}
-                </div>
-              </div>
-
-              {selectedLogForModal.metadata && Object.keys(selectedLogForModal.metadata).length > 0 && (
                 <div>
                   <span className="text-[10px] text-[var(--admin-muted)] uppercase font-semibold block mb-1">
-                    Action Payload & Metadata Diff (JSON)
+                    Full Action Summary
                   </span>
-                  <pre className="p-3 rounded-xl bg-black/50 border border-[var(--admin-border)] text-emerald-400 font-mono text-[11px] overflow-x-auto max-h-48">
-                    {JSON.stringify(selectedLogForModal.metadata, null, 2)}
-                  </pre>
+                  <div className="p-3 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-[var(--admin-text)] font-medium leading-relaxed">
+                    {selectedLogForModal.details}
+                  </div>
                 </div>
-              )}
-            </div>
 
-            <div className="p-4 border-t border-[var(--admin-border)] bg-[var(--admin-input-bg)] flex justify-end">
-              <button
-                onClick={() => setSelectedLogForModal(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white"
-              >
-                Close Inspector
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                {selectedLogForModal.metadata && Object.keys(selectedLogForModal.metadata).length > 0 && (
+                  <div>
+                    <span className="text-[10px] text-[var(--admin-muted)] uppercase font-semibold block mb-1">
+                      Action Payload & Metadata Diff (JSON)
+                    </span>
+                    <pre className="p-3 rounded-xl bg-black/50 border border-[var(--admin-border)] text-emerald-400 font-mono text-[11px] overflow-x-auto max-h-48">
+                      {JSON.stringify(selectedLogForModal.metadata, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t border-[var(--admin-border)] bg-[var(--admin-input-bg)] flex justify-end">
+                <button
+                  onClick={() => setSelectedLogForModal(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white"
+                >
+                  Close Inspector
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

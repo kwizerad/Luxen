@@ -38,7 +38,7 @@ const getDefaultSystemName = (): string => {
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (parsed.systemName && parsed.systemName !== "Navo PVS") {
+      if (parsed.systemName) {
         return parsed.systemName;
       }
       return "Navo";

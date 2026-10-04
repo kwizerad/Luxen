@@ -47,7 +47,10 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
 
   if (!attempt) return null;
 
-  const answers = attempt.answers as ExtendedExamAnswer[];
+  const answers = (attempt.answers || []) as ExtendedExamAnswer[];
+  const answeredCount = answers.filter((a) => Boolean(a?.selected_answer)).length;
+  const hasNoAnswers = answeredCount === 0;
+  const isCheating = attempt.submission_reason === "cheating_violation";
   const currentAnswer = answers[currentQuestionIndex];
   const currentQuestion = currentAnswer?.question;
 
@@ -123,7 +126,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
           </div>
           
           <div className="flex items-center justify-between absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 hidden sm:block">
-            {currentView === 'overview' ? (
+            {currentView === 'overview' && !hasNoAnswers ? (
               <Button
                 variant="outline"
                 size="icon"
@@ -148,7 +151,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
 
           {/* Content Part */}
           <div className="flex-1 min-h-0 overflow-y-auto">
-            {currentView === 'overview' ? (
+            {currentView === 'overview' || hasNoAnswers ? (
               /* Exam Overview Page */
               <div className="flex flex-col p-3 sm:p-4 md:p-6">
                 <div className="flex-1">
@@ -183,43 +186,72 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                         )}
                       </div>
 
-                      {/* Question Summary */}
-                      <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t">
-                        <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-center">{t("questionSummary")}</h3>
-                        <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 sm:gap-2">
-                          {answers.map((answer, index) => (
-                            <button
-                              key={index}
-                              onClick={() => {
-                                setCurrentQuestionIndex(index);
-                                goToQuestions();
-                              }}
-                              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full text-xs sm:text-sm font-medium transition-all hover:scale-110 ${
-                                answer.is_correct 
-                                  ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-600' 
-                                  : 'bg-red-100 text-red-700 border border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-600'
-                              }`}
-                              title={`${t("examDetails.question")} ${index + 1}: ${answer.is_correct ? t("correct") : t("incorrect")}`}
-                            >
-                              {index + 1}
-                            </button>
-                          ))}
+                      {/* Question Summary OR 0 Answered Questions Cause Card */}
+                      {hasNoAnswers ? (
+                        <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t">
+                          <div className={`rounded-xl border-2 p-4 sm:p-5 space-y-2 ${
+                            isCheating
+                              ? "border-orange-500/40 bg-orange-500/5"
+                              : "border-amber-500/35 bg-amber-500/5"
+                          }`}>
+                            <h3 className={`text-sm sm:text-base font-bold ${
+                              isCheating ? "text-orange-600 dark:text-orange-400" : "text-amber-600 dark:text-amber-400"
+                            }`}>
+                              {isCheating
+                                ? (t("examSubmittedDueToCheating") || "Exam Submitted Due to Exam Violations")
+                                : (t("noQuestionsAnsweredTitle") || "Incomplete Exam — 0 Questions Answered")}
+                            </h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                              {isCheating
+                                ? `This exam was automatically submitted with 0 answered questions due to exam security violations${attempt.violation_summary ? ` (${attempt.violation_summary})` : ""}.`
+                                : attempt.submission_reason === "page_closed"
+                                ? "This exam ended with 0 answered questions because the exam page or window was closed before any answer was selected."
+                                : attempt.submission_reason === "time_expired"
+                                ? "This exam ended with 0 answered questions because the timer expired before any answer was selected."
+                                : (t("noQuestionsAnsweredExplanation") || "No questions were answered in this exam session, so question history details were not stored.")}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t">
+                          <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-center">{t("questionSummary")}</h3>
+                          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 sm:gap-2">
+                            {answers.map((answer, index) => (
+                              <button
+                                key={index}
+                                onClick={() => {
+                                  setCurrentQuestionIndex(index);
+                                  goToQuestions();
+                                }}
+                                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full text-xs sm:text-sm font-medium transition-all hover:scale-110 ${
+                                  answer.is_correct 
+                                    ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-600' 
+                                    : 'bg-red-100 text-red-700 border border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-600'
+                                }`}
+                                title={`${t("examDetails.question")} ${index + 1}: ${answer.is_correct ? t("correct") : t("incorrect")}`}
+                              >
+                                {index + 1}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
                 
-                <div className="flex justify-center mt-6 pb-4">
-                  <Button
-                    onClick={goToQuestions}
-                    className="flex items-center gap-2"
-                    size="lg"
-                  >
-                    {t("viewQuestions")}
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
+                {!hasNoAnswers && (
+                  <div className="flex justify-center mt-6 pb-4">
+                    <Button
+                      onClick={goToQuestions}
+                      className="flex items-center gap-2"
+                      size="lg"
+                    >
+                      {t("viewQuestions")}
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               /* Questions Page */

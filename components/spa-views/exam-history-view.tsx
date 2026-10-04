@@ -135,18 +135,21 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           });
         }
 
+        let activeList: any[] = [];
         if (ongoingRes.status === "fulfilled") {
           const list = (ongoingRes.value as any)?.challenges || [];
           const now = Date.now();
-          const activeList = list.filter((c: any) => {
+          activeList = list.filter((c: any) => {
             if (!user || !c?.created_at) return false;
-            if (c.status === "completed" || c.status === "cancelled") return false;
+            if (c.status === "completed" || c.status === "cancelled" || c.status === "expired") return false;
 
             const p = c.participants?.find((x: any) => x.user_id === user.id);
             const hasCompleted =
               p?.status === "completed" ||
               p?.status === "abandoned" ||
               p?.status === "rejected" ||
+              p?.status === "declined" ||
+              p?.status === "expired" ||
               Boolean(p?.exam_attempt_id);
             if (hasCompleted) return false;
 
@@ -197,8 +200,12 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                     correct = Math.round((scorePct / 100) * total);
                   }
 
+                  const rawAnswers = Array.isArray(att.answers) ? att.answers : [];
+                  const hasAnsweredAny = rawAnswers.some((a: any) => Boolean(a?.selected_answer));
+
                   return {
                     ...(att as ExamAttemptWithAnswers),
+                    answers: hasAnsweredAny ? rawAnswers : [],
                     correct_answers: correct ?? 0,
                     score_percentage: scorePct ?? 0,
                     challenge_id: groupAttemptIdMap.get(att.id) || null,
@@ -240,6 +247,9 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                     ? `${att.module_title} (${t("moduleExam") || "Module Exam"})`
                     : t("moduleExam") || "Module Exam";
 
+                const rawModAnswers = Array.isArray(att.answers) ? att.answers : [];
+                const hasModAnsweredAny = rawModAnswers.some((a: any) => Boolean(a?.selected_answer));
+
                 return {
                   id: att.id,
                   user_id: att.user_id,
@@ -253,7 +263,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                   score_percentage: scorePct ?? 0,
                   status: att.status || "completed",
                   created_at: att.created_at,
-                  answers: att.answers || [],
+                  answers: hasModAnsweredAny ? rawModAnswers : [],
                   challenge_id: null,
                   is_module: true,
                 } as ExamAttemptWithAnswers;
@@ -269,7 +279,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
         setAttempts(combined);
         spaCache.set(`spa_exam_history_${user.id}`, {
           attempts: combined,
-          ongoingChallenges: ongoingRes.status === "fulfilled" ? (ongoingRes.value as any)?.challenges || [] : [],
+          ongoingChallenges: activeList,
         });
       } catch (err) {
         console.error("Failed to fetch exam history:", err);
@@ -290,7 +300,8 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
     setSelectedAttempt(attempt);
     setQuestions([]);
 
-    if (!user) return;
+    const answeredCount = (attempt.answers || []).filter((a) => Boolean(a.selected_answer)).length;
+    if (!user || answeredCount === 0) return;
     const supabase = createClient();
 
     try {
@@ -1237,56 +1248,112 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                               ? 0
                               : Math.max(0, Math.min(100, attempt.score_percentage || 0));
 
-                            return (
-                              <div
-                                key={attempt.id}
-                                onClick={() => handleReview(attempt)}
-                                className="group relative flex flex-col justify-between rounded-xl border border-border dark:border-zinc-800/90 bg-card dark:bg-zinc-900/50 hover:bg-muted/40 dark:hover:bg-zinc-800/60 hover:border-primary/50 p-3 sm:p-3.5 text-left transition-all duration-150 cursor-pointer overflow-hidden shadow-xs hover:shadow-md"
-                              >
-                                {/* Header: File Icon + Score Badge */}
-                                <div className="flex items-start justify-between gap-1.5 mb-2">
-                                  <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg bg-muted dark:bg-zinc-800/80 border border-zinc-700/60 text-primary group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-colors">
-                                    {isCheating ? (
-                                      <ShieldAlert className="h-3.5 w-3.5" />
-                                    ) : isAbandoned ? (
-                                      <FileWarning className="h-3.5 w-3.5" />
-                                    ) : isGroup ? (
-                                      <Users className="h-3.5 w-3.5" />
-                                    ) : isModule ? (
-                                      <BookOpen className="h-3.5 w-3.5" />
-                                    ) : (
-                                      <FolderCheck className="h-3.5 w-3.5" />
-                                    )}
-                                  </div>
+                              const getZeroAnswerCause = () => {
+                                if (isCheating) {
+                                  const sum = (attempt.violation_summary || "").toLowerCase();
+                                  if (sum.includes("tab")) return "Submitted by violation: Tab switch";
+                                  if (sum.includes("fullscreen")) return "Submitted by violation: Fullscreen exited";
+                                  if (sum.includes("dev_tools") || sum.includes("inspect")) return "Submitted by violation: DevTools detected";
+                                  if (sum.includes("copy") || sum.includes("paste")) return "Submitted by violation: Copy/Paste";
+                                  return "Submitted by exam security violation";
+                                }
+                                if (attempt.submission_reason === "page_closed") return "0 answered: Exam window/tab closed";
+                                if (attempt.submission_reason === "time_expired") return "0 answered: Exam timer expired";
+                                return "0 answered: Incomplete / exited early";
+                              };
 
-                                  <div className="shrink-0 text-right">
-                                    <span
+                              return (
+                                <div
+                                  key={attempt.id}
+                                  onClick={() => handleReview(attempt)}
+                                  className={cn(
+                                    "group relative flex flex-col justify-between rounded-xl border bg-card dark:bg-zinc-900/50 hover:bg-muted/40 dark:hover:bg-zinc-800/60 p-3 sm:p-3.5 text-left transition-all duration-150 cursor-pointer overflow-hidden shadow-xs hover:shadow-md",
+                                    answeredCount === 0 && isCheating
+                                      ? "border-orange-500/40 hover:border-orange-500/70"
+                                      : answeredCount === 0
+                                      ? "border-amber-500/30 hover:border-amber-500/60"
+                                      : "border-border dark:border-zinc-800/90 hover:border-primary/50"
+                                  )}
+                                >
+                                  {/* Header: File Icon + Score Badge */}
+                                  <div className="flex items-start justify-between gap-1.5 mb-2">
+                                    <div
                                       className={cn(
-                                        "font-mono font-bold text-[11px] px-1.5 py-0.5 rounded border leading-none inline-block",
-                                        isAbandoned
-                                          ? "bg-muted dark:bg-zinc-800/80 border-zinc-700 text-muted-foreground dark:text-zinc-400"
-                                          : isPassed
-                                          ? "bg-primary/10 border-primary/20 text-primary font-extrabold"
-                                          : "bg-muted dark:bg-zinc-800/90 border-zinc-700/80 text-foreground/80 dark:text-zinc-300"
+                                        "flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg border transition-colors",
+                                        isCheating
+                                          ? "bg-orange-500/15 border-orange-500/30 text-orange-500 group-hover:bg-orange-500 group-hover:text-white"
+                                          : isAbandoned
+                                          ? "bg-amber-500/15 border-amber-500/30 text-amber-500 group-hover:bg-amber-500 group-hover:text-white"
+                                          : "bg-muted dark:bg-zinc-800/80 border-zinc-700/60 text-primary group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary"
                                       )}
                                     >
-                                      {isAbandoned ? "VOID" : `${attempt.score_percentage}%`}
-                                    </span>
-                                  </div>
-                                </div>
+                                      {isCheating ? (
+                                        <ShieldAlert className="h-3.5 w-3.5" />
+                                      ) : isAbandoned ? (
+                                        <FileWarning className="h-3.5 w-3.5" />
+                                      ) : isGroup ? (
+                                        <Users className="h-3.5 w-3.5" />
+                                      ) : isModule ? (
+                                        <BookOpen className="h-3.5 w-3.5" />
+                                      ) : (
+                                        <FolderCheck className="h-3.5 w-3.5" />
+                                      )}
+                                    </div>
 
-                                {/* Body: Title & Meta Info */}
-                                <div className="space-y-1.5 flex-1 flex flex-col justify-between">
-                                  <div>
-                                    <h3 className="text-xs font-bold text-foreground dark:text-zinc-200 group-hover:text-foreground dark:text-zinc-100 transition-colors line-clamp-2 leading-snug">
-                                      {attempt.category_name || "Official Driving Exam"}
-                                    </h3>
-                                    <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-muted-foreground dark:text-zinc-400">
-                                      <span>{isGroup ? "group" : isModule ? "module" : "solo"}</span>
-                                      <span>•</span>
-                                      <span>{isAbandoned ? "incomplete" : isPassed ? "passed" : "reviewed"}</span>
+                                    <div className="shrink-0 text-right">
+                                      <span
+                                        className={cn(
+                                          "font-mono font-bold text-[11px] px-1.5 py-0.5 rounded border leading-none inline-block",
+                                          isCheating && answeredCount === 0
+                                            ? "bg-orange-500/15 border-orange-500/30 text-orange-600 dark:text-orange-400"
+                                            : isAbandoned
+                                            ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
+                                            : isPassed
+                                            ? "bg-primary/10 border-primary/20 text-primary font-extrabold"
+                                            : "bg-muted dark:bg-zinc-800/90 border-zinc-700/80 text-foreground/80 dark:text-zinc-300"
+                                        )}
+                                      >
+                                        {isCheating && answeredCount === 0
+                                          ? "VIOLATION"
+                                          : isAbandoned
+                                          ? "0 ANSWERED"
+                                          : `${attempt.score_percentage}%`}
+                                      </span>
                                     </div>
                                   </div>
+
+                                  {/* Body: Title & Meta Info */}
+                                  <div className="space-y-1.5 flex-1 flex flex-col justify-between">
+                                    <div>
+                                      <h3 className="text-xs font-bold text-foreground dark:text-zinc-200 group-hover:text-foreground dark:text-zinc-100 transition-colors line-clamp-2 leading-snug">
+                                        {attempt.category_name || "Official Driving Exam"}
+                                      </h3>
+                                      <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-muted-foreground dark:text-zinc-400">
+                                        <span>{isGroup ? "group" : isModule ? "module" : "solo"}</span>
+                                        <span>•</span>
+                                        <span>
+                                          {isCheating
+                                            ? "violation"
+                                            : isAbandoned
+                                            ? "incomplete"
+                                            : isPassed
+                                            ? "passed"
+                                            : "reviewed"}
+                                        </span>
+                                      </div>
+                                      {answeredCount === 0 && (
+                                        <p
+                                          className={cn(
+                                            "mt-1.5 text-[10px] leading-tight font-medium line-clamp-2 rounded px-1.5 py-1 border",
+                                            isCheating
+                                              ? "bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-300"
+                                              : "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-300"
+                                          )}
+                                        >
+                                          {getZeroAnswerCause()}
+                                        </p>
+                                      )}
+                                    </div>
 
                                   {/* Sleek Minimal Progress Meter */}
                                   <div className="space-y-1 pt-1">
@@ -1345,13 +1412,43 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                             const isGroup = !!attempt.challenge_id;
                             const isModule = !!attempt.is_module;
 
+                            const getZeroAnswerListCause = () => {
+                              if (isCheating) {
+                                const sum = (attempt.violation_summary || "").toLowerCase();
+                                if (sum.includes("tab")) return "Submitted by exam violation: Tab switching detected";
+                                if (sum.includes("fullscreen")) return "Submitted by exam violation: Fullscreen exited";
+                                if (sum.includes("dev_tools") || sum.includes("inspect")) return "Submitted by exam violation: Developer tools detected";
+                                if (sum.includes("copy") || sum.includes("paste")) return "Submitted by exam violation: Copy/paste detected";
+                                return "Submitted by exam security violation";
+                              }
+                              if (attempt.submission_reason === "page_closed") return "0 answered questions: Exam page was closed or left early";
+                              if (attempt.submission_reason === "time_expired") return "0 answered questions: Exam timer expired without answers";
+                              return "0 answered questions: Exam exited before answering";
+                            };
+
                             return (
                               <button
                                 key={attempt.id}
                                 onClick={() => handleReview(attempt)}
-                                className="group w-full flex items-center gap-3 rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-zinc-900/50 hover:bg-muted/40 dark:hover:bg-zinc-800/60 hover:border-primary/40 p-3 text-left transition-colors"
+                                className={cn(
+                                  "group w-full flex items-center gap-3 rounded-xl border bg-card dark:bg-zinc-900/50 hover:bg-muted/40 dark:hover:bg-zinc-800/60 p-3 text-left transition-colors",
+                                  answeredCount === 0 && isCheating
+                                    ? "border-orange-500/40 hover:border-orange-500/70"
+                                    : answeredCount === 0
+                                    ? "border-amber-500/30 hover:border-amber-500/60"
+                                    : "border-border dark:border-zinc-800 hover:border-primary/40"
+                                )}
                               >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted dark:bg-zinc-800/80 border border-border dark:border-zinc-700 text-primary group-hover:bg-primary/10 group-hover:border-primary/30 transition-colors">
+                                <div
+                                  className={cn(
+                                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors",
+                                    isCheating
+                                      ? "bg-orange-500/15 border-orange-500/30 text-orange-500"
+                                      : isAbandoned
+                                      ? "bg-amber-500/15 border-amber-500/30 text-amber-500"
+                                      : "bg-muted dark:bg-zinc-800/80 border-border dark:border-zinc-700 text-primary group-hover:bg-primary/10 group-hover:border-primary/30"
+                                  )}
+                                >
                                   {isCheating ? (
                                     <ShieldAlert className="h-4 w-4" />
                                   ) : isAbandoned ? (
@@ -1381,6 +1478,19 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                       </span>
                                     )}
                                   </div>
+
+                                  {answeredCount === 0 && (
+                                    <p
+                                      className={cn(
+                                        "text-[11px] font-medium truncate",
+                                        isCheating
+                                          ? "text-orange-600 dark:text-orange-400"
+                                          : "text-amber-600 dark:text-amber-400"
+                                      )}
+                                    >
+                                      {getZeroAnswerListCause()}
+                                    </p>
+                                  )}
 
                                   <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground dark:text-zinc-400 font-mono flex-wrap">
                                     <span className="flex items-center gap-1">

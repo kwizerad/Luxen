@@ -20,6 +20,7 @@ import { BackgroundManager } from "@/components/background-manager";
 import { NetworkStatus } from "@/components/network-status";
 import { SystemWatermark } from "@/components/system-watermark";
 import { getSystemName } from "@/lib/server-config";
+import { createAdminClient } from "@/lib/supabase/admin";
 import "sonner/dist/styles.css";
 import "./globals.css";
 
@@ -31,94 +32,126 @@ const inter = Inter({
 
 const defaultUrl = process.env.NEXT_PUBLIC_APP_URL || "https://navo.rw";
 
-const systemName = getSystemName();
+export async function generateMetadata(): Promise<Metadata> {
+  let logoUrl: string | null = null;
+  let configuredSystemName = getSystemName();
 
-export const metadata: Metadata = {
-  metadataBase: new URL(defaultUrl),
-  title: {
-    default: "Navo PVS",
-    template: "%s | Navo PVS",
-  },
-  description:
-    "Pass your Rwanda driving theory exam. Study official traffic regulations (Amategeko y'Umuhanda), practice real mock exams, road signs, and audio lessons in Kinyarwanda, English, and French.",
-  keywords: [
-    "navo",
-    "navo.rw",
-    "amategeko y'umuhanda",
-    "ibizamini by'uruhushya rw'agateganyo",
-    "ibizamini bya polisi",
-    "irembo driving exam",
-    "provisional driving license rwanda",
-    "rwanda traffic rules",
-    "code de la route rwandais",
-    "permis provisoire rwanda",
-    "ibimenyetso byo ku muhanda",
-    "auto ecole kigali",
-    "driving school rwanda",
-    "ibibazo n'ibisubizo by'amategeko y'umuhanda",
-  ],
-  authors: [{ name: "Navo Rwanda", url: "https://navo.rw" }],
-  creator: "Navo",
-  publisher: "Navo",
-  category: "Education",
-  alternates: {
-    canonical: "https://navo.rw",
-  },
-  openGraph: {
-    type: "website",
-    locale: "rw_RW",
-    alternateLocale: ["en_US", "fr_FR"],
-    url: "https://navo.rw",
-    siteName: "Navo",
-    title: "Navo PVS",
+  try {
+    const adminSupabase = createAdminClient();
+    const { data: brandData } = await adminSupabase
+      .from("system_config")
+      .select("value")
+      .eq("key", "branding_config")
+      .single();
+
+    if (brandData?.value) {
+      const parsed = JSON.parse(brandData.value);
+      if (parsed.logoUrl) {
+        logoUrl = parsed.logoUrl;
+      }
+      if (parsed.systemName) {
+        configuredSystemName = parsed.systemName;
+      }
+    }
+  } catch {
+    // Fallback to default icons if database is unreachable during build
+  }
+
+  const ogImage = logoUrl || "/icons/icon-512x512.png";
+
+  return {
+    metadataBase: new URL(defaultUrl),
+    title: {
+      default: "Navo PVS",
+      template: "%s | Navo PVS",
+    },
     description:
-      "Pass your Rwanda driving theory exam with official practice tests, traffic regulations, AI explanations, and multilingual study guides in Kinyarwanda, English, and French.",
-    images: [
-      {
-        url: "/icons/icon-512x512.png",
-        width: 512,
-        height: 512,
-        alt: "Navo - Rwanda Driving Platform",
-      },
+      "Pass your Rwanda driving theory exam. Study official traffic regulations (Amategeko y'Umuhanda), practice real mock exams, road signs, and audio lessons in Kinyarwanda, English, and French.",
+    keywords: [
+      "navo",
+      "navo.rw",
+      "amategeko y'umuhanda",
+      "ibizamini by'uruhushya rw'agateganyo",
+      "ibizamini bya polisi",
+      "irembo driving exam",
+      "provisional driving license rwanda",
+      "rwanda traffic rules",
+      "code de la route rwandais",
+      "permis provisoire rwanda",
+      "ibimenyetso byo ku muhanda",
+      "auto ecole kigali",
+      "driving school rwanda",
+      "ibibazo n'ibisubizo by'amategeko y'umuhanda",
     ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Navo PVS",
-    description: "Official Rwanda traffic regulations, mock exams, road signs, and voice explanations.",
-    images: ["/icons/icon-512x512.png"],
-  },
-  manifest: "/manifest.json",
-  applicationName: "Navo",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Navo",
-    startupImage: [
-      { url: "/icons/icon-192x192.png", media: "(device-width: 320px)" },
-      { url: "/icons/icon-180x180.png", media: "(device-width: 375px)" },
-    ],
-  },
-  formatDetection: {
-    telephone: false,
-  },
-  icons: {
-    icon: [
-      { url: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
-    ],
-    shortcut: [
-      { url: "/icons/icon-96x96.png", sizes: "96x96", type: "image/png" },
-    ],
-    apple: [
-      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-120x120.png", sizes: "120x120", type: "image/png" },
-      { url: "/icons/icon-76x76.png", sizes: "76x76", type: "image/png" },
-    ],
-  },
-};
+    authors: [{ name: "Navo Rwanda", url: "https://navo.rw" }],
+    creator: configuredSystemName,
+    publisher: configuredSystemName,
+    category: "Education",
+    alternates: {
+      canonical: "https://navo.rw",
+    },
+    openGraph: {
+      type: "website",
+      locale: "rw_RW",
+      alternateLocale: ["en_US", "fr_FR"],
+      url: "https://navo.rw",
+      siteName: configuredSystemName,
+      title: "Navo PVS",
+      description:
+        "Pass your Rwanda driving theory exam with official practice tests, traffic regulations, AI explanations, and multilingual study guides in Kinyarwanda, English, and French.",
+      images: [
+        {
+          url: ogImage,
+          width: 512,
+          height: 512,
+          alt: "Navo - Rwanda Driving Platform",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Navo PVS",
+      description: "Official Rwanda traffic regulations, mock exams, road signs, and voice explanations.",
+      images: [ogImage],
+    },
+    manifest: "/manifest.json",
+    applicationName: configuredSystemName,
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: configuredSystemName,
+      startupImage: [
+        { url: logoUrl || "/icons/icon-192x192.png", media: "(device-width: 320px)" },
+        { url: logoUrl || "/icons/icon-180x180.png", media: "(device-width: 375px)" },
+      ],
+    },
+    formatDetection: {
+      telephone: false,
+    },
+    icons: logoUrl
+      ? {
+          icon: [{ url: logoUrl }],
+          shortcut: [{ url: logoUrl }],
+          apple: [{ url: logoUrl }],
+        }
+      : {
+          icon: [
+            { url: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
+            { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+            { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+          ],
+          shortcut: [
+            { url: "/icons/icon-96x96.png", sizes: "96x96", type: "image/png" },
+          ],
+          apple: [
+            { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+            { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+            { url: "/icons/icon-120x120.png", sizes: "120x120", type: "image/png" },
+            { url: "/icons/icon-76x76.png", sizes: "76x76", type: "image/png" },
+          ],
+        },
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",

@@ -698,11 +698,16 @@ export async function createExamAttempt(attemptData: {
     };
   });
 
+  const hasAnsweredAny = answers.some((ans) => Boolean(ans.selected_answer));
+  const answersToPersist: ExamAnswer[] = hasAnsweredAny ? processedAnswers : [];
+
   const scorePercentage = Math.round((correctAnswers / total_questions) * 100);
   const questionDetails: Record<string, { correct_answer: string; explanation?: string }> = {};
-  answerKey.forEach((value, id) => {
-    questionDetails[id] = { correct_answer: value.correct_answer as string, explanation: value.explanation };
-  });
+  if (hasAnsweredAny) {
+    answerKey.forEach((value, id) => {
+      questionDetails[id] = { correct_answer: value.correct_answer as string, explanation: value.explanation };
+    });
+  }
 
   // If exam saving is disabled by Admin, return transient result without database insertion
   if (!shouldSave) {
@@ -717,7 +722,7 @@ export async function createExamAttempt(attemptData: {
       total_questions,
       correct_answers: correctAnswers,
       score_percentage: scorePercentage,
-      answers: processedAnswers,
+      answers: answersToPersist,
       status,
       submission_reason: attemptData.submission_reason || 'manual',
       violation_summary: attemptData.violation_summary || null,
@@ -742,7 +747,7 @@ export async function createExamAttempt(attemptData: {
       total_questions,
       correct_answers: correctAnswers,
       score_percentage: scorePercentage,
-      answers: processedAnswers,
+      answers: answersToPersist,
       status,
       submission_reason: attemptData.submission_reason || 'manual',
       violation_summary: attemptData.violation_summary || null,
@@ -1975,6 +1980,9 @@ export async function createModuleExamAttempt(
   const user = await getAuthUser();
   if (!user) throw new Error("Not authenticated");
 
+  const hasAnsweredAny = (attemptData.answers || []).some((ans) => Boolean(ans.selected_answer));
+  const answersToPersist: ModuleExamAnswer[] = hasAnsweredAny ? attemptData.answers : [];
+
   const savingConfig = await getExamSavingConfig();
   if (!savingConfig.saveIndividualExams) {
     return {
@@ -1990,7 +1998,7 @@ export async function createModuleExamAttempt(
       correct_answers: attemptData.correct_answers,
       score_percentage: attemptData.score_percentage,
       passed: attemptData.passed,
-      answers: attemptData.answers,
+      answers: answersToPersist,
       status: attemptData.status,
       created_at: new Date().toISOString(),
     } as ModuleExamAttempt;
@@ -2010,7 +2018,7 @@ export async function createModuleExamAttempt(
       correct_answers: attemptData.correct_answers,
       score_percentage: attemptData.score_percentage,
       passed: attemptData.passed,
-      answers: attemptData.answers,
+      answers: answersToPersist,
       status: attemptData.status,
     })
     .select("*")

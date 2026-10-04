@@ -34,7 +34,7 @@ export function ConfirmDeleteDialog({
 }: ConfirmDeleteDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="fixed left-1/2 top-1/2 z-[100] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 border border-red-500/20 bg-[#0B1020]/95 backdrop-blur-[24px] p-6 text-slate-50 shadow-2xl rounded-[5px]">
+      <AlertDialogContent className="w-[calc(100%-2rem)] max-w-md border border-red-500/20 bg-[#0B1020]/95 backdrop-blur-[24px] p-6 text-slate-50 shadow-2xl rounded-[5px]">
         <AlertDialogHeader>
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-11 h-11 rounded-[5px] bg-red-500/15 flex items-center justify-center">

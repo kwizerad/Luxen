@@ -1474,6 +1474,10 @@ html:not(.dark) .admin-portal,
   transition: all 200ms ease !important;
 }
 
+.admin-portal button.rounded-full {
+  border-radius: 9999px !important;
+}
+
 /* Default variant: bg-primary text-primary-foreground */
 .admin-portal button.bg-primary {
   background: hsl(var(--primary)) !important;

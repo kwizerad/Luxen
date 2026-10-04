@@ -91,21 +91,7 @@ export default function AdminSettingsPage() {
 
   return (
     <>
-      {/* Floating Navo Button */}
-      <div className="fixed top-4 left-4 z-50 md:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2 bg-card/70 backdrop-blur-[20px] border border-border/20 rounded-full shadow-glass dark:shadow-glass-dark p-2">
-          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center overflow-hidden">
-            {config.logoUrl ? (
-              <Image src={config.logoUrl} alt={config.systemName} width={32} height={32} unoptimized className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-xs font-bold">{config.logoText || "N"}</span>
-            )}
-          </div>
-          <span className="text-sm font-medium pr-1">{config.systemName}</span>
-        </Link>
-      </div>
-
-      <div className="min-h-screen bg-transparent py-6 sm:py-8">
+      <div className="min-h-screen bg-transparent py-4 sm:py-6">
         <main className="container mx-auto px-4">
           {/* Header */}
           <div className="mb-6 sm:mb-8">

@@ -58,9 +58,7 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
 
   useEffect(() => {
     const checkExamActive = () => {
-      const hash = window.location.hash.replace(/^#/, "").split("?")[0];
-      const isHashExam = pathname === "/dashboard" && (hash === "exam" || hash === "exams");
-      const isActive = sessionStorage.getItem("exam-active") === "true" || isHashExam;
+      const isActive = sessionStorage.getItem("exam-active") === "true";
       setIsExamActive(isActive);
     };
 

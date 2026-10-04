@@ -87,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {!isExamInProgress && <FloatingHeader />}
 
       {/* Main Content */}
-      <main className="flex-1 w-full min-w-0 pt-4 sm:pt-6 md:pt-7">
+      <main className="flex-1 w-full min-w-0 pt-4 sm:pt-6 pb-20 md:pb-6">
         {children}
       </main>
     </div>

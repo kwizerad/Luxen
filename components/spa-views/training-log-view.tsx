@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Plus, Loader2, Star, Calendar } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
@@ -146,87 +147,101 @@ export function TrainingLogView({ navigate }: TrainingLogViewProps) {
           </div>
         )}
 
-        {showForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50 backdrop-blur-sm p-4">
-            <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-border/50 dark:border-border/30 bg-card shadow-xl p-6">
-              <h2 className="mb-4 text-lg font-bold">{t("addLog")}</h2>
-              <div className="space-y-3">
-                <select
-                  value={form.student_id}
-                  onChange={(e) => setForm({ ...form, student_id: e.target.value })}
-                  className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
-                >
-                  <option value="">{t("selectStudent")}</option>
-                  {students.map((s) => (
-                    <option key={s.id} value={s.id}>{s.full_name || s.username}</option>
-                  ))}
-                </select>
-                <input
-                  type="date"
-                  value={form.session_date}
-                  onChange={(e) => setForm({ ...form, session_date: e.target.value })}
-                  className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
-                />
-                <div className="grid grid-cols-2 gap-2">
+        <AnimatePresence>
+          {showForm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-sm p-4"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
+                className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-border/50 dark:border-border/30 bg-card shadow-xl p-6 transform-gpu"
+              >
+                <h2 className="mb-4 text-lg font-bold">{t("addLog")}</h2>
+                <div className="space-y-3">
+                  <select
+                    value={form.student_id}
+                    onChange={(e) => setForm({ ...form, student_id: e.target.value })}
+                    className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="">{t("selectStudent")}</option>
+                    {students.map((s) => (
+                      <option key={s.id} value={s.id}>{s.full_name || s.username}</option>
+                    ))}
+                  </select>
                   <input
-                    type="time"
-                    value={form.start_time}
-                    onChange={(e) => setForm({ ...form, start_time: e.target.value })}
-                    className="rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    type="date"
+                    value={form.session_date}
+                    onChange={(e) => setForm({ ...form, session_date: e.target.value })}
+                    className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="time"
+                      value={form.start_time}
+                      onChange={(e) => setForm({ ...form, start_time: e.target.value })}
+                      className="rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                    <input
+                      type="time"
+                      value={form.end_time}
+                      onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+                      className="rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                  <input
+                    type="number"
+                    value={form.duration_minutes || ""}
+                    onChange={(e) => setForm({ ...form, duration_minutes: parseInt(e.target.value) || 0 })}
+                    placeholder={t("durationMinutes")}
+                    className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
                   />
                   <input
-                    type="time"
-                    value={form.end_time}
-                    onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-                    className="rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    type="text"
+                    value={form.skills_practiced}
+                    onChange={(e) => setForm({ ...form, skills_practiced: e.target.value })}
+                    placeholder={t("skillsPracticed")}
+                    className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
                   />
+                  <input
+                    type="text"
+                    value={form.location}
+                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    placeholder={t("sessionLocation")}
+                    className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                  <textarea
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    placeholder={t("sessionNotes")}
+                    rows={3}
+                    className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary resize-none"
+                  />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{t("sessionRating")}:</span>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button key={s} onClick={() => setForm({ ...form, rating: s })}>
+                        <Star className={`h-6 w-6 ${s <= form.rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} />
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleSubmit}
+                    className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:opacity-90"
+                  >
+                    {t("save")}
+                  </button>
                 </div>
-                <input
-                  type="number"
-                  value={form.duration_minutes || ""}
-                  onChange={(e) => setForm({ ...form, duration_minutes: parseInt(e.target.value) || 0 })}
-                  placeholder={t("durationMinutes")}
-                  className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
-                />
-                <input
-                  type="text"
-                  value={form.skills_practiced}
-                  onChange={(e) => setForm({ ...form, skills_practiced: e.target.value })}
-                  placeholder={t("skillsPracticed")}
-                  className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
-                />
-                <input
-                  type="text"
-                  value={form.location}
-                  onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  placeholder={t("sessionLocation")}
-                  className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
-                />
-                <textarea
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder={t("sessionNotes")}
-                  rows={3}
-                  className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary resize-none"
-                />
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">{t("sessionRating")}:</span>
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <button key={s} onClick={() => setForm({ ...form, rating: s })}>
-                      <Star className={`h-6 w-6 ${s <= form.rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} />
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={handleSubmit}
-                  className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:opacity-90"
-                >
-                  {t("save")}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

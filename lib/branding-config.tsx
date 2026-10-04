@@ -34,40 +34,46 @@ const STORAGE_KEY = "navo-branding-config";
 const BrandingConfigContext = createContext<BrandingConfigContextType | undefined>(undefined);
 
 export function BrandingConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<BrandingConfig>(() => {
-    if (typeof window === "undefined") return defaultConfig;
+  const [config, setConfig] = useState<BrandingConfig>(defaultConfig);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // 1. Hydrate immediately from localStorage on client mount
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return {
-          systemName: (!parsed.systemName || parsed.systemName === "Navo PVS") ? defaultConfig.systemName : parsed.systemName,
+        setConfig({
+          systemName: parsed.systemName || defaultConfig.systemName,
           logoUrl: parsed.logoUrl || defaultConfig.logoUrl,
           logoText: parsed.logoText || defaultConfig.logoText,
           adminEmail: parsed.adminEmail || defaultConfig.adminEmail,
-        };
+        });
       }
     } catch {
       // ignore parse errors
     }
-    return defaultConfig;
-  });
-  const [isAdmin, setIsAdmin] = useState(false);
 
-  useEffect(() => {
-    // Load branding config from database (updates localStorage in background)
+    // 2. Load latest branding config from database (updates state & localStorage)
     const loadBrandingConfig = async () => {
-      if (typeof window === "undefined") return;
-
       try {
         const response = await fetch('/api/system-config/branding_config');
 
         if (response.ok) {
           const data = await response.json();
           if (data.value) {
-            const dbConfig = JSON.parse(data.value);
+            const parsed = JSON.parse(data.value);
+            const dbConfig: BrandingConfig = {
+              systemName: parsed.systemName || defaultConfig.systemName,
+              logoUrl: parsed.logoUrl || null,
+              logoText: parsed.logoText || defaultConfig.logoText,
+              adminEmail: parsed.adminEmail || defaultConfig.adminEmail,
+            };
             setConfig(dbConfig);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(dbConfig));
+            window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
             return;
           }
         }
@@ -84,6 +90,39 @@ export function BrandingConfigProvider({ children }: { children: ReactNode }) {
       document.documentElement.style.setProperty("--site-name", `"${config.systemName}"`);
     }
   }, [config.systemName]);
+
+  // Dynamically update the browser favicon / branding logo when config.logoUrl changes
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const iconHref = config.logoUrl || "/icons/icon.svg";
+    const selectors = [
+      'link[rel="icon"]',
+      'link[rel="shortcut icon"]',
+      'link[rel="apple-touch-icon"]',
+    ];
+
+    let updatedAny = false;
+    selectors.forEach((selector) => {
+      const links = document.head.querySelectorAll<HTMLLinkElement>(selector);
+      links.forEach((link) => {
+        updatedAny = true;
+        link.href = iconHref;
+        if (config.logoUrl) {
+          link.removeAttribute("type");
+        } else if (selector === 'link[rel="icon"]') {
+          link.type = "image/svg+xml";
+        }
+      });
+    });
+
+    if (!updatedAny) {
+      const link = document.createElement("link");
+      link.rel = "icon";
+      link.href = iconHref;
+      document.head.appendChild(link);
+    }
+  }, [config.logoUrl]);
 
   const setSystemName = (name: string) => {
     const newConfig = { ...config, systemName: name };
@@ -163,9 +202,7 @@ export function BrandingConfigProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
       window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
     }
-    if (isAdmin) {
-      saveToDatabase(newConfig);
-    }
+    saveToDatabase(newConfig);
   };
 
   const resetToDefault = () => {
@@ -174,9 +211,7 @@ export function BrandingConfigProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultConfig));
       window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
     }
-    if (isAdmin) {
-      saveToDatabase(defaultConfig);
-    }
+    saveToDatabase(defaultConfig);
   };
 
   return (

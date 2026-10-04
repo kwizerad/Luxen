@@ -1720,12 +1720,19 @@ export default function AdminDashboard() {
       {/* 5. QUICK BROADCAST MODAL */}
       <AnimatePresence>
         {broadcastOpen && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="admin-card !rounded-[24px] max-w-lg w-full p-6 shadow-2xl border border-[var(--admin-border)]"
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
+              className="admin-card !rounded-[24px] max-w-lg w-full p-6 shadow-2xl border border-[var(--admin-border)] transform-gpu"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2.5">
@@ -1822,19 +1829,26 @@ export default function AdminDashboard() {
                 </div>
               </form>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* 6. EXPORT SNAPSHOT MODAL */}
       <AnimatePresence>
         {exportOpen && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="admin-card !rounded-[24px] max-w-md w-full p-6 shadow-2xl border border-[var(--admin-border)]"
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
+              className="admin-card !rounded-[24px] max-w-md w-full p-6 shadow-2xl border border-[var(--admin-border)] transform-gpu"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2.5">
@@ -1875,7 +1889,7 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
