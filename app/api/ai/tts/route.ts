@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
               speechMetadata: {
                 style,
               },
-            },
+            } as any,
           ],
         },
       ],

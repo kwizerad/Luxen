@@ -957,6 +957,31 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     return () => window.removeEventListener("popstate", handlePopState);
   }, [accessChecked, showResults]);
 
+  // Handle SPA back requests (Backspace, Alt+Left, Mouse Back) across ExamView sub-states
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleRequestBack = (e: Event) => {
+      if (exam && !showResults) {
+        e.preventDefault();
+        return;
+      }
+      if (showResults) {
+        e.preventDefault();
+        resetRef.current?.();
+        return;
+      }
+      if (!exam && groupExamEnabled && (examMode === "individual" || examMode === "group")) {
+        e.preventDefault();
+        setExamMode("choice");
+        return;
+      }
+    };
+
+    window.addEventListener("app:request-back", handleRequestBack);
+    return () => window.removeEventListener("app:request-back", handleRequestBack);
+  }, [exam, showResults, groupExamEnabled, examMode]);
+
   const activeQuestion = useMemo(() => {
     if (!exam?.questions?.length) return null;
     return exam.questions[currentIndex] ?? null;
@@ -1401,6 +1426,15 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     violationMessagesRef.current = [];
     setPendingInviteeIds([]);
     setChallengeId("");
+    setExamMode((prev) => (prev === "lobby" || prev === "group" ? (groupExamEnabled ? "choice" : "individual") : prev));
+    if (typeof window !== "undefined" && window.location.hash.includes("challenge_id=")) {
+      try {
+        window.history.replaceState(null, "", "/dashboard#exam");
+        window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
+      } catch {
+        window.location.hash = "#exam";
+      }
+    }
     setCountdownSeconds(null);
     if (countdownRef.current) {
       clearInterval(countdownRef.current);
@@ -1535,6 +1569,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     return (
       <ExamChoiceScreen
         groupExamEnabled={groupExamEnabled}
+        onBack={() => navigate("home")}
         onNavigate={(choice) => {
           if (choice === "individual") {
             setExamMode("individual");
@@ -1561,44 +1596,41 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                 navigate("home");
               }
             }}
-            className="mb-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 dark:bg-zinc-900/60 dark:hover:bg-zinc-800/80 border border-border dark:border-zinc-800 transition-colors shadow-xs"
+            className="mb-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors shadow-xs"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>{t("back") || t("backToDashboard") || "Back"}</span>
           </button>
 
           {/* Header */}
-          <div className="mb-6 space-y-1">
-            <div className="text-[11px] font-mono tracking-wider text-muted-foreground dark:text-zinc-400 lowercase">
-              categories · traffic curriculum modules
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground dark:text-zinc-100">{t("selectExamCategory") || "Select Exam Category"}</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400">{t("chooseCategoryToStart") || "Choose a category to start your individual exam"}</p>
+          <div className="mb-5 space-y-1">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground dark:text-zinc-100">{t("selectExamCategory") || "Select Exam Category"}</h1>
+            <p className="text-xs text-muted-foreground dark:text-zinc-400">{t("chooseCategoryToStart") || "Choose a category to start your individual exam"}</p>
           </div>
 
           {/* Categories */}
           {loadingCategories ? (
             <ExamCategorySkeleton count={6} />
           ) : categories.length === 0 ? (
-            <div className="text-center py-12 rounded-xl border border-border dark:border-zinc-800 bg-card/60 dark:bg-zinc-900/30">
-              <FileText className="h-10 w-10 text-muted-foreground dark:text-zinc-600 mx-auto mb-3" />
+            <div className="text-center py-10 rounded-xl border border-border dark:border-zinc-800 bg-card/60 dark:bg-[rgb(15,15,16)]">
+              <FileText className="h-9 w-9 text-muted-foreground dark:text-zinc-600 mx-auto mb-2.5" />
               <p className="text-xs text-muted-foreground dark:text-zinc-400">{t("noCategoriesAvailable") || "No exam categories available"}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-3.5">
               {categories.map((category) => (
                 <div 
                   key={category.id}
-                  className="cursor-pointer transition-colors rounded-xl border border-border/80 dark:border-zinc-800 bg-card hover:bg-muted/30 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80 hover:border-primary/50 dark:hover:border-zinc-700 p-4 sm:p-5 flex flex-col justify-between group shadow-xs"
+                  className="cursor-pointer transition-colors rounded-xl border border-border/80 dark:border-zinc-800 bg-card hover:bg-muted/30 dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900/90 hover:border-primary/50 dark:hover:border-zinc-700 p-4 flex flex-col justify-between group shadow-xs"
                   onClick={() => {
                     setCategoryId(category.id);
                     setShowInstructions(true);
                     setInstructionsAccepted(false);
                   }}
                 >
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                         <FileText className="h-4 w-4" />
                       </div>
                       <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20 dark:border-emerald-800/40 px-2 py-0.5 rounded">
@@ -1607,14 +1639,14 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                     </div>
                     
                     <div className="space-y-1">
-                      <h3 className="text-sm sm:text-base font-bold text-foreground dark:text-zinc-100 group-hover:text-primary dark:group-hover:text-emerald-400 transition-colors">{category.name}</h3>
+                      <h3 className="text-sm font-bold text-foreground dark:text-zinc-100 group-hover:text-primary dark:group-hover:text-emerald-400 transition-colors">{category.name}</h3>
                       <p className="text-xs text-muted-foreground dark:text-zinc-400 line-clamp-2 leading-relaxed">
                         {category.description || t("examCategoryDescription") || "Take exam in this category"}
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-border/80 dark:border-zinc-800/80 space-y-2.5">
+                  <div className="mt-3.5 pt-2.5 border-t border-border/80 dark:border-zinc-800/80 space-y-2">
                     <div className="flex items-center justify-between text-xs text-muted-foreground dark:text-zinc-400">
                       <span className="flex items-center gap-1.5">
                         <Clock className="h-3.5 w-3.5 text-muted-foreground dark:text-zinc-500" />
@@ -1632,7 +1664,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                       <span className="font-mono text-foreground dark:text-zinc-200">{category.question_count ?? 20}</span>
                     </div>
 
-                    <Button className="w-full h-8 sm:h-9 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-zinc-800 dark:hover:bg-emerald-600 dark:hover:text-white dark:text-zinc-200 border border-emerald-600/20 dark:border-zinc-700/60 rounded-lg shadow-xs transition-colors" size="sm">
+                    <Button className="w-full h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-zinc-800 dark:hover:bg-emerald-600 dark:hover:text-white dark:text-zinc-200 border border-emerald-600/20 dark:border-zinc-700/60 rounded-lg shadow-xs transition-colors" size="sm">
                       {t("select") || "Select"}
                     </Button>
                   </div>

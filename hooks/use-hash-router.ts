@@ -64,7 +64,13 @@ export function useHashRouter() {
   const historyCountRef = useRef(0);
 
   const syncRoute = useCallback(() => {
-    setRoute(parseHash());
+    const next = parseHash();
+    setRoute((prev) => {
+      if (prev.view === next.view && prev.params.toString() === next.params.toString()) {
+        return prev;
+      }
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -94,6 +100,7 @@ export function useHashRouter() {
 
   const goBack = useCallback((fallbackView: string = "home") => {
     if (typeof window === "undefined") return;
+    if (sessionStorage.getItem("exam-active") === "true") return;
 
     // Check if an active sub-view/modal handler handles this back request
     const customBackEvent = new CustomEvent("app:request-back", { cancelable: true, bubbles: true });
@@ -107,16 +114,14 @@ export function useHashRouter() {
       historyCountRef.current = Math.max(0, historyCountRef.current - 1);
       window.history.back();
     } else {
-      let hash = `#${fallbackView}`;
-      if (window.location.hash === hash) {
-        setRoute(parseHash());
-      } else {
+      const hash = `#${fallbackView}`;
+      if (window.location.hash !== hash) {
         window.location.hash = hash;
-        setRoute(parseHash());
       }
+      syncRoute();
       window.dispatchEvent(new CustomEvent(HASH_CHANGE_EVENT));
     }
-  }, []);
+  }, [syncRoute]);
 
   const navigate = useCallback(
     (view: string, params?: Record<string, string>, options?: NavigateOptions) => {
@@ -135,19 +140,19 @@ export function useHashRouter() {
         if (window.location.hash !== hash) {
           window.location.replace(hash);
         }
-        setRoute(parseHash());
+        syncRoute();
       } else {
         if (window.location.hash !== hash) {
           historyCountRef.current += 1;
           window.location.hash = hash;
         }
-        setRoute(parseHash());
+        syncRoute();
       }
 
       // Notify all useHashRouter instances synchronously
       window.dispatchEvent(new CustomEvent(HASH_CHANGE_EVENT));
     },
-    [goBack]
+    [goBack, syncRoute]
   );
 
   // Global keyboard shortcuts & mouse button listeners for desktop/computers
@@ -155,6 +160,9 @@ export function useHashRouter() {
     if (typeof window === "undefined") return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Never intercept keys while an exam is actively running
+      if (sessionStorage.getItem("exam-active") === "true") return;
+
       // Don't trigger if user is actively typing in an input, textarea, select, or contenteditable
       const target = e.target as HTMLElement | null;
       const isInput =
@@ -183,6 +191,7 @@ export function useHashRouter() {
 
     // Mouse back button (Button 3 or 4) on computers
     const handleMouseUp = (e: MouseEvent) => {
+      if (sessionStorage.getItem("exam-active") === "true") return;
       if (e.button === 3 || e.button === 4) {
         e.preventDefault();
         goBack();

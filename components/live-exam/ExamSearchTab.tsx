@@ -227,10 +227,19 @@ export default function ExamSearchTab({
   const renderCodeList = (codes: string[], type: "theory" | "practical") => {
     if (codesLoading) {
       return (
-        <div className="animate-pulse rounded-xl border bg-card p-3">
-          <div className="mb-2 h-2.5 w-full rounded-full bg-muted" />
-          <div className="mb-2 h-2.5 w-3/4 rounded-full bg-muted" />
-          <div className="h-2.5 w-2/5 rounded-full bg-muted" />
+        <div className="space-y-2">
+          {[1, 2].map((i) => (
+            <div
+              key={i}
+              className="animate-pulse rounded-xl border bg-card dark:bg-[rgb(15,15,16)] px-3 py-2.5 flex items-center justify-between gap-2"
+            >
+              <div className="h-4 w-32 rounded bg-muted" />
+              <div className="flex items-center gap-1.5">
+                <div className="h-7 w-7 rounded-lg bg-muted" />
+                <div className="h-7 w-16 rounded-lg bg-muted" />
+              </div>
+            </div>
+          ))}
         </div>
       );
     }
@@ -245,123 +254,51 @@ export default function ExamSearchTab({
     }
 
     return (
-      <div className="space-y-2.5">
-        {codes.map((code) => {
-          const detail = localResults[code] || resultCache[code];
-          const passed = detail?.passed;
-          const hasResult = detail && detail.status !== "N/A";
-
-          return (
-            <div
-              key={code}
-              className="rounded-xl border bg-card/80 p-3 transition-all hover:border-primary/40 hover:shadow-md"
+      <div className="space-y-2">
+        {codes.map((code) => (
+          <div
+            key={code}
+            onClick={() => onViewResult(code)}
+            className="group flex cursor-pointer items-center justify-between gap-2 rounded-xl border bg-card dark:bg-[rgb(15,15,16)] px-3 py-2.5 transition-all hover:border-primary/50 hover:shadow-xs"
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewResult(code);
+              }}
+              className="font-mono text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors text-left truncate"
+              title={t("view") || "View"}
             >
-              {/* Top Row: Code + Pass/Fail Badge */}
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="font-mono text-xs sm:text-sm font-bold text-foreground break-all">
-                  {code}
-                </span>
-                {hasResult && (
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold shrink-0 ${
-                      passed
-                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25"
-                        : "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/25"
-                    }`}
-                  >
-                    {passed ? (
-                      <>
-                        <CheckCircle2 className="h-3 w-3" />
-                        {t("liveExamPassed") || "PASSED"}
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="h-3 w-3" />
-                        {t("liveExamFailed") || "FAILED"}
-                      </>
-                    )}
-                  </span>
-                )}
-              </div>
+              {code}
+            </button>
 
-              {/* Inline Result Summary */}
-              {hasResult && (
-                <div className="mb-2.5 space-y-1 rounded-lg bg-muted/50 px-2.5 py-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Award className="h-3 w-3 text-primary" />
-                      {t("liveExamScore") || "Score"}:
-                    </span>
-                    <span className="font-bold text-foreground">
-                      <span className={passed ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                        {detail.marksObtained}
-                      </span>
-                      {" / "}
-                      {detail.totalMarks || 20}
-                      <span className="ml-1 text-[10px] font-normal text-muted-foreground">
-                        (Pass: {detail.passMark || (type === "practical" ? 20 : 12)})
-                      </span>
-                    </span>
-                  </div>
-
-                  {detail.licenseCategory && detail.licenseCategory !== "N/A" && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">
-                        {t("liveExamLicenseCategory") || "Category"}:
-                      </span>
-                      <span className="font-semibold text-foreground">
-                        {detail.licenseCategory}
-                      </span>
-                    </div>
-                  )}
-
-                  {detail.examDate && detail.examDate !== "N/A" && (
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-muted-foreground shrink-0">
-                        {t("liveExamDate") || "Date"}:
-                      </span>
-                      <span className="font-medium text-foreground text-right truncate">
-                        {detail.examDate}
-                      </span>
-                    </div>
-                  )}
-
-                  {detail.testCenter && detail.testCenter !== "N/A" && (
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-muted-foreground shrink-0 flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {t("liveExamTestCenter") || "Center"}:
-                      </span>
-                      <span className="font-medium text-foreground text-right truncate">
-                        {detail.testCenter}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => onCopy(code)}
-                  title={t("copy")}
-                  className="inline-flex items-center justify-center rounded-lg border bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
-                >
-                  <Copy className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onViewResult(code)}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90"
-                >
-                  <Eye className="h-3 w-3" />
-                  {t("view") || "View Full Details"}
-                </button>
-              </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopy(code);
+                }}
+                title={t("copy") || "Copy"}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border bg-card dark:bg-zinc-900 text-muted-foreground transition-all hover:border-primary/40 hover:bg-muted hover:text-foreground"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewResult(code);
+                }}
+                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                {t("view") || "View"}
+              </button>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     );
   };
@@ -387,22 +324,22 @@ export default function ExamSearchTab({
             onChange={handleNationalIdChange}
             placeholder={t("liveExamIdPlaceholder")}
             required
-            className="w-full rounded-xl border bg-card px-3.5 py-3 text-[15px] transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/12 font-mono tracking-wider"
+            className="w-full rounded-xl border bg-card px-3.5 py-2.5 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/12 font-mono tracking-wider"
           />
         </div>
         <button
           type="submit"
           disabled={loading || nationalId.length !== 16}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-bold text-primary-foreground shadow-lg transition-all hover:bg-primary/90 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:translate-y-0"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:translate-y-0"
         >
           {loading ? (
             <>
-              <Loader2 className="h-[18px] w-[18px] animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
               {t("liveExamSearching")}
             </>
           ) : (
             <>
-              <Search className="h-[18px] w-[18px]" />
+              <Search className="h-4 w-4" />
               {t("liveExamFetchCodes")}
             </>
           )}
@@ -416,17 +353,17 @@ export default function ExamSearchTab({
           if (!loading) setVerifyModalOpen(open);
         }}
       >
-        <DialogContent className="sm:max-w-[440px] p-5 sm:p-6 rounded-2xl border border-zinc-800 bg-zinc-950 text-zinc-100 shadow-2xl">
+        <DialogContent className="sm:max-w-[440px] p-5 sm:p-6 rounded-2xl border border-border dark:border-zinc-800 bg-card dark:bg-[rgb(15,15,16)] text-foreground dark:text-zinc-100 shadow-2xl">
           <DialogHeader className="space-y-1.5 text-left">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div>
-                <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-zinc-100">
+                <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground dark:text-zinc-100">
                   {t("verifyNationalId") || "Verify Your Identity"}
                 </DialogTitle>
-                <DialogDescription className="text-xs font-mono text-zinc-400">
+                <DialogDescription className="text-xs font-mono text-muted-foreground dark:text-zinc-400">
                   ID: {nationalId}
                 </DialogDescription>
               </div>
@@ -434,20 +371,20 @@ export default function ExamSearchTab({
           </DialogHeader>
 
           <form onSubmit={handleVerifyAndFetchResults} className="space-y-4 pt-2">
-            <p className="text-xs text-zinc-300 leading-relaxed">
+            <p className="text-xs text-muted-foreground dark:text-zinc-300 leading-relaxed">
               {t("verifyIdDesc") ||
                 "To view your exam results, please confirm your identity by entering either any of your Names or your Date of Birth:"}
             </p>
 
             {verifyError && (
-              <div className="rounded-xl border border-red-500/30 bg-red-950/30 p-3 text-xs text-red-300 flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 dark:bg-red-950/30 p-3 text-xs text-red-600 dark:text-red-300 flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-500 dark:text-red-400" />
                 <span>{verifyError}</span>
               </div>
             )}
 
             {/* Toggle Between Any Name OR Date of Birth */}
-            <div className="grid grid-cols-2 gap-2 p-1 bg-zinc-900 rounded-xl border border-zinc-800">
+            <div className="grid grid-cols-2 gap-2 p-1 bg-muted dark:bg-zinc-900 rounded-xl border border-border dark:border-zinc-800">
               <button
                 type="button"
                 onClick={() => {
@@ -457,7 +394,7 @@ export default function ExamSearchTab({
                 className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-colors ${
                   verificationMethod === "name"
                     ? "bg-emerald-600 text-white shadow-sm"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    : "text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-200"
                 }`}
               >
                 <User className="h-3.5 w-3.5" />
@@ -473,7 +410,7 @@ export default function ExamSearchTab({
                 className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-colors ${
                   verificationMethod === "dob"
                     ? "bg-emerald-600 text-white shadow-sm"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    : "text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-200"
                 }`}
               >
                 <Calendar className="h-3.5 w-3.5" />
@@ -483,10 +420,10 @@ export default function ExamSearchTab({
 
             {verificationMethod === "name" ? (
               <div className="space-y-1.5">
-                <Label htmlFor="exam_verify_name" className="text-xs font-semibold text-zinc-200 flex items-center gap-1">
-                  <User className="h-3.5 w-3.5 text-emerald-400" />
+                <Label htmlFor="exam_verify_name" className="text-xs font-semibold text-foreground dark:text-zinc-200 flex items-center gap-1">
+                  <User className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>{t("oneNameLabel") || "Enter Any Name (First or Last Name)"}</span>
-                  <span className="text-red-400">*</span>
+                  <span className="text-red-500 dark:text-red-400">*</span>
                 </Label>
                 <Input
                   id="exam_verify_name"
@@ -500,15 +437,15 @@ export default function ExamSearchTab({
                     if (verifyError) setVerifyError(null);
                   }}
                   placeholder={t("singleNamePlaceholder") || "e.g. Jean or Mugisha"}
-                  className="h-10 rounded-xl text-sm bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:border-emerald-500"
+                  className="h-10 rounded-xl text-sm bg-background dark:bg-zinc-900 border-border dark:border-zinc-800 text-foreground dark:text-zinc-100 placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus:border-emerald-500"
                 />
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label htmlFor="exam_verify_dob" className="text-xs font-semibold text-zinc-200 flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-emerald-400" />
+                <Label htmlFor="exam_verify_dob" className="text-xs font-semibold text-foreground dark:text-zinc-200 flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>{t("dateOfBirth") || "Date of Birth"}</span>
-                  <span className="text-red-400">*</span>
+                  <span className="text-red-500 dark:text-red-400">*</span>
                 </Label>
                 <Input
                   id="exam_verify_dob"
@@ -521,7 +458,7 @@ export default function ExamSearchTab({
                     setDob(e.target.value);
                     if (verifyError) setVerifyError(null);
                   }}
-                  className="h-10 rounded-xl text-sm bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:border-emerald-500"
+                  className="h-10 rounded-xl text-sm bg-background dark:bg-zinc-900 border-border dark:border-zinc-800 text-foreground dark:text-zinc-100 placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus:border-emerald-500"
                 />
               </div>
             )}
@@ -532,7 +469,7 @@ export default function ExamSearchTab({
                 loading ||
                 (verificationMethod === "name" ? singleName.trim().length < 2 : !dob.trim())
               }
-              className="w-full h-11 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-2"
+              className="w-full h-10 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -552,32 +489,15 @@ export default function ExamSearchTab({
       </Dialog>
 
       {showCodes && (
-        <div className="mt-5 space-y-4">
-          {candidateName && (
-            <div className="flex items-center justify-between rounded-xl border bg-muted/40 px-4 py-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <User className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-medium text-muted-foreground">
-                    {t("candidate") || "Candidate"}
-                  </p>
-                  <p className="text-sm font-bold text-foreground">{candidateName}</p>
-                </div>
-              </div>
-              <span className="font-mono text-xs text-muted-foreground">{nationalId}</span>
-            </div>
-          )}
-
-          <div className="overflow-hidden rounded-xl border-2">
+        <div className="mt-5">
+          <div className="overflow-hidden rounded-xl border">
             <div className="grid grid-cols-1 gap-0 sm:grid-cols-2">
               {/* Theory Column */}
-              <div className="border-b-2 px-4 py-4 sm:border-b-0 sm:border-r-2">
-                <div className="mb-3 flex items-center gap-2 border-b-2 pb-2 text-sm font-bold text-violet-600 dark:text-violet-400">
+              <div className="border-b px-4 py-3.5 sm:border-b-0 sm:border-r">
+                <div className="mb-3 flex items-center gap-2 border-b pb-2 text-sm font-bold text-violet-600 dark:text-violet-400">
                   <BookOpen className="h-4 w-4" />
                   {t("liveExamTheoryCodes")}
-                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                     {codesLoading ? "•" : theoryCodes.length}
                   </span>
                 </div>
@@ -585,11 +505,11 @@ export default function ExamSearchTab({
               </div>
 
               {/* Practical Column */}
-              <div className="px-4 py-4">
-                <div className="mb-3 flex items-center gap-2 border-b-2 pb-2 text-sm font-bold text-emerald-600 dark:text-emerald-400">
+              <div className="px-4 py-3.5">
+                <div className="mb-3 flex items-center gap-2 border-b pb-2 text-sm font-bold text-emerald-600 dark:text-emerald-400">
                   <Wrench className="h-4 w-4" />
                   {t("liveExamPracticalCodes")}
-                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                     {codesLoading ? "•" : practicalCodes.length}
                   </span>
                 </div>

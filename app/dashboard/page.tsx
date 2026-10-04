@@ -1,33 +1,56 @@
 "use client";
 
+import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useHashRouter } from "@/hooks/use-hash-router";
 import { ViewTransition } from "@/components/spa-views/view-transition";
 import { HomeView } from "@/components/spa-views/home-view";
-import { CourseView } from "@/components/spa-views/course-view";
-import { ServicesView } from "@/components/spa-views/services-view";
-import { LiveExamView } from "@/components/spa-views/live-exam-view";
-import { SettingsView } from "@/components/spa-views/settings-view";
-import { DriversListView } from "@/components/spa-views/drivers-list-view";
-import { DriverDetailView } from "@/components/spa-views/driver-detail-view";
-import { RequestCodeView } from "@/components/spa-views/request-code-view";
-import { ExamHistoryView } from "@/components/spa-views/exam-history-view";
-import { DriverPanelView } from "@/components/spa-views/driver-panel-view";
-import { DriverPlansView } from "@/components/spa-views/driver-plans-view";
-import { DriverApplicationsView } from "@/components/spa-views/driver-applications-view";
-import { DriverBookingsView } from "@/components/spa-views/driver-bookings-view";
-import { TrainingLogView } from "@/components/spa-views/training-log-view";
-import { StudentTrainingView } from "@/components/spa-views/student-training-view";
-import { MyReportsView } from "@/components/spa-views/my-reports-view";
-import { DriverHubView } from "@/components/spa-views/driver-hub-view";
-import { ClassmatesView } from "@/components/spa-views/classmates-view";
-import { GroupExamView } from "@/components/spa-views/group-exam-view";
-import { GroupExamResultsView } from "@/components/group-exam-results-view";
-import { ExamView } from "@/components/spa-views/exam-view";
-import { ChatListView } from "@/components/spa-views/chat-list-view";
-import { ChatConversationView } from "@/components/spa-views/chat-conversation-view";
+
+const ExamView = dynamic(() => import("@/components/spa-views/exam-view").then((m) => m.ExamView));
+const CourseView = dynamic(() => import("@/components/spa-views/course-view").then((m) => m.CourseView));
+const ServicesView = dynamic(() => import("@/components/spa-views/services-view").then((m) => m.ServicesView));
+const LiveExamView = dynamic(() => import("@/components/spa-views/live-exam-view").then((m) => m.LiveExamView));
+const SettingsView = dynamic(() => import("@/components/spa-views/settings-view").then((m) => m.SettingsView));
+const DriversListView = dynamic(() => import("@/components/spa-views/drivers-list-view").then((m) => m.DriversListView));
+const DriverDetailView = dynamic(() => import("@/components/spa-views/driver-detail-view").then((m) => m.DriverDetailView));
+const RequestCodeView = dynamic(() => import("@/components/spa-views/request-code-view").then((m) => m.RequestCodeView));
+const ExamHistoryView = dynamic(() => import("@/components/spa-views/exam-history-view").then((m) => m.ExamHistoryView));
+const DriverPanelView = dynamic(() => import("@/components/spa-views/driver-panel-view").then((m) => m.DriverPanelView));
+const DriverPlansView = dynamic(() => import("@/components/spa-views/driver-plans-view").then((m) => m.DriverPlansView));
+const DriverApplicationsView = dynamic(() => import("@/components/spa-views/driver-applications-view").then((m) => m.DriverApplicationsView));
+const DriverBookingsView = dynamic(() => import("@/components/spa-views/driver-bookings-view").then((m) => m.DriverBookingsView));
+const TrainingLogView = dynamic(() => import("@/components/spa-views/training-log-view").then((m) => m.TrainingLogView));
+const StudentTrainingView = dynamic(() => import("@/components/spa-views/student-training-view").then((m) => m.StudentTrainingView));
+const MyReportsView = dynamic(() => import("@/components/spa-views/my-reports-view").then((m) => m.MyReportsView));
+const DriverHubView = dynamic(() => import("@/components/spa-views/driver-hub-view").then((m) => m.DriverHubView));
+const ClassmatesView = dynamic(() => import("@/components/spa-views/classmates-view").then((m) => m.ClassmatesView));
+const GroupExamView = dynamic(() => import("@/components/spa-views/group-exam-view").then((m) => m.GroupExamView));
+const GroupExamResultsView = dynamic(() => import("@/components/group-exam-results-view").then((m) => m.GroupExamResultsView));
+const ChatListView = dynamic(() => import("@/components/spa-views/chat-list-view").then((m) => m.ChatListView));
+const ChatConversationView = dynamic(() => import("@/components/spa-views/chat-conversation-view").then((m) => m.ChatConversationView));
 
 export default function DashboardPage() {
   const { view, params, navigate } = useHashRouter();
+
+  // Warm up primary student SPA chunks during browser idle time after initial paint
+  useEffect(() => {
+    const preloadCoreViews = () => {
+      void import("@/components/spa-views/exam-view");
+      void import("@/components/spa-views/course-view");
+      void import("@/components/spa-views/classmates-view");
+      void import("@/components/spa-views/exam-history-view");
+      void import("@/components/spa-views/services-view");
+      void import("@/components/spa-views/settings-view");
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = (window as any).requestIdleCallback(preloadCoreViews, { timeout: 2500 });
+      return () => (window as any).cancelIdleCallback?.(id);
+    } else {
+      const timer = setTimeout(preloadCoreViews, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const renderView = () => {
     switch (view) {

@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function ExamRedirect() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
     const params = new URLSearchParams();
     const challengeId = searchParams.get("challenge_id");
     const categoryId = searchParams.get("category_id");
@@ -20,12 +20,12 @@ export default function ExamRedirect() {
     if (from) params.set("from", from);
 
     const queryString = params.toString();
-    if (queryString) {
-      router.replace(`/dashboard#exam?${queryString}`);
-    } else {
-      router.replace("/dashboard#exam");
-    }
-  }, [router, searchParams]);
+    const targetHash = queryString ? `exam?${queryString}` : "exam";
+    try {
+      sessionStorage.setItem("intended-dashboard-view", targetHash);
+    } catch {}
+    router.replace(`/dashboard#${targetHash}`);
+  }, [router]);
 
   return null;
 }

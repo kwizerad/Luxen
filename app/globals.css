@@ -46,9 +46,9 @@
     /* Deep Charcoal Dark Theme - ReactBits-inspired */
     --background: 240 6% 4%; /* #060608 */
     --foreground: 0 0% 95%;
-    --card: 240 5% 8%; /* #121217 */
+    --card: 240 3% 6%; /* rgb(15 15 16) */
     --card-foreground: 0 0% 95%;
-    --popover: 240 5% 8%;
+    --popover: 240 3% 6%;
     --popover-foreground: 0 0% 95%;
     /* Primary, accent, ring and chart colors are set by ThemeConfigProvider */
     --primary-foreground: 0 0% 100%;
@@ -300,7 +300,7 @@ html.dark .mesh-gradient-bg {
   .dark .premium-glass-card,
   .dark .glass-card,
   .dark .card-glass {
-    background: rgba(24, 24, 34, 0.85);
+    background: rgb(15 15 16);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.14);
@@ -315,7 +315,7 @@ html.dark .mesh-gradient-bg {
 
   .dark .premium-glass-card:hover,
   .dark .glass-card:hover {
-    background: rgba(18, 18, 23, 0.90);
+    background: rgb(15 15 16);
     border-color: var(--hover-border-color, rgba(255, 255, 255, 0.18));
     backdrop-filter: blur(14px) saturate(200%);
     -webkit-backdrop-filter: blur(14px) saturate(200%);
@@ -1870,7 +1870,7 @@ body.admin-portal-active [role="option"]:focus {
 
 /* Dark mode */
 .dark .premium-dash-card {
-  background: rgba(24, 24, 34, 0.85);
+  background: rgb(15 15 16);
   border-color: rgba(255, 255, 255, 0.14);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
@@ -1925,7 +1925,7 @@ body.admin-portal-active [role="option"]:focus {
 
 /* Dark mode */
 .dark .premium-kpi-card {
-  background: rgba(24, 24, 34, 0.85);
+  background: rgb(15 15 16);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   border-color: rgba(255, 255, 255, 0.14);
@@ -2664,7 +2664,7 @@ html.dark .admin-portal .prose th,
 
 /* --- Card --- */
 .dark [data-slot="card"] {
-  background: rgba(18, 18, 23, 0.6) !important;
+  background: rgb(15 15 16) !important;
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   border-color: rgba(255, 255, 255, 0.08) !important;
@@ -2761,18 +2761,22 @@ html.dark .admin-portal .prose th,
 
 /* --- Dark mode translucent cards (reflect particles) --- */
 .dark [data-slot="card"]:not(.admin-portal [data-slot="card"]) {
-  background: rgba(24, 24, 34, 0.72) !important;
+  background: rgb(15 15 16) !important;
   border-color: rgba(255, 255, 255, 0.14) !important;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
 }
 
-.dark .border.bg-card {
-  background: rgba(24, 24, 34, 0.72) !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+.dark .border.bg-card,
+.dark .bg-card,
+.dark .bg-card\/80,
+.dark .bg-card\/90,
+.dark .bg-card\/95,
+.dark .dark\:bg-zinc-900\/50,
+.dark .dark\:bg-zinc-900\/40,
+.dark .dark\:bg-zinc-900\/30 {
+  background-color: rgb(15 15 16) !important;
 }
 
 /* --- Body Background --- */

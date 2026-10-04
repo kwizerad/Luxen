@@ -76,7 +76,10 @@ export function GlobalGroupExamInvite() {
       });
 
       if (validPending) {
-        // Don't show if user is currently inside this challenge's exam room
+        // Don't show if user is currently inside an active exam or inside this challenge's exam room
+        if (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true") {
+          return;
+        }
         const currentUrl = typeof window !== "undefined" ? window.location.href : "";
         if (currentUrl.includes(`challenge_id=${validPending.id}`)) {
           return;

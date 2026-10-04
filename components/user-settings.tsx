@@ -130,7 +130,11 @@ export default function UserSettings({
       }
       
       // Load text size preference
-      if (metadata.text_size) {
+      const localTextSize = localStorage.getItem("navo-text-size") as TextSize | null;
+      if (localTextSize && (localTextSize === "sm" || localTextSize === "md" || localTextSize === "lg")) {
+        setTextSize(localTextSize);
+        applyTextSize(localTextSize);
+      } else if (metadata.text_size) {
         setTextSize(metadata.text_size);
         applyTextSize(metadata.text_size);
       }
@@ -155,6 +159,11 @@ export default function UserSettings({
   const applyTextSize = (size: TextSize) => {
     const root = document.documentElement;
     root.dataset.textSize = size;
+    try {
+      localStorage.setItem("navo-text-size", size);
+      const scaleMap: Record<TextSize, string> = { sm: "0.875", md: "1", lg: "1.125" };
+      localStorage.setItem("user_text_size", scaleMap[size] || "1");
+    } catch {}
     switch (size) {
       case "sm":
         root.style.fontSize = "14px";

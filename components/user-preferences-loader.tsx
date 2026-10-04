@@ -14,6 +14,27 @@ export function UserPreferencesLoader() {
   const { theme, setTheme } = useTheme();
   const { language, setLanguage } = useLanguage();
 
+  // Immediately restore saved text size on mount before auth/network resolves
+  useEffect(() => {
+    try {
+      const root = document.documentElement;
+      const savedTextSize = localStorage.getItem("navo-text-size");
+      if (savedTextSize) {
+        root.dataset.textSize = savedTextSize;
+        if (savedTextSize === "sm") root.style.fontSize = "14px";
+        else if (savedTextSize === "md") root.style.fontSize = "16px";
+        else if (savedTextSize === "lg") root.style.fontSize = "18px";
+      }
+      const savedScale = localStorage.getItem("user_text_size");
+      if (savedScale) {
+        const parsed = parseFloat(savedScale);
+        if (!isNaN(parsed) && parsed >= 0.7 && parsed <= 1.5) {
+          root.style.fontSize = `${parsed * 100}%`;
+        }
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     if (!user) return;
 
@@ -34,7 +55,6 @@ export function UserPreferencesLoader() {
           // Load language preference
           const hasLocalLanguage = localStorage.getItem("navo-language") !== null;
           if (!hasLocalLanguage && metadata.language && metadata.language !== language) {
-            // Convert language code to full name for context
             const languageMap: Record<LanguageCode, Language> = {
               en: "English",
               rw: "Kinyarwanda",
@@ -43,10 +63,14 @@ export function UserPreferencesLoader() {
             setLanguage(languageMap[metadata.language as LanguageCode] || "English");
           }
 
-          // Load text size preference
-          if (metadata.text_size) {
+          // Load text size preference if not overridden by floating slider
+          const hasLocalScale = localStorage.getItem("user_text_size") !== null;
+          if (!hasLocalScale && metadata.text_size) {
             const root = document.documentElement;
             root.dataset.textSize = metadata.text_size;
+            try {
+              localStorage.setItem("navo-text-size", metadata.text_size);
+            } catch {}
             switch (metadata.text_size) {
               case "sm":
                 root.style.fontSize = "14px";
