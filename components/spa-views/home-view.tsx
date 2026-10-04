@@ -30,9 +30,17 @@ import {
   Flame,
   UserCheck,
   Compass,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
@@ -134,6 +142,7 @@ export function HomeView({ navigate }: HomeViewProps) {
   });
   const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
   const [showVerifyIdModal, setShowVerifyIdModal] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [localLastTopic, setLocalLastTopic] = useState<{
     moduleId?: string;
@@ -1012,8 +1021,12 @@ export function HomeView({ navigate }: HomeViewProps) {
             </div>
           </div>
 
-          {/* Theory Readiness Gauge & Quick Stats */}
-          <div className="flex items-center gap-4 bg-muted/40 p-4 rounded-xl border border-border/50 shadow-inner shrink-0">
+          {/* Theory Readiness Gauge & Quick Stats Popout Trigger */}
+          <button
+            type="button"
+            onClick={() => setShowStatsModal(true)}
+            className="flex items-center gap-4 bg-muted/40 hover:bg-muted/70 p-4 rounded-xl border border-border/50 hover:border-primary/40 shadow-inner shrink-0 text-left transition-all cursor-pointer group"
+          >
             <div className="relative flex items-center justify-center w-14 h-14">
               <svg className="w-14 h-14 -rotate-90" viewBox="0 0 36 36">
                 <path
@@ -1036,8 +1049,9 @@ export function HomeView({ navigate }: HomeViewProps) {
               <span className="absolute text-sm font-bold tracking-tight">{readinessScore}%</span>
             </div>
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("theoryReadiness") || "Theory Readiness"}
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-primary transition-colors">
+                <span>{t("theoryReadiness") || "Theory Readiness"}</span>
+                <BarChart3 className="w-3.5 h-3.5" />
               </div>
               <div className="text-base font-bold text-foreground tracking-tight">
                 {readinessScore >= 80 ? (
@@ -1048,13 +1062,142 @@ export function HomeView({ navigate }: HomeViewProps) {
                   <span className="text-blue-600 dark:text-blue-400">{t("gettingStarted") || "Getting Started"}</span>
                 )}
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {examStats.total} {t("examsTaken") || "Exams"} · {formattedStudyTime}
+              <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                <span>{examStats.total} {t("examsTaken") || "Exams"} · {formattedStudyTime}</span>
+                <ChevronRight className="w-3.5 h-3.5 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      {/* Performance Stats Popout Card Modal */}
+      <Dialog open={showStatsModal} onOpenChange={setShowStatsModal}>
+        <DialogContent className="sm:max-w-lg rounded-2xl border-border/60 p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              <span>{t("performanceOverview") || "Performance & Study Statistics"}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {t("detailedAnalyticsDesc") || "Your detailed exam simulation metrics, accuracy, and study progress."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
+            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{t("examsTaken") || "Exams Taken"}</span>
+                <FileText className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <div className="text-xl font-bold text-foreground">{examStats.total}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {examStats.passed} {t("passed") || "Passed"} · {Math.max(0, examStats.total - examStats.passed)} {t("failed") || "Failed"}
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{t("averageScore") || "Average Score"}</span>
+                <Target className="w-3.5 h-3.5 text-emerald-500" />
+              </div>
+              <div className="text-xl font-bold text-foreground">{examStats.avgScore}%</div>
+              <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                {t("best") || "Best"}: {examStats.bestScore}%
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{t("passRate") || "Pass Rate"}</span>
+                <Award className="w-3.5 h-3.5 text-amber-500" />
+              </div>
+              <div className="text-xl font-bold text-foreground">{examStats.passRate}%</div>
+              <div className="text-[11px] text-muted-foreground">
+                {t("passingScore") || "Target"}: 60%
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{t("studyTime") || "Study Time"}</span>
+                <Clock className="w-3.5 h-3.5 text-blue-500" />
+              </div>
+              <div className="text-xl font-bold text-foreground">{formattedStudyTime}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {t("avgDuration") || "Avg"}: {formattedAvgDuration}
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{t("studyStreak") || "Study Streak"}</span>
+                <Flame className="w-3.5 h-3.5 text-orange-500" />
+              </div>
+              <div className="text-xl font-bold text-foreground">{streakDays} {t("days") || "Days"}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {t("theoryReadiness") || "Readiness"}: {readinessScore}%
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{t("groupExams") || "Group Battles"}</span>
+                <Trophy className="w-3.5 h-3.5 text-purple-500" />
+              </div>
+              <div className="text-xl font-bold text-foreground">{battleStats.wins} / {battleStats.totalBattles}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {t("wins") || "Wins recorded"}
               </div>
             </div>
           </div>
-        </div>
-      </section>
+
+          {weakestCategory && (
+            <div className="mt-2 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  {t("recommendedFocus") || "Recommended Focus Area"}
+                </div>
+                <div className="text-sm font-bold text-foreground truncate">{weakestCategory.categoryName}</div>
+                <div className="text-xs text-muted-foreground">
+                  {t("averageScore") || "Average"}: {weakestCategory.avgScorePercent}% ({weakestCategory.attemptsCount} {t("attempts") || "attempts"})
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setShowStatsModal(false);
+                  navigate("exam", { category_id: weakestCategory.categoryId });
+                }}
+                className="shrink-0 rounded-xl text-xs font-semibold"
+              >
+                {t("practice") || "Practice"}
+              </Button>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowStatsModal(false);
+                navigate("results");
+              }}
+              className="rounded-xl text-xs font-semibold"
+            >
+              {t("viewFullHistory") || "View Full Exam History"}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setShowStatsModal(false)}
+              className="rounded-xl text-xs font-semibold"
+            >
+              {t("close") || "Close"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Primary Hero Row: Practice Exam Card + Theory Curriculum Progress */}
       {(standaloneExamEnabled || hasCourses) && (

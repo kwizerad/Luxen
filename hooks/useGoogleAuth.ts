@@ -22,6 +22,9 @@ export function useGoogleAuth(options: UseGoogleAuthOptions = {}) {
   const router = useRouter();
   const { t } = useLanguage();
   const processingRef = useRef(false);
+  const optionsRef = useRef(options);
+
+  optionsRef.current = options;
 
   const signInWithGoogle = useCallback(
     async (credential: string, nonce: string) => {
@@ -53,7 +56,7 @@ export function useGoogleAuth(options: UseGoogleAuthOptions = {}) {
           { duration: 3000 }
         );
 
-        options.onSuccess?.();
+        optionsRef.current.onSuccess?.();
         router.push(redirectPath);
       } catch (err: unknown) {
         const rawMessage = err instanceof Error ? err.message : String(err);
@@ -73,13 +76,13 @@ export function useGoogleAuth(options: UseGoogleAuthOptions = {}) {
 
         setError(friendlyMessage);
         toast.error(friendlyMessage);
-        options.onError?.(friendlyMessage);
+        optionsRef.current.onError?.(friendlyMessage);
       } finally {
         setIsLoading(false);
         processingRef.current = false;
       }
     },
-    [options, refreshUser, router, t]
+    [refreshUser, router, t]
   );
 
   const resetError = useCallback(() => {

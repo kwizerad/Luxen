@@ -22,6 +22,40 @@ export function loadGoogleIdentityScript(): Promise<void> {
     return Promise.resolve();
   }
 
+  // Prevent GIS from throwing NotAllowedError when 'identity-credentials-get'
+  // is disabled by Permissions-Policy (e.g., inside preview iframes).
+  try {
+    const isIframe = (() => {
+      try {
+        return window.self !== window.top;
+      } catch {
+        return true;
+      }
+    })();
+    const policyAllowsFedCM =
+      typeof (document as any).featurePolicy?.allowsFeature === "function"
+        ? (document as any).featurePolicy.allowsFeature("identity-credentials-get")
+        : typeof (document as any).permissionsPolicy?.allowsFeature === "function"
+        ? (document as any).permissionsPolicy.allowsFeature("identity-credentials-get")
+        : !isIframe;
+
+    if ((!policyAllowsFedCM || isIframe) && typeof navigator !== "undefined" && navigator.credentials?.get) {
+      const origGet = navigator.credentials.get.bind(navigator.credentials);
+      if (!(navigator.credentials.get as any).__fedcm_guarded) {
+        const guardedGet = function (options?: CredentialRequestOptions) {
+          if (options && "identity" in options) {
+            return Promise.resolve(null);
+          }
+          return origGet(options);
+        };
+        (guardedGet as any).__fedcm_guarded = true;
+        navigator.credentials.get = guardedGet;
+      }
+    }
+  } catch {
+    // Ignore if navigator.credentials is read-only
+  }
+
   if (window.google?.accounts?.id) {
     return Promise.resolve();
   }

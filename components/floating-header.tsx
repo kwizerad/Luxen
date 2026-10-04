@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -22,6 +22,15 @@ import { FloatingUserSettings } from "./floating-user-settings";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
+import { useLearningLanguages } from "@/hooks/use-learning-languages";
+import {
+  isStandaloneExamEnabled,
+  getCachedStandaloneExamEnabled,
+  getCachedServicesConfig,
+  getSyncServicesConfig,
+} from "@/lib/feature-flags";
+import { canRead, isPrimaryAdmin, type User as PermUser } from "@/lib/permissions";
+import { createClient } from "@/lib/supabase/client";
 
 interface NavItem {
   id: string;
@@ -36,21 +45,77 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, language: interfaceLanguage } = useLanguage();
   const { config } = useBrandingConfig();
+  const { enabledLanguages, loading: loadingLangs } = useLearningLanguages();
 
   const [isExamActive, setIsExamActive] = useState(false);
   const [isChatActive, setIsChatActive] = useState(false);
   const [currentView, setCurrentView] = useState("home");
   const [imgError, setImgError] = useState(false);
 
+  // Feature flags & course publication states
+  const [standaloneExamEnabled, setStandaloneExamEnabled] = useState<boolean>(() => {
+    const cached = getCachedStandaloneExamEnabled();
+    return cached !== null ? cached : true;
+  });
+  const [servicesPageEnabled, setServicesPageEnabled] = useState<boolean>(() => {
+    const cached = getSyncServicesConfig();
+    return cached ? cached.pageEnabled : true;
+  });
+  const [publishedCourseLanguages, setPublishedCourseLanguages] = useState<Set<string>>(
+    () => new Set(["English", "Kinyarwanda", "French"])
+  );
+
   useEffect(() => {
     setImgError(false);
   }, [config.logoUrl]);
 
+  // Load feature flags and published courses
+  const refreshConditions = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    try {
+      const [examEnabled, servicesCfg] = await Promise.all([
+        isStandaloneExamEnabled().catch(() => true),
+        getCachedServicesConfig().catch(() => ({ pageEnabled: true, services: {} })),
+      ]);
+      setStandaloneExamEnabled(examEnabled);
+      setServicesPageEnabled(servicesCfg.pageEnabled);
+
+      const supabase = createClient();
+      const { data: courses } = await supabase
+        .from("courses")
+        .select("language, status")
+        .eq("status", "published");
+
+      if (courses) {
+        setPublishedCourseLanguages(new Set(courses.map((c: any) => c.language)));
+      }
+    } catch {
+      // ignore fallback errors
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshConditions();
+
+    const handleConfigChange = () => {
+      refreshConditions();
+    };
+    window.addEventListener("system-config-updated", handleConfigChange);
+    window.addEventListener("focus", handleConfigChange);
+    return () => {
+      window.removeEventListener("system-config-updated", handleConfigChange);
+      window.removeEventListener("focus", handleConfigChange);
+    };
+  }, [refreshConditions, interfaceLanguage]);
+
   const syncNavigationState = useCallback(() => {
     if (typeof window === "undefined") return;
-    const examActive = sessionStorage.getItem("exam-active") === "true";
+    const examActive =
+      sessionStorage.getItem("exam-active") === "true" ||
+      pathname === "/dashboard/exam" ||
+      Boolean(pathname?.startsWith("/dashboard/exam"));
     setIsExamActive(examActive);
 
     const chatActive =
@@ -60,7 +125,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
     const rawHash = window.location.hash.replace(/^#/, "").split("?")[0];
     setCurrentView(rawHash || "home");
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     syncNavigationState();
@@ -87,6 +152,10 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   const handleStudentNavigate = useCallback(
     (targetView: string) => {
       if (typeof window !== "undefined") {
+        // Block navigation if exam is active
+        if (sessionStorage.getItem("exam-active") === "true") {
+          return;
+        }
         sessionStorage.removeItem("chat-active");
         sessionStorage.removeItem("student-chat-active");
         window.dispatchEvent(new CustomEvent("chat-state-change"));
@@ -111,6 +180,16 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
     [pathname, router]
   );
 
+  // Determine whether the Course tab should be visible for the current language
+  const isCourseVisible = useMemo(() => {
+    const lang = interfaceLanguage || "English";
+    const isLangEnabledByAdmin = loadingLangs
+      ? true
+      : enabledLanguages.includes(lang as any);
+    const isCoursePublishedInLang = publishedCourseLanguages.has(lang);
+    return isLangEnabledByAdmin && isCoursePublishedInLang;
+  }, [interfaceLanguage, loadingLangs, enabledLanguages, publishedCourseLanguages]);
+
   if (isExamActive) {
     return null;
   }
@@ -119,20 +198,14 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
     return null;
   }
 
-  const studentNavItems: NavItem[] = [
-    {
-      id: "home",
-      label: t("home") || "Home",
-      icon: Home,
-      view: "home",
-      isActive: pathname === "/dashboard" && (currentView === "home" || !currentView),
-    },
+  const allStudentNavItems: (NavItem & { visible: boolean })[] = [
     {
       id: "course",
       label: t("course") || t("theoryCourse") || "Course",
       icon: BookOpen,
       view: "course",
       isActive: pathname === "/dashboard" && currentView === "course",
+      visible: isCourseVisible,
     },
     {
       id: "exam",
@@ -145,6 +218,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           currentView === "exams" ||
           currentView === "services/live-exam" ||
           currentView === "services/group-exam"),
+      visible: standaloneExamEnabled,
     },
     {
       id: "classmates",
@@ -157,6 +231,15 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           currentView === "chat" ||
           currentView === "chat/conversation" ||
           currentView === "classmates/group-results"),
+      visible: true,
+    },
+    {
+      id: "home",
+      label: t("home") || "Home",
+      icon: Home,
+      view: "home",
+      isActive: pathname === "/dashboard" && (currentView === "home" || !currentView),
+      visible: true,
     },
     {
       id: "services",
@@ -172,23 +255,29 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           currentView === "driver-hub" ||
           currentView.startsWith("driver-panel") ||
           currentView === "my-training"),
+      visible: servicesPageEnabled,
     },
     {
       id: "results",
-      label: t("results") || t("examHistory") || "History",
+      label: t("results") || t("examHistory") || "Results",
       icon: Trophy,
       view: "results",
       isActive: pathname === "/dashboard" && currentView === "results",
+      visible: true,
     },
   ];
 
-  const adminNavItems: NavItem[] = [
+  const permUser = user as PermUser | null;
+  const userIsPrimary = isPrimaryAdmin(permUser);
+
+  const allAdminNavItems: (NavItem & { visible: boolean })[] = [
     {
       id: "admin-home",
       label: t("dashboard") || "Dashboard",
       icon: LayoutDashboard,
       href: "/Admin",
       isActive: pathname === "/Admin",
+      visible: true,
     },
     {
       id: "admin-course",
@@ -196,6 +285,10 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: BookOpen,
       href: "/Admin/course",
       isActive: Boolean(pathname?.startsWith("/Admin/course")),
+      visible:
+        userIsPrimary ||
+        canRead(permUser, "courseManagement") ||
+        canRead(permUser, "courseStudio"),
     },
     {
       id: "admin-exams",
@@ -207,6 +300,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           pathname?.startsWith("/Admin/questions") ||
           pathname?.startsWith("/Admin/retake-requests")
       ),
+      visible: userIsPrimary || canRead(permUser, "exams"),
     },
     {
       id: "admin-users",
@@ -214,6 +308,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: Users,
       href: "/Admin/users",
       isActive: Boolean(pathname?.startsWith("/Admin/users")),
+      visible: userIsPrimary || canRead(permUser, "students"),
     },
     {
       id: "admin-drivers",
@@ -221,6 +316,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: Car,
       href: "/Admin/drivers",
       isActive: Boolean(pathname?.startsWith("/Admin/drivers")),
+      visible: userIsPrimary || canRead(permUser, "drivers"),
     },
     {
       id: "admin-reports",
@@ -232,6 +328,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           pathname?.startsWith("/Admin/audit") ||
           pathname?.startsWith("/Admin/notifications")
       ),
+      visible: userIsPrimary || canRead(permUser, "notifications"),
     },
     {
       id: "admin-settings",
@@ -239,25 +336,31 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: Settings,
       href: "/Admin/settings",
       isActive: Boolean(pathname?.startsWith("/Admin/settings")),
+      visible: userIsPrimary || canRead(permUser, "settings"),
     },
   ];
 
-  const navItems = adminMode ? adminNavItems : studentNavItems;
+  const navItems = (adminMode ? allAdminNavItems : allStudentNavItems).filter(
+    (item) => item.visible
+  );
   const activeIdPrefix = adminMode ? "admin" : "student";
 
   return (
     <>
-      {/* Top Header Bar — Matches Landing Page SiteHeader */}
+      {/* Desktop / Tablet Top Header Bar — Hidden on Small Devices (< md) so mobile only has bottom fixed nav */}
       <header
         dir={isRTL ? "rtl" : "ltr"}
-        className="premium-glass-panel sticky top-0 z-50 w-full border-b"
+        aria-hidden={isExamActive}
+        className={`hidden md:block premium-glass-panel sticky top-0 z-50 w-full border-b transition-opacity ${
+          isExamActive ? "pointer-events-none opacity-0 invisible select-none" : ""
+        }`}
       >
-        <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 gap-3">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 gap-3">
           {/* Left: System Logo & Name */}
           <div className="flex items-center shrink-0">
             {adminMode ? (
               <Link href="/Admin" className="flex items-center space-x-2.5 group">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative shrink-0">
+                <div className="w-8 h-8 md:w-9 md:h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative shrink-0">
                   {config.logoUrl && !imgError ? (
                     <Image
                       src={config.logoUrl}
@@ -266,26 +369,27 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                       unoptimized
                       referrerPolicy="no-referrer"
                       className="object-cover"
-                      sizes="(max-width: 640px) 28px, (max-width: 768px) 32px, 36px"
+                      sizes="36px"
                       onError={() => setImgError(true)}
                     />
                   ) : (
-                    <span className="text-primary-foreground font-bold text-xs sm:text-sm">
+                    <span className="text-primary-foreground font-bold text-sm">
                       {config.logoText || config.systemName?.charAt(0) || "N"}
                     </span>
                   )}
                 </div>
-                <span className="font-bold text-lg sm:text-xl tracking-tight text-foreground">
+                <span className="font-bold text-xl tracking-tight text-foreground">
                   {config.systemName || "Navo"}
                 </span>
               </Link>
             ) : (
               <button
                 type="button"
+                disabled={isExamActive}
                 onClick={() => handleStudentNavigate("home")}
-                className="flex items-center space-x-2.5 text-left group cursor-pointer"
+                className="flex items-center space-x-2.5 text-left group cursor-pointer disabled:pointer-events-none"
               >
-                <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative shrink-0">
+                <div className="w-8 h-8 md:w-9 md:h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative shrink-0">
                   {config.logoUrl && !imgError ? (
                     <Image
                       src={config.logoUrl}
@@ -294,26 +398,26 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                       unoptimized
                       referrerPolicy="no-referrer"
                       className="object-cover"
-                      sizes="(max-width: 640px) 28px, (max-width: 768px) 32px, 36px"
+                      sizes="36px"
                       onError={() => setImgError(true)}
                     />
                   ) : (
-                    <span className="text-primary-foreground font-bold text-xs sm:text-sm">
+                    <span className="text-primary-foreground font-bold text-sm">
                       {config.logoText || config.systemName?.charAt(0) || "N"}
                     </span>
                   )}
                 </div>
-                <span className="font-bold text-lg sm:text-xl tracking-tight text-foreground">
+                <span className="font-bold text-xl tracking-tight text-foreground">
                   {config.systemName || "Navo"}
                 </span>
               </button>
             )}
           </div>
 
-          {/* Center: Desktop / Tablet Navigation Links (hidden on small devices) */}
+          {/* Center: Desktop / Tablet Navigation Links */}
           <nav
             aria-label="Main Navigation"
-            className="hidden md:flex items-center gap-1 lg:gap-1.5 overflow-x-auto no-scrollbar py-1"
+            className="flex items-center gap-1 lg:gap-1.5 overflow-x-auto no-scrollbar py-1"
           >
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -361,8 +465,9 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                 <button
                   key={item.id}
                   type="button"
+                  disabled={isExamActive}
                   onClick={() => item.view && handleStudentNavigate(item.view)}
-                  className="group relative flex items-center gap-1.5 px-3 lg:px-3.5 py-2 rounded-xl transition-all hover:bg-muted/60 cursor-pointer"
+                  className="group relative flex items-center gap-1.5 px-3 lg:px-3.5 py-2 rounded-xl transition-all hover:bg-muted/60 cursor-pointer disabled:pointer-events-none"
                 >
                   {content}
                 </button>
@@ -382,14 +487,17 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
         </div>
       </header>
 
-      {/* Small Devices Bottom Navigation Bar */}
-      {!isChatActive && (
+      {/* Small Devices Fixed Bottom Navigation Bar (Includes Nav Items + Notifications + User Menu) */}
+      {!isChatActive && !isExamActive && (
         <nav
           aria-label="Mobile Bottom Navigation"
+          aria-hidden={isExamActive}
           dir={isRTL ? "rtl" : "ltr"}
-          className="fixed bottom-0 left-0 right-0 z-50 md:hidden premium-glass-panel border-t pb-[env(safe-area-inset-bottom)]"
+          className={`fixed bottom-0 left-0 right-0 z-50 md:hidden premium-glass-panel border-t pb-[env(safe-area-inset-bottom)] transition-opacity ${
+            isExamActive ? "pointer-events-none opacity-0 invisible select-none" : ""
+          }`}
         >
-          <div className="flex items-center justify-around h-16 px-1.5 max-w-lg mx-auto">
+          <div className="flex items-center justify-around h-16 px-1 max-w-lg mx-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
               const mobileContent = (
@@ -402,7 +510,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                     />
                   )}
                   <div
-                    className={`flex items-center justify-center w-9 h-7 rounded-full transition-colors ${
+                    className={`flex items-center justify-center w-8 h-7 rounded-full transition-colors ${
                       item.isActive
                         ? "bg-primary/15 text-primary"
                         : "text-muted-foreground group-hover:text-foreground"
@@ -411,7 +519,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                     <Icon className="h-4 w-4 shrink-0" />
                   </div>
                   <span
-                    className={`text-[10px] leading-tight truncate max-w-[60px] transition-colors ${
+                    className={`text-[10px] leading-tight truncate max-w-[54px] transition-colors ${
                       item.isActive
                         ? "font-semibold text-primary"
                         : "font-medium text-muted-foreground"
@@ -438,13 +546,24 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                 <button
                   key={item.id}
                   type="button"
+                  disabled={isExamActive}
                   onClick={() => item.view && handleStudentNavigate(item.view)}
-                  className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-0 cursor-pointer"
+                  className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-0 cursor-pointer disabled:pointer-events-none"
                 >
                   {mobileContent}
                 </button>
               );
             })}
+
+            {/* Mobile Notifications & User Profile in Bottom Bar */}
+            <div className="flex items-center gap-1 pl-1 pr-1.5 border-l border-border/50 h-10 shrink-0">
+              <div className="flex items-center justify-center">
+                <NotificationsDropdown />
+              </div>
+              <div className="flex items-center justify-center">
+                <FloatingUserSettings user={user} onMobile adminMode={adminMode} />
+              </div>
+            </div>
           </div>
         </nav>
       )}

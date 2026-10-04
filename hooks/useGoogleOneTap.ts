@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
   GOOGLE_CLIENT_ID,
@@ -9,6 +10,10 @@ import {
   isOneTapDismissed,
   markGisInitialized,
 } from "@/lib/auth/google";
+
+// Prevent duplicate simultaneous prompt calls when multiple GoogleOneTap
+// components are mounted at the same time (e.g. global + page-level).
+let activePromptOwnerId: symbol | null = null;
 
 export interface UseGoogleOneTapOptions {
   /**
@@ -50,14 +55,16 @@ export interface UseGoogleOneTapOptions {
 export function useGoogleOneTap({
   onCredential,
   enabled = true,
-  promptDelayMs = 1200,
+  promptDelayMs = 600,
   alwaysPrompt = false,
 }: UseGoogleOneTapOptions) {
   const { user, loading: authLoading } = useAuth();
+  const pathname = usePathname();
   const [googleReady, setGoogleReady] = useState(false);
   const [scriptError, setScriptError] = useState<string | null>(null);
   const [isPrompting, setIsPrompting] = useState(false);
   const onCredentialRef = useRef(onCredential);
+  const instanceIdRef = useRef<symbol>(Symbol("google-one-tap"));
   // Raw nonce generated for this initialization. Google receives the
   // SHA-256 hash of this value via `initialize({ nonce })` and embeds the
   // hash in the issued ID token. Supabase receives the raw value via
@@ -78,6 +85,12 @@ export function useGoogleOneTap({
       setScriptError("Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID");
       return;
     }
+
+    const instanceId = instanceIdRef.current;
+    if (activePromptOwnerId && activePromptOwnerId !== instanceId) {
+      return;
+    }
+    activePromptOwnerId = instanceId;
 
     let cancelled = false;
 
@@ -102,8 +115,6 @@ export function useGoogleOneTap({
           .map((b) => b.toString(16).padStart(2, "0"))
           .join("");
 
-        const isInIframe = typeof window !== "undefined" && window.self !== window.top;
-
         window.google!.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: (response) => {
@@ -117,14 +128,15 @@ export function useGoogleOneTap({
           ux_mode: "popup",
           // Forward the hashed nonce so Google includes it in the ID token.
           nonce: hashedNonce,
-          // Only enable FedCM when not inside an iframe (in an iframe, FedCM rejects with
-          // 'The identity-credentials-get feature is not enabled in this document')
-          use_fedcm_for_prompt: !isInIframe,
+          // Explicitly disable FedCM so GIS never calls navigator.credentials.get()
+          // in iframe/preview environments where 'identity-credentials-get' is disallowed.
+          use_fedcm_for_prompt: false,
+          use_fedcm_for_button: false,
           // Enable One Tap on browsers with Intelligent Tracking Prevention
           // (Safari/iOS). Without this, One Tap is silently suppressed on
           // Safari mobile where ITP blocks third-party cookies.
           itp_support: true,
-        });
+        } as any);
 
         if (!cancelled) {
           setGoogleReady(true);
@@ -144,6 +156,9 @@ export function useGoogleOneTap({
 
     return () => {
       cancelled = true;
+      if (activePromptOwnerId === instanceId) {
+        activePromptOwnerId = null;
+      }
     };
   }, [enabled]);
 
@@ -153,9 +168,13 @@ export function useGoogleOneTap({
   // `window.google.accounts.id` undefined on remount, preventing the prompt.
   // The script is a singleton that is safe to keep for the page lifetime.
   useEffect(() => {
+    const instanceId = instanceIdRef.current;
     return () => {
-      if (typeof window !== "undefined" && window.google?.accounts?.id) {
-        window.google.accounts.id.cancel();
+      if (activePromptOwnerId === instanceId) {
+        activePromptOwnerId = null;
+        if (typeof window !== "undefined" && window.google?.accounts?.id) {
+          window.google.accounts.id.cancel();
+        }
       }
     };
   }, []);
@@ -164,37 +183,61 @@ export function useGoogleOneTap({
   useEffect(() => {
     if (!enabled || !googleReady || authLoading || user) return;
     if (typeof window === "undefined") return;
+    if (activePromptOwnerId !== instanceIdRef.current) return;
     // In alwaysPrompt mode we ignore our own cooldown; Google's internal
     // cooldown still applies and will surface as a skip moment.
     if (!alwaysPrompt && isOneTapDismissed()) return;
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
+    let retryTimer: ReturnType<typeof setTimeout>;
 
-    const schedulePrompt = (delayMs: number) => {
+    const clearGoogleSuppressionCookie = () => {
+      try {
+        // Clear Google's client-side g_state suppression cookie if present so
+        // alwaysPrompt can show the One Tap popup after sign-out or reload.
+        document.cookie = "g_state=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      } catch {
+        // Ignore cookie errors
+      }
+    };
+
+    const schedulePrompt = (delayMs: number, isRetry = false) => {
       timer = setTimeout(() => {
         if (cancelled || user) return;
+        if (!window.google?.accounts?.id) return;
 
-        const isInIframe = typeof window !== "undefined" && window.self !== window.top;
-        if (isInIframe) {
-          // Skip automated One Tap prompt inside sandboxed or restricted iframes
-          return;
+        if (alwaysPrompt) {
+          clearGoogleSuppressionCookie();
         }
 
         try {
-          // With FedCM enabled, only isDismissedMoment() is reliably called.
-          // isSkippedMoment() may still fire but without a reason, and
-          // isDisplayMoment() is no longer called at all. We keep the callback
-          // solely to record user dismissals for our cooldown.
-          window.google!.accounts.id.prompt((notification) => {
+          window.google.accounts.id.prompt((notification) => {
             if (cancelled) return;
 
             if (notification.isDismissedMoment()) {
-              // Real user dismissal — record our cooldown so other pages
-              // (and this page on a later visit) respect it.
-              recordOneTapDismissed();
+              const reason = notification.getDismissedReason?.();
+              // Only record cooldown if the user explicitly closed the prompt,
+              // not when credential_returned or cancel_called happens.
+              if (reason !== "credential_returned" && reason !== "cancel_called") {
+                recordOneTapDismissed();
+              }
               setIsPrompting(false);
               return;
+            }
+
+            if (
+              alwaysPrompt &&
+              !isRetry &&
+              (notification.isNotDisplayed?.() || notification.isSkippedMoment?.())
+            ) {
+              // Retry once after clearing suppression state if One Tap was skipped transiently
+              clearGoogleSuppressionCookie();
+              retryTimer = setTimeout(() => {
+                if (!cancelled && !user) {
+                  schedulePrompt(200, true);
+                }
+              }, 1200);
             }
 
             setIsPrompting(false);
@@ -213,6 +256,7 @@ export function useGoogleOneTap({
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      clearTimeout(retryTimer);
     };
   }, [
     enabled,
@@ -221,6 +265,7 @@ export function useGoogleOneTap({
     user,
     promptDelayMs,
     alwaysPrompt,
+    pathname,
   ]);
 
   // Cancel the prompt as soon as the user authenticates.

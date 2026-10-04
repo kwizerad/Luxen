@@ -19,7 +19,7 @@ export default function Page() {
           <SignUpForm />
         </div>
         <div className="flex justify-center pt-4">
-          <GoogleOneTap />
+          <GoogleOneTap alwaysPrompt />
         </div>
       </div>
     </main>

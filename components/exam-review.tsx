@@ -30,7 +30,16 @@ import {
   Award,
   Crown,
   Loader2,
+  BarChart3,
+  Eye,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import type { ExamAttempt, ExamAnswer, ExamQuestion } from "@/lib/database.types";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +73,7 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
   const [filter, setFilter] = useState<FilterType>("all");
   const [groupData, setGroupData] = useState<{ challenge: any; leaderboard: any[] } | null>(null);
   const [loadingGroup, setLoadingGroup] = useState(false);
+  const [showSummaryPopout, setShowSummaryPopout] = useState(false);
 
   const effectiveChallengeId =
     challengeId ||
@@ -180,7 +190,16 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
           <h1 className="text-xl sm:text-3xl font-bold brand-protected">{t("examResults")}</h1>
           <p className="text-muted-foreground mt-1 text-xs sm:text-sm">{t("yourPerformanceSummary")}</p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setShowSummaryPopout(true)}
+            className="gap-1.5 shadow-xs"
+          >
+            <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span>{t("examDetails.examSummary") || "Exam Summary"}</span>
+          </Button>
           {!effectiveChallengeId && (
             <Button variant="outline" size="sm" onClick={onRetake}>
               <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
@@ -221,352 +240,384 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
 
       {/* No Questions Answered Banner */}
       {hasNoAnswers && !isCheating && (
-        <div className="mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 border-amber-500/30 bg-amber-500/5 flex items-center gap-4 sm:gap-6">
-          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
-            <UserX className="h-6 w-6 sm:h-7 sm:w-7 text-amber-500" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base sm:text-xl font-bold text-amber-600 dark:text-amber-400">
-              {t("noQuestionsAnsweredTitle")}
-            </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              {t("noQuestionsAnsweredExplanation")}
-            </p>
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
-              <Badge variant="secondary" className="text-[10px] sm:text-xs">
-                <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                {examResult.category_name}
-              </Badge>
-              {isAutoSubmitted && (
-                <Badge variant="secondary" className="text-[10px] sm:text-xs text-muted-foreground italic">
-                  {examResult.submission_reason === "page_closed" ? t("autoSubmittedPageClosed") : t("autoSubmittedTimeExpired")}
+        <div className="mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 border-amber-500/30 bg-amber-500/5 flex items-center justify-between gap-4 sm:gap-6 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-4 sm:gap-6 min-w-0 flex-1">
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
+              <UserX className="h-6 w-6 sm:h-7 sm:w-7 text-amber-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base sm:text-xl font-bold text-amber-600 dark:text-amber-400">
+                {t("noQuestionsAnsweredTitle")}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                {t("noQuestionsAnsweredExplanation")}
+              </p>
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                  <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                  {examResult.category_name}
                 </Badge>
-              )}
+                {isAutoSubmitted && (
+                  <Badge variant="secondary" className="text-[10px] sm:text-xs text-muted-foreground italic">
+                    {examResult.submission_reason === "page_closed" ? t("autoSubmittedPageClosed") : t("autoSubmittedTimeExpired")}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSummaryPopout(true)}
+            className="gap-1.5 shrink-0 border-amber-500/40 hover:bg-amber-500/10"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            <span>{t("examDetails.examSummary") || "View Summary"}</span>
+          </Button>
         </div>
       )}
 
       {/* Cheating / Forced Violation Banner */}
       {isCheating && (
-        <div className="mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 border-orange-500/30 bg-orange-500/5 flex items-center gap-4 sm:gap-6">
-          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full bg-orange-500/10">
-            <ShieldAlert className="h-6 w-6 sm:h-7 sm:w-7 text-orange-500" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base sm:text-xl font-bold text-orange-600 dark:text-orange-400">
-              {t("examSubmittedDueToCheating")}
-            </h2>
-            {(() => {
-              const sum = (examResult.violation_summary || "").toLowerCase();
-              let specificReason = "";
-              if (sum.includes("tab_switch") || sum.includes("blur") || sum.includes("tab")) {
-                specificReason = t("forcedTabSwitch") || "Forced submission: Tab switching detected";
-              } else if (sum.includes("fullscreen")) {
-                specificReason = t("forcedFullscreen") || "Forced submission: Fullscreen exited";
-              } else if (sum.includes("dev_tools") || sum.includes("inspect")) {
-                specificReason = t("forcedDevTools") || "Forced submission: Developer tools detected";
-              } else if (sum.includes("copy") || sum.includes("paste")) {
-                specificReason = t("forcedCopyPaste") || "Forced submission: Copy/paste detected";
-              } else {
-                specificReason = t("forcedSecurityViolation") || "Forced submission: Security rule violation";
-              }
-              return (
-                <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 mt-1 font-semibold flex items-center gap-1.5">
-                  <span>{specificReason}</span>
-                </p>
-              );
-            })()}
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
-              <Badge variant="secondary" className="text-[10px] sm:text-xs">
-                <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                {examResult.category_name}
-              </Badge>
-              <Badge variant="secondary" className="text-[10px] sm:text-xs">
-                <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                {formatTime(examResult.duration_seconds)}
-              </Badge>
+        <div className="mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 border-orange-500/30 bg-orange-500/5 flex items-center justify-between gap-4 sm:gap-6 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-4 sm:gap-6 min-w-0 flex-1">
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full bg-orange-500/10">
+              <ShieldAlert className="h-6 w-6 sm:h-7 sm:w-7 text-orange-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base sm:text-xl font-bold text-orange-600 dark:text-orange-400">
+                {t("examSubmittedDueToCheating")}
+              </h2>
+              {(() => {
+                const sum = (examResult.violation_summary || "").toLowerCase();
+                let specificReason = "";
+                if (sum.includes("tab_switch") || sum.includes("blur") || sum.includes("tab")) {
+                  specificReason = t("forcedTabSwitch") || "Forced submission: Tab switching detected";
+                } else if (sum.includes("fullscreen")) {
+                  specificReason = t("forcedFullscreen") || "Forced submission: Fullscreen exited";
+                } else if (sum.includes("dev_tools") || sum.includes("inspect")) {
+                  specificReason = t("forcedDevTools") || "Forced submission: Developer tools detected";
+                } else if (sum.includes("copy") || sum.includes("paste")) {
+                  specificReason = t("forcedCopyPaste") || "Forced submission: Copy/paste detected";
+                } else {
+                  specificReason = t("forcedSecurityViolation") || "Forced submission: Security rule violation";
+                }
+                return (
+                  <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 mt-1 font-semibold flex items-center gap-1.5">
+                    <span>{specificReason}</span>
+                  </p>
+                );
+              })()}
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                  <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                  {examResult.category_name}
+                </Badge>
+                <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                  <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                  {formatTime(examResult.duration_seconds)}
+                </Badge>
+              </div>
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSummaryPopout(true)}
+            className="gap-1.5 shrink-0 border-orange-500/40 hover:bg-orange-500/10"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            <span>{t("examDetails.examSummary") || "View Summary"}</span>
+          </Button>
         </div>
       )}
 
-      {/* Compact Stats Grid - Single Horizontal Line on all screens */}
-      <div className="grid grid-cols-4 gap-1.5 sm:gap-3 mb-4 sm:mb-6">
-        <div className="text-center py-2 px-1 sm:py-3 sm:px-3 bg-card border rounded-lg sm:rounded-xl shadow-2xs">
-          <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500 mx-auto mb-0.5" />
-          <div className="text-sm sm:text-xl font-bold text-emerald-600 dark:text-emerald-400 leading-tight">{examResult.correct_answers}</div>
-          <div className="text-[9px] sm:text-xs text-muted-foreground mt-0.5 truncate">{t("correct") || "Correct"}</div>
-        </div>
-        <div className="text-center py-2 px-1 sm:py-3 sm:px-3 bg-card border rounded-lg sm:rounded-xl shadow-2xs">
-          <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-rose-500 mx-auto mb-0.5" />
-          <div className="text-sm sm:text-xl font-bold text-rose-600 dark:text-rose-400 leading-tight">
-            {examResult.total_questions - examResult.correct_answers - unansweredCount}
-          </div>
-          <div className="text-[9px] sm:text-xs text-muted-foreground mt-0.5 truncate">{t("incorrect") || "Incorrect"}</div>
-        </div>
-        <div className="text-center py-2 px-1 sm:py-3 sm:px-3 bg-card border rounded-lg sm:rounded-xl shadow-2xs">
-          <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-500 mx-auto mb-0.5" />
-          <div className="text-sm sm:text-xl font-bold text-amber-500 leading-tight">{unansweredCount}</div>
-          <div className="text-[9px] sm:text-xs text-muted-foreground mt-0.5 truncate">{t("examDetails.unanswered") || "Unanswered"}</div>
-        </div>
-        <div className="text-center py-2 px-1 sm:py-3 sm:px-3 bg-card border rounded-lg sm:rounded-xl shadow-2xs">
-          <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary mx-auto mb-0.5" />
-          <div className="text-sm sm:text-xl font-bold text-primary leading-tight">{accuracy}%</div>
-          <div className="text-[9px] sm:text-xs text-muted-foreground mt-0.5 truncate">{t("examDetails.accuracy") || "Accuracy"}</div>
-        </div>
-      </div>
+      {/* Popout Card Modal for Exam Stats & Summary */}
+      <Dialog open={showSummaryPopout} onOpenChange={setShowSummaryPopout}>
+        <DialogContent className="max-w-3xl w-[95vw] sm:w-full max-h-[88vh] overflow-y-auto p-0 rounded-[18px] sm:rounded-[24px] border-primary/20 shadow-2xl">
+          <DialogHeader className="p-4 sm:p-6 bg-muted/20 border-b">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-bold">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              {t("examDetails.examSummary")}
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
+              {t("examDetails.reviewMode")}
+            </DialogDescription>
+          </DialogHeader>
 
-      {/* Exam Details Card */}
-      <Card className="border-primary/20 rounded-[14px] sm:rounded-[24px] mb-4 sm:mb-6 overflow-hidden">
-        <CardHeader className="p-3 sm:p-6 bg-muted/10 border-b">
-          <CardTitle className="flex items-center gap-2 text-sm sm:text-base font-bold">
-            <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
-            {t("examDetails.examSummary")}
-          </CardTitle>
-          <CardDescription className="text-[11px] sm:text-sm">
-            {t("examDetails.reviewMode")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6 space-y-6">
-          {/* Main Key Exam Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
-            <div className="p-2.5 rounded-lg bg-muted/30">
-              <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.category")}</span>
-              <p className="font-semibold text-foreground truncate mt-0.5">{examResult.category_name}</p>
-            </div>
-            <div className="p-2.5 rounded-lg bg-muted/30">
-              <span className="text-muted-foreground block text-[11px] font-medium">{t("completedOn")}</span>
-              <p className="font-semibold text-foreground mt-0.5">
-                {examResult.completed_at ? new Date(examResult.completed_at).toLocaleDateString() : "—"}
-              </p>
-            </div>
-            <div className="p-2.5 rounded-lg bg-muted/30">
-              <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.duration")}</span>
-              <p className="font-semibold text-foreground mt-0.5">{formatTime(examResult.duration_seconds)}</p>
-            </div>
-            <div className="p-2.5 rounded-lg bg-muted/30">
-              <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.avgTimePerQuestion")}</span>
-              <p className="font-semibold text-foreground mt-0.5">{formatTime(avgTimePerQuestion)}</p>
-            </div>
-            <div className="p-2.5 rounded-lg bg-muted/30">
-              <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.status")}</span>
-              <p className="font-semibold text-foreground mt-0.5">
-                {isAbandoned ? t("examDetails.abandoned") : t("examDetails.completed")}
-              </p>
-            </div>
-            <div className="p-2.5 rounded-lg bg-muted/30">
-              <span className="text-muted-foreground block text-[11px] font-medium">{t("score")}</span>
-              <p className={cn("font-bold mt-0.5", getScoreColor(examResult.score_percentage))}>
-                {examResult.score_percentage}% ({examResult.correct_answers}/{examResult.total_questions} {t("marks") || "marks"})
-              </p>
-            </div>
-            <div className="p-2.5 rounded-lg bg-muted/30">
-              <span className="text-muted-foreground block text-[11px] font-medium">{t("questions")}</span>
-              <p className="font-semibold text-foreground mt-0.5">{examResult.total_questions}</p>
-            </div>
-            <div className="p-2.5 rounded-lg bg-muted/30">
-              <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.accuracy")}</span>
-              <p className="font-semibold text-foreground mt-0.5">{accuracy}%</p>
-            </div>
-          </div>
-
-          {/* All Participants Summary (Group Exam Specific) */}
-          {groupData?.leaderboard && groupData.leaderboard.length > 0 && (
-            <div className="pt-4 border-t space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                    <Users className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
-                      <span>{t("allParticipantsSummary") || "All Participants' Exam Summary"}</span>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-semibold bg-primary/5 text-primary border-primary/20">
-                        {groupData.leaderboard.length} {t("participants") || "Participants"}
-                      </Badge>
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground">
-                      {t("allParticipantsSummaryDesc") || "Comprehensive marks, rankings, scores, and completion metrics for everyone in this group exam"}
-                    </p>
-                  </div>
+          <div className="p-4 sm:p-6 space-y-5">
+            {/* Compact Stats Grid inside Popout */}
+            <div className="grid grid-cols-4 gap-2 sm:gap-3">
+              <div className="text-center py-2.5 px-1.5 sm:py-3 sm:px-3 bg-card border rounded-xl shadow-2xs">
+                <CheckCircle className="h-4 w-4 text-emerald-500 mx-auto mb-1" />
+                <div className="text-base sm:text-xl font-bold text-emerald-600 dark:text-emerald-400 leading-tight">
+                  {examResult.correct_answers}
+                </div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
+                  {t("correct") || "Correct"}
                 </div>
               </div>
-
-              {/* Participants Comparison Table / List */}
-              <div className="overflow-x-auto rounded-xl border border-border/80 bg-background/50">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b bg-muted/40 text-muted-foreground font-semibold">
-                      <th className="py-2.5 px-3 w-12 text-center">#</th>
-                      <th className="py-2.5 px-3">{t("participantName") || "Participant"}</th>
-                      <th className="py-2.5 px-3 text-center">{t("marksAndRankings") || "Marks & Score"}</th>
-                      <th className="py-2.5 px-3 text-center">{t("timeTaken") || "Time Taken"}</th>
-                      <th className="py-2.5 px-3 text-center">{t("examDetails.status") || "Status"}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60">
-                    {groupData.leaderboard.map((entry, idx) => {
-                      const isCurrentUser = entry.user_id === examResult.user_id;
-                      const scorePct =
-                        entry.score_percentage !== undefined && entry.score_percentage !== null
-                          ? entry.score_percentage
-                          : entry.score !== null && entry.total_questions
-                          ? Math.round((entry.score / entry.total_questions) * 100)
-                          : 0;
-                      const passed = scorePct >= passingPercentage;
-                      const isWinner = idx === 0;
-
-                      return (
-                        <tr
-                          key={entry.user_id || idx}
-                          className={cn(
-                            "transition-colors",
-                            isCurrentUser
-                              ? "bg-primary/10 font-medium"
-                              : isWinner
-                              ? "bg-amber-500/5"
-                              : "hover:bg-muted/30"
-                          )}
-                        >
-                          {/* Rank */}
-                          <td className="py-2.5 px-3 text-center font-bold">
-                            {idx === 0 ? (
-                              <span className="text-base" title="1st Place Winner">🥇</span>
-                            ) : idx === 1 ? (
-                              <span className="text-base" title="2nd Place">🥈</span>
-                            ) : idx === 2 ? (
-                              <span className="text-base" title="3rd Place">🥉</span>
-                            ) : (
-                              <span className="text-muted-foreground">#{idx + 1}</span>
-                            )}
-                          </td>
-
-                          {/* Participant Name & Avatar */}
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-2.5">
-                              <Avatar className="h-7 w-7 shrink-0 border">
-                                {canViewUserAvatar(entry.avatar_url, entry.user_id, user?.id || examResult.user_id, user?.user_metadata?.role) && entry.avatar_url && (
-                                  <AvatarImage src={entry.avatar_url} />
-                                )}
-                                <AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px]">
-                                  {(entry.full_name || entry.username || "?")[0].toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-semibold text-foreground truncate max-w-[140px] sm:max-w-[220px]">
-                                    {entry.full_name || entry.username || "Participant"}
-                                  </span>
-                                  {isCurrentUser && (
-                                    <Badge className="text-[9px] py-0 px-1 bg-primary text-primary-foreground font-bold shrink-0">
-                                      {t("you") || "You"}
-                                    </Badge>
-                                  )}
-                                  {isWinner && (
-                                    <Badge className="text-[9px] py-0 px-1 bg-amber-500 text-white font-bold shrink-0 flex items-center gap-0.5">
-                                      <Crown className="h-2 w-2" />
-                                      <span>{t("winner") || "Winner"}</span>
-                                    </Badge>
-                                  )}
-                                </div>
-                                {entry.username && (
-                                  <span className="text-[10px] text-muted-foreground block truncate">@{entry.username}</span>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Marks & Score */}
-                          <td className="py-2.5 px-3 text-center">
-                            {entry.completed || entry.score !== null ? (
-                              <div className="inline-flex flex-col items-center">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-bold text-foreground text-xs sm:text-sm">
-                                    {entry.score ?? 0}/{entry.total_questions ?? examResult.total_questions} {t("marks") || "marks"}
-                                  </span>
-                                  {entry.total_attempts !== undefined && entry.total_attempts > 1 && entry.trend && (
-                                    <span
-                                      className={cn(
-                                        "inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full border shadow-2xs",
-                                        entry.trend === "up"
-                                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                                          : entry.trend === "down"
-                                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                                          : "bg-muted text-muted-foreground border-border"
-                                      )}
-                                      title={
-                                        entry.trend === "up"
-                                          ? `+${entry.trend_diff}% ${t("aboveAverage") || "above average"} (${entry.average_score}%) ${t("across") || "across"} ${entry.total_attempts} ${t("attempts") || "attempts"}`
-                                          : entry.trend === "down"
-                                          ? `${entry.trend_diff}% ${t("belowAverage") || "below average"} (${entry.average_score}%) ${t("across") || "across"} ${entry.total_attempts} ${t("attempts") || "attempts"}`
-                                          : `${t("matchesAverage") || "Matches average"} (${entry.average_score}%)`
-                                      }
-                                    >
-                                      {entry.trend === "up" ? (
-                                        <TrendingUp className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />
-                                      ) : entry.trend === "down" ? (
-                                        <TrendingDown className="h-2.5 w-2.5 text-rose-600 dark:text-rose-400" />
-                                      ) : null}
-                                      <span>
-                                        {entry.trend === "up" ? `+${entry.trend_diff}%` : entry.trend === "down" ? `${entry.trend_diff}%` : "="}
-                                      </span>
-                                    </span>
-                                  )}
-                                </div>
-                                <Badge
-                                  variant="outline"
-                                  className={cn(
-                                    "text-[10px] px-1.5 py-0 font-bold mt-0.5",
-                                    passed
-                                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                                      : "bg-destructive/10 text-destructive border-destructive/30"
-                                  )}
-                                >
-                                  {scorePct}% • {passed ? (t("passed") || "Passed") : (t("failed") || "Failed")}
-                                </Badge>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            )}
-                          </td>
-
-                          {/* Time Taken */}
-                          <td className="py-2.5 px-3 text-center">
-                            <span className="font-medium text-foreground text-xs flex items-center justify-center gap-1">
-                              <Clock className="h-3 w-3 text-muted-foreground" />
-                              {formatTime(entry.duration_seconds)}
-                            </span>
-                          </td>
-
-                          {/* Status */}
-                          <td className="py-2.5 px-3 text-center">
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-[10px] px-2 py-0.5 font-medium",
-                                entry.completed
-                                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
-                                  : entry.status === "in_progress"
-                                  ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
-                                  : "bg-muted text-muted-foreground"
-                              )}
-                            >
-                              {entry.completed ? (t("examDetails.completed") || "Completed") :
-                               entry.status === "in_progress" ? (t("inProgress") || "In Progress") :
-                               (t(entry.status) || entry.status)}
-                            </Badge>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="text-center py-2.5 px-1.5 sm:py-3 sm:px-3 bg-card border rounded-xl shadow-2xs">
+                <XCircle className="h-4 w-4 text-rose-500 mx-auto mb-1" />
+                <div className="text-base sm:text-xl font-bold text-rose-600 dark:text-rose-400 leading-tight">
+                  {examResult.total_questions - examResult.correct_answers - unansweredCount}
+                </div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
+                  {t("incorrect") || "Incorrect"}
+                </div>
+              </div>
+              <div className="text-center py-2.5 px-1.5 sm:py-3 sm:px-3 bg-card border rounded-xl shadow-2xs">
+                <AlertCircle className="h-4 w-4 text-amber-500 mx-auto mb-1" />
+                <div className="text-base sm:text-xl font-bold text-amber-500 leading-tight">
+                  {unansweredCount}
+                </div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
+                  {t("examDetails.unanswered") || "Unanswered"}
+                </div>
+              </div>
+              <div className="text-center py-2.5 px-1.5 sm:py-3 sm:px-3 bg-card border rounded-xl shadow-2xs">
+                <Target className="h-4 w-4 text-primary mx-auto mb-1" />
+                <div className="text-base sm:text-xl font-bold text-primary leading-tight">
+                  {accuracy}%
+                </div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
+                  {t("examDetails.accuracy") || "Accuracy"}
+                </div>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {/* Main Key Exam Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.category")}</span>
+                <p className="font-semibold text-foreground truncate mt-0.5">{examResult.category_name}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[11px] font-medium">{t("completedOn")}</span>
+                <p className="font-semibold text-foreground mt-0.5">
+                  {examResult.completed_at ? new Date(examResult.completed_at).toLocaleDateString() : "—"}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.duration")}</span>
+                <p className="font-semibold text-foreground mt-0.5">{formatTime(examResult.duration_seconds)}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.avgTimePerQuestion")}</span>
+                <p className="font-semibold text-foreground mt-0.5">{formatTime(avgTimePerQuestion)}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.status")}</span>
+                <p className="font-semibold text-foreground mt-0.5">
+                  {isAbandoned ? t("examDetails.abandoned") : t("examDetails.completed")}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[11px] font-medium">{t("score")}</span>
+                <p className={cn("font-bold mt-0.5", getScoreColor(examResult.score_percentage))}>
+                  {examResult.score_percentage}% ({examResult.correct_answers}/{examResult.total_questions} {t("marks") || "marks"})
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[11px] font-medium">{t("questions")}</span>
+                <p className="font-semibold text-foreground mt-0.5">{examResult.total_questions}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.accuracy")}</span>
+                <p className="font-semibold text-foreground mt-0.5">{accuracy}%</p>
+              </div>
+            </div>
+
+            {/* All Participants Summary (Group Exam Specific) */}
+            {groupData?.leaderboard && groupData.leaderboard.length > 0 && (
+              <div className="pt-4 border-t space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                      <Users className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
+                        <span>{t("allParticipantsSummary") || "All Participants' Exam Summary"}</span>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-semibold bg-primary/5 text-primary border-primary/20">
+                          {groupData.leaderboard.length} {t("participants") || "Participants"}
+                        </Badge>
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground">
+                        {t("allParticipantsSummaryDesc") || "Comprehensive marks, rankings, scores, and completion metrics for everyone in this group exam"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Participants Comparison Table / List */}
+                <div className="overflow-x-auto rounded-xl border border-border/80 bg-background/50">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b bg-muted/40 text-muted-foreground font-semibold">
+                        <th className="py-2.5 px-3 w-12 text-center">#</th>
+                        <th className="py-2.5 px-3">{t("participantName") || "Participant"}</th>
+                        <th className="py-2.5 px-3 text-center">{t("marksAndRankings") || "Marks & Score"}</th>
+                        <th className="py-2.5 px-3 text-center">{t("timeTaken") || "Time Taken"}</th>
+                        <th className="py-2.5 px-3 text-center">{t("examDetails.status") || "Status"}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {groupData.leaderboard.map((entry, idx) => {
+                        const isCurrentUser = entry.user_id === examResult.user_id;
+                        const scorePct =
+                          entry.score_percentage !== undefined && entry.score_percentage !== null
+                            ? entry.score_percentage
+                            : entry.score !== null && entry.total_questions
+                            ? Math.round((entry.score / entry.total_questions) * 100)
+                            : 0;
+                        const passed = scorePct >= passingPercentage;
+                        const isWinner = idx === 0;
+
+                        return (
+                          <tr
+                            key={entry.user_id || idx}
+                            className={cn(
+                              "transition-colors",
+                              isCurrentUser
+                                ? "bg-primary/10 font-medium"
+                                : isWinner
+                                ? "bg-amber-500/5"
+                                : "hover:bg-muted/30"
+                            )}
+                          >
+                            {/* Rank */}
+                            <td className="py-2.5 px-3 text-center font-bold">
+                              {idx === 0 ? (
+                                <span className="text-base" title="1st Place Winner">🥇</span>
+                              ) : idx === 1 ? (
+                                <span className="text-base" title="2nd Place">🥈</span>
+                              ) : idx === 2 ? (
+                                <span className="text-base" title="3rd Place">🥉</span>
+                              ) : (
+                                <span className="text-muted-foreground">#{idx + 1}</span>
+                              )}
+                            </td>
+
+                            {/* Participant Name & Avatar */}
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center gap-2.5">
+                                <Avatar className="h-7 w-7 shrink-0 border">
+                                  {canViewUserAvatar(entry.avatar_url, entry.user_id, user?.id || examResult.user_id, user?.user_metadata?.role) && entry.avatar_url && (
+                                    <AvatarImage src={entry.avatar_url} />
+                                  )}
+                                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px]">
+                                    {(entry.full_name || entry.username || "?")[0].toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-semibold text-foreground truncate max-w-[140px] sm:max-w-[220px]">
+                                      {entry.full_name || entry.username || "Participant"}
+                                    </span>
+                                    {isCurrentUser && (
+                                      <Badge className="text-[9px] py-0 px-1 bg-primary text-primary-foreground font-bold shrink-0">
+                                        {t("you") || "You"}
+                                      </Badge>
+                                    )}
+                                    {isWinner && (
+                                      <Badge className="text-[9px] py-0 px-1 bg-amber-500 text-white font-bold shrink-0 flex items-center gap-0.5">
+                                        <Crown className="h-2 w-2" />
+                                        <span>{t("winner") || "Winner"}</span>
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {entry.username && (
+                                    <span className="text-[10px] text-muted-foreground block truncate">@{entry.username}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Marks & Score */}
+                            <td className="py-2.5 px-3 text-center">
+                              {entry.completed || entry.score !== null ? (
+                                <div className="inline-flex flex-col items-center">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-foreground text-xs sm:text-sm">
+                                      {entry.score ?? 0}/{entry.total_questions ?? examResult.total_questions} {t("marks") || "marks"}
+                                    </span>
+                                    {entry.total_attempts !== undefined && entry.total_attempts > 1 && entry.trend && (
+                                      <span
+                                        className={cn(
+                                          "inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full border shadow-2xs",
+                                          entry.trend === "up"
+                                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                            : entry.trend === "down"
+                                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                                            : "bg-muted text-muted-foreground border-border"
+                                        )}
+                                      >
+                                        {entry.trend === "up" ? (
+                                          <TrendingUp className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />
+                                        ) : entry.trend === "down" ? (
+                                          <TrendingDown className="h-2.5 w-2.5 text-rose-600 dark:text-rose-400" />
+                                        ) : null}
+                                        <span>
+                                          {entry.trend === "up" ? `+${entry.trend_diff}%` : entry.trend === "down" ? `${entry.trend_diff}%` : "="}
+                                        </span>
+                                      </span>
+                                    )}
+                                  </div>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "text-[10px] px-1.5 py-0 font-bold mt-0.5",
+                                      passed
+                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                        : "bg-destructive/10 text-destructive border-destructive/30"
+                                    )}
+                                  >
+                                    {scorePct}% • {passed ? (t("passed") || "Passed") : (t("failed") || "Failed")}
+                                  </Badge>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </td>
+
+                            {/* Time Taken */}
+                            <td className="py-2.5 px-3 text-center">
+                              <span className="font-medium text-foreground text-xs flex items-center justify-center gap-1">
+                                <Clock className="h-3 w-3 text-muted-foreground" />
+                                {formatTime(entry.duration_seconds)}
+                              </span>
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-2.5 px-3 text-center">
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-[10px] px-2 py-0.5 font-medium",
+                                  entry.completed
+                                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+                                    : entry.status === "in_progress"
+                                    ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
+                                    : "bg-muted text-muted-foreground"
+                                )}
+                              >
+                                {entry.completed ? (t("examDetails.completed") || "Completed") :
+                                 entry.status === "in_progress" ? (t("inProgress") || "In Progress") :
+                                 (t(entry.status) || entry.status)}
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Filter Tabs & Question Review OR 0 Answered Questions Diagnostic Card */}
       {hasNoAnswers ? (

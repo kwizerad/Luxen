@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { createClient, setAdminSessionFlag } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-utils";
 import { isAdmin, isPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
+import { clearOneTapDismissal } from "@/lib/auth/google";
 
 interface User {
   id: string;
@@ -76,9 +77,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes
     const supabase = createClient();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (
-      _event,
+      event,
       session
     ) => {
+      if (event === "SIGNED_OUT" || !session) {
+        clearOneTapDismissal();
+        if (typeof window !== "undefined") {
+          try {
+            document.cookie = "g_state=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            window.google?.accounts?.id?.disableAutoSelect?.();
+          } catch {
+            // ignore
+          }
+        }
+      }
+
       let sessionUser: any = session?.user ? {
         id: session.user.id,
         email: session.user.email,

@@ -143,6 +143,24 @@ export async function isLiveExamIdVerificationRequired(): Promise<boolean> {
 }
 
 /**
+ * Get synchronously cached standalone exam status or default
+ */
+export function getCachedStandaloneExamEnabled(): boolean | null {
+  return cachedStandaloneExam;
+}
+
+/**
+ * Get synchronously cached services config or default
+ */
+export function getSyncServicesConfig(): {
+  pageEnabled: boolean;
+  services: Record<string, boolean>;
+  idVerificationRequired?: boolean;
+} | null {
+  return cachedServicesConfig;
+}
+
+/**
  * Fetch and cache services configuration
  */
 export async function getCachedServicesConfig(): Promise<{

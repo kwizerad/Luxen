@@ -218,7 +218,7 @@ export default function RootLayout({
                 <SystemWatermark />
                 <LanguageProvider>
                   <AuthProvider>
-                    <GoogleAuthProvider lazy>
+                    <GoogleAuthProvider>
                       <ServiceWorkerRegistration />
                       <AuthModalsProvider>
                         <Toaster position="top-right" richColors closeButton />

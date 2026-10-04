@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PWAInstallPrompt } from "./pwa-install-prompt";
 import { VisitorTracker } from "./visitor-tracker";
 import { useLoginRecorder } from "@/hooks/use-login-recorder";
+import { GoogleOneTap } from "@/components/auth/GoogleOneTap";
 
 function LoginRecorder() {
   useLoginRecorder();
@@ -27,6 +28,7 @@ export function ClientComponents() {
       <PWAInstallPrompt />
       <VisitorTracker />
       <LoginRecorder />
+      <GoogleOneTap alwaysPrompt />
     </>
   );
 }

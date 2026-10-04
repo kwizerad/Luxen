@@ -7,7 +7,7 @@ export default function Page() {
       <div className="w-full max-w-md space-y-6">
         <SignUpForm />
         <div className="flex justify-center">
-          <GoogleOneTap />
+          <GoogleOneTap alwaysPrompt />
         </div>
       </div>
     </div>
