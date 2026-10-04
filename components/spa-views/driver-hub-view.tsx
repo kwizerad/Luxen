@@ -162,7 +162,7 @@ export function DriverHubView({ navigate }: DriverHubViewProps) {
         {activeTab === "exam-code" && <RequestCodeView navigate={navigate} embedded />}
         {activeTab === "register" && (
           <div className="py-4">
-            <RegisterDriverForm onSuccess={() => window.location.reload()} />
+            <RegisterDriverForm onSuccess={() => navigate("driver-panel")} />
           </div>
         )}
       </div>

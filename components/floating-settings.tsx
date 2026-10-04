@@ -53,17 +53,21 @@ export function FloatingSettings() {
 
   useEffect(() => {
     const checkExamActive = () => {
-      const isActive =
-        sessionStorage.getItem("exam-active") === "true" &&
-        (typeof window !== "undefined" && window.location.pathname.startsWith("/dashboard/exam"));
+      const hash = window.location.hash.replace(/^#/, "").split("?")[0];
+      const isHashExam = pathname === "/dashboard" && (hash === "exam" || hash === "exams");
+      const isActive = sessionStorage.getItem("exam-active") === "true" || isHashExam;
       setIsExamActive(isActive);
     };
     checkExamActive();
     window.addEventListener("exam-state-change", checkExamActive);
     window.addEventListener("storage", checkExamActive);
+    window.addEventListener("hashchange", checkExamActive);
+    window.addEventListener("navo-hash-route-change", checkExamActive);
     return () => {
       window.removeEventListener("exam-state-change", checkExamActive);
       window.removeEventListener("storage", checkExamActive);
+      window.removeEventListener("hashchange", checkExamActive);
+      window.removeEventListener("navo-hash-route-change", checkExamActive);
     };
   }, [pathname]);
 

@@ -36,9 +36,11 @@ export function ExamChoiceScreen({
       handler(choice);
     } else {
       if (choice === "individual") {
-        router.push("/dashboard/exam?mode=individual");
+        window.location.hash = "#exam?mode=individual";
+        window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
       } else {
-        router.push("/dashboard/services/live-exam");
+        window.location.hash = "#services/live-exam";
+        window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
       }
     }
   };

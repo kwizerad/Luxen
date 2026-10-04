@@ -177,7 +177,7 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
         const catId = selectedCategory;
         setSelectedCategory("");
         setSelectedInvitees(new Set());
-        window.location.href = `/dashboard/exam?challenge_id=${data.challenge.id}&category_id=${catId}&from=services`;
+        navigate("exam", { challenge_id: data.challenge.id, category_id: catId, from: "services" });
       } else {
         toast.error(data.error || t("failedToCreateChallenge"));
       }

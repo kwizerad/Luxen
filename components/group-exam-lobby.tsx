@@ -486,7 +486,8 @@ export function GroupExamLobby({
             <div className="pt-2 flex flex-col gap-2">
               <Button
                 onClick={() => {
-                  window.location.href = `/dashboard#classmates/group-results?id=${challengeId}`;
+                  window.location.hash = `#classmates/group-results?id=${encodeURIComponent(challengeId)}`;
+                  window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
                 }}
                 className="w-full h-11 rounded-xl text-xs font-bold bg-primary text-primary-foreground gap-2"
               >

@@ -19,6 +19,22 @@ function parseHash(): HashRoute {
   const intended = sessionStorage.getItem("intended-dashboard-view");
   let raw = window.location.hash.replace(/^#/, "");
 
+  if (!raw && window.location.search) {
+    const searchParams = new URLSearchParams(window.location.search);
+    const viewParam = searchParams.get("view");
+    if (viewParam) {
+      searchParams.delete("view");
+      const rest = searchParams.toString();
+      const mappedView = viewParam === "exams" ? "exam" : viewParam;
+      raw = rest ? `${mappedView}?${rest}` : mappedView;
+      try {
+        window.history.replaceState(null, "", `/dashboard#${raw}`);
+      } catch {
+        window.location.hash = raw;
+      }
+    }
+  }
+
   if (!raw && intended) {
     raw = intended;
     sessionStorage.removeItem("intended-dashboard-view");

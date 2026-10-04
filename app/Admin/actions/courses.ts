@@ -137,7 +137,7 @@ export async function updateCourse(
           title: "New Course Available",
           message: `The course "${data.title}" is now available.`,
           priority: "normal",
-          action_url: "/dashboard/course",
+          action_url: "/dashboard#course",
           related_entity_type: "course",
           related_entity_id: id,
         });
@@ -456,7 +456,7 @@ export async function updateModule(
           title: "New Module Available",
           message: `A new module "${data.title}" has been published.`,
           priority: "normal",
-          action_url: "/dashboard/course",
+          action_url: "/dashboard#course",
           related_entity_type: "module",
           related_entity_id: id,
         });
@@ -660,7 +660,7 @@ export async function updateLesson(
           title: "New Lesson Available",
           message: `A new lesson "${data.title}" has been published.`,
           priority: "low",
-          action_url: "/dashboard/course",
+          action_url: "/dashboard#course",
           related_entity_type: "lesson",
           related_entity_id: id,
         });

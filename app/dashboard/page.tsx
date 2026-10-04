@@ -22,6 +22,9 @@ import { DriverHubView } from "@/components/spa-views/driver-hub-view";
 import { ClassmatesView } from "@/components/spa-views/classmates-view";
 import { GroupExamView } from "@/components/spa-views/group-exam-view";
 import { GroupExamResultsView } from "@/components/group-exam-results-view";
+import { ExamView } from "@/components/spa-views/exam-view";
+import { ChatListView } from "@/components/spa-views/chat-list-view";
+import { ChatConversationView } from "@/components/spa-views/chat-conversation-view";
 
 export default function DashboardPage() {
   const { view, params, navigate } = useHashRouter();
@@ -30,6 +33,9 @@ export default function DashboardPage() {
     switch (view) {
       case "home":
         return <HomeView navigate={navigate} />;
+      case "exam":
+      case "exams":
+        return <ExamView navigate={navigate} params={params} />;
       case "course":
         return <CourseView navigate={navigate} params={params} />;
       case "services":
@@ -58,6 +64,14 @@ export default function DashboardPage() {
         return <DriverBookingsView navigate={navigate} />;
       case "driver-panel/training-log":
         return <TrainingLogView navigate={navigate} />;
+      case "my-training":
+        return <StudentTrainingView navigate={navigate} />;
+      case "my-reports":
+        return <MyReportsView navigate={navigate} />;
+      case "chat":
+        return <ChatListView navigate={navigate} />;
+      case "chat/conversation":
+        return <ChatConversationView navigate={navigate} params={params} />;
       case "classmates":
         return <ClassmatesView navigate={navigate} />;
       case "classmates/group-results":

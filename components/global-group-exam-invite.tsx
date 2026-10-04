@@ -184,7 +184,12 @@ export function GlobalGroupExamInvite() {
         const categoryId = activeInvite.category_id;
         dismissedIdsRef.current.add(challengeId);
         setActiveInvite(null);
-        router.push(`/dashboard/exam?challenge_id=${challengeId}&category_id=${categoryId}`);
+        if (pathname === "/dashboard") {
+          window.location.hash = `#exam?challenge_id=${encodeURIComponent(challengeId)}&category_id=${encodeURIComponent(categoryId || "")}`;
+          window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
+        } else {
+          router.push(`/dashboard#exam?challenge_id=${encodeURIComponent(challengeId)}&category_id=${encodeURIComponent(categoryId || "")}`);
+        }
       } else {
         const data = await res.json();
         toast.error(data.error || t("failedToRespond") || "Failed to join");

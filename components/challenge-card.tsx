@@ -157,7 +157,12 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
 
   const handleJoin = async () => {
     await callApi(`/api/exam-challenges/${challenge.id}/join`);
-    window.location.href = `/dashboard/exam?challenge_id=${challenge.id}&category_id=${challenge.category_id}`;
+    if (navigate) {
+      navigate("exam", { challenge_id: challenge.id, category_id: challenge.category_id });
+    } else if (typeof window !== "undefined") {
+      window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}`;
+      window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
+    }
   };
   const handleDeny = () => callApi(`/api/exam-challenges/${challenge.id}/deny`);
   const handleCancelChallenge = async () => {
@@ -179,8 +184,12 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
   };
 
   const handleStartExam = () => {
-    const url = `/dashboard/exam?challenge_id=${challenge.id}&category_id=${challenge.category_id}`;
-    window.location.href = url;
+    if (navigate) {
+      navigate("exam", { challenge_id: challenge.id, category_id: challenge.category_id });
+    } else if (typeof window !== "undefined") {
+      window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}`;
+      window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
+    }
   };
 
   const handleViewResults = () => {

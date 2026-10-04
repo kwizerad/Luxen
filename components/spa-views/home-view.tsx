@@ -198,7 +198,7 @@ export function HomeView({ navigate }: HomeViewProps) {
       }
       if (accept) {
         toast.success(t("invitationAccepted") || "Wemeye ubutumire! Winjiye mu kizamini.");
-        window.location.href = `/dashboard/exam?challenge_id=${challengeId}&category_id=${categoryId}&from=dashboard`;
+        navigate("exam", { challenge_id: challengeId, category_id: categoryId, from: "dashboard" });
       } else {
         toast.info(t("invitationDeclined") || "Ubutumire bwanzwe.");
         fetchGroupChallenges();
@@ -911,7 +911,11 @@ export function HomeView({ navigate }: HomeViewProps) {
                         <Button
                           size="sm"
                           onClick={() => {
-                            window.location.href = `/dashboard/exam?challenge_id=${challenge.id}&category_id=${challenge.category_id}&from=dashboard`;
+                            navigate("exam", {
+                              challenge_id: challenge.id,
+                              category_id: challenge.category_id,
+                              from: "dashboard",
+                            });
                           }}
                           className="h-8 rounded-md text-xs font-semibold bg-primary text-primary-foreground gap-1.5 px-3.5"
                         >
@@ -1097,7 +1101,7 @@ export function HomeView({ navigate }: HomeViewProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      router.push("/dashboard/exam");
+                      navigate("exam");
                     }}
                     className="inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-semibold text-sm shadow-sm hover:shadow transition-all"
                   >
@@ -1399,7 +1403,7 @@ export function HomeView({ navigate }: HomeViewProps) {
                 <div className="pt-2">
                   <Button
                     size="sm"
-                    onClick={() => router.push("/dashboard/exam")}
+                    onClick={() => navigate("exam")}
                     className="rounded-xl font-semibold text-xs gap-1.5 shadow-sm"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />

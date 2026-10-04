@@ -257,10 +257,34 @@ export function NotificationsDropdown() {
 
   const handleNotificationClick = async (notification: Notification) => {
     await markAsRead(notification.id);
+    setOpen(false);
     
     // Navigate to action URL if provided
     if (notification.action_url) {
-      window.location.href = notification.action_url;
+      const url = notification.action_url;
+      if (typeof window !== "undefined" && window.location.pathname === "/dashboard" && url.startsWith("/dashboard")) {
+        if (url.includes("#")) {
+          const hashPart = url.slice(url.indexOf("#"));
+          window.location.hash = hashPart;
+        } else if (url.startsWith("/dashboard/exam")) {
+          const qIdx = url.indexOf("?");
+          window.location.hash = qIdx !== -1 ? `#exam${url.slice(qIdx)}` : "#exam";
+        } else if (url.startsWith("/dashboard/course")) {
+          const qIdx = url.indexOf("?");
+          window.location.hash = qIdx !== -1 ? `#course${url.slice(qIdx)}` : "#course";
+        } else if (url.startsWith("/dashboard/services/live-exam")) {
+          window.location.hash = "#services/live-exam";
+        } else if (url.startsWith("/dashboard/services")) {
+          window.location.hash = "#services";
+        } else if (url.startsWith("/dashboard/settings")) {
+          window.location.hash = "#settings";
+        } else {
+          window.location.hash = "#home";
+        }
+        window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
+        return;
+      }
+      window.location.href = url;
     }
   };
 

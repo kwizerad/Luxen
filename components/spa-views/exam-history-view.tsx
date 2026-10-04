@@ -1128,9 +1128,10 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                   </div>
                   <button
                     onClick={() => {
-                      window.location.href = `/dashboard/exam?challenge_id=${challenge.id}&category_id=${
-                        challenge.category_id || ""
-                      }`;
+                      navigate("exam", {
+                        challenge_id: challenge.id,
+                        category_id: challenge.category_id || "",
+                      });
                     }}
                     className="w-full sm:w-auto px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity shrink-0 flex items-center justify-center gap-1.5"
                   >

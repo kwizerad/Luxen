@@ -148,7 +148,8 @@ function ChatExamInviteBanner({
                 setActing(true);
                 try {
                   await onRespond(challenge.id, true);
-                  window.location.href = `/dashboard/exam?challenge_id=${challenge.id}&category_id=${challenge.category_id}&from=classmates`;
+                  window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}&from=classmates`;
+                  window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
                 } finally {
                   setActing(false);
                 }
@@ -209,7 +210,8 @@ function ChatExamInviteBanner({
         <Button
           size="sm"
           onClick={() => {
-            window.location.href = `/dashboard/exam?challenge_id=${challenge.id}&category_id=${challenge.category_id}&from=classmates`;
+            window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}&from=classmates`;
+            window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
           }}
           className="h-8 px-3.5 text-xs font-bold self-end sm:self-auto shrink-0 bg-primary text-primary-foreground shadow-sm"
         >
@@ -233,7 +235,8 @@ function ChatExamInviteBanner({
         <Button
           size="sm"
           onClick={() => {
-            window.location.href = `/dashboard/exam?challenge_id=${challenge.id}&category_id=${challenge.category_id}&from=classmates`;
+            window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}&from=classmates`;
+            window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
           }}
           className="h-7 px-3 text-xs font-bold bg-green-600 hover:bg-green-700 text-white shrink-0"
         >
@@ -345,7 +348,7 @@ function ExamInvitationsContent({
         toast.success(accept ? (t("invitationAccepted") || "Invitation accepted") : (t("invitationDeclined") || "Invitation declined"));
         await fetchChallenges();
         if (accept) {
-          window.location.href = `/dashboard/exam?challenge_id=${challengeId}&category_id=${categoryId || ""}`;
+          navigate("exam", { challenge_id: challengeId, category_id: categoryId || "", from: "classmates" });
         }
       } else {
         const data = await res.json();
@@ -879,7 +882,11 @@ function ExamInvitationsContent({
                           <Button
                             size="sm"
                             onClick={() => {
-                              window.location.href = `/dashboard/exam?challenge_id=${challenge.id}&category_id=${challenge.category_id}&from=classmates`;
+                              navigate("exam", {
+                                challenge_id: challenge.id,
+                                category_id: challenge.category_id || "",
+                                from: "classmates",
+                              });
                             }}
                             className="flex-1 h-9 rounded-xl text-xs font-bold bg-primary text-primary-foreground shadow-sm gap-1.5 transition-all"
                           >
@@ -912,7 +919,11 @@ function ExamInvitationsContent({
                           <Button
                             size="sm"
                             onClick={() => {
-                              window.location.href = `/dashboard/exam?challenge_id=${challenge.id}&category_id=${challenge.category_id}&from=classmates`;
+                              navigate("exam", {
+                                challenge_id: challenge.id,
+                                category_id: challenge.category_id || "",
+                                from: "classmates",
+                              });
                             }}
                             className="flex-1 h-9 rounded-xl text-xs font-bold bg-primary text-primary-foreground shadow-sm gap-1.5 transition-all"
                           >
@@ -975,7 +986,11 @@ function ExamInvitationsContent({
                         <Button
                           size="sm"
                           onClick={() => {
-                            window.location.href = `/dashboard/exam?challenge_id=${challenge.id}&category_id=${challenge.category_id}&from=classmates`;
+                            navigate("exam", {
+                              challenge_id: challenge.id,
+                              category_id: challenge.category_id || "",
+                              from: "classmates",
+                            });
                           }}
                           className="w-full h-9 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm gap-1.5 transition-all"
                         >
@@ -1995,7 +2010,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         const catId = selectedCategory;
         setSelectedCategory("");
         setSelectedInvitees(new Set());
-        window.location.href = `/dashboard/exam?challenge_id=${data.challenge.id}&category_id=${catId}&from=classmates`;
+        navigate("exam", { challenge_id: data.challenge.id, category_id: catId, from: "classmates" });
       } else {
         toast.error(data.error || t("failedToCreateChallenge"));
       }
