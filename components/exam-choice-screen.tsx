@@ -65,7 +65,7 @@ export function ExamChoiceScreen({
 
           <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 text-[11px] font-mono font-medium">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>RNP Syllabus Active</span>
+            <span>Navo PVS</span>
           </div>
         </div>
 

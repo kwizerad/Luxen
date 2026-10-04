@@ -6,7 +6,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { isPrimaryAdmin } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth-context";
 import { useBrandingConfig } from "@/lib/branding-config";
-import { DockNav } from "@/components/dock-nav";
 import { FloatingHeader } from "@/components/floating-header";
 import { useLanguage } from "@/lib/language-context";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
@@ -91,11 +90,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="flex-1 w-full min-w-0 pt-4 sm:pt-6 md:pt-7">
         {children}
       </main>
-
-      {/* Bottom Navigation (hidden during active exam and active chat to prevent blocking Next/Previous controls) */}
-      {!isChatActive && !isExamInProgress && (
-        <DockNav hide={isChatActive || isExamInProgress} />
-      )}
     </div>
   );
 }

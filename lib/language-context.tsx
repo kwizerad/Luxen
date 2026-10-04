@@ -31,26 +31,29 @@ const ALL_LANGUAGES = [
   { value: "Kinyarwanda", label: "Kinyarwanda", flag: "🇷🇼", configKey: "kinyarwanda" },
 ];
 
-// Get default system name from localStorage or fallback to "Navo"
+// Get default system name from localStorage or fallback to "Navo PVS"
 const getDefaultSystemName = (): string => {
-  if (typeof window === "undefined") return "Navo";
+  if (typeof window === "undefined") return "Navo PVS";
   const saved = localStorage.getItem("navo-branding-config");
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      return parsed.systemName || "Navo";
+      if (parsed.systemName && parsed.systemName !== "Navo") {
+        return parsed.systemName;
+      }
+      return "Navo PVS";
     } catch {
-      return "Navo";
+      return "Navo PVS";
     }
   }
-  return "Navo";
+  return "Navo PVS";
 };
 
 const LANGUAGE_STORAGE_KEY = "navo-language";
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>("English");
-  const [systemName, setSystemName] = useState<string>("Navo");
+  const [systemName, setSystemName] = useState<string>("Navo PVS");
   const [mounted, setMounted] = useState(false);
   const [availableLanguages, setAvailableLanguages] = useState(ALL_LANGUAGES.map(l => ({ value: l.value, label: l.label, flag: l.flag })));
 
@@ -144,7 +147,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const t = useCallback((key: string): string => {
     if (key === "navo") {
-      return mounted ? systemName : "Navo";
+      return mounted ? systemName : "Navo PVS";
     }
     const langTranslations = translations[effectiveLanguage] || translations["English"];
     return langTranslations[key] || translations["English"][key] || key;

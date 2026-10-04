@@ -17,7 +17,6 @@ import { isAdmin, isPrimaryAdmin as checkIsPrimaryAdmin } from "@/lib/permission
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
 import { useLoginRecorder } from "@/hooks/use-login-recorder";
 import { FloatingHeader } from "@/components/floating-header";
-import { AdminDockNav } from "@/components/admin-dock-nav";
 import { useThemeConfig } from "@/lib/theme-config";
 import { ViewTransition } from "@/components/spa-views/view-transition";
 import { usePathname } from "next/navigation";
@@ -170,21 +169,18 @@ export default function AdminLayout({
       {/* Floating header (profile avatar + notifications) */}
       <FloatingHeader adminMode />
 
-      {/* Admin layout: bottom nav only */}
+      {/* Admin layout */}
       <div className="admin-shell">
         {/* Main content area */}
         <div className="admin-content">
           {/* Page content */}
-          <main className="flex-1 pb-28">
+          <main className="flex-1 pb-10">
             <ViewTransition viewKey={pathname}>
               {children}
             </ViewTransition>
           </main>
         </div>
       </div>
-
-      {/* Bottom navigation — Dock */}
-      <AdminDockNav user={user} isPrimaryAdmin={isPrimaryAdmin} />
 
       {/* Password Change Modal */}
       {showPasswordChange && (

@@ -198,7 +198,7 @@ export function CourseTranslationStatusView({ onOpenStudioCourse }: CourseTransl
     setStartingJob(true);
     try {
       const fullRes = await loadFullCourse(srcSummary.id);
-      if (!fullRes.success || !fullRes.data) {
+      if (!fullRes.success) {
         throw new Error(fullRes.error || "Failed to load full source course structure.");
       }
       const fullSourceCourse = fullCourseToUI(fullRes.data);
