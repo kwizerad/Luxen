@@ -22,38 +22,35 @@ export function loadGoogleIdentityScript(): Promise<void> {
     return Promise.resolve();
   }
 
-  // Prevent GIS from throwing NotAllowedError when 'identity-credentials-get'
-  // is disabled by Permissions-Policy (e.g., inside preview iframes).
+  // Silence noisy GSI_LOGGER FedCM warnings in environments where
+  // 'identity-credentials-get' is restricted by iframe Permissions-Policy.
   try {
-    const isIframe = (() => {
-      try {
-        return window.self !== window.top;
-      } catch {
-        return true;
-      }
-    })();
-    const policyAllowsFedCM =
-      typeof (document as any).featurePolicy?.allowsFeature === "function"
-        ? (document as any).featurePolicy.allowsFeature("identity-credentials-get")
-        : typeof (document as any).permissionsPolicy?.allowsFeature === "function"
-        ? (document as any).permissionsPolicy.allowsFeature("identity-credentials-get")
-        : !isIframe;
-
-    if ((!policyAllowsFedCM || isIframe) && typeof navigator !== "undefined" && navigator.credentials?.get) {
-      const origGet = navigator.credentials.get.bind(navigator.credentials);
-      if (!(navigator.credentials.get as any).__fedcm_guarded) {
-        const guardedGet = function (options?: CredentialRequestOptions) {
-          if (options && "identity" in options) {
-            return Promise.resolve(null);
-          }
-          return origGet(options);
-        };
-        (guardedGet as any).__fedcm_guarded = true;
-        navigator.credentials.get = guardedGet;
-      }
+    const origError = console.error;
+    const origWarn = console.warn;
+    if (!(origError as any).__gsi_filtered) {
+      const filteredError = function (...args: any[]) {
+        const first = typeof args[0] === "string" ? args[0] : "";
+        if (first.includes("[GSI_LOGGER]") && first.includes("FedCM")) {
+          return;
+        }
+        return origError.apply(console, args);
+      };
+      (filteredError as any).__gsi_filtered = true;
+      console.error = filteredError;
+    }
+    if (!(origWarn as any).__gsi_filtered) {
+      const filteredWarn = function (...args: any[]) {
+        const first = typeof args[0] === "string" ? args[0] : "";
+        if (first.includes("[GSI_LOGGER]") && first.includes("FedCM")) {
+          return;
+        }
+        return origWarn.apply(console, args);
+      };
+      (filteredWarn as any).__gsi_filtered = true;
+      console.warn = filteredWarn;
     }
   } catch {
-    // Ignore if navigator.credentials is read-only
+    // Ignore console override restrictions
   }
 
   if (window.google?.accounts?.id) {

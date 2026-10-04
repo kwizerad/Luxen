@@ -117,7 +117,7 @@ export function useGoogleOneTap({
 
         window.google!.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
-          callback: (response) => {
+          callback: (response: { credential?: string }) => {
             if (response?.credential) {
               onCredentialRef.current(response.credential, rawNonceRef.current);
             }
@@ -131,12 +131,11 @@ export function useGoogleOneTap({
           // Explicitly disable FedCM so GIS never calls navigator.credentials.get()
           // in iframe/preview environments where 'identity-credentials-get' is disallowed.
           use_fedcm_for_prompt: false,
-          use_fedcm_for_button: false,
           // Enable One Tap on browsers with Intelligent Tracking Prevention
           // (Safari/iOS). Without this, One Tap is silently suppressed on
           // Safari mobile where ITP blocks third-party cookies.
           itp_support: true,
-        } as any);
+        });
 
         if (!cancelled) {
           setGoogleReady(true);
@@ -206,6 +205,27 @@ export function useGoogleOneTap({
       timer = setTimeout(() => {
         if (cancelled || user) return;
         if (!window.google?.accounts?.id) return;
+
+        // If running inside an iframe where 'identity-credentials-get' is disallowed by
+        // Permissions-Policy, Google's GIS prompt() will attempt FedCM and reject.
+        // In that case, rely on the rendered Google Sign-In button instead of One Tap popup.
+        const isIframe = (() => {
+          try {
+            return window.self !== window.top;
+          } catch {
+            return true;
+          }
+        })();
+        const policyAllowsFedCM =
+          typeof (document as any).featurePolicy?.allowsFeature === "function"
+            ? (document as any).featurePolicy.allowsFeature("identity-credentials-get")
+            : typeof (document as any).permissionsPolicy?.allowsFeature === "function"
+            ? (document as any).permissionsPolicy.allowsFeature("identity-credentials-get")
+            : !isIframe;
+
+        if (isIframe && !policyAllowsFedCM) {
+          return;
+        }
 
         if (alwaysPrompt) {
           clearGoogleSuppressionCookie();
