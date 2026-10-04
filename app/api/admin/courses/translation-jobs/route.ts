@@ -32,6 +32,18 @@ export interface TranslationJobRecord {
   moduleTitle?: string;
   lessonTitle?: string;
   topicTitle?: string;
+  moduleIndex?: number;
+  lessonIndex?: number;
+  topicIndex?: number;
+  checkpoint?: {
+    moduleIndex: number;
+    lessonIndex: number;
+    topicIndex: number;
+    targetModuleId?: string;
+    targetLessonId?: string;
+    translatedModuleTitle?: string;
+    translatedLessonTitle?: string;
+  };
   status: "running" | "completed" | "failed" | "cancelled";
   progressPercent: number;
   completedSteps: number;

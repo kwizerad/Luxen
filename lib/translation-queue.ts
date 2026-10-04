@@ -10,11 +10,13 @@ export type { TranslationJobRecord, TranslationStepLog };
 type Listener = (jobs: TranslationJobRecord[]) => void;
 
 const STORAGE_KEY = "navo_translation_jobs_cache_v1";
+const STEP_TIMEOUT_MS = 180_000; // 3 minutes per step max to prevent infinite hangs
 
 class TranslationQueueManager {
   private jobs: TranslationJobRecord[] = [];
   private listeners: Set<Listener> = new Set();
   private cancelledIds: Set<string> = new Set();
+  private abortControllers: Map<string, AbortController> = new Map();
   private loadedFromServer = false;
 
   constructor() {
@@ -65,11 +67,10 @@ class TranslationQueueManager {
         const data = await res.json();
         if (Array.isArray(data.jobs)) {
           this.loadedFromServer = true;
-          // Merge running local jobs with server jobs so active in-memory progress is never overwritten by a slightly older server snapshot
           const serverJobs: TranslationJobRecord[] = data.jobs;
           const localRunningMap = new Map<string, TranslationJobRecord>();
           for (const j of this.jobs) {
-            if (j.status === "running") {
+            if (j.status === "running" && this.abortControllers.has(j.id)) {
               localRunningMap.set(j.id, j);
             }
           }
@@ -84,13 +85,14 @@ class TranslationQueueManager {
 
           for (const sj of serverJobs) {
             if (!seen.has(sj.id)) {
-              // If server says running, but it's not in our localRunningMap and hasn't been updated in > 5 minutes, mark it failed/interrupted
+              // If server says running, but it's not actively running in our browser memory and hasn't updated in > 2 minutes, mark cancelled/interrupted so user can click Continue
               if (
                 sj.status === "running" &&
-                Date.now() - new Date(sj.updatedAt || sj.startedAt).getTime() > 5 * 60 * 1000
+                !this.abortControllers.has(sj.id) &&
+                Date.now() - new Date(sj.updatedAt || sj.startedAt).getTime() > 2 * 60 * 1000
               ) {
-                sj.status = "failed";
-                sj.error = "Translation interrupted (browser session closed or timed out)";
+                sj.status = "cancelled";
+                sj.currentStepMessage = "Translation paused / interrupted — click Continue to resume";
               }
               merged.push(sj);
               seen.add(sj.id);
@@ -128,20 +130,34 @@ class TranslationQueueManager {
 
   public cancelJob(jobId: string) {
     this.cancelledIds.add(jobId);
+    const controller = this.abortControllers.get(jobId);
+    if (controller) {
+      try {
+        controller.abort();
+      } catch {}
+      this.abortControllers.delete(jobId);
+    }
     const job = this.jobs.find((j) => j.id === jobId);
     if (job && job.status === "running") {
       job.status = "cancelled";
-      job.currentStepMessage = "Cancelled by administrator";
+      job.currentStepMessage = "Paused / Cancelled — click Continue to resume from where it stopped";
       job.completedAt = new Date().toISOString();
       job.durationMs = Date.now() - new Date(job.startedAt).getTime();
       this.notify();
       this.persistJobToServer(job);
-      toast.info(`Cancelled translation: ${job.scopeTitle}`);
+      toast.info(`Translation paused: ${job.scopeTitle}. You can continue anytime.`);
     }
   }
 
   public async deleteJob(jobId: string) {
     this.cancelledIds.add(jobId);
+    const controller = this.abortControllers.get(jobId);
+    if (controller) {
+      try {
+        controller.abort();
+      } catch {}
+      this.abortControllers.delete(jobId);
+    }
     this.jobs = this.jobs.filter((j) => j.id !== jobId);
     this.notify();
     try {
@@ -172,7 +188,12 @@ class TranslationQueueManager {
   private updateJobState(jobId: string, updater: (job: TranslationJobRecord) => void, persist = false) {
     const idx = this.jobs.findIndex((j) => j.id === jobId);
     if (idx === -1) return;
-    const job = { ...this.jobs[idx], steps: [...this.jobs[idx].steps], stats: { ...this.jobs[idx].stats } };
+    const job: TranslationJobRecord = {
+      ...this.jobs[idx],
+      steps: [...this.jobs[idx].steps],
+      stats: { ...this.jobs[idx].stats },
+      checkpoint: this.jobs[idx].checkpoint ? { ...this.jobs[idx].checkpoint! } : undefined,
+    };
     updater(job);
     job.updatedAt = new Date().toISOString();
     job.durationMs = Date.now() - new Date(job.startedAt).getTime();
@@ -180,6 +201,47 @@ class TranslationQueueManager {
     this.notify();
     if (persist) {
       this.persistJobToServer(job);
+    }
+  }
+
+  private async fetchTranslateStep(jobId: string, payload: Record<string, any>) {
+    const jobController = this.abortControllers.get(jobId);
+    const stepController = new AbortController();
+
+    const onJobAbort = () => stepController.abort();
+    if (jobController) {
+      if (jobController.signal.aborted) {
+        throw new Error("CANCELLED_BY_USER");
+      }
+      jobController.signal.addEventListener("abort", onJobAbort, { once: true });
+    }
+
+    const timer = setTimeout(() => {
+      stepController.abort();
+    }, STEP_TIMEOUT_MS);
+
+    try {
+      const res = await fetch("/api/admin/courses/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: stepController.signal,
+      });
+      const data = await this.safeParseResponse(res);
+      return { res, data };
+    } catch (err: any) {
+      if (this.cancelledIds.has(jobId) || jobController?.signal.aborted) {
+        throw new Error("CANCELLED_BY_USER");
+      }
+      if (err?.name === "AbortError") {
+        throw new Error("Step timed out after 3 minutes. Click Continue to resume.");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+      if (jobController) {
+        jobController.signal.removeEventListener("abort", onJobAbort);
+      }
     }
   }
 
@@ -215,9 +277,43 @@ class TranslationQueueManager {
     }
   }
 
+  private calculateTotalSteps(
+    type: "course" | "module" | "lesson" | "topic",
+    sourceCourse: Course,
+    activeModule?: Module | null,
+    activeLesson?: Lesson | null
+  ): number {
+    if (type === "topic") return 1;
+    if (type === "lesson" && activeLesson) {
+      const tCount = activeLesson.topics?.length || 0;
+      return Math.max(1, 1 + tCount); // 1 lesson_meta + each topic
+    }
+    if (type === "module" && activeModule) {
+      const lessons = activeModule.lessons || [];
+      let steps = 1; // module_meta
+      for (const l of lessons) {
+        const tc = l.topics?.length || 0;
+        steps += 1 + tc; // 1 lesson_meta + each topic
+      }
+      return Math.max(1, steps);
+    }
+    if (type === "course") {
+      const modules = sourceCourse.modules || [];
+      let steps = 0;
+      for (const m of modules) {
+        steps += 1; // module_meta
+        for (const l of m.lessons || []) {
+          const tc = l.topics?.length || 0;
+          steps += 1 + tc; // 1 lesson_meta + each topic
+        }
+      }
+      return Math.max(1, steps);
+    }
+    return 1;
+  }
+
   /**
    * Enqueue and immediately start a background translation job (Topic, Lesson, Module, or Whole Course).
-   * Runs asynchronously in the background even if the user switches tabs or edits other courses.
    */
   public startTranslationJob(params: {
     type: "course" | "module" | "lesson" | "topic";
@@ -245,7 +341,6 @@ class TranslationQueueManager {
       moduleIndex = 0,
       lessonIndex = 0,
       topicIndex = 0,
-      onReloadCourses,
       onViewTranslationTab,
     } = params;
 
@@ -253,37 +348,17 @@ class TranslationQueueManager {
     const now = new Date().toISOString();
 
     let scopeTitle = sourceCourse.title;
-    let totalSteps = 1;
-
     if (type === "topic" && activeTopic) {
       scopeTitle = activeTopic.title;
-      totalSteps = 1;
     } else if (type === "lesson" && activeLesson) {
       scopeTitle = activeLesson.title;
-      const tCount = activeLesson.topics?.length || 0;
-      totalSteps = tCount > 3 ? tCount : 1;
     } else if (type === "module" && activeModule) {
       scopeTitle = activeModule.title;
-      const lessons = activeModule.lessons || [];
-      let steps = 1; // module header
-      for (const l of lessons) {
-        const tc = l.topics?.length || 0;
-        steps += tc > 3 ? tc : 1;
-      }
-      totalSteps = Math.max(1, steps);
     } else if (type === "course") {
       scopeTitle = `${sourceCourse.title} (${sourceCourse.language} → ${targetLang})`;
-      const modules = sourceCourse.modules || [];
-      let steps = 0;
-      for (const m of modules) {
-        steps += 1; // module_meta
-        for (const l of m.lessons || []) {
-          const tc = l.topics?.length || 0;
-          steps += tc > 3 ? tc : 1;
-        }
-      }
-      totalSteps = Math.max(1, steps);
     }
+
+    const totalSteps = this.calculateTotalSteps(type, sourceCourse, activeModule, activeLesson);
 
     const newJob: TranslationJobRecord = {
       id: jobId,
@@ -296,6 +371,14 @@ class TranslationQueueManager {
       moduleTitle: activeModule?.title,
       lessonTitle: activeLesson?.title,
       topicTitle: activeTopic?.title,
+      moduleIndex,
+      lessonIndex,
+      topicIndex,
+      checkpoint: {
+        moduleIndex: type === "course" ? 0 : moduleIndex,
+        lessonIndex: type === "course" || type === "module" ? 0 : lessonIndex,
+        topicIndex: type === "topic" ? topicIndex : 0,
+      },
       status: "running",
       progressPercent: 0,
       completedSteps: 0,
@@ -312,6 +395,8 @@ class TranslationQueueManager {
       steps: [],
     };
 
+    this.cancelledIds.delete(jobId);
+    this.abortControllers.set(jobId, new AbortController());
     this.jobs.unshift(newJob);
     this.notify();
     this.persistJobToServer(newJob);
@@ -330,12 +415,93 @@ class TranslationQueueManager {
       }
     );
 
-    // Run job asynchronously without blocking UI
     this.runJobInternal(newJob.id, params).catch((err) => {
       console.error("Background translation unhandled error:", err);
     });
 
     return newJob;
+  }
+
+  /**
+   * Resumes a cancelled or failed translation job from its exact checkpoint without re-translating already finished lessons/topics.
+   */
+  public resumeTranslationJob(
+    jobId: string,
+    params: {
+      sourceCourse: Course;
+      targetCourse: Course;
+      onReloadCourses?: (targetCourseId?: string) => void;
+      onViewTranslationTab?: () => void;
+    }
+  ): TranslationJobRecord | null {
+    const job = this.jobs.find((j) => j.id === jobId);
+    if (!job) return null;
+
+    const { sourceCourse, targetCourse, onReloadCourses, onViewTranslationTab } = params;
+    const modIdx = job.checkpoint?.moduleIndex ?? job.moduleIndex ?? 0;
+    const lesIdx = job.checkpoint?.lessonIndex ?? job.lessonIndex ?? 0;
+    const topIdx = job.checkpoint?.topicIndex ?? job.topicIndex ?? 0;
+
+    const activeModule =
+      sourceCourse.modules?.[modIdx] ||
+      sourceCourse.modules?.find((m) => m.title === job.moduleTitle) ||
+      sourceCourse.modules?.[0] ||
+      null;
+    const activeLesson =
+      activeModule?.lessons?.[lesIdx] ||
+      activeModule?.lessons?.find((l) => l.title === job.lessonTitle) ||
+      activeModule?.lessons?.[0] ||
+      null;
+    const activeTopic =
+      activeLesson?.topics?.[topIdx] ||
+      activeLesson?.topics?.find((t) => t.title === job.topicTitle) ||
+      activeLesson?.topics?.[0] ||
+      null;
+
+    this.cancelledIds.delete(jobId);
+    this.abortControllers.set(jobId, new AbortController());
+
+    const totalSteps = this.calculateTotalSteps(job.type, sourceCourse, activeModule, activeLesson);
+
+    this.updateJobState(
+      jobId,
+      (j) => {
+        j.status = "running";
+        j.error = undefined;
+        j.completedAt = undefined;
+        j.totalSteps = Math.max(j.totalSteps, totalSteps);
+        j.currentStepMessage = `Resuming ${j.type} translation into ${this.getLanguageLabel(j.targetLang)}...`;
+      },
+      true
+    );
+
+    toast.info(`Resuming translation: "${job.scopeTitle}"`, {
+      description: "Continuing from the last completed step in background.",
+      duration: 5000,
+    });
+
+    this.runJobInternal(
+      jobId,
+      {
+        type: job.type,
+        sourceCourse,
+        targetCourse,
+        targetLang: job.targetLang as "English" | "French" | "Kinyarwanda",
+        activeModule,
+        activeLesson,
+        activeTopic,
+        moduleIndex: job.moduleIndex ?? modIdx,
+        lessonIndex: job.lessonIndex ?? lesIdx,
+        topicIndex: job.topicIndex ?? topIdx,
+        onReloadCourses,
+        onViewTranslationTab,
+      },
+      true
+    ).catch((err) => {
+      console.error("Resume translation unhandled error:", err);
+    });
+
+    return this.jobs.find((j) => j.id === jobId) || null;
   }
 
   private async runJobInternal(
@@ -354,7 +520,8 @@ class TranslationQueueManager {
       onReloadCourses?: (targetCourseId?: string) => void;
       onSelectCourse?: (courseId: string) => void;
       onViewTranslationTab?: () => void;
-    }
+    },
+    isResuming = false
   ) {
     const {
       type,
@@ -402,6 +569,11 @@ class TranslationQueueManager {
       );
     };
 
+    const currentJob = this.jobs.find((j) => j.id === jobId);
+    const resumeModIdx = isResuming ? (currentJob?.checkpoint?.moduleIndex ?? 0) : 0;
+    const resumeLesIdx = isResuming ? (currentJob?.checkpoint?.lessonIndex ?? 0) : 0;
+    const resumeTopIdx = isResuming ? (currentJob?.checkpoint?.topicIndex ?? 0) : 0;
+
     try {
       // =========================================================================
       // CASE 1: TOPIC TRANSLATION
@@ -412,31 +584,26 @@ class TranslationQueueManager {
           j.currentStepMessage = `Translating topic "${activeTopic.title}"...`;
         });
 
-        const res = await fetch("/api/admin/courses/translate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "topic",
-            sourceLang: sourceCourse.language,
-            targetLang,
-            topic: {
-              id: activeTopic.id,
-              title: activeTopic.title,
-              content: activeTopic.content,
-            },
-            saveToDatabase: Boolean(targetCourse),
-            targetCourseId: targetCourse?.id,
-            sourceCourseId: sourceCourse.id,
-            sourceModuleIndex: Math.max(0, moduleIndex),
-            sourceLessonIndex: Math.max(0, lessonIndex),
-            sourceTopicIndex: Math.max(0, topicIndex),
-            sourceModuleTitle: activeModule?.title || undefined,
-            sourceModuleDescription: activeModule?.description || undefined,
-            sourceLessonTitle: activeLesson?.title || undefined,
-          }),
+        const { res, data } = await this.fetchTranslateStep(jobId, {
+          type: "topic",
+          sourceLang: sourceCourse.language,
+          targetLang,
+          topic: {
+            id: activeTopic.id,
+            title: activeTopic.title,
+            content: activeTopic.content,
+          },
+          saveToDatabase: Boolean(targetCourse),
+          targetCourseId: targetCourse?.id,
+          sourceCourseId: sourceCourse.id,
+          sourceModuleIndex: Math.max(0, moduleIndex),
+          sourceLessonIndex: Math.max(0, lessonIndex),
+          sourceTopicIndex: Math.max(0, topicIndex),
+          sourceModuleTitle: activeModule?.title || undefined,
+          sourceModuleDescription: activeModule?.description || undefined,
+          sourceLessonTitle: activeLesson?.title || undefined,
         });
 
-        const data = await this.safeParseResponse(res);
         if (!res.ok || !data.success) {
           throw new Error(data.error || "Topic translation failed");
         }
@@ -465,6 +632,7 @@ class TranslationQueueManager {
           true
         );
 
+        this.abortControllers.delete(jobId);
         this.invalidateCourseCaches(onReloadCourses, targetCourse?.id);
         toast.success(`Background translation complete: "${translatedTitle}"`, {
           action: onViewTranslationTab
@@ -475,136 +643,167 @@ class TranslationQueueManager {
       }
 
       // =========================================================================
-      // CASE 2: LESSON TRANSLATION
+      // CASE 2: LESSON TRANSLATION (Always lesson_meta + topic-by-topic)
       // =========================================================================
       if (type === "lesson" && activeLesson && targetCourse) {
         const topicsList = Array.isArray(activeLesson.topics) ? activeLesson.topics : [];
+        let targetModId = isResuming ? currentJob?.checkpoint?.targetModuleId : undefined;
+        let targetLesId = isResuming ? currentJob?.checkpoint?.targetLessonId : undefined;
+        let transModTitle = isResuming ? currentJob?.checkpoint?.translatedModuleTitle : activeModule?.title;
+        let transLesTitle = isResuming ? currentJob?.checkpoint?.translatedLessonTitle : activeLesson.title;
 
-        if (topicsList.length <= 3) {
-          const stepStart = Date.now();
+        if (!isResuming || resumeTopIdx === 0 || !targetLesId) {
+          const metaStart = Date.now();
           this.updateJobState(jobId, (j) => {
-            j.currentStepMessage = `Translating lesson "${activeLesson.title}" (${topicsList.length} topics)...`;
+            j.currentStepMessage = `Translating lesson header "${activeLesson.title}"...`;
+            j.checkpoint = {
+              moduleIndex: Math.max(0, moduleIndex),
+              lessonIndex: Math.max(0, lessonIndex),
+              topicIndex: 0,
+            };
           });
 
-          const res = await fetch("/api/admin/courses/translate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "lesson",
-              sourceLang: sourceCourse.language,
-              targetLang,
-              lesson: activeLesson,
-              saveToDatabase: true,
-              targetCourseId: targetCourse.id,
-              sourceCourseId: sourceCourse.id,
-              sourceModuleIndex: Math.max(0, moduleIndex),
-              sourceLessonIndex: Math.max(0, lessonIndex),
-              sourceModuleTitle: activeModule?.title || undefined,
-              sourceModuleDescription: activeModule?.description || undefined,
-            }),
+          const { res: metaRes, data: metaData } = await this.fetchTranslateStep(jobId, {
+            type: "lesson_meta",
+            sourceLang: sourceCourse.language,
+            targetLang,
+            lesson: {
+              id: activeLesson.id,
+              title: activeLesson.title,
+              content_type: (activeLesson as any).content_type || "rich_text",
+            },
+            saveToDatabase: true,
+            targetCourseId: targetCourse.id,
+            sourceCourseId: sourceCourse.id,
+            sourceModuleIndex: Math.max(0, moduleIndex),
+            sourceLessonIndex: Math.max(0, lessonIndex),
+            sourceModuleTitle: activeModule?.title || undefined,
+            sourceModuleDescription: activeModule?.description || undefined,
           });
 
-          const data = await this.safeParseResponse(res);
-          if (!res.ok || !data.success) {
-            throw new Error(data.error || "Lesson translation failed");
+          if (!metaRes.ok || !metaData.success) {
+            throw new Error(metaData.error || `Failed translating lesson header "${activeLesson.title}"`);
           }
 
-          const transTitle = data.translatedLesson?.title || activeLesson.title;
+          targetModId = metaData.targetModuleId;
+          targetLesId = metaData.targetLessonId;
+          transModTitle = metaData.translatedModuleTitle || activeModule?.title;
+          transLesTitle = metaData.translatedLessonTitle || activeLesson.title;
+
           recordStep({
             itemType: "lesson",
             sourceTitle: activeLesson.title,
-            translatedTitle: transTitle,
-            moduleTitle: activeModule?.title,
+            translatedTitle: transLesTitle,
+            moduleTitle: transModTitle,
+            status: "completed",
+            durationMs: Date.now() - metaStart,
+          });
+        }
+
+        const startTopic = isResuming ? resumeTopIdx : 0;
+        for (let tIdx = startTopic; tIdx < topicsList.length; tIdx++) {
+          if (isCancelled()) return;
+          const tp = topicsList[tIdx];
+          const stepStart = Date.now();
+
+          this.updateJobState(
+            jobId,
+            (j) => {
+              j.currentStepMessage = `Lesson "${transLesTitle}" • Topic ${tIdx + 1}/${topicsList.length}: "${tp.title}"...`;
+              j.checkpoint = {
+                moduleIndex: Math.max(0, moduleIndex),
+                lessonIndex: Math.max(0, lessonIndex),
+                topicIndex: tIdx,
+                targetModuleId: targetModId,
+                targetLessonId: targetLesId,
+                translatedModuleTitle: transModTitle,
+                translatedLessonTitle: transLesTitle,
+              };
+            },
+            true
+          );
+
+          const { res, data } = await this.fetchTranslateStep(jobId, {
+            type: "topic",
+            sourceLang: sourceCourse.language,
+            targetLang,
+            topic: {
+              id: tp.id,
+              title: tp.title,
+              content: tp.content,
+            },
+            saveToDatabase: true,
+            targetCourseId: targetCourse.id,
+            sourceCourseId: sourceCourse.id,
+            targetModuleId: targetModId,
+            targetLessonId: targetLesId,
+            translatedModuleTitle: transModTitle,
+            translatedLessonTitle: transLesTitle,
+            sourceModuleIndex: Math.max(0, moduleIndex),
+            sourceLessonIndex: Math.max(0, lessonIndex),
+            sourceTopicIndex: tIdx,
+            sourceModuleTitle: activeModule?.title || undefined,
+            sourceModuleDescription: activeModule?.description || undefined,
+            sourceLessonTitle: activeLesson.title,
+          });
+
+          if (!res.ok || !data.success) {
+            recordStep({
+              itemType: "topic",
+              sourceTitle: tp.title,
+              moduleTitle: transModTitle,
+              lessonTitle: transLesTitle,
+              status: "failed",
+              durationMs: Date.now() - stepStart,
+              error: data.error || `Failed translating topic "${tp.title}"`,
+            });
+            throw new Error(data.error || `Failed on topic "${tp.title}"`);
+          }
+
+          recordStep({
+            itemType: "topic",
+            sourceTitle: tp.title,
+            translatedTitle: data.translatedTopic?.title || tp.title,
+            moduleTitle: transModTitle,
+            lessonTitle: transLesTitle,
             status: "completed",
             durationMs: Date.now() - stepStart,
           });
 
-          this.updateJobState(jobId, (j) => {
-            j.stats.lessonsTranslated += 1;
-            j.stats.topicsTranslated += topicsList.length;
-          });
-        } else {
-          for (let tIdx = 0; tIdx < topicsList.length; tIdx++) {
-            if (isCancelled()) return;
-            const tp = topicsList[tIdx];
-            const stepStart = Date.now();
-
-            this.updateJobState(jobId, (j) => {
-              j.currentStepMessage = `Translating topic ${tIdx + 1}/${topicsList.length}: "${tp.title}"...`;
-            });
-
-            const res = await fetch("/api/admin/courses/translate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                type: "topic",
-                sourceLang: sourceCourse.language,
-                targetLang,
-                topic: {
-                  id: tp.id,
-                  title: tp.title,
-                  content: tp.content,
-                },
-                saveToDatabase: true,
-                targetCourseId: targetCourse.id,
-                sourceCourseId: sourceCourse.id,
-                sourceModuleIndex: Math.max(0, moduleIndex),
-                sourceLessonIndex: Math.max(0, lessonIndex),
-                sourceTopicIndex: tIdx,
-                sourceModuleTitle: activeModule?.title || undefined,
-                sourceModuleDescription: activeModule?.description || undefined,
-                sourceLessonTitle: activeLesson.title,
-              }),
-            });
-
-            const data = await this.safeParseResponse(res);
-            if (!res.ok || !data.success) {
-              recordStep({
-                itemType: "topic",
-                sourceTitle: tp.title,
-                moduleTitle: activeModule?.title,
-                lessonTitle: activeLesson.title,
-                status: "failed",
-                durationMs: Date.now() - stepStart,
-                error: data.error || `Failed translating topic "${tp.title}"`,
-              });
-              throw new Error(data.error || `Failed on topic "${tp.title}"`);
-            }
-
-            recordStep({
-              itemType: "topic",
-              sourceTitle: tp.title,
-              translatedTitle: data.translatedTopic?.title || tp.title,
-              moduleTitle: activeModule?.title,
-              lessonTitle: activeLesson.title,
-              status: "completed",
-              durationMs: Date.now() - stepStart,
-            });
-
-            this.updateJobState(jobId, (j) => {
+          this.updateJobState(
+            jobId,
+            (j) => {
               j.stats.topicsTranslated += 1;
-            });
-          }
-
-          this.updateJobState(jobId, (j) => {
-            j.stats.lessonsTranslated += 1;
-          });
+              j.checkpoint = {
+                moduleIndex: Math.max(0, moduleIndex),
+                lessonIndex: Math.max(0, lessonIndex),
+                topicIndex: tIdx + 1,
+                targetModuleId: targetModId,
+                targetLessonId: targetLesId,
+                translatedModuleTitle: transModTitle,
+                translatedLessonTitle: transLesTitle,
+              };
+            },
+            true
+          );
         }
 
         this.updateJobState(
           jobId,
           (j) => {
+            j.stats.lessonsTranslated += 1;
             j.status = "completed";
             j.progressPercent = 100;
             j.completedSteps = j.totalSteps;
             j.completedAt = new Date().toISOString();
-            j.currentStepMessage = `Lesson "${activeLesson.title}" translated into ${this.getLanguageLabel(targetLang)}!`;
+            j.currentStepMessage = `Lesson "${transLesTitle}" translated into ${this.getLanguageLabel(targetLang)}!`;
           },
           true
         );
 
+        this.abortControllers.delete(jobId);
         this.invalidateCourseCaches(onReloadCourses, targetCourse.id);
-        toast.success(`Background translation complete: Lesson "${activeLesson.title}"`, {
+        toast.success(`Background translation complete: Lesson "${transLesTitle}"`, {
           action: onViewTranslationTab
             ? { label: "View Report", onClick: onViewTranslationTab }
             : undefined,
@@ -613,21 +812,26 @@ class TranslationQueueManager {
       }
 
       // =========================================================================
-      // CASE 3: MODULE TRANSLATION
+      // CASE 3: MODULE TRANSLATION (module_meta -> each lesson_meta -> each topic)
       // =========================================================================
       if (type === "module" && activeModule && targetCourse) {
         const modIdx = Math.max(0, moduleIndex);
         const lessonsList = Array.isArray(activeModule.lessons) ? activeModule.lessons : [];
-        const metaStart = Date.now();
+        let targetModId = isResuming ? currentJob?.checkpoint?.targetModuleId : undefined;
+        let transModTitle = isResuming ? (currentJob?.checkpoint?.translatedModuleTitle || activeModule.title) : activeModule.title;
 
-        this.updateJobState(jobId, (j) => {
-          j.currentStepMessage = `Translating module header "${activeModule.title}"...`;
-        });
+        if (!isResuming || (resumeLesIdx === 0 && resumeTopIdx === 0 && !targetModId)) {
+          const metaStart = Date.now();
+          this.updateJobState(jobId, (j) => {
+            j.currentStepMessage = `Translating module header "${activeModule.title}"...`;
+            j.checkpoint = {
+              moduleIndex: modIdx,
+              lessonIndex: 0,
+              topicIndex: 0,
+            };
+          });
 
-        const metaRes = await fetch("/api/admin/courses/translate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          const { res: metaRes, data: metaData } = await this.fetchTranslateStep(jobId, {
             type: "module_meta",
             sourceLang: sourceCourse.language,
             targetLang,
@@ -640,149 +844,216 @@ class TranslationQueueManager {
             targetCourseId: targetCourse.id,
             sourceCourseId: sourceCourse.id,
             sourceModuleIndex: modIdx,
-          }),
-        });
+          });
 
-        const metaData = await this.safeParseResponse(metaRes);
-        if (!metaRes.ok || !metaData.success) {
-          throw new Error(metaData.error || "Module header translation failed");
+          if (!metaRes.ok || !metaData.success) {
+            throw new Error(metaData.error || "Module header translation failed");
+          }
+
+          targetModId = metaData.targetModuleId;
+          transModTitle = metaData.translatedModuleTitle || activeModule.title;
+
+          recordStep({
+            itemType: "module",
+            sourceTitle: activeModule.title,
+            translatedTitle: transModTitle,
+            status: "completed",
+            durationMs: Date.now() - metaStart,
+          });
+
+          this.updateJobState(
+            jobId,
+            (j) => {
+              j.stats.modulesTranslated += 1;
+              j.checkpoint = {
+                moduleIndex: modIdx,
+                lessonIndex: 0,
+                topicIndex: 0,
+                targetModuleId: targetModId,
+                translatedModuleTitle: transModTitle,
+              };
+            },
+            true
+          );
         }
 
-        const transModTitle = metaData.translatedModuleTitle || activeModule.title;
-        recordStep({
-          itemType: "module",
-          sourceTitle: activeModule.title,
-          translatedTitle: transModTitle,
-          status: "completed",
-          durationMs: Date.now() - metaStart,
-        });
-
-        this.updateJobState(jobId, (j) => {
-          j.stats.modulesTranslated += 1;
-        });
-
-        for (let lIdx = 0; lIdx < lessonsList.length; lIdx++) {
+        const startLesson = isResuming ? resumeLesIdx : 0;
+        for (let lIdx = startLesson; lIdx < lessonsList.length; lIdx++) {
           if (isCancelled()) return;
           const les = lessonsList[lIdx];
           const topicsList = Array.isArray(les.topics) ? les.topics : [];
+          const isResumingMidLesson = isResuming && lIdx === startLesson && resumeTopIdx > 0;
 
-          if (topicsList.length <= 3) {
-            const stepStart = Date.now();
-            this.updateJobState(jobId, (j) => {
-              j.currentStepMessage = `Module "${transModTitle}" • Lesson ${lIdx + 1}/${lessonsList.length}: "${les.title}"...`;
+          let targetLesId = isResumingMidLesson ? currentJob?.checkpoint?.targetLessonId : undefined;
+          let transLesTitle = isResumingMidLesson
+            ? (currentJob?.checkpoint?.translatedLessonTitle || les.title)
+            : les.title;
+
+          if (!isResumingMidLesson || !targetLesId) {
+            const lesMetaStart = Date.now();
+            this.updateJobState(
+              jobId,
+              (j) => {
+                j.currentStepMessage = `Module "${transModTitle}" • Preparing Lesson ${lIdx + 1}/${lessonsList.length}: "${les.title}"...`;
+                j.checkpoint = {
+                  moduleIndex: modIdx,
+                  lessonIndex: lIdx,
+                  topicIndex: 0,
+                  targetModuleId: targetModId,
+                  translatedModuleTitle: transModTitle,
+                };
+              },
+              true
+            );
+
+            const { res: lesMetaRes, data: lesMetaData } = await this.fetchTranslateStep(jobId, {
+              type: "lesson_meta",
+              sourceLang: sourceCourse.language,
+              targetLang,
+              lesson: {
+                id: les.id,
+                title: les.title,
+                content_type: (les as any).content_type || "rich_text",
+              },
+              saveToDatabase: true,
+              targetCourseId: targetCourse.id,
+              sourceCourseId: sourceCourse.id,
+              targetModuleId: targetModId,
+              translatedModuleTitle: transModTitle,
+              sourceModuleIndex: modIdx,
+              sourceLessonIndex: lIdx,
+              sourceModuleTitle: activeModule.title,
+              sourceModuleDescription: activeModule.description,
             });
 
-            const lesRes = await fetch("/api/admin/courses/translate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                type: "lesson",
-                sourceLang: sourceCourse.language,
-                targetLang,
-                lesson: les,
-                saveToDatabase: true,
-                targetCourseId: targetCourse.id,
-                sourceCourseId: sourceCourse.id,
-                sourceModuleIndex: modIdx,
-                sourceLessonIndex: lIdx,
-                sourceModuleTitle: activeModule.title,
-                sourceModuleDescription: activeModule.description,
-              }),
-            });
-
-            const lesData = await this.safeParseResponse(lesRes);
-            if (!lesRes.ok || !lesData.success) {
+            if (!lesMetaRes.ok || !lesMetaData.success) {
               recordStep({
                 itemType: "lesson",
                 sourceTitle: les.title,
                 moduleTitle: transModTitle,
                 status: "failed",
-                durationMs: Date.now() - stepStart,
-                error: lesData.error || `Failed translating lesson "${les.title}"`,
+                durationMs: Date.now() - lesMetaStart,
+                error: lesMetaData.error || `Failed translating lesson header "${les.title}"`,
               });
-              throw new Error(lesData.error || `Failed translating lesson "${les.title}"`);
+              throw new Error(lesMetaData.error || `Failed translating lesson header "${les.title}"`);
             }
+
+            targetModId = lesMetaData.targetModuleId || targetModId;
+            targetLesId = lesMetaData.targetLessonId;
+            transLesTitle = lesMetaData.translatedLessonTitle || les.title;
 
             recordStep({
               itemType: "lesson",
               sourceTitle: les.title,
-              translatedTitle: lesData.translatedLesson?.title || les.title,
+              translatedTitle: transLesTitle,
               moduleTitle: transModTitle,
+              status: "completed",
+              durationMs: Date.now() - lesMetaStart,
+            });
+          }
+
+          const startTopic = isResumingMidLesson ? resumeTopIdx : 0;
+          for (let tIdx = startTopic; tIdx < topicsList.length; tIdx++) {
+            if (isCancelled()) return;
+            const tp = topicsList[tIdx];
+            const stepStart = Date.now();
+
+            this.updateJobState(
+              jobId,
+              (j) => {
+                j.currentStepMessage = `Lesson ${lIdx + 1}/${lessonsList.length} ("${transLesTitle}") • Topic ${tIdx + 1}/${topicsList.length}: "${tp.title}"...`;
+                j.checkpoint = {
+                  moduleIndex: modIdx,
+                  lessonIndex: lIdx,
+                  topicIndex: tIdx,
+                  targetModuleId: targetModId,
+                  targetLessonId: targetLesId,
+                  translatedModuleTitle: transModTitle,
+                  translatedLessonTitle: transLesTitle,
+                };
+              },
+              true
+            );
+
+            const { res: tpRes, data: tpData } = await this.fetchTranslateStep(jobId, {
+              type: "topic",
+              sourceLang: sourceCourse.language,
+              targetLang,
+              topic: {
+                id: tp.id,
+                title: tp.title,
+                content: tp.content,
+              },
+              saveToDatabase: true,
+              targetCourseId: targetCourse.id,
+              sourceCourseId: sourceCourse.id,
+              targetModuleId: targetModId,
+              targetLessonId: targetLesId,
+              translatedModuleTitle: transModTitle,
+              translatedLessonTitle: transLesTitle,
+              sourceModuleIndex: modIdx,
+              sourceLessonIndex: lIdx,
+              sourceTopicIndex: tIdx,
+              sourceModuleTitle: activeModule.title,
+              sourceModuleDescription: activeModule.description,
+              sourceLessonTitle: les.title,
+            });
+
+            if (!tpRes.ok || !tpData.success) {
+              recordStep({
+                itemType: "topic",
+                sourceTitle: tp.title,
+                moduleTitle: transModTitle,
+                lessonTitle: transLesTitle,
+                status: "failed",
+                durationMs: Date.now() - stepStart,
+                error: tpData.error || `Failed translating topic "${tp.title}"`,
+              });
+              throw new Error(tpData.error || `Failed translating topic "${tp.title}"`);
+            }
+
+            recordStep({
+              itemType: "topic",
+              sourceTitle: tp.title,
+              translatedTitle: tpData.translatedTopic?.title || tp.title,
+              moduleTitle: transModTitle,
+              lessonTitle: transLesTitle,
               status: "completed",
               durationMs: Date.now() - stepStart,
             });
 
-            this.updateJobState(jobId, (j) => {
-              j.stats.lessonsTranslated += 1;
-              j.stats.topicsTranslated += topicsList.length;
-            });
-          } else {
-            for (let tIdx = 0; tIdx < topicsList.length; tIdx++) {
-              if (isCancelled()) return;
-              const tp = topicsList[tIdx];
-              const stepStart = Date.now();
-
-              this.updateJobState(jobId, (j) => {
-                j.currentStepMessage = `Lesson ${lIdx + 1}/${lessonsList.length} • Topic ${tIdx + 1}/${topicsList.length}: "${tp.title}"...`;
-              });
-
-              const tpRes = await fetch("/api/admin/courses/translate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  type: "topic",
-                  sourceLang: sourceCourse.language,
-                  targetLang,
-                  topic: {
-                    id: tp.id,
-                    title: tp.title,
-                    content: tp.content,
-                  },
-                  saveToDatabase: true,
-                  targetCourseId: targetCourse.id,
-                  sourceCourseId: sourceCourse.id,
-                  sourceModuleIndex: modIdx,
-                  sourceLessonIndex: lIdx,
-                  sourceTopicIndex: tIdx,
-                  sourceModuleTitle: activeModule.title,
-                  sourceModuleDescription: activeModule.description,
-                  sourceLessonTitle: les.title,
-                }),
-              });
-
-              const tpData = await this.safeParseResponse(tpRes);
-              if (!tpRes.ok || !tpData.success) {
-                recordStep({
-                  itemType: "topic",
-                  sourceTitle: tp.title,
-                  moduleTitle: transModTitle,
-                  lessonTitle: les.title,
-                  status: "failed",
-                  durationMs: Date.now() - stepStart,
-                  error: tpData.error || `Failed translating topic "${tp.title}"`,
-                });
-                throw new Error(tpData.error || `Failed translating topic "${tp.title}"`);
-              }
-
-              recordStep({
-                itemType: "topic",
-                sourceTitle: tp.title,
-                translatedTitle: tpData.translatedTopic?.title || tp.title,
-                moduleTitle: transModTitle,
-                lessonTitle: les.title,
-                status: "completed",
-                durationMs: Date.now() - stepStart,
-              });
-
-              this.updateJobState(jobId, (j) => {
+            this.updateJobState(
+              jobId,
+              (j) => {
                 j.stats.topicsTranslated += 1;
-              });
-            }
-
-            this.updateJobState(jobId, (j) => {
-              j.stats.lessonsTranslated += 1;
-            });
+                j.checkpoint = {
+                  moduleIndex: modIdx,
+                  lessonIndex: lIdx,
+                  topicIndex: tIdx + 1,
+                  targetModuleId: targetModId,
+                  targetLessonId: targetLesId,
+                  translatedModuleTitle: transModTitle,
+                  translatedLessonTitle: transLesTitle,
+                };
+              },
+              true
+            );
           }
+
+          this.updateJobState(
+            jobId,
+            (j) => {
+              j.stats.lessonsTranslated += 1;
+              j.checkpoint = {
+                moduleIndex: modIdx,
+                lessonIndex: lIdx + 1,
+                topicIndex: 0,
+                targetModuleId: targetModId,
+                translatedModuleTitle: transModTitle,
+              };
+            },
+            true
+          );
         }
 
         this.updateJobState(
@@ -797,6 +1068,7 @@ class TranslationQueueManager {
           true
         );
 
+        this.abortControllers.delete(jobId);
         this.invalidateCourseCaches(onReloadCourses, targetCourse.id);
         toast.success(`Background translation complete: Module "${transModTitle}"`, {
           action: onViewTranslationTab
@@ -807,24 +1079,38 @@ class TranslationQueueManager {
       }
 
       // =========================================================================
-      // CASE 4: WHOLE COURSE TRANSLATION
+      // CASE 4: WHOLE COURSE TRANSLATION (module_meta -> lesson_meta -> each topic)
       // =========================================================================
       if (type === "course" && targetCourse) {
         const modulesList = Array.isArray(sourceCourse.modules) ? sourceCourse.modules : [];
+        const startModule = isResuming ? resumeModIdx : 0;
 
-        for (let mIdx = 0; mIdx < modulesList.length; mIdx++) {
+        for (let mIdx = startModule; mIdx < modulesList.length; mIdx++) {
           if (isCancelled()) return;
           const mod = modulesList[mIdx];
-          const metaStart = Date.now();
+          const isResumingMidModule = isResuming && mIdx === startModule && (resumeLesIdx > 0 || resumeTopIdx > 0);
 
-          this.updateJobState(jobId, (j) => {
-            j.currentStepMessage = `Module ${mIdx + 1}/${modulesList.length}: "${mod.title}"...`;
-          });
+          let targetModId = isResumingMidModule ? currentJob?.checkpoint?.targetModuleId : undefined;
+          let transModTitle = isResumingMidModule
+            ? (currentJob?.checkpoint?.translatedModuleTitle || mod.title)
+            : mod.title;
 
-          const metaRes = await fetch("/api/admin/courses/translate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+          if (!isResumingMidModule || !targetModId) {
+            const metaStart = Date.now();
+            this.updateJobState(
+              jobId,
+              (j) => {
+                j.currentStepMessage = `Module ${mIdx + 1}/${modulesList.length}: "${mod.title}"...`;
+                j.checkpoint = {
+                  moduleIndex: mIdx,
+                  lessonIndex: 0,
+                  topicIndex: 0,
+                };
+              },
+              true
+            );
+
+            const { res: metaRes, data: metaData } = await this.fetchTranslateStep(jobId, {
               type: "module_meta",
               sourceLang: sourceCourse.language,
               targetLang,
@@ -837,158 +1123,239 @@ class TranslationQueueManager {
               targetCourseId: targetCourse.id,
               sourceCourseId: sourceCourse.id,
               sourceModuleIndex: mIdx,
-            }),
-          });
+            });
 
-          const metaData = await this.safeParseResponse(metaRes);
-          if (!metaRes.ok || !metaData.success) {
+            if (!metaRes.ok || !metaData.success) {
+              recordStep({
+                itemType: "module",
+                sourceTitle: mod.title,
+                status: "failed",
+                durationMs: Date.now() - metaStart,
+                error: metaData.error || `Failed on module "${mod.title}"`,
+              });
+              throw new Error(metaData.error || `Failed on module "${mod.title}"`);
+            }
+
+            targetModId = metaData.targetModuleId;
+            transModTitle = metaData.translatedModuleTitle || mod.title;
+
             recordStep({
               itemType: "module",
               sourceTitle: mod.title,
-              status: "failed",
+              translatedTitle: transModTitle,
+              status: "completed",
               durationMs: Date.now() - metaStart,
-              error: metaData.error || `Failed on module "${mod.title}"`,
             });
-            throw new Error(metaData.error || `Failed on module "${mod.title}"`);
+
+            this.updateJobState(
+              jobId,
+              (j) => {
+                j.stats.modulesTranslated += 1;
+                j.checkpoint = {
+                  moduleIndex: mIdx,
+                  lessonIndex: 0,
+                  topicIndex: 0,
+                  targetModuleId: targetModId,
+                  translatedModuleTitle: transModTitle,
+                };
+              },
+              true
+            );
           }
 
-          const transModTitle = metaData.translatedModuleTitle || mod.title;
-          recordStep({
-            itemType: "module",
-            sourceTitle: mod.title,
-            translatedTitle: transModTitle,
-            status: "completed",
-            durationMs: Date.now() - metaStart,
-          });
-
-          this.updateJobState(jobId, (j) => {
-            j.stats.modulesTranslated += 1;
-          });
-
           const lessonsList = Array.isArray(mod.lessons) ? mod.lessons : [];
-          for (let lIdx = 0; lIdx < lessonsList.length; lIdx++) {
+          const startLesson = isResuming && mIdx === startModule ? resumeLesIdx : 0;
+
+          for (let lIdx = startLesson; lIdx < lessonsList.length; lIdx++) {
             if (isCancelled()) return;
             const les = lessonsList[lIdx];
             const topicsList = Array.isArray(les.topics) ? les.topics : [];
+            const isResumingMidLesson =
+              isResuming && mIdx === startModule && lIdx === startLesson && resumeTopIdx > 0;
 
-            if (topicsList.length <= 3) {
-              const stepStart = Date.now();
-              this.updateJobState(jobId, (j) => {
-                j.currentStepMessage = `Module ${mIdx + 1}/${modulesList.length} • Lesson ${lIdx + 1}/${lessonsList.length}: "${les.title}"...`;
+            let targetLesId = isResumingMidLesson ? currentJob?.checkpoint?.targetLessonId : undefined;
+            let transLesTitle = isResumingMidLesson
+              ? (currentJob?.checkpoint?.translatedLessonTitle || les.title)
+              : les.title;
+
+            if (!isResumingMidLesson || !targetLesId) {
+              const lesMetaStart = Date.now();
+              this.updateJobState(
+                jobId,
+                (j) => {
+                  j.currentStepMessage = `Module ${mIdx + 1}/${modulesList.length} • Lesson ${lIdx + 1}/${lessonsList.length}: "${les.title}"...`;
+                  j.checkpoint = {
+                    moduleIndex: mIdx,
+                    lessonIndex: lIdx,
+                    topicIndex: 0,
+                    targetModuleId: targetModId,
+                    translatedModuleTitle: transModTitle,
+                  };
+                },
+                true
+              );
+
+              const { res: lesMetaRes, data: lesMetaData } = await this.fetchTranslateStep(jobId, {
+                type: "lesson_meta",
+                sourceLang: sourceCourse.language,
+                targetLang,
+                lesson: {
+                  id: les.id,
+                  title: les.title,
+                  content_type: (les as any).content_type || "rich_text",
+                },
+                saveToDatabase: true,
+                targetCourseId: targetCourse.id,
+                sourceCourseId: sourceCourse.id,
+                targetModuleId: targetModId,
+                translatedModuleTitle: transModTitle,
+                sourceModuleIndex: mIdx,
+                sourceLessonIndex: lIdx,
+                sourceModuleTitle: mod.title,
+                sourceModuleDescription: mod.description,
               });
 
-              const lesRes = await fetch("/api/admin/courses/translate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  type: "lesson",
-                  sourceLang: sourceCourse.language,
-                  targetLang,
-                  lesson: les,
-                  saveToDatabase: true,
-                  targetCourseId: targetCourse.id,
-                  sourceCourseId: sourceCourse.id,
-                  sourceModuleIndex: mIdx,
-                  sourceLessonIndex: lIdx,
-                  sourceModuleTitle: mod.title,
-                  sourceModuleDescription: mod.description,
-                }),
-              });
-
-              const lesData = await this.safeParseResponse(lesRes);
-              if (!lesRes.ok || !lesData.success) {
+              if (!lesMetaRes.ok || !lesMetaData.success) {
                 recordStep({
                   itemType: "lesson",
                   sourceTitle: les.title,
                   moduleTitle: transModTitle,
                   status: "failed",
-                  durationMs: Date.now() - stepStart,
-                  error: lesData.error || `Failed on lesson "${les.title}"`,
+                  durationMs: Date.now() - lesMetaStart,
+                  error: lesMetaData.error || `Failed on lesson "${les.title}"`,
                 });
-                throw new Error(lesData.error || `Failed on lesson "${les.title}"`);
+                throw new Error(lesMetaData.error || `Failed on lesson "${les.title}"`);
               }
+
+              targetModId = lesMetaData.targetModuleId || targetModId;
+              targetLesId = lesMetaData.targetLessonId;
+              transLesTitle = lesMetaData.translatedLessonTitle || les.title;
 
               recordStep({
                 itemType: "lesson",
                 sourceTitle: les.title,
-                translatedTitle: lesData.translatedLesson?.title || les.title,
+                translatedTitle: transLesTitle,
                 moduleTitle: transModTitle,
+                status: "completed",
+                durationMs: Date.now() - lesMetaStart,
+              });
+            }
+
+            const startTopic = isResumingMidLesson ? resumeTopIdx : 0;
+            for (let tIdx = startTopic; tIdx < topicsList.length; tIdx++) {
+              if (isCancelled()) return;
+              const tp = topicsList[tIdx];
+              const stepStart = Date.now();
+
+              this.updateJobState(
+                jobId,
+                (j) => {
+                  j.currentStepMessage = `M${mIdx + 1}/${modulesList.length} • L${lIdx + 1}/${lessonsList.length} • Topic ${tIdx + 1}/${topicsList.length}: "${tp.title}"...`;
+                  j.checkpoint = {
+                    moduleIndex: mIdx,
+                    lessonIndex: lIdx,
+                    topicIndex: tIdx,
+                    targetModuleId: targetModId,
+                    targetLessonId: targetLesId,
+                    translatedModuleTitle: transModTitle,
+                    translatedLessonTitle: transLesTitle,
+                  };
+                },
+                true
+              );
+
+              const { res: tpRes, data: tpData } = await this.fetchTranslateStep(jobId, {
+                type: "topic",
+                sourceLang: sourceCourse.language,
+                targetLang,
+                topic: {
+                  id: tp.id,
+                  title: tp.title,
+                  content: tp.content,
+                },
+                saveToDatabase: true,
+                targetCourseId: targetCourse.id,
+                sourceCourseId: sourceCourse.id,
+                targetModuleId: targetModId,
+                targetLessonId: targetLesId,
+                translatedModuleTitle: transModTitle,
+                translatedLessonTitle: transLesTitle,
+                sourceModuleIndex: mIdx,
+                sourceLessonIndex: lIdx,
+                sourceTopicIndex: tIdx,
+                sourceModuleTitle: mod.title,
+                sourceModuleDescription: mod.description,
+                sourceLessonTitle: les.title,
+              });
+
+              if (!tpRes.ok || !tpData.success) {
+                recordStep({
+                  itemType: "topic",
+                  sourceTitle: tp.title,
+                  moduleTitle: transModTitle,
+                  lessonTitle: transLesTitle,
+                  status: "failed",
+                  durationMs: Date.now() - stepStart,
+                  error: tpData.error || `Failed on topic "${tp.title}"`,
+                });
+                throw new Error(tpData.error || `Failed on topic "${tp.title}"`);
+              }
+
+              recordStep({
+                itemType: "topic",
+                sourceTitle: tp.title,
+                translatedTitle: tpData.translatedTopic?.title || tp.title,
+                moduleTitle: transModTitle,
+                lessonTitle: transLesTitle,
                 status: "completed",
                 durationMs: Date.now() - stepStart,
               });
 
-              this.updateJobState(jobId, (j) => {
-                j.stats.lessonsTranslated += 1;
-                j.stats.topicsTranslated += topicsList.length;
-              });
-            } else {
-              for (let tIdx = 0; tIdx < topicsList.length; tIdx++) {
-                if (isCancelled()) return;
-                const tp = topicsList[tIdx];
-                const stepStart = Date.now();
-
-                this.updateJobState(jobId, (j) => {
-                  j.currentStepMessage = `M${mIdx + 1}/${modulesList.length} • L${lIdx + 1}/${lessonsList.length} • Topic ${tIdx + 1}/${topicsList.length}: "${tp.title}"...`;
-                });
-
-                const tpRes = await fetch("/api/admin/courses/translate", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    type: "topic",
-                    sourceLang: sourceCourse.language,
-                    targetLang,
-                    topic: {
-                      id: tp.id,
-                      title: tp.title,
-                      content: tp.content,
-                    },
-                    saveToDatabase: true,
-                    targetCourseId: targetCourse.id,
-                    sourceCourseId: sourceCourse.id,
-                    sourceModuleIndex: mIdx,
-                    sourceLessonIndex: lIdx,
-                    sourceTopicIndex: tIdx,
-                    sourceModuleTitle: mod.title,
-                    sourceModuleDescription: mod.description,
-                    sourceLessonTitle: les.title,
-                  }),
-                });
-
-                const tpData = await this.safeParseResponse(tpRes);
-                if (!tpRes.ok || !tpData.success) {
-                  recordStep({
-                    itemType: "topic",
-                    sourceTitle: tp.title,
-                    moduleTitle: transModTitle,
-                    lessonTitle: les.title,
-                    status: "failed",
-                    durationMs: Date.now() - stepStart,
-                    error: tpData.error || `Failed on topic "${tp.title}"`,
-                  });
-                  throw new Error(tpData.error || `Failed on topic "${tp.title}"`);
-                }
-
-                recordStep({
-                  itemType: "topic",
-                  sourceTitle: tp.title,
-                  translatedTitle: tpData.translatedTopic?.title || tp.title,
-                  moduleTitle: transModTitle,
-                  lessonTitle: les.title,
-                  status: "completed",
-                  durationMs: Date.now() - stepStart,
-                });
-
-                this.updateJobState(jobId, (j) => {
+              this.updateJobState(
+                jobId,
+                (j) => {
                   j.stats.topicsTranslated += 1;
-                });
-              }
-
-              this.updateJobState(jobId, (j) => {
-                j.stats.lessonsTranslated += 1;
-              });
+                  j.checkpoint = {
+                    moduleIndex: mIdx,
+                    lessonIndex: lIdx,
+                    topicIndex: tIdx + 1,
+                    targetModuleId: targetModId,
+                    targetLessonId: targetLesId,
+                    translatedModuleTitle: transModTitle,
+                    translatedLessonTitle: transLesTitle,
+                  };
+                },
+                true
+              );
             }
+
+            this.updateJobState(
+              jobId,
+              (j) => {
+                j.stats.lessonsTranslated += 1;
+                j.checkpoint = {
+                  moduleIndex: mIdx,
+                  lessonIndex: lIdx + 1,
+                  topicIndex: 0,
+                  targetModuleId: targetModId,
+                  translatedModuleTitle: transModTitle,
+                };
+              },
+              true
+            );
           }
+
+          this.updateJobState(
+            jobId,
+            (j) => {
+              j.checkpoint = {
+                moduleIndex: mIdx + 1,
+                lessonIndex: 0,
+                topicIndex: 0,
+              };
+            },
+            true
+          );
         }
 
         this.updateJobState(
@@ -998,11 +1365,12 @@ class TranslationQueueManager {
             j.progressPercent = 100;
             j.completedSteps = j.totalSteps;
             j.completedAt = new Date().toISOString();
-            j.currentStepMessage = `Full course translated into ${this.getLanguageLabel(targetLang)}!`;
+            j.currentStepMessage = `Full course (${modulesList.length} modules) translated into ${this.getLanguageLabel(targetLang)}!`;
           },
           true
         );
 
+        this.abortControllers.delete(jobId);
         this.invalidateCourseCaches(onReloadCourses, targetCourse.id);
         toast.success(`Background translation complete: Full Course (${this.getLanguageLabel(targetLang)})`, {
           action: onViewTranslationTab
@@ -1011,22 +1379,24 @@ class TranslationQueueManager {
         });
         return;
       }
-    } catch (err: any) {
-      if (isCancelled()) return;
-      const errMsg = err?.message || "Translation failed";
+    } catch (error: any) {
+      this.abortControllers.delete(jobId);
+      if (isCancelled() || error?.message === "CANCELLED_BY_USER") return;
+      const errMsg = error?.message || "Unexpected translation failure";
       this.updateJobState(
         jobId,
         (j) => {
           j.status = "failed";
           j.error = errMsg;
           j.completedAt = new Date().toISOString();
-          j.currentStepMessage = `Error: ${errMsg}`;
+          j.currentStepMessage = `Failed: ${errMsg} — click Continue to resume`;
         },
         true
       );
-      toast.error(`Translation failed: ${errMsg}`, {
+      toast.error(`Background translation paused: ${errMsg}`, {
+        description: "Open the Translation tab and click Continue to resume from the exact step.",
         action: onViewTranslationTab
-          ? { label: "View Error Report", onClick: onViewTranslationTab }
+          ? { label: "View Details", onClick: onViewTranslationTab }
           : undefined,
       });
     }

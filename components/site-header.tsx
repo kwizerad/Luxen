@@ -37,7 +37,9 @@ export function SiteHeader() {
                 <span className="text-primary-foreground font-bold text-xs sm:text-sm">{config.logoText}</span>
               )}
             </div>
-            <span className="font-bold text-xl tracking-tight">{config.systemName}</span>
+            <span className="font-bold text-xl tracking-tight">
+              {config.systemName === "Navo" || !config.systemName ? "Navo PVS" : config.systemName}
+            </span>
           </Link>
         </div>
         <div className="flex items-center gap-4 pr-6">

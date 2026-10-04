@@ -69,13 +69,20 @@ export function TranslationSyncBar({
   const [activeDialogType, setActiveDialogType] = useState<TranslationType | null>(null);
   const [selectedTargetLang, setSelectedTargetLang] = useState<"English" | "French" | "Kinyarwanda">("French");
   const [runningJobs, setRunningJobs] = useState<TranslationJobRecord[]>([]);
+  const [resumableJob, setResumableJob] = useState<TranslationJobRecord | null>(null);
 
   useEffect(() => {
     const unsub = translationQueue.subscribe((allJobs) => {
       setRunningJobs(allJobs.filter((j) => j.status === "running"));
+      const latestStopped = allJobs.find(
+        (j) =>
+          (j.status === "cancelled" || j.status === "failed") &&
+          (j.sourceCourseId === currentCourse.id || j.sourceLang === currentCourse.language)
+      );
+      setResumableJob(latestStopped || null);
     });
     return unsub;
-  }, []);
+  }, [currentCourse.id, currentCourse.language]);
 
   const activeTopic = activeLesson?.topics?.find((tp) => tp.id === activeTopicId) || null;
   const activeTopicIndex = activeLesson?.topics?.findIndex((tp) => tp.id === activeTopicId) ?? 0;
@@ -186,18 +193,42 @@ export function TranslationSyncBar({
 
       {/* Translation Actions & Status Tab Shortcut */}
       <div className="flex items-center gap-2 shrink-0">
-        {runningJobs.length > 0 && (
+        {runningJobs.length > 0 ? (
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={navigateToTranslationTab}
-            className="h-8 text-xs px-2.5 gap-1.5 border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+            className="h-8 text-xs px-2.5 gap-1.5 rounded-xl border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
           >
             <Activity className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Translation Status ({runningJobs.length})</span>
           </Button>
-        )}
+        ) : resumableJob ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const targetCourse = courses.find((c) => c.language === resumableJob.targetLang);
+              if (targetCourse) {
+                translationQueue.resumeTranslationJob(resumableJob.id, {
+                  sourceCourse: currentCourse,
+                  targetCourse,
+                  onReloadCourses,
+                  onViewTranslationTab: navigateToTranslationTab,
+                });
+              } else {
+                navigateToTranslationTab();
+              }
+            }}
+            className="h-8 text-xs px-3 gap-1.5 rounded-xl border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 font-semibold"
+            title={`Resume paused/cancelled translation: ${resumableJob.scopeTitle}`}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Continue Translation ({resumableJob.progressPercent}%)</span>
+          </Button>
+        ) : null}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

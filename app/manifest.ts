@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   let themeColor = "#22C55E";
-  let systemName = "Navo PVS";
+  let systemName = "Navo";
 
   try {
     const adminSupabase = createAdminClient();

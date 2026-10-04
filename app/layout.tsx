@@ -40,10 +40,9 @@ export const metadata: Metadata = {
     template: "%s | Navo PVS",
   },
   description:
-    "Pass your Rwanda driving theory exam with Navo PVS. Study official traffic regulations (Amategeko y'Umuhanda), practice real mock exams, road signs, and audio lessons in Kinyarwanda, English, and French.",
+    "Pass your Rwanda driving theory exam. Study official traffic regulations (Amategeko y'Umuhanda), practice real mock exams, road signs, and audio lessons in Kinyarwanda, English, and French.",
   keywords: [
     "navo",
-    "navo pvs",
     "navo.rw",
     "amategeko y'umuhanda",
     "ibizamini by'uruhushya rw'agateganyo",
@@ -58,9 +57,9 @@ export const metadata: Metadata = {
     "driving school rwanda",
     "ibibazo n'ibisubizo by'amategeko y'umuhanda",
   ],
-  authors: [{ name: "Navo PVS", url: "https://navo.rw" }],
-  creator: "Navo PVS",
-  publisher: "Navo PVS",
+  authors: [{ name: "Navo Rwanda", url: "https://navo.rw" }],
+  creator: "Navo",
+  publisher: "Navo",
   category: "Education",
   alternates: {
     canonical: "https://navo.rw",
@@ -70,7 +69,7 @@ export const metadata: Metadata = {
     locale: "rw_RW",
     alternateLocale: ["en_US", "fr_FR"],
     url: "https://navo.rw",
-    siteName: "Navo PVS",
+    siteName: "Navo",
     title: "Navo PVS",
     description:
       "Pass your Rwanda driving theory exam with official practice tests, traffic regulations, AI explanations, and multilingual study guides in Kinyarwanda, English, and French.",
@@ -79,7 +78,7 @@ export const metadata: Metadata = {
         url: "/icons/icon-512x512.png",
         width: 512,
         height: 512,
-        alt: "Navo PVS",
+        alt: "Navo - Rwanda Driving Platform",
       },
     ],
   },
@@ -90,11 +89,11 @@ export const metadata: Metadata = {
     images: ["/icons/icon-512x512.png"],
   },
   manifest: "/manifest.json",
-  applicationName: "Navo PVS",
+  applicationName: "Navo",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Navo PVS",
+    title: "Navo",
     startupImage: [
       { url: "/icons/icon-192x192.png", media: "(device-width: 320px)" },
       { url: "/icons/icon-180x180.png", media: "(device-width: 375px)" },
@@ -151,8 +150,8 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "EducationalApplication",
-              name: "Navo PVS",
-              alternateName: ["Navo PVS", "Navo Rwanda", "Navo Driving Theory", "Amategeko y'Umuhanda Navo"],
+              name: "Navo",
+              alternateName: ["Navo Rwanda", "Navo Driving Theory", "Amategeko y'Umuhanda Navo"],
               url: "https://navo.rw",
               applicationCategory: "EducationalApplication",
               operatingSystem: "Web, iOS, Android",

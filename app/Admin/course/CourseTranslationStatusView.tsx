@@ -86,6 +86,7 @@ export function CourseTranslationStatusView({ onOpenStudioCourse }: CourseTransl
   const [sourceLang, setSourceLang] = useState<"English" | "French" | "Kinyarwanda">("English");
   const [targetLang, setTargetLang] = useState<"English" | "French" | "Kinyarwanda">("French");
   const [startingJob, setStartingJob] = useState(false);
+  const [resumingJobId, setResumingJobId] = useState<string | null>(null);
 
   const reloadCourses = async () => {
     try {
@@ -221,6 +222,44 @@ export function CourseTranslationStatusView({ onOpenStudioCourse }: CourseTransl
       toast.error(err?.message || "Failed to start background translation");
     } finally {
       setStartingJob(false);
+    }
+  };
+
+  const handleResumeJob = async (job: TranslationJobRecord) => {
+    const srcSummary =
+      courses.find((c) => c.id === job.sourceCourseId) ||
+      courses.find((c) => c.language === job.sourceLang);
+    const tgtSummary =
+      courses.find((c) => c.id === job.targetCourseId) ||
+      courses.find((c) => c.language === job.targetLang);
+
+    if (!srcSummary || !tgtSummary) {
+      toast.error("Could not find source or target course to resume.");
+      return;
+    }
+
+    setResumingJobId(job.id);
+    try {
+      const fullRes = await loadFullCourse(srcSummary.id);
+      if (!fullRes.success) {
+        throw new Error(fullRes.error || "Failed to load full source course structure.");
+      }
+      const fullSourceCourse = fullCourseToUI(fullRes.data);
+
+      translationQueue.resumeTranslationJob(job.id, {
+        sourceCourse: fullSourceCourse,
+        targetCourse: {
+          ...fullSourceCourse,
+          id: tgtSummary.id,
+          title: tgtSummary.title,
+          language: tgtSummary.language,
+        },
+        onReloadCourses: () => reloadCourses(),
+      });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to resume translation job");
+    } finally {
+      setResumingJobId(null);
     }
   };
 
@@ -559,17 +598,49 @@ export function CourseTranslationStatusView({ onOpenStudioCourse }: CourseTransl
                       )}
 
                       {isFailed && (
-                        <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 gap-1.5 py-1 px-2.5 text-xs">
-                          <XCircle className="h-3.5 w-3.5" />
-                          <span>Failed</span>
-                        </Badge>
+                        <>
+                          <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 gap-1.5 py-1 px-2.5 text-xs">
+                            <XCircle className="h-3.5 w-3.5" />
+                            <span>Failed</span>
+                          </Badge>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={resumingJobId === job.id}
+                            onClick={() => handleResumeJob(job)}
+                            className="h-8 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 px-3 shadow-xs"
+                          >
+                            {resumingJobId === job.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Play className="h-3.5 w-3.5 fill-current" />
+                            )}
+                            <span>Continue</span>
+                          </Button>
+                        </>
                       )}
 
                       {isCancelled && (
-                        <Badge variant="outline" className="text-amber-500 border-amber-500/30 gap-1.5 py-1 px-2.5 text-xs">
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                          <span>Cancelled</span>
-                        </Badge>
+                        <>
+                          <Badge variant="outline" className="text-amber-500 border-amber-500/30 gap-1.5 py-1 px-2.5 text-xs">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            <span>Cancelled</span>
+                          </Badge>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={resumingJobId === job.id}
+                            onClick={() => handleResumeJob(job)}
+                            className="h-8 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 px-3 shadow-xs"
+                          >
+                            {resumingJobId === job.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Play className="h-3.5 w-3.5 fill-current" />
+                            )}
+                            <span>Continue</span>
+                          </Button>
+                        </>
                       )}
 
                       {!isRunning && (

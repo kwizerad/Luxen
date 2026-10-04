@@ -125,9 +125,9 @@ export default function CoursePage() {
 
   return (
     <div className="course-page space-y-4 sm:space-y-5">
-      {/* Tab switcher — permanently stable at top, theme-adaptive */}
+      {/* Tab switcher — permanently stable at top, theme-adaptive with curved corners */}
       <div
-        className="sticky top-0 z-30 -mx-1 px-2 py-2 flex flex-wrap items-center gap-2 backdrop-blur-md bg-white/95 dark:bg-[#0B1020]/95 border-b border-[var(--admin-border)] shadow-xs pr-20 sm:pr-24 md:pr-28"
+        className="sticky top-0 z-30 -mx-1 px-2.5 py-2 flex flex-wrap items-center gap-2 rounded-2xl backdrop-blur-md bg-white/95 dark:bg-[#0B1020]/95 border border-[var(--admin-border)] shadow-xs pr-20 sm:pr-24 md:pr-28"
         role="tablist"
         aria-label={t("courseManagementNav") || "Course"}
       >
@@ -138,7 +138,7 @@ export default function CoursePage() {
             role="tab"
             aria-selected={activeTab === id}
             variant={activeTab === id ? "default" : "outline"}
-            className="gap-2 text-xs sm:text-sm"
+            className="gap-2 text-xs sm:text-sm rounded-xl"
             onClick={() => switchTab(id)}
           >
             {id === "translation" && badgeCount && badgeCount > 0 ? (

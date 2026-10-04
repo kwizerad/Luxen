@@ -4,7 +4,7 @@ import { useBrandingConfig } from "@/lib/branding-config";
 
 export function SystemWatermark() {
   const { config } = useBrandingConfig();
-  const systemName = config.systemName || "Navo PVS";
+  const systemName = config.systemName || "Navo";
 
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">

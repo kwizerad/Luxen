@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      type, // "topic" | "lesson" | "module" | "module_meta" | "course" | "content_only"
+      type, // "topic" | "lesson" | "lesson_meta" | "module" | "module_meta" | "course" | "content_only"
       sourceLang = "English",
       targetLang = "French",
       topic,
@@ -19,6 +19,10 @@ export async function POST(req: NextRequest) {
       saveToDatabase = true,
       targetCourseId,
       sourceCourseId,
+      targetModuleId,
+      targetLessonId,
+      translatedModuleTitle: preTranslatedModTitle,
+      translatedLessonTitle: preTranslatedLesTitle,
       sourceModuleIndex = 0,
       sourceLessonIndex = 0,
       sourceTopicIndex = 0,
@@ -244,18 +248,24 @@ export async function POST(req: NextRequest) {
     // 1. OPTION 4: TRANSLATE WHOLE TOPIC (creates Module -> Lesson -> Topic tree)
     // =========================================================================
     if (type === "topic" && topic) {
+      const needModTitle = !preTranslatedModTitle && Boolean(sourceModuleTitle);
+      const needModDesc = !preTranslatedModTitle && Boolean(sourceModuleDescription);
+      const needLesTitle = !preTranslatedLesTitle && Boolean(sourceLessonTitle);
+
       const snippets = [
         { id: 0, text: topic.title || "Topic" },
-        ...(sourceModuleTitle ? [{ id: 1, text: sourceModuleTitle }] : []),
-        ...(sourceModuleDescription ? [{ id: 2, text: sourceModuleDescription }] : []),
-        ...(sourceLessonTitle ? [{ id: 3, text: sourceLessonTitle }] : []),
+        ...(needModTitle && sourceModuleTitle ? [{ id: 1, text: sourceModuleTitle }] : []),
+        ...(needModDesc && sourceModuleDescription ? [{ id: 2, text: sourceModuleDescription }] : []),
+        ...(needLesTitle && sourceLessonTitle ? [{ id: 3, text: sourceLessonTitle }] : []),
       ];
 
       const titleMap = await translateTextSnippets(snippets, sourceLang, targetLang);
       const translatedTitle = titleMap.get(0) || topic.title;
-      const translatedModTitle = sourceModuleTitle ? (titleMap.get(1) || sourceModuleTitle) : "Module";
-      const translatedModDesc = sourceModuleDescription ? (titleMap.get(2) || sourceModuleDescription) : "";
-      const translatedLesTitle = sourceLessonTitle ? (titleMap.get(3) || sourceLessonTitle) : "Lesson";
+      const translatedModTitle =
+        preTranslatedModTitle || (sourceModuleTitle ? titleMap.get(1) || sourceModuleTitle : "Module");
+      const translatedModDesc = sourceModuleDescription ? titleMap.get(2) || sourceModuleDescription : "";
+      const translatedLesTitle =
+        preTranslatedLesTitle || (sourceLessonTitle ? titleMap.get(3) || sourceLessonTitle : "Lesson");
 
       const translatedContent = await translateTiptapDoc(topic.content, sourceLang, targetLang);
 
@@ -266,27 +276,59 @@ export async function POST(req: NextRequest) {
         content: translatedContent,
       };
 
-      // Save directly to target course in database if requested
-      // Creates Module (name only) -> Lesson (name only) -> Target Topic (translated)
-      if (saveToDatabase && targetCourseId) {
-        const targetMod = await getOrCreateTargetModule(
-          targetCourseId,
-          typeof sourceModuleIndex === "number" ? sourceModuleIndex : 0,
-          translatedModTitle,
-          translatedModDesc,
-          sourceModuleTitle
-        );
+      let resolvedTargetModId = targetModuleId;
+      let resolvedTargetLessonId = targetLessonId;
 
-        const targetLesson = await getOrCreateTargetLesson(
-          targetMod.id,
-          typeof sourceLessonIndex === "number" ? sourceLessonIndex : 0,
-          translatedLesTitle,
-          "rich_text",
-          sourceLessonTitle
-        );
+      // Save directly to target course in database if requested
+      if (saveToDatabase && targetCourseId) {
+        let targetLesson: any = null;
+
+        if (resolvedTargetLessonId) {
+          const { data: existingLes } = await supabase
+            .from("course_lessons")
+            .select("id, title, topics, order_index, content_type, module_id")
+            .eq("id", resolvedTargetLessonId)
+            .maybeSingle();
+          if (existingLes) {
+            targetLesson = existingLes;
+            resolvedTargetModId = existingLes.module_id;
+          }
+        }
+
+        if (!targetLesson) {
+          let targetMod: any = null;
+          if (resolvedTargetModId) {
+            const { data: existingMod } = await supabase
+              .from("course_modules")
+              .select("id, title, description, order_index")
+              .eq("id", resolvedTargetModId)
+              .maybeSingle();
+            if (existingMod) targetMod = existingMod;
+          }
+
+          if (!targetMod) {
+            targetMod = await getOrCreateTargetModule(
+              targetCourseId,
+              typeof sourceModuleIndex === "number" ? sourceModuleIndex : 0,
+              translatedModTitle,
+              translatedModDesc,
+              sourceModuleTitle
+            );
+          }
+          resolvedTargetModId = targetMod.id;
+
+          targetLesson = await getOrCreateTargetLesson(
+            targetMod.id,
+            typeof sourceLessonIndex === "number" ? sourceLessonIndex : 0,
+            translatedLesTitle,
+            "rich_text",
+            sourceLessonTitle
+          );
+          resolvedTargetLessonId = targetLesson.id;
+        }
 
         const existingTopics = Array.isArray(targetLesson.topics) ? [...targetLesson.topics] : [];
-        let matchIdx = existingTopics.findIndex(
+        const matchIdx = existingTopics.findIndex(
           (tp: any) =>
             (tp.id && topic.id && tp.id === topic.id) ||
             (tp.title &&
@@ -295,7 +337,6 @@ export async function POST(req: NextRequest) {
         );
 
         if (matchIdx !== -1) {
-          // Update existing topic in place - avoid collision and duplicate entries
           existingTopics[matchIdx] = {
             ...existingTopics[matchIdx],
             id: existingTopics[matchIdx].id || topic.id || crypto.randomUUID(),
@@ -303,7 +344,6 @@ export async function POST(req: NextRequest) {
             content: translatedContent,
           };
         } else {
-          // Only append the translated target topic (do not create untranslated sibling topics)
           existingTopics.push(translatedTopic);
         }
 
@@ -322,7 +362,83 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         translatedTopic,
+        targetModuleId: resolvedTargetModId,
+        targetLessonId: resolvedTargetLessonId,
+        translatedModuleTitle: translatedModTitle,
+        translatedLessonTitle: translatedLesTitle,
         message: `Topic "${translatedTitle}" successfully translated into ${targetLang}!`,
+      });
+    }
+
+    // =========================================================================
+    // 1B. TRANSLATE LESSON METADATA ONLY (creates/updates Module & Lesson shell)
+    // =========================================================================
+    if (type === "lesson_meta" && lesson) {
+      const needModTitle = !preTranslatedModTitle && Boolean(sourceModuleTitle);
+      const needModDesc = !preTranslatedModTitle && Boolean(sourceModuleDescription);
+
+      const snippets = [
+        { id: 0, text: lesson.title || "Lesson" },
+        ...(needModTitle && sourceModuleTitle ? [{ id: 1, text: sourceModuleTitle }] : []),
+        ...(needModDesc && sourceModuleDescription ? [{ id: 2, text: sourceModuleDescription }] : []),
+      ];
+
+      const titlesMap = await translateTextSnippets(snippets, sourceLang, targetLang);
+      const translatedLessonTitle = titlesMap.get(0) || lesson.title;
+      const translatedModTitle =
+        preTranslatedModTitle || (sourceModuleTitle ? titlesMap.get(1) || sourceModuleTitle : "Module");
+      const translatedModDesc = sourceModuleDescription ? titlesMap.get(2) || sourceModuleDescription : "";
+
+      let resolvedTargetModId = targetModuleId;
+      let resolvedTargetLessonId = targetLessonId;
+
+      if (saveToDatabase && targetCourseId) {
+        let targetMod: any = null;
+        if (resolvedTargetModId) {
+          const { data: existingMod } = await supabase
+            .from("course_modules")
+            .select("id, title, description, order_index")
+            .eq("id", resolvedTargetModId)
+            .maybeSingle();
+          if (existingMod) targetMod = existingMod;
+        }
+
+        if (!targetMod) {
+          targetMod = await getOrCreateTargetModule(
+            targetCourseId,
+            typeof sourceModuleIndex === "number" ? sourceModuleIndex : 0,
+            translatedModTitle,
+            translatedModDesc,
+            sourceModuleTitle
+          );
+        }
+        resolvedTargetModId = targetMod.id;
+
+        const targetLesson = await getOrCreateTargetLesson(
+          targetMod.id,
+          typeof sourceLessonIndex === "number" ? sourceLessonIndex : 0,
+          translatedLessonTitle,
+          (lesson as any)?.content_type || "rich_text",
+          lesson.title
+        );
+        resolvedTargetLessonId = targetLesson.id;
+
+        await supabase
+          .from("course_lessons")
+          .update({
+            title: translatedLessonTitle,
+            status: "published",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", targetLesson.id);
+      }
+
+      return NextResponse.json({
+        success: true,
+        targetModuleId: resolvedTargetModId,
+        targetLessonId: resolvedTargetLessonId,
+        translatedModuleTitle: translatedModTitle,
+        translatedLessonTitle,
       });
     }
 

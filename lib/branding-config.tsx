@@ -23,7 +23,7 @@ interface BrandingConfigContextType {
 }
 
 const defaultConfig: BrandingConfig = {
-  systemName: "Navo PVS",
+  systemName: "Navo",
   logoUrl: null,
   logoText: "N",
   adminEmail: DEFAULT_ADMIN_EMAIL,
@@ -41,7 +41,7 @@ export function BrandingConfigProvider({ children }: { children: ReactNode }) {
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
-          systemName: (!parsed.systemName || parsed.systemName === "Navo") ? defaultConfig.systemName : parsed.systemName,
+          systemName: (!parsed.systemName || parsed.systemName === "Navo PVS") ? defaultConfig.systemName : parsed.systemName,
           logoUrl: parsed.logoUrl || defaultConfig.logoUrl,
           logoText: parsed.logoText || defaultConfig.logoText,
           adminEmail: parsed.adminEmail || defaultConfig.adminEmail,
@@ -66,9 +66,6 @@ export function BrandingConfigProvider({ children }: { children: ReactNode }) {
           const data = await response.json();
           if (data.value) {
             const dbConfig = JSON.parse(data.value);
-            if (!dbConfig.systemName || dbConfig.systemName === "Navo") {
-              dbConfig.systemName = "Navo PVS";
-            }
             setConfig(dbConfig);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(dbConfig));
             return;
