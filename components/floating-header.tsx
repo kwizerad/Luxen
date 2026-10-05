@@ -162,7 +162,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
     },
     {
       id: "classmates",
-      label: t("classmates") || "Classmates",
+      label: t("chat") || "Chat",
       icon: Users,
       view: "classmates",
       isActive:

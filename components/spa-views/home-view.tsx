@@ -1430,7 +1430,7 @@ export function HomeView({ navigate }: HomeViewProps) {
             </button>
           )}
 
-          {/* Action 3: Classmates / Friends */}
+          {/* Action 3: Chat / Friends */}
           <button
             type="button"
             onClick={() => navigate("classmates")}
@@ -1439,7 +1439,7 @@ export function HomeView({ navigate }: HomeViewProps) {
             <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 mb-2.5 group-hover:scale-105 transition-transform">
               <Users className="w-5 h-5" />
             </div>
-            <span className="text-sm font-bold text-foreground line-clamp-1">{t("classmatesAndFriends") || "Study Group"}</span>
+            <span className="text-sm font-bold text-foreground line-clamp-1">{t("chat") || "Chat"}</span>
             <span className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t("chatAndChallenges") || "Live challenges"}</span>
           </button>
 
