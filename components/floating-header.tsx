@@ -275,14 +275,14 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
   return (
     <>
-      {/* Desktop / Tablet Top Header Bar — Hidden on Small Devices (< md) so mobile only has bottom fixed nav */}
+      {/* Desktop Top Header Bar (lg: / 1024px+) — Hidden on Mobile & Tablet (< 1024px) */}
       <header
         dir={isRTL ? "rtl" : "ltr"}
         aria-hidden={isExamActive}
         className={`hidden ${
           isExamActive
-            ? "md:hidden pointer-events-none opacity-0 invisible select-none"
-            : "md:block"
+            ? "lg:hidden pointer-events-none opacity-0 invisible select-none"
+            : "lg:block"
         } premium-glass-panel sticky top-0 z-50 w-full border-b transition-opacity`}
       >
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 gap-3">
@@ -344,7 +344,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
             )}
           </div>
 
-          {/* Center: Desktop / Tablet Navigation Links */}
+          {/* Center: Desktop Navigation Links */}
           <nav
             aria-label="Main Navigation"
             className="flex items-center gap-1 lg:gap-1.5 overflow-x-auto no-scrollbar py-1"
@@ -417,18 +417,18 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
         </div>
       </header>
 
-      {/* Small Devices Fixed Bottom Navigation Bar (Includes Nav Items + Notifications + User Menu) */}
+      {/* Mobile & Tablet (< 1024px / lg:hidden) Fixed Bottom Navigation Bar */}
       <nav
         aria-label="Mobile Bottom Navigation"
         aria-hidden={isExamActive}
         dir={isRTL ? "rtl" : "ltr"}
-        className={`fixed bottom-0 left-0 right-0 z-50 md:hidden premium-glass-panel border-t pb-[env(safe-area-inset-bottom)] transition-all duration-200 ${
+        className={`fixed bottom-0 left-0 right-0 z-50 lg:hidden premium-glass-panel border-t pb-[max(0.25rem,env(safe-area-inset-bottom))] transition-all duration-200 ${
           isExamActive
             ? "hidden pointer-events-none opacity-0 invisible translate-y-full select-none"
             : "block opacity-100 visible translate-y-0"
         }`}
       >
-        <div className="flex items-center justify-between h-16 px-1 max-w-lg mx-auto overflow-x-auto no-scrollbar">
+        <div className="flex flex-row justify-around items-center h-16 px-1.5 max-w-2xl mx-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const mobileContent = (
@@ -441,7 +441,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                   />
                 )}
                 <div
-                  className={`flex items-center justify-center w-7 h-7 rounded-full transition-colors ${
+                  className={`flex items-center justify-center w-8 h-7 rounded-full transition-colors ${
                     item.isActive
                       ? "bg-primary/15 text-primary"
                       : "text-muted-foreground group-hover:text-foreground"
@@ -450,7 +450,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                   <Icon className="h-4 w-4 shrink-0" />
                 </div>
                 <span
-                  className={`text-[9.5px] leading-tight truncate max-w-[48px] transition-colors ${
+                  className={`text-[10px] leading-tight truncate max-w-[54px] transition-colors ${
                     item.isActive
                       ? "font-semibold text-primary"
                       : "font-medium text-muted-foreground"
@@ -466,7 +466,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                 <Link
                   key={item.id}
                   href={item.href}
-                  className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-[44px]"
+                  className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-0"
                 >
                   {mobileContent}
                 </Link>
@@ -479,7 +479,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                 type="button"
                 disabled={isExamActive}
                 onClick={() => item.view && handleStudentNavigate(item.view)}
-                className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-[44px] cursor-pointer disabled:pointer-events-none"
+                className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-0 cursor-pointer disabled:pointer-events-none"
               >
                 {mobileContent}
               </button>
@@ -487,7 +487,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           })}
 
           {/* Mobile Notifications & User Profile in Bottom Bar */}
-          <div className="flex items-center gap-0.5 pl-1 pr-1 border-l border-border/50 h-10 shrink-0">
+          <div className="flex items-center gap-1 pl-1 pr-1 border-l border-border/50 h-10 shrink-0">
             <div className="flex items-center justify-center">
               <NotificationsDropdown />
             </div>

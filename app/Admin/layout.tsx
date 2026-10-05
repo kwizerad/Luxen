@@ -180,7 +180,7 @@ export default function AdminLayout({
         {/* Main content area */}
         <div className="admin-content">
           {/* Page content */}
-          <main className="flex-1 pb-24 md:pb-10">
+          <main className="flex-1 pb-24 lg:pb-10">
             <ViewTransition viewKey={pathname}>
               {children}
             </ViewTransition>
