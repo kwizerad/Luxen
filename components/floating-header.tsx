@@ -275,22 +275,23 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
   return (
     <>
-      {/* Desktop Top Header Bar (lg: / 1024px+) — Hidden on Mobile & Tablet (< 1024px) */}
+      {/* Top Header Bar: Navo Logo on the Left + Floating Settings (Notifications & Profile Picture Dropdown) on the Top Right.
+          Desktop Navigation Links (lg:flex) sit in the center on screens >= 1024px. */}
       <header
         dir={isRTL ? "rtl" : "ltr"}
         aria-hidden={isExamActive}
-        className={`hidden ${
+        className={`${
           isExamActive
-            ? "lg:hidden pointer-events-none opacity-0 invisible select-none"
-            : "lg:block"
+            ? "hidden pointer-events-none opacity-0 invisible select-none"
+            : "block"
         } premium-glass-panel sticky top-0 z-50 w-full border-b transition-opacity`}
       >
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 gap-3">
+        <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 gap-3">
           {/* Left: System Logo & Name */}
           <div className="flex items-center shrink-0">
             {adminMode ? (
               <Link href="/Admin" className="flex items-center space-x-2.5 group">
-                <div className="w-8 h-8 md:w-9 md:h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative shrink-0">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative shrink-0">
                   {config.logoUrl && !imgError ? (
                     <Image
                       src={config.logoUrl}
@@ -299,16 +300,16 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                       unoptimized
                       referrerPolicy="no-referrer"
                       className="object-cover"
-                      sizes="36px"
+                      sizes="(max-width: 640px) 28px, (max-width: 768px) 32px, 36px"
                       onError={() => setImgError(true)}
                     />
                   ) : (
-                    <span className="text-primary-foreground font-bold text-sm">
+                    <span className="text-primary-foreground font-bold text-xs sm:text-sm">
                       {config.logoText || config.systemName?.charAt(0) || "N"}
                     </span>
                   )}
                 </div>
-                <span className="font-bold text-xl tracking-tight text-foreground">
+                <span className="font-bold text-lg sm:text-xl tracking-tight text-foreground">
                   {config.systemName || "Navo"}
                 </span>
               </Link>
@@ -319,7 +320,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                 onClick={() => handleStudentNavigate("home")}
                 className="flex items-center space-x-2.5 text-left group cursor-pointer disabled:pointer-events-none"
               >
-                <div className="w-8 h-8 md:w-9 md:h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative shrink-0">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative shrink-0">
                   {config.logoUrl && !imgError ? (
                     <Image
                       src={config.logoUrl}
@@ -328,26 +329,26 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                       unoptimized
                       referrerPolicy="no-referrer"
                       className="object-cover"
-                      sizes="36px"
+                      sizes="(max-width: 640px) 28px, (max-width: 768px) 32px, 36px"
                       onError={() => setImgError(true)}
                     />
                   ) : (
-                    <span className="text-primary-foreground font-bold text-sm">
+                    <span className="text-primary-foreground font-bold text-xs sm:text-sm">
                       {config.logoText || config.systemName?.charAt(0) || "N"}
                     </span>
                   )}
                 </div>
-                <span className="font-bold text-xl tracking-tight text-foreground">
+                <span className="font-bold text-lg sm:text-xl tracking-tight text-foreground">
                   {config.systemName || "Navo"}
                 </span>
               </button>
             )}
           </div>
 
-          {/* Center: Desktop Navigation Links */}
+          {/* Center: Desktop Navigation Links (lg: / 1024px+ only) */}
           <nav
             aria-label="Main Navigation"
-            className="flex items-center gap-1 lg:gap-1.5 overflow-x-auto no-scrollbar py-1"
+            className="hidden lg:flex items-center gap-1 lg:gap-1.5 overflow-x-auto no-scrollbar py-1"
           >
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -405,7 +406,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
             })}
           </nav>
 
-          {/* Right: Notifications & User Profile / Settings */}
+          {/* Right: Floating Settings — Notifications & User Profile Picture Dropdown (Top-Right across all devices) */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="rounded-full transition-all relative">
               <NotificationsDropdown />
@@ -417,7 +418,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
         </div>
       </header>
 
-      {/* Mobile & Tablet (< 1024px / lg:hidden) Fixed Bottom Navigation Bar */}
+      {/* Mobile & Tablet (< 1024px / lg:hidden) Fixed Bottom Navigation Bar (Nav Items Only) */}
       <nav
         aria-label="Mobile Bottom Navigation"
         aria-hidden={isExamActive}
@@ -485,16 +486,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
               </button>
             );
           })}
-
-          {/* Mobile Notifications & User Profile in Bottom Bar */}
-          <div className="flex items-center gap-1 pl-1 pr-1 border-l border-border/50 h-10 shrink-0">
-            <div className="flex items-center justify-center">
-              <NotificationsDropdown />
-            </div>
-            <div className="flex items-center justify-center">
-              <FloatingUserSettings user={user} onMobile adminMode={adminMode} />
-            </div>
-          </div>
         </div>
       </nav>
     </>

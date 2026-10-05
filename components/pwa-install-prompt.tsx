@@ -117,7 +117,7 @@ export function PWAInstallPrompt() {
   if (!mounted || isInstalled || !isVisible) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 md:bottom-4 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+    <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-4 right-4 lg:left-auto lg:right-4 lg:w-80 lg:bottom-4 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
       <div className="bg-card border rounded-lg shadow-lg p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">

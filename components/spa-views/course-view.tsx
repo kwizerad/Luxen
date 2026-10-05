@@ -2294,7 +2294,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         )}
 
         {/* Center Reader Content Canvas */}
-        <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 space-y-6 max-w-4xl mx-auto overflow-x-hidden">
+        <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 pb-24 lg:pb-8 space-y-6 max-w-4xl mx-auto overflow-x-hidden">
           {/* Progress Indicators: Module Progress and Lesson Progress ONLY */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Module Progress */}

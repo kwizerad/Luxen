@@ -89,7 +89,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Content */}
       <main
         className={`flex-1 w-full min-w-0 ${
-          isExamInProgress ? "pt-0 pb-0" : "pt-4 sm:pt-6 pb-20 lg:pb-6"
+          isExamInProgress
+            ? "pt-0 pb-0"
+            : "pt-4 sm:pt-6 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-6"
         }`}
       >
         {children}
