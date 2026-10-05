@@ -56,7 +56,19 @@ export async function middleware(request: NextRequest, event?: NextFetchEvent) {
             return NextResponse.redirect(loginUrl);
           }
 
-          if (!isAdmin(user as any)) {
+          let hasAdminAccess = isAdmin(user as any);
+          if (!hasAdminAccess) {
+            const { data: profile } = await supabase
+              .from("user_profiles")
+              .select("role")
+              .eq("id", user.id)
+              .maybeSingle();
+            if (profile?.role && profile.role.toLowerCase() === "admin") {
+              hasAdminAccess = true;
+            }
+          }
+
+          if (!hasAdminAccess) {
             const studentUrl = request.nextUrl.clone();
             studentUrl.pathname = "/dashboard";
             return NextResponse.redirect(studentUrl);

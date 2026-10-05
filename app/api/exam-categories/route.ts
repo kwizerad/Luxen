@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,18 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userIsAdmin = isAdmin(user);
+    let userIsAdmin = isAdmin(user);
+    if (!userIsAdmin) {
+      try {
+        const adminSupabase = createAdminClient();
+        const { data: profile } = await adminSupabase
+          .from("user_profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profile?.role?.toLowerCase() === "admin") userIsAdmin = true;
+      } catch {}
+    }
 
     let query = supabase
       .from("exam_categories")

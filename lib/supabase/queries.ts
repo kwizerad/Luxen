@@ -1,12 +1,22 @@
 "use client";
 
 import { createClient } from "./client";
-import { isAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
+import { isAdmin, isPrimaryAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
+import { getCurrentUser } from "@/lib/auth-utils";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
 import type { ExamCategory, ExamQuestion, ExamAnswer, ExamAttempt, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
 
-// Helper function to handle Supabase auth lock errors
+// Helper function to handle Supabase auth lock errors and enrich user profile role
 async function getAuthUser() {
+  try {
+    const user = await getCurrentUser();
+    if (user) return user;
+  } catch (error: any) {
+    if (error?.message?.includes("lock") || error?.message?.includes("Lock")) {
+      console.warn("Supabase auth lock error (non-critical):", error.message);
+      throw new Error("Auth temporarily unavailable, please try again");
+    }
+  }
   const supabase = createClient();
   try {
     const result = await supabase.auth.getUser();
@@ -29,7 +39,7 @@ export async function getExamCategories() {
   const supabase = createClient();
   const user = await getAuthUser();
   
-  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+  const isUserAdmin = Boolean(user && isAdmin(user));
 
   let query = supabase
     .from("exam_categories")
@@ -71,10 +81,8 @@ export async function createExamCategory(name: string, is_published = false) {
   const supabase = createClient();
   const user = await getAuthUser();
 
-  const isPrimaryAdmin = user?.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
-
-  if (!user || !isPrimaryAdmin) {
-    throw new Error("Unauthorized. Only primary admin can create categories.");
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized. Only admins can create categories.");
   }
 
   if (!name || name.trim() === "") {
@@ -95,10 +103,8 @@ export async function updateExamCategory(id: string, name: string) {
   const supabase = createClient();
   const user = await getAuthUser();
 
-  const isPrimaryAdmin = user?.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
-
-  if (!user || !isPrimaryAdmin) {
-    throw new Error("Unauthorized. Only primary admin can update categories.");
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized. Only admins can update categories.");
   }
 
   if (!id || !name || name.trim() === "") {
@@ -120,10 +126,8 @@ export async function deleteExamCategory(id: string) {
   const supabase = createClient();
   const user = await getAuthUser();
 
-  const isPrimaryAdmin = user?.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
-
-  if (!user || !isPrimaryAdmin) {
-    throw new Error("Unauthorized. Only primary admin can delete categories.");
+  if (!user || !isAdmin(user)) {
+    throw new Error("Unauthorized. Only admins can delete categories.");
   }
 
   if (!id) {
@@ -152,7 +156,7 @@ export async function toggleCategoryPublishStatus(id: string, is_published: bool
   const supabase = createClient();
   const user = await getAuthUser();
 
-  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+  const isUserAdmin = Boolean(user && isAdmin(user));
 
   if (!user || !isUserAdmin) {
     throw new Error("Unauthorized. Admin access required.");
@@ -1493,7 +1497,7 @@ export async function getAdminStats() {
   const supabase = createClient();
   const user = await getAuthUser();
 
-  const isUserAdmin = user && (user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() || user.user_metadata?.role === "Admin");
+  const isUserAdmin = Boolean(user && isAdmin(user));
 
   if (!user || !isUserAdmin) {
     throw new Error("Unauthorized");

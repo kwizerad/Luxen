@@ -25,6 +25,7 @@ import {
   getStudentsForNotification,
 } from "@/app/Admin/actions/notifications";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/auth-utils";
 import { canRead, canWrite, type User as PermUser } from "@/lib/permissions";
 
 interface StudentItem {
@@ -58,8 +59,7 @@ export default function AdminNotificationsPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const checkPermissions = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       const permUser = user as PermUser;
       if (!canRead(permUser, "notifications")) {
         router.replace("/Admin");

@@ -36,10 +36,7 @@ export default function CoursePage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const loadUser = async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await (await import("@/lib/auth-utils")).getCurrentUser();
       const mgmt = canAccess(user as PermUser, "courseManagement");
       const studio = canAccess(user as PermUser, "courseStudio");
       setCanViewManagement(mgmt);

@@ -16,7 +16,18 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "50");
-    const userIsAdmin = isAdmin(user);
+    let userIsAdmin = isAdmin(user);
+    if (!userIsAdmin) {
+      try {
+        const adminSupabase = createAdminClient();
+        const { data: profile } = await adminSupabase
+          .from("user_profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profile?.role?.toLowerCase() === "admin") userIsAdmin = true;
+      } catch {}
+    }
 
     const orConditions = [
       `target_user_id.eq.${user.id}`,
@@ -107,7 +118,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!isAdmin(user)) {
+    let userIsAdmin = isAdmin(user);
+    if (!userIsAdmin) {
+      const { data: profile } = await adminSupabase
+        .from("user_profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (profile?.role?.toLowerCase() === "admin") userIsAdmin = true;
+    }
+
+    if (!userIsAdmin) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 

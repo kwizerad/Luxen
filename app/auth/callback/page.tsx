@@ -119,7 +119,7 @@ function AuthCallbackContent() {
         }
         
         // Redirect based on role - use window.location for full page load
-        if (isPrimaryAdmin(user) || role === "Admin") {
+        if (isPrimaryAdmin(user) || (typeof role === "string" && role.toLowerCase() === "admin")) {
           console.log("Redirecting to /Admin");
           window.location.href = "/Admin";
         } else {

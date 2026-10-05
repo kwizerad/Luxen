@@ -21,6 +21,7 @@ import { useBrandingConfig } from "@/lib/branding-config";
 import { useLanguage } from "@/lib/language-context";
 import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/auth-utils";
 import { isAdmin, hasReadWriteQuestionAccess, hasReadOnlyQuestionAccess } from "@/lib/permissions";
 import { getExamCategories, getExamQuestions, updateExamQuestion, deleteExamQuestion } from "@/lib/supabase/queries";
 
@@ -81,8 +82,7 @@ export default function QuestionManagementPage() {
     if (typeof window === "undefined") return;
     
     const checkPermissions = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       
       if (!user || !isAdmin(user)) {
         router.push("/");

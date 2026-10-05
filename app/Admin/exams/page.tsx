@@ -43,7 +43,8 @@ import {
   getExamSavingConfig,
   updateExamSavingConfig,
 } from "@/lib/supabase/queries";
-import { isAdmin, canAddQuestions, canViewQuestions, canManageExamSettings } from "@/lib/permissions";
+import { isAdmin, isPrimaryAdmin as checkIsPrimaryAdmin, canAddQuestions, canViewQuestions, canManageExamSettings } from "@/lib/permissions";
+import { getCurrentUser } from "@/lib/auth-utils";
 import { DEFAULT_EXAM_SETTINGS } from "@/lib/exam-settings";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 
@@ -63,7 +64,7 @@ export default function ExamManagementPage() {
   const [canManageSettings, setCanManageSettings] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const isPrimaryAdmin = currentUser?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isPrimaryAdmin = checkIsPrimaryAdmin(currentUser) || currentUser?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
   
   // Search/filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -175,8 +176,7 @@ export default function ExamManagementPage() {
     if (typeof window === "undefined") return;
     
     const checkPermissions = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       
       if (!user || !isAdmin(user)) {
         router.push("/Admin");

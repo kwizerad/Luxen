@@ -45,19 +45,11 @@ export function createClient() {
     supabaseUrl,
     supabaseKey,
     {
-      auth: {
-        flowType: "implicit",
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        persistSession: true,
-        storageKey: AUTH_TOKEN_KEY,
-        storage: customStorage,
-      },
       cookieOptions: {
         name: AUTH_TOKEN_KEY,
         priority: "high",
         sameSite: "lax",
-        secure: false,
+        secure: typeof window !== "undefined" ? window.location.protocol === "https:" : false,
       },
     }
   );
@@ -66,21 +58,14 @@ export function createClient() {
 }
 
 export function setAdminSessionFlag(isAdmin: boolean) {
-  if (isAdmin) {
-    sessionStorage.setItem(ADMIN_FLAG_KEY, "true");
-    // Migrate existing token from localStorage to sessionStorage
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
-    if (token) {
-      sessionStorage.setItem(AUTH_TOKEN_KEY, token);
-      localStorage.removeItem(AUTH_TOKEN_KEY);
+  if (typeof window === "undefined") return;
+  try {
+    if (isAdmin) {
+      sessionStorage.setItem(ADMIN_FLAG_KEY, "true");
+    } else {
+      sessionStorage.removeItem(ADMIN_FLAG_KEY);
     }
-  } else {
-    sessionStorage.removeItem(ADMIN_FLAG_KEY);
-    // Migrate back to localStorage if needed
-    const token = sessionStorage.getItem(AUTH_TOKEN_KEY);
-    if (token) {
-      localStorage.setItem(AUTH_TOKEN_KEY, token);
-      sessionStorage.removeItem(AUTH_TOKEN_KEY);
-    }
+  } catch {
+    // ignore storage errors
   }
 }

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdmin } from "@/lib/permissions";
 
@@ -31,8 +32,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    if (isLessonAsset && !isAdmin(user)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (isLessonAsset) {
+      let userIsAdmin = isAdmin(user);
+      if (!userIsAdmin) {
+        try {
+          const adminSupabase = createAdminClient();
+          const { data: profile } = await adminSupabase
+            .from("user_profiles")
+            .select("role")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (profile?.role?.toLowerCase() === "admin") userIsAdmin = true;
+        } catch {}
+      }
+      if (!userIsAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const allowedLessonTypes = [

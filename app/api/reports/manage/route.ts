@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
+
+async function checkServerAdmin(user: any): Promise<boolean> {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  try {
+    const adminSupabase = createAdminClient();
+    const { data: profile } = await adminSupabase
+      .from("user_profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.role?.toLowerCase() === "admin") return true;
+  } catch {}
+  return false;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +29,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!isAdmin(user as any)) {
+    if (!(await checkServerAdmin(user))) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
@@ -60,7 +76,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!isAdmin(user as any)) {
+    if (!(await checkServerAdmin(user))) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 

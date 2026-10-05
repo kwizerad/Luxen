@@ -37,8 +37,7 @@ export default function AdminSettingsPage() {
     if (typeof window === "undefined") return;
     
     const loadUser = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await (await import("@/lib/auth-utils")).getCurrentUser();
 
       if (!user) {
         router.replace("/");
@@ -47,8 +46,12 @@ export default function AdminSettingsPage() {
 
       const permUser = user as PermUser;
       const isUserPrimary =
-        user.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase();
-      const isUserAdmin = isUserPrimary || user.user_metadata?.role === "Admin";
+        user.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() ||
+        user.email?.toLowerCase() === "kwizeradiementwari@gmail.com";
+      const isUserAdmin =
+        isUserPrimary ||
+        user.role?.toLowerCase() === "admin" ||
+        user.user_metadata?.role?.toLowerCase() === "admin";
 
       if (!isUserAdmin) {
         router.replace("/dashboard");

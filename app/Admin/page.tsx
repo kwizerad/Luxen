@@ -120,8 +120,7 @@ export default function AdminDashboard() {
   const loadData = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await (await import("@/lib/auth-utils")).getCurrentUser();
       setCurrentUser(user as PermUser);
 
       const result = await getAdminStats();

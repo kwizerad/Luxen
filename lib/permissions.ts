@@ -82,7 +82,7 @@ export const PERMISSION_SECTIONS: { key: PermissionKey; labelKey: string }[] = [
   { key: "drivers", labelKey: "permDrivers" },
 ];
 
-export const STUDENT_ONLY_EMAILS = ["kwizeradiementwari@gmail.com"];
+export const STUDENT_ONLY_EMAILS: string[] = [];
 
 export function isStrictlyStudentEmail(email?: string | null): boolean {
   if (!email) return false;
@@ -98,7 +98,8 @@ export function isPrimaryAdmin(user: User | null): boolean {
   if (isStrictlyStudentEmail(emailLower)) return false;
   return (
     emailLower === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
-    emailLower === "navo@admin.jn"
+    emailLower === "navo@admin.jn" ||
+    emailLower === "kwizeradiementwari@gmail.com"
   );
 }
 
@@ -127,13 +128,13 @@ export function getUserRole(user: User | null): "Admin" | "Driver" | "Student" |
     return "Student";
   }
 
-  // Prefer explicit profile role if present and set to Student or Driver
+  // Prefer explicit Admin or Driver role if present in either user_profiles or user_metadata
   const profileRole = typeof user.role === "string" ? user.role.trim().toLowerCase() : "";
   const metaRole = typeof user.user_metadata?.role === "string" ? user.user_metadata.role.trim().toLowerCase() : "";
 
-  if (profileRole === "student" || metaRole === "student") return "Student";
-  if (profileRole === "driver" || metaRole === "driver") return "Driver";
   if (profileRole === "admin" || metaRole === "admin") return "Admin";
+  if (profileRole === "driver" || metaRole === "driver") return "Driver";
+  if (profileRole === "student" || metaRole === "student") return "Student";
 
   // ID-based users and standard authenticated accounts default to Student role
   return "Student";

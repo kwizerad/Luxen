@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, Loader2, Car, CheckCircle, XCircle } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { canAccess, canWrite, type User as PermUser } from "@/lib/permissions";
+import { getCurrentUser } from "@/lib/auth-utils";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AdminDriversPage() {
@@ -18,8 +19,7 @@ export default function AdminDriversPage() {
 
   useEffect(() => {
     const checkPermAndFetch = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user || !canAccess(user as PermUser, "drivers")) {
         router.replace("/Admin");
         return;

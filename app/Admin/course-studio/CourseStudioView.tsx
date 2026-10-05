@@ -121,13 +121,12 @@ export function CourseStudioView() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      const role = user?.user_metadata?.role;
-      const isPrimaryAdmin = user?.email?.toLowerCase() === "navo@admin.jn";
-      if (!user || (role !== "Admin" && !isPrimaryAdmin)) {
+      const user = await (await import("@/lib/auth-utils")).getCurrentUser();
+      const role = user?.role || user?.user_metadata?.role;
+      const isPrimary =
+        user?.email?.toLowerCase() === "navo@admin.jn" ||
+        user?.email?.toLowerCase() === "kwizeradiementwari@gmail.com";
+      if (!user || (String(role || "").toLowerCase() !== "admin" && !isPrimary)) {
         router.push("/auth/login");
       }
     };

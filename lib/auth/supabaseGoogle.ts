@@ -276,7 +276,7 @@ export function getRedirectPathForUser(
   }
   const effectiveRole = roleOverride || (user.user_metadata?.role as string);
 
-  if (isPrimaryAdmin(user) || effectiveRole === "Admin") {
+  if (isPrimaryAdmin(user) || (typeof effectiveRole === "string" && effectiveRole.toLowerCase() === "admin")) {
     return "/Admin";
   }
 

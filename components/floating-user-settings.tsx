@@ -102,15 +102,15 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
   };
 
   const getRoleLabel = () => {
-    const role = user?.user_metadata?.role?.toLowerCase();
-    if (role === "admin") return t("admin");
-    if (role === "driver") return t("driver");
-    return t("student");
+    if (isAdmin(user)) return t("admin") || "Admin";
+    const role = (user?.role || user?.user_metadata?.role || "")?.toLowerCase();
+    if (role === "driver") return t("driver") || "Driver";
+    return t("student") || "Student";
   };
 
   const getRoleIcon = () => {
-    const role = user?.user_metadata?.role?.toLowerCase();
-    if (role === "admin") return <Shield className="h-3 w-3" />;
+    if (isAdmin(user)) return <Shield className="h-3 w-3" />;
+    const role = (user?.role || user?.user_metadata?.role || "")?.toLowerCase();
     if (role === "driver") return <Car className="h-3 w-3" />;
     return <User className="h-3 w-3" />;
   };
@@ -292,9 +292,21 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
       </DropdownMenuItem>
 
       {/* Admin quick links */}
-      {adminMode && isAdmin(user) && (
+      {isAdmin(user) && (
         <>
           <DropdownMenuSeparator />
+          {!adminMode && (
+            <DropdownMenuItem onClick={() => router.push("/Admin")} className="cursor-pointer font-semibold text-primary">
+              <Shield className="mr-2 h-4 w-4 text-primary" />
+              {t("adminDashboard") || "Admin Panel"}
+            </DropdownMenuItem>
+          )}
+          {adminMode && (
+            <DropdownMenuItem onClick={() => router.push("/dashboard")} className="cursor-pointer">
+              <User className="mr-2 h-4 w-4" />
+              {t("studentDashboard") || "Student View"}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => router.push("/Admin/exams")} className="cursor-pointer">
             <FileText className="mr-2 h-4 w-4" />
             {t("examManagementNav") || "Exams"}

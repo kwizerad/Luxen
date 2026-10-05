@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShieldCheck, Rocket, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/auth-utils";
 import { isAdmin } from "@/lib/permissions";
 
 export default function Home() {
@@ -22,14 +23,12 @@ export default function Home() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const user = await getCurrentUser().catch(() => null);
 
-      if (session) {
+      if (user) {
         // Check if user is admin
-        if (isAdmin(session.user)) {
-          // Admin users can stay on index page or go to admin panel
-          // For now, let them stay on index page
+        if (isAdmin(user)) {
+          router.replace("/Admin");
           return;
         } else {
           // Non-admin users go to dashboard

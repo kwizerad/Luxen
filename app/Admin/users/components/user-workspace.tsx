@@ -41,6 +41,7 @@ import { AdminRegistrationPanel } from "./admin-registration-panel";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useRouter } from "next/navigation";
 import { isPrimaryAdmin, canAccess } from "@/lib/permissions";
+import { getCurrentUser } from "@/lib/auth-utils";
 import { UserExamLimitDialog } from "@/components/user-exam-limit-dialog";
 import { UserPerformanceModal } from "@/components/user-performance-modal";
 import { getAllUsers, getUserStats, getUserGrowth } from "../../actions/users";
@@ -129,8 +130,7 @@ export function UserWorkspace({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const loadUser = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       setCurrentUser(user);
     };
     loadUser();

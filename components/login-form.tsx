@@ -257,7 +257,9 @@ export function LoginForm({
           // ignore
         }
       }
-      const isAdminUser = !isStrictlyStudent && (isPrimary || role === "Admin");
+      const isAdminUser =
+        !isStrictlyStudent &&
+        (isPrimary || (typeof role === "string" && role.toLowerCase() === "admin"));
 
       setAdminSessionFlag(isAdminUser);
 
