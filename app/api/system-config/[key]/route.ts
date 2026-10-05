@@ -96,27 +96,15 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Use admin client to bypass RLS
-    const adminSupabase = createAdminClient();
-
-    let userIsAdmin = isAdmin(user);
-    if (!userIsAdmin) {
-      const { data: profile } = await adminSupabase
-        .from("user_profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (profile?.role?.toLowerCase() === "admin") {
-        userIsAdmin = true;
-      }
-    }
-
-    if (!userIsAdmin) {
+    if (!isAdmin(user)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();
     const { value, description } = body;
+
+    // Use admin client to bypass RLS
+    const adminSupabase = createAdminClient();
     
     // Upsert the config value
     const { data, error } = await adminSupabase
