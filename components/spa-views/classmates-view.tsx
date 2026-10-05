@@ -2326,7 +2326,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                         </div>
                         <div className="flex items-center justify-between gap-2 mt-0.5">
                           <p className="text-xs text-muted-foreground truncate flex-1">
-                            {lastMessageData?.message || (isOnline(friend.last_seen) ? t("online") : (formatLastSeen(friend.last_seen) || `@${friend.username}`))}
+                            {lastMessageData?.message || (isOnline(friend.last_seen) ? t("online") : (formatLastSeen(friend.last_seen) || (friend.username ? `@${friend.username}` : "")))}
                           </p>
                           {lastMessageData?.unread && lastMessageData.unread > 0 && (
                             <span className="ml-2 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1 shrink-0">
@@ -2379,7 +2379,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {isOnline(classmate.last_seen)
                           ? t("online")
-                          : (formatLastSeen(classmate.last_seen) || `@${classmate.username}`)}
+                          : (formatLastSeen(classmate.last_seen) || (classmate.username ? `@${classmate.username}` : ""))}
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -2587,7 +2587,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                     ? t("typing")
                     : isOnline(selectedFriend.last_seen)
                     ? t("online")
-                    : (formatLastSeen(selectedFriend.last_seen) || `@${selectedFriend.username}`)}
+                    : (formatLastSeen(selectedFriend.last_seen) || (selectedFriend.username ? `@${selectedFriend.username}` : ""))}
                 </p>
               </div>
             </div>
@@ -2789,233 +2789,6 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
           </>
         )}
       </div>
-
-      {/* Mobile Chat Overlay — Positioned flush between the top header and the fixed bottom navbar so the message input sits right on top of the bottom navbar */}
-      {selectedFriend && (
-        <div
-          className="sm:hidden fixed top-14 left-0 right-0 bottom-[calc(4rem+max(0.25rem,env(safe-area-inset-bottom,0px)))] z-40 flex flex-col bg-background"
-        >
-          <div className="sticky top-0 z-10 shrink-0 border-b px-3 py-2.5 flex items-center gap-3 bg-background">
-            <button
-              onClick={() => {
-                setSelectedFriend(null);
-                setConversationId(null);
-                setMessages([]);
-                setChallenges([]);
-              }}
-              className="rounded-lg p-1 hover:bg-muted"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <ProfileAvatar profile={selectedFriend} size="h-10 w-10" />
-            <div className="flex-1 min-w-0">
-              <h2 className="font-bold text-sm truncate">
-                {selectedFriend.full_name || selectedFriend.username}
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {isFriendTyping
-                  ? t("typing")
-                  : isOnline(selectedFriend.last_seen)
-                  ? t("online")
-                  : `@${selectedFriend.username}`}
-              </p>
-            </div>
-          </div>
-
-          {/* Group Exam Chat Invitations */}
-          {groupExamEnabled && challenges.length > 0 && (
-            <div className="px-4 pt-2.5">
-              {challenges.map((ch) => (
-                <ChatExamInviteBanner
-                  key={ch.id}
-                  challenge={ch}
-                  currentUserId={user?.id || ""}
-                  selectedFriend={selectedFriend}
-                  onRespond={handleChatRespondToInvitation}
-                  navigate={navigate}
-                  t={t}
-                />
-              ))}
-            </div>
-          )}
-
-          <div ref={scrollRef} className="relative flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            {/* Floating Reaction Animation Burst (Mobile) */}
-            {floatingReactions.length > 0 && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-16 z-30 flex justify-center items-center">
-                {floatingReactions.map((item) => (
-                  <span
-                    key={item.id}
-                    className="absolute text-2xl animate-in fade-in zoom-in-50 slide-out-to-top-12 duration-1000 fill-mode-forwards"
-                    style={{
-                      transform: `translate(${item.x}px, ${item.y}px)`,
-                    }}
-                  >
-                    {item.emoji}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {loadingChat ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : messages.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">{t("noMessagesYet")}</p>
-            ) : (
-              messages.map((msg) => {
-                const isOwn = msg.sender_id === user?.id;
-                const reactionsOnMsg = messageReactions[msg.id] || {};
-                const hasReactions = Object.keys(reactionsOnMsg).length > 0;
-                const isPickerOpen = activeReactionPickerMessageId === msg.id;
-
-                return (
-                  <div
-                    key={msg.id}
-                    className={`group relative flex flex-col ${
-                      isOwn ? "items-end self-end ml-auto" : "items-start self-start mr-auto"
-                    } max-w-[84%]`}
-                  >
-                    {/* Reaction Picker Popover */}
-                    {isPickerOpen && (
-                      <div
-                        className={`absolute -top-10 z-20 flex items-center gap-1 px-1.5 py-1 bg-card/95 backdrop-blur-md border border-border rounded-full shadow-lg transition-all animate-in fade-in zoom-in-90 duration-150 ${
-                          isOwn ? "right-0" : "left-0"
-                        }`}
-                      >
-                        {REACTION_EMOJIS.map((emoji) => {
-                          const hasThisReaction = (reactionsOnMsg[emoji]?.users || []).some(
-                            (u) => u.id === user?.id
-                          );
-                          return (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={() => handleToggleReaction(msg.id, emoji)}
-                              className={`flex items-center justify-center h-7 w-7 rounded-full text-sm hover:scale-125 active:scale-100 transition-all ${
-                                hasThisReaction ? "bg-primary/20 ring-1 ring-primary/40" : "hover:bg-muted"
-                              }`}
-                            >
-                              {emoji}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Bubble with Quick Reaction Button */}
-                    <div className={`relative flex items-center gap-1.5 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-                      <div
-                        className={`rounded-2xl px-3.5 py-2 text-sm shadow-xs transition-all ${
-                          isOwn
-                            ? "bg-primary text-primary-foreground rounded-br-xs"
-                            : "bg-muted text-foreground rounded-bl-xs"
-                        }`}
-                      >
-                        <p className="leading-relaxed break-words">{msg.message}</p>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setActiveReactionPickerMessageId((prev) => (prev === msg.id ? null : msg.id))
-                        }
-                        className="opacity-70 hover:opacity-100 p-1 rounded-full text-muted-foreground hover:text-foreground transition-all"
-                        title="React"
-                      >
-                        <Smile className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-
-                    {/* Reaction Badges */}
-                    {hasReactions && (
-                      <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
-                        {Object.entries(reactionsOnMsg).map(([emoji, data]) => {
-                          if (!data || data.count <= 0) return null;
-                          const hasUserReacted = data.users.some((u) => u.id === user?.id);
-                          const userNames = data.users.map((u) => u.name).join(", ");
-                          return (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={() => handleToggleReaction(msg.id, emoji)}
-                              title={userNames}
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all active:scale-95 border ${
-                                hasUserReacted
-                                  ? "bg-primary/15 border-primary/40 text-primary font-medium"
-                                  : "bg-muted/70 hover:bg-muted border-border/40 text-muted-foreground"
-                              }`}
-                            >
-                              <span>{emoji}</span>
-                              <span className="text-[10px] font-semibold">{data.count}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Timestamp & Ticks */}
-                    <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <span>
-                        {new Date(msg.created_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      {isOwn && <MessageTicks msg={msg} />}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-            {/* Typing indicator */}
-            {isFriendTyping && (
-              <div className="px-4 pb-1 text-xs text-muted-foreground italic">
-                {selectedFriend.full_name || selectedFriend.username} {t("isTyping")}
-              </div>
-            )}
-
-          <div className="shrink-0 border-t bg-background px-3 py-2 flex items-center gap-2">
-            {groupExamEnabled && (
-            <button
-              onClick={openInviteModal}
-              title={t("inviteToGroupExam")}
-              className="rounded-xl p-2.5 text-muted-foreground hover:text-primary hover:bg-muted transition-colors shrink-0"
-            >
-              <Trophy className="h-5 w-5" />
-            </button>
-            )}
-            <input
-              type="text"
-              value={newMessage}
-              onChange={handleMessageInputChange}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSendMessage();
-                else if (e.key === "Backspace" && !newMessage) broadcastStopTyping();
-              }}
-              placeholder={t("typeMessage")}
-              className="flex-1 rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
-            />
-            <button
-              onClick={() => {
-                broadcastStopTyping();
-                handleSendMessage();
-              }}
-              disabled={sendingMessage || !newMessage.trim()}
-              className="rounded-xl bg-primary p-2.5 text-primary-foreground disabled:opacity-50"
-            >
-              {sendingMessage ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Invite to Group Exam Modal */}
       {groupExamEnabled && (
