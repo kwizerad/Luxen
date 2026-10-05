@@ -148,7 +148,7 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)]">
+    <div className="flex flex-col h-[calc(100dvh-88px)] md:h-[calc(100dvh-80px)]">
       {/* Header */}
       <div className="border-b px-4 py-3 flex items-center gap-3">
         <button onClick={() => navigate("back", { fallback: "chat" })} className="rounded-lg p-1 hover:bg-muted" title={t("back") || "Back"}>

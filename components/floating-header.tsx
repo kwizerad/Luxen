@@ -265,6 +265,14 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       isActive: pathname === "/dashboard" && currentView === "results",
       visible: true,
     },
+    {
+      id: "settings",
+      label: t("settings") || "Settings",
+      icon: Settings,
+      view: "settings",
+      isActive: pathname === "/dashboard" && currentView === "settings",
+      visible: true,
+    },
   ];
 
   const permUser = user as PermUser | null;
@@ -488,7 +496,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       </header>
 
       {/* Small Devices Fixed Bottom Navigation Bar (Includes Nav Items + Notifications + User Menu) */}
-      {!isChatActive && !isExamActive && (
+      {!isExamActive && (
         <nav
           aria-label="Mobile Bottom Navigation"
           aria-hidden={isExamActive}
@@ -497,7 +505,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
             isExamActive ? "pointer-events-none opacity-0 invisible select-none" : ""
           }`}
         >
-          <div className="flex items-center justify-around h-16 px-1 max-w-lg mx-auto">
+          <div className="flex items-center justify-between h-16 px-1 max-w-lg mx-auto overflow-x-auto no-scrollbar">
             {navItems.map((item) => {
               const Icon = item.icon;
               const mobileContent = (
@@ -510,7 +518,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                     />
                   )}
                   <div
-                    className={`flex items-center justify-center w-8 h-7 rounded-full transition-colors ${
+                    className={`flex items-center justify-center w-7 h-7 rounded-full transition-colors ${
                       item.isActive
                         ? "bg-primary/15 text-primary"
                         : "text-muted-foreground group-hover:text-foreground"
@@ -519,7 +527,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                     <Icon className="h-4 w-4 shrink-0" />
                   </div>
                   <span
-                    className={`text-[10px] leading-tight truncate max-w-[54px] transition-colors ${
+                    className={`text-[9.5px] leading-tight truncate max-w-[48px] transition-colors ${
                       item.isActive
                         ? "font-semibold text-primary"
                         : "font-medium text-muted-foreground"
@@ -535,7 +543,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                   <Link
                     key={item.id}
                     href={item.href}
-                    className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-0"
+                    className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-[44px]"
                   >
                     {mobileContent}
                   </Link>
@@ -548,7 +556,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                   type="button"
                   disabled={isExamActive}
                   onClick={() => item.view && handleStudentNavigate(item.view)}
-                  className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-0 cursor-pointer disabled:pointer-events-none"
+                  className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-[44px] cursor-pointer disabled:pointer-events-none"
                 >
                   {mobileContent}
                 </button>
@@ -556,7 +564,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
             })}
 
             {/* Mobile Notifications & User Profile in Bottom Bar */}
-            <div className="flex items-center gap-1 pl-1 pr-1.5 border-l border-border/50 h-10 shrink-0">
+            <div className="flex items-center gap-0.5 pl-1 pr-1 border-l border-border/50 h-10 shrink-0">
               <div className="flex items-center justify-center">
                 <NotificationsDropdown />
               </div>

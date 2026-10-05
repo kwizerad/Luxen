@@ -2117,7 +2117,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-56px)] sm:h-[calc(100dvh-64px)] overflow-hidden">
+    <div className="flex h-[calc(100dvh-88px)] md:h-[calc(100dvh-80px)] overflow-hidden">
       {/* Left Sidebar */}
       <div className={`${selectedFriend ? 'hidden sm:flex' : 'flex'} w-full sm:w-96 md:w-[400px] border-r flex flex-col bg-background h-full`}>
         {/* Back button */}
