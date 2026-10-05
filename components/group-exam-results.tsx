@@ -47,6 +47,7 @@ export function GroupExamResults({ challengeId, examResult, questions, onReset, 
   const { user } = useAuth();
   const { t } = useLanguage();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [isSoloAttempt, setIsSoloAttempt] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showReview, setShowReview] = useState(false);
   const confettiFiredRef = useRef(false);
@@ -59,6 +60,9 @@ export function GroupExamResults({ challengeId, examResult, questions, onReset, 
       const data = await res.json();
       if (data.leaderboard) {
         setLeaderboard(data.leaderboard);
+      }
+      if (typeof data.is_solo_attempt === "boolean") {
+        setIsSoloAttempt(data.is_solo_attempt);
       }
     } catch {
       // ignore
@@ -160,9 +164,9 @@ export function GroupExamResults({ challengeId, examResult, questions, onReset, 
       : ((winner.score || 0) / (winner.total_questions || 1)) * 100 >= 50
   ) : false;
 
-  // Winner celebration confetti (Only if winner passed the exam)
+  // Winner celebration confetti (Only if winner passed the exam and it's not a solo attempt)
   useEffect(() => {
-    if (winner && isWinnerPassed && !confettiFiredRef.current) {
+    if (!isSoloAttempt && winner && isWinnerPassed && !confettiFiredRef.current) {
       confettiFiredRef.current = true;
       confetti({
         particleCount: 70,
@@ -171,7 +175,18 @@ export function GroupExamResults({ challengeId, examResult, questions, onReset, 
         colors: ["#fbbf24", "#f59e0b", "#10b981", "#3b82f6"],
       });
     }
-  }, [winner, isWinnerPassed]);
+  }, [isSoloAttempt, winner, isWinnerPassed]);
+
+  if (!loading && isSoloAttempt) {
+    return (
+      <ExamReview
+        examResult={examResult}
+        questions={questions}
+        onReset={onReset}
+        onRetake={onRetake}
+      />
+    );
+  }
 
   if (showReview) {
     return (
@@ -204,7 +219,7 @@ export function GroupExamResults({ challengeId, examResult, questions, onReset, 
 
   return (
     <div className="min-h-[calc(100vh-80px)] p-4 pb-20">
-      <div className="max-w-3xl mx-auto">
+      <div className="w-full max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/10 mb-3 shadow-xs">

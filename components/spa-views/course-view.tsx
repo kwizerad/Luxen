@@ -1646,7 +1646,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     const modulePct = totalLessons > 0 ? Math.round((completedLessonsCount / totalLessons) * 100) : 0;
 
     return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200">
+      <div className="min-h-[calc(100vh-4rem)] w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200">
         {/* Navigation Breadcrumb */}
         <div className="space-y-3 border-b border-border dark:border-zinc-800 pb-4">
           <button

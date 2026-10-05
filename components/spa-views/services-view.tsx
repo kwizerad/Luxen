@@ -166,7 +166,7 @@ export function ServicesView({ navigate }: ServicesViewProps) {
   if (!pageEnabled) {
     return (
       <div className="min-h-[calc(100vh-80px)] pb-24 animate-in fade-in duration-200">
-        <div className="container mx-auto max-w-xl px-4 py-12 text-center">
+        <div className="w-full max-w-6xl mx-auto px-4 py-12 text-center">
           <button
             onClick={() => navigate("back", { fallback: "home" })}
             className="mb-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 dark:bg-zinc-900/60 dark:hover:bg-zinc-800/80 border border-border dark:border-zinc-800 transition-colors shadow-xs"
@@ -248,7 +248,7 @@ export function ServicesView({ navigate }: ServicesViewProps) {
 
   return (
     <div className="min-h-[calc(100vh-80px)] pb-32 px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-      <div className="w-full max-w-7xl mx-auto space-y-4 sm:space-y-6 animate-in fade-in duration-200">
+      <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-6 animate-in fade-in duration-200">
         
         {/* Navigation & Header */}
         <div className="space-y-2.5">

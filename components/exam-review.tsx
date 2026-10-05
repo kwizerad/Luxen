@@ -71,7 +71,7 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
   const { user } = useAuth();
   const { t } = useLanguage();
   const [filter, setFilter] = useState<FilterType>("all");
-  const [groupData, setGroupData] = useState<{ challenge: any; leaderboard: any[] } | null>(null);
+  const [groupData, setGroupData] = useState<{ challenge: any; leaderboard: any[]; is_solo_attempt?: boolean } | null>(null);
   const [loadingGroup, setLoadingGroup] = useState(false);
   const [showSummaryPopout, setShowSummaryPopout] = useState(false);
 
@@ -181,7 +181,7 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
   const options: ("A" | "B" | "C" | "D")[] = ["A", "B", "C", "D"];
 
   return (
-    <main className="student-page student-page-no-nav relative !mx-auto max-w-5xl">
+    <main className="student-page student-page-no-nav relative !mx-auto max-w-6xl">
       <Watermark />
 
       {/* Header with Pass/Fail Banner */}
@@ -428,8 +428,8 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
               </div>
             </div>
 
-            {/* All Participants Summary (Group Exam Specific) */}
-            {groupData?.leaderboard && groupData.leaderboard.length > 0 && (
+            {/* All Participants Summary (Group Exam Specific - only shown if more than 1 participant attempted) */}
+            {groupData?.leaderboard && groupData.leaderboard.length > 0 && !groupData.is_solo_attempt && (
               <div className="pt-4 border-t space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">

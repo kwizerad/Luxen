@@ -162,12 +162,31 @@ export async function GET(
       };
     });
 
+    const attemptedCount = enrichedParticipants.filter(
+      (p) =>
+        p.status === "completed" ||
+        p.status === "in_progress" ||
+        Boolean(p.exam_attempt_id) ||
+        Boolean(p.exam_attempt)
+    ).length;
+    const activeJoinedCount = enrichedParticipants.filter((p) =>
+      ["joined", "ready", "in_progress", "completed"].includes(p.status)
+    ).length;
+    const isSoloAttempt =
+      challenge.status !== "pending" &&
+      activeJoinedCount <= 1 &&
+      attemptedCount <= 1;
+
     return NextResponse.json({
       challenge: {
         ...challenge,
         creator_profile: profileMap[challenge.creator_id] || null,
+        attempted_participants_count: attemptedCount,
+        is_solo_attempt: isSoloAttempt,
       },
       participants: enrichedParticipants,
+      attempted_participants_count: attemptedCount,
+      is_solo_attempt: isSoloAttempt,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch challenge.";

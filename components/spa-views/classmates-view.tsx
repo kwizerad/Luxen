@@ -2117,7 +2117,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-136px-env(safe-area-inset-bottom,0px))] sm:h-[calc(100dvh-152px-env(safe-area-inset-bottom,0px))] lg:h-[calc(100dvh-88px)] overflow-hidden">
+    <div className="flex w-full max-w-6xl mx-auto h-[calc(100dvh-136px-env(safe-area-inset-bottom,0px))] sm:h-[calc(100dvh-152px-env(safe-area-inset-bottom,0px))] lg:h-[calc(100dvh-88px)] overflow-hidden">
       {/* Left Sidebar */}
       <div className={`${selectedFriend ? 'hidden sm:flex' : 'flex'} w-full sm:w-96 md:w-[400px] border-r flex flex-col bg-background h-full`}>
         {/* Back button */}

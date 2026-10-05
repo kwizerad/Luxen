@@ -98,7 +98,7 @@ export function DriverHubView({ navigate }: DriverHubViewProps) {
   if (isServiceEnabled === false) {
     return (
       <div className="min-h-[calc(100vh-80px)] pb-24 animate-in fade-in duration-200">
-        <div className="container mx-auto max-w-xl px-4 py-12 text-center">
+        <div className="w-full max-w-6xl mx-auto px-4 py-12 text-center">
           <button
             onClick={() => navigate("back", { fallback: "services" })}
             className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -122,7 +122,7 @@ export function DriverHubView({ navigate }: DriverHubViewProps) {
     <div className="min-h-[calc(100vh-80px)] pb-24">
       {/* Sticky tab bar */}
       <div className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="container mx-auto max-w-4xl px-4">
+        <div className="w-full max-w-6xl mx-auto px-4">
           <div className="flex items-center gap-1 overflow-x-auto py-2">
             <button
               onClick={() => navigate("back", { fallback: "home" })}
@@ -154,7 +154,7 @@ export function DriverHubView({ navigate }: DriverHubViewProps) {
       </div>
 
       {/* Tab content */}
-      <div className="container mx-auto max-w-4xl px-4">
+      <div className="w-full max-w-6xl mx-auto px-4">
         {activeTab === "drivers" && <DriversListView navigate={navigate} embedded />}
         {activeTab === "training" && <StudentTrainingView navigate={navigate} embedded />}
         {activeTab === "reports" && <MyReportsView navigate={navigate} embedded />}

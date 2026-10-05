@@ -53,7 +53,7 @@ export function ExamChoiceScreen({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto py-2 sm:py-4 px-2 sm:px-4 space-y-4 sm:space-y-5 animate-in fade-in duration-200">
+    <div className="w-full max-w-6xl mx-auto py-2 sm:py-4 px-2 sm:px-4 space-y-4 sm:space-y-5 animate-in fade-in duration-200">
       {/* Back Button */}
       <div>
         <button

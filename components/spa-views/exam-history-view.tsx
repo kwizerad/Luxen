@@ -110,7 +110,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
         // 3. Fetch challenge participation to determine which attempts are group exams
         const challengePromise = supabase
           .from("exam_challenge_participants")
-          .select("challenge_id, exam_attempt_id")
+          .select("challenge_id, exam_attempt_id, status")
           .eq("user_id", user.id)
           .not("exam_attempt_id", "is", null);
 
@@ -126,10 +126,38 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           ongoingPromise,
         ]);
 
+        const soloChallengeIds = new Set<string>();
+        const allChallengesList =
+          ongoingRes.status === "fulfilled" ? (ongoingRes.value as any)?.challenges || [] : [];
+        allChallengesList.forEach((c: any) => {
+          if (c?.is_solo_attempt) {
+            soloChallengeIds.add(c.id);
+          } else if (Array.isArray(c?.participants)) {
+            const attemptedCount = c.participants.filter(
+              (p: any) =>
+                p.status === "completed" ||
+                p.status === "in_progress" ||
+                Boolean(p.exam_attempt_id)
+            ).length;
+            const activeJoinedCount = c.participants.filter((p: any) =>
+              ["joined", "ready", "in_progress", "completed"].includes(p.status)
+            ).length;
+            const ageMs = c.created_at ? Date.now() - new Date(c.created_at).getTime() : 0;
+            const isFinishedOrStale =
+              c.status === "completed" ||
+              c.status === "cancelled" ||
+              c.status === "expired" ||
+              ageMs > 30 * 60 * 1000;
+            if (attemptedCount <= 1 && (isFinishedOrStale || activeJoinedCount <= 1)) {
+              soloChallengeIds.add(c.id);
+            }
+          }
+        });
+
         const groupAttemptIdMap = new Map<string, string>();
         if (challengeRes.status === "fulfilled" && challengeRes.value.data) {
           challengeRes.value.data.forEach((p: any) => {
-            if (p.exam_attempt_id) {
+            if (p.exam_attempt_id && p.challenge_id && !soloChallengeIds.has(p.challenge_id)) {
               groupAttemptIdMap.set(p.exam_attempt_id, p.challenge_id);
             }
           });

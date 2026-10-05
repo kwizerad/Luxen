@@ -495,7 +495,7 @@ html.dark .mesh-gradient-bg {
     position: relative;
     width: 100%;
     box-sizing: border-box;
-    margin-inline: 0;
+    margin-inline: auto;
     padding: 3.25rem 1rem calc(5.5rem + env(safe-area-inset-bottom));
     overflow-x: clip;
   }
@@ -507,11 +507,11 @@ html.dark .mesh-gradient-bg {
   }
 
   .student-page {
-    max-width: 96rem;
+    max-width: 72rem;
   }
 
   .student-page-narrow {
-    max-width: 80rem;
+    max-width: 72rem;
   }
 
   .student-page > :not([hidden]) ~ :not([hidden]),

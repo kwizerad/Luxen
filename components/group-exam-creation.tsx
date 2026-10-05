@@ -197,7 +197,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
 
   return (
     <div className="min-h-[calc(100vh-80px)] p-4 sm:p-6 pb-36 sm:pb-40">
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="w-full max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="space-y-2">
           <button

@@ -162,14 +162,34 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const enriched = (challenges || []).map((c) => ({
-      ...c,
-      participants: (participantMap[c.id] || []).map((p: any) => ({
+    const enriched = (challenges || []).map((c) => {
+      const parts = (participantMap[c.id] || []).map((p: any) => ({
         ...p,
         profile: profileMap[p.user_id] || null,
-      })),
-      creator_profile: profileMap[c.creator_id] || null,
-    }));
+      }));
+      const attemptedCount = parts.filter(
+        (p: any) =>
+          p.status === "completed" ||
+          p.status === "in_progress" ||
+          Boolean(p.exam_attempt_id) ||
+          Boolean(p.exam_attempt)
+      ).length;
+      const activeJoinedCount = parts.filter((p: any) =>
+        ["joined", "ready", "in_progress", "completed"].includes(p.status)
+      ).length;
+      const isOngoingChallenge =
+        c.status === "pending" ||
+        (c.status === "active" && activeJoinedCount > 1);
+      const isSoloAttempt = !isOngoingChallenge && attemptedCount <= 1;
+
+      return {
+        ...c,
+        participants: parts,
+        creator_profile: profileMap[c.creator_id] || null,
+        attempted_participants_count: attemptedCount,
+        is_solo_attempt: isSoloAttempt,
+      };
+    });
 
     return NextResponse.json({ challenges: enriched });
   } catch (error) {

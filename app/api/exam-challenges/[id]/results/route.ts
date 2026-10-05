@@ -230,12 +230,31 @@ export async function GET(
         return 0;
       });
 
+    const attemptedCount = leaderboard.filter(
+      (e) =>
+        e.completed ||
+        e.status === "in_progress" ||
+        e.score !== null ||
+        e.score_percentage !== null
+    ).length;
+    const activeJoinedCount = leaderboard.filter((e) =>
+      ["joined", "ready", "in_progress", "completed"].includes(e.status)
+    ).length;
+    const isSoloAttempt =
+      challenge.status !== "pending" &&
+      activeJoinedCount <= 1 &&
+      attemptedCount <= 1;
+
     return NextResponse.json({
       challenge: {
         ...challenge,
         creator_profile: profileMap[challenge.creator_id] || null,
+        attempted_participants_count: attemptedCount,
+        is_solo_attempt: isSoloAttempt,
       },
       leaderboard,
+      attempted_participants_count: attemptedCount,
+      is_solo_attempt: isSoloAttempt,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch challenge results.";

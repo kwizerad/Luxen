@@ -46,7 +46,7 @@ export function SettingsView({ navigate }: SettingsViewProps) {
   }
 
   return (
-    <div className="min-h-[calc(100vh-80px)] max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 pb-24 animate-in fade-in duration-200">
+    <div className="min-h-[calc(100vh-80px)] w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 pb-24 animate-in fade-in duration-200">
       {/* Top Bar Header */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">

@@ -246,7 +246,7 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
   if (!groupExamOn) {
     return (
       <div className="min-h-[calc(100vh-80px)] pb-24">
-        <div className="container mx-auto max-w-xl px-4 py-12 text-center">
+        <div className="w-full max-w-6xl mx-auto px-4 py-12 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
             <ShieldAlert className="h-7 w-7" />
           </div>
@@ -267,7 +267,7 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
 
   return (
     <div className="min-h-[calc(100vh-80px)] pb-24">
-      <div className="container mx-auto max-w-3xl px-4 py-8">
+      <div className="w-full max-w-6xl mx-auto px-4 py-8">
         {/* Back link */}
         <button
           onClick={() => navigate("back", { fallback: "services" })}

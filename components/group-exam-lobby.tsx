@@ -511,7 +511,7 @@ export function GroupExamLobby({
 
   return (
     <div className="relative min-h-[calc(100vh-80px)] p-4 sm:p-6 flex flex-col items-center justify-start pb-36 sm:pb-32">
-      <div className="w-full max-w-xl mx-auto space-y-4">
+      <div className="w-full max-w-6xl mx-auto space-y-4">
         {/* Top Bar: Back/Cancel and Join Window */}
         <div className="flex items-center justify-between gap-2">
           <Button

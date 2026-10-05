@@ -193,6 +193,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const [userAnswers, setUserAnswers] = useState<Record<string, UserAnswer>>({});
   const [showResults, setShowResults] = useState(false);
   const [examResult, setExamResult] = useState<ExamAttempt | null>(null);
+  const [isSoloGroupAttempt, setIsSoloGroupAttempt] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
   const [instructionsAccepted, setInstructionsAccepted] = useState(false);
   const [showExamInstructions, setShowExamInstructions] = useState(true);
@@ -1347,11 +1348,17 @@ export function ExamView({ navigate, params }: ExamViewProps) {
               headers: { "Content-Type": "application/json" },
             });
           } else {
-            await fetch(`/api/exam-challenges/${challengeId}/complete`, {
+            const completeRes = await fetch(`/api/exam-challenges/${challengeId}/complete`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ exam_attempt_id: attempt.id }),
             });
+            if (completeRes.ok) {
+              const completeData = await completeRes.json();
+              if (completeData?.is_solo_attempt) {
+                setIsSoloGroupAttempt(true);
+              }
+            }
           }
         } catch (challengeError) {
           console.error("Failed to update challenge participation status:", challengeError);
@@ -1546,7 +1553,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     if (challengeId || examMode === "individual") {
       return (
         <div className="min-h-[calc(100vh-80px)] p-4 animate-in fade-in duration-200">
-          <div className="max-w-4xl mx-auto">
+          <div className="w-full max-w-6xl mx-auto">
             <div className="mb-6 h-5 w-24 rounded bg-muted animate-pulse" />
             <div className="mb-8 space-y-2">
               <div className="h-7 w-48 rounded bg-muted animate-pulse" />
@@ -1567,7 +1574,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       setShowInstructions(false);
       return (
         <div className="min-h-[calc(100vh-80px)] p-4 animate-in fade-in duration-200">
-          <div className="max-w-4xl mx-auto">
+          <div className="w-full max-w-6xl mx-auto">
             <div className="mb-6 h-5 w-24 rounded bg-muted animate-pulse" />
             <div className="mb-8 space-y-2">
               <div className="h-7 w-48 rounded bg-muted animate-pulse" />
@@ -1598,7 +1605,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   if (examMode === "individual" && !showInstructions && !instructionsAccepted && !exam) {
     return (
       <div className="min-h-[calc(100vh-80px)] p-4 animate-in fade-in duration-200">
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full max-w-6xl mx-auto">
           {/* Back button */}
           <button
             onClick={() => {
@@ -1778,8 +1785,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       paramChallengeId ||
       (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("challenge_id") || "" : "");
 
-    // If this is a group exam, show group results with leaderboard
-    if (effectiveChallengeId) {
+    // If this is a group exam attempted by more than one person, show group results with leaderboard
+    if (effectiveChallengeId && !isSoloGroupAttempt) {
       return (
         <GroupExamResults
           challengeId={effectiveChallengeId}
@@ -1805,7 +1812,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
   return (
     <div className={`bg-transparent ${isExamActive ? 'select-none' : ''}`}>
-      <main className={isExamActive ? "relative mx-auto w-full max-w-5xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page student-page-no-nav !mx-auto max-w-5xl !pt-4 pb-28 sm:pb-24"}>
+      <main className={isExamActive ? "relative mx-auto w-full max-w-6xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page student-page-no-nav !mx-auto max-w-6xl !pt-4 pb-28 sm:pb-24"}>
         <Watermark />
         
         {/* Exam Categories - Top Left */}
@@ -1996,7 +2003,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         {/* Sticky Time & Progress Bar - Reduced Compact Size */}
         {isExamActive && exam && (
           <div className="sticky top-0 z-30 -mx-4 sm:-mx-5 md:-mx-6 px-3 sm:px-4 py-1.5 sm:py-2 bg-background/85 backdrop-blur-md border-b select-none shadow-xs">
-            <div className="max-w-5xl mx-auto space-y-1.5">
+            <div className="max-w-6xl mx-auto space-y-1.5">
               <div className="flex items-center justify-between gap-3 sm:gap-5">
                 {/* Progress (left) */}
                 <div className="flex-1 min-w-0">

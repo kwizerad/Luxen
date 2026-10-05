@@ -89,7 +89,7 @@ export function TrainingLogView({ navigate }: TrainingLogViewProps) {
 
   return (
     <div className="min-h-[calc(100vh-80px)] pb-24">
-      <div className="container mx-auto max-w-3xl px-4 py-8">
+      <div className="w-full max-w-6xl mx-auto px-4 py-8">
         <button
           onClick={() => navigate("back", { fallback: "driver-panel" })}
           className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"

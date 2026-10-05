@@ -429,15 +429,30 @@ export function HomeView({ navigate }: HomeViewProps) {
         }
       };
 
-      // Fetch group battle stats
+      // Fetch group battle stats (exclude solo attempts where only 1 person attempted)
       const fetchBattleStats = async () => {
         try {
           const { data } = await supabase
             .from("exam_challenge_participants")
             .select("id, challenge_id, status, exam_attempt_id")
             .eq("user_id", user.id);
-          const totalBattles = data?.length || 0;
-          return { totalBattles, wins: 0 };
+          if (!data || data.length === 0) return { totalBattles: 0, wins: 0 };
+
+          const challengeIds = data.map((p) => p.challenge_id).filter(Boolean);
+          const { data: allParts } = await supabase
+            .from("exam_challenge_participants")
+            .select("challenge_id, status, exam_attempt_id")
+            .in("challenge_id", challengeIds);
+
+          const attemptCounts = new Map<string, number>();
+          (allParts || []).forEach((p: any) => {
+            if (p.status === "completed" || p.status === "in_progress" || Boolean(p.exam_attempt_id)) {
+              attemptCounts.set(p.challenge_id, (attemptCounts.get(p.challenge_id) || 0) + 1);
+            }
+          });
+
+          const realGroupBattles = data.filter((p) => (attemptCounts.get(p.challenge_id) || 0) > 1);
+          return { totalBattles: realGroupBattles.length, wins: 0 };
         } catch {
           return { totalBattles: 0, wins: 0 };
         }

@@ -252,7 +252,9 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold text-sm truncate">
-            {t("groupExam")}: {challenge.category_name}
+            {challenge.status === "completed" && ((challenge as any).is_solo_attempt || completedCount <= 1)
+              ? `${t("individualExam") || "Individual Exam"}: ${challenge.category_name}`
+              : `${t("groupExam")}: ${challenge.category_name}`}
           </h4>
           <p className="text-xs text-muted-foreground">
             {challenge.status === "pending" && (t("waitingForOthers") || "Waiting for classmates")}
@@ -262,7 +264,9 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
           </p>
         </div>
         <Badge variant="secondary" className="text-xs capitalize">
-          {challenge.status}
+          {challenge.status === "completed" && ((challenge as any).is_solo_attempt || completedCount <= 1)
+            ? t("individualExam") || "Individual"
+            : challenge.status}
         </Badge>
       </div>
 

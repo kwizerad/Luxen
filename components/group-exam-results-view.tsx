@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import { GroupExamResultsSkeleton } from "@/components/skeletons";
 import { ExamCelebration } from "@/components/exam-celebration";
 import { ExamPodium } from "@/components/exam-podium";
+import { ExamReview } from "@/components/exam-review";
 import { cn } from "@/lib/utils";
 import type { ExamChallenge, ExamChallengeParticipant, ExamQuestion, ExamAttempt } from "@/lib/database.types";
 
@@ -63,6 +64,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
 
   const [loading, setLoading] = useState(true);
   const [challenge, setChallenge] = useState<ExamChallenge | null>(null);
+  const [isSoloAttempt, setIsSoloAttempt] = useState(false);
   const [participants, setParticipants] = useState<ParticipantWithProfile[]>([]);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [viewMode, setViewMode] = useState<"all" | "group" | "individual">("all");
@@ -78,6 +80,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
       const data = await res.json();
       if (data.challenge) {
         setChallenge(data.challenge);
+        setIsSoloAttempt(Boolean(data.is_solo_attempt || data.challenge.is_solo_attempt));
         const enrichedParticipants = data.participants || [];
         setParticipants(enrichedParticipants);
 
@@ -225,9 +228,9 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
   const isWinner = winner && user && winner.participant.user_id === user.id;
   const isWinnerPassed = winner ? (winner.scorePercentage >= 50) : false;
 
-  // Trigger celebration confetti for winner ONLY if the winner passed the exam
+  // Trigger celebration confetti for winner ONLY if the winner passed the exam and it's not a solo attempt
   useEffect(() => {
-    if (winner && isWinnerPassed && !confettiFiredRef.current) {
+    if (!isSoloAttempt && winner && isWinnerPassed && !confettiFiredRef.current) {
       confettiFiredRef.current = true;
       const duration = 2.5 * 1000;
       const end = Date.now() + duration;
@@ -254,7 +257,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
       };
       frame();
     }
-  }, [winner, isWinnerPassed]);
+  }, [isSoloAttempt, winner, isWinnerPassed]);
 
   const formatDuration = (seconds: number) => {
     if (!seconds && seconds !== 0) return "00:00";
@@ -300,6 +303,29 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
     return (
       <div className="flex items-center justify-center h-[calc(100vh-80px)]">
         <p className="text-muted-foreground">{t("challengeCompleted") || "Challenge not found"}</p>
+      </div>
+    );
+  }
+
+  if (isSoloAttempt && completedParticipants.length === 1 && completedParticipants[0].exam_attempt) {
+    const soloAttempt = completedParticipants[0].exam_attempt;
+    return (
+      <div className="student-page pb-24">
+        <div className="mb-4">
+          <button
+            onClick={() => navigate("results")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors shadow-xs"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>{t("back") || "Back"}</span>
+          </button>
+        </div>
+        <ExamReview
+          examResult={soloAttempt}
+          questions={questions}
+          onReset={() => navigate("results")}
+          onRetake={() => navigate("exam", { category_id: challenge.category_id, mode: "individual" })}
+        />
       </div>
     );
   }
