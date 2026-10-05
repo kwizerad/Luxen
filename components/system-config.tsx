@@ -171,6 +171,11 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
         checked.toString(),
         t("servicesPageToggleDesc") || "Enable or disable the entire services page"
       );
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("app_services_config");
+        sessionStorage.removeItem("app_admin_nav_toggles");
+        window.dispatchEvent(new CustomEvent("system-config-updated"));
+      }
       toast.success(t("servicesSettingsSaved") || "Services page setting updated");
     } catch (error: any) {
       toast.error((t("failedToUpdateServicesSettings") || "Failed to update services page setting: ") + error.message);
@@ -347,6 +352,11 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
         standaloneExamEnabled.toString(),
         t("standaloneExamDesc") || "Enable or disable the standalone Take Exam page"
       );
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("app_standalone_exam_enabled", String(standaloneExamEnabled));
+        sessionStorage.removeItem("app_admin_nav_toggles");
+        window.dispatchEvent(new CustomEvent("system-config-updated"));
+      }
       toast.success(t(standaloneExamEnabled ? "standaloneExamEnabled" : "standaloneExamDisabled"));
     } catch (error: any) {
       toast.error(t("failedToUpdateStandaloneExam") + error.message);
@@ -425,6 +435,10 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           )
         )
       );
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("app_admin_nav_toggles");
+        window.dispatchEvent(new CustomEvent("system-config-updated"));
+      }
       toast.success(t("learningLanguagesSaved") || "Learning language settings saved");
     } catch (error: any) {
       toast.error((t("failedToUpdateLearningLanguages") || "Failed to save learning language settings: ") + error.message);

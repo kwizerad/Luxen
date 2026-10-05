@@ -22,15 +22,7 @@ import { FloatingUserSettings } from "./floating-user-settings";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
-import { useLearningLanguages } from "@/hooks/use-learning-languages";
-import {
-  isStandaloneExamEnabled,
-  getCachedStandaloneExamEnabled,
-  getCachedServicesConfig,
-  getSyncServicesConfig,
-} from "@/lib/feature-flags";
-import { canRead, isPrimaryAdmin, type User as PermUser } from "@/lib/permissions";
-import { createClient } from "@/lib/supabase/client";
+import { useNavigationVisibility } from "@/hooks/use-navigation-visibility";
 
 interface NavItem {
   id: string;
@@ -45,70 +37,18 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { t, isRTL, language: interfaceLanguage } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const { config } = useBrandingConfig();
-  const { enabledLanguages, loading: loadingLangs } = useLearningLanguages();
+  const { filterNavItems } = useNavigationVisibility(adminMode);
 
   const [isExamActive, setIsExamActive] = useState(false);
   const [isChatActive, setIsChatActive] = useState(false);
   const [currentView, setCurrentView] = useState("home");
   const [imgError, setImgError] = useState(false);
 
-  // Feature flags & course publication states
-  const [standaloneExamEnabled, setStandaloneExamEnabled] = useState<boolean>(() => {
-    const cached = getCachedStandaloneExamEnabled();
-    return cached !== null ? cached : true;
-  });
-  const [servicesPageEnabled, setServicesPageEnabled] = useState<boolean>(() => {
-    const cached = getSyncServicesConfig();
-    return cached ? cached.pageEnabled : true;
-  });
-  const [publishedCourseLanguages, setPublishedCourseLanguages] = useState<Set<string>>(
-    () => new Set(["English", "Kinyarwanda", "French"])
-  );
-
   useEffect(() => {
     setImgError(false);
   }, [config.logoUrl]);
-
-  // Load feature flags and published courses
-  const refreshConditions = useCallback(async () => {
-    if (typeof window === "undefined") return;
-    try {
-      const [examEnabled, servicesCfg] = await Promise.all([
-        isStandaloneExamEnabled().catch(() => true),
-        getCachedServicesConfig().catch(() => ({ pageEnabled: true, services: {} })),
-      ]);
-      setStandaloneExamEnabled(examEnabled);
-      setServicesPageEnabled(servicesCfg.pageEnabled);
-
-      const supabase = createClient();
-      const { data: courses } = await supabase
-        .from("courses")
-        .select("language, status")
-        .eq("status", "published");
-
-      if (courses) {
-        setPublishedCourseLanguages(new Set(courses.map((c: any) => c.language)));
-      }
-    } catch {
-      // ignore fallback errors
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshConditions();
-
-    const handleConfigChange = () => {
-      refreshConditions();
-    };
-    window.addEventListener("system-config-updated", handleConfigChange);
-    window.addEventListener("focus", handleConfigChange);
-    return () => {
-      window.removeEventListener("system-config-updated", handleConfigChange);
-      window.removeEventListener("focus", handleConfigChange);
-    };
-  }, [refreshConditions, interfaceLanguage]);
 
   const syncNavigationState = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -196,28 +136,17 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
     [pathname, router]
   );
 
-  // Determine whether the Course tab should be visible for the current language
-  const isCourseVisible = useMemo(() => {
-    const lang = interfaceLanguage || "English";
-    const isLangEnabledByAdmin = loadingLangs
-      ? true
-      : enabledLanguages.includes(lang as any);
-    const isCoursePublishedInLang = publishedCourseLanguages.has(lang);
-    return isLangEnabledByAdmin && isCoursePublishedInLang;
-  }, [interfaceLanguage, loadingLangs, enabledLanguages, publishedCourseLanguages]);
-
   if (!user && !authLoading) {
     return null;
   }
 
-  const allStudentNavItems: (NavItem & { visible: boolean })[] = [
+  const allStudentNavItems: NavItem[] = [
     {
       id: "course",
       label: t("course") || t("theoryCourse") || "Course",
       icon: BookOpen,
       view: "course",
       isActive: pathname === "/dashboard" && currentView === "course",
-      visible: isCourseVisible,
     },
     {
       id: "exam",
@@ -230,7 +159,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           currentView === "exams" ||
           currentView === "services/live-exam" ||
           currentView === "services/group-exam"),
-      visible: standaloneExamEnabled,
     },
     {
       id: "classmates",
@@ -243,7 +171,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           currentView === "chat" ||
           currentView === "chat/conversation" ||
           currentView === "classmates/group-results"),
-      visible: true,
     },
     {
       id: "home",
@@ -251,7 +178,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: Home,
       view: "home",
       isActive: pathname === "/dashboard" && (currentView === "home" || !currentView),
-      visible: true,
     },
     {
       id: "services",
@@ -267,7 +193,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           currentView === "driver-hub" ||
           currentView.startsWith("driver-panel") ||
           currentView === "my-training"),
-      visible: servicesPageEnabled,
     },
     {
       id: "results",
@@ -275,7 +200,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: Trophy,
       view: "results",
       isActive: pathname === "/dashboard" && currentView === "results",
-      visible: true,
     },
     {
       id: "settings",
@@ -283,21 +207,16 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: Settings,
       view: "settings",
       isActive: pathname === "/dashboard" && currentView === "settings",
-      visible: true,
     },
   ];
 
-  const permUser = user as PermUser | null;
-  const userIsPrimary = isPrimaryAdmin(permUser);
-
-  const allAdminNavItems: (NavItem & { visible: boolean })[] = [
+  const allAdminNavItems: NavItem[] = [
     {
       id: "admin-home",
       label: t("dashboard") || "Dashboard",
       icon: LayoutDashboard,
       href: "/Admin",
       isActive: pathname === "/Admin",
-      visible: true,
     },
     {
       id: "admin-course",
@@ -305,10 +224,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: BookOpen,
       href: "/Admin/course",
       isActive: Boolean(pathname?.startsWith("/Admin/course")),
-      visible:
-        userIsPrimary ||
-        canRead(permUser, "courseManagement") ||
-        canRead(permUser, "courseStudio"),
     },
     {
       id: "admin-exams",
@@ -320,7 +235,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           pathname?.startsWith("/Admin/questions") ||
           pathname?.startsWith("/Admin/retake-requests")
       ),
-      visible: userIsPrimary || canRead(permUser, "exams"),
     },
     {
       id: "admin-users",
@@ -328,7 +242,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: Users,
       href: "/Admin/users",
       isActive: Boolean(pathname?.startsWith("/Admin/users")),
-      visible: userIsPrimary || canRead(permUser, "students"),
     },
     {
       id: "admin-drivers",
@@ -336,7 +249,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: Car,
       href: "/Admin/drivers",
       isActive: Boolean(pathname?.startsWith("/Admin/drivers")),
-      visible: userIsPrimary || canRead(permUser, "drivers"),
     },
     {
       id: "admin-reports",
@@ -348,7 +260,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           pathname?.startsWith("/Admin/audit") ||
           pathname?.startsWith("/Admin/notifications")
       ),
-      visible: userIsPrimary || canRead(permUser, "notifications"),
     },
     {
       id: "admin-settings",
@@ -356,13 +267,10 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: Settings,
       href: "/Admin/settings",
       isActive: Boolean(pathname?.startsWith("/Admin/settings")),
-      visible: userIsPrimary || canRead(permUser, "settings"),
     },
   ];
 
-  const navItems = (adminMode ? allAdminNavItems : allStudentNavItems).filter(
-    (item) => item.visible
-  );
+  const navItems = filterNavItems(adminMode ? allAdminNavItems : allStudentNavItems);
   const activeIdPrefix = adminMode ? "admin" : "student";
 
   return (

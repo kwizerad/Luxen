@@ -45,6 +45,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
+import { useNavigationVisibility } from "@/hooks/use-navigation-visibility";
 import {
   getDashboardData,
   type ContinueLearningData,
@@ -125,6 +126,7 @@ export function HomeView({ navigate }: HomeViewProps) {
   const { user, loading: authLoading } = useAuth();
   const { t, language: interfaceLanguage } = useLanguage();
   const { config } = useBrandingConfig();
+  const { isCourseVisible, isNavItemVisible } = useNavigationVisibility(false);
 
   const [continueData, setContinueData] = useState<ContinueLearningData | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -757,7 +759,7 @@ export function HomeView({ navigate }: HomeViewProps) {
     });
   }, [groupChallenges, user, now]);
 
-  const hasCourses = (stats?.totalLessons ?? 0) > 0;
+  const hasCourses = isCourseVisible && (stats?.totalLessons ?? 0) > 0;
   const progressPercent = stats?.progressPercent ?? 0;
 
   const handleNextTip = () => {
