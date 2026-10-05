@@ -11,11 +11,29 @@ import {
   Radio, BarChart3, Globe, ChevronRight, Check, X, BellRing, Smartphone,
   Monitor, Tablet, Compass, Eye, Filter, ArrowDownRight, UserCheck,
   Car, Flag, AlertTriangle, PlayCircle, Cpu, Wifi, CheckCircle2,
-  HardDrive, Info, Mail, ShieldAlert
+  HardDrive, Info, Mail, ShieldAlert, Command, MessageSquare, Ban,
+  RotateCcw, ExternalLink, FileSpreadsheet, HelpCircle, Sliders,
+  Megaphone, ClipboardCheck, FileCheck
 } from "lucide-react";
-import { getAdminStats } from "@/app/Admin/actions/stats";
-import type { AdminStats, CategoryMetric, ScoreDistribution, RecentRegistration, SystemAuditItem } from "@/app/Admin/actions/stats";
-import { sendNotificationToRole } from "@/app/Admin/actions/notifications";
+import {
+  getAdminStats,
+  resolveRetakeRequestAction,
+  resolveUserReportAction,
+  toggleUserVerificationAction,
+  toggleUserSuspensionAction,
+} from "@/app/Admin/actions/stats";
+import type {
+  AdminStats,
+  CategoryMetric,
+  ScoreDistribution,
+  RecentRegistration,
+  SystemAuditItem,
+  RetakeRequestItem,
+  PendingReportItem,
+  AtRiskLearner,
+  CourseModuleMetric,
+} from "@/app/Admin/actions/stats";
+import { sendNotificationToRole, sendNotificationToUser } from "@/app/Admin/actions/notifications";
 import { useLanguage } from "@/lib/language-context";
 import { Loading } from "@/components/skeletons";
 import { AnimatedCounter } from "@/components/animated-counter";
@@ -36,11 +54,13 @@ import { toast } from "sonner";
 
 export type DashboardTab =
   | "overview"
+  | "triage"
   | "exams"
-  | "reports"
-  | "audit"
+  | "courses"
   | "students"
   | "drivers"
+  | "reports"
+  | "audit"
   | "devices"
   | "operations"
   | "broadcast";
@@ -94,6 +114,40 @@ export default function AdminDashboard() {
 
   // Course & Exam System Audit Report Modal State
   const [auditReportOpen, setAuditReportOpen] = useState(false);
+
+  // Command Palette (Cmd+K) State
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+
+  // Direct User Message Modal State
+  const [directMessageTarget, setDirectMessageTarget] = useState<{
+    id: string;
+    name: string;
+    email?: string | null;
+  } | null>(null);
+  const [directMsgTitle, setDirectMsgTitle] = useState("");
+  const [directMsgBody, setDirectMsgBody] = useState("");
+  const [directMsgPriority, setDirectMsgPriority] = useState<"urgent" | "normal" | "low">("normal");
+  const [sendingDirectMsg, setSendingDirectMsg] = useState(false);
+
+  // Filter States for Exams & Students Tabs
+  const [attemptStatusFilter, setAttemptStatusFilter] = useState<"all" | "completed" | "in_progress" | "passed" | "failed">("all");
+  const [userRoleFilter, setUserRoleFilter] = useState<"all" | "Student" | "Driver" | "Admin">("all");
+  const [userStatusFilter, setUserStatusFilter] = useState<"all" | "online" | "verified" | "unverified" | "suspended">("all");
+  const [retakeFilter, setRetakeFilter] = useState<"all" | "pending" | "approved" | "denied">("pending");
+  const [processingActionId, setProcessingActionId] = useState<string | null>(null);
+
+  // Global Keyboard Shortcut for Command Palette (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCommandOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Synchronize Tab with URL query without reloading the page (SPA routing)
   const handleTabChange = useCallback((tabId: DashboardTab) => {
@@ -305,6 +359,14 @@ export default function AdminDashboard() {
   const newStudentsThisWeek = stats?.newStudentsThisWeek ?? 0;
   const totalCourses = stats?.totalCourses ?? 0;
   const totalModules = stats?.totalModules ?? 0;
+  const totalLessons = stats?.totalLessons ?? 0;
+  const completedLessonProgress = stats?.completedLessonProgress ?? 0;
+  const pendingReports = stats?.pendingReports ?? 0;
+  const pendingRetakeRequests = stats?.pendingRetakeRequests ?? 0;
+  const unverifiedUsers = stats?.unverifiedUsers ?? 0;
+  const suspendedUsers = stats?.suspendedUsers ?? 0;
+  const atRiskCount = stats?.atRiskCount ?? 0;
+  const totalActionItems = pendingRetakeRequests + pendingReports + atRiskCount;
   const latencyMs = statsData?.systemStatus?.latencyMs ?? 18;
 
   // Chart data filtering based on selected timeRange
@@ -356,7 +418,7 @@ export default function AdminDashboard() {
     );
   }, [registrationChartData]);
 
-  // Filtered categories & attempts based on Search query
+  // Filtered categories & attempts based on Search query and Status Filters
   const filteredCategories = useMemo(() => {
     const list = statsData?.categoryMetrics || [];
     if (!searchQuery.trim()) return list;
@@ -365,7 +427,16 @@ export default function AdminDashboard() {
   }, [statsData?.categoryMetrics, searchQuery]);
 
   const filteredAttempts = useMemo(() => {
-    const list = statsData?.recentAttempts || [];
+    let list = statsData?.recentAttempts || [];
+    if (attemptStatusFilter === "completed") {
+      list = list.filter((a) => a.status === "completed");
+    } else if (attemptStatusFilter === "in_progress") {
+      list = list.filter((a) => a.status === "in_progress");
+    } else if (attemptStatusFilter === "passed") {
+      list = list.filter((a) => a.status === "completed" && a.score_percentage >= 50);
+    } else if (attemptStatusFilter === "failed") {
+      list = list.filter((a) => a.status === "completed" && a.score_percentage < 50);
+    }
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
     return list.filter(
@@ -375,7 +446,196 @@ export default function AdminDashboard() {
         (a.full_name && a.full_name.toLowerCase().includes(q)) ||
         (a.email && a.email.toLowerCase().includes(q))
     );
-  }, [statsData?.recentAttempts, searchQuery]);
+  }, [statsData?.recentAttempts, searchQuery, attemptStatusFilter]);
+
+  const filteredUsers = useMemo(() => {
+    let list = statsData?.recentRegistrations || [];
+    if (userRoleFilter !== "all") {
+      list = list.filter((u) => (u.role || "Student").toLowerCase() === userRoleFilter.toLowerCase());
+    }
+    if (userStatusFilter === "online") {
+      list = list.filter((u) => u.is_online);
+    } else if (userStatusFilter === "verified") {
+      list = list.filter((u) => u.provision_verified);
+    } else if (userStatusFilter === "unverified") {
+      list = list.filter((u) => !u.provision_verified);
+    } else if (userStatusFilter === "suspended") {
+      list = list.filter((u) => u.banned);
+    }
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(
+      (u) =>
+        (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+        (u.username && u.username.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q))
+    );
+  }, [statsData?.recentRegistrations, userRoleFilter, userStatusFilter, searchQuery]);
+
+  const filteredRetakeRequests = useMemo(() => {
+    const list = statsData?.retakeRequests || [];
+    if (retakeFilter === "all") return list;
+    return list.filter((r) => r.status === retakeFilter);
+  }, [statsData?.retakeRequests, retakeFilter]);
+
+  // Handle Retake Request Approval / Denial
+  const handleResolveRetake = async (requestId: string, decision: "approved" | "denied") => {
+    setProcessingActionId(requestId);
+    try {
+      const res = await resolveRetakeRequestAction(requestId, decision);
+      if (!res.success) {
+        toast.error(res.error || "Failed to update retake request");
+        return;
+      }
+      toast.success(`Retake request ${decision === "approved" ? "approved & student notified" : "declined"}`);
+      loadData(false);
+    } catch (err: any) {
+      toast.error(err.message || "Error updating retake request");
+    } finally {
+      setProcessingActionId(null);
+    }
+  };
+
+  // Handle User Report Resolution
+  const handleResolveReport = async (reportId: string, status: "reviewing" | "resolved" | "dismissed") => {
+    setProcessingActionId(reportId);
+    try {
+      const res = await resolveUserReportAction(reportId, status);
+      if (!res.success) {
+        toast.error(res.error || "Failed to update report status");
+        return;
+      }
+      toast.success(`Report marked as ${status}`);
+      loadData(false);
+    } catch (err: any) {
+      toast.error(err.message || "Error updating report");
+    } finally {
+      setProcessingActionId(null);
+    }
+  };
+
+  // Handle Toggle User Verification
+  const handleToggleVerifyUser = async (userId: string, currentVerified: boolean) => {
+    setProcessingActionId(`verify-${userId}`);
+    try {
+      const res = await toggleUserVerificationAction(userId, !currentVerified);
+      if (!res.success) {
+        toast.error(res.error || "Failed to update verification");
+        return;
+      }
+      toast.success(!currentVerified ? "Account verified & student notified" : "Verification removed");
+      loadData(false);
+    } catch (err: any) {
+      toast.error(err.message || "Error updating verification");
+    } finally {
+      setProcessingActionId(null);
+    }
+  };
+
+  // Handle Toggle User Suspension
+  const handleToggleSuspendUser = async (userId: string, currentBanned: boolean) => {
+    setProcessingActionId(`ban-${userId}`);
+    try {
+      const res = await toggleUserSuspensionAction(userId, !currentBanned);
+      if (!res.success) {
+        toast.error(res.error || "Failed to update account status");
+        return;
+      }
+      toast.success(!currentBanned ? "User account suspended" : "User account restored");
+      loadData(false);
+    } catch (err: any) {
+      toast.error(err.message || "Error updating account status");
+    } finally {
+      setProcessingActionId(null);
+    }
+  };
+
+  // Handle Direct User Message Send
+  const handleSendDirectMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!directMessageTarget || !directMsgTitle.trim() || !directMsgBody.trim()) {
+      toast.error("Please provide both title and message");
+      return;
+    }
+    setSendingDirectMsg(true);
+    try {
+      await sendNotificationToUser(directMessageTarget.id, {
+        title: directMsgTitle.trim(),
+        message: directMsgBody.trim(),
+        type: "info",
+        priority: directMsgPriority,
+      });
+      toast.success(`Direct notification sent to ${directMessageTarget.name}`);
+      setDirectMessageTarget(null);
+      setDirectMsgTitle("");
+      setDirectMsgBody("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send message");
+    } finally {
+      setSendingDirectMsg(false);
+    }
+  };
+
+  // CSV Export Helpers
+  const handleExportAttemptsCSV = () => {
+    const rows = statsData?.recentAttempts || [];
+    const headers = ["Attempt ID", "Student Name", "Email", "Category", "Status", "Score (%)", "Duration (sec)", "Started At"];
+    const csvLines = [
+      headers.join(","),
+      ...rows.map((r) =>
+        [
+          `"${r.id}"`,
+          `"${(r.full_name || r.username || "Student").replace(/"/g, '""')}"`,
+          `"${(r.email || "").replace(/"/g, '""')}"`,
+          `"${(r.category_name || "Exam").replace(/"/g, '""')}"`,
+          `"${r.status}"`,
+          r.score_percentage,
+          r.duration_seconds || 0,
+          `"${r.started_at}"`,
+        ].join(",")
+      ),
+    ];
+    const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `luxen-exam-attempts-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Exam attempts exported to CSV");
+    setExportOpen(false);
+  };
+
+  const handleExportUsersCSV = () => {
+    const rows = statsData?.recentRegistrations || [];
+    const headers = ["User ID", "Full Name", "Email", "Role", "Online", "Verified", "Suspended", "Exam Attempts", "Avg Score (%)", "Joined Date"];
+    const csvLines = [
+      headers.join(","),
+      ...rows.map((u) =>
+        [
+          `"${u.id}"`,
+          `"${(u.full_name || u.username || "User").replace(/"/g, '""')}"`,
+          `"${(u.email || "").replace(/"/g, '""')}"`,
+          `"${u.role || "Student"}"`,
+          u.is_online ? "Yes" : "No",
+          u.provision_verified ? "Yes" : "No",
+          u.banned ? "Yes" : "No",
+          u.attempt_count ?? 0,
+          u.avg_score ?? "",
+          `"${u.created_at}"`,
+        ].join(",")
+      ),
+    ];
+    const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `luxen-users-roster-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Users roster exported to CSV");
+    setExportOpen(false);
+  };
 
   // Handle Quick Broadcast Send
   const handleSendBroadcast = async (e: React.FormEvent) => {
@@ -501,6 +761,19 @@ export default function AdminDashboard() {
 
         {/* Global Toolbar Controls */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Command Palette Trigger (Cmd+K) */}
+          <button
+            onClick={() => setCommandOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] text-[var(--admin-muted)] hover:text-[var(--admin-text)] transition-all"
+            title="Open Command Palette (Ctrl+K / Cmd+K)"
+          >
+            <Command className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">Quick Jump</span>
+            <kbd className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-black/20 border border-[var(--admin-border)] text-[var(--admin-muted)]">
+              ⌘K
+            </kbd>
+          </button>
+
           {/* Time Range Filter */}
           <div className="flex items-center p-1 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-xs">
             {(["7d", "30d", "all"] as TimeRange[]).map((r) => (
@@ -517,6 +790,20 @@ export default function AdminDashboard() {
               </button>
             ))}
           </div>
+
+          {/* Action Center Triage Button */}
+          <button
+            onClick={() => handleTabChange("triage")}
+            className="relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition-all active:scale-95 cursor-pointer"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            <span>Action Center</span>
+            {totalActionItems > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-md bg-amber-500 text-black font-mono tabular-nums text-[10px] font-bold">
+                {totalActionItems}
+              </span>
+            )}
+          </button>
 
           {/* System Audit Report Button */}
           <button
@@ -794,15 +1081,17 @@ export default function AdminDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-2xl bg-[var(--admin-card-bg)] border border-[var(--admin-border)] shadow-sm">
         <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto">
           {[
-            { id: "overview", label: "Overview & Growth", icon: BarChart3 },
-            { id: "exams", label: "Exam Telemetry", icon: Activity },
-            { id: "reports", label: "Weekly Reports", icon: Mail },
-            { id: "audit", label: "Admin Audit", icon: ShieldAlert },
-            { id: "students", label: "Students & Users", icon: GraduationCap },
-            { id: "drivers", label: "Fleet & Drivers", icon: Car },
-            { id: "devices", label: "Device Intelligence & Map", icon: Tablet },
-            { id: "operations", label: "Operations & Health", icon: Zap },
-            { id: "broadcast", label: "Broadcast Center", icon: Send },
+            { id: "overview", label: "Overview & Growth", icon: BarChart3, badge: 0 },
+            { id: "triage", label: "Action Center", icon: AlertTriangle, badge: totalActionItems },
+            { id: "exams", label: "Exam Telemetry", icon: Activity, badge: inProgressAttempts },
+            { id: "courses", label: "Curriculum & Courses", icon: BookOpen, badge: 0 },
+            { id: "students", label: "Students & Users", icon: GraduationCap, badge: unverifiedUsers },
+            { id: "drivers", label: "Fleet & Drivers", icon: Car, badge: pendingReports },
+            { id: "reports", label: "Weekly Reports", icon: Mail, badge: 0 },
+            { id: "audit", label: "Admin Audit", icon: ShieldAlert, badge: 0 },
+            { id: "devices", label: "Device & Geo Map", icon: Tablet, badge: 0 },
+            { id: "operations", label: "Operations & Health", icon: Zap, badge: 0 },
+            { id: "broadcast", label: "Broadcast Center", icon: Send, badge: 0 },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -818,6 +1107,15 @@ export default function AdminDashboard() {
               >
                 <Icon className="w-4 h-4" />
                 <span>{tab.label}</span>
+                {tab.badge > 0 && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono tabular-nums font-bold ${
+                      isActive ? "bg-white/20 text-white" : "bg-[var(--admin-input-bg)] text-amber-400"
+                    }`}
+                  >
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -830,7 +1128,7 @@ export default function AdminDashboard() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search telemetry..."
+            placeholder="Filter current view..."
             className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-xs text-[var(--admin-text)] placeholder-[var(--admin-muted)] focus:outline-none focus:border-indigo-500 transition-colors"
           />
           {searchQuery && (
@@ -856,6 +1154,141 @@ export default function AdminDashboard() {
             transition={{ duration: 0.25 }}
             className="space-y-6"
           >
+            {/* Priority Admin Triage Alert Strip (When items need attention) */}
+            {(pendingRetakeRequests > 0 || pendingReports > 0 || atRiskCount > 0 || unverifiedUsers > 0) && (
+              <div className="p-4 rounded-2xl bg-amber-500/[0.07] border border-amber-500/25 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-[var(--admin-text)]">
+                      Administrative Decisions & Triage Queue
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--admin-muted)] mt-0.5 font-mono tabular-nums">
+                      <span>{pendingRetakeRequests} Pending Retake Requests</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{pendingReports} Open Incident Reports</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{atRiskCount} At-Risk Learners (&lt;50% avg)</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{unverifiedUsers} Unverified Accounts</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => handleTabChange("triage")}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-black transition-all cursor-pointer"
+                  >
+                    Review & Resolve Queue
+                  </button>
+                  <button
+                    onClick={() => handleTabChange("students")}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] text-[var(--admin-text)] transition-all cursor-pointer"
+                  >
+                    Inspect Users
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Executive Workspace Quick-Launch Dock */}
+            <div className="admin-card p-5 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-[var(--admin-text)]">Admin Workspaces & Control Modules</h3>
+                  <p className="text-xs text-[var(--admin-muted)]">Direct access to dedicated management studios across the platform</p>
+                </div>
+                <button
+                  onClick={() => setCommandOpen(true)}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1"
+                >
+                  <span>Command Launcher (⌘K)</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+                {[
+                  {
+                    title: "Course Studio",
+                    meta: `${totalCourses} courses · ${totalModules} modules`,
+                    href: "/Admin/course",
+                    icon: BookOpen,
+                    accent: "text-emerald-400 bg-emerald-500/10",
+                  },
+                  {
+                    title: "Exams & Rules",
+                    meta: `${totalCategories} categories`,
+                    href: "/Admin/exams",
+                    icon: FileText,
+                    accent: "text-indigo-400 bg-indigo-500/10",
+                  },
+                  {
+                    title: "Question Bank",
+                    meta: `${totalQuestions} questions`,
+                    href: "/Admin/questions",
+                    icon: HelpCircle,
+                    accent: "text-purple-400 bg-purple-500/10",
+                  },
+                  {
+                    title: "User Workspace",
+                    meta: `${totalUsers} accounts`,
+                    href: "/Admin/users",
+                    icon: Users,
+                    accent: "text-sky-400 bg-sky-500/10",
+                  },
+                  {
+                    title: "Drivers & Fleet",
+                    meta: `${totalDrivers} drivers`,
+                    href: "/Admin/drivers",
+                    icon: Car,
+                    accent: "text-teal-400 bg-teal-500/10",
+                  },
+                  {
+                    title: "Incident Reports",
+                    meta: `${pendingReports} open`,
+                    href: "/Admin/reports",
+                    icon: Flag,
+                    accent: "text-rose-400 bg-rose-500/10",
+                  },
+                  {
+                    title: "Notifications",
+                    meta: "Push & History",
+                    href: "/Admin/notifications",
+                    icon: BellRing,
+                    accent: "text-amber-400 bg-amber-500/10",
+                  },
+                  {
+                    title: "System Settings",
+                    meta: "Theme & Config",
+                    href: "/Admin/settings",
+                    icon: Sliders,
+                    accent: "text-pink-400 bg-pink-500/10",
+                  },
+                ].map((ws) => {
+                  const WsIcon = ws.icon;
+                  return (
+                    <Link
+                      key={ws.href}
+                      href={ws.href}
+                      className="p-3 rounded-xl bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] hover:border-indigo-500/40 transition-all group flex flex-col justify-between gap-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${ws.accent}`}>
+                          <WsIcon className="w-4 h-4" />
+                        </div>
+                        <ExternalLink className="w-3 h-3 text-[var(--admin-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-[var(--admin-text)] truncate">{ws.title}</div>
+                        <div className="text-[11px] text-[var(--admin-muted)] truncate font-mono tabular-nums">{ws.meta}</div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
             {/* Live Realtime Ticker Feed */}
             <AnimatePresence mode="wait">
               {realtimeEvents.length > 0 && (
@@ -1057,6 +1490,367 @@ export default function AdminDashboard() {
           </motion.div>
         )}
 
+        {/* TAB: ACTION CENTER & TRIAGE QUEUE */}
+        {activeTab === "triage" && (
+          <motion.div
+            key="triage"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            className="space-y-6"
+          >
+            {/* Summary Triage Metrics */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="admin-card p-5 space-y-1.5">
+                <div className="text-xs text-[var(--admin-muted)] font-medium">Pending Retake Requests</div>
+                <div className="text-2xl font-bold font-mono tabular-nums text-amber-400">{pendingRetakeRequests}</div>
+                <div className="text-[11px] text-[var(--admin-muted)]">Students awaiting approval</div>
+              </div>
+              <div className="admin-card p-5 space-y-1.5">
+                <div className="text-xs text-[var(--admin-muted)] font-medium">Open Incident Reports</div>
+                <div className="text-2xl font-bold font-mono tabular-nums text-rose-400">{pendingReports}</div>
+                <div className="text-[11px] text-[var(--admin-muted)]">Pending or under review</div>
+              </div>
+              <div className="admin-card p-5 space-y-1.5">
+                <div className="text-xs text-[var(--admin-muted)] font-medium">At-Risk Learners (&lt;50%)</div>
+                <div className="text-2xl font-bold font-mono tabular-nums text-orange-400">{atRiskCount}</div>
+                <div className="text-[11px] text-[var(--admin-muted)]">Need coaching or study tips</div>
+              </div>
+              <div className="admin-card p-5 space-y-1.5">
+                <div className="text-xs text-[var(--admin-muted)] font-medium">Unverified Students</div>
+                <div className="text-2xl font-bold font-mono tabular-nums text-sky-400">{unverifiedUsers}</div>
+                <div className="text-[11px] text-[var(--admin-muted)]">Awaiting profile verification</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* 1. Exam Retake Approvals Queue */}
+              <div className="admin-card p-5 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-bold text-[var(--admin-text)]">Exam Retake Requests</h3>
+                    <p className="text-xs text-[var(--admin-muted)]">Approve or decline student requests for additional exam attempts</p>
+                  </div>
+                  <div className="flex items-center p-1 rounded-lg bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-xs">
+                    {(["pending", "approved", "denied", "all"] as const).map((st) => (
+                      <button
+                        key={st}
+                        onClick={() => setRetakeFilter(st)}
+                        className={`px-2.5 py-1 rounded-md font-medium capitalize transition-colors ${
+                          retakeFilter === st
+                            ? "bg-[var(--admin-hover-bg)] text-[var(--admin-text)] font-semibold shadow-sm"
+                            : "text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="divide-y divide-[var(--admin-border)] max-h-[380px] overflow-y-auto">
+                  {filteredRetakeRequests.length === 0 ? (
+                    <div className="py-10 text-center text-xs text-[var(--admin-muted)]">
+                      No {retakeFilter === "all" ? "" : retakeFilter} exam retake requests found.
+                    </div>
+                  ) : (
+                    filteredRetakeRequests.map((req) => (
+                      <div key={req.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="font-bold text-[var(--admin-text)] truncate">{req.student_name}</span>
+                            <span aria-hidden="true" className="text-[var(--admin-muted)]">·</span>
+                            <span className="text-indigo-400 font-medium truncate">{req.category_name}</span>
+                          </div>
+                          {req.reason && (
+                            <p className="text-xs text-[var(--admin-muted)] line-clamp-2">
+                              Reason: &ldquo;{req.reason}&rdquo;
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 text-[11px] text-[var(--admin-muted)] font-mono tabular-nums">
+                            <span>{new Date(req.created_at).toLocaleDateString()}</span>
+                            <span aria-hidden="true">·</span>
+                            <span className={
+                              req.status === "approved"
+                                ? "text-emerald-400 font-semibold"
+                                : req.status === "denied"
+                                ? "text-rose-400 font-semibold"
+                                : "text-amber-400 font-semibold"
+                            }>
+                              Status: {req.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        {req.status === "pending" && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              onClick={() => handleResolveRetake(req.id, "approved")}
+                              disabled={processingActionId === req.id}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all disabled:opacity-50 cursor-pointer"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Approve</span>
+                            </button>
+                            <button
+                              onClick={() => handleResolveRetake(req.id, "denied")}
+                              disabled={processingActionId === req.id}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--admin-input-bg)] hover:bg-rose-500/20 border border-[var(--admin-border)] text-rose-400 transition-all disabled:opacity-50 cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              <span>Decline</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* 2. Open Incident & Driver Reports Queue */}
+              <div className="admin-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-[var(--admin-text)]">Incident & Conduct Reports</h3>
+                    <p className="text-xs text-[var(--admin-muted)]">Triage user and driver reports directly or inspect full threads</p>
+                  </div>
+                  <Link
+                    href="/Admin/reports"
+                    className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                  >
+                    <span>All Reports</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+
+                <div className="divide-y divide-[var(--admin-border)] max-h-[380px] overflow-y-auto">
+                  {(statsData?.pendingReportsList || []).length === 0 ? (
+                    <div className="py-10 text-center text-xs text-[var(--admin-muted)]">
+                      No user or driver reports filed. Clean operational state.
+                    </div>
+                  ) : (
+                    (statsData?.pendingReportsList || []).map((rep) => (
+                      <div key={rep.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="font-bold text-[var(--admin-text)] truncate">Reported: {rep.reported_name}</span>
+                            <span aria-hidden="true" className="text-[var(--admin-muted)]">·</span>
+                            <span className="text-rose-400 font-medium capitalize">{rep.report_type}</span>
+                          </div>
+                          {rep.description && (
+                            <p className="text-xs text-[var(--admin-muted)] line-clamp-2">{rep.description}</p>
+                          )}
+                          <div className="flex items-center gap-2 text-[11px] text-[var(--admin-muted)]">
+                            <span>Filed by {rep.reporter_name}</span>
+                            <span aria-hidden="true">·</span>
+                            <span className="font-mono tabular-nums">{new Date(rep.created_at).toLocaleDateString()}</span>
+                            <span aria-hidden="true">·</span>
+                            <span className="capitalize font-semibold text-amber-400">{rep.status}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {rep.status !== "resolved" && (
+                            <button
+                              onClick={() => handleResolveReport(rep.id, "resolved")}
+                              disabled={processingActionId === rep.id}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all disabled:opacity-50 cursor-pointer"
+                            >
+                              Resolve
+                            </button>
+                          )}
+                          {rep.status === "pending" && (
+                            <button
+                              onClick={() => handleResolveReport(rep.id, "reviewing")}
+                              disabled={processingActionId === rep.id}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] text-[var(--admin-text)] transition-all disabled:opacity-50 cursor-pointer"
+                            >
+                              Reviewing
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 3. At-Risk / Struggling Learners Detection & Coaching */}
+            <div className="admin-card p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-base font-bold text-[var(--admin-text)]">At-Risk Learners & Remedial Coaching</h3>
+                  <p className="text-xs text-[var(--admin-muted)]">
+                    Students with failed exam attempts and average score below 50% — send targeted study guidance in one click
+                  </p>
+                </div>
+                <Link
+                  href="/Admin/users"
+                  className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                >
+                  <span>Open User Workspace</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+
+              {(statsData?.atRiskLearners || []).length === 0 ? (
+                <div className="py-8 text-center text-xs text-[var(--admin-muted)]">
+                  All active exam-taking students are currently averaging 50% or above.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {(statsData?.atRiskLearners || []).map((learner) => (
+                    <div
+                      key={learner.id}
+                      className="p-4 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] flex flex-col justify-between gap-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-[var(--admin-text)] truncate">{learner.full_name}</div>
+                          <div className="text-[11px] text-[var(--admin-muted)] truncate">{learner.email || "Student Account"}</div>
+                        </div>
+                        <span className="text-sm font-bold font-mono tabular-nums text-rose-400 shrink-0">
+                          {learner.avg_score}% avg
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-[var(--admin-muted)] font-mono tabular-nums">
+                        <span>{learner.failed_attempts} failed / {learner.total_attempts} total</span>
+                        <span>Last: {new Date(learner.last_attempt_at).toLocaleDateString()}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          onClick={() => {
+                            setDirectMessageTarget({
+                              id: learner.id,
+                              name: learner.full_name,
+                              email: learner.email,
+                            });
+                            setDirectMsgTitle("Study Support & Exam Preparation Tips");
+                            setDirectMsgBody(
+                              `Hi ${learner.full_name}, we noticed you've been practicing hard on your driving exams. Review the Traffic Signs and Road Priority modules in the Course section before your next attempt — you've got this!`
+                            );
+                          }}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all cursor-pointer"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>Send Study Tip</span>
+                        </button>
+                        <Link
+                          href="/Admin/users"
+                          className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-[var(--admin-card-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] text-[var(--admin-text)]"
+                        >
+                          Inspect
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* TAB: CURRICULUM & COURSES */}
+        {activeTab === "courses" && (
+          <motion.div
+            key="courses"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            className="space-y-6"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[var(--admin-card-bg)] border border-[var(--admin-border)]">
+              <div>
+                <h3 className="text-lg font-bold text-[var(--admin-text)]">Curriculum & Course Studio Intelligence</h3>
+                <p className="text-xs text-[var(--admin-muted)]">
+                  Multilingual driving courses, module structures, and student lesson completions
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/Admin/course"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Open Course Studio</span>
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="admin-card p-5 space-y-1">
+                <div className="text-xs text-[var(--admin-muted)] font-medium">Language Courses</div>
+                <div className="text-2xl font-bold font-mono tabular-nums text-[var(--admin-text)]">{totalCourses}</div>
+                <div className="text-[11px] text-emerald-400 font-medium">Active Curriculum Tracks</div>
+              </div>
+              <div className="admin-card p-5 space-y-1">
+                <div className="text-xs text-[var(--admin-muted)] font-medium">Course Modules</div>
+                <div className="text-2xl font-bold font-mono tabular-nums text-[var(--admin-text)]">{totalModules}</div>
+                <div className="text-[11px] text-indigo-400 font-medium">Structured Chapters</div>
+              </div>
+              <div className="admin-card p-5 space-y-1">
+                <div className="text-xs text-[var(--admin-muted)] font-medium">Total Lessons</div>
+                <div className="text-2xl font-bold font-mono tabular-nums text-[var(--admin-text)]">{totalLessons}</div>
+                <div className="text-[11px] text-sky-400 font-medium">Published Learning Units</div>
+              </div>
+              <div className="admin-card p-5 space-y-1">
+                <div className="text-xs text-[var(--admin-muted)] font-medium">Student Lesson Completions</div>
+                <div className="text-2xl font-bold font-mono tabular-nums text-emerald-400">{completedLessonProgress}</div>
+                <div className="text-[11px] text-[var(--admin-muted)]">Verified Study Progress</div>
+              </div>
+            </div>
+
+            <div className="admin-card p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-[var(--admin-text)]">Module Breakdown & Completion Velocity</h3>
+                  <p className="text-xs text-[var(--admin-muted)]">Lesson distribution and learner completions across course modules</p>
+                </div>
+                <Link
+                  href="/Admin/course"
+                  className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                >
+                  <span>Edit Modules</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+
+              {(statsData?.courseModuleMetrics || []).length === 0 ? (
+                <div className="py-10 text-center text-xs text-[var(--admin-muted)]">
+                  No course modules found. Open Course Studio to create or import modules.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(statsData?.courseModuleMetrics || []).map((mod) => (
+                    <div
+                      key={mod.id}
+                      className="p-4 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] flex flex-col justify-between gap-3"
+                    >
+                      <div>
+                        <div className="text-[11px] text-indigo-400 font-medium truncate">{mod.courseTitle}</div>
+                        <h4 className="text-sm font-bold text-[var(--admin-text)] line-clamp-1 mt-0.5">{mod.title}</h4>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-[var(--admin-muted)] font-mono tabular-nums pt-2 border-t border-[var(--admin-border)]">
+                        <span>{mod.lessonCount} lessons</span>
+                        <span aria-hidden="true">·</span>
+                        <span className="text-emerald-400 font-semibold">{mod.completedLessonsCount} completions</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{mod.isPublished ? "Published" : "Draft"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
         {/* TAB 2: EXAM TELEMETRY */}
         {activeTab === "exams" && (
           <motion.div
@@ -1072,7 +1866,21 @@ export default function AdminDashboard() {
                 <h3 className="text-lg font-bold text-[var(--admin-text)]">Exam Categories & Question Bank</h3>
                 <p className="text-xs text-[var(--admin-muted)]">Real-time pass rates, duration, and question allocation per category</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleExportAttemptsCSV}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] text-[var(--admin-text)] cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Export Attempts CSV</span>
+                </button>
+                <Link
+                  href="/Admin/questions"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] text-[var(--admin-text)]"
+                >
+                  <HelpCircle className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Question Bank ({totalQuestions})</span>
+                </Link>
                 <Link
                   href="/Admin/exams"
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm"
@@ -1088,31 +1896,34 @@ export default function AdminDashboard() {
                 <div key={cat.id} className="admin-card p-5 space-y-3 hover:border-indigo-500/40 transition-colors">
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-sm text-[var(--admin-text)] truncate">{cat.name}</h4>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                      cat.passRate >= 70 ? "bg-emerald-500/10 text-emerald-400" : cat.passRate >= 50 ? "bg-amber-500/10 text-amber-400" : "bg-rose-500/10 text-rose-400"
+                    <span className={`text-[11px] font-bold font-mono tabular-nums ${
+                      cat.passRate >= 70 ? "text-emerald-400" : cat.passRate >= 50 ? "text-amber-400" : "text-rose-400"
                     }`}>
                       {cat.passRate}% Pass
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 py-2 text-center bg-[var(--admin-input-bg)] rounded-xl">
+                  <div className="grid grid-cols-3 gap-2 py-2 text-center bg-[var(--admin-input-bg)] rounded-xl font-mono tabular-nums">
                     <div>
                       <div className="text-sm font-bold text-[var(--admin-text)]">{cat.questionCount}</div>
-                      <div className="text-[10px] text-[var(--admin-muted)]">Questions</div>
+                      <div className="text-[10px] font-sans text-[var(--admin-muted)]">Questions</div>
                     </div>
                     <div>
                       <div className="text-sm font-bold text-[var(--admin-text)]">{cat.attemptCount}</div>
-                      <div className="text-[10px] text-[var(--admin-muted)]">Attempts</div>
+                      <div className="text-[10px] font-sans text-[var(--admin-muted)]">Attempts</div>
                     </div>
                     <div>
                       <div className="text-sm font-bold text-indigo-400">{cat.averageScore}%</div>
-                      <div className="text-[10px] text-[var(--admin-muted)]">Avg Score</div>
+                      <div className="text-[10px] font-sans text-[var(--admin-muted)]">Avg Score</div>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] text-[var(--admin-muted)] pt-1">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {cat.durationMinutes} minutes
+                    <span className="flex items-center gap-1 font-mono tabular-nums">
+                      <Clock className="w-3 h-3" /> {cat.durationMinutes} min
+                      {cat.questionCount < 15 && (
+                        <span className="ml-1 text-amber-400 font-sans">· Low Qs</span>
+                      )}
                     </span>
                     <Link href={`/Admin/exams`} className="text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-0.5">
                       <span>Manage</span> <ChevronRight className="w-3 h-3" />
@@ -1124,7 +1935,32 @@ export default function AdminDashboard() {
 
             {/* Recent Exam Attempts Stream */}
             <div className="admin-card p-5 space-y-4">
-              <h3 className="text-base font-bold text-[var(--admin-text)]">Recent Live Exam Attempts</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h3 className="text-base font-bold text-[var(--admin-text)]">Recent Live Exam Attempts</h3>
+                <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-xs">
+                  {(
+                    [
+                      { id: "all", label: "All" },
+                      { id: "completed", label: "Completed" },
+                      { id: "in_progress", label: "In Progress" },
+                      { id: "passed", label: "Passed (≥50%)" },
+                      { id: "failed", label: "Failed (<50%)" },
+                    ] as const
+                  ).map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => setAttemptStatusFilter(f.id)}
+                      className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                        attemptStatusFilter === f.id
+                          ? "bg-[var(--admin-hover-bg)] text-[var(--admin-text)] font-semibold shadow-sm"
+                          : "text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
@@ -1135,6 +1971,7 @@ export default function AdminDashboard() {
                       <th className="pb-2.5 font-semibold">Score</th>
                       <th className="pb-2.5 font-semibold">Duration</th>
                       <th className="pb-2.5 font-semibold">Started At</th>
+                      <th className="pb-2.5 font-semibold text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--admin-border)]">
@@ -1162,22 +1999,44 @@ export default function AdminDashboard() {
                           </td>
                           <td className="py-3 text-[var(--admin-muted)]">{a.category_name || "Exam"}</td>
                           <td className="py-3">
-                            <span className={`px-2 py-0.5 rounded-full font-semibold text-[10px] ${
-                              a.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                            <span className={`font-semibold text-[11px] ${
+                              a.status === "completed" ? "text-emerald-400" : "text-amber-400"
                             }`}>
                               {a.status}
                             </span>
                           </td>
-                          <td className="py-3 font-bold">
+                          <td className="py-3 font-bold font-mono tabular-nums">
                             <span className={a.score_percentage >= 50 ? "text-emerald-400" : "text-rose-400"}>
                               {a.score_percentage}%
                             </span>
                           </td>
-                          <td className="py-3 text-[var(--admin-muted)]">
+                          <td className="py-3 text-[var(--admin-muted)] font-mono tabular-nums">
                             {a.duration_seconds > 0 ? `${Math.round(a.duration_seconds / 60)}m` : "-"}
                           </td>
-                          <td className="py-3 text-[var(--admin-muted)]">
+                          <td className="py-3 text-[var(--admin-muted)] font-mono tabular-nums">
                             {new Date(a.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="py-3 text-right">
+                            {a.user_id && (
+                              <button
+                                onClick={() => {
+                                  setDirectMessageTarget({
+                                    id: a.user_id,
+                                    name: studentName,
+                                    email: a.email,
+                                  });
+                                  setDirectMsgTitle(`Regarding your ${a.category_name || "Exam"} attempt`);
+                                  setDirectMsgBody(
+                                    a.score_percentage >= 50
+                                      ? `Congratulations on scoring ${a.score_percentage}% on ${a.category_name || "your exam"}! Keep up the great progress.`
+                                      : `Hi ${studentName}, we noticed you scored ${a.score_percentage}% on ${a.category_name || "your recent exam"}. Let us know if you need help reviewing any questions.`
+                                  );
+                                }}
+                                className="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+                              >
+                                Message
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -1227,18 +2086,79 @@ export default function AdminDashboard() {
             transition={{ duration: 0.25 }}
             className="space-y-6"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[var(--admin-card-bg)] border border-[var(--admin-border)]">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-2xl bg-[var(--admin-card-bg)] border border-[var(--admin-border)]">
               <div>
-                <h3 className="text-lg font-bold text-[var(--admin-text)]">Student & User Roster</h3>
-                <p className="text-xs text-[var(--admin-muted)]">Live user registry, real-time presence indicators, and role permissions</p>
+                <h3 className="text-lg font-bold text-[var(--admin-text)]">Student & User Roster Controls</h3>
+                <p className="text-xs text-[var(--admin-muted)]">
+                  Live user registry, exam performance, real-time presence, and 1-click verification or suspension
+                </p>
               </div>
-              <Link
-                href="/Admin/users"
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm"
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>Manage All Users</span>
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Role Filter */}
+                <div className="flex items-center p-1 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)]">
+                  {(
+                    [
+                      { id: "all", label: "All Roles" },
+                      { id: "Student", label: "Students" },
+                      { id: "Driver", label: "Drivers" },
+                      { id: "Admin", label: "Admins" },
+                    ] as const
+                  ).map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => setUserRoleFilter(r.id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                        userRoleFilter === r.id
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Status Filter */}
+                <div className="flex items-center p-1 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)]">
+                  {(
+                    [
+                      { id: "all", label: "All Status" },
+                      { id: "online", label: "Online" },
+                      { id: "verified", label: "Verified" },
+                      { id: "unverified", label: "Unverified" },
+                      { id: "suspended", label: "Suspended" },
+                    ] as const
+                  ).map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setUserStatusFilter(s.id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                        userStatusFilter === s.id
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={handleExportUsersCSV}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-bold transition-all"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Export CSV</span>
+                </button>
+
+                <Link
+                  href="/Admin/users"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Full Directory ({totalUsers})</span>
+                </Link>
+              </div>
             </div>
 
             <div className="admin-card p-5 space-y-4">
@@ -1246,63 +2166,144 @@ export default function AdminDashboard() {
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-[var(--admin-border)] text-[var(--admin-muted)]">
-                      <th className="pb-2.5 font-semibold">User</th>
+                      <th className="pb-2.5 font-semibold">User Identity</th>
                       <th className="pb-2.5 font-semibold">Role</th>
+                      <th className="pb-2.5 font-semibold">Exam Performance</th>
                       <th className="pb-2.5 font-semibold">Status</th>
                       <th className="pb-2.5 font-semibold">Verification</th>
-                      <th className="pb-2.5 font-semibold">Joined Date</th>
-                      <th className="pb-2.5 font-semibold text-right">Actions</th>
+                      <th className="pb-2.5 font-semibold text-right">Admin Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--admin-border)]">
-                    {(statsData?.recentRegistrations || []).map((u) => (
-                      <tr key={u.id} className="hover:bg-[var(--admin-hover-bg)]">
-                        <td className="py-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold">
-                              {(u.full_name || u.username || u.email || "U")[0].toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="font-bold text-[var(--admin-text)]">{u.full_name || u.username || "User"}</div>
-                              <div className="text-[11px] text-[var(--admin-muted)]">{u.email || "No email"}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3">
-                          <span className={`px-2 py-0.5 rounded-full font-semibold text-[10px] ${
-                            u.role === "Admin" ? "bg-pink-500/10 text-pink-400" : u.role === "Driver" ? "bg-teal-500/10 text-teal-400" : "bg-sky-500/10 text-sky-400"
-                          }`}>
-                            {u.role}
-                          </span>
-                        </td>
-                        <td className="py-3">
-                          {u.is_online ? (
-                            <span className="flex items-center gap-1 text-emerald-400 font-semibold text-[11px]">
-                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Online
-                            </span>
-                          ) : (
-                            <span className="text-[var(--admin-muted)] text-[11px]">Offline</span>
-                          )}
-                        </td>
-                        <td className="py-3">
-                          {u.provision_verified ? (
-                            <span className="flex items-center gap-1 text-emerald-400 text-[11px] font-medium">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Verified
-                            </span>
-                          ) : (
-                            <span className="text-[var(--admin-muted)] text-[11px]">Standard</span>
-                          )}
-                        </td>
-                        <td className="py-3 text-[var(--admin-muted)]">
-                          {new Date(u.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 text-right">
-                          <Link href="/Admin/users" className="text-indigo-400 hover:text-indigo-300 font-semibold">
-                            View Profile
-                          </Link>
+                    {filteredUsers.length > 0 ? (
+                      filteredUsers.map((u) => {
+                        const displayName = u.full_name || u.username || u.email || "User";
+                        return (
+                          <tr key={u.id} className="hover:bg-[var(--admin-hover-bg)] transition-colors">
+                            <td className="py-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="relative w-8 h-8 rounded-full bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold shrink-0">
+                                  {displayName[0].toUpperCase()}
+                                  {u.is_online && (
+                                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[var(--admin-card-bg)]" />
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-[var(--admin-text)]">{displayName}</span>
+                                    {u.banned && (
+                                      <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 text-[9px] font-extrabold uppercase">
+                                        Suspended
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-[var(--admin-muted)]">{u.email || "No email"}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3">
+                              <span className={`px-2 py-0.5 rounded-full font-semibold text-[10px] ${
+                                u.role === "Admin" ? "bg-pink-500/10 text-pink-400" : u.role === "Driver" ? "bg-teal-500/10 text-teal-400" : "bg-sky-500/10 text-sky-400"
+                              }`}>
+                                {u.role}
+                              </span>
+                            </td>
+                            <td className="py-3">
+                              {u.attempt_count && u.attempt_count > 0 ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-[var(--admin-text)] tabular-nums">
+                                    {u.attempt_count} {u.attempt_count === 1 ? "exam" : "exams"}
+                                  </span>
+                                  {u.avg_score !== null && u.avg_score !== undefined && (
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums ${
+                                      u.avg_score >= 60
+                                        ? "bg-emerald-500/15 text-emerald-400"
+                                        : "bg-amber-500/15 text-amber-400"
+                                    }`}>
+                                      {u.avg_score}% avg
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-[11px] text-[var(--admin-muted)]">No exams yet</span>
+                              )}
+                            </td>
+                            <td className="py-3">
+                              <div className="flex flex-col">
+                                {u.is_online ? (
+                                  <span className="flex items-center gap-1 text-emerald-400 font-semibold text-[11px]">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Online
+                                  </span>
+                                ) : (
+                                  <span className="text-[var(--admin-muted)] text-[11px]">Offline</span>
+                                )}
+                                <span className="text-[10px] text-[var(--admin-muted)] tabular-nums">
+                                  Joined {new Date(u.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3">
+                              {u.provision_verified ? (
+                                <span className="flex items-center gap-1 text-emerald-400 text-[11px] font-medium">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+                                </span>
+                              ) : (
+                                <span className="text-amber-400 text-[11px] font-medium">Unverified</span>
+                              )}
+                            </td>
+                            <td className="py-3 text-right">
+                              <div className="inline-flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setDirectMessageTarget({
+                                      id: u.id,
+                                      name: displayName,
+                                      email: u.email || "",
+                                    });
+                                    setDirectMsgTitle("Message from Luxen Administration");
+                                    setDirectMsgBody(`Hello ${displayName.split(" ")[0]}, `);
+                                  }}
+                                  title="Send Direct Notification"
+                                  className="p-1.5 rounded-lg bg-[var(--admin-input-bg)] hover:bg-indigo-500/15 text-[var(--admin-muted)] hover:text-indigo-400 border border-[var(--admin-border)] transition-all"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleToggleVerifyUser(u.id, Boolean(u.provision_verified))}
+                                  disabled={processingActionId === `verify-${u.id}`}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all disabled:opacity-50 ${
+                                    u.provision_verified
+                                      ? "bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-muted)] hover:text-amber-400"
+                                      : "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-600 hover:text-white"
+                                  }`}
+                                >
+                                  {u.provision_verified ? "Unverify" : "Verify"}
+                                </button>
+                                {u.role !== "Admin" && (
+                                  <button
+                                    onClick={() => handleToggleSuspendUser(u.id, Boolean(u.banned))}
+                                    disabled={processingActionId === `ban-${u.id}`}
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all disabled:opacity-50 ${
+                                      u.banned
+                                        ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-600 hover:text-white"
+                                        : "bg-rose-500/10 border-rose-500/25 text-rose-400 hover:bg-rose-600 hover:text-white"
+                                    }`}
+                                  >
+                                    {u.banned ? "Reinstate" : "Suspend"}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-[var(--admin-muted)]">
+                          No user accounts match your filter criteria.
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1326,6 +2327,13 @@ export default function AdminDashboard() {
                 <p className="text-xs text-[var(--admin-muted)]">Driver verification, vehicle records, and incident reports</p>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveTab("triage")}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/20"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Triage Queue ({pendingReports})</span>
+                </button>
                 <Link
                   href="/Admin/drivers"
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm"
@@ -1338,26 +2346,31 @@ export default function AdminDashboard() {
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-[var(--admin-text)]"
                 >
                   <Flag className="w-3.5 h-3.5" />
-                  <span>Driver Reports</span>
+                  <span>Safety Reports ({pendingReports})</span>
                 </Link>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="admin-card p-5 space-y-2">
                 <div className="text-xs text-[var(--admin-muted)] font-medium">Total Registered Drivers</div>
-                <div className="text-2xl font-bold text-[var(--admin-text)]">{totalDrivers}</div>
+                <div className="text-2xl font-bold text-[var(--admin-text)] tabular-nums">{totalDrivers}</div>
                 <div className="text-[11px] text-teal-400 font-semibold">Active Fleet Roster</div>
               </div>
               <div className="admin-card p-5 space-y-2">
                 <div className="text-xs text-[var(--admin-muted)] font-medium">Driver Verification Rate</div>
-                <div className="text-2xl font-bold text-emerald-400">100%</div>
-                <div className="text-[11px] text-[var(--admin-muted)]">All accounts authenticated</div>
+                <div className="text-2xl font-bold text-emerald-400 tabular-nums">100%</div>
+                <div className="text-[11px] text-[var(--admin-muted)]">All driver accounts verified</div>
               </div>
               <div className="admin-card p-5 space-y-2">
-                <div className="text-xs text-[var(--admin-muted)] font-medium">Open Driver Incidents</div>
-                <div className="text-2xl font-bold text-sky-400">0 Pending</div>
-                <div className="text-[11px] text-emerald-400 font-semibold">Clean Operation</div>
+                <div className="text-xs text-[var(--admin-muted)] font-medium">Unverified Platform Users</div>
+                <div className="text-2xl font-bold text-amber-400 tabular-nums">{unverifiedUsers}</div>
+                <div className="text-[11px] text-[var(--admin-muted)]">Awaiting profile verification</div>
+              </div>
+              <div className="admin-card p-5 space-y-2">
+                <div className="text-xs text-[var(--admin-muted)] font-medium">Open Safety Reports</div>
+                <div className="text-2xl font-bold text-rose-400 tabular-nums">{pendingReports}</div>
+                <div className="text-[11px] text-[var(--admin-muted)]">{suspendedUsers} suspended accounts</div>
               </div>
             </div>
           </motion.div>
@@ -1832,7 +2845,7 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
-      {/* 6. EXPORT SNAPSHOT MODAL */}
+      {/* 6. EXPORT TELEMETRY & REPORTS CENTER MODAL */}
       <AnimatePresence>
         {exportOpen && (
           <motion.div
@@ -1847,7 +2860,7 @@ export default function AdminDashboard() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
-              className="admin-card !rounded-[24px] max-w-md w-full p-6 shadow-2xl border border-[var(--admin-border)] transform-gpu"
+              className="admin-card !rounded-[24px] max-w-lg w-full p-6 shadow-2xl border border-[var(--admin-border)] transform-gpu"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2.5">
@@ -1855,8 +2868,8 @@ export default function AdminDashboard() {
                     <Download className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-[var(--admin-text)]">Export Telemetry</h3>
-                    <p className="text-xs text-[var(--admin-muted)]">Generate executive snapshot report</p>
+                    <h3 className="text-lg font-bold text-[var(--admin-text)]">Export Data & Reports Center</h3>
+                    <p className="text-xs text-[var(--admin-muted)]">Download structured CSV spreadsheets or executive JSON snapshots</p>
                   </div>
                 </div>
                 <button
@@ -1867,24 +2880,75 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              <p className="text-xs text-[var(--admin-muted)] leading-relaxed mb-5">
-                Export an executive summary containing active KPI figures, student completion rates, score distribution brackets, category metrics, and system diagnostics as a JSON data snapshot.
-              </p>
+              <div className="space-y-3 mb-5">
+                <button
+                  onClick={handleExportAttemptsCSV}
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] transition-all text-left group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center shrink-0">
+                      <FileSpreadsheet className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-[var(--admin-text)] group-hover:text-indigo-400 transition-colors">
+                        Exam Attempts Telemetry (.CSV)
+                      </p>
+                      <p className="text-[11px] text-[var(--admin-muted)]">
+                        Spreadsheet of recent student exam sessions, scores, pass/fail status, and timestamps
+                      </p>
+                    </div>
+                  </div>
+                  <Download className="w-4 h-4 text-[var(--admin-muted)] group-hover:text-indigo-400 shrink-0" />
+                </button>
 
-              <div className="flex items-center justify-end gap-2.5">
+                <button
+                  onClick={handleExportUsersCSV}
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] transition-all text-left group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center shrink-0">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-[var(--admin-text)] group-hover:text-cyan-400 transition-colors">
+                        Registered Users & Performance Roster (.CSV)
+                      </p>
+                      <p className="text-[11px] text-[var(--admin-muted)]">
+                        User directory with roles, verification state, exam count, average score, and online presence
+                      </p>
+                    </div>
+                  </div>
+                  <Download className="w-4 h-4 text-[var(--admin-muted)] group-hover:text-cyan-400 shrink-0" />
+                </button>
+
+                <button
+                  onClick={handleExportSnapshot}
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--admin-input-bg)] hover:bg-[var(--admin-hover-bg)] border border-[var(--admin-border)] transition-all text-left group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+                      <Database className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-[var(--admin-text)] group-hover:text-emerald-400 transition-colors">
+                        Full Executive Telemetry Snapshot (.JSON)
+                      </p>
+                      <p className="text-[11px] text-[var(--admin-muted)]">
+                        Complete machine-readable backup of KPIs, category breakdowns, module metrics, and audit logs
+                      </p>
+                    </div>
+                  </div>
+                  <Download className="w-4 h-4 text-[var(--admin-muted)] group-hover:text-emerald-400 shrink-0" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-end">
                 <button
                   type="button"
                   onClick={() => setExportOpen(false)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleExportSnapshot}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download Snapshot</span>
+                  Close
                 </button>
               </div>
             </motion.div>
@@ -1892,7 +2956,335 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
-      {/* 7. COURSE & EXAM SYSTEM AUDIT REPORT MODAL */}
+      {/* 7. DIRECT USER NOTIFICATION MODAL */}
+      <AnimatePresence>
+        {directMessageTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[115] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
+              className="admin-card !rounded-[24px] max-w-md w-full p-6 shadow-2xl border border-[var(--admin-border)] transform-gpu"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[var(--admin-text)]">Direct User Notification</h3>
+                    <p className="text-xs text-[var(--admin-muted)] truncate max-w-[240px]">
+                      To: {directMessageTarget.name} {directMessageTarget.email ? `(${directMessageTarget.email})` : ""}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDirectMessageTarget(null)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--admin-muted)] hover:text-[var(--admin-text)] bg-[var(--admin-input-bg)]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSendDirectMessage} className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-[var(--admin-muted)] block mb-1.5">Subject / Title</label>
+                  <input
+                    type="text"
+                    value={directMsgTitle}
+                    onChange={(e) => setDirectMsgTitle(e.target.value)}
+                    placeholder="e.g., Academic Support & Exam Guidance"
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-sm text-[var(--admin-text)] placeholder-[var(--admin-muted)] focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-[var(--admin-muted)] block mb-1.5">Personal Message</label>
+                  <textarea
+                    value={directMsgBody}
+                    onChange={(e) => setDirectMsgBody(e.target.value)}
+                    placeholder="Write a direct message to this user..."
+                    rows={4}
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-sm text-[var(--admin-text)] placeholder-[var(--admin-muted)] focus:outline-none focus:border-indigo-500 resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setDirectMessageTarget(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={sendingDirectMsg}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition-all disabled:opacity-50"
+                  >
+                    {sendingDirectMsg ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Send Notification</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 8. COMMAND PALETTE MODAL (Cmd+K / Ctrl+K) */}
+      <AnimatePresence>
+        {commandOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setCommandOpen(false)}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[120] flex items-start justify-center pt-[10vh] p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: -10 }}
+              transition={{ type: "spring", damping: 28, stiffness: 360, mass: 0.7 }}
+              onClick={(e) => e.stopPropagation()}
+              className="admin-card !rounded-[24px] max-w-xl w-full overflow-hidden shadow-2xl border border-[var(--admin-border)] transform-gpu"
+            >
+              <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--admin-border)] bg-[var(--admin-input-bg)]">
+                <Command className="w-4 h-4 text-indigo-400 shrink-0" />
+                <input
+                  type="text"
+                  autoFocus
+                  value={commandQuery}
+                  onChange={(e) => setCommandQuery(e.target.value)}
+                  placeholder="Type a command, workspace, student name, or exam category..."
+                  className="w-full bg-transparent text-sm text-[var(--admin-text)] placeholder-[var(--admin-muted)] focus:outline-none"
+                />
+                {commandQuery && (
+                  <button
+                    onClick={() => setCommandQuery("")}
+                    className="text-xs text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
+                  >
+                    Clear
+                  </button>
+                )}
+                <kbd className="px-2 py-0.5 rounded bg-[var(--admin-card-bg)] border border-[var(--admin-border)] text-[10px] font-bold text-[var(--admin-muted)]">
+                  ESC
+                </kbd>
+              </div>
+
+              <div className="max-h-[380px] overflow-y-auto p-3 space-y-4 custom-scrollbar">
+                {/* Quick Actions */}
+                <div>
+                  <p className="px-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+                    Quick Administrative Commands
+                  </p>
+                  <div className="space-y-1">
+                    {[
+                      {
+                        label: `Open Action Center & Approvals (${totalActionItems} pending)`,
+                        sub: "Approve exam retakes, resolve reports, message at-risk learners",
+                        icon: Sparkles,
+                        color: "text-amber-400",
+                        onClick: () => {
+                          setActiveTab("triage");
+                          setCommandOpen(false);
+                        },
+                      },
+                      {
+                        label: "Broadcast Platform Announcement",
+                        sub: "Send instant notification to all students or staff",
+                        icon: Megaphone,
+                        color: "text-indigo-400",
+                        onClick: () => {
+                          setCommandOpen(false);
+                          setBroadcastOpen(true);
+                        },
+                      },
+                      {
+                        label: "Run System Audit & Integrity Report",
+                        sub: "Inspect course, question bank, and exam alignment",
+                        icon: ClipboardCheck,
+                        color: "text-emerald-400",
+                        onClick: () => {
+                          setCommandOpen(false);
+                          setAuditReportOpen(true);
+                        },
+                      },
+                      {
+                        label: "Export Telemetry & CSV Spreadsheets",
+                        sub: "Download exam attempts CSV, user roster CSV, or JSON snapshot",
+                        icon: Download,
+                        color: "text-cyan-400",
+                        onClick: () => {
+                          setCommandOpen(false);
+                          setExportOpen(true);
+                        },
+                      },
+                      {
+                        label: "Force Sync Live Telemetry",
+                        sub: "Refresh all real-time metrics immediately",
+                        icon: RefreshCw,
+                        color: "text-purple-400",
+                        onClick: () => {
+                          setCommandOpen(false);
+                          loadData(true);
+                        },
+                      },
+                    ]
+                      .filter(
+                        (item) =>
+                          !commandQuery.trim() ||
+                          item.label.toLowerCase().includes(commandQuery.toLowerCase()) ||
+                          item.sub.toLowerCase().includes(commandQuery.toLowerCase())
+                      )
+                      .map((item, idx) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={item.onClick}
+                            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-[var(--admin-hover-bg)] transition-colors text-left group"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Icon className={`w-4 h-4 shrink-0 ${item.color}`} />
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-[var(--admin-text)] truncate">{item.label}</p>
+                                <p className="text-[11px] text-[var(--admin-muted)] truncate">{item.sub}</p>
+                              </div>
+                            </div>
+                            <ArrowUpRight className="w-3.5 h-3.5 text-[var(--admin-muted)] group-hover:text-[var(--admin-text)] shrink-0" />
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* Admin Workspaces */}
+                <div>
+                  <p className="px-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+                    Admin Workspaces
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    {[
+                      { label: "Course Studio", href: "/Admin/courses", icon: BookOpen },
+                      { label: "Exam Categories", href: "/Admin/Categories", icon: Layers },
+                      { label: "Question Bank", href: "/Admin/Questions", icon: HelpCircle },
+                      { label: "Users & Roles", href: "/Admin/users", icon: Users },
+                      { label: "Driver Fleet", href: "/Admin/drivers", icon: Car },
+                      { label: "Retake Requests", href: "/Admin/retake-requests", icon: FileCheck },
+                      { label: "Safety Reports", href: "/Admin/reports", icon: ShieldAlert },
+                      { label: "Platform Settings", href: "/Admin/settings", icon: Settings },
+                    ]
+                      .filter(
+                        (w) =>
+                          !commandQuery.trim() ||
+                          w.label.toLowerCase().includes(commandQuery.toLowerCase())
+                      )
+                      .map((w) => {
+                        const Icon = w.icon;
+                        return (
+                          <Link
+                            key={w.href}
+                            href={w.href}
+                            onClick={() => setCommandOpen(false)}
+                            className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-[var(--admin-hover-bg)] transition-colors group"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <Icon className="w-4 h-4 text-indigo-400" />
+                              <span className="text-xs font-semibold text-[var(--admin-text)]">{w.label}</span>
+                            </div>
+                            <ArrowUpRight className="w-3.5 h-3.5 text-[var(--admin-muted)] group-hover:text-indigo-400" />
+                          </Link>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* Matching Users if Query Typed */}
+                {commandQuery.trim().length > 1 && (
+                  <div>
+                    <p className="px-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+                      Matching Users
+                    </p>
+                    <div className="space-y-1">
+                      {(statsData?.recentRegistrations ?? [])
+                        .filter((u) => {
+                          const name = u.full_name || u.username || u.email || "";
+                          return (
+                            name.toLowerCase().includes(commandQuery.toLowerCase()) ||
+                            (u.email || "").toLowerCase().includes(commandQuery.toLowerCase())
+                          );
+                        })
+                        .slice(0, 5)
+                        .map((u) => {
+                          const displayName = u.full_name || u.username || u.email || "User";
+                          return (
+                            <div
+                              key={u.id}
+                              className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)]"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-[var(--admin-text)] truncate">{displayName}</p>
+                                <p className="text-[11px] text-[var(--admin-muted)] truncate">
+                                  {u.email || "No email"} · {u.role}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setCommandOpen(false);
+                                    setDirectMessageTarget({ id: u.id, name: displayName, email: u.email || "" });
+                                    setDirectMsgTitle("Message from Luxen Administration");
+                                    setDirectMsgBody(`Hello ${displayName.split(" ")[0]}, `);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-400 text-[10px] font-bold"
+                                >
+                                  Message
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setCommandOpen(false);
+                                    setSearchQuery(displayName);
+                                    setActiveTab("students");
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-[var(--admin-card-bg)] text-[var(--admin-text)] border border-[var(--admin-border)] text-[10px] font-bold"
+                                >
+                                  Inspect
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 9. COURSE & EXAM SYSTEM AUDIT REPORT MODAL */}
       <AdminAuditReportModal
         isOpen={auditReportOpen}
         onClose={() => setAuditReportOpen(false)}
