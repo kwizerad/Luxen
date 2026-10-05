@@ -510,10 +510,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
     const { course } = await loadCourseByLanguage(selectedLanguage);
     if (!course) {
-      if (!cachedCourse) {
-        setCourse(null);
-        setLoading(false);
-      }
+      spaCache.delete(`spa_course_${selectedLanguage}`);
+      setCourse(null);
+      setLoading(false);
       return;
     }
 

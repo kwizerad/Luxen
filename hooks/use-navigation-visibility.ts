@@ -90,7 +90,7 @@ export function useNavigationVisibility(adminMode = false) {
   });
 
   const [publishedCourseLanguages, setPublishedCourseLanguages] = useState<Set<string>>(
-    () => cachedPublishedCourses || new Set(["English", "French", "Kinyarwanda"])
+    () => cachedPublishedCourses || new Set()
   );
 
   const [adminToggles, setAdminToggles] = useState<Record<string, boolean>>(
@@ -107,13 +107,17 @@ export function useNavigationVisibility(adminMode = false) {
     try {
       const supabase = createClient();
 
-      const [examEnabled, servicesCfg, courseLangsRes, systemConfigsRes, profileRes] =
+      const [examEnabled, servicesCfg, courseLangsRes, publishedModulesRes, systemConfigsRes, profileRes] =
         await Promise.all([
           isStandaloneExamEnabled().catch(() => true),
           getCachedServicesConfig().catch(() => ({ pageEnabled: true, services: {} })),
           supabase
             .from("course_languages")
-            .select("language, status, is_published, deleted_at")
+            .select("id, language, status, is_published, deleted_at")
+            .is("deleted_at", null),
+          supabase
+            .from("course_modules")
+            .select("id, language_id, status, is_published, deleted_at, lessons:course_lessons(id, status, is_published, deleted_at)")
             .is("deleted_at", null),
           supabase.from("system_config").select("key, value"),
           user?.id
@@ -128,14 +132,43 @@ export function useNavigationVisibility(adminMode = false) {
       setStandaloneExamEnabled(examEnabled);
       setServicesPageEnabled(servicesCfg.pageEnabled);
 
-      // Determine published course languages from `course_languages` (primary table)
+      // Build map of course_language.id -> whether it has at least one published module with at least one published lesson
+      const courseIdsWithPublishedContent = new Set<string>();
+      const hasModulesTableData = Array.isArray(publishedModulesRes.data);
+
+      if (hasModulesTableData) {
+        for (const mod of publishedModulesRes.data as any[]) {
+          const isModPub =
+            !mod.deleted_at &&
+            mod.status === "published" &&
+            mod.is_published !== false;
+          if (!isModPub || !mod.language_id) continue;
+
+          const lessons = Array.isArray(mod.lessons) ? mod.lessons : [];
+          const hasPubLesson = lessons.some(
+            (l: any) =>
+              !l.deleted_at &&
+              l.status === "published" &&
+              l.is_published !== false
+          );
+          if (hasPubLesson) {
+            courseIdsWithPublishedContent.add(mod.language_id);
+          }
+        }
+      }
+
+      // Determine published course languages from `course_languages`
       if (courseLangsRes.data && courseLangsRes.data.length > 0) {
         const pubSet = new Set<string>();
         for (const row of courseLangsRes.data as any[]) {
           const isPub =
-            row.status === "published" ||
-            (row.status === undefined && row.is_published !== false);
-          if (isPub && row.language) {
+            !row.deleted_at &&
+            row.status === "published" &&
+            row.is_published !== false;
+          const hasContent = hasModulesTableData
+            ? courseIdsWithPublishedContent.has(row.id)
+            : true;
+          if (isPub && hasContent && row.language) {
             pubSet.add(normalizeLanguageName(row.language));
           }
         }
@@ -148,18 +181,12 @@ export function useNavigationVisibility(adminMode = false) {
           );
         } catch {}
       } else {
-        // Fallback check on `courses` table if `course_languages` returned nothing
-        const { data: fallbackCourses } = await supabase
-          .from("courses")
-          .select("language, status")
-          .eq("status", "published");
-        if (fallbackCourses && fallbackCourses.length > 0) {
-          const pubSet = new Set<string>(
-            fallbackCourses.map((c: any) => normalizeLanguageName(c.language))
-          );
-          cachedPublishedCourses = pubSet;
-          setPublishedCourseLanguages(pubSet);
-        }
+        const emptySet = new Set<string>();
+        cachedPublishedCourses = emptySet;
+        setPublishedCourseLanguages(emptySet);
+        try {
+          sessionStorage.setItem("app_published_course_languages", "[]");
+        } catch {}
       }
 
       if (profileRes?.data?.learning_language) {
@@ -213,6 +240,16 @@ export function useNavigationVisibility(adminMode = false) {
         { event: "*", schema: "public", table: "course_languages" },
         handleRefresh
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "course_modules" },
+        handleRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "course_lessons" },
+        handleRefresh
+      )
       .subscribe();
 
     return () => {
@@ -223,8 +260,7 @@ export function useNavigationVisibility(adminMode = false) {
     };
   }, [refreshVisibility, interfaceLanguage]);
 
-  // Active course language: follows interfaceLanguage (matching CourseView behavior),
-  // falling back to the user's saved learning_language or English.
+  // Active course language strictly follows the selected UI language (interfaceLanguage)
   const activeCourseLanguage = useMemo(() => {
     const normalizedInterface = normalizeLanguageName(interfaceLanguage);
     if (["English", "French", "Kinyarwanda"].includes(normalizedInterface)) {
@@ -236,10 +272,10 @@ export function useNavigationVisibility(adminMode = false) {
     return "English";
   }, [interfaceLanguage, userLearningLanguage]);
 
-  // Check if the Course tab is visible for the active language:
+  // Check if the Course tab is visible for the selected UI language:
   // 1) Not explicitly toggled off by primary admin (`course_page_enabled` / `nav_course_enabled`)
   // 2) The specific learning language is enabled by primary admin (`learning_language_<lang>_enabled`)
-  // 3) The specific language course is published (`course_languages.status === 'published'`)
+  // 3) There is a published course for the selected UI language (`publishedCourseLanguages.has(activeCourseLanguage)`)
   const isCourseVisible = useMemo(() => {
     if (
       adminToggles["course_page_enabled"] === false ||
@@ -345,14 +381,33 @@ export function useNavigationVisibility(adminMode = false) {
   );
 
   /**
-   * Filter an array of navigation items dynamically using the centralized visibility check.
+   * Filter an array of navigation items dynamically using the centralized visibility check,
+   * and guarantee that the Dashboard [Home button] (`id === "home"` or `id === "admin-home"`)
+   * is ALWAYS placed at the center index of the visible navigation items.
    */
   const filterNavItems = useCallback(
     <T extends { id: string; visible?: boolean }>(items: T[]): T[] => {
-      return items.filter((item) => {
+      const visible = items.filter((item) => {
         if (item.visible === false) return false;
         return isNavItemVisible(item.id);
       });
+
+      const homeIdx = visible.findIndex(
+        (item) => item.id === "home" || item.id === "admin-home"
+      );
+      if (homeIdx === -1 || visible.length <= 1) {
+        return visible;
+      }
+
+      const homeItem = visible[homeIdx];
+      const others = visible.filter((_, idx) => idx !== homeIdx);
+      const centerIndex = Math.floor(others.length / 2);
+
+      return [
+        ...others.slice(0, centerIndex),
+        homeItem,
+        ...others.slice(centerIndex),
+      ];
     },
     [isNavItemVisible]
   );

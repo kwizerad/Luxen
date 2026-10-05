@@ -212,13 +212,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
   const allAdminNavItems: NavItem[] = [
     {
-      id: "admin-home",
-      label: t("dashboard") || "Dashboard",
-      icon: LayoutDashboard,
-      href: "/Admin",
-      isActive: pathname === "/Admin",
-    },
-    {
       id: "admin-course",
       label: t("course") || "Course",
       icon: BookOpen,
@@ -242,6 +235,13 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: Users,
       href: "/Admin/users",
       isActive: Boolean(pathname?.startsWith("/Admin/users")),
+    },
+    {
+      id: "admin-home",
+      label: t("dashboard") || "Dashboard",
+      icon: LayoutDashboard,
+      href: "/Admin",
+      isActive: pathname === "/Admin",
     },
     {
       id: "admin-drivers",
@@ -272,6 +272,16 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
   const navItems = filterNavItems(adminMode ? allAdminNavItems : allStudentNavItems);
   const activeIdPrefix = adminMode ? "admin" : "student";
+  const homeIdx = navItems.findIndex(
+    (item) => item.id === "home" || item.id === "admin-home"
+  );
+  const leftCount = homeIdx >= 0 ? homeIdx : 0;
+  const rightCount = homeIdx >= 0 ? navItems.length - 1 - homeIdx : 0;
+  // When an even number of items is visible (e.g. Course is hidden leaving 6 items),
+  // add an invisible flex spacer on the shorter side so the Home / Dashboard button
+  // remains at the exact geometric center of the navigation bar.
+  const padLeft = Math.max(0, rightCount - leftCount);
+  const padRight = Math.max(0, leftCount - rightCount);
 
   return (
     <>
