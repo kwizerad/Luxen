@@ -148,9 +148,9 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
   };
 
   return (
-    <div className="flex flex-col w-full max-w-6xl mx-auto h-[calc(100dvh-136px-env(safe-area-inset-bottom,0px))] sm:h-[calc(100dvh-152px-env(safe-area-inset-bottom,0px))] lg:h-[calc(100dvh-88px)]">
+    <div className="flex flex-col w-full h-[calc(100dvh-3.5rem-4rem-max(0.25rem,env(safe-area-inset-bottom,0px)))] sm:h-[calc(100dvh-4rem-4rem-max(0.25rem,env(safe-area-inset-bottom,0px)))] lg:h-[calc(100dvh-4rem)] overflow-hidden bg-background">
       {/* Header */}
-      <div className="shrink-0 border-b px-4 py-3 flex items-center gap-3 bg-background">
+      <div className="shrink-0 border-b px-4 py-2.5 flex items-center gap-3 bg-background">
         <button onClick={() => navigate("back", { fallback: "chat" })} className="rounded-lg p-1 hover:bg-muted" title={t("back") || "Back"}>
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -165,7 +165,7 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -214,7 +214,7 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
       </div>
 
       {/* Input */}
-      <div className="border-t px-4 py-3 flex items-center gap-2">
+      <div className="shrink-0 border-t bg-background px-3 py-2 flex items-center gap-2">
         <input
           type="text"
           value={newMessage}

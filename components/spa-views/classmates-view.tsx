@@ -2117,23 +2117,21 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   };
 
   return (
-    <div className="flex w-full max-w-6xl mx-auto h-[calc(100dvh-136px-env(safe-area-inset-bottom,0px))] sm:h-[calc(100dvh-152px-env(safe-area-inset-bottom,0px))] lg:h-[calc(100dvh-88px)] overflow-hidden">
+    <div className="flex w-full h-[calc(100dvh-3.5rem-4rem-max(0.25rem,env(safe-area-inset-bottom,0px)))] sm:h-[calc(100dvh-4rem-4rem-max(0.25rem,env(safe-area-inset-bottom,0px)))] lg:h-[calc(100dvh-4rem)] overflow-hidden bg-background">
       {/* Left Sidebar */}
       <div className={`${selectedFriend ? 'hidden sm:flex' : 'flex'} w-full sm:w-96 md:w-[400px] border-r flex flex-col bg-background h-full`}>
-        {/* Back button */}
-        <div className="p-3 pb-0">
-          <button
-            onClick={() => navigate("back", { fallback: "home" })}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {t("back") || t("backToHome") || "Back"}
-          </button>
-        </div>
         {/* Tab Switcher + Visibility */}
-        <div className="p-3 border-b space-y-2">
+        <div className="px-3 py-2 border-b space-y-2">
           <div className="flex items-center justify-between gap-1">
-            <div className="flex gap-1 bg-muted rounded-xl p-1 overflow-x-auto no-scrollbar max-w-full">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <button
+                onClick={() => navigate("back", { fallback: "home" })}
+                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                title={t("back") || t("backToHome") || "Back"}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <div className="flex gap-1 bg-muted rounded-xl p-1 overflow-x-auto no-scrollbar max-w-full">
               {showFriendsTab && (
                 <button
                   onClick={() => setActiveTab("friends")}
@@ -2170,6 +2168,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                 </span>
               </button>
               )}
+              </div>
             </div>
             <button
               onClick={handleToggleVisibility}
@@ -2461,7 +2460,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
       </div>
 
       {/* Right Panel — Chat */}
-      <div className={`${selectedFriend ? 'flex' : 'hidden sm:flex'} flex-1 flex-col bg-background fixed top-14 sm:top-0 left-0 right-0 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:static z-20 sm:z-0 h-[calc(100dvh-3.5rem-4rem-env(safe-area-inset-bottom,0px))] sm:h-full`}>
+      <div className={`${selectedFriend ? 'flex' : 'hidden sm:flex'} flex-1 flex-col bg-background h-full overflow-hidden`}>
         {!selectedFriend ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground overflow-y-auto">
             {pendingReceivedRequests.length > 0 ? (
@@ -2751,7 +2750,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
             )}
 
             {/* Message Input */}
-            <div className="border-t px-4 py-3 flex items-center gap-2">
+            <div className="shrink-0 border-t bg-background px-3 py-2 flex items-center gap-2">
               {groupExamEnabled && (
               <button
                 onClick={openInviteModal}
@@ -2791,12 +2790,12 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         )}
       </div>
 
-      {/* Mobile Chat Overlay — Positioned between the top header and the fixed bottom navbar so the message input sits right on top of the bottom navbar */}
+      {/* Mobile Chat Overlay — Positioned flush between the top header and the fixed bottom navbar so the message input sits right on top of the bottom navbar */}
       {selectedFriend && (
         <div
-          className="sm:hidden fixed top-14 left-0 right-0 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-40 flex flex-col bg-background"
+          className="sm:hidden fixed top-14 left-0 right-0 bottom-[calc(4rem+max(0.25rem,env(safe-area-inset-bottom,0px)))] z-40 flex flex-col bg-background"
         >
-          <div className="sticky top-0 z-10 shrink-0 border-b px-4 py-3 flex items-center gap-3 bg-background">
+          <div className="sticky top-0 z-10 shrink-0 border-b px-3 py-2.5 flex items-center gap-3 bg-background">
             <button
               onClick={() => {
                 setSelectedFriend(null);
@@ -2979,7 +2978,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
               </div>
             )}
 
-          <div className="shrink-0 border-t bg-background px-4 py-3 flex items-center gap-2">
+          <div className="shrink-0 border-t bg-background px-3 py-2 flex items-center gap-2">
             {groupExamEnabled && (
             <button
               onClick={openInviteModal}

@@ -430,22 +430,22 @@ export function DriverPanelViewSkeleton() {
 
 export function ChatConversationViewSkeleton() {
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] animate-in fade-in duration-200">
-      <div className="border-b border-border dark:border-zinc-800 px-4 py-3 flex items-center gap-3 bg-card dark:bg-muted/40 dark:bg-zinc-900/40">
+    <div className="flex flex-col w-full h-[calc(100dvh-3.5rem-4rem-max(0.25rem,env(safe-area-inset-bottom,0px)))] sm:h-[calc(100dvh-4rem-4rem-max(0.25rem,env(safe-area-inset-bottom,0px)))] lg:h-[calc(100dvh-4rem)] overflow-hidden animate-in fade-in duration-200">
+      <div className="border-b border-border dark:border-zinc-800 px-4 py-2.5 flex items-center gap-3 bg-card dark:bg-muted/40 dark:bg-zinc-900/40">
         <div className="h-5 w-5 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse" />
         <div className="h-10 w-10 rounded-full bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
         <div className="h-5 w-32 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
       </div>
-      <div className="flex-1 px-4 py-4 space-y-3">
+      <div className="flex-1 px-4 py-3 space-y-3">
         {[0, 1, 2, 3, 4].map((i) => (
           <div key={i} className={`flex ${i % 2 === 0 ? "justify-start" : "justify-end"}`}>
             <div className="h-12 w-48 sm:w-64 rounded-2xl bg-muted/40 dark:bg-zinc-900 border border-border/60 dark:border-border dark:border-zinc-800/60 animate-pulse" />
           </div>
         ))}
       </div>
-      <div className="border-t border-border dark:border-zinc-800 px-4 py-3 flex items-center gap-2 bg-card dark:bg-muted/40 dark:bg-zinc-900/40">
-        <div className="h-11 flex-1 rounded-xl bg-muted/40 dark:bg-zinc-900 border border-border dark:border-zinc-800 animate-pulse" />
-        <div className="h-11 w-11 rounded-xl bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
+      <div className="border-t border-border dark:border-zinc-800 px-3 py-2 flex items-center gap-2 bg-card dark:bg-muted/40 dark:bg-zinc-900/40">
+        <div className="h-10 flex-1 rounded-xl bg-muted/40 dark:bg-zinc-900 border border-border dark:border-zinc-800 animate-pulse" />
+        <div className="h-10 w-10 rounded-xl bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
       </div>
     </div>
   );
@@ -710,20 +710,18 @@ export function ExamHistorySkeleton() {
 
 export function ClassmatesViewSkeleton() {
   return (
-    <div className="flex h-[calc(100dvh-56px)] sm:h-[calc(100dvh-64px)] overflow-hidden animate-in fade-in duration-200">
+    <div className="flex w-full h-[calc(100dvh-3.5rem-4rem-max(0.25rem,env(safe-area-inset-bottom,0px)))] sm:h-[calc(100dvh-4rem-4rem-max(0.25rem,env(safe-area-inset-bottom,0px)))] lg:h-[calc(100dvh-4rem)] overflow-hidden animate-in fade-in duration-200">
       {/* Left Sidebar */}
-      <div className="w-full sm:w-80 border-r border-border dark:border-zinc-800 flex flex-col bg-background h-full shrink-0">
-        {/* Back Link */}
-        <div className="p-3 pb-0">
-          <div className="h-4 w-16 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse" />
-        </div>
-
+      <div className="w-full sm:w-96 md:w-[400px] border-r border-border dark:border-zinc-800 flex flex-col bg-background h-full shrink-0">
         {/* Tab Switcher & Visibility */}
-        <div className="p-3 border-b border-border dark:border-zinc-800 space-y-2">
+        <div className="px-3 py-2 border-b border-border dark:border-zinc-800 space-y-2">
           <div className="flex items-center justify-between gap-1">
-            <div className="flex gap-1 bg-card dark:bg-muted/40 dark:bg-zinc-900/80 rounded-xl p-1 border border-border/60 dark:border-border dark:border-zinc-800/60 flex-1">
-              <div className="h-7 flex-1 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
-              <div className="h-7 flex-1 rounded-lg bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/40 animate-pulse" />
+            <div className="flex items-center gap-1.5 flex-1">
+              <div className="h-7 w-7 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse shrink-0" />
+              <div className="flex gap-1 bg-card dark:bg-muted/40 dark:bg-zinc-900/80 rounded-xl p-1 border border-border/60 dark:border-border dark:border-zinc-800/60 flex-1">
+                <div className="h-7 flex-1 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
+                <div className="h-7 flex-1 rounded-lg bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/40 animate-pulse" />
+              </div>
             </div>
             <div className="h-7 w-7 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse shrink-0" />
           </div>

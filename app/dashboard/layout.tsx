@@ -20,6 +20,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { config } = useBrandingConfig();
   const [isExamActive, setIsExamActive] = useState(false);
   const [isChatActive, setIsChatActive] = useState(false);
+  const [isFullBleedView, setIsFullBleedView] = useState(false);
+
+  // Check if current route is a full-bleed chat/classmates view
+  useEffect(() => {
+    const syncFullBleed = () => {
+      if (typeof window === "undefined") return;
+      const rawHash = window.location.hash.replace(/^#/, "").split("?")[0];
+      const activeView = rawHash || "home";
+      setIsFullBleedView(
+        pathname === "/dashboard" &&
+          (activeView === "classmates" || activeView === "chat/conversation")
+      );
+    };
+    syncFullBleed();
+    window.addEventListener("hashchange", syncFullBleed);
+    window.addEventListener("popstate", syncFullBleed);
+    window.addEventListener("navo-hash-route-change", syncFullBleed);
+    return () => {
+      window.removeEventListener("hashchange", syncFullBleed);
+      window.removeEventListener("popstate", syncFullBleed);
+      window.removeEventListener("navo-hash-route-change", syncFullBleed);
+    };
+  }, [pathname]);
 
   // Check if exam is active (to hide dock nav and headers during active exam)
   useEffect(() => {
@@ -89,7 +112,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Content */}
       <main
         className={`flex-1 w-full min-w-0 ${
-          isExamInProgress
+          isExamInProgress || isFullBleedView
             ? "pt-0 pb-0"
             : "pt-4 sm:pt-6 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-6"
         }`}
