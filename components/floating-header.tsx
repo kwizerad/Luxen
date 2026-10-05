@@ -112,19 +112,35 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
   const syncNavigationState = useCallback(() => {
     if (typeof window === "undefined") return;
-    const examActive =
-      sessionStorage.getItem("exam-active") === "true" ||
+
+    const rawHash = window.location.hash.replace(/^#/, "").split("?")[0];
+    const activeView = rawHash || "home";
+    setCurrentView(activeView);
+
+    // If the user is on a non-exam dashboard view (e.g. home, classmates, services, results, settings),
+    // ensure any stale exam-active flag from an interrupted session is cleared so the bottom nav persists.
+    const isExamCapableView =
+      activeView === "exam" ||
+      activeView === "exams" ||
+      activeView === "course" ||
       pathname === "/dashboard/exam" ||
       Boolean(pathname?.startsWith("/dashboard/exam"));
+
+    if (
+      pathname === "/dashboard" &&
+      !isExamCapableView &&
+      sessionStorage.getItem("exam-active") === "true"
+    ) {
+      sessionStorage.removeItem("exam-active");
+    }
+
+    const examActive = sessionStorage.getItem("exam-active") === "true";
     setIsExamActive(examActive);
 
     const chatActive =
       sessionStorage.getItem("chat-active") === "true" ||
       sessionStorage.getItem("student-chat-active") === "true";
     setIsChatActive(chatActive);
-
-    const rawHash = window.location.hash.replace(/^#/, "").split("?")[0];
-    setCurrentView(rawHash || "home");
   }, [pathname]);
 
   useEffect(() => {
@@ -189,10 +205,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
     const isCoursePublishedInLang = publishedCourseLanguages.has(lang);
     return isLangEnabledByAdmin && isCoursePublishedInLang;
   }, [interfaceLanguage, loadingLangs, enabledLanguages, publishedCourseLanguages]);
-
-  if (isExamActive) {
-    return null;
-  }
 
   if (!user && !authLoading) {
     return null;
@@ -359,9 +371,11 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       <header
         dir={isRTL ? "rtl" : "ltr"}
         aria-hidden={isExamActive}
-        className={`hidden md:block premium-glass-panel sticky top-0 z-50 w-full border-b transition-opacity ${
-          isExamActive ? "pointer-events-none opacity-0 invisible select-none" : ""
-        }`}
+        className={`hidden ${
+          isExamActive
+            ? "md:hidden pointer-events-none opacity-0 invisible select-none"
+            : "md:block"
+        } premium-glass-panel sticky top-0 z-50 w-full border-b transition-opacity`}
       >
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 gap-3">
           {/* Left: System Logo & Name */}
@@ -496,85 +510,85 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       </header>
 
       {/* Small Devices Fixed Bottom Navigation Bar (Includes Nav Items + Notifications + User Menu) */}
-      {!isExamActive && (
-        <nav
-          aria-label="Mobile Bottom Navigation"
-          aria-hidden={isExamActive}
-          dir={isRTL ? "rtl" : "ltr"}
-          className={`fixed bottom-0 left-0 right-0 z-50 md:hidden premium-glass-panel border-t pb-[env(safe-area-inset-bottom)] transition-opacity ${
-            isExamActive ? "pointer-events-none opacity-0 invisible select-none" : ""
-          }`}
-        >
-          <div className="flex items-center justify-between h-16 px-1 max-w-lg mx-auto overflow-x-auto no-scrollbar">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const mobileContent = (
-                <>
-                  {item.isActive && (
-                    <motion.span
-                      layoutId={`${activeIdPrefix}-mobile-nav-indicator`}
-                      className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-6 rounded-full bg-primary"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                  <div
-                    className={`flex items-center justify-center w-7 h-7 rounded-full transition-colors ${
-                      item.isActive
-                        ? "bg-primary/15 text-primary"
-                        : "text-muted-foreground group-hover:text-foreground"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                  </div>
-                  <span
-                    className={`text-[9.5px] leading-tight truncate max-w-[48px] transition-colors ${
-                      item.isActive
-                        ? "font-semibold text-primary"
-                        : "font-medium text-muted-foreground"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                </>
-              );
+      <nav
+        aria-label="Mobile Bottom Navigation"
+        aria-hidden={isExamActive}
+        dir={isRTL ? "rtl" : "ltr"}
+        className={`fixed bottom-0 left-0 right-0 z-50 md:hidden premium-glass-panel border-t pb-[env(safe-area-inset-bottom)] transition-all duration-200 ${
+          isExamActive
+            ? "hidden pointer-events-none opacity-0 invisible translate-y-full select-none"
+            : "block opacity-100 visible translate-y-0"
+        }`}
+      >
+        <div className="flex items-center justify-between h-16 px-1 max-w-lg mx-auto overflow-x-auto no-scrollbar">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const mobileContent = (
+              <>
+                {item.isActive && (
+                  <motion.span
+                    layoutId={`${activeIdPrefix}-mobile-nav-indicator`}
+                    className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-6 rounded-full bg-primary"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <div
+                  className={`flex items-center justify-center w-7 h-7 rounded-full transition-colors ${
+                    item.isActive
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground group-hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                </div>
+                <span
+                  className={`text-[9.5px] leading-tight truncate max-w-[48px] transition-colors ${
+                    item.isActive
+                      ? "font-semibold text-primary"
+                      : "font-medium text-muted-foreground"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </>
+            );
 
-              if (adminMode && item.href) {
-                return (
-                  <Link
-                    key={item.id}
-                    href={item.href}
-                    className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-[44px]"
-                  >
-                    {mobileContent}
-                  </Link>
-                );
-              }
-
+            if (adminMode && item.href) {
               return (
-                <button
+                <Link
                   key={item.id}
-                  type="button"
-                  disabled={isExamActive}
-                  onClick={() => item.view && handleStudentNavigate(item.view)}
-                  className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-[44px] cursor-pointer disabled:pointer-events-none"
+                  href={item.href}
+                  className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-[44px]"
                 >
                   {mobileContent}
-                </button>
+                </Link>
               );
-            })}
+            }
 
-            {/* Mobile Notifications & User Profile in Bottom Bar */}
-            <div className="flex items-center gap-0.5 pl-1 pr-1 border-l border-border/50 h-10 shrink-0">
-              <div className="flex items-center justify-center">
-                <NotificationsDropdown />
-              </div>
-              <div className="flex items-center justify-center">
-                <FloatingUserSettings user={user} onMobile adminMode={adminMode} />
-              </div>
+            return (
+              <button
+                key={item.id}
+                type="button"
+                disabled={isExamActive}
+                onClick={() => item.view && handleStudentNavigate(item.view)}
+                className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-[44px] cursor-pointer disabled:pointer-events-none"
+              >
+                {mobileContent}
+              </button>
+            );
+          })}
+
+          {/* Mobile Notifications & User Profile in Bottom Bar */}
+          <div className="flex items-center gap-0.5 pl-1 pr-1 border-l border-border/50 h-10 shrink-0">
+            <div className="flex items-center justify-center">
+              <NotificationsDropdown />
+            </div>
+            <div className="flex items-center justify-center">
+              <FloatingUserSettings user={user} onMobile adminMode={adminMode} />
             </div>
           </div>
-        </nav>
-      )}
+        </div>
+      </nav>
     </>
   );
 }

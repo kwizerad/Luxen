@@ -296,6 +296,18 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     };
   }, [accessChecked, t]);
 
+  // Synchronize exam-active flag with whether an exam is actively in progress
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isInProgress = Boolean(exam && !showResults);
+    if (isInProgress) {
+      sessionStorage.setItem("exam-active", "true");
+    } else {
+      sessionStorage.removeItem("exam-active");
+    }
+    window.dispatchEvent(new CustomEvent("exam-state-change"));
+  }, [exam, showResults]);
+
   // Auto-select the single category when there's only one
   useEffect(() => {
     if (!loadingCategories && categories.length === 1 && !categoryId && instructionsAccepted && !exam) {
