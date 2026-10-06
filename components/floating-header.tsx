@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useNavigationVisibility } from "@/hooks/use-navigation-visibility";
+import { useAdminSpa } from "@/lib/admin-spa-router";
 
 interface NavItem {
   id: string;
@@ -40,6 +41,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   const { t, isRTL } = useLanguage();
   const { config } = useBrandingConfig();
   const { filterNavItems } = useNavigationVisibility(adminMode);
+  const { view: adminSpaView, pathname: adminSpaPathname, navigateAdmin } = useAdminSpa();
 
   const [isExamActive, setIsExamActive] = useState(false);
   const [isChatActive, setIsChatActive] = useState(false);
@@ -210,63 +212,80 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
     },
   ];
 
+  const activeAdminPath = adminMode ? (adminSpaPathname || pathname || "/Admin") : pathname;
+
   const allAdminNavItems: NavItem[] = [
     {
       id: "admin-course",
       label: t("course") || "Course",
       icon: BookOpen,
       href: "/Admin/course",
-      isActive: Boolean(pathname?.startsWith("/Admin/course")),
+      isActive:
+        adminSpaView === "course" ||
+        adminSpaView === "course-studio" ||
+        adminSpaView === "course-management" ||
+        Boolean(activeAdminPath?.startsWith("/Admin/course")),
     },
     {
       id: "admin-exams",
       label: t("exams") || "Exams",
       icon: FileText,
       href: "/Admin/exams",
-      isActive: Boolean(
-        pathname?.startsWith("/Admin/exams") ||
-          pathname?.startsWith("/Admin/questions") ||
-          pathname?.startsWith("/Admin/retake-requests")
-      ),
+      isActive:
+        adminSpaView === "exams" ||
+        adminSpaView === "questions" ||
+        adminSpaView === "retake-requests" ||
+        Boolean(
+          activeAdminPath?.startsWith("/Admin/exams") ||
+            activeAdminPath?.startsWith("/Admin/questions") ||
+            activeAdminPath?.startsWith("/Admin/retake-requests")
+        ),
     },
     {
       id: "admin-users",
       label: t("users") || "Users",
       icon: Users,
       href: "/Admin/users",
-      isActive: Boolean(pathname?.startsWith("/Admin/users")),
+      isActive:
+        adminSpaView === "users" || Boolean(activeAdminPath?.startsWith("/Admin/users")),
     },
     {
       id: "admin-home",
       label: t("dashboard") || "Dashboard",
       icon: LayoutDashboard,
       href: "/Admin",
-      isActive: pathname === "/Admin",
+      isActive: adminSpaView === "dashboard" && activeAdminPath === "/Admin",
     },
     {
       id: "admin-drivers",
       label: t("drivers") || "Drivers",
       icon: Car,
       href: "/Admin/drivers",
-      isActive: Boolean(pathname?.startsWith("/Admin/drivers")),
+      isActive:
+        adminSpaView === "drivers" || Boolean(activeAdminPath?.startsWith("/Admin/drivers")),
     },
     {
       id: "admin-reports",
       label: t("reports") || "Reports",
       icon: BarChart3,
       href: "/Admin/reports",
-      isActive: Boolean(
-        pathname?.startsWith("/Admin/reports") ||
-          pathname?.startsWith("/Admin/audit") ||
-          pathname?.startsWith("/Admin/notifications")
-      ),
+      isActive:
+        adminSpaView === "reports" ||
+        adminSpaView === "audit" ||
+        adminSpaView === "notifications" ||
+        Boolean(
+          activeAdminPath?.startsWith("/Admin/reports") ||
+            activeAdminPath?.startsWith("/Admin/audit") ||
+            activeAdminPath?.startsWith("/Admin/notifications")
+        ),
     },
     {
       id: "admin-settings",
       label: t("settings") || "Settings",
       icon: Settings,
       href: "/Admin/settings",
-      isActive: Boolean(pathname?.startsWith("/Admin/settings")),
+      isActive:
+        adminSpaView === "settings" || Boolean(activeAdminPath?.startsWith("/Admin/settings")),
     },
   ];
 
@@ -392,13 +411,14 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
               if (adminMode && item.href) {
                 return (
-                  <Link
+                  <button
                     key={item.id}
-                    href={item.href}
-                    className="group relative flex items-center gap-1.5 px-3 lg:px-3.5 py-2 rounded-xl transition-all hover:bg-muted/60"
+                    type="button"
+                    onClick={() => navigateAdmin(item.href!)}
+                    className="group relative flex items-center gap-1.5 px-3 lg:px-3.5 py-2 rounded-xl transition-all hover:bg-muted/60 cursor-pointer"
                   >
                     {content}
-                  </Link>
+                  </button>
                 );
               }
 
@@ -474,13 +494,14 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
             if (adminMode && item.href) {
               return (
-                <Link
+                <button
                   key={item.id}
-                  href={item.href}
-                  className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-0"
+                  type="button"
+                  onClick={() => navigateAdmin(item.href!)}
+                  className="group relative flex-1 flex flex-col items-center justify-center gap-0.5 h-full py-1 min-w-0 cursor-pointer"
                 >
                   {mobileContent}
-                </Link>
+                </button>
               );
             }
 

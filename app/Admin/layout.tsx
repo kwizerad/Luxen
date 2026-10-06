@@ -19,8 +19,8 @@ import { useActivityTracker } from "@/hooks/use-activity-tracker";
 import { useLoginRecorder } from "@/hooks/use-login-recorder";
 import { FloatingHeader } from "@/components/floating-header";
 import { useThemeConfig } from "@/lib/theme-config";
-import { ViewTransition } from "@/components/spa-views/view-transition";
-import { usePathname } from "next/navigation";
+import { AdminSpaProvider } from "@/lib/admin-spa-router";
+import { AdminSpaViewport } from "@/components/admin/admin-spa-viewport";
 
 const ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
 
@@ -36,7 +36,6 @@ export default function AdminLayout({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const router = useRouter();
-  const pathname = usePathname();
   const { t } = useLanguage();
   const { config } = useThemeConfig();
 
@@ -166,29 +165,28 @@ export default function AdminLayout({
   }
 
   return (
-    <div className={`admin-portal ${config.backgroundMode === 'gradient' ? 'admin-bg-gradient' : 'admin-bg-solid'}`}>
-      {/* Aurora mesh gradient background — only in gradient mode */}
-      {config.backgroundMode === 'gradient' && config.backgroundEnabled !== false && (
-        <div className="admin-aurora" />
-      )}
+    <AdminSpaProvider>
+      <div className={`admin-portal ${config.backgroundMode === 'gradient' ? 'admin-bg-gradient' : 'admin-bg-solid'}`}>
+        {/* Aurora mesh gradient background — only in gradient mode */}
+        {config.backgroundMode === 'gradient' && config.backgroundEnabled !== false && (
+          <div className="admin-aurora" />
+        )}
 
-      {/* Floating header (profile avatar + notifications) */}
-      <FloatingHeader adminMode />
+        {/* Floating header (profile avatar + notifications) */}
+        <FloatingHeader adminMode />
 
-      {/* Admin layout */}
-      <div className="admin-shell">
-        {/* Main content area */}
-        <div className="admin-content">
-          {/* Page content */}
-          <main className="flex-1 pb-24 lg:pb-10">
-            <ViewTransition viewKey={pathname}>
-              {children}
-            </ViewTransition>
-          </main>
+        {/* Admin layout */}
+        <div className="admin-shell">
+          {/* Main content area */}
+          <div className="admin-content">
+            {/* Page content — Unified 0ms Client-Side SPA Viewport */}
+            <main className="flex-1 pb-24 lg:pb-10">
+              <AdminSpaViewport />
+            </main>
+          </div>
         </div>
-      </div>
 
-      {/* Password Change Modal */}
+        {/* Password Change Modal */}
       <AnimatePresence>
         {showPasswordChange && (
           <motion.div
@@ -264,6 +262,7 @@ export default function AdminLayout({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </AdminSpaProvider>
   );
 }

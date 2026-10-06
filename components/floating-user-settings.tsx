@@ -17,6 +17,7 @@ import { User, Settings, Download, LogOut, Menu, Home, Plus, Moon, Sun, Monitor,
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
 import { isAdmin } from "@/lib/permissions";
+import { dispatchAdminSpaNavigate } from "@/lib/admin-spa-router";
 
 type Language = "English" | "Kinyarwanda" | "French";
 type LanguageCode = "en" | "rw" | "fr";
@@ -218,7 +219,7 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
     }
 
     if (adminMode) {
-      router.push("/Admin");
+      dispatchAdminSpaNavigate("/Admin");
     } else {
       if (pathname === "/dashboard") {
         window.location.hash = "#home";
@@ -245,7 +246,7 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
     }
 
     if (adminMode) {
-      router.push("/Admin/settings");
+      dispatchAdminSpaNavigate("/Admin/settings");
     } else {
       if (pathname === "/dashboard") {
         window.location.hash = "#settings";

@@ -93,170 +93,195 @@ export default function AdminSettingsPage() {
       ];
 
   return (
-    <>
-      <div className="min-h-screen bg-transparent py-4 sm:py-6">
-        <main className="container mx-auto px-4">
-          {/* Header */}
-          <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-              <Settings2 className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-              {t("settings")}
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+    <div className="space-y-6 max-w-[1600px] mx-auto px-2 sm:px-4 pb-24">
+      {/* Executive Settings Header */}
+      <div className="admin-card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-[var(--admin-border)]">
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 flex items-center justify-center shrink-0">
+            <Settings2 className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--admin-text)]">
+                {t("settings") || "Platform Configuration & Branding"}
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
+                System SPA
+              </span>
+              {readOnly && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                  Read Only
+                </span>
+              )}
+            </div>
+            <p className="text-xs sm:text-sm text-[var(--admin-muted)] mt-0.5">
               {t("manageAdminAccountBrandAppearance")}
             </p>
           </div>
-
-          {/* Mobile tab selector */}
-          <div className="md:hidden mb-6">
-            <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
-              {settingsSections.map((section) => (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveTab(section.id)}
-                  className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium whitespace-nowrap transition-all ${
-                    activeTab === section.id
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {section.icon}
-                  {section.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-[220px_1fr] lg:grid-cols-[260px_1fr]">
-            {/* Desktop sidebar */}
-            <aside className="hidden md:block">
-              <div className="sticky top-6 space-y-1">
-                {settingsSections.map((section) => (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveTab(section.id)}
-                    className={`w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all ${
-                      activeTab === section.id
-                        ? "bg-primary/10 text-primary border border-primary/20"
-                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground border border-transparent"
-                    }`}
-                  >
-                    {section.icon}
-                    <span className="flex-1 text-left">{section.label}</span>
-                    {activeTab === section.id && <ChevronRight className="h-3.5 w-3.5" />}
-                  </button>
-                ))}
-              </div>
-            </aside>
-
-            {/* Content area */}
-            <div className="min-w-0">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-6"
-                >
-                  {activeTab === "account" && (
-                    <>
-                      <Card className="border border-border rounded-[24px] bg-card shadow-sm">
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <User className="h-5 w-5 text-primary" />
-                            {t("accountOverview")}
-                          </CardTitle>
-                          <CardDescription>{t("accountOverviewDescription")}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="grid gap-4">
-                          <div className="grid gap-2">
-                            <Label className="text-sm text-muted-foreground">{t("email")}</Label>
-                            <div className="rounded-2xl border border-border bg-secondary p-3.5 text-sm font-medium">
-                              {user?.email || "—"}
-                            </div>
-                          </div>
-                          <div className="grid gap-2">
-                            <Label className="text-sm text-muted-foreground">{t("role")}</Label>
-                            <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary w-fit">
-                              {user?.user_metadata?.role || t("admin")}
-                            </div>
-                          </div>
-                          <div className="grid gap-2">
-                            <Label className="text-sm text-muted-foreground">{t("joined")}</Label>
-                            <div className="rounded-2xl border border-border bg-secondary p-3.5 text-sm">
-                              {user?.created_at ? new Date(user.created_at).toLocaleDateString() : t("unknown")}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="border border-border rounded-[24px] bg-card shadow-sm">
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Settings2 className="h-5 w-5 text-primary" />
-                            {t("profileSettings")}
-                          </CardTitle>
-                          <CardDescription>{t("profileSettingsDescription")}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <UserSettings user={user} showPasswordChange={true} mode="admin" />
-                        </CardContent>
-                      </Card>
-                    </>
-                  )}
-
-                  {hasSettingsPerm && activeTab === "appearance" && !readOnly && (
-                    <>
-                      <Card className="border border-border rounded-[24px] bg-card shadow-sm">
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Palette className="h-5 w-5 text-primary" />
-                            {t("themeCustomization")}
-                          </CardTitle>
-                          <CardDescription>{t("themeCustomizationDescription")}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <ThemeCustomizer />
-                        </CardContent>
-                      </Card>
-
-                      <Card className="border border-border rounded-[24px] bg-card shadow-sm">
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <ImageIcon className="h-5 w-5 text-primary" />
-                            {t("brandingSettings")}
-                          </CardTitle>
-                          <CardDescription>{t("brandingSettingsDescription")}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <BrandingCustomizer />
-                        </CardContent>
-                      </Card>
-                    </>
-                  )}
-
-                  {hasSettingsPerm && activeTab === "appearance" && readOnly && (
-                    <Card className="border border-border rounded-[24px] bg-card shadow-sm">
-                      <CardContent className="py-12 text-center text-muted-foreground">
-                        <Shield className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                        {t("readOnlyAccess") || "You have read-only access to settings."}
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {hasSettingsPerm && activeTab === "exam" && <SystemConfigSettings filter="exam" />}
-
-                  {hasSettingsPerm && activeTab === "languages" && <SystemConfigSettings filter="languages" />}
-
-                  {hasSettingsPerm && activeTab === "services" && <SystemConfigSettings filter="services" />}
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          </div>
-        </main>
+        </div>
       </div>
-    </>
+
+      {/* Mobile tab selector */}
+      <div className="md:hidden">
+        <div className="flex gap-1.5 overflow-x-auto p-1.5 rounded-2xl bg-[var(--admin-card-bg)] border border-[var(--admin-border)] scrollbar-none">
+          {settingsSections.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => setActiveTab(section.id)}
+              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                activeTab === section.id
+                  ? "bg-[var(--admin-accent)] text-white shadow-sm"
+                  : "text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
+              }`}
+            >
+              {section.icon}
+              {section.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-[240px_1fr] lg:grid-cols-[270px_1fr]">
+        {/* Desktop sidebar */}
+        <aside className="hidden md:block">
+          <div className="admin-card p-3 sticky top-20 space-y-1 border border-[var(--admin-border)]">
+            <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+              Settings Modules
+            </p>
+            {settingsSections.map((section) => (
+              <button
+                key={section.id}
+                onClick={() => setActiveTab(section.id)}
+                className={`w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === section.id
+                    ? "bg-[var(--admin-accent)] text-white shadow-sm shadow-[var(--admin-accent)]/25"
+                    : "text-[var(--admin-muted)] hover:bg-[var(--admin-hover-bg)] hover:text-[var(--admin-text)]"
+                }`}
+              >
+                {section.icon}
+                <span className="flex-1 text-left">{section.label}</span>
+                {activeTab === section.id && <ChevronRight className="h-3.5 w-3.5" />}
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        {/* Content area */}
+        <div className="min-w-0">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
+            >
+              {activeTab === "account" && (
+                <>
+                  <div className="admin-card p-6 sm:p-7 border border-[var(--admin-border)] space-y-5">
+                    <div className="flex items-center gap-3 pb-4 border-b border-[var(--admin-border)]">
+                      <div className="p-2.5 rounded-xl bg-indigo-500/15 text-indigo-400">
+                        <User className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-[var(--admin-text)]">{t("accountOverview")}</h3>
+                        <p className="text-xs text-[var(--admin-muted)]">{t("accountOverviewDescription")}</p>
+                      </div>
+                    </div>
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <div className="p-4 rounded-2xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] space-y-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+                          {t("email")}
+                        </Label>
+                        <div className="text-sm font-bold text-[var(--admin-text)] truncate">
+                          {user?.email || "—"}
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] space-y-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+                          {t("role")}
+                        </Label>
+                        <div>
+                          <span className="inline-flex items-center rounded-full bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-0.5 text-xs font-bold text-indigo-400">
+                            {user?.user_metadata?.role || t("admin")}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] space-y-1">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+                          {t("joined")}
+                        </Label>
+                        <div className="text-sm font-bold text-[var(--admin-text)]">
+                          {user?.created_at ? new Date(user.created_at).toLocaleDateString() : t("unknown")}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="admin-card p-6 sm:p-7 border border-[var(--admin-border)]">
+                    <div className="flex items-center gap-3 pb-4 mb-5 border-b border-[var(--admin-border)]">
+                      <div className="p-2.5 rounded-xl bg-cyan-500/15 text-cyan-400">
+                        <Settings2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-[var(--admin-text)]">{t("profileSettings")}</h3>
+                        <p className="text-xs text-[var(--admin-muted)]">{t("profileSettingsDescription")}</p>
+                      </div>
+                    </div>
+                    <UserSettings user={user} showPasswordChange={true} mode="admin" />
+                  </div>
+                </>
+              )}
+
+              {hasSettingsPerm && activeTab === "appearance" && !readOnly && (
+                <>
+                  <div className="admin-card p-6 sm:p-7 border border-[var(--admin-border)]">
+                    <div className="flex items-center gap-3 pb-4 mb-5 border-b border-[var(--admin-border)]">
+                      <div className="p-2.5 rounded-xl bg-purple-500/15 text-purple-400">
+                        <Palette className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-[var(--admin-text)]">{t("themeCustomization")}</h3>
+                        <p className="text-xs text-[var(--admin-muted)]">{t("themeCustomizationDescription")}</p>
+                      </div>
+                    </div>
+                    <ThemeCustomizer />
+                  </div>
+
+                  <div className="admin-card p-6 sm:p-7 border border-[var(--admin-border)]">
+                    <div className="flex items-center gap-3 pb-4 mb-5 border-b border-[var(--admin-border)]">
+                      <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-400">
+                        <ImageIcon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-[var(--admin-text)]">{t("brandingSettings")}</h3>
+                        <p className="text-xs text-[var(--admin-muted)]">{t("brandingSettingsDescription")}</p>
+                      </div>
+                    </div>
+                    <BrandingCustomizer />
+                  </div>
+                </>
+              )}
+
+              {hasSettingsPerm && activeTab === "appearance" && readOnly && (
+                <div className="admin-card py-14 text-center border border-[var(--admin-border)]">
+                  <Shield className="h-8 w-8 mx-auto mb-2 text-amber-400/50" />
+                  <p className="text-sm font-semibold text-[var(--admin-text)]">
+                    {t("readOnlyAccess") || "You have read-only access to settings."}
+                  </p>
+                </div>
+              )}
+
+              {hasSettingsPerm && activeTab === "exam" && <SystemConfigSettings filter="exam" />}
+
+              {hasSettingsPerm && activeTab === "languages" && <SystemConfigSettings filter="languages" />}
+
+              {hasSettingsPerm && activeTab === "services" && <SystemConfigSettings filter="services" />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
   );
 }

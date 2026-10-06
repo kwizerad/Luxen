@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { Watermark } from "@/components/watermark";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useLanguage } from "@/lib/language-context";
+import { useAdminSpa } from "@/lib/admin-spa-router";
 import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-utils";
@@ -29,6 +30,7 @@ export default function QuestionManagementPage() {
   const { config } = useBrandingConfig();
   const { t } = useLanguage();
   const router = useRouter();
+  const { navigateAdmin } = useAdminSpa();
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -371,117 +373,137 @@ export default function QuestionManagementPage() {
   }
 
   return (
-    <>
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => router.push("/Admin/exams")}>
+    <div className="space-y-6 max-w-[1600px] mx-auto px-2 sm:px-4 pb-24">
+      {/* Executive Header */}
+      <div className="admin-card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-[var(--admin-border)]">
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 flex items-center justify-center shrink-0">
+            <FileText className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--admin-text)]">
+                {t("questionManagement")}
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
+                Question Bank SPA
+              </span>
+              {isReadOnly && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/25 rounded-full text-[11px] font-bold">
+                  <Eye className="h-3.5 w-3.5" />
+                  <span>{t("readOnlyMode")}</span>
+                </span>
+              )}
+            </div>
+            <p className="text-xs sm:text-sm text-[var(--admin-muted)] mt-0.5">
+              {isReadOnly ? t("viewQuestionsReadOnly") : t("viewQuestionsDescription")}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigateAdmin("/Admin/exams")}
+            className="rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+          >
             <ArrowLeft className="h-4 w-4 mr-2" />
             {t("back")}
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">{t("questionManagement")}</h1>
-          <p className="text-muted-foreground mt-1">
-            {isReadOnly ? t("viewQuestionsReadOnly") : t("viewQuestionsDescription")}
-          </p>
         </div>
-        {isReadOnly && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded-full text-sm">
-            <Eye className="h-4 w-4" />
-            <span>{t("readOnlyMode")}</span>
-          </div>
-        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                {t("filterQuestions")}
-              </CardTitle>
-              <CardDescription>
-                {t("totalQuestions")}: {filteredQuestions.length}
-                {selectedQuestions.size > 0 && ` • ${selectedQuestions.size} ${t("selected").toLowerCase()}`}
-              </CardDescription>
+      {/* Filter & Search Toolbar */}
+      <div className="admin-card p-5 border border-[var(--admin-border)]">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-base font-bold text-[var(--admin-text)] flex items-center gap-2">
+              <FileText className="h-4 w-4 text-indigo-400" />
+              {t("filterQuestions")}
+            </h2>
+            <p className="text-xs text-[var(--admin-muted)] mt-0.5">
+              {t("totalQuestions")}: <span className="font-bold text-[var(--admin-text)]">{filteredQuestions.length}</span>
+              {selectedQuestions.size > 0 && ` • ${selectedQuestions.size} ${t("selected").toLowerCase()}`}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--admin-muted)]" />
+              <Input
+                placeholder={t("searchQuestionsPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-full sm:w-[260px] rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)]"
+              />
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={t("searchQuestionsPlaceholder")}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-full sm:w-[250px]"
-                />
-              </div>
-              <Select
-                value={selectedCategory}
-                onValueChange={setSelectedCategory}
-              >
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder={t("selectCategory")} />
+            <Select
+              value={selectedCategory}
+              onValueChange={setSelectedCategory}
+            >
+              <SelectTrigger className="w-full sm:w-[210px] rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)]">
+                <SelectValue placeholder={t("selectCategory")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("allQuestions")}</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedQuestions.size > 0 && !isReadOnly && (
+        <div className="admin-card p-4 border border-indigo-500/40 bg-indigo-500/10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-indigo-400" />
+              <span className="font-bold text-sm text-[var(--admin-text)]">
+                {selectedQuestions.size} {t("questionsSelected")}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Select onValueChange={handleBulkMove} disabled={bulkMoving}>
+                <SelectTrigger className="w-[180px] rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)]">
+                  <SelectValue placeholder={t("moveToCategory")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("allQuestions")}</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="rounded-xl"
+              >
+                {bulkDeleting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                {t("deleteSelected")}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedQuestions(new Set())}
+                className="rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)]"
+              >
+                {t("clearSelection")}
+              </Button>
             </div>
           </div>
-        </CardHeader>
-      </Card>
-
-      {/* Bulk Actions Bar */}
-      {selectedQuestions.size > 0 && !isReadOnly && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="py-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <CheckSquare className="h-5 w-5 text-primary" />
-                <span className="font-medium">{selectedQuestions.size} {t("questionsSelected")}</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Select onValueChange={handleBulkMove} disabled={bulkMoving}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder={t("moveToCategory")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  disabled={bulkDeleting}
-                >
-                  {bulkDeleting ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4 mr-2" />
-                  )}
-                  {t("deleteSelected")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedQuestions(new Set())}
-                >
-                  {t("clearSelection")}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        </div>
       )}
 
       {/* Image Modal */}
@@ -879,19 +901,16 @@ export default function QuestionManagementPage() {
       </Dialog>
 
       {sortedQuestions.length === 0 ? (
-        <Card>
-          <CardContent className="py-12">
-            <p className="text-muted-foreground text-center">
-              {selectedCategory === "all" && searchQuery === ""
-                ? t("noQuestionsFound") 
-                : t("noQuestionsMatchFilters")}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="admin-card py-14 border border-[var(--admin-border)]">
+          <p className="text-[var(--admin-muted)] text-sm text-center">
+            {selectedCategory === "all" && searchQuery === ""
+              ? t("noQuestionsFound") 
+              : t("noQuestionsMatchFilters")}
+          </p>
+        </div>
       ) : (
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <Table>
+        <div className="admin-card p-0 overflow-x-auto border border-[var(--admin-border)]">
+          <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[40px]">
@@ -1093,10 +1112,8 @@ export default function QuestionManagementPage() {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+        </div>
       )}
-      </div>
-    </>
+    </div>
   );
 }

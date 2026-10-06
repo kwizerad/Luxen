@@ -375,19 +375,44 @@ export function UserWorkspace({
   }, [confirm, deleteUser, updateUserStatus]);
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t("userManagement")}</h1>
-          <p className="text-muted-foreground">{t("userManagementDescription")}</p>
+    <div className="space-y-6 max-w-[1600px] mx-auto px-2 sm:px-4 pb-24">
+      {/* Executive Header */}
+      <div className="admin-card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-[var(--admin-border)]">
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 flex items-center justify-center shrink-0">
+            <Users className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--admin-text)]">
+                {t("userManagement")}
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
+                Identity & RBAC SPA
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-[var(--admin-muted)] mt-0.5">
+              {t("userManagementDescription")}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={refresh} disabled={isRefreshing}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refresh}
+            disabled={isRefreshing}
+            className="rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+          >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
             {t("refresh")}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            className="rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500 font-bold"
+          >
             <Download className="h-4 w-4 mr-2" />
             {t("export")}
           </Button>
@@ -395,7 +420,7 @@ export function UserWorkspace({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-7 gap-1 sm:gap-2 md:gap-3 w-full">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-3 w-full">
         <StatCard label={t("totalUsers")} value={stats.totalUsers} color="primary" />
         <StatCard label={t("students")} value={stats.students} color="blue" />
         <StatCard label={t("administrators")} value={stats.administrators} color="purple" />
@@ -408,24 +433,17 @@ export function UserWorkspace({
       {/* Tabs */}
       <div className="relative">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="w-full">
-          <TabsList className="w-full justify-start overflow-x-auto h-auto flex-wrap md:flex-nowrap rounded-xl p-1.5 gap-1">
+          <TabsList className="w-full justify-start overflow-x-auto h-auto flex-wrap md:flex-nowrap rounded-2xl p-1.5 gap-1 bg-[var(--admin-card-bg)] border border-[var(--admin-border)]">
             {visibleTabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className="relative rounded-lg px-3 py-1.5 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                className="relative rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--admin-muted)] data-[state=active]:bg-[var(--admin-accent)] data-[state=active]:text-white data-[state=active]:shadow-sm transition-all cursor-pointer"
               >
                 <span className="flex items-center gap-1.5">
                   {tab.icon}
                   <span className="hidden sm:inline">{tab.label}</span>
                 </span>
-                {activeTab === tab.id && (
-                  <motion.div
-                    layoutId="active-tab"
-                    className="absolute inset-0 rounded-lg border border-primary/20 -z-10"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
-                )}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -439,15 +457,15 @@ export function UserWorkspace({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="flex flex-col md:flex-row gap-3"
+            className="admin-card p-4 flex flex-col md:flex-row gap-3 border border-[var(--admin-border)]"
           >
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--admin-muted)]" />
               <Input
                 placeholder={t("searchUsers")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className="pl-10 rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)]"
               />
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -455,7 +473,7 @@ export function UserWorkspace({
                 variant={activeFiltersCount > 0 ? "default" : "outline"}
                 size="sm"
                 onClick={resetFilters}
-                className="gap-1"
+                className="gap-1 rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)]"
               >
                 <Filter className="h-4 w-4" />
                 {activeFiltersCount > 0 && (
@@ -468,7 +486,7 @@ export function UserWorkspace({
               <select
                 value={filters.role}
                 onChange={(e) => setFilters((f) => ({ ...f, role: e.target.value }))}
-                className="h-9 rounded-md border bg-background px-3 text-sm"
+                className="h-9 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-text)] px-3 text-xs font-bold"
               >
                 <option value="all">{t("allRoles")}</option>
                 <option value="Student">{t("student")}</option>
@@ -477,7 +495,7 @@ export function UserWorkspace({
               <select
                 value={filters.status}
                 onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-                className="h-9 rounded-md border bg-background px-3 text-sm"
+                className="h-9 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-text)] px-3 text-xs font-bold"
               >
                 <option value="all">{t("allStatuses")}</option>
                 <option value="active">{t("active")}</option>
@@ -486,7 +504,7 @@ export function UserWorkspace({
               <select
                 value={filters.country}
                 onChange={(e) => setFilters((f) => ({ ...f, country: e.target.value }))}
-                className="h-9 rounded-md border bg-background px-3 text-sm"
+                className="h-9 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-text)] px-3 text-xs font-bold"
               >
                 {COUNTRIES.map((c) => (
                   <option key={c} value={c}>
@@ -504,9 +522,9 @@ export function UserWorkspace({
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between bg-muted/60 p-3 rounded-xl border"
+          className="admin-card flex items-center justify-between p-4 border border-indigo-500/40 bg-indigo-500/10"
         >
-          <span className="text-sm font-medium">
+          <span className="text-sm font-bold text-[var(--admin-text)]">
             {selectedRows.size} {selectedRows.size === 1 ? t("userSelected") : t("usersSelected")}
           </span>
           <div className="flex gap-2">
@@ -653,25 +671,23 @@ function StatCard({
   color: "primary" | "blue" | "purple" | "green" | "red" | "orange" | "teal";
 }) {
   const colorClasses = {
-    primary: "text-primary",
-    blue: "text-blue-600 dark:text-blue-400",
-    purple: "text-purple-600 dark:text-purple-400",
-    green: "text-green-600 dark:text-green-400",
-    red: "text-red-600 dark:text-red-400",
-    orange: "text-orange-600 dark:text-orange-400",
-    teal: "text-teal-600 dark:text-teal-400",
+    primary: "text-[var(--admin-text)]",
+    blue: "text-sky-400",
+    purple: "text-purple-400",
+    green: "text-emerald-400",
+    red: "text-rose-400",
+    orange: "text-amber-400",
+    teal: "text-cyan-400",
   };
 
   return (
-    <Card className="min-w-0 overflow-hidden shadow-none border">
-      <CardContent className="p-1 sm:p-2.5 md:p-4 flex flex-col items-center justify-center text-center min-w-0">
-        <div className={`text-xs sm:text-lg md:text-2xl font-bold ${colorClasses[color]} leading-tight truncate max-w-full`}>
-          {value}
-        </div>
-        <div className="text-[8px] sm:text-[10px] md:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate max-w-full leading-tight font-medium" title={label}>
-          {label}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="admin-card p-3 sm:p-4 flex flex-col items-center justify-center text-center min-w-0 border border-[var(--admin-border)]">
+      <div className={`text-lg sm:text-xl md:text-2xl font-black tabular-nums ${colorClasses[color]} leading-tight truncate max-w-full`}>
+        {value}
+      </div>
+      <div className="text-[10px] sm:text-xs text-[var(--admin-muted)] mt-1 truncate max-w-full leading-tight font-bold uppercase tracking-wider" title={label}>
+        {label}
+      </div>
+    </div>
   );
 }

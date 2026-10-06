@@ -690,70 +690,89 @@ export default function ExamManagementPage() {
 
   return (
     <>
-      <div className="space-y-6 relative">
+      <div className="space-y-6 max-w-[1600px] mx-auto px-2 sm:px-4 pb-24 relative">
         <Watermark />
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold brand-protected">{t("examManagement")}</h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-            {t("examManagementDescription")}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {(isPrimaryAdmin || canManageSettings) && (
-            <Button variant="outline" onClick={openSavingModal}>
-              <Database className="h-4 w-4 mr-2" />
-              {t("examSavingControls") || "Exam Saving Controls"}
+        {/* Executive Header */}
+        <div className="admin-card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-[var(--admin-border)]">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 flex items-center justify-center shrink-0">
+              <FileText className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--admin-text)] brand-protected">
+                  {t("examManagement")}
+                </h1>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
+                  Exams SPA
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-[var(--admin-muted)] mt-0.5">
+                {t("examManagementDescription")}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(isPrimaryAdmin || canManageSettings) && (
+              <Button
+                variant="outline"
+                onClick={openSavingModal}
+                className="rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+              >
+                <Database className="h-4 w-4 mr-2" />
+                {t("examSavingControls") || "Exam Saving Controls"}
+              </Button>
+            )}
+            <Button
+              onClick={() => setShowCategoryForm(!showCategoryForm)}
+              className="rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-sm shadow-indigo-600/25"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {showCategoryForm ? t("cancel") : t("addCategory")}
             </Button>
-          )}
-          <Button onClick={() => setShowCategoryForm(!showCategoryForm)}>
-            <Plus className="h-4 w-4 mr-2" />
-            {showCategoryForm ? t("cancel") : t("addCategory")}
-          </Button>
+          </div>
         </div>
-      </div>
 
       <div className="space-y-6">
         {/* Create Category Form */}
         {showCategoryForm && currentUser?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
-          <Card className={`${cardHoverClass} navo-card-brand`}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
-                {t("createNewCategory")}
-              </CardTitle>
-              <CardDescription>
-                {t("addNewExamCategory")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleCreateCategory} className="space-y-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="categoryName">{t("categoryName")}</Label>
-                  <Input
-                    id="categoryName"
-                    value={categoryName}
-                    onChange={(e) => setCategoryName(e.target.value)}
-                    placeholder={t("categoryNamePlaceholder")}
-                    required
-                  />
-                </div>
-                <Button type="submit" disabled={creatingCategory}>
-                  {creatingCategory ? (
-                    <>
-                      <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      {t("creating")}
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("createCategory")}
-                    </>
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <div className="admin-card p-6 border border-[var(--admin-border)]">
+            <div className="flex items-center gap-2.5 mb-4">
+              <BookOpen className="h-5 w-5 text-indigo-400" />
+              <div>
+                <h3 className="text-base font-bold text-[var(--admin-text)]">{t("createNewCategory")}</h3>
+                <p className="text-xs text-[var(--admin-muted)]">{t("addNewExamCategory")}</p>
+              </div>
+            </div>
+            <form onSubmit={handleCreateCategory} className="space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="categoryName" className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+                  {t("categoryName")}
+                </Label>
+                <Input
+                  id="categoryName"
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  placeholder={t("categoryNamePlaceholder")}
+                  required
+                  className="rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)]"
+                />
+              </div>
+              <Button type="submit" disabled={creatingCategory} className="rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold">
+                {creatingCategory ? (
+                  <>
+                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    {t("creating")}
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("createCategory")}
+                  </>
+                )}
+              </Button>
+            </form>
+          </div>
         )}
 
         {/* Edit Category Modal */}
@@ -807,31 +826,36 @@ export default function ExamManagementPage() {
             const isPrimaryAdmin = currentUser?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
             
             return (
-              <Card
+              <div
                 key={category.id}
-                className={`${cardHoverClass} cursor-pointer navo-card-brand ${
-                  activeCategory === category.id ? "border-primary ring-1 ring-primary" : ""
+                className={`admin-card p-5 cursor-pointer transition-all border ${
+                  activeCategory === category.id
+                    ? "border-indigo-500 ring-1 ring-indigo-500/50 bg-indigo-500/[0.04]"
+                    : "border-[var(--admin-border)] hover:border-indigo-500/40"
                 }`}
                 onClick={() => selectCategory(category.id)}
               >
-                <CardHeader className="pb-3">
+                <div className="pb-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                      <h3 className="text-base font-bold text-[var(--admin-text)] flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-indigo-400 flex-shrink-0" />
                         <span className="truncate">{category.name}</span>
-                      </CardTitle>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge 
-                          variant={category.is_published ? "default" : "secondary"}
-                          className={`text-xs ${category.is_published ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-100'}`}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                            category.is_published
+                              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                              : "bg-zinc-500/15 text-zinc-400 border-zinc-500/30"
+                          }`}
                         >
                           {category.is_published ? (
                             <><Globe className="h-3 w-3 mr-1" /> {t("published")}</>
                           ) : (
                             <><Lock className="h-3 w-3 mr-1" /> {t("draft")}</>
                           )}
-                        </Badge>
+                        </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -841,7 +865,7 @@ export default function ExamManagementPage() {
                           variant="ghost"
                           size="sm"
                           onClick={(e) => togglePublishCategory(category, e)}
-                          className={category.is_published ? "text-green-600" : "text-gray-500"}
+                          className={category.is_published ? "text-emerald-400" : "text-[var(--admin-muted)]"}
                           title={category.is_published ? t("unpublishCategory") : t("publishCategory")}
                         >
                           {category.is_published ? (
@@ -875,21 +899,21 @@ export default function ExamManagementPage() {
                       )}
                     </div>
                   </div>
-                  <CardDescription className="text-xs flex items-center justify-between mt-2">
+                  <div className="text-xs text-[var(--admin-muted)] flex items-center justify-between mt-3 pt-3 border-t border-[var(--admin-border)]">
                     <span>{t("created")}: {new Date(category.created_at).toLocaleDateString()}</span>
-                    <span className="flex items-center gap-1">
-                      <FileText className="h-3 w-3" />
+                    <span className="flex items-center gap-1 font-bold text-[var(--admin-text)]">
+                      <FileText className="h-3 w-3 text-indigo-400" />
                       {categoryQuestionCounts[category.id] || 0} {t("questions")}
                     </span>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
+                  </div>
+                </div>
+                <div className="pt-2">
                   <div className="grid grid-cols-2 gap-2">
                     {canAddQuestionPermission && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full"
+                    className="w-full rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
                     onClick={(e) => {
                       e.stopPropagation();
                       openAddQuestionModal(category.id);
@@ -903,7 +927,7 @@ export default function ExamManagementPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full"
+                    className="w-full rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
                     onClick={(e) => {
                       e.stopPropagation();
                       openSettingsForCategory(category);
@@ -914,25 +938,25 @@ export default function ExamManagementPage() {
                   </Button>
                 )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
 
         {/* Questions List for Selected Category */}
         {activeCategory && (
-          <Card className={`${cardHoverClass} navo-card-brand`}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
+          <div className="admin-card p-6 border border-[var(--admin-border)] space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-[var(--admin-text)] flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-indigo-400" />
                 {t("questions")} - {categories.find(c => c.id === activeCategory)?.name}
-              </CardTitle>
-              <CardDescription>
+              </h3>
+              <p className="text-xs text-[var(--admin-muted)] mt-0.5">
                 {filteredQuestions.length} {filteredQuestions.length !== 1 ? t("questionsFoundPlural") : t("questionFoundSingular")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </p>
+            </div>
+            <div className="space-y-4">
               {/* Search, Filter, and Sort Controls */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
@@ -1039,8 +1063,8 @@ export default function ExamManagementPage() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* Exam Settings Modal */}
