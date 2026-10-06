@@ -219,7 +219,7 @@ export function SignUpForm({
       setVerifiedName(data.full_name || null);
       const greetingName = data.full_name || verifiedName || cleanId;
       toast.success(
-        `Murakaza neza, ${greetingName}! Konti yawe yafunguwe neza.`
+        `${t("welcome") || "Welcome"}, ${greetingName}! ${t("registrationSuccessful") || "Your account has been created successfully."}`
       );
 
       // Log in automatically
@@ -463,8 +463,8 @@ export function SignUpForm({
                   <Label className="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
                     <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     {challengeType === "name"
-                      ? t("systemPromptName") || "Injiza rimwe mu mazina yawe:"
-                      : t("systemPromptDob") || "Hitamo itariki y'amavuko:"}
+                      ? t("systemPromptName") || "Enter one of your official names:"
+                      : t("systemPromptDob") || "Select your date of birth:"}
                   </Label>
                 </div>
 
@@ -553,12 +553,12 @@ export function SignUpForm({
                   {isVerifyingId ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t("verifyingIdentity") || "Kugenzura umwirondoro..."}
+                      {t("verifyingIdentity") || "Verifying identity..."}
                     </>
                   ) : (
                     <>
                       <ShieldCheck className="mr-2 h-4 w-4" />
-                      <span>{t("verifyIdentity") || "Emeza Umwirondoro"}</span>
+                      <span>{t("verifyIdentity") || "Verify Identity"}</span>
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
@@ -574,7 +574,7 @@ export function SignUpForm({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
                       <CheckCircle2 className="h-4 w-4" />
-                      <span>{t("identityVerified") || "Umwirondoro Wemejwe"}</span>
+                      <span>{t("identityVerified") || "Identity Verified"}</span>
                     </div>
                     <button
                       type="button"
@@ -598,17 +598,17 @@ export function SignUpForm({
                 <div className="space-y-1">
                   <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5">
                     <KeyRound className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>{t("setPasswordForId") || "Ijambobanga ry'Indangamuntu yawe"}</span>
+                    <span>{t("setPasswordForId") || "Set Password for Your National ID"}</span>
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    {t("setPasswordHelp") || "Shyiramo ijambobanga uzajya ukoresha winjira muri konti yawe n'iyi ndangamuntu."}
+                    {t("setPasswordHelp") || "Create a password you will use to sign in with your National ID."}
                   </p>
                 </div>
 
-                {/* Password Input (Ijambobanga) */}
+                {/* Password Input */}
                 <div className="space-y-1.5">
                   <Label htmlFor="id-password-input" className="text-xs font-semibold flex items-center justify-between">
-                    <span>{t("createPassword") || "Ijambobanga"}</span>
+                    <span>{t("createPassword") || "Password"}</span>
                     <span className="text-[11px] text-muted-foreground font-normal">(min 6)</span>
                   </Label>
                   <div className="relative flex items-center">
@@ -616,7 +616,7 @@ export function SignUpForm({
                       ref={passwordInputRef}
                       id="id-password-input"
                       type={showIdPassword ? "text" : "password"}
-                      placeholder="Shyiramo ijambobanga (nibura inyuguti 6)"
+                      placeholder={t("enterNewPassword") || "Enter password (min 6 characters)"}
                       value={idPassword}
                       onChange={(e) => {
                         setIdPassword(e.target.value);
@@ -642,16 +642,16 @@ export function SignUpForm({
                   </div>
                 </div>
 
-                {/* Confirm Password Input (Subiramo Ijambobanga) */}
+                {/* Confirm Password Input */}
                 <div className="space-y-1.5">
                   <Label htmlFor="id-confirm-password-input" className="text-xs font-semibold">
-                    {t("confirmPassword") || "Subiramo Ijambobanga"}
+                    {t("confirmPassword") || "Confirm Password"}
                   </Label>
                   <div className="relative flex items-center">
                     <Input
                       id="id-confirm-password-input"
                       type={showIdConfirmPassword ? "text" : "password"}
-                      placeholder="Ongera wandike ijambobanga"
+                      placeholder={t("confirmPassword") || "Confirm password"}
                       value={idConfirmPassword}
                       onChange={(e) => {
                         setIdConfirmPassword(e.target.value);
@@ -696,12 +696,12 @@ export function SignUpForm({
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t("completingRegistration") || "Gufungura konti..."}
+                      {t("completingRegistration") || "Creating account..."}
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="mr-2 h-4 w-4" />
-                      <span>{t("completeRegistration") || "Fungura Konti"}</span>
+                      <span>{t("completeRegistration") || "Complete Registration"}</span>
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}

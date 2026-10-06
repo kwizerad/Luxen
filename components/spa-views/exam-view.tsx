@@ -2469,8 +2469,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                 </label>
                 <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
                   {instructionsAccepted
-                    ? (language === "rw" ? "Amategeko yemejwe. Ushobora gutangira ikizamini." : language === "fr" ? "Instructions acceptées. Vous pouvez commencer l'examen." : "Instructions accepted. You can now begin the exam.")
-                    : (language === "rw" ? "Kanda hano kwemeza ko wasomye amategeko" : language === "fr" ? "Cliquez ici pour accepter les instructions" : "Tap here to confirm you have read the instructions")}
+                    ? (language === "Kinyarwanda" || language === "rw" ? "Amategeko yemejwe. Ushobora gutangira ikizamini." : language === "French" || language === "fr" ? "Instructions acceptées. Vous pouvez commencer l'examen." : "Instructions accepted. You can now begin the exam.")
+                    : (language === "Kinyarwanda" || language === "rw" ? "Kanda hano kwemeza ko wasomye amategeko" : language === "French" || language === "fr" ? "Cliquez ici pour accepter les instructions" : "Tap here to confirm you have read the instructions")}
                 </p>
               </div>
             </div>
@@ -2717,9 +2717,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
               <div className="p-3 rounded-xl border border-amber-500/25 bg-amber-500/5 text-amber-800 dark:text-amber-300 flex items-start gap-2.5 text-xs sm:text-sm leading-relaxed">
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                 <span>
-                  {language === "rw"
+                  {language === "Kinyarwanda" || language === "rw"
                     ? `Ufite ibibazo ${unansweredCount} bitarasubizwa. Kanda ku kibazo ushaka gusubiza mbere yo gutanga ikizamini.`
-                    : language === "fr"
+                    : language === "French" || language === "fr"
                     ? `Vous avez ${unansweredCount} question(s) sans réponse. Cliquez sur une question pour y répondre avant de soumettre.`
                     : `You have ${unansweredCount} unanswered question(s). Click any question below to jump to it and answer before submitting.`}
                 </span>

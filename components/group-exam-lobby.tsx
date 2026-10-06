@@ -380,44 +380,46 @@ export function GroupExamLobby({
   };
 
   const isCreator = challenge?.creator_id === user?.id;
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
 
   // Status info translation & badge styler based on action done
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case "in_progress":
         return {
-          label: language === "rw" ? "Aracyakora ikizamini" : language === "fr" ? "Toujours en examen" : "Still in exam",
+          label: isRw ? "Aracyakora ikizamini" : isFr ? "Toujours en examen" : "Still in exam",
           badgeClass: "bg-blue-600 text-white border-blue-500/30",
           icon: <Play className="h-3 w-3 mr-1 animate-pulse fill-current" />,
         };
       case "joined":
       case "ready":
         return {
-          label: language === "rw" ? "Yinjiye" : language === "fr" ? "A rejoint" : "Joined",
+          label: isRw ? "Yinjiye" : isFr ? "A rejoint" : "Joined",
           badgeClass: "bg-emerald-600 text-white border-emerald-500/30",
           icon: <Check className="h-3 w-3 mr-1" />,
         };
       case "pending":
         return {
-          label: language === "rw" ? "Ntarinjira" : language === "fr" ? "Pas encore rejoint" : "Not yet joined",
+          label: isRw ? "Ntarinjira" : isFr ? "Pas encore rejoint" : "Not yet joined",
           badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
           icon: <Clock className="h-3 w-3 mr-1 animate-pulse" />,
         };
       case "rejected":
         return {
-          label: language === "rw" ? "Yanze" : language === "fr" ? "Rejeté" : "Rejected",
+          label: isRw ? "Yanze" : isFr ? "Rejeté" : "Rejected",
           badgeClass: "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
           icon: <X className="h-3 w-3 mr-1" />,
         };
       case "completed":
         return {
-          label: language === "rw" ? "Yararangiye" : language === "fr" ? "Terminé" : "Finished",
+          label: isRw ? "Yararangiye" : isFr ? "Terminé" : "Finished",
           badgeClass: "bg-emerald-600 text-white border-emerald-500/30 shadow-xs",
           icon: <Trophy className="h-3 w-3 mr-1" />,
         };
       case "abandoned":
         return {
-          label: language === "rw" ? "Yavuyemo" : language === "fr" ? "A quitté" : "Left",
+          label: isRw ? "Yavuyemo" : isFr ? "A quitté" : "Left",
           badgeClass: "bg-muted text-muted-foreground border-border/50",
           icon: <AlertCircle className="h-3 w-3 mr-1" />,
         };
@@ -477,7 +479,7 @@ export function GroupExamLobby({
             </div>
             <div>
               <h3 className="text-lg font-bold text-foreground">
-                {t("groupExamCompletedTitle") || "Ikizamini Cy'Itsinda Cyararangiye"}
+                {t("groupExamCompletedTitle") || "Group Exam Completed"}
               </h3>
               <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
                 {t("groupExamCompletedDesc") || "This group challenge has ended. You can view the final rankings and scores."}

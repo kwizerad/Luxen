@@ -203,7 +203,7 @@ export function GazetteModal({
             </div>
             <div>
               <DialogTitle className="text-base sm:text-lg font-bold text-foreground dark:text-slate-100">
-                Rwanda Traffic Gazette AI (Amategeko y&apos;Umuhanda)
+                Rwanda Traffic Gazette AI
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">
                 Drop, attach, or paste official Rwanda Gazette updates to auto-generate structured notes, lessons, and practice questions.
@@ -285,7 +285,7 @@ export function GazetteModal({
                 <Textarea
                   value={gazetteText}
                   onChange={(e) => setGazetteText(e.target.value)}
-                  placeholder="Paste articles, clauses, or updates from the Rwanda Road and Traffic Gazette (Inyandiko z'Amategeko y'Umuhanda mu Rwanda)..."
+                  placeholder="Paste articles, clauses, or updates from the Official Rwanda Road and Traffic Gazette..."
                   className="min-h-[140px] text-xs font-mono bg-background dark:bg-slate-900/70 border-border dark:border-slate-800 text-foreground dark:text-slate-100 shadow-xs focus:ring-1 focus:ring-primary"
                 />
               </div>

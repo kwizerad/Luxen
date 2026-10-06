@@ -208,10 +208,10 @@ export function HomeView({ navigate }: HomeViewProps) {
         return;
       }
       if (accept) {
-        toast.success(t("invitationAccepted") || "Wemeye ubutumire! Winjiye mu kizamini.");
+        toast.success(t("invitationAccepted") || "Invitation accepted! Joining exam room.");
         navigate("exam", { challenge_id: challengeId, category_id: categoryId, from: "dashboard" });
       } else {
-        toast.info(t("invitationDeclined") || "Ubutumire bwanzwe.");
+        toast.info(t("invitationDeclined") || "Invitation declined.");
         fetchGroupChallenges();
       }
     } catch (err) {
@@ -230,7 +230,7 @@ export function HomeView({ navigate }: HomeViewProps) {
         method: "DELETE",
       });
       if (res.ok) {
-        toast.success(t("examCancelledSuccess") || "Ikizamini cyahagaritswe neza.");
+        toast.success(t("examCancelledSuccess") || "Exam cancelled successfully.");
         await fetchGroupChallenges();
       } else {
         const data = await res.json();
@@ -252,7 +252,7 @@ export function HomeView({ navigate }: HomeViewProps) {
         method: "POST",
       });
       if (res.ok) {
-        toast.success(t("examLeftSuccess") || "Wavuye mu cyumba cy'ikizamini.");
+        toast.success(t("examLeftSuccess") || "You left the exam room.");
         await fetchGroupChallenges();
       } else {
         const data = await res.json();
@@ -676,7 +676,7 @@ export function HomeView({ navigate }: HomeViewProps) {
 
     for (const att of allAttempts) {
       const catId = att.category_id || "general";
-      const catName = att.category_name || "Amategeko Rusange";
+      const catName = att.category_name || t("trafficSchoolCourse") || "General Traffic Regulations";
       const qCount = att.total_questions || 20;
       let score = att.correct_answers ?? att.score ?? 0;
       let pct = att.score_percentage;

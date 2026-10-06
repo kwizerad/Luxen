@@ -198,37 +198,40 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
     }
   };
 
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
+
   const getParticipantStatus = (status: string) => {
     switch (status) {
       case "in_progress":
         return {
-          label: language === "rw" ? "Aracyakora ikizamini" : language === "fr" ? "Toujours en examen" : "Still in exam",
+          label: isRw ? "Aracyakora ikizamini" : isFr ? "Toujours en examen" : "Still in exam",
           color: "bg-blue-600 text-white animate-pulse",
         };
       case "joined":
       case "ready":
         return {
-          label: language === "rw" ? "Yinjiye" : language === "fr" ? "A rejoint" : "Joined",
+          label: isRw ? "Yinjiye" : isFr ? "A rejoint" : "Joined",
           color: "bg-emerald-600 text-white",
         };
       case "pending":
         return {
-          label: language === "rw" ? "Ntarinjira" : language === "fr" ? "Pas encore rejoint" : "Not yet joined",
+          label: isRw ? "Ntarinjira" : isFr ? "Pas encore rejoint" : "Not yet joined",
           color: "bg-amber-400 text-amber-950",
         };
       case "rejected":
         return {
-          label: language === "rw" ? "Yanze" : language === "fr" ? "Rejeté" : "Rejected",
+          label: isRw ? "Yanze" : isFr ? "Rejeté" : "Rejected",
           color: "bg-rose-500 text-white",
         };
       case "completed":
         return {
-          label: language === "rw" ? "Yararangiye" : language === "fr" ? "Terminé" : "Finished",
+          label: isRw ? "Yararangiye" : isFr ? "Terminé" : "Finished",
           color: "bg-emerald-600 text-white",
         };
       case "abandoned":
         return {
-          label: language === "rw" ? "Yavuyemo" : language === "fr" ? "A quitté" : "Left",
+          label: isRw ? "Yavuyemo" : isFr ? "A quitté" : "Left",
           color: "bg-neutral-500 text-white",
         };
       default:
@@ -310,7 +313,7 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
           {inProgressCount > 0 && (
             <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
               <Play className="h-3 w-3 animate-pulse fill-current" />
-              {inProgressCount} {language === "rw" ? "Baracyakora" : language === "fr" ? "En examen" : "In exam"}
+              {inProgressCount} {isRw ? "Baracyakora" : isFr ? "En examen" : "In exam"}
             </span>
           )}
           {completedCount > 0 && (
@@ -322,7 +325,7 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
           {pendingCount > 0 && (
             <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
               <Clock className="h-3 w-3" />
-              {pendingCount} {language === "rw" ? "Ntibarinjira" : language === "fr" ? "Pas encore rejoints" : "Not yet joined"}
+              {pendingCount} {isRw ? "Ntibarinjira" : isFr ? "Pas encore rejoints" : "Not yet joined"}
             </span>
           )}
         </div>

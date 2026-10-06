@@ -377,15 +377,15 @@ export function RichEditor({ content, onChange, placeholder, onEditorReady, stic
     if (!editor) return;
     let html = "";
     if (type === "tip") {
-      html = `<div style="padding: 12px 16px; border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.08); border-radius: 4px; margin: 12px 0;"><strong>💡 Inama / Pro Tip:</strong><p>Andika inama cyangwa amabwiriza y'ingenzi hano...</p></div>`;
+      html = `<div style="padding: 12px 16px; border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.08); border-radius: 4px; margin: 12px 0;"><strong>💡 Pro Tip:</strong><p>Enter key tip or practical instruction here...</p></div>`;
     } else if (type === "warning") {
-      html = `<div style="padding: 12px 16px; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.08); border-radius: 4px; margin: 12px 0;"><strong>⚠️ Icyitonderwa / Caution:</strong><p>Uyu mwitozo usaba ubushishozi no kwirinda amakosa...</p></div>`;
+      html = `<div style="padding: 12px 16px; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.08); border-radius: 4px; margin: 12px 0;"><strong>⚠️ Caution:</strong><p>Enter important safety warning or common pitfall here...</p></div>`;
     } else if (type === "info") {
-      html = `<div style="padding: 12px 16px; border-left: 4px solid #3b82f6; background: rgba(59, 130, 246, 0.08); border-radius: 4px; margin: 12px 0;"><strong>ℹ️ Iby'Ingenzi / Note:</strong><p>Sobanura amakuru y'inyongera ku isomo...</p></div>`;
+      html = `<div style="padding: 12px 16px; border-left: 4px solid #3b82f6; background: rgba(59, 130, 246, 0.08); border-radius: 4px; margin: 12px 0;"><strong>ℹ️ Note:</strong><p>Enter additional context or lesson notes here...</p></div>`;
     } else if (type === "takeaway") {
-      html = `<div style="padding: 12px 16px; border-left: 4px solid #8b5cf6; background: rgba(139, 92, 246, 0.08); border-radius: 4px; margin: 12px 0;"><strong>🎯 Ibyo Kwibuka / Key Takeaway:</strong><p>Ingingo z'ingenzi zaranze iri somo...</p></div>`;
+      html = `<div style="padding: 12px 16px; border-left: 4px solid #8b5cf6; background: rgba(139, 92, 246, 0.08); border-radius: 4px; margin: 12px 0;"><strong>🎯 Key Takeaway:</strong><p>Enter the main summary point for this lesson...</p></div>`;
     } else if (type === "rule") {
-      html = `<div style="padding: 12px 16px; border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.08); border-radius: 4px; margin: 12px 0;"><strong>🚦 Itegeko ry'Umuhanda / Traffic Rule:</strong><p>Itegeko rigenga imyitwarire muri iki kiciro...</p></div>`;
+      html = `<div style="padding: 12px 16px; border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.08); border-radius: 4px; margin: 12px 0;"><strong>🚦 Traffic Rule:</strong><p>Enter the official traffic regulation for this section...</p></div>`;
     }
     editor.chain().focus().insertContent(html).run();
     setShowCallouts(false);
@@ -402,9 +402,9 @@ export function RichEditor({ content, onChange, placeholder, onEditorReady, stic
       { id: "blockquote", label: "Quote", icon: <Quote className="h-4 w-4" />, run: (e) => e.chain().focus().toggleBlockquote().run() },
       { id: "codeBlock", label: "Code Block", icon: <Code className="h-4 w-4" />, run: (e) => e.chain().focus().toggleCodeBlock().run() },
       { id: "horizontalRule", label: "Divider", icon: <Minus className="h-4 w-4" />, run: (e) => e.chain().focus().setHorizontalRule().run() },
-      { id: "calloutTip", label: "Tip Box (Inama)", icon: <Lightbulb className="h-4 w-4 text-emerald-500" />, run: () => insertCallout("tip") },
-      { id: "calloutWarning", label: "Warning Box (Icyitonderwa)", icon: <AlertTriangle className="h-4 w-4 text-red-500" />, run: () => insertCallout("warning") },
-      { id: "calloutRule", label: "Traffic Rule (Itegeko)", icon: <ShieldAlert className="h-4 w-4 text-amber-500" />, run: () => insertCallout("rule") },
+      { id: "calloutTip", label: "Tip Box", icon: <Lightbulb className="h-4 w-4 text-emerald-500" />, run: () => insertCallout("tip") },
+      { id: "calloutWarning", label: "Warning Box", icon: <AlertTriangle className="h-4 w-4 text-red-500" />, run: () => insertCallout("warning") },
+      { id: "calloutRule", label: "Traffic Rule", icon: <ShieldAlert className="h-4 w-4 text-amber-500" />, run: () => insertCallout("rule") },
       { id: "table", label: "Table", icon: <TableIcon className="h-4 w-4" />, run: (e) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
       {
         id: "image",
@@ -563,7 +563,7 @@ export function RichEditor({ content, onChange, placeholder, onEditorReady, stic
                 className="w-full px-2.5 py-1.5 text-left text-xs text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)] rounded flex items-center gap-2"
               >
                 <Lightbulb className="h-3.5 w-3.5 text-emerald-500" />
-                <span>Inama (Pro Tip)</span>
+                <span>Pro Tip</span>
               </button>
               <button
                 type="button"
@@ -571,7 +571,7 @@ export function RichEditor({ content, onChange, placeholder, onEditorReady, stic
                 className="w-full px-2.5 py-1.5 text-left text-xs text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)] rounded flex items-center gap-2"
               >
                 <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
-                <span>Icyitonderwa (Warning)</span>
+                <span>Warning</span>
               </button>
               <button
                 type="button"
@@ -579,7 +579,7 @@ export function RichEditor({ content, onChange, placeholder, onEditorReady, stic
                 className="w-full px-2.5 py-1.5 text-left text-xs text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)] rounded flex items-center gap-2"
               >
                 <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />
-                <span>Itegeko (Traffic Rule)</span>
+                <span>Traffic Rule</span>
               </button>
               <button
                 type="button"
@@ -587,7 +587,7 @@ export function RichEditor({ content, onChange, placeholder, onEditorReady, stic
                 className="w-full px-2.5 py-1.5 text-left text-xs text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)] rounded flex items-center gap-2"
               >
                 <Info className="h-3.5 w-3.5 text-blue-500" />
-                <span>Iby'Ingenzi (Note)</span>
+                <span>Note</span>
               </button>
             </div>
           )}

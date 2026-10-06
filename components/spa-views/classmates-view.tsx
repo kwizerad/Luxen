@@ -377,7 +377,7 @@ function ExamInvitationsContent({
     try {
       const res = await fetch(`/api/exam-challenges/${challengeId}`, { method: "DELETE" });
       if (res.ok) {
-        toast.success(t("examCancelledSuccess") || "Ikizamini cyahagaritswe neza.");
+        toast.success(t("examCancelledSuccess") || "Exam cancelled successfully.");
         await fetchChallenges();
       } else {
         const data = await res.json();
@@ -397,7 +397,7 @@ function ExamInvitationsContent({
     try {
       const res = await fetch(`/api/exam-challenges/${challengeId}/deny`, { method: "POST" });
       if (res.ok) {
-        toast.success(t("examLeftSuccess") || "Wavuye mu cyumba cy'ikizamini.");
+        toast.success(t("examLeftSuccess") || "You left the exam room.");
         await fetchChallenges();
       } else {
         const data = await res.json();
@@ -582,7 +582,7 @@ function ExamInvitationsContent({
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-bold text-sm text-foreground truncate leading-tight">
-                        {challenge.category_name || "Ikizamini cy'Amategeko y'Umuhanda"}
+                        {challenge.category_name || t("trafficSchoolCourse") || "Traffic Regulations Exam"}
                       </h3>
                       <p className="text-[11px] text-muted-foreground truncate mt-0.5">
                         {challenge.created_at ? formatDistanceToNow(new Date(challenge.created_at), { addSuffix: true }) : ""}
@@ -598,7 +598,7 @@ function ExamInvitationsContent({
                         className="text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 px-2.5 py-0.5 animate-pulse flex items-center gap-1"
                       >
                         <Clock className="h-3 w-3 animate-spin" />
-                        <span>{secondsLeft}s {t("left") || "zisigaye"}</span>
+                        <span>{secondsLeft}s {t("left") || "left"}</span>
                       </Badge>
                     ) : isCancelled ? (
                       <Badge
@@ -606,7 +606,7 @@ function ExamInvitationsContent({
                         className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-500/10 border-slate-500/30 px-2.5 py-0.5 flex items-center gap-1"
                       >
                         <X className="h-3 w-3" />
-                        <span>{t("cancelled") || "Cyahagaritswe"}</span>
+                        <span>{t("cancelled") || "Cancelled"}</span>
                       </Badge>
                     ) : isExpired ? (
                       <Badge
@@ -614,7 +614,7 @@ function ExamInvitationsContent({
                         className="text-[11px] font-bold text-rose-700 dark:text-rose-300 bg-rose-500/20 border-rose-500/40 px-2.5 py-0.5 flex items-center gap-1 shadow-xs"
                       >
                         <Clock className="h-3 w-3 text-rose-500" />
-                        <span>0s • {t("expired") || "Byarenze Igihe"}</span>
+                        <span>0s • {t("expired") || "Expired"}</span>
                       </Badge>
                     ) : isOngoing ? (
                       <Badge
@@ -622,7 +622,7 @@ function ExamInvitationsContent({
                         className="text-[11px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 px-2.5 py-0.5 flex items-center gap-1.5"
                       >
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-ping" />
-                        <span>{t("ongoing") || "Biri Gukorwa"}</span>
+                        <span>{t("ongoing") || "Ongoing"}</span>
                       </Badge>
                     ) : (
                       <Badge
@@ -630,7 +630,7 @@ function ExamInvitationsContent({
                         className="text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 px-2.5 py-0.5 flex items-center gap-1"
                       >
                         <Trophy className="h-3 w-3" />
-                        <span>{t("completed") || "Byarangiye"}</span>
+                        <span>{t("completed") || "Completed"}</span>
                       </Badge>
                     )}
                   </div>
@@ -640,10 +640,10 @@ function ExamInvitationsContent({
                 <div className="space-y-2 mb-3 bg-muted/30 dark:bg-muted/20 rounded-xl p-2.5 border border-border/40 text-xs">
                   <div className="flex items-center justify-between gap-2 text-muted-foreground">
                     <div className="flex items-center gap-1.5 truncate">
-                      <span className="text-[11px]">{t("createdBy") || "Cyateguwe na"}:</span>
+                      <span className="text-[11px]">{t("createdBy") || "Created by"}:</span>
                       <span className="font-semibold text-foreground truncate">
                         {challenge.creator_id === user?.id
-                          ? `${challenge.creator_profile?.full_name || challenge.creator_profile?.username || "You"} (${t("you") || "Wowe"})`
+                          ? `${challenge.creator_profile?.full_name || challenge.creator_profile?.username || "You"} (${t("you") || "You"})`
                           : challenge.creator_profile?.full_name || challenge.creator_profile?.username || "Classmate"}
                       </span>
                     </div>

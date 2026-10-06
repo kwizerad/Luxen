@@ -69,10 +69,10 @@ export function ExamChoiceScreen({
       {/* Header Block */}
       <div className="space-y-1 pb-2 border-b border-border/80 dark:border-zinc-800/80">
         <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground dark:text-zinc-100">
-          {t("examChoiceTitle") || "Hitamo Uburyo bwo Gukora Ikizamini"}
+          {t("examChoiceTitle") || "Choose Your Exam Mode"}
         </h1>
         <p className="text-xs text-muted-foreground dark:text-zinc-400 max-w-2xl leading-relaxed">
-          {t("examChoiceSubtitle") || "Hitamo niba wifuza gukora ikizamini wenyine ku muvuduko wawe cyangwa guhatana mu gihe nyacyo n'inshuti zawe."}
+          {t("examChoiceSubtitle") || "Select whether you want to practice individually at your own pace or compete in real-time with your classmates."}
         </p>
       </div>
 
@@ -92,10 +92,10 @@ export function ExamChoiceScreen({
             <div className="flex items-start justify-between gap-2.5">
               <div className="space-y-0.5">
                 <h2 className="text-base sm:text-lg font-bold text-foreground dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                  {t("individualExam") || "Ikizamini cy'Umuntu ku Giti Cye"}
+                  {t("individualExam") || "Individual Exam"}
                 </h2>
                 <span className="inline-block text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-                  {t("soloMode") || "Gisanzwe"}
+                  {t("soloMode") || "Standard (Solo)"}
                 </span>
               </div>
 
@@ -105,21 +105,21 @@ export function ExamChoiceScreen({
             </div>
 
             <p className="text-xs text-muted-foreground dark:text-zinc-400 leading-relaxed">
-              {t("individualExamDescription") || "Kora ikizamini cyuzuye ku muvuduko wawe, wimenyereze ibibazo byose, kandi ubone isuzuma ryimbitse n'ibisobanuro."}
+              {t("individualExamDescription") || "Take a full exam at your own pace, practice all questions, and get instant detailed feedback and explanations."}
             </p>
 
             <div className="pt-2.5 border-t border-border/80 dark:border-zinc-800/80 space-y-1.5">
               <div className="flex items-center gap-2 text-xs text-foreground/80 dark:text-zinc-300">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="truncate">{t("selfPacedPractice") || "Umuvuduko wihariye & Igihe kigenwe"}</span>
+                <span className="truncate">{t("selfPacedPractice") || "Self-paced & timed practice"}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-foreground/80 dark:text-zinc-300">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="truncate">{t("instantResultReview") || "Ibisobanuro birambuye by'amategeko"}</span>
+                <span className="truncate">{t("instantResultReview") || "Detailed regulation explanations"}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-foreground/80 dark:text-zinc-300">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="truncate">{t("passMarkThreshold") || "Amanota yo gutsinda ni 60% (12/20)"}</span>
+                <span className="truncate">{t("passMarkThreshold") || "Passing score is 60% (12/20)"}</span>
               </div>
             </div>
           </div>
@@ -129,7 +129,7 @@ export function ExamChoiceScreen({
               type="button"
               className="w-full h-9 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs justify-between px-3.5 transition-colors"
             >
-              <span>{t("startIndividualExam") || "Tangira Ikizamini Gisanzwe"}</span>
+              <span>{t("startIndividualExam") || "Start Individual Exam"}</span>
               <ArrowRight className="h-3.5 w-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
             </Button>
           </div>
@@ -150,11 +150,11 @@ export function ExamChoiceScreen({
               <div className="flex items-start justify-between gap-2.5">
                 <div className="space-y-0.5">
                   <h2 className="text-base sm:text-lg font-bold text-foreground dark:text-zinc-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                    {t("groupExam") || "Ikizamini cy'Itsinda"}
+                    {t("groupExam") || "Group Exam"}
                   </h2>
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                    <span>{t("multiplayerMode") || "Itsinda"}</span>
+                    <span>{t("multiplayerMode") || "Multiplayer"}</span>
                   </span>
                 </div>
 
@@ -164,21 +164,21 @@ export function ExamChoiceScreen({
               </div>
 
               <p className="text-xs text-muted-foreground dark:text-zinc-400 leading-relaxed">
-                {t("groupExamDescription") || "Tegura ikizamini cyangwa winjire mu kizamini cy'abanyeshuri bagenzi bawe, muhatane mu gihe nyacyo, murebe urutonde rw'abatsinze."}
+                {t("groupExamDescription") || "Create or join a group exam with your classmates, compete in real-time, and view the live leaderboard."}
               </p>
 
               <div className="pt-2.5 border-t border-border/80 dark:border-zinc-800/80 space-y-1.5">
                 <div className="flex items-center gap-2 text-xs text-foreground/80 dark:text-zinc-300">
                   <Trophy className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span className="truncate">{t("liveLeaderboard") || "Urutonde rw'Amanota"}</span>
+                  <span className="truncate">{t("liveLeaderboard") || "Live Leaderboard"}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-foreground/80 dark:text-zinc-300">
                   <Zap className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span className="truncate">{t("realTimeChallenge") || "Igihe gitangirira rimwe ku bitabiriye bose"}</span>
+                  <span className="truncate">{t("realTimeChallenge") || "Synchronized timer for all participants"}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-foreground/80 dark:text-zinc-300">
                   <Users className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span className="truncate">{t("requiresAtLeastTwo") || "Nibura abanyeshuri 2 ngo bibe itsinda"}</span>
+                  <span className="truncate">{t("requiresAtLeastTwo") || "Requires at least 2 students"}</span>
                 </div>
               </div>
             </div>
@@ -188,7 +188,7 @@ export function ExamChoiceScreen({
                 type="button"
                 className="w-full h-9 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white shadow-xs justify-between px-3.5 transition-colors"
               >
-                <span>{t("startGroupExam") || "Tegura cyangwa Injira mu Tsinda"}</span>
+                <span>{t("startGroupExam") || "Start or Join Group Exam"}</span>
                 <Trophy className="h-3.5 w-3.5 shrink-0 group-hover:scale-105 transition-transform" />
               </Button>
             </div>

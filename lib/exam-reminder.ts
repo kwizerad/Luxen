@@ -178,7 +178,7 @@ export async function notifyIncompleteExamAttempts(options: {
       }
 
       const examLabel = attempt.category_name ? `"${attempt.category_name}"` : "your current practice exam";
-      const title = "Incomplete Exam Reminder / Wibuke Kurangiza Ikizamini";
+      const title = "Incomplete Exam Reminder";
       const message = `You have an exam attempt (${examLabel}) in progress that started over ${thresholdMinutes} minutes ago. Please return to complete and submit your answers, or quit if you are finished.`;
       const actionUrl = attempt.isModule ? "/module-journey" : "/dashboard/exam";
 

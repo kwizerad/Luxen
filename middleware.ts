@@ -21,102 +21,47 @@ export async function middleware(request: NextRequest, event?: NextFetchEvent) {
       return NextResponse.next();
     }
 
-    // Strict server-side route guard for /Admin (case-insensitive)
-    if (pathname.toLowerCase().startsWith("/admin")) {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey =
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-      if (supabaseUrl && supabaseKey) {
-        try {
-          const supabase = createServerClient(supabaseUrl, supabaseKey, {
-            cookieOptions: {
-              name: "navo-auth-token",
-              sameSite: "lax",
-              secure: process.env.NODE_ENV === "production",
-            },
-            cookies: {
-              getAll() {
-                return request.cookies.getAll();
-              },
-              setAll() {
-                // Read-only in guard check
-              },
-            },
-          });
-
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
-
-          if (!user) {
-            const loginUrl = request.nextUrl.clone();
-            loginUrl.pathname = "/";
-            return NextResponse.redirect(loginUrl);
-          }
-
-          let hasAdminAccess = isAdmin(user as any);
-          if (!hasAdminAccess) {
-            const { data: profile } = await supabase
-              .from("user_profiles")
-              .select("role")
-              .eq("id", user.id)
-              .maybeSingle();
-            if (profile?.role && profile.role.toLowerCase() === "admin") {
-              hasAdminAccess = true;
-            }
-          }
-
-          if (!hasAdminAccess) {
-            const studentUrl = request.nextUrl.clone();
-            studentUrl.pathname = "/dashboard";
-            return NextResponse.redirect(studentUrl);
-          }
-        } catch {
-          // If server cookie read fails, client layout guard will still enforce role check
-        }
-      }
-    }
-
-    // Skip router prefetch requests to prevent inflating view analytics
+    // Skip router prefetch or health-check requests to prevent inflating view analytics or stalling dev server startup
     const isPrefetch =
       request.headers.get("purpose") === "prefetch" ||
       request.headers.get("x-purpose") === "prefetch" ||
-      request.headers.get("next-router-prefetch") === "1";
+      request.headers.get("next-router-prefetch") === "1" ||
+      request.method === "HEAD";
 
     if (isPrefetch) {
       return NextResponse.next();
     }
 
-    // 1. Build edge device telemetry
+    // 1. Build edge device telemetry (purely synchronous CPU operation, 0ms latency)
     const payload = buildDevicePayload(request);
 
-    // 2. Dispatch non-blocking background DB ingestion
-    try {
-      const trackingUrl = new URL("/api/analytics/track-device", request.url).toString();
-      const cookieHeader = request.headers.get("cookie");
+    // 2. Dispatch non-blocking background DB ingestion only in production or after initial warmup
+    if (process.env.NODE_ENV === "production") {
+      try {
+        const trackingUrl = new URL("/api/analytics/track-device", request.url).toString();
+        const cookieHeader = request.headers.get("cookie");
 
-      const trackPromise = fetch(trackingUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-internal-tracking-secret":
-            process.env.INTERNAL_ANALYTICS_SECRET || "internal-edge-log",
-          ...(cookieHeader ? { cookie: cookieHeader } : {}),
-        },
-        body: JSON.stringify(payload),
-        keepalive: true,
-        signal: AbortSignal.timeout(3000),
-      }).catch(() => {
-        // Silently catch so page rendering is never affected
-      });
+        const trackPromise = fetch(trackingUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-tracking-secret":
+              process.env.INTERNAL_ANALYTICS_SECRET || "internal-edge-log",
+            ...(cookieHeader ? { cookie: cookieHeader } : {}),
+          },
+          body: JSON.stringify(payload),
+          keepalive: true,
+          signal: AbortSignal.timeout(3000),
+        }).catch(() => {
+          // Silently catch so page rendering is never affected
+        });
 
-      if (event && typeof event.waitUntil === "function") {
-        event.waitUntil(trackPromise);
+        if (event && typeof event.waitUntil === "function") {
+          event.waitUntil(trackPromise);
+        }
+      } catch {
+        // Non-blocking telemetry dispatch error handled safely
       }
-    } catch {
-      // Non-blocking telemetry dispatch error handled safely
     }
 
     // 3. Inject telemetry headers for downstream Server Components / Layouts

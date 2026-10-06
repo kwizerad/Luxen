@@ -49,25 +49,28 @@ export function ExamSwipeHint({ onDismiss, forceShow = false }: ExamSwipeHintPro
     }
   }, [forceShow, handleDismiss]);
 
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
+
   const getLocalizedTitle = () => {
-    if (language === "rw") return "Koresha gukubita iburyo cyangwa ibumoso";
-    if (language === "fr") return "Glissez pour changer de question";
+    if (isRw) return "Koresha gukubita iburyo cyangwa ibumoso";
+    if (isFr) return "Glissez pour changer de question";
     return "Swipe to Navigate Questions";
   };
 
   const getLocalizedDesc = () => {
-    if (language === "rw") {
+    if (isRw) {
       return "Nyerereza ibumoso kujya ku kibazo gikurikira, cyangwa iburyo gusubira inyuma.";
     }
-    if (language === "fr") {
+    if (isFr) {
       return "Balayez vers la gauche pour la question suivante, ou vers la droite pour la précédente.";
     }
     return "Swipe left for next question, or swipe right to return to previous question.";
   };
 
   const getLocalizedGotIt = () => {
-    if (language === "rw") return "Nabyumvise";
-    if (language === "fr") return "Compris";
+    if (isRw) return "Nabyumvise";
+    if (isFr) return "Compris";
     return "Got it";
   };
 

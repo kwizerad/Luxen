@@ -102,41 +102,44 @@ export function ExamSwipeTutorialOverlay({
     touchStartXRef.current = null;
   };
 
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
+
   const texts = {
     title:
-      language === "rw"
+      isRw
         ? "Uko wimura ibibazo (Swipe Navigation)"
-        : language === "fr"
+        : isFr
         ? "Navigation par Balayage (Swipe Gestures)"
         : "Swipe to Navigate Questions",
     subtitle:
-      language === "rw"
+      isRw
         ? "Koresha urutoki unyerereza kuri ecran kugira ngo ujye ku kibazo gikurikira cyangwa ubanzirize."
-        : language === "fr"
+        : isFr
         ? "Faites glisser votre doigt sur l'écran pour passer à la question suivante ou précédente."
         : "Swipe left or right anywhere on the card to quickly switch between questions.",
     swipeLeftTitle:
-      language === "rw" ? "Nyerereza Ibumoso ➔" : language === "fr" ? "Glisser à Gauche ➔" : "Swipe Left ➔",
+      isRw ? "Nyerereza Ibumoso ➔" : isFr ? "Glisser à Gauche ➔" : "Swipe Left ➔",
     swipeLeftDesc:
-      language === "rw" ? "Kujya ku kibazo gikurikira" : language === "fr" ? "Question suivante" : "Next Question",
+      isRw ? "Kujya ku kibazo gikurikira" : isFr ? "Question suivante" : "Next Question",
     swipeRightTitle:
-      language === "rw" ? "⬅ Nyerereza Iburyo" : language === "fr" ? "⬅ Glisser à Droite" : "⬅ Swipe Right",
+      isRw ? "⬅ Nyerereza Iburyo" : isFr ? "⬅ Glisser à Droite" : "⬅ Swipe Right",
     swipeRightDesc:
-      language === "rw" ? "Gusubira ku kibazo kibanza" : language === "fr" ? "Question précédente" : "Previous Question",
+      isRw ? "Gusubira ku kibazo kibanza" : isFr ? "Question précédente" : "Previous Question",
     tryHere:
-      language === "rw"
+      isRw
         ? "Gerageza hano: Nyerereza urutoki iburyo cyangwa ibumoso"
-        : language === "fr"
+        : isFr
         ? "Essayez ici : Faites glisser votre doigt à gauche ou droite"
         : "Interactive practice: Swipe left or right inside this box",
     testedSuccess:
-      language === "rw" ? "Birakora neza! Bitangiye..." : language === "fr" ? "Parfait ! Démarrage..." : "Great job! Starting...",
+      isRw ? "Birakora neza! Bitangiye..." : isFr ? "Parfait ! Démarrage..." : "Great job! Starting...",
     gotIt:
-      language === "rw" ? "Nabyumvise, Tangira!" : language === "fr" ? "J'ai compris, Commencer !" : "Got it, Start Exam!",
+      isRw ? "Nabyumvise, Tangira!" : isFr ? "J'ai compris, Commencer !" : "Got it, Start Exam!",
     autoClose:
-      language === "rw"
+      isRw
         ? `Iri somo ririfunga mu masegonda ${countdown}s`
-        : language === "fr"
+        : isFr
         ? `Se fermera automatiquement dans ${countdown}s`
         : `Auto-dismissing in ${countdown}s...`,
   };

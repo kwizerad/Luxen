@@ -113,7 +113,13 @@ export function ExamInstructionsView({
     },
   };
 
-  const text = contentByLang[language as keyof typeof contentByLang] || contentByLang.en;
+  const langCode =
+    language === "Kinyarwanda" || language === "rw"
+      ? "rw"
+      : language === "French" || language === "fr"
+      ? "fr"
+      : "en";
+  const text = contentByLang[langCode];
   const displayTitle = examTitle || categoryName || "Exam";
 
   return (

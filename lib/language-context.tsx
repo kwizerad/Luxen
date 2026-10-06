@@ -21,8 +21,11 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 const translations: Record<Language, Record<string, string>> = {
   English: en,
+  en: en,
   Kinyarwanda: rw,
+  rw: rw,
   French: fr,
+  fr: fr,
 };
 
 const ALL_LANGUAGES = [
@@ -58,7 +61,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [availableLanguages, setAvailableLanguages] = useState(ALL_LANGUAGES.map(l => ({ value: l.value, label: l.label, flag: l.flag })));
 
   const pathname = usePathname();
-  const isAdminRoute = typeof pathname === "string" && pathname.startsWith("/Admin");
+  const isAdminRoute = typeof pathname === "string" && pathname.toLowerCase().startsWith("/admin");
 
   // Admin panel is English-only; other areas use the selected language
   const effectiveLanguage: Language = isAdminRoute ? "English" : language;

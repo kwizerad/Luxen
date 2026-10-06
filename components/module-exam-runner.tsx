@@ -1071,8 +1071,8 @@ export function ModuleExamRunner({
                 </label>
                 <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
                   {instructionsAccepted
-                    ? (language === "rw" ? "Amategeko yemejwe. Ushobora gutangira ikizamini." : language === "fr" ? "Instructions acceptées. Vous pouvez commencer l'examen." : "Instructions accepted. You can now begin the exam.")
-                    : (language === "rw" ? "Kanda hano kwemeza ko wasomye amategeko" : language === "fr" ? "Cliquez ici pour accepter les instructions" : "Tap here to confirm you have read the instructions")}
+                    ? (language === "Kinyarwanda" || language === "rw" ? "Amategeko yemejwe. Ushobora gutangira ikizamini." : language === "French" || language === "fr" ? "Instructions acceptées. Vous pouvez commencer l'examen." : "Instructions accepted. You can now begin the exam.")
+                    : (language === "Kinyarwanda" || language === "rw" ? "Kanda hano kwemeza ko wasomye amategeko" : language === "French" || language === "fr" ? "Cliquez ici pour accepter les instructions" : "Tap here to confirm you have read the instructions")}
                 </p>
               </div>
             </div>

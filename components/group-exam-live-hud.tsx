@@ -242,7 +242,9 @@ export function GroupExamLiveHUD({
   }
 
   const completedCount = participants.filter((p) => p.status === "completed" || !!p.exam_attempt).length;
-  const youTag = language === "rw" ? "(Wowe)" : language === "fr" ? "(Vous)" : "(You)";
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
+  const youTag = isRw ? "(Wowe)" : isFr ? "(Vous)" : "(You)";
 
   return (
     <>

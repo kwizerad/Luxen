@@ -86,7 +86,7 @@ export function PlainLanguageCard({ data, language, onClose }: PlainLanguageCard
         <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-xs space-y-1 text-amber-900 dark:text-amber-200">
           <div className="flex items-center gap-1.5 font-bold">
             <Award className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-            <span>Police Exam Tip (Ibizamini bya Polisi):</span>
+            <span>Police Exam Tip:</span>
           </div>
           <p className="leading-relaxed pl-5">{data.examTip}</p>
         </div>
