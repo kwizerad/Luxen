@@ -84,31 +84,13 @@
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.20",
     "cross-env": "^7.0.3",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.1",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.5",
     "next-pwa": "^5.6.0",
     "postcss": "^8",
     "sharp": "^0.33.5",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5"
-  },
-  "overrides": {
-    "rimraf": "^6.0.1",
-    "glob": "^11.0.1",
-    "@humanwhocodes/config-array": "npm:@eslint/config-array@^0.19.2",
-    "@humanwhocodes/object-schema": "npm:@eslint/object-schema@^2.1.6"
-  },
-  "allowScripts": {
-    "@google/genai": true,
-    "protobufjs": true,
-    "sharp": true,
-    "unrs-resolver": true
-  },
-  "trustedDependencies": [
-    "@google/genai",
-    "protobufjs",
-    "sharp",
-    "unrs-resolver"
-  ]
+  }
 }

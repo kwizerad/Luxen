@@ -7,7 +7,49 @@ let pendingAuthRequests: Array<{
   reject: (error: any) => void;
 }> = [];
 
-export async function getCurrentUser(retryCount = 0): Promise<any> {
+let cachedUser: any = undefined;
+let cachedUserTimestamp = 0;
+const USER_CACHE_TTL_MS = 30 * 1000; // 30 seconds fast cache
+let authListenerAttached = false;
+
+export function clearCurrentUserCache() {
+  cachedUser = undefined;
+  cachedUserTimestamp = 0;
+}
+
+function ensureAuthCacheListener() {
+  if (authListenerAttached || typeof window === "undefined") return;
+  authListenerAttached = true;
+  try {
+    const supabase = createClient();
+    supabase.auth.onAuthStateChange((event) => {
+      if (
+        event === "SIGNED_OUT" ||
+        event === "SIGNED_IN" ||
+        event === "USER_UPDATED" ||
+        event === "TOKEN_REFRESHED"
+      ) {
+        clearCurrentUserCache();
+      }
+    });
+  } catch {
+    // Ignore listener setup errors
+  }
+}
+
+export async function getCurrentUser(retryCount = 0, forceRefresh = false): Promise<any> {
+  ensureAuthCacheListener();
+
+  // Return cached user immediately if valid and not forcing refresh
+  if (
+    !forceRefresh &&
+    retryCount === 0 &&
+    cachedUser !== undefined &&
+    Date.now() - cachedUserTimestamp < USER_CACHE_TTL_MS
+  ) {
+    return cachedUser;
+  }
+
   // If there's already a request in progress, queue this one
   if (authRequestInProgress) {
     return new Promise((resolve, reject) => {
@@ -129,8 +171,9 @@ export async function getCurrentUser(retryCount = 0): Promise<any> {
       }
     }
 
-    console.log("User retrieved successfully:", user?.email);
-    
+    cachedUser = user;
+    cachedUserTimestamp = Date.now();
+
     // Resolve all pending requests with the same result
     const pending = [...pendingAuthRequests];
     pendingAuthRequests = [];

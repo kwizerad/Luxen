@@ -95,8 +95,10 @@ export default function AdminLayout({
 
     checkAdmin();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      checkAdmin();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT" || event === "USER_UPDATED") {
+        checkAdmin();
+      }
     });
 
     return () => {

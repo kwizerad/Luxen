@@ -76,6 +76,9 @@ interface RealtimeEventItem {
   badgeType: "success" | "warning" | "info" | "neutral";
 }
 
+let cachedDashboardStats: AdminStats | null = null;
+let cachedCurrentUser: PermUser | null = null;
+
 export default function AdminDashboard() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
@@ -85,12 +88,12 @@ export default function AdminDashboard() {
   const initialTab = (searchParams?.get("tab") as DashboardTab) || "overview";
   const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab);
 
-  const [statsData, setStatsData] = useState<AdminStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [statsData, setStatsData] = useState<AdminStats | null>(cachedDashboardStats);
+  const [loading, setLoading] = useState(!cachedDashboardStats);
   const [refreshing, setRefreshing] = useState(false);
   const [timeRange, setTimeRange] = useState<TimeRange>("7d");
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentUser, setCurrentUser] = useState<PermUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<PermUser | null>(cachedCurrentUser);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
   
@@ -174,15 +177,20 @@ export default function AdminDashboard() {
   const loadData = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
     try {
-      const user = await (await import("@/lib/auth-utils")).getCurrentUser();
+      const { getCurrentUser } = await import("@/lib/auth-utils");
+      const [user, result] = await Promise.all([
+        getCurrentUser(),
+        getAdminStats(isManual),
+      ]);
+      cachedCurrentUser = user as PermUser;
       setCurrentUser(user as PermUser);
 
-      const result = await getAdminStats();
       if (!result.success) {
         console.error("Failed to load dashboard data:", result.error);
-        toast.error("Failed to refresh telemetry data");
+        if (isManual) toast.error("Failed to refresh telemetry data");
         return;
       }
+      cachedDashboardStats = result.data;
       setStatsData(result.data);
       setLastRefreshedAt(new Date());
       if (isManual) {

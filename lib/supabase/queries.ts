@@ -50,14 +50,17 @@ export async function getExamCategories() {
     query = query.eq("is_published", true);
   }
 
-  const { data: categories, error } = await query;
+  const [
+    { data: categories, error },
+    { data: settingsData, error: settingsError },
+    { data: questionCategoryRows },
+  ] = await Promise.all([
+    query,
+    supabase.from("exam_settings").select("category_id,duration_minutes,question_count"),
+    supabase.from("exam_questions").select("category_id"),
+  ]);
 
   if (error) throw error;
-
-  // Fetch exam settings for all categories to get duration and question count
-  const { data: settingsData, error: settingsError } = await supabase
-    .from("exam_settings")
-    .select("category_id,duration_minutes,question_count");
 
   if (settingsError && !settingsError.message.toLowerCase().includes("does not exist")) {
     console.error("Error fetching exam settings:", settingsError);
@@ -68,13 +71,23 @@ export async function getExamCategories() {
     settingsMap.set(s.category_id, { duration_minutes: s.duration_minutes, question_count: s.question_count });
   }
 
+  const questionCounts: Record<string, number> = {};
+  for (const c of categories || []) {
+    questionCounts[c.id] = 0;
+  }
+  for (const q of questionCategoryRows || []) {
+    if (q.category_id) {
+      questionCounts[q.category_id] = (questionCounts[q.category_id] || 0) + 1;
+    }
+  }
+
   const categoriesWithSettings = (categories || []).map((c: ExamCategory) => ({
     ...c,
     duration_minutes: settingsMap.get(c.id)?.duration_minutes ?? undefined,
     question_count: settingsMap.get(c.id)?.question_count ?? undefined,
   }));
 
-  return { categories: categoriesWithSettings, is_admin: isUserAdmin };
+  return { categories: categoriesWithSettings, question_counts: questionCounts, is_admin: isUserAdmin };
 }
 
 export async function createExamCategory(name: string, is_published = false) {

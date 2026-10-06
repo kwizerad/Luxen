@@ -44,7 +44,11 @@ import { isPrimaryAdmin, canAccess } from "@/lib/permissions";
 import { getCurrentUser } from "@/lib/auth-utils";
 import { UserExamLimitDialog } from "@/components/user-exam-limit-dialog";
 import { UserPerformanceModal } from "@/components/user-performance-modal";
-import { getAllUsers, getUserStats, getUserGrowth } from "../../actions/users";
+import { getUserStats, getUsersWorkspaceData } from "../../actions/users";
+
+let cachedWorkspaceUsers: UserWithStatus[] | null = null;
+let cachedWorkspaceStats: UserStats | null = null;
+let cachedWorkspaceGrowth: GrowthPoint[] | null = null;
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -98,9 +102,15 @@ export function UserWorkspace({
   initialGrowth,
 }: UserWorkspaceProps) {
   const { t } = useLanguage();
-  const [users, setUsers] = useState<UserWithStatus[]>(initialUsers);
-  const [stats, setStats] = useState<UserStats>(initialStats);
-  const [growth, setGrowth] = useState<GrowthPoint[]>(initialGrowth);
+  const [users, setUsers] = useState<UserWithStatus[]>(
+    initialUsers.length > 0 ? initialUsers : cachedWorkspaceUsers || []
+  );
+  const [stats, setStats] = useState<UserStats>(
+    initialUsers.length > 0 ? initialStats : cachedWorkspaceStats || initialStats
+  );
+  const [growth, setGrowth] = useState<GrowthPoint[]>(
+    initialGrowth.length > 0 ? initialGrowth : cachedWorkspaceGrowth || []
+  );
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<FilterState>({
@@ -154,10 +164,19 @@ export function UserWorkspace({
   const refresh = useCallback(() => {
     startRefresh(async () => {
       try {
-        const [u, s, g] = await Promise.all([getAllUsers(), getUserStats(), getUserGrowth(30)]);
-        if (u) setUsers(u);
-        if (s) setStats(s);
-        if (g) setGrowth(g);
+        const { users: u, stats: s, growth: g } = await getUsersWorkspaceData(30);
+        if (u) {
+          cachedWorkspaceUsers = u;
+          setUsers(u);
+        }
+        if (s) {
+          cachedWorkspaceStats = s;
+          setStats(s);
+        }
+        if (g) {
+          cachedWorkspaceGrowth = g;
+          setGrowth(g);
+        }
         setSelectedRows(new Set());
       } catch (err) {
         const msg = getErrorMessage(err);

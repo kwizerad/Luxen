@@ -50,15 +50,18 @@ import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 
 const ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL;
 
+let cachedExamCategories: ExamCategory[] | null = null;
+let cachedCategoryQuestionCounts: Record<string, number> | null = null;
+
 export default function ExamManagementPage() {
   const { config } = useBrandingConfig();
   const { t } = useLanguage();
-  const [categories, setCategories] = useState<ExamCategory[]>([]);
+  const [categories, setCategories] = useState<ExamCategory[]>(cachedExamCategories || []);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [filteredQuestions, setFilteredQuestions] = useState<ExamQuestion[]>([]);
-  const [categoryQuestionCounts, setCategoryQuestionCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
-  const [hasPermission, setHasPermission] = useState(false);
+  const [categoryQuestionCounts, setCategoryQuestionCounts] = useState<Record<string, number>>(cachedCategoryQuestionCounts || {});
+  const [loading, setLoading] = useState(!cachedExamCategories);
+  const [hasPermission, setHasPermission] = useState(Boolean(cachedExamCategories));
   const [canAddQuestionPermission, setCanAddQuestionPermission] = useState(false);
   const [canViewQuestionsTab, setCanViewQuestionsTab] = useState(false);
   const [canManageSettings, setCanManageSettings] = useState(false);
@@ -213,14 +216,12 @@ export default function ExamManagementPage() {
     try {
       const data = await getExamCategories();
       if (data.categories) {
+        cachedExamCategories = data.categories;
         setCategories(data.categories);
-        // Load question counts for each category
-        const counts: Record<string, number> = {};
-        for (const category of data.categories) {
-          const qData = await getExamQuestions(category.id);
-          counts[category.id] = qData.questions?.length || 0;
+        if (data.question_counts) {
+          cachedCategoryQuestionCounts = data.question_counts;
+          setCategoryQuestionCounts(data.question_counts);
         }
-        setCategoryQuestionCounts(counts);
       }
     } catch (error: any) {
       toast.error(t("failedToLoadCategories") + ": " + error.message);

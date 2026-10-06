@@ -26,14 +26,17 @@ import { getCurrentUser } from "@/lib/auth-utils";
 import { isAdmin, hasReadWriteQuestionAccess, hasReadOnlyQuestionAccess } from "@/lib/permissions";
 import { getExamCategories, getExamQuestions, updateExamQuestion, deleteExamQuestion } from "@/lib/supabase/queries";
 
+let cachedQuestionsBankCategories: ExamCategory[] | null = null;
+let cachedQuestionsBankList: ExamQuestion[] | null = null;
+
 export default function QuestionManagementPage() {
   const { config } = useBrandingConfig();
   const { t } = useLanguage();
   const router = useRouter();
   const { navigateAdmin } = useAdminSpa();
-  const [categories, setCategories] = useState<ExamCategory[]>([]);
-  const [questions, setQuestions] = useState<ExamQuestion[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<ExamCategory[]>(cachedQuestionsBankCategories || []);
+  const [questions, setQuestions] = useState<ExamQuestion[]>(cachedQuestionsBankList || []);
+  const [loading, setLoading] = useState(!cachedQuestionsBankList);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [deletingQuestion, setDeletingQuestion] = useState<string | null>(null);
@@ -112,6 +115,7 @@ export default function QuestionManagementPage() {
     try {
       const data = await getExamCategories();
       if (data.categories) {
+        cachedQuestionsBankCategories = data.categories;
         setCategories(data.categories);
       }
     } catch (error: any) {
@@ -121,9 +125,10 @@ export default function QuestionManagementPage() {
 
   const loadAllQuestions = async () => {
     try {
-      setLoading(true);
+      if (!cachedQuestionsBankList) setLoading(true);
       const data = await getExamQuestions();
       if (data.questions) {
+        cachedQuestionsBankList = data.questions;
         setQuestions(data.questions);
       }
     } catch (error: any) {

@@ -32,10 +32,12 @@ interface ModuleWithLessons extends CourseModule {
   lessons: CourseLesson[];
 }
 
+let cachedCoursesWithCounts: CourseWithCounts[] | null = null;
+
 export function CourseManagementView() {
   const { t } = useLanguage();
-  const [courses, setCourses] = useState<CourseWithCounts[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [courses, setCourses] = useState<CourseWithCounts[]>(cachedCoursesWithCounts || []);
+  const [loading, setLoading] = useState(!cachedCoursesWithCounts);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
   const [courseModules, setCourseModules] = useState<Record<string, ModuleWithLessons[]>>({});
@@ -45,17 +47,22 @@ export function CourseManagementView() {
 
   const load = async () => {
     const supabase = createClient();
-    setLoading(true);
-    const { data: coursesData, error: coursesError } = await supabase
-      .from("course_languages")
-      .select("*")
-      .in("language", LANGUAGES)
-      .is("deleted_at", null)
-      .order("order_index", { ascending: true });
-    const { data: modulesData, error: modulesError } = await supabase
-      .from("course_modules")
-      .select("id, language_id, lessons:course_lessons(id, deleted_at)")
-      .is("deleted_at", null);
+    if (!cachedCoursesWithCounts) setLoading(true);
+    const [
+      { data: coursesData, error: coursesError },
+      { data: modulesData, error: modulesError },
+    ] = await Promise.all([
+      supabase
+        .from("course_languages")
+        .select("*")
+        .in("language", LANGUAGES)
+        .is("deleted_at", null)
+        .order("order_index", { ascending: true }),
+      supabase
+        .from("course_modules")
+        .select("id, language_id, lessons:course_lessons(id, deleted_at)")
+        .is("deleted_at", null),
+    ]);
     if (coursesError || modulesError) {
       setLoading(false);
       return;
@@ -73,6 +80,7 @@ export function CourseManagementView() {
       moduleCount: moduleCounts.get(c.id) || 0,
       lessonCount: lessonCounts.get(c.id) || 0,
     }));
+    cachedCoursesWithCounts = enriched;
     setCourses(enriched);
     setLoading(false);
   };

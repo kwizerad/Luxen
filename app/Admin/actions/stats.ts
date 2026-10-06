@@ -189,75 +189,136 @@ function handleError(error: unknown): { success: false; error: string } {
 }
 
 const ONLINE_WINDOW_MS = 10 * 60 * 1000;
+const STATS_CACHE_TTL_MS = 8 * 1000; // 8s fast server-side cache
+let cachedStatsResult: AdminStats | null = null;
+let cachedStatsTimestamp = 0;
 
-export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
+function invalidateStatsCache() {
+  cachedStatsResult = null;
+  cachedStatsTimestamp = 0;
+}
+
+export async function getAdminStats(forceRefresh = false): Promise<ActionResult<AdminStats>> {
   try {
     await requireAdmin();
+
+    if (
+      !forceRefresh &&
+      cachedStatsResult &&
+      Date.now() - cachedStatsTimestamp < STATS_CACHE_TTL_MS
+    ) {
+      return { success: true, data: cachedStatsResult };
+    }
+
     const supabase = createAdminClient();
     const startTime = Date.now();
 
-    // 1. Core Counts in Parallel
-    const [categoryCount, questionCount, attemptsCount, inProgressCount, coursesCount, modulesCount] = await Promise.all([
-      supabase.from("exam_categories").select("*", { count: "exact", head: true }),
-      supabase.from("exam_questions").select("*", { count: "exact", head: true }),
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+    const thirtyDaysAgoIso = thirtyDaysAgo.toISOString();
+
+    const safeQuery = async <T,>(promise: PromiseLike<{ data: T | null; error?: any }>): Promise<T | null> => {
+      try {
+        const res = await promise;
+        return res.data ?? null;
+      } catch {
+        return null;
+      }
+    };
+
+    // Execute ALL database queries in a single parallel Promise.all batch (1 round-trip instead of 14 sequential round-trips)
+    const [
+      userProfiles,
+      allCategories,
+      allQuestions,
+      attemptsCountRes,
+      inProgressCountRes,
+      completedAttempts,
+      recentAttemptRows,
+      monthAttempts,
+      retakeRows,
+      reportRows,
+      coursesData,
+      modulesData,
+      lessonsData,
+      progressData,
+    ] = await Promise.all([
+      safeQuery(
+        supabase
+          .from("user_profiles")
+          .select(
+            "id, role, username, full_name, first_name, last_name, email, avatar_url, last_seen, created_at, provision_verified, national_id, banned"
+          )
+          .order("created_at", { ascending: false })
+      ),
+      safeQuery(
+        supabase
+          .from("exam_categories")
+          .select("id, name, duration_minutes, created_at")
+          .order("name", { ascending: true })
+      ),
+      safeQuery(
+        supabase
+          .from("exam_questions")
+          .select("id, category_id, question, created_at, exam_categories(name)")
+          .order("created_at", { ascending: false })
+      ),
       supabase.from("exam_attempts").select("*", { count: "exact", head: true }),
       supabase.from("exam_attempts").select("*", { count: "exact", head: true }).eq("status", "in_progress"),
-      supabase.from("course_language_courses").select("*", { count: "exact", head: true }),
-      supabase.from("course_modules").select("*", { count: "exact", head: true }),
+      safeQuery(
+        supabase
+          .from("exam_attempts")
+          .select("id, user_id, category_id, category_name, score_percentage, status, started_at, duration_seconds")
+          .eq("status", "completed")
+      ),
+      safeQuery(
+        supabase
+          .from("exam_attempts")
+          .select("id, user_id, category_name, score_percentage, status, started_at, duration_seconds")
+          .order("started_at", { ascending: false })
+          .limit(25)
+      ),
+      safeQuery(
+        supabase
+          .from("exam_attempts")
+          .select("started_at")
+          .gte("started_at", thirtyDaysAgoIso)
+      ),
+      safeQuery(
+        supabase
+          .from("exam_retake_requests")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(25)
+      ),
+      safeQuery(
+        supabase
+          .from("user_reports")
+          .select("id, report_type, description, status, created_at, reporter_id, reported_user_id")
+          .order("created_at", { ascending: false })
+          .limit(20)
+      ),
+      safeQuery(supabase.from("course_language_courses").select("id, title, language_code")),
+      safeQuery(
+        supabase
+          .from("course_modules")
+          .select("id, course_id, title, is_published, order_index")
+          .order("order_index", { ascending: true })
+      ),
+      safeQuery(supabase.from("course_lessons").select("id, module_id")),
+      safeQuery(supabase.from("student_lesson_progress").select("id, module_id, completed").eq("completed", true)),
     ]);
 
-    // 2. User Profiles & Auth Accounts Analysis
-    const { data: userProfiles } = await supabase
-      .from("user_profiles")
-      .select("id, role, username, full_name, first_name, last_name, email, avatar_url, last_seen, created_at, provision_verified, national_id, banned")
-      .order("created_at", { ascending: false });
-
-    // Fetch auth users metadata in parallel to resolve any missing student names
-    const authUserMap = new Map<string, { full_name?: string | null; username?: string | null; email?: string | null }>();
-    try {
-      const { data: authData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-      if (authData?.users) {
-        for (const u of authData.users) {
-          const meta = (u.user_metadata || {}) as Record<string, any>;
-          const metaFullName =
-            meta.full_name ||
-            meta.name ||
-            [meta.first_name, meta.last_name].filter(Boolean).join(" ").trim() ||
-            meta.preferred_username;
-
-          authUserMap.set(u.id, {
-            full_name: metaFullName || null,
-            username: meta.username || meta.user_name || null,
-            email: u.email || null,
-          });
-        }
-      }
-    } catch (e) {
-      // Non-blocking fallback if auth listing is restricted
-    }
-
-    // Fetch national ID records mapping if available
-    const nationalIdMap = new Map<string, string>();
-    try {
-      const { data: nidRows } = await supabase.from("national_id_records").select("user_id, national_id");
-      if (nidRows) {
-        for (const r of nidRows) {
-          if (r.user_id && r.national_id) {
-            nationalIdMap.set(r.user_id, r.national_id);
-          }
-        }
-      }
-    } catch {
-      // Non-blocking fallback
-    }
-
-    const allUsers = (userProfiles || []).map((u) => ({
+    const allUsers = (userProfiles || []).map((u: any) => ({
       ...u,
       role: isStrictlyStudentEmail(u.email) ? "Student" : u.role,
     }));
-    const profileMap = new Map((allUsers || []).map((p) => [p.id, p]));
+    const profileMap = new Map(allUsers.map((p: any) => [p.id, p]));
 
-    // Helper to resolve the best human-readable student name
+    // Helper to resolve the best human-readable student name directly from in-memory profileMap
     const resolveStudentDisplayName = (
       userId: string
     ): {
@@ -268,17 +329,15 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
       displayName: string;
     } => {
       const profile = profileMap.get(userId);
-      const authUser = authUserMap.get(userId);
-      const nationalId = profile?.national_id || nationalIdMap.get(userId);
+      const nationalId = profile?.national_id;
 
       const profileFullName = profile?.full_name?.trim();
       const profileCombinedName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
-      const metaName = authUser?.full_name?.trim();
-      const username = profile?.username?.trim() || authUser?.username?.trim() || null;
-      const email = profile?.email?.trim() || authUser?.email?.trim() || null;
+      const username = profile?.username?.trim() || null;
+      const email = profile?.email?.trim() || null;
       const avatarUrl = profile?.avatar_url || null;
 
-      let displayName = profileFullName || profileCombinedName || metaName || username;
+      let displayName = profileFullName || profileCombinedName || username;
 
       if (!displayName && email) {
         const local = email.split("@")[0];
@@ -297,7 +356,7 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
         displayName = `Student #${userId.slice(0, 6)}`;
       }
 
-      const finalName = profileFullName || profileCombinedName || metaName || displayName || null;
+      const finalName = profileFullName || profileCombinedName || displayName || null;
 
       return {
         fullName: finalName,
@@ -318,16 +377,11 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
     const suspendedUsers = allUsers.filter((u) => Boolean((u as any).banned)).length;
 
     // 3. Completed Attempts & Score Distribution
-    const { data: completedAttempts } = await supabase
-      .from("exam_attempts")
-      .select("id, user_id, category_id, category_name, score_percentage, status, started_at, duration_seconds")
-      .eq("status", "completed");
-
     const completed = completedAttempts || [];
-    const passed = completed.filter((a) => a.score_percentage >= 50).length;
+    const passed = completed.filter((a: any) => a.score_percentage >= 50).length;
     const failed = completed.length - passed;
     const averageScore = completed.length > 0
-      ? Math.round(completed.reduce((sum, a) => sum + a.score_percentage, 0) / completed.length)
+      ? Math.round(completed.reduce((sum: number, a: any) => sum + a.score_percentage, 0) / completed.length)
       : 0;
     const passRate = completed.length > 0 ? Math.round((passed / completed.length) * 100) : 0;
 
@@ -365,10 +419,10 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
     });
 
     // Score Brackets Distribution
-    const tierFail = completed.filter((a) => a.score_percentage < 50).length;
-    const tierFair = completed.filter((a) => a.score_percentage >= 50 && a.score_percentage < 70).length;
-    const tierGood = completed.filter((a) => a.score_percentage >= 70 && a.score_percentage < 85).length;
-    const tierExcellent = completed.filter((a) => a.score_percentage >= 85).length;
+    const tierFail = completed.filter((a: any) => a.score_percentage < 50).length;
+    const tierFair = completed.filter((a: any) => a.score_percentage >= 50 && a.score_percentage < 70).length;
+    const tierGood = completed.filter((a: any) => a.score_percentage >= 70 && a.score_percentage < 85).length;
+    const tierExcellent = completed.filter((a: any) => a.score_percentage >= 85).length;
     const totalDist = completed.length || 1;
 
     const scoreDistribution: ScoreDistribution[] = [
@@ -406,16 +460,7 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
       },
     ];
 
-    // 4. Category Performance Metrics
-    const { data: allCategories } = await supabase
-      .from("exam_categories")
-      .select("id, name, duration_minutes, created_at")
-      .order("name", { ascending: true });
-
-    const { data: allQuestions } = await supabase
-      .from("exam_questions")
-      .select("id, category_id");
-
+    // 4. Category Performance Metrics (computed from already fetched allCategories & allQuestions)
     const categoryQuestionCounts = new Map<string, number>();
     for (const q of allQuestions || []) {
       if (q.category_id) {
@@ -434,7 +479,7 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
       categoryMetricsMap.set(catKey, cur);
     }
 
-    const categoryMetrics: CategoryMetric[] = (allCategories || []).map((cat) => {
+    const categoryMetrics: CategoryMetric[] = (allCategories || []).map((cat: any) => {
       const stats = categoryMetricsMap.get(cat.id) || categoryMetricsMap.get(cat.name) || { attempts: 0, passed: 0, scoreSum: 0 };
       const qCount = categoryQuestionCounts.get(cat.id) || 0;
       return {
@@ -448,30 +493,20 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
       };
     }).sort((a, b) => b.attemptCount - a.attemptCount);
 
-    // 5. Recent Activity Queries
-    const [recentCategories, recentQuestions, recentUsers] = await Promise.all([
-      supabase.from("exam_categories").select("*").order("created_at", { ascending: false }).limit(5),
-      supabase.from("exam_questions").select("*, exam_categories(name)").order("created_at", { ascending: false }).limit(5),
-      supabase.from("user_profiles").select("id, username, email, created_at").order("created_at", { ascending: false }).limit(5),
-    ]);
+    // 5. Recent Activity (computed in-memory from already fetched arrays)
+    const recentCategoriesList = [...(allCategories || [])]
+      .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      .slice(0, 5);
+    const recentQuestionsList = (allQuestions || []).slice(0, 5);
+    const recentUsersList = allUsers.slice(0, 5).map((u) => ({
+      id: u.id,
+      username: u.username,
+      email: u.email,
+      created_at: u.created_at,
+    }));
 
-    // 6. Weekly & 30-Day Activity Trends
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-
-    const { data: monthAttempts } = await supabase
-      .from("exam_attempts")
-      .select("started_at")
-      .gte("started_at", thirtyDaysAgo.toISOString());
-
-    const { data: monthUsers } = await supabase
-      .from("user_profiles")
-      .select("created_at, role")
-      .gte("created_at", thirtyDaysAgo.toISOString());
+    // 6. Weekly & 30-Day Activity Trends (computed in-memory)
+    const monthUsers = allUsers.filter((u) => u.created_at && u.created_at >= thirtyDaysAgoIso);
 
     // Build 7-day breakdown
     const weeklyActivity: { day: string; users: number; attempts: number }[] = [];
@@ -487,7 +522,7 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
       const dateStr = `${day.getMonth() + 1}/${day.getDate()}`;
       const fullDateStr = day.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
-      const dayUsers = (monthUsers || []).filter((u) => {
+      const dayUsers = monthUsers.filter((u) => {
         const d = new Date(u.created_at);
         return d >= day && d < dayEnd;
       });
@@ -496,7 +531,7 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
       const studentCount = dayUsers.filter((u) => !u.role || u.role.toLowerCase() === "student").length;
       newStudentsThisWeek += studentCount;
 
-      const attemptCount = (monthAttempts || []).filter((a) => {
+      const attemptCount = (monthAttempts || []).filter((a: any) => {
         const d = new Date(a.started_at);
         return d >= day && d < dayEnd;
       }).length;
@@ -520,12 +555,12 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
       dayEnd.setDate(dayEnd.getDate() + 1);
       const label = `${day.getMonth() + 1}/${day.getDate()}`;
 
-      const userCount = (monthUsers || []).filter((u) => {
+      const userCount = monthUsers.filter((u) => {
         const d = new Date(u.created_at);
         return d >= day && d < dayEnd;
       }).length;
 
-      const attemptCount = (monthAttempts || []).filter((a) => {
+      const attemptCount = (monthAttempts || []).filter((a: any) => {
         const d = new Date(a.started_at);
         return d >= day && d < dayEnd;
       }).length;
@@ -585,113 +620,63 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
       });
 
     // 7b. Retake Requests, Incident Reports, and Course Curriculum Telemetry
-    let retakeRequests: RetakeRequestItem[] = [];
-    let pendingRetakeRequests = 0;
-    try {
-      const { data: retakeRows } = await supabase
-        .from("exam_retake_requests")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(25);
+    const catNameMap = new Map((allCategories || []).map((c: any) => [c.id, c.name]));
+    const retakeRequests: RetakeRequestItem[] = (retakeRows || []).map((r: any) => {
+      const resolved = resolveStudentDisplayName(r.user_id);
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        student_name: resolved.fullName || resolved.displayName,
+        student_email: resolved.email,
+        category_id: r.category_id || null,
+        category_name: r.category_name || (r.category_id ? catNameMap.get(r.category_id) : null) || "General Exam",
+        reason: r.reason || null,
+        status: r.status || "pending",
+        created_at: r.created_at,
+        admin_note: r.admin_note || null,
+      };
+    });
+    const pendingRetakeRequests = retakeRequests.filter((r) => r.status === "pending").length;
 
-      const catNameMap = new Map((allCategories || []).map((c) => [c.id, c.name]));
-      if (retakeRows) {
-        retakeRequests = retakeRows.map((r: any) => {
-          const resolved = resolveStudentDisplayName(r.user_id);
-          return {
-            id: r.id,
-            user_id: r.user_id,
-            student_name: resolved.fullName || resolved.displayName,
-            student_email: resolved.email,
-            category_id: r.category_id || null,
-            category_name: r.category_name || (r.category_id ? catNameMap.get(r.category_id) : null) || "General Exam",
-            reason: r.reason || null,
-            status: r.status || "pending",
-            created_at: r.created_at,
-            admin_note: r.admin_note || null,
-          };
-        });
-        pendingRetakeRequests = retakeRequests.filter((r) => r.status === "pending").length;
-      }
-    } catch {
-      // Non-blocking fallback
+    const pendingReportsList: PendingReportItem[] = (reportRows || []).map((r: any) => {
+      const reporter = resolveStudentDisplayName(r.reporter_id);
+      const reported = resolveStudentDisplayName(r.reported_user_id);
+      return {
+        id: r.id,
+        report_type: r.report_type || "general",
+        description: r.description || null,
+        status: r.status || "pending",
+        created_at: r.created_at,
+        reporter_name: reporter.displayName,
+        reported_name: reported.displayName,
+      };
+    });
+    const pendingReportsCount = pendingReportsList.filter((r) => r.status === "pending" || r.status === "reviewing").length;
+
+    const courseMap = new Map((coursesData || []).map((c: any) => [c.id, c.title || c.language_code || "Course"]));
+    const totalLessons = (lessonsData || []).length;
+    const completedLessonProgress = (progressData || []).length;
+
+    const modLessonCount = new Map<string, number>();
+    for (const l of lessonsData || []) {
+      if ((l as any).module_id) modLessonCount.set((l as any).module_id, (modLessonCount.get((l as any).module_id) || 0) + 1);
+    }
+    const modCompletedCount = new Map<string, number>();
+    for (const p of progressData || []) {
+      if ((p as any).module_id) modCompletedCount.set((p as any).module_id, (modCompletedCount.get((p as any).module_id) || 0) + 1);
     }
 
-    let pendingReportsList: PendingReportItem[] = [];
-    let pendingReportsCount = 0;
-    try {
-      const { data: reportRows } = await supabase
-        .from("user_reports")
-        .select("id, report_type, description, status, created_at, reporter_id, reported_user_id")
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      if (reportRows) {
-        pendingReportsList = reportRows.map((r: any) => {
-          const reporter = resolveStudentDisplayName(r.reporter_id);
-          const reported = resolveStudentDisplayName(r.reported_user_id);
-          return {
-            id: r.id,
-            report_type: r.report_type || "general",
-            description: r.description || null,
-            status: r.status || "pending",
-            created_at: r.created_at,
-            reporter_name: reporter.displayName,
-            reported_name: reported.displayName,
-          };
-        });
-        pendingReportsCount = pendingReportsList.filter((r) => r.status === "pending" || r.status === "reviewing").length;
-      }
-    } catch {
-      // Non-blocking fallback
-    }
-
-    let totalLessons = 0;
-    let completedLessonProgress = 0;
-    let courseModuleMetrics: CourseModuleMetric[] = [];
-    try {
-      const [coursesRes, modulesRes, lessonsRes, lessonProgRes] = await Promise.all([
-        supabase.from("course_language_courses").select("id, title, language_code"),
-        supabase.from("course_modules").select("id, course_id, title, is_published, order_index").order("order_index", { ascending: true }),
-        supabase.from("course_lessons").select("id, module_id"),
-        supabase.from("student_lesson_progress").select("id, module_id, completed").eq("completed", true),
-      ]);
-
-      const courseMap = new Map((coursesRes.data || []).map((c: any) => [c.id, c.title || c.language_code || "Course"]));
-      const lessonsData = lessonsRes.data || [];
-      const progressData = lessonProgRes.data || [];
-      totalLessons = lessonsData.length;
-      completedLessonProgress = progressData.length;
-
-      const modLessonCount = new Map<string, number>();
-      for (const l of lessonsData) {
-        if (l.module_id) modLessonCount.set(l.module_id, (modLessonCount.get(l.module_id) || 0) + 1);
-      }
-      const modCompletedCount = new Map<string, number>();
-      for (const p of progressData) {
-        if (p.module_id) modCompletedCount.set(p.module_id, (modCompletedCount.get(p.module_id) || 0) + 1);
-      }
-
-      courseModuleMetrics = (modulesRes.data || []).slice(0, 12).map((m: any) => ({
-        id: m.id,
-        title: m.title || "Module",
-        courseTitle: courseMap.get(m.course_id) || "Driving Course",
-        lessonCount: modLessonCount.get(m.id) || 0,
-        completedLessonsCount: modCompletedCount.get(m.id) || 0,
-        isPublished: m.is_published !== false,
-      }));
-    } catch {
-      // Non-blocking fallback
-    }
+    const courseModuleMetrics: CourseModuleMetric[] = (modulesData || []).slice(0, 12).map((m: any) => ({
+      id: m.id,
+      title: m.title || "Module",
+      courseTitle: courseMap.get(m.course_id) || "Driving Course",
+      lessonCount: modLessonCount.get(m.id) || 0,
+      completedLessonsCount: modCompletedCount.get(m.id) || 0,
+      isPublished: m.is_published !== false,
+    }));
 
     // 8. Recent Exam Attempts
-    const { data: recentAttemptRows } = await supabase
-      .from("exam_attempts")
-      .select("id, user_id, category_name, score_percentage, status, started_at, duration_seconds")
-      .order("started_at", { ascending: false })
-      .limit(25);
-
-    const recentAttempts: AdminStats["recentAttempts"] = (recentAttemptRows || []).map((a) => {
+    const recentAttempts: AdminStats["recentAttempts"] = (recentAttemptRows || []).map((a: any) => {
       const resolved = resolveStudentDisplayName(a.user_id);
       return {
         ...a,
@@ -706,16 +691,16 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
 
     // Add recent attempts to stream
     for (const a of (recentAttemptRows || []).slice(0, 5)) {
-      const resolved = resolveStudentDisplayName(a.user_id);
+      const resolved = resolveStudentDisplayName((a as any).user_id);
       const name = resolved.displayName;
       auditStream.push({
-        id: `att-${a.id}`,
+        id: `att-${(a as any).id}`,
         type: "exam_completed",
-        title: `${name} ${a.status === "completed" ? "completed" : "started"} ${a.category_name || "Exam"}`,
-        subtitle: `Scored ${a.score_percentage}% • ${a.duration_seconds > 0 ? `${Math.round(a.duration_seconds / 60)} mins` : "In progress"}`,
-        timestamp: a.started_at,
-        badge: a.score_percentage >= 50 ? `${a.score_percentage}% PASS` : `${a.score_percentage}% FAIL`,
-        badgeType: a.score_percentage >= 80 ? "success" : a.score_percentage >= 50 ? "warning" : "neutral",
+        title: `${name} ${(a as any).status === "completed" ? "completed" : "started"} ${(a as any).category_name || "Exam"}`,
+        subtitle: `Scored ${(a as any).score_percentage}% • ${(a as any).duration_seconds > 0 ? `${Math.round((a as any).duration_seconds / 60)} mins` : "In progress"}`,
+        timestamp: (a as any).started_at,
+        badge: (a as any).score_percentage >= 50 ? `${(a as any).score_percentage}% PASS` : `${(a as any).score_percentage}% FAIL`,
+        badgeType: (a as any).score_percentage >= 80 ? "success" : (a as any).score_percentage >= 50 ? "warning" : "neutral",
       });
     }
 
@@ -737,59 +722,64 @@ export async function getAdminStats(): Promise<ActionResult<AdminStats>> {
 
     const latencyMs = Date.now() - startTime;
 
+    const payload: AdminStats = {
+      stats: {
+        totalUsers,
+        totalAdmins,
+        totalStudents,
+        totalDrivers,
+        onlineUsers,
+        totalCategories: (allCategories || []).length,
+        totalQuestions: (allQuestions || []).length,
+        totalAttempts: attemptsCountRes.count || 0,
+        inProgressAttempts: inProgressCountRes.count || 0,
+        passedAttempts: passed,
+        failedAttempts: failed,
+        averageScore,
+        passRate,
+        newStudentsThisWeek,
+        totalCourses: (coursesData || []).length,
+        totalModules: (modulesData || []).length,
+        totalLessons,
+        completedLessonProgress,
+        pendingReports: pendingReportsCount,
+        pendingRetakeRequests,
+        unverifiedUsers,
+        suspendedUsers,
+        atRiskCount: atRiskLearners.length,
+      },
+      recentActivity: {
+        categories: recentCategoriesList,
+        questions: recentQuestionsList,
+        users: recentUsersList,
+      },
+      weeklyActivity,
+      weeklyRegistrations,
+      monthlyActivity,
+      scoreDistribution,
+      categoryMetrics,
+      courseModuleMetrics,
+      retakeRequests,
+      pendingReportsList,
+      atRiskLearners,
+      topPerformers,
+      recentAttempts,
+      recentRegistrations,
+      auditStream,
+      systemStatus: {
+        database: "healthy",
+        supabase: "connected",
+        latencyMs,
+        lastUpdated: new Date().toISOString(),
+      },
+    };
+
+    cachedStatsResult = payload;
+    cachedStatsTimestamp = Date.now();
+
     return {
       success: true,
-      data: {
-        stats: {
-          totalUsers,
-          totalAdmins,
-          totalStudents,
-          totalDrivers,
-          onlineUsers,
-          totalCategories: categoryCount.count || 0,
-          totalQuestions: questionCount.count || 0,
-          totalAttempts: attemptsCount.count || 0,
-          inProgressAttempts: inProgressCount.count || 0,
-          passedAttempts: passed,
-          failedAttempts: failed,
-          averageScore,
-          passRate,
-          newStudentsThisWeek,
-          totalCourses: coursesCount.count || 0,
-          totalModules: modulesCount.count || 0,
-          totalLessons,
-          completedLessonProgress,
-          pendingReports: pendingReportsCount,
-          pendingRetakeRequests,
-          unverifiedUsers,
-          suspendedUsers,
-          atRiskCount: atRiskLearners.length,
-        },
-        recentActivity: {
-          categories: recentCategories.data || [],
-          questions: recentQuestions.data || [],
-          users: recentUsers.data || [],
-        },
-        weeklyActivity,
-        weeklyRegistrations,
-        monthlyActivity,
-        scoreDistribution,
-        categoryMetrics,
-        courseModuleMetrics,
-        retakeRequests,
-        pendingReportsList,
-        atRiskLearners,
-        topPerformers,
-        recentAttempts,
-        recentRegistrations,
-        auditStream,
-        systemStatus: {
-          database: "healthy",
-          supabase: "connected",
-          latencyMs,
-          lastUpdated: new Date().toISOString(),
-        },
-      },
+      data: payload,
     };
   } catch (error) {
     return handleError(error);
@@ -826,6 +816,7 @@ export async function resolveRetakeRequestAction(
       .eq("id", requestId);
 
     if (error) throw error;
+    invalidateStatsCache();
 
     // Notify student automatically
     if (reqRow.user_id) {
@@ -867,6 +858,7 @@ export async function resolveUserReportAction(
       .eq("id", reportId);
 
     if (error) throw error;
+    invalidateStatsCache();
     return { success: true, data: { id: reportId, status } };
   } catch (error) {
     return handleError(error);
@@ -889,6 +881,7 @@ export async function toggleUserVerificationAction(
       .eq("id", userId);
 
     if (error) throw error;
+    invalidateStatsCache();
 
     if (verified) {
       await supabase.from("notifications").insert({
@@ -925,6 +918,7 @@ export async function toggleUserSuspensionAction(
       .eq("id", userId);
 
     if (error) throw error;
+    invalidateStatsCache();
     return { success: true, data: { id: userId, banned } };
   } catch (error) {
     return handleError(error);

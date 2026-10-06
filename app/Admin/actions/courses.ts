@@ -43,27 +43,30 @@ export async function listCourses(): Promise<ActionResult<CourseLanguageCourse[]
       .from("course_languages")
       .select("*")
       .in("language", BUILT_IN_LANGUAGES)
-      .is("deleted_at", null);
+      .is("deleted_at", null)
+      .order("order_index", { ascending: true });
     if (error) throw error;
 
-    const existingLanguages = new Set((existing || []).map((course) => course.language));
+    let data = existing || [];
+    const existingLanguages = new Set(data.map((course) => course.language));
     const missingCourses = BUILT_IN_COURSES.filter((course) => !existingLanguages.has(course.language));
-    if (missingCourses.length) {
+    if (missingCourses.length > 0) {
       const { error: seedError } = await supabase.from("course_languages").insert(
         missingCourses.map((course) => ({ ...course, is_published: true, status: "published" }))
       );
       if (seedError) throw seedError;
+
+      const { data: refetched, error: refetchError } = await supabase
+        .from("course_languages")
+        .select("*")
+        .in("language", BUILT_IN_LANGUAGES)
+        .is("deleted_at", null)
+        .order("order_index", { ascending: true });
+      if (refetchError) throw refetchError;
+      data = refetched || [];
     }
 
-    const { data, error: refetchError } = await supabase
-      .from("course_languages")
-      .select("*")
-      .in("language", BUILT_IN_LANGUAGES)
-      .is("deleted_at", null)
-      .order("order_index", { ascending: true });
-    if (refetchError) throw refetchError;
-
-    const courseByLanguage = new Map((data || []).map((course) => [course.language, course]));
+    const courseByLanguage = new Map(data.map((course) => [course.language, course]));
     return {
       success: true,
       data: BUILT_IN_LANGUAGES.map((language) => courseByLanguage.get(language)).filter(
@@ -1136,20 +1139,24 @@ export async function loadFullCourse(courseId: string): Promise<ActionResult<Ful
     await requireAdmin();
     const supabase = createAdminClient();
 
-    const { data: course, error: courseError } = await supabase
-      .from("course_languages")
-      .select("*")
-      .eq("id", courseId)
-      .is("deleted_at", null)
-      .single();
+    const [
+      { data: course, error: courseError },
+      { data: modules, error: modulesError },
+    ] = await Promise.all([
+      supabase
+        .from("course_languages")
+        .select("*")
+        .eq("id", courseId)
+        .is("deleted_at", null)
+        .single(),
+      supabase
+        .from("course_modules")
+        .select("*")
+        .eq("language_id", courseId)
+        .is("deleted_at", null)
+        .order("order_index", { ascending: true }),
+    ]);
     if (courseError) throw courseError;
-
-    const { data: modules, error: modulesError } = await supabase
-      .from("course_modules")
-      .select("*")
-      .eq("language_id", courseId)
-      .is("deleted_at", null)
-      .order("order_index", { ascending: true });
     if (modulesError) throw modulesError;
 
     const moduleIds = (modules || []).map((m) => m.id);

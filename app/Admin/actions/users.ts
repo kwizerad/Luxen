@@ -143,6 +143,83 @@ export async function getUserGrowth(days = 30): Promise<GrowthPoint[]> {
   return Array.from(map.entries()).map(([date, count]) => ({ date, count }));
 }
 
+export async function getUsersWorkspaceData(days = 30): Promise<{
+  users: UserWithStatus[];
+  stats: UserStats;
+  growth: GrowthPoint[];
+}> {
+  const defaultStats: UserStats = {
+    totalUsers: 0,
+    students: 0,
+    administrators: 0,
+    onlineUsers: 0,
+    suspendedUsers: 0,
+    pendingVerification: 0,
+    newUsersThisWeek: 0,
+  };
+
+  try {
+    await requireAdmin();
+  } catch {
+    return { users: [], stats: defaultStats, growth: [] };
+  }
+
+  const supabase = createAdminClient();
+  const { data: profiles, error } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error || !profiles) {
+    console.error("getUsersWorkspaceData error:", error);
+    return { users: [], stats: defaultStats, growth: [] };
+  }
+
+  const users: UserWithStatus[] = profiles.map((u) => ({
+    ...u,
+    role: isStrictlyStudentEmail(u.email) ? "Student" : u.role,
+    is_online: isOnline(u.last_seen),
+  }));
+
+  const now = new Date();
+  const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const stats: UserStats = {
+    totalUsers: users.length,
+    students: users.filter((u) => u.role === "Student").length,
+    administrators: users.filter((u) => u.role === "Admin").length,
+    onlineUsers: users.filter((u) => u.is_online).length,
+    suspendedUsers: users.filter((u) => u.banned).length,
+    pendingVerification: 0,
+    newUsersThisWeek: users.filter(
+      (u) => u.created_at && new Date(u.created_at) >= oneWeekAgo
+    ).length,
+  };
+
+  const start = new Date();
+  start.setDate(start.getDate() - days);
+  start.setHours(0, 0, 0, 0);
+
+  const map = new Map<string, number>();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    map.set(d.toISOString().split("T")[0], 0);
+  }
+
+  for (const p of users) {
+    if (!p.created_at) continue;
+    const date = new Date(p.created_at).toISOString().split("T")[0];
+    if (map.has(date)) {
+      map.set(date, (map.get(date) || 0) + 1);
+    }
+  }
+
+  const growth = Array.from(map.entries()).map(([date, count]) => ({ date, count }));
+
+  return { users, stats, growth };
+}
+
 export interface UserActivityItem {
   id: string;
   type: "login" | "exam" | "module" | "lesson" | "suspension" | "account";

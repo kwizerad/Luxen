@@ -56,6 +56,17 @@ export default function CoursePage() {
   })();
 
   const [activeTab, setActiveTab] = useState<CourseTab>(initialTab);
+  const [visitedTabs, setVisitedTabs] = useState<Set<CourseTab>>(() => new Set([initialTab]));
+
+  // Mark activeTab as visited whenever it changes
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
 
   // Adjust active tab if the selected tab is not visible
   useEffect(() => {
@@ -153,8 +164,8 @@ export default function CoursePage() {
         ))}
       </div>
 
-      {/* Tab panels — kept mounted to preserve state */}
-      {canViewManagement && (
+      {/* Tab panels — lazy-mounted on first visit and kept mounted to preserve state */}
+      {canViewManagement && visitedTabs.has("management") && (
         <div
           role="tabpanel"
           hidden={activeTab !== "management"}
@@ -164,7 +175,7 @@ export default function CoursePage() {
         </div>
       )}
 
-      {canViewTranslation && (
+      {canViewTranslation && visitedTabs.has("translation") && (
         <div
           role="tabpanel"
           hidden={activeTab !== "translation"}
@@ -180,7 +191,7 @@ export default function CoursePage() {
         </div>
       )}
 
-      {canViewStudio && (
+      {canViewStudio && visitedTabs.has("studio") && (
         <div
           role="tabpanel"
           hidden={activeTab !== "studio"}
