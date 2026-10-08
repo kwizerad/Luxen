@@ -304,15 +304,15 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
   return (
     <>
-      {/* Top Header Bar: Navo Logo on the Left + Floating Settings (Notifications & Profile Picture Dropdown) on the Top Right.
-          Desktop Navigation Links (lg:flex) sit in the center on screens >= 1024px. */}
+      {/* Top Header Bar (Desktop >= 1024px only):
+          Hidden on mobile/small devices (< 1024px) so no sticky top header or title bar obscures the page or blocks pull-to-refresh. */}
       <header
         dir={isRTL ? "rtl" : "ltr"}
         aria-hidden={isExamActive}
-        className={`${
+        className={`app-top-header-bar ${
           isExamActive
             ? "hidden pointer-events-none opacity-0 invisible select-none"
-            : "block"
+            : "hidden lg:block"
         } premium-glass-panel sticky top-0 z-50 w-full border-b transition-opacity`}
       >
         <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 gap-3">
@@ -436,7 +436,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
             })}
           </nav>
 
-          {/* Right: Floating Settings — Notifications & User Profile Picture Dropdown (Top-Right across all devices) */}
+          {/* Right: Floating Settings — Notifications & User Profile Picture Dropdown */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="rounded-full transition-all relative">
               <NotificationsDropdown />
@@ -447,6 +447,17 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           </div>
         </div>
       </header>
+
+      {/* Mobile Floating Top-Right Actions (Notifications & Profile) — Non-blocking, no full-width header bar */}
+      {!isExamActive && !isChatActive && (
+        <div
+          dir={isRTL ? "rtl" : "ltr"}
+          className="fixed top-[max(0.75rem,env(safe-area-inset-top,0.75rem))] right-3 z-40 flex lg:hidden items-center gap-1.5 rounded-full border border-border/80 dark:border-zinc-800/80 bg-card/90 dark:bg-zinc-900/90 backdrop-blur-md px-2 py-1 shadow-md pointer-events-auto"
+        >
+          <NotificationsDropdown />
+          <FloatingUserSettings user={user} onMobile adminMode={adminMode} />
+        </div>
+      )}
 
       {/* Mobile & Tablet (< 1024px / lg:hidden) Fixed Bottom Navigation Bar (Nav Items Only) */}
       <nav

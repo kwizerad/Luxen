@@ -76,12 +76,15 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
-    overscroll-behavior-y: none;
-    overflow-x: clip;
+    overscroll-behavior-y: auto !important;
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: auto;
     width: 100%;
     max-width: 100%;
     background-color: #f1f5f9;
     color-scheme: light;
+    touch-action: pan-y pinch-zoom;
   }
   html.dark {
     background-color: #060608;
@@ -94,16 +97,19 @@
   body {
     background-color: transparent;
     color: hsl(var(--foreground));
-    overflow-x: clip;
+    overflow-x: hidden;
+    overflow-y: visible;
+    overscroll-behavior-y: auto !important;
+    height: auto;
     width: 100%;
     max-width: 100%;
     min-height: 100dvh;
     -webkit-overflow-scrolling: touch;
-    /* Safe area insets for PWA installed mode (notch, status bar) */
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    touch-action: pan-y pinch-zoom;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
   }
   .dark body,
   html.dark body {
@@ -149,7 +155,6 @@ html.dark .mesh-gradient-bg {
 [role="dialog"],
 .dialog-content {
   -webkit-overflow-scrolling: touch !important;
-  touch-action: pan-y;
 }
 
 
@@ -497,7 +502,7 @@ html.dark .mesh-gradient-bg {
     width: 100%;
     box-sizing: border-box;
     margin-inline: auto;
-    padding: 3.25rem 1rem calc(5.5rem + env(safe-area-inset-bottom));
+    padding: 1rem 1rem calc(5.5rem + env(safe-area-inset-bottom, 0px));
     overflow-x: clip;
   }
 
@@ -710,22 +715,20 @@ html.dark .mesh-gradient-bg {
     .glassmorphism {
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      transform: translateZ(0);
     }
 
     /* Ensure the body itself uses smooth momentum scrolling on iOS and mobile */
     body {
       -webkit-overflow-scrolling: touch;
-      overscroll-behavior-y: auto;
+      overscroll-behavior-y: auto !important;
       text-rendering: optimizeSpeed;
       -webkit-text-rendering: optimizeSpeed;
     }
 
-    /* Allow natural vertical panning on mobile pages and sections */
+    /* Allow natural vertical panning and pull-to-refresh on mobile pages and sections */
     .student-page,
     .student-page-narrow,
     .student-section {
-      touch-action: pan-y;
       overscroll-behavior-y: auto;
     }
 
@@ -741,7 +744,6 @@ html.dark .mesh-gradient-bg {
     .overflow-auto,
     [class*="overflow-y"] {
       -webkit-overflow-scrolling: touch;
-      touch-action: pan-y;
       overscroll-behavior-y: auto;
     }
 
@@ -1358,7 +1360,7 @@ html:not(.dark) .admin-portal,
   max-width: 1600px;
   margin: 0 auto;
   min-height: 100dvh;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .admin-content {
@@ -2960,9 +2962,46 @@ header.pwa-title-bar,
   opacity: 0 !important;
   pointer-events: none !important;
   height: 0 !important;
+  min-height: 0 !important;
   max-height: 0 !important;
   overflow: hidden !important;
   margin: 0 !important;
   padding: 0 !important;
+  border: none !important;
+}
+
+/* Mobile & PWA Standalone Top Header Handling:
+   Ensure no top app bar or title bar obscures mobile viewports (< 1024px)
+   or blocks native pull-to-refresh gestures. */
+@media (max-width: 1023px) {
+  header.app-top-header-bar {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  html,
+  body,
+  main,
+  .student-page,
+  .student-page-narrow {
+    overscroll-behavior-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui), (display-mode: window-controls-overlay) {
+  html,
+  body {
+    overscroll-behavior-y: auto !important;
+    margin-top: 0 !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+  }
 }
 

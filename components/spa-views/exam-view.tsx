@@ -1637,7 +1637,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
               <p className="text-xs text-muted-foreground dark:text-zinc-400">{t("noCategoriesAvailable") || "No exam categories available"}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-3.5">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-3.5">
               {categories.map((category) => (
                 <div 
                   key={category.id}
@@ -1923,7 +1923,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
               ) : (
                 // Display all exams in consistent grid layout
                 <>
-                  <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3">
                     {categories.map((category) => (
                       <Card 
                         key={category.id}

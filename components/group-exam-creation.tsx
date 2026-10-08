@@ -268,9 +268,9 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
                       </button>
                     )}
                   </div>
-                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1">
                     {filteredCategories.length === 0 ? (
-                      <div className="text-center py-6 text-xs text-muted-foreground">
+                      <div className="col-span-full text-center py-6 text-xs text-muted-foreground">
                         {categorySearchQuery ? t("noResults") || "No categories found" : t("noCategoriesAvailable") || "No categories available"}
                       </div>
                     ) : (
@@ -280,35 +280,29 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
                           <div
                             key={category.id}
                             onClick={() => setSelectedCategory(category.id)}
-                            className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                            className={`p-3 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
                               isSelected
                                 ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/30"
                                 : "border-border/60 hover:bg-muted/40 hover:border-border"
                             }`}
                           >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-bold text-sm truncate text-foreground">{category.name}</p>
-                                {category.description && (
-                                  <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{category.description}</p>
-                                )}
-                                <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
-                                  <span className="flex items-center gap-1 font-medium">
-                                    <Clock className="h-3 w-3 text-primary" />
-                                    {category.duration_minutes ? `${category.duration_minutes} ${t("minutes") || "min"}` : `20 ${t("minutes") || "min"}`}
-                                  </span>
-                                  <span className="opacity-40">•</span>
-                                  <span className="flex items-center gap-1 font-medium">
-                                    <Hash className="h-3 w-3 text-primary" />
-                                    {category.question_count ?? 20} {t("questions") || "questions"}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 border ${
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-bold text-xs sm:text-sm line-clamp-2 text-foreground">{category.name}</p>
+                              <div className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 border ${
                                 isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30"
                               }`}>
-                                {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                                {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
                               </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-muted-foreground">
+                              <span className="flex items-center gap-1 font-medium">
+                                <Clock className="h-3 w-3 text-primary" />
+                                {category.duration_minutes ? `${category.duration_minutes}m` : "20m"}
+                              </span>
+                              <span className="flex items-center gap-1 font-medium">
+                                <Hash className="h-3 w-3 text-primary" />
+                                {category.question_count ?? 20}Q
+                              </span>
                             </div>
                           </div>
                         );

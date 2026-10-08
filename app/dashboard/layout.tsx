@@ -105,7 +105,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isExamInProgress = isExamActive;
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col bg-transparent overflow-x-clip" dir={isRTL ? "rtl" : "ltr"}>
+    <div className="min-h-[100dvh] w-full flex flex-col bg-transparent overflow-x-hidden" dir={isRTL ? "rtl" : "ltr"}>
       <GlobalGroupExamInvite />
       <FloatingHeader />
 
@@ -114,7 +114,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         className={`flex-1 w-full min-w-0 ${
           isExamInProgress || isFullBleedView
             ? "pt-0 pb-0"
-            : "pt-4 sm:pt-6 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-6"
+            : "pt-3 sm:pt-6 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-6"
         }`}
       >
         {children}

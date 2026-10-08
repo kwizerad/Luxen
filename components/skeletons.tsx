@@ -237,7 +237,7 @@ export function SettingsViewSkeleton() {
 
 export function ExamCategorySkeleton({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-in fade-in duration-200">
+    <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3 animate-in fade-in duration-200">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-muted/40 dark:bg-zinc-900/50 p-4 sm:p-5 space-y-3.5">
           <div className="flex items-center justify-between">

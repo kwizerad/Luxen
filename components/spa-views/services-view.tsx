@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
+import { Button } from "@/components/ui/button";
 import {
   getCachedServicesConfig,
   isGroupExamEnabled,
@@ -384,14 +385,21 @@ export function ServicesView({ navigate }: ServicesViewProps) {
                     </p>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-border/80 dark:border-zinc-800/80 flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase">
+                  <div className="mt-4 pt-3 border-t border-border/80 dark:border-zinc-800/80 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase hidden sm:inline-block">
                       {service.key}
                     </span>
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-foreground/80 dark:text-zinc-300 group-hover:text-primary transition-colors">
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(service.view);
+                      }}
+                      className={`w-full sm:w-auto h-9 sm:h-8 px-3.5 rounded-lg text-xs font-semibold gap-1.5 shadow-xs justify-between sm:justify-center transition-colors ${service.btnClass || "bg-primary hover:bg-primary/90 text-primary-foreground"}`}
+                    >
                       <span>{t(service.openLabelKey) || service.openFallback}</span>
-                      <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </div>
+                      <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    </Button>
                   </div>
                 </div>
               );
