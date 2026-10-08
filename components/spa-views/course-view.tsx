@@ -59,6 +59,7 @@ import { TopicNotes } from "@/components/topic-notes";
 import { TermLookupTooltip } from "@/components/course/term-lookup-tooltip";
 import { PlainLanguageCard, type PlainLanguageData } from "@/components/course/plain-language-card";
 import { AINeuralVoicePlayer } from "@/components/course/ai-neural-voice-player";
+import { markTTSDisabledForSession } from "@/components/course/question-tts-button";
 import { ModuleExamRunner, type ExamType } from "@/components/module-exam-runner";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -361,6 +362,46 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [isTTSOpen, setIsTTSOpen] = useState(false);
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
   const [isLoadingTTS, setIsLoadingTTS] = useState(false);
+  const [isTTSDisabled, setIsTTSDisabled] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return sessionStorage.getItem("luxen_tts_disabled") === "true";
+      } catch {}
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleDisabled = () => {
+      setIsTTSDisabled(true);
+      setIsTTSOpen(false);
+      setIsLoadingTTS(false);
+    };
+    const handleEnabled = () => {
+      setIsTTSDisabled(false);
+    };
+    window.addEventListener("luxen-tts-disabled", handleDisabled);
+    window.addEventListener("luxen-tts-enabled", handleEnabled);
+
+    const activeLang = translatedLang || learningLanguage || "English";
+    fetch(`/api/ai/tts?scope=learning&language=${encodeURIComponent(activeLang)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.enabled === false) {
+          setIsTTSDisabled(true);
+          setIsTTSOpen(false);
+          markTTSDisabledForSession();
+        } else if (data && data.enabled === true) {
+          setIsTTSDisabled(false);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      window.removeEventListener("luxen-tts-disabled", handleDisabled);
+      window.removeEventListener("luxen-tts-enabled", handleEnabled);
+    };
+  }, [learningLanguage, translatedLang]);
 
   // Instant In-Memory Caches (0ms response on revisit)
   const translationCacheRef = useRef<Map<string, { content: string; title: string }>>(new Map());
@@ -1207,11 +1248,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   // AI Neural Cloud Voice Player
   const handleToggleTTS = async () => {
+    if (isTTSDisabled) return;
+
     if (isTTSOpen && ttsAudioUrl) {
       setIsTTSOpen(false);
       return;
     }
-    setIsTTSOpen(true);
 
     const currentKey = currentItem?.type === "topic" ? currentTopic?.id : currentLesson?.id;
     if (!currentKey) return;
@@ -1221,10 +1263,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
     if (ttsCacheRef.current.has(cacheKey)) {
       setTtsAudioUrl(ttsCacheRef.current.get(cacheKey)!);
+      setIsTTSOpen(true);
       return;
     }
 
     setIsLoadingTTS(true);
+    setIsTTSOpen(true);
     try {
       const rawText = extractPlainText(translatedContent || currentContent);
       const res = await fetch("/api/ai/tts", {
@@ -1238,14 +1282,22 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           scope: "learning",
         }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to synthesize voice");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success || data.disabled || data.quotaExceeded || !data.audioUrl) {
+        // Do not show error message inside the course; automatically disable the TTS feature
+        setIsTTSOpen(false);
+        setTtsAudioUrl(null);
+        setIsTTSDisabled(true);
+        markTTSDisabledForSession();
+        return;
       }
       ttsCacheRef.current.set(cacheKey, data.audioUrl);
       setTtsAudioUrl(data.audioUrl);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to generate neural speech");
+    } catch {
+      setIsTTSOpen(false);
+      setTtsAudioUrl(null);
+      setIsTTSDisabled(true);
+      markTTSDisabledForSession();
     } finally {
       setIsLoadingTTS(false);
     }
@@ -2128,24 +2180,26 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           </button>
 
           {/* AI Neural Cloud Voice Player Toggle */}
-          <button
-            type="button"
-            onClick={handleToggleTTS}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
-              isTTSOpen
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-background hover:bg-muted text-muted-foreground border-border"
-            )}
-            title="Listen with AI Cloud Voice (Gemini Neural TTS)"
-          >
-            {isLoadingTTS ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Volume2 className="h-3.5 w-3.5" />
-            )}
-            <span className="hidden sm:inline">AI Voice</span>
-          </button>
+          {!isTTSDisabled && (
+            <button
+              type="button"
+              onClick={handleToggleTTS}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
+                isTTSOpen
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-background hover:bg-muted text-muted-foreground border-border"
+              )}
+              title="Listen with AI Cloud Voice (Gemini Neural TTS)"
+            >
+              {isLoadingTTS ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Volume2 className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden sm:inline">AI Voice</span>
+            </button>
+          )}
 
           {/* Distraction-Free Focus Mode Toggle */}
           <button
@@ -2391,7 +2445,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               </div>
 
               {/* AI Cloud Neural Voice Player (Gemini TTS) */}
-              {isTTSOpen && (
+              {isTTSOpen && !isTTSDisabled && (
                 <AINeuralVoicePlayer
                   audioUrl={ttsAudioUrl}
                   isLoading={isLoadingTTS}

@@ -4,10 +4,107 @@ import { pcmToWav } from "@/lib/ai/audio-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 import crypto from "crypto";
 
+function isQuotaError(error: any): boolean {
+  const status = error?.status || error?.code || error?.httpStatus || error?.response?.status;
+  if (status === 429 || status === "RESOURCE_EXHAUSTED") return true;
+  const msg = String(error?.message || error?.error?.message || error || "").toLowerCase();
+  return (
+    msg.includes("quota") ||
+    msg.includes("resource_exhausted") ||
+    msg.includes("rate limit") ||
+    msg.includes("rate_limit") ||
+    msg.includes("too many requests") ||
+    msg.includes("429") ||
+    msg.includes("limit") ||
+    msg.includes("exceeded") ||
+    msg.includes("billing") ||
+    msg.includes("insufficient")
+  );
+}
+
+async function disableTTSInSystemConfig(supabase: ReturnType<typeof createAdminClient>) {
+  try {
+    const now = new Date().toISOString();
+    const entries = [
+      { key: "tts_master_enabled", value: "false", description: "Master switch for Text-to-Speech audio (Auto-disabled on quota limit)" },
+      { key: "tts_learning_enabled", value: "false", description: "Enable or disable TTS inside course lessons" },
+      { key: "tts_exams_enabled", value: "false", description: "Enable or disable TTS in practice exams and questions" },
+      { key: "tts_gemini_neural_enabled", value: "false", description: "Master switch to enable or disable Gemini Neural AI TTS generation" },
+    ];
+    for (const item of entries) {
+      await supabase.from("system_config").upsert(
+        { key: item.key, value: item.value, description: item.description, updated_at: now },
+        { onConflict: "key" }
+      );
+    }
+  } catch (err) {
+    console.warn("Failed to auto-disable TTS in system_config:", err);
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const scope = searchParams.get("scope");
+    const language = searchParams.get("language") || "English";
+    const normLang =
+      language.toLowerCase().includes("kinya") || language === "rw"
+        ? "Kinyarwanda"
+        : language.toLowerCase().includes("fren") || language === "fr"
+        ? "French"
+        : "English";
+
+    const supabase = createAdminClient();
+    const { data: configRows } = await supabase
+      .from("system_config")
+      .select("key, value")
+      .in("key", [
+        "tts_master_enabled",
+        `tts_language_${normLang.toLowerCase()}_enabled`,
+        "tts_learning_enabled",
+        "tts_exams_enabled",
+        "tts_gemini_neural_enabled",
+      ]);
+
+    let masterEnabled = true;
+    let langEnabled = true;
+    let learningEnabled = true;
+    let examsEnabled = true;
+    let geminiNeuralEnabled = true;
+
+    if (configRows && configRows.length > 0) {
+      masterEnabled = configRows.find((r) => r.key === "tts_master_enabled")?.value !== "false";
+      langEnabled = configRows.find((r) => r.key === `tts_language_${normLang.toLowerCase()}_enabled`)?.value !== "false";
+      learningEnabled = configRows.find((r) => r.key === "tts_learning_enabled")?.value !== "false";
+      examsEnabled = configRows.find((r) => r.key === "tts_exams_enabled")?.value !== "false";
+      geminiNeuralEnabled = configRows.find((r) => r.key === "tts_gemini_neural_enabled")?.value !== "false";
+    }
+
+    let enabled = masterEnabled && langEnabled;
+    if (scope === "exam" && !examsEnabled) enabled = false;
+    if (scope === "learning" && !learningEnabled) enabled = false;
+
+    return NextResponse.json({
+      enabled,
+      masterEnabled,
+      langEnabled,
+      learningEnabled,
+      examsEnabled,
+      geminiNeuralEnabled,
+    });
+  } catch {
+    return NextResponse.json({ enabled: true });
+  }
+}
+
 export async function POST(req: NextRequest) {
+  const supabase = createAdminClient();
+  let scope: string | undefined;
+
   try {
     const body = await req.json();
-    const { text, entityId, language = "English", voice = "Kore", returnDataUrl = true, scope } = body;
+    const { text, entityId, language = "English", voice = "Kore", returnDataUrl = true } = body;
+    scope = body.scope;
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return NextResponse.json({ error: "Text is required for TTS generation" }, { status: 400 });
@@ -22,9 +119,9 @@ export async function POST(req: NextRequest) {
         ? "French"
         : "English";
 
-    const supabase = createAdminClient();
-
     // 1. Check system_config for TTS toggles
+    let geminiNeuralEnabled = true;
+    let geminiLangEnabled = true;
     try {
       const { data: configRows } = await supabase
         .from("system_config")
@@ -34,6 +131,8 @@ export async function POST(req: NextRequest) {
           `tts_language_${normLang.toLowerCase()}_enabled`,
           "tts_learning_enabled",
           "tts_exams_enabled",
+          "tts_gemini_neural_enabled",
+          `tts_gemini_${normLang.toLowerCase()}_enabled`,
         ]);
 
       if (configRows && configRows.length > 0) {
@@ -41,6 +140,8 @@ export async function POST(req: NextRequest) {
         const langEnabled = configRows.find((r) => r.key === `tts_language_${normLang.toLowerCase()}_enabled`)?.value !== "false";
         const learningEnabled = configRows.find((r) => r.key === "tts_learning_enabled")?.value !== "false";
         const examsEnabled = configRows.find((r) => r.key === "tts_exams_enabled")?.value !== "false";
+        geminiNeuralEnabled = configRows.find((r) => r.key === "tts_gemini_neural_enabled")?.value !== "false";
+        geminiLangEnabled = configRows.find((r) => r.key === `tts_gemini_${normLang.toLowerCase()}_enabled`)?.value !== "false";
 
         if (!masterEnabled) {
           return NextResponse.json(
@@ -136,6 +237,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (!geminiNeuralEnabled || !geminiLangEnabled) {
+      return NextResponse.json(
+        { error: "AI Neural Text-to-Speech is currently disabled.", disabled: true },
+        { status: 403 }
+      );
+    }
+
     const apiKey =
       process.env.GEMINI_API_KEY ||
       process.env.GOOGLE_AI_API_KEY ||
@@ -145,7 +253,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "GEMINI_API_KEY is not configured in your environment. Please add GEMINI_API_KEY in your Vercel Project Settings > Environment Variables or import recorded audio in Admin Settings.",
+            "GEMINI_API_KEY is not configured in your environment.",
+          disabled: true,
         },
         { status: 500 }
       );
@@ -191,7 +300,7 @@ export async function POST(req: NextRequest) {
 
     if (!rawPcmBase64) {
       return NextResponse.json(
-        { error: "No audio generated from neural model" },
+        { error: "No audio generated from neural model", disabled: scope === "exam" || scope === "learning" },
         { status: 502 }
       );
     }
@@ -265,6 +374,20 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("API /api/ai/tts error:", error);
     const msg = String(error?.message || "");
+    const quotaHit = isQuotaError(error);
+
+    if (quotaHit) {
+      await disableTTSInSystemConfig(supabase);
+      return NextResponse.json(
+        {
+          error: "TTS quota limit reached. Text-to-Speech has been automatically disabled.",
+          disabled: true,
+          quotaExceeded: true,
+        },
+        { status: 429 }
+      );
+    }
+
     let friendlyError = msg || "Internal error generating neural speech";
     if (
       msg.includes("unregistered callers") ||
@@ -275,7 +398,10 @@ export async function POST(req: NextRequest) {
         "GEMINI_API_KEY is missing, invalid, or unauthorized. Please verify your GEMINI_API_KEY in Vercel Project Settings > Environment Variables.";
     }
     return NextResponse.json(
-      { error: friendlyError },
+      {
+        error: friendlyError,
+        disabled: scope === "exam" || scope === "learning",
+      },
       { status: 500 }
     );
   }

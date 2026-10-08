@@ -41,6 +41,7 @@ import {
 import { getExamQuestions } from "@/lib/supabase/queries";
 import type { TTSConfig, ImportedTTSAudioRecord } from "@/lib/tts-config";
 import { DEFAULT_TTS_CONFIG } from "@/lib/tts-config";
+import { clearTTSDisabledForSession, markTTSDisabledForSession } from "@/components/course/question-tts-button";
 import type { ExamQuestion } from "@/lib/database.types";
 
 export function TTSManagementCard() {
@@ -124,6 +125,11 @@ export function TTSManagementCard() {
       setSavingSettings(true);
       const res = await saveTTSConfigAction(config);
       if (res.success) {
+        if (config.masterEnabled && (config.examsEnabled || config.learningEnabled)) {
+          clearTTSDisabledForSession();
+        } else if (!config.masterEnabled) {
+          markTTSDisabledForSession();
+        }
         toast.success("TTS settings updated successfully");
       } else {
         toast.error(res.error || "Failed to update TTS settings");

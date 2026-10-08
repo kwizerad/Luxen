@@ -1,13 +1,35 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Volume2, VolumeX, Loader2, Pause, Play } from "lucide-react";
+import { Volume2, Loader2, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 
 // Session memory cache to make re-listening during exams instant (0 ms latency)
 const ttsSessionCache = new Map<string, string>();
+let ttsSessionDisabled = false;
+let ttsStatusCheckedForLang = new Map<string, boolean>();
+
+export function markTTSDisabledForSession() {
+  ttsSessionDisabled = true;
+  if (typeof window !== "undefined") {
+    try {
+      sessionStorage.setItem("luxen_tts_disabled", "true");
+    } catch {}
+    window.dispatchEvent(new CustomEvent("luxen-tts-disabled"));
+  }
+}
+
+export function clearTTSDisabledForSession() {
+  ttsSessionDisabled = false;
+  ttsStatusCheckedForLang.clear();
+  if (typeof window !== "undefined") {
+    try {
+      sessionStorage.removeItem("luxen_tts_disabled");
+    } catch {}
+    window.dispatchEvent(new CustomEvent("luxen-tts-enabled"));
+  }
+}
 
 interface QuestionTTSButtonProps {
   text: string;
@@ -31,6 +53,15 @@ export function QuestionTTSButton({
   const { language: currentLangCode } = useLanguage();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDisabled, setIsDisabled] = useState<boolean>(() => {
+    if (ttsSessionDisabled) return true;
+    if (typeof window !== "undefined") {
+      try {
+        return sessionStorage.getItem("luxen_tts_disabled") === "true";
+      } catch {}
+    }
+    return false;
+  });
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Normalize language name
@@ -41,6 +72,48 @@ export function QuestionTTSButton({
       : langCode.toLowerCase().includes("fr") || langCode.toLowerCase().includes("fren")
       ? "French"
       : "English";
+
+  // Sync with global TTS disable/enable events and verify server TTS config
+  useEffect(() => {
+    const handleDisabled = () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setIsPlaying(false);
+      setIsLoading(false);
+      setIsDisabled(true);
+    };
+    const handleEnabled = () => {
+      setIsDisabled(false);
+    };
+
+    window.addEventListener("luxen-tts-disabled", handleDisabled);
+    window.addEventListener("luxen-tts-enabled", handleEnabled);
+
+    if (!ttsStatusCheckedForLang.has(targetLanguage)) {
+      ttsStatusCheckedForLang.set(targetLanguage, true);
+      fetch(`/api/ai/tts?scope=exam&language=${encodeURIComponent(targetLanguage)}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && data.enabled === false) {
+            markTTSDisabledForSession();
+          } else if (data && data.enabled === true) {
+            ttsSessionDisabled = false;
+            try {
+              sessionStorage.removeItem("luxen_tts_disabled");
+            } catch {}
+            setIsDisabled(false);
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      window.removeEventListener("luxen-tts-disabled", handleDisabled);
+      window.removeEventListener("luxen-tts-enabled", handleEnabled);
+    };
+  }, [targetLanguage]);
 
   // Cleanup when entityId changes (student switches questions)
   useEffect(() => {
@@ -62,8 +135,14 @@ export function QuestionTTSButton({
     };
   }, []);
 
+  if (isDisabled) {
+    return null;
+  }
+
   const handlePlayToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
+
+    if (isDisabled) return;
 
     // If already playing, stop
     if (isPlaying && audioRef.current) {
@@ -101,21 +180,17 @@ export function QuestionTTSButton({
           }),
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
-        if (!res.ok) {
-          if (data.disabled) {
-            toast.info(data.error || "Audio is disabled for this language.");
-          } else {
-            toast.error(data.error || "Could not play audio.");
-          }
+        if (!res.ok || data.disabled || data.quotaExceeded || !data.audioUrl) {
+          // Do not show any error message inside the exam; automatically disable TTS feature
+          markTTSDisabledForSession();
+          setIsDisabled(true);
           return;
         }
 
-        if (data.audioUrl) {
-          audioUrl = data.audioUrl;
-          ttsSessionCache.set(cacheKey, audioUrl!);
-        }
+        audioUrl = data.audioUrl;
+        ttsSessionCache.set(cacheKey, audioUrl!);
       }
 
       if (audioUrl) {
@@ -126,7 +201,6 @@ export function QuestionTTSButton({
         audioRef.current.onended = () => setIsPlaying(false);
         audioRef.current.onerror = () => {
           setIsPlaying(false);
-          toast.error("Audio playback error");
         };
 
         await audioRef.current.play();
@@ -134,7 +208,8 @@ export function QuestionTTSButton({
       }
     } catch (err: any) {
       console.warn("TTS fetch error:", err);
-      toast.error("Could not load audio narration");
+      markTTSDisabledForSession();
+      setIsDisabled(true);
     } finally {
       setIsLoading(false);
     }
