@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 
+// Session memory cache to make re-listening during exams instant (0 ms latency)
+const ttsSessionCache = new Map<string, string>();
+
 interface QuestionTTSButtonProps {
   text: string;
   entityId: string;
@@ -79,36 +82,47 @@ export function QuestionTTSButton({
       fullScript = `${text}. ${optionsText}`;
     }
 
+    const cacheKey = `${entityId}:${targetLanguage}:${fullScript}`;
+
     try {
-      setIsLoading(true);
+      let audioUrl = ttsSessionCache.get(cacheKey);
 
-      const res = await fetch("/api/ai/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityId,
-          text: fullScript,
-          language: targetLanguage,
-          scope: "exam",
-        }),
-      });
+      if (!audioUrl) {
+        setIsLoading(true);
 
-      const data = await res.json();
+        const res = await fetch("/api/ai/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            entityId,
+            text: fullScript,
+            language: targetLanguage,
+            scope: "exam",
+          }),
+        });
 
-      if (!res.ok) {
-        if (data.disabled) {
-          toast.info(data.error || "Audio is disabled for this language.");
-        } else {
-          toast.error(data.error || "Could not play audio.");
+        const data = await res.json();
+
+        if (!res.ok) {
+          if (data.disabled) {
+            toast.info(data.error || "Audio is disabled for this language.");
+          } else {
+            toast.error(data.error || "Could not play audio.");
+          }
+          return;
         }
-        return;
+
+        if (data.audioUrl) {
+          audioUrl = data.audioUrl;
+          ttsSessionCache.set(cacheKey, audioUrl!);
+        }
       }
 
-      if (data.audioUrl) {
+      if (audioUrl) {
         if (!audioRef.current) {
           audioRef.current = new Audio();
         }
-        audioRef.current.src = data.audioUrl;
+        audioRef.current.src = audioUrl;
         audioRef.current.onended = () => setIsPlaying(false);
         audioRef.current.onerror = () => {
           setIsPlaying(false);

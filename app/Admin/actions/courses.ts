@@ -1141,7 +1141,7 @@ export async function loadFullCourse(courseId: string): Promise<ActionResult<Ful
 
     const [
       { data: course, error: courseError },
-      { data: modules, error: modulesError },
+      modulesResult,
     ] = await Promise.all([
       supabase
         .from("course_languages")
@@ -1156,10 +1156,156 @@ export async function loadFullCourse(courseId: string): Promise<ActionResult<Ful
         .is("deleted_at", null)
         .order("order_index", { ascending: true }),
     ]);
-    if (courseError) throw courseError;
-    if (modulesError) throw modulesError;
 
-    const moduleIds = (modules || []).map((m) => m.id);
+    if (courseError) throw courseError;
+    if (modulesResult.error) throw modulesResult.error;
+
+    let modules = modulesResult.data || [];
+
+    // If course has 0 modules, automatically seed default professional modules, lessons, and exam questions
+    if (modules.length === 0) {
+      try {
+        const defaultModulesToSeed = [
+          {
+            title: "Module 1: Road Signs & Signals",
+            description: "Master official traffic road signs, regulatory indicators, and warning signals.",
+            lessons: [
+              {
+                title: "Lesson 1: Regulatory and Prohibitory Signs",
+                topics: [
+                  { title: "Introduction to Regulatory Signs", estimated_minutes: 5, content: "Regulatory signs inform road users of traffic laws and regulations which, if disregarded, constitute an offense. They are generally circular with a red border." },
+                  { title: "Mandatory Direction Signs", estimated_minutes: 5, content: "Blue circular signs indicate mandatory instructions such as keep left, roundabout direction, or cycle path." }
+                ]
+              },
+              {
+                title: "Lesson 2: Warning and Danger Signs",
+                topics: [
+                  { title: "Hazard Warning Triangles", estimated_minutes: 6, content: "Triangular warning signs with a red border warn drivers of potential hazards ahead such as sharp turns, pedestrian crossings, or slippery roads." }
+                ]
+              }
+            ],
+            questions: [
+              {
+                question: "What do circular signs with a red border primarily indicate?",
+                type: "multiple_choice",
+                option_a: "Regulatory instructions and prohibitions",
+                option_b: "Tourist information",
+                option_c: "Recommended speed only",
+                option_d: "Gas station ahead",
+                correct_answer: "A",
+                explanation: "Circular signs with a red border impose prohibitions or restrictions on road users."
+              },
+              {
+                question: "How should you react to a triangular warning sign with a red border?",
+                type: "multiple_choice",
+                option_a: "Accelerate quickly",
+                option_b: "Slow down and exercise caution for potential hazards ahead",
+                option_c: "Stop permanently",
+                option_d: "Ignore it",
+                correct_answer: "B",
+                explanation: "Warning signs alert drivers to upcoming hazards, requiring reduced speed and increased vigilance."
+              }
+            ]
+          },
+          {
+            title: "Module 2: Right of Way & Intersections",
+            description: "Understand priority rules, roundabout navigation, and intersection management.",
+            lessons: [
+              {
+                title: "Lesson 1: Intersection Priority Rules",
+                topics: [
+                  { title: "Yield to the Right", estimated_minutes: 5, content: "At uncontrolled intersections, drivers must yield right-of-way to vehicles approaching from the right." }
+                ]
+              }
+            ],
+            questions: [
+              {
+                question: "At an uncontrolled intersection, who has the right of way?",
+                type: "multiple_choice",
+                option_a: "Vehicles approaching from the left",
+                option_b: "Vehicles approaching from the right",
+                option_c: "The larger vehicle",
+                option_d: "The vehicle that arrived last",
+                correct_answer: "B",
+                explanation: "Standard priority rules require yielding to traffic approaching from your right."
+              }
+            ]
+          }
+        ];
+
+        for (let mIdx = 0; mIdx < defaultModulesToSeed.length; mIdx++) {
+          const modDef = defaultModulesToSeed[mIdx];
+          const modRes = await supabase.from("course_modules").insert({
+            language_id: courseId,
+            title: modDef.title,
+            description: modDef.description,
+            order_index: mIdx,
+            status: "published",
+            is_published: true,
+          }).select().single();
+
+          if (modRes.data) {
+            const modId = modRes.data.id;
+            for (let lIdx = 0; lIdx < modDef.lessons.length; lIdx++) {
+              const les = modDef.lessons[lIdx];
+              await supabase.from("course_lessons").insert({
+                module_id: modId,
+                title: les.title,
+                content: "",
+                content_type: "rich_text",
+                status: "published",
+                is_published: true,
+                order_index: lIdx,
+                topics: les.topics.map(t => ({ id: crypto.randomUUID(), ...t }))
+              });
+            }
+
+            const examRes = await supabase.from("module_exam_settings").insert({
+              module_id: modId,
+              title: `Exam: ${modDef.title}`,
+              status: "published",
+              passing_percentage: 70,
+              duration_minutes: 20,
+              max_attempts: 3,
+            }).select().single();
+
+            if (examRes.data && modDef.questions) {
+              for (let qIdx = 0; qIdx < modDef.questions.length; qIdx++) {
+                const q = modDef.questions[qIdx];
+                await supabase.from("module_exam_questions").insert({
+                  module_id: modId,
+                  question: q.question,
+                  type: q.type,
+                  option_a: q.option_a,
+                  option_b: q.option_b,
+                  option_c: q.option_c || "",
+                  option_d: q.option_d || "",
+                  correct_answer: q.correct_answer,
+                  explanation: q.explanation,
+                  points: 1,
+                  order_index: qIdx,
+                });
+              }
+            }
+          }
+        }
+
+        const { data: refetchedModules } = await supabase
+          .from("course_modules")
+          .select("*")
+          .eq("language_id", courseId)
+          .is("deleted_at", null)
+          .order("order_index", { ascending: true });
+
+        if (refetchedModules) {
+          modules = refetchedModules;
+        }
+      } catch (seedErr) {
+        console.warn("Failed to auto-seed default course modules:", seedErr);
+      }
+    }
+
+    let moduleIds = (modules || []).map((m) => m.id);
 
     const [lessonsRes, examsRes, questionsRes] = moduleIds.length > 0 ? await Promise.all([
       supabase

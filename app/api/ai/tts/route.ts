@@ -74,9 +74,42 @@ export async function POST(req: NextRequest) {
       console.warn("Could not check system_config TTS flags:", err);
     }
 
-    // 2. Check Supabase course_ai_cache for permanent audio storage (including imported human audio)
+    // 2. Check dedicated Supabase Storage bucket ("tts-audio") and course_ai_cache
+    const ttsBucket = "tts-audio";
+    const storagePath = `questions/${entityId || "general"}/${contentHash}_${normLang.toLowerCase()}.wav`;
+
+    // Ensure bucket exists or try to create it
+    try {
+      await supabase.storage.createBucket(ttsBucket, { public: true });
+    } catch {
+      // Bucket may already exist
+    }
+
     if (entityId) {
       try {
+        // Check if audio file already exists in Supabase Storage bucket
+        const { data: fileData, error: fileError } = await supabase.storage
+          .from(ttsBucket)
+          .download(storagePath);
+
+        if (!fileError && fileData) {
+          const { data: publicData } = supabase.storage
+            .from(ttsBucket)
+            .getPublicUrl(storagePath);
+
+          if (publicData?.publicUrl) {
+            return NextResponse.json({
+              success: true,
+              audioUrl: publicData.publicUrl,
+              fromStorageCache: true,
+              sampleRate: 24000,
+              voice,
+              language: normLang,
+            });
+          }
+        }
+
+        // Fallback to table cache check
         const { data: cached } = await supabase
           .from("course_ai_cache")
           .select("cached_data, content_hash")
@@ -85,7 +118,6 @@ export async function POST(req: NextRequest) {
           .eq("feature_type", "tts_audio")
           .maybeSingle();
 
-        // If audio exists and is imported OR content hasn't changed, return immediately
         if (cached?.cached_data?.audioUrl) {
           if (cached.cached_data.isImported || cached.content_hash === contentHash) {
             return NextResponse.json({
@@ -100,7 +132,7 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (err) {
-        console.warn("Error checking course_ai_cache:", err);
+        console.warn("Error checking Supabase Storage or cache:", err);
       }
     }
 
@@ -169,13 +201,34 @@ export async function POST(req: NextRequest) {
       audioBuffer.length >= 4 &&
       audioBuffer.toString("ascii", 0, 4) === "RIFF";
     const wavBuffer = isAlreadyWav ? audioBuffer : pcmToWav(audioBuffer, 24000, 1);
-    const wavBase64 = wavBuffer.toString("base64");
-    const audioUrl = `data:audio/wav;base64,${wavBase64}`;
+
+    // Upload WAV to dedicated Supabase Storage bucket "tts-audio"
+    let storageAudioUrl = `data:audio/wav;base64,${wavBuffer.toString("base64")}`;
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from(ttsBucket)
+        .upload(storagePath, wavBuffer, {
+          contentType: "audio/wav",
+          upsert: true,
+        });
+
+      if (!uploadError) {
+        const { data: publicData } = supabase.storage
+          .from(ttsBucket)
+          .getPublicUrl(storagePath);
+        if (publicData?.publicUrl) {
+          storageAudioUrl = publicData.publicUrl;
+        }
+      }
+    } catch (storageErr) {
+      console.warn("Failed to upload TTS audio to Supabase Storage bucket:", storageErr);
+    }
+
+    const audioUrl = storageAudioUrl;
 
     // 2. Persist to Supabase course_ai_cache so repeat listens are instant & free
     if (entityId) {
       try {
-        const supabase = createAdminClient();
         await supabase.from("course_ai_cache").upsert(
           {
             entity_id: entityId,

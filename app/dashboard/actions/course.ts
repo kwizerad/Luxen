@@ -30,8 +30,6 @@ export async function loadCourseByLanguage(
     .from("course_languages")
     .select("*")
     .eq("language", language)
-    .eq("status", "published")
-    .eq("is_published", true)
     .is("deleted_at", null)
     .order("order_index", { ascending: true })
     .limit(1)
@@ -46,14 +44,12 @@ export async function loadCourseByLanguage(
     .from("course_modules")
     .select("*, lessons:course_lessons(*)")
     .eq("language_id", courseData.id)
-    .eq("status", "published")
-    .eq("is_published", true)
     .is("deleted_at", null)
     .order("order_index", { ascending: true });
 
   if (modulesError || !modulesData) {
     console.error("Failed to load modules:", modulesError);
-    return { course: null };
+    return { course: { ...courseData, modules: [] } as CourseWithModules };
   }
 
   const typedModules = modulesData as Array<CourseModule & { lessons: CourseLesson[] }>;
@@ -69,27 +65,16 @@ export async function loadCourseByLanguage(
     (examSettings || []).forEach((es: ModuleExamSettings) => examSettingsMap.set(es.module_id, es));
   }
 
-  const modules: ModuleWithLessons[] = typedModules
-    .map((module) => {
-      const lessons = (module.lessons || [])
-        .filter(
-          (lesson) =>
-            !lesson.deleted_at &&
-            lesson.status === "published" &&
-            lesson.is_published !== false
-        )
-        .sort((a, b) => a.order_index - b.order_index);
-      return {
-        ...module,
-        lessons,
-        examSettings: examSettingsMap.get(module.id) || null,
-      };
-    })
-    .filter((module) => module.lessons.length > 0);
-
-  if (modules.length === 0) {
-    return { course: null };
-  }
+  const modules: ModuleWithLessons[] = typedModules.map((module) => {
+    const lessons = (module.lessons || [])
+      .filter((lesson) => !lesson.deleted_at)
+      .sort((a, b) => a.order_index - b.order_index);
+    return {
+      ...module,
+      lessons,
+      examSettings: examSettingsMap.get(module.id) || null,
+    };
+  });
 
   return {
     course: { ...courseData, modules } as CourseWithModules,
