@@ -7,10 +7,101 @@ import crypto from "crypto";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { text, entityId, language = "English", voice = "Kore", returnDataUrl = true } = body;
+    const { text, entityId, language = "English", voice = "Kore", returnDataUrl = true, scope } = body;
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return NextResponse.json({ error: "Text is required for TTS generation" }, { status: 400 });
+    }
+
+    const trimmedText = text.trim().slice(0, 2500);
+    const contentHash = crypto.createHash("md5").update(trimmedText).digest("hex");
+    const normLang =
+      language.toLowerCase().includes("kinya") || language === "rw"
+        ? "Kinyarwanda"
+        : language.toLowerCase().includes("fren") || language === "fr"
+        ? "French"
+        : "English";
+
+    const supabase = createAdminClient();
+
+    // 1. Check system_config for TTS toggles
+    try {
+      const { data: configRows } = await supabase
+        .from("system_config")
+        .select("key, value")
+        .in("key", [
+          "tts_master_enabled",
+          `tts_language_${normLang.toLowerCase()}_enabled`,
+          "tts_learning_enabled",
+          "tts_exams_enabled",
+        ]);
+
+      if (configRows && configRows.length > 0) {
+        const masterEnabled = configRows.find((r) => r.key === "tts_master_enabled")?.value !== "false";
+        const langEnabled = configRows.find((r) => r.key === `tts_language_${normLang.toLowerCase()}_enabled`)?.value !== "false";
+        const learningEnabled = configRows.find((r) => r.key === "tts_learning_enabled")?.value !== "false";
+        const examsEnabled = configRows.find((r) => r.key === "tts_exams_enabled")?.value !== "false";
+
+        if (!masterEnabled) {
+          return NextResponse.json(
+            { error: "Text-to-Speech is currently disabled by administrator.", disabled: true },
+            { status: 403 }
+          );
+        }
+
+        if (!langEnabled) {
+          return NextResponse.json(
+            { error: `Text-to-Speech for ${normLang} is currently disabled by administrator.`, disabled: true },
+            { status: 403 }
+          );
+        }
+
+        if (scope === "exam" && !examsEnabled) {
+          return NextResponse.json(
+            { error: "Text-to-Speech is currently disabled for exams.", disabled: true },
+            { status: 403 }
+          );
+        }
+
+        if (scope === "learning" && !learningEnabled) {
+          return NextResponse.json(
+            { error: "Text-to-Speech is currently disabled for learning courses.", disabled: true },
+            { status: 403 }
+          );
+        }
+      }
+    } catch (err) {
+      console.warn("Could not check system_config TTS flags:", err);
+    }
+
+    // 2. Check Supabase course_ai_cache for permanent audio storage (including imported human audio)
+    if (entityId) {
+      try {
+        const { data: cached } = await supabase
+          .from("course_ai_cache")
+          .select("cached_data, content_hash")
+          .eq("entity_id", entityId)
+          .eq("target_language", normLang)
+          .eq("feature_type", "tts_audio")
+          .maybeSingle();
+
+        // If audio exists and is imported OR content hasn't changed, return immediately
+        if (cached?.cached_data?.audioUrl) {
+          if (cached.cached_data.isImported || cached.content_hash === contentHash) {
+            return NextResponse.json({
+              success: true,
+              audioUrl: cached.cached_data.audioUrl,
+              fromCache: true,
+              isImported: Boolean(cached.cached_data.isImported),
+              sampleRate: 24000,
+              voice,
+              language: normLang,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Error checking course_ai_cache:", err);
+      }
     }
 
     const apiKey =
@@ -22,42 +113,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "GEMINI_API_KEY is not configured in your environment. Please add GEMINI_API_KEY in your Vercel Project Settings > Environment Variables.",
+            "GEMINI_API_KEY is not configured in your environment. Please add GEMINI_API_KEY in your Vercel Project Settings > Environment Variables or import recorded audio in Admin Settings.",
         },
         { status: 500 }
       );
-    }
-
-    // Limit length to ~2500 characters to keep synthesis snappy and responsive
-    const trimmedText = text.trim().slice(0, 2500);
-    const contentHash = crypto.createHash("md5").update(trimmedText).digest("hex");
-
-    // 1. Check Supabase course_ai_cache for permanent audio storage
-    if (entityId) {
-      try {
-        const supabase = createAdminClient();
-        const { data: cached } = await supabase
-          .from("course_ai_cache")
-          .select("cached_data, content_hash")
-          .eq("entity_id", entityId)
-          .eq("target_language", language)
-          .eq("feature_type", "tts_audio")
-          .maybeSingle();
-
-        // If content has not changed, return cached audio directly (0ms, 0 API cost)
-        if (cached && cached.content_hash === contentHash && cached.cached_data?.audioUrl) {
-          return NextResponse.json({
-            success: true,
-            audioUrl: cached.cached_data.audioUrl,
-            fromCache: true,
-            sampleRate: 24000,
-            voice,
-            language,
-          });
-        }
-      } catch (err) {
-        console.warn("Error checking course_ai_cache:", err);
-      }
     }
 
     const styleInstructions: Record<string, string> = {
@@ -105,8 +164,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const pcmBuffer = Buffer.from(rawPcmBase64, "base64");
-    const wavBuffer = pcmToWav(pcmBuffer, 24000, 1);
+    const audioBuffer = Buffer.from(rawPcmBase64, "base64");
+    const isAlreadyWav =
+      audioBuffer.length >= 4 &&
+      audioBuffer.toString("ascii", 0, 4) === "RIFF";
+    const wavBuffer = isAlreadyWav ? audioBuffer : pcmToWav(audioBuffer, 24000, 1);
     const wavBase64 = wavBuffer.toString("base64");
     const audioUrl = `data:audio/wav;base64,${wavBase64}`;
 
@@ -117,7 +179,7 @@ export async function POST(req: NextRequest) {
         await supabase.from("course_ai_cache").upsert(
           {
             entity_id: entityId,
-            target_language: language,
+            target_language: normLang,
             feature_type: "tts_audio",
             content_hash: contentHash,
             cached_data: { audioUrl, voice, updatedAt: new Date().toISOString() },

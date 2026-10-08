@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Settings2, Shield, ShieldCheck, ClipboardList, FileText, LayoutList, Globe, Users, Trophy, Database } from "lucide-react";
+import { Loader2, Settings2, Shield, ShieldCheck, ClipboardList, FileText, LayoutList, Globe, Users, Trophy, Database, Volume2 } from "lucide-react";
 import { getSystemConfig, updateSystemConfig, getServicesConfig } from "@/lib/supabase/queries";
 import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
@@ -1063,6 +1063,43 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           </Button>
         </CardContent>
       </Card>
+
+      {/* Text-to-Speech (TTS) banner */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 rounded-xl bg-indigo-500/20 text-indigo-400 shrink-0">
+            <Volume2 className="h-5 w-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-foreground">
+              Text-to-Speech (TTS) Voice & Custom Audio
+            </h4>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Toggle Gemini Neural AI voice per language (Kinyarwanda, English, French) or import recorded native audio files.
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          onClick={() => {
+            const ttsTabBtn = document.querySelector<HTMLButtonElement>('[data-tab="tts"]');
+            if (ttsTabBtn) {
+              ttsTabBtn.click();
+            } else {
+              const url = new URL(window.location.href);
+              url.searchParams.set("tab", "tts");
+              window.history.pushState({}, "", url.toString());
+              window.location.reload();
+            }
+          }}
+          className="rounded-xl border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/15 shrink-0"
+        >
+          <Volume2 className="h-4 w-4 mr-2" />
+          Configure TTS
+        </Button>
+      </div>
 
       {/* Interface Language Toggles */}
       <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">

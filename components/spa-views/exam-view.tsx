@@ -27,6 +27,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ExamReview } from "@/components/exam-review";
 import { ExamChoiceScreen } from "@/components/exam-choice-screen";
 import { ExamInstructionsView } from "@/components/exam-instructions-view";
+import { QuestionTTSButton } from "@/components/course/question-tts-button";
 import { GroupExamCreation } from "@/components/group-exam-creation";
 import { GroupExamLobby } from "@/components/group-exam-lobby";
 import { GroupExamResults } from "@/components/group-exam-results";
@@ -2227,7 +2228,14 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                       onTouchEnd={onTouchEnd}
                     >
                       {activeQuestion.question && (
-                        <div className="text-base sm:text-lg font-medium">{activeQuestion.question}</div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="text-base sm:text-lg font-medium flex-1">{activeQuestion.question}</div>
+                          <QuestionTTSButton
+                            entityId={activeQuestion.id}
+                            text={activeQuestion.question}
+                            className="shrink-0 mt-0.5"
+                          />
+                        </div>
                       )}
                       {activeQuestion.question_image && (
                         <SmartImage src={activeQuestion.question_image} alt={t("question")} width={800} height={600} className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg" />

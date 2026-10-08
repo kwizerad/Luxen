@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/image-upload";
-import { FileText, Edit, Trash2, Loader2, Search, ArrowLeft, Image as ImageIcon, AlertTriangle, Eye, Lock, CheckSquare, Square, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { FileText, Edit, Trash2, Loader2, Search, ArrowLeft, Image as ImageIcon, AlertTriangle, Eye, Lock, CheckSquare, Square, ArrowUpDown, ArrowUp, ArrowDown, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { Watermark } from "@/components/watermark";
 import { useBrandingConfig } from "@/lib/branding-config";
@@ -23,6 +23,7 @@ import { useAdminSpa } from "@/lib/admin-spa-router";
 import type { ExamCategory, ExamQuestion } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-utils";
+import { QuestionTTSButton } from "@/components/course/question-tts-button";
 import { isAdmin, hasReadWriteQuestionAccess, hasReadOnlyQuestionAccess } from "@/lib/permissions";
 import { getExamCategories, getExamQuestions, updateExamQuestion, deleteExamQuestion } from "@/lib/supabase/queries";
 
@@ -409,6 +410,15 @@ export default function QuestionManagementPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => navigateAdmin("/Admin/settings")}
+            className="rounded-xl bg-indigo-500/10 border-indigo-500/25 text-indigo-400 hover:bg-indigo-500/20"
+          >
+            <Volume2 className="h-4 w-4 mr-2" />
+            TTS Audio & Imports
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => navigateAdmin("/Admin/exams")}
             className="rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
           >
@@ -562,7 +572,16 @@ export default function QuestionManagementPage() {
                       />
                     </div>
                   )}
-                  <p className="text-base">{viewingQuestion.question}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-base flex-1">{viewingQuestion.question}</p>
+                    {viewingQuestion.question && (
+                      <QuestionTTSButton
+                        entityId={viewingQuestion.id}
+                        text={viewingQuestion.question}
+                        className="shrink-0"
+                      />
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -973,13 +992,23 @@ export default function QuestionManagementPage() {
                             <span className="text-xs">{t("viewImage")}</span>
                           </button>
                         ) : (
-                          <button
-                            onClick={() => handleViewQuestion(q)}
-                            className="text-sm truncate max-w-[150px] text-left hover:text-primary transition-colors"
-                            title={q.question || ""}
-                          >
-                            {q.question || "-"}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleViewQuestion(q)}
+                              className="text-sm truncate max-w-[140px] text-left hover:text-primary transition-colors flex-1"
+                              title={q.question || ""}
+                            >
+                              {q.question || "-"}
+                            </button>
+                            {q.question && (
+                              <QuestionTTSButton
+                                entityId={q.id}
+                                text={q.question}
+                                size="icon"
+                                className="h-6 w-6 shrink-0"
+                              />
+                            )}
+                          </div>
                         )}
                       </div>
                     </TableCell>

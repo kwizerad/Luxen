@@ -125,6 +125,11 @@ export async function generateMetadata(): Promise<Metadata> {
         { url: logoUrl || "/icons/icon-180x180.png", media: "(device-width: 375px)" },
       ],
     },
+    other: {
+      "mobile-web-app-capable": "yes",
+      "apple-mobile-web-app-capable": "yes",
+      "apple-mobile-web-app-status-bar-style": "black-translucent",
+    },
     formatDetection: {
       telephone: false,
     },

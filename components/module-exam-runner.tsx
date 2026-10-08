@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useExamSecurity } from "@/hooks/use-exam-security";
+import { QuestionTTSButton } from "@/components/course/question-tts-button";
 import {
   getModuleExamForTaking,
   getMidtermExamForTaking,
@@ -862,7 +863,14 @@ export function ModuleExamRunner({
                       <SmartImage src={activeQuestion.question_image} alt={t("question") || "Question"} className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg border" />
                     )}
                     {activeQuestion.question && (
-                      <div className="text-sm sm:text-base font-medium">{activeQuestion.question}</div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="text-sm sm:text-base font-medium flex-1">{activeQuestion.question}</div>
+                        <QuestionTTSButton
+                          entityId={activeQuestion.id}
+                          text={activeQuestion.question}
+                          className="shrink-0 mt-0.5"
+                        />
+                      </div>
                     )}
 
                     {(() => {

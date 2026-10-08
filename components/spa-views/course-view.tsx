@@ -1235,6 +1235,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           entityId: currentKey,
           language: activeLang,
           voice: activeLang === "French" ? "Charon" : "Kore",
+          scope: "learning",
         }),
       });
       const data = await res.json();

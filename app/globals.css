@@ -76,6 +76,7 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: none;
     overflow-x: clip;
     width: 100%;
     max-width: 100%;

@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, User, Palette, ImageIcon, Settings2, Shield, Globe, LayoutList, ClipboardList, ChevronRight, Monitor } from "lucide-react";
+import { Mail, User, Palette, ImageIcon, Settings2, Shield, Globe, LayoutList, ClipboardList, ChevronRight, Monitor, Volume2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import UserSettings from "@/components/user-settings";
 import { ThemeCustomizer } from "@/components/theme-customizer";
 import { BrandingCustomizer } from "@/components/branding-customizer";
 import { SystemConfigSettings } from "@/components/system-config";
+import { TTSManagementCard } from "@/components/admin/tts-management-card";
 import { Loader2 } from "lucide-react";
 import { ADMIN_CREDENTIALS } from "@/lib/admin-config";
 import Link from "next/link";
@@ -73,6 +74,12 @@ export default function AdminSettingsPage() {
       setReadOnly(!canWrite(permUser, "settings"));
       if (!canReadSettings) {
         setActiveTab("account");
+      } else if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get("tab");
+        if (tabParam && ["account", "appearance", "exam", "languages", "tts", "services"].includes(tabParam)) {
+          setActiveTab(tabParam);
+        }
       }
       setLoading(false);
     };
@@ -90,6 +97,7 @@ export default function AdminSettingsPage() {
         { id: "appearance", label: t("appearance") || "Appearance", icon: <Palette className="h-4 w-4" /> },
         { id: "exam", label: t("examSettings") || "Exam Settings", icon: <ClipboardList className="h-4 w-4" /> },
         { id: "languages", label: t("languages") || "Languages", icon: <Globe className="h-4 w-4" /> },
+        { id: "tts", label: "Text-to-Speech (TTS)", icon: <Volume2 className="h-4 w-4" /> },
         { id: "services", label: t("servicesSettings") || "Services", icon: <LayoutList className="h-4 w-4" /> },
       ]
     : [
@@ -131,6 +139,7 @@ export default function AdminSettingsPage() {
           {settingsSections.map((section) => (
             <button
               key={section.id}
+              data-tab={section.id}
               onClick={() => setActiveTab(section.id)}
               className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === section.id
@@ -155,6 +164,7 @@ export default function AdminSettingsPage() {
             {settingsSections.map((section) => (
               <button
                 key={section.id}
+                data-tab={section.id}
                 onClick={() => setActiveTab(section.id)}
                 className={`w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all cursor-pointer ${
                   activeTab === section.id
@@ -280,6 +290,8 @@ export default function AdminSettingsPage() {
               {hasSettingsPerm && activeTab === "exam" && <SystemConfigSettings filter="exam" />}
 
               {hasSettingsPerm && activeTab === "languages" && <SystemConfigSettings filter="languages" />}
+
+              {hasSettingsPerm && activeTab === "tts" && <TTSManagementCard />}
 
               {hasSettingsPerm && activeTab === "services" && <SystemConfigSettings filter="services" />}
             </motion.div>
