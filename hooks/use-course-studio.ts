@@ -164,7 +164,11 @@ export function useCourseStudio(initialCourseId?: string) {
     data: courses,
     error: coursesError,
     isLoading: coursesLoading,
-  } = useSWR<Course[]>(COURSES_KEY, fetchCourses);
+  } = useSWR<Course[]>(COURSES_KEY, fetchCourses, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    keepPreviousData: true,
+  });
 
   const {
     data: serverCourse,
@@ -172,7 +176,12 @@ export function useCourseStudio(initialCourseId?: string) {
     isLoading: courseLoading,
     mutate: mutateCourse,
   } = useSWR<Course>(selectedCourseId ? courseKey(selectedCourseId) : null, () =>
-    fetchFullCourse(selectedCourseId)
+    fetchFullCourse(selectedCourseId),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      keepPreviousData: true,
+    }
   );
 
   const serverCourseRef = useRef<Course | undefined>(serverCourse);

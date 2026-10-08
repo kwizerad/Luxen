@@ -2939,3 +2939,19 @@ html.dark .admin-portal .prose th,
   background: transparent !important;
   border: none !important;
 }
+
+/* PWA Minimal-UI Title Bar & Browser-Injected Header Hide in Mobile Viewports */
+@media (max-width: 768px) {
+  .pwa-minimal-ui-titlebar,
+  .browser-header-container,
+  [data-pwa-titlebar],
+  header.pwa-title-bar,
+  .pwa-titlebar-container,
+  .pwa-header-container,
+  [class*="pwa-title"],
+  [class*="browser-header"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+

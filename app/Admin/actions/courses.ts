@@ -1161,7 +1161,7 @@ export async function loadFullCourse(courseId: string): Promise<ActionResult<Ful
 
     const moduleIds = (modules || []).map((m) => m.id);
 
-    const [lessonsRes, examsRes, questionsRes] = await Promise.all([
+    const [lessonsRes, examsRes, questionsRes] = moduleIds.length > 0 ? await Promise.all([
       supabase
         .from("course_lessons")
         .select("*")
@@ -1179,7 +1179,7 @@ export async function loadFullCourse(courseId: string): Promise<ActionResult<Ful
         .in("module_id", moduleIds)
         .is("deleted_at", null)
         .order("order_index", { ascending: true }),
-    ]);
+    ]) : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
 
     if (lessonsRes.error) throw lessonsRes.error;
     if (examsRes.error) throw examsRes.error;
