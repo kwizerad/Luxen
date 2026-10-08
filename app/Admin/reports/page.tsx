@@ -75,16 +75,6 @@ export default function AdminReportsPage() {
     }
   };
 
-  if (selectedReport) {
-    return (
-      <div className="space-y-4 max-w-[1400px] mx-auto px-2 sm:px-4 pb-20">
-        <div className="admin-card p-4 sm:p-6 border border-[var(--admin-border)]">
-          <ReportThread reportId={selectedReport} onBack={() => setSelectedReport(null)} />
-        </div>
-      </div>
-    );
-  }
-
   const statusColors: Record<string, string> = {
     pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
     reviewing: "bg-sky-500/15 text-sky-400 border-sky-500/30",
@@ -103,6 +93,16 @@ export default function AdminReportsPage() {
       return matchesSearch && matchesStatus;
     });
   }, [reports, search, statusFilter]);
+
+  if (selectedReport) {
+    return (
+      <div className="space-y-4 max-w-[1400px] mx-auto px-2 sm:px-4 pb-20">
+        <div className="admin-card p-4 sm:p-6 border border-[var(--admin-border)]">
+          <ReportThread reportId={selectedReport} onBack={() => setSelectedReport(null)} />
+        </div>
+      </div>
+    );
+  }
 
   const totalReports = reports.length;
   const pendingCount = reports.filter((r) => r.status === "pending").length;

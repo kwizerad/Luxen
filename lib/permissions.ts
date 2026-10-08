@@ -82,7 +82,9 @@ export const PERMISSION_SECTIONS: { key: PermissionKey; labelKey: string }[] = [
   { key: "drivers", labelKey: "permDrivers" },
 ];
 
-export const STUDENT_ONLY_EMAILS: string[] = [];
+export const STUDENT_ONLY_EMAILS: string[] = [
+  "kwizeradiementwari@gmail.com",
+];
 
 export function isStrictlyStudentEmail(email?: string | null): boolean {
   if (!email) return false;
@@ -98,8 +100,7 @@ export function isPrimaryAdmin(user: User | null): boolean {
   if (isStrictlyStudentEmail(emailLower)) return false;
   return (
     emailLower === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
-    emailLower === "navo@admin.jn" ||
-    emailLower === "kwizeradiementwari@gmail.com"
+    emailLower === "navo@admin.jn"
   );
 }
 

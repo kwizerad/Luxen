@@ -18,6 +18,7 @@ import { UserPlus, Mail, Trash2, Edit, Loader2, Shield, CheckCircle2 } from "luc
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import { PermissionsMatrix } from "./permissions-matrix";
+import { AdminSendEmailModal, type EmailRecipient } from "@/components/admin/admin-send-email-modal";
 import {
   NO_PERMISSIONS,
   type AdminPermissions,
@@ -51,6 +52,9 @@ export function AdminRegistrationPanel() {
   // Remove state
   const [removingAdmin, setRemovingAdmin] = useState<AdminListItem | null>(null);
   const [removeLoading, setRemoveLoading] = useState(false);
+
+  // Email state
+  const [emailingAdmin, setEmailingAdmin] = useState<EmailRecipient | null>(null);
 
   const loadAdmins = useCallback(async () => {
     setLoading(true);
@@ -276,6 +280,22 @@ export function AdminRegistrationPanel() {
                   <Badge variant="outline" className="text-xs">
                     {getPermissionSummary(admin.permissions)}
                   </Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    title="Send Email Message"
+                    onClick={() =>
+                      setEmailingAdmin({
+                        id: admin.id,
+                        email: admin.email,
+                        full_name: admin.full_name,
+                        username: admin.username,
+                        role: "Admin",
+                      })
+                    }
+                  >
+                    <Mail className="h-4 w-4 text-primary" />
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => handleEditOpen(admin)}>
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -360,6 +380,12 @@ export function AdminRegistrationPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AdminSendEmailModal
+        open={Boolean(emailingAdmin)}
+        onOpenChange={(open) => !open && setEmailingAdmin(null)}
+        recipient={emailingAdmin}
+      />
     </div>
   );
 }

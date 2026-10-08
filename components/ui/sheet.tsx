@@ -56,30 +56,26 @@ const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
-  <SheetPrimitive.Overlay ref={ref} asChild forceMount {...props}>
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className={cn(
-        "fixed inset-0 z-50 bg-black/40 dark:bg-black/80 backdrop-blur-xs",
-        className
-      )}
-    />
-  </SheetPrimitive.Overlay>
+  <SheetPrimitive.Overlay
+    className={cn(
+      "fixed inset-0 z-50 bg-black/40 dark:bg-black/80 backdrop-blur-xs data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props}
+    ref={ref}
+  />
 ))
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-background/95 dark:bg-background backdrop-blur-xl p-6 shadow-2xl transform-gpu",
+  "fixed z-50 gap-4 bg-background/95 dark:bg-background backdrop-blur-xl p-6 shadow-2xl transform-gpu transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:duration-300",
   {
     variants: {
       side: {
-        top: "inset-x-0 top-0 border-b",
-        bottom: "inset-x-0 bottom-0 border-t",
-        left: "inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
-        right: "inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-2xl",
+        top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+        bottom: "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+        left: "inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
+        right: "inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-2xl data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
       },
     },
     defaultVariants: {
@@ -90,55 +86,31 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  hideCloseButton?: boolean;
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => {
-  const ctx = React.useContext(SheetAnimationContext)
-  const isOpen = ctx ? ctx.open : true
-
-  const slideOffsets = {
-    top: { initial: { y: "-100%", opacity: 0.8 }, animate: { y: 0, opacity: 1 }, exit: { y: "-100%", opacity: 0.8 } },
-    bottom: { initial: { y: "100%", opacity: 0.8 }, animate: { y: 0, opacity: 1 }, exit: { y: "100%", opacity: 0.8 } },
-    left: { initial: { x: "-100%", opacity: 0.8 }, animate: { x: 0, opacity: 1 }, exit: { x: "-100%", opacity: 0.8 } },
-    right: { initial: { x: "100%", opacity: 0.8 }, animate: { x: 0, opacity: 1 }, exit: { x: "100%", opacity: 0.8 } },
-  }[side || "right"]
-
+>(({ side = "right", className, children, hideCloseButton, ...props }, ref) => {
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <SheetPortal forceMount>
-          <SheetOverlay />
-          <SheetPrimitive.Content
-            ref={ref}
-            asChild
-            forceMount
-            {...props}
-          >
-            <motion.div
-              initial={slideOffsets.initial}
-              animate={slideOffsets.animate}
-              exit={slideOffsets.exit}
-              transition={{
-                type: "spring",
-                damping: 30,
-                stiffness: 320,
-                mass: 0.85,
-              }}
-              className={cn(sheetVariants({ side }), className)}
-            >
-              {children}
-              <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </SheetPrimitive.Close>
-            </motion.div>
-          </SheetPrimitive.Content>
-        </SheetPortal>
-      )}
-    </AnimatePresence>
+    <SheetPortal>
+      <SheetOverlay />
+      <SheetPrimitive.Content
+        ref={ref}
+        className={cn(sheetVariants({ side }), className)}
+        {...props}
+      >
+        {children}
+        {!hideCloseButton && (
+          <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </SheetPrimitive.Close>
+        )}
+      </SheetPrimitive.Content>
+    </SheetPortal>
   )
 })
 SheetContent.displayName = SheetPrimitive.Content.displayName

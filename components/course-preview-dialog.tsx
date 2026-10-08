@@ -460,132 +460,152 @@ export function CoursePreviewDialog({
     if (!fullCourse) return null;
 
     return (
-      <div className="flex flex-col h-full border-r border-[var(--admin-border)] bg-[var(--admin-input-bg)]">
-        <div className="p-3 border-b border-[var(--admin-border)]">
-          <div className="text-xs font-semibold text-[var(--admin-text)] truncate">
-            {t("courseContent") || "Course Content"}
-          </div>
-          <div className="text-[10px] text-[var(--admin-muted)] truncate">
-            {course.title}
-          </div>
+      <div className="flex flex-col h-full w-full overflow-hidden border-r border-border/80 bg-muted/20 dark:bg-zinc-900/60">
+        <div className="px-4 py-3.5 border-b border-border/80 bg-background/60 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedModuleId(null);
+              setSelectedLessonId(null);
+              setSelectedTopicId(null);
+              setSelectedExam(false);
+            }}
+            className="w-full text-left group"
+          >
+            <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground group-hover:text-primary transition-colors">
+              {t("courseContent") || "Course Curriculum"}
+            </div>
+            <div className="text-sm font-semibold text-foreground truncate mt-0.5">
+              {course.title}
+            </div>
+          </button>
         </div>
-        <ScrollArea className="flex-1 -mr-2">
-          <div className="p-2 space-y-1">
-            {fullCourse.modules.map((mod, modIdx) => {
-              const isModSelected = selectedModuleId === mod.module.id;
-              return (
-                <div key={mod.module.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectModule(mod.module.id)}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-1.5">
+          {fullCourse.modules.map((mod, modIdx) => {
+            const isModSelected = selectedModuleId === mod.module.id;
+            return (
+              <div key={mod.module.id} className="rounded-xl border border-transparent">
+                <button
+                  type="button"
+                  onClick={() => handleSelectModule(mod.module.id)}
+                  title={`${t("module") || "Module"} ${modIdx + 1}: ${mod.module.title}`}
+                  className={cn(
+                    "w-full flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-xs text-left transition-all",
+                    isModSelected
+                      ? "bg-primary/15 text-primary font-semibold border border-primary/30 shadow-xs"
+                      : "text-foreground/90 hover:bg-muted/70"
+                  )}
+                >
+                  <Layers className="h-4 w-4 flex-shrink-0 mt-0.5 text-primary" />
+                  <span className="flex-1 min-w-0 break-words line-clamp-2 leading-snug">
+                    {t("module") || "Module"} {modIdx + 1}: {mod.module.title}
+                  </span>
+                  <ChevronRight
                     className={cn(
-                      "w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-left transition-colors",
-                      isModSelected
-                        ? "bg-[var(--admin-primary)]/15 text-[var(--admin-primary)] font-medium"
-                        : "text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+                      "h-3.5 w-3.5 flex-shrink-0 mt-0.5 transition-transform duration-200",
+                      isModSelected ? "rotate-90 text-primary" : "text-muted-foreground"
                     )}
-                  >
-                    <Layers className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="flex-1 truncate">
-                      {t("module") || "Module"} {modIdx + 1}: {mod.module.title}
-                    </span>
-                    <ChevronRight
-                      className={cn(
-                        "h-3 w-3 flex-shrink-0 transition-transform",
-                        isModSelected ? "rotate-90" : ""
-                      )}
-                    />
-                  </button>
+                  />
+                </button>
 
-                  {isModSelected && (
-                    <div className="ml-4 pl-2 border-l border-[var(--admin-border)] space-y-0.5 mt-1">
-                      {mod.lessons.map((lesson) => {
-                        const isLessonSelected = selectedLessonId === lesson.id;
-                        return (
-                          <div key={lesson.id}>
-                            <button
-                              type="button"
-                              onClick={() => handleSelectLesson(lesson.id)}
-                              className={cn(
-                                "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-left transition-colors",
-                                isLessonSelected && !selectedTopicId
-                                  ? "bg-[var(--admin-primary)]/10 text-[var(--admin-primary)] font-medium"
-                                  : "text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
-                              )}
-                            >
-                              <FileText className="h-3 w-3 flex-shrink-0" />
-                              <span className="flex-1 truncate">{lesson.title}</span>
-                            </button>
+                {isModSelected && (
+                  <div className="ml-3.5 pl-3 border-l-2 border-border/70 space-y-1 mt-1.5 mb-2">
+                    {mod.lessons.map((lesson) => {
+                      const isLessonSelected = selectedLessonId === lesson.id;
+                      return (
+                        <div key={lesson.id} className="space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectLesson(lesson.id)}
+                            title={lesson.title}
+                            className={cn(
+                              "w-full flex items-start gap-2 px-2.5 py-2 rounded-lg text-xs text-left transition-all",
+                              isLessonSelected && !selectedTopicId
+                                ? "bg-primary/12 text-foreground font-semibold border border-primary/25"
+                                : isLessonSelected
+                                ? "text-foreground font-medium bg-muted/40"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                            )}
+                          >
+                            <FileText className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-primary/80" />
+                            <span className="flex-1 min-w-0 break-words line-clamp-2 leading-snug">
+                              {lesson.title}
+                            </span>
+                          </button>
 
-                            {isLessonSelected && (
-                              <div className="ml-4 pl-2 border-l border-[var(--admin-border)] space-y-0.5 mt-0.5">
-                                {(() => {
-                                  const topics = parseTopics(lesson.topics);
-                                  if (topics.length === 0) return null;
-                                  return (
-                                    <>
+                          {isLessonSelected && (
+                            <div className="ml-3 pl-2.5 border-l border-border/60 space-y-1 py-0.5">
+                              {(() => {
+                                const topics = parseTopics(lesson.topics);
+                                if (topics.length === 0) return null;
+                                return (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedTopicId(null)}
+                                      className={cn(
+                                        "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px] text-left transition-all",
+                                        !selectedTopicId
+                                          ? "bg-primary/15 text-foreground font-semibold border border-primary/30"
+                                          : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                                      )}
+                                    >
+                                      <BookOpen className="h-3 w-3 flex-shrink-0 text-primary" />
+                                      <span className="flex-1 min-w-0 truncate">
+                                        {t("introduction") || "Introduction"}
+                                      </span>
+                                    </button>
+                                    {topics.map((topic) => (
                                       <button
+                                        key={topic.id}
                                         type="button"
-                                        onClick={() => setSelectedTopicId(null)}
+                                        onClick={() => handleSelectTopic(topic.id)}
+                                        title={topic.title}
                                         className={cn(
-                                          "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[10px] text-left transition-colors",
-                                          !selectedTopicId
-                                            ? "bg-[var(--admin-primary)]/15 text-slate-900 dark:text-slate-100 font-semibold border border-[var(--admin-primary)]/40 shadow-xs"
-                                            : "text-[var(--admin-muted)] hover:bg-[var(--admin-hover-bg)]"
+                                          "w-full flex items-start gap-2 px-2.5 py-1.5 rounded-md text-[11px] text-left transition-all",
+                                          selectedTopicId === topic.id
+                                            ? "bg-primary/15 text-foreground font-semibold border border-primary/30"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                                         )}
                                       >
-                                        <BookOpen className="h-3 w-3 flex-shrink-0 text-[var(--admin-primary)]" />
-                                        <span className="flex-1 truncate">
-                                          {t("introduction") || "Introduction"}
+                                        <Circle className="h-2.5 w-2.5 flex-shrink-0 mt-1 text-primary" />
+                                        <span className="flex-1 min-w-0 break-words line-clamp-2 leading-snug">
+                                          {topic.title}
                                         </span>
                                       </button>
-                                      {topics.map((topic) => (
-                                        <button
-                                          key={topic.id}
-                                          type="button"
-                                          onClick={() => handleSelectTopic(topic.id)}
-                                          className={cn(
-                                            "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[10px] text-left transition-colors",
-                                            selectedTopicId === topic.id
-                                              ? "bg-[var(--admin-primary)]/15 text-slate-900 dark:text-slate-100 font-semibold border border-[var(--admin-primary)]/40 shadow-xs"
-                                              : "text-[var(--admin-muted)] hover:bg-[var(--admin-hover-bg)]"
-                                          )}
-                                        >
-                                          <Circle className="h-2.5 w-2.5 flex-shrink-0 text-[var(--admin-primary)]" />
-                                          <span className="flex-1 truncate">{topic.title}</span>
-                                        </button>
-                                      ))}
-                                    </>
-                                  );
-                                })()}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      {mod.exam && (
-                        <button
-                          type="button"
-                          onClick={handleSelectExam}
-                          className={cn(
-                            "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-left transition-colors",
-                            selectedExam
-                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-medium"
-                              : "text-[var(--admin-muted)] hover:bg-[var(--admin-hover-bg)]"
+                                    ))}
+                                  </>
+                                );
+                              })()}
+                            </div>
                           )}
-                        >
-                          <Trophy className="h-3 w-3 flex-shrink-0" />
-                          <span className="flex-1 truncate">{mod.exam.title || t("moduleExam") || "Module Exam"}</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </ScrollArea>
+                        </div>
+                      );
+                    })}
+
+                    {mod.exam && (
+                      <button
+                        type="button"
+                        onClick={handleSelectExam}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-left transition-all",
+                          selectedExam
+                            ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold border border-amber-500/30"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        )}
+                      >
+                        <Trophy className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" />
+                        <span className="flex-1 min-w-0 truncate">
+                          {mod.exam.title || t("moduleExam") || "Module Exam"}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -806,42 +826,73 @@ export function CoursePreviewDialog({
       : lessonTime(lesson);
 
     return (
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs text-[var(--admin-muted)] flex-wrap">
-            <BookOpen className="h-3.5 w-3.5" />
-            <span className="truncate">{course.title}</span>
-            <ChevronRight className="h-3 w-3" />
-            <span className="truncate">{mod.module.title}</span>
+      <div className="space-y-6">
+        {/* Lesson Header Card */}
+        <div className="rounded-2xl border border-border/80 bg-card/60 p-5 sm:p-6 space-y-3 shadow-xs">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedModuleId(null);
+                setSelectedLessonId(null);
+                setSelectedTopicId(null);
+                setSelectedExam(false);
+              }}
+              className="inline-flex items-center gap-1.5 hover:text-primary transition-colors font-medium"
+            >
+              <BookOpen className="h-3.5 w-3.5 text-primary" />
+              <span className="truncate max-w-[180px]">{course.title}</span>
+            </button>
+            <ChevronRight className="h-3 w-3 opacity-60" />
+            <button
+              type="button"
+              onClick={() => handleSelectModule(mod.module.id)}
+              className="truncate max-w-[260px] hover:text-primary transition-colors font-medium"
+            >
+              {mod.module.title}
+            </button>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-[var(--admin-text)]">{activeTitle}</h2>
-          <div className="flex items-center gap-2 flex-wrap">
+
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-snug">
+            {activeTitle}
+          </h2>
+
+          <div className="flex items-center gap-2.5 flex-wrap pt-0.5">
             {renderStatusBadge(lesson.status)}
             {activeTime > 0 && (
-              <span className="text-xs text-[var(--admin-muted)] flex items-center gap-1">
-                <Clock className="h-3 w-3" />
+              <span className="text-xs text-muted-foreground inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-muted/60 border border-border/60">
+                <Clock className="h-3 w-3 text-primary" />
                 {formatMinutes(activeTime)}
               </span>
             )}
+            {topics.length > 0 && (
+              <span className="text-xs text-muted-foreground inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-muted/60 border border-border/60">
+                <Layers className="h-3 w-3 text-primary" />
+                {topics.length} {t("topics") || "topics"}
+              </span>
+            )}
           </div>
-        </div>
 
-        {lesson.short_description && (
-          <p className="text-sm text-[var(--admin-muted)]">{lesson.short_description}</p>
-        )}
+          {lesson.short_description && (
+            <p className="text-sm text-muted-foreground leading-relaxed pt-1 border-t border-border/50">
+              {lesson.short_description}
+            </p>
+          )}
+        </div>
 
         <MediaPreview lesson={lesson} />
 
+        {/* Topic Navigation Strip */}
         {topics.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 p-2 rounded-xl border border-border/70 bg-muted/20">
             <button
               type="button"
               onClick={() => setSelectedTopicId(null)}
               className={cn(
-                "text-[11px] px-2.5 py-1.5 rounded-full border transition-colors",
+                "text-xs px-3.5 py-1.5 rounded-lg border transition-all",
                 !selectedTopicId
-                  ? "border-[var(--admin-primary)] bg-[var(--admin-primary)]/15 text-slate-900 dark:text-slate-100 font-semibold shadow-xs"
-                  : "border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-muted)] hover:bg-[var(--admin-hover-bg)]"
+                  ? "border-primary bg-primary text-primary-foreground font-semibold shadow-xs"
+                  : "border-border/70 bg-background/80 text-muted-foreground hover:text-foreground hover:bg-muted/60"
               )}
             >
               {t("introduction") || "Introduction"}
@@ -852,10 +903,10 @@ export function CoursePreviewDialog({
                 type="button"
                 onClick={() => handleSelectTopic(topic.id)}
                 className={cn(
-                  "text-[11px] px-2.5 py-1.5 rounded-full border transition-colors",
+                  "text-xs px-3.5 py-1.5 rounded-lg border transition-all",
                   selectedTopicId === topic.id
-                    ? "border-[var(--admin-primary)] bg-[var(--admin-primary)]/15 text-slate-900 dark:text-slate-100 font-semibold shadow-xs"
-                    : "border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-muted)] hover:bg-[var(--admin-hover-bg)]"
+                    ? "border-primary bg-primary text-primary-foreground font-semibold shadow-xs"
+                    : "border-border/70 bg-background/80 text-muted-foreground hover:text-foreground hover:bg-muted/60"
                 )}
               >
                 {topic.title}
@@ -865,7 +916,7 @@ export function CoursePreviewDialog({
         )}
 
         {selectedTopic?.audioUrl && (
-          <div className="flex items-center gap-3 rounded-[14px] border border-emerald-500/30 bg-emerald-500/10 p-3">
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5">
             <Volume2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             <div className="flex-1 min-w-0">
               <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 block mb-1">
@@ -876,11 +927,12 @@ export function CoursePreviewDialog({
           </div>
         )}
 
-        <div className="prose prose-sm dark:prose-invert max-w-none rounded-[14px] border border-[var(--admin-border)] bg-[var(--admin-input-bg)] p-4 sm:p-6">
+        {/* Lesson Reading Canvas */}
+        <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none rounded-2xl border border-border/80 bg-card/80 dark:bg-zinc-900/50 p-6 sm:p-8 shadow-sm leading-relaxed overflow-x-auto">
           {activeContent ? (
             <LessonContentView content={activeContent} />
           ) : (
-            <p className="text-[var(--admin-muted)] italic">{t("noContent") || "No content yet."}</p>
+            <p className="text-muted-foreground italic">{t("noContent") || "No content yet."}</p>
           )}
         </div>
 
@@ -1037,22 +1089,30 @@ export function CoursePreviewDialog({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-5xl p-0 flex flex-col bg-background border-l border-[var(--admin-border)]"
+        hideCloseButton
+        className="w-full sm:max-w-6xl p-0 flex flex-col bg-background border-l border-border shadow-2xl overflow-hidden"
       >
-        <SheetHeader className="px-4 py-3 border-b border-[var(--admin-border)] shrink-0">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--admin-primary)] flex-shrink-0" />
-              <SheetTitle className="text-base sm:text-lg font-semibold truncate">
-                {t("previewOf") || "Preview of"} {course.title}
-              </SheetTitle>
+        <SheetHeader className="px-5 py-3.5 border-b border-border bg-card/80 backdrop-blur-md shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-primary/15 text-primary flex-shrink-0">
+                <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />
+              </div>
+              <div className="min-w-0">
+                <SheetTitle className="text-base sm:text-lg font-bold truncate">
+                  {t("previewOf") || "Preview of"} {course.title}
+                </SheetTitle>
+                <p className="text-xs text-muted-foreground truncate hidden sm:block">
+                  Interactive student curriculum &amp; lesson preview
+                </p>
+              </div>
             </div>
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="h-8 w-8 p-0 rounded-full hover:bg-[var(--admin-hover-bg)]"
+              className="h-8 w-8 p-0 rounded-xl hover:bg-muted shrink-0"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -1062,13 +1122,15 @@ export function CoursePreviewDialog({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-1 overflow-hidden">
-          <div className="hidden sm:flex w-72 h-full shrink-0">{renderSidebar()}</div>
-          <ScrollArea className="flex-1 h-full">
-            <div className="p-4 sm:p-6 min-h-full max-w-4xl">
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          <div className="hidden md:flex w-80 h-full shrink-0 overflow-hidden">
+            {renderSidebar()}
+          </div>
+          <div className="flex-1 h-full overflow-y-auto overflow-x-hidden bg-background/50">
+            <div className="p-5 sm:p-8 max-w-4xl mx-auto">
               {renderContent()}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

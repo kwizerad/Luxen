@@ -16,9 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Loader2, ArrowLeft, Search, Check, X, Megaphone, Flag, FileText, Sparkles } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Search, Check, X, Megaphone, Flag, FileText, Sparkles, Mail } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAdminSpa } from "@/lib/admin-spa-router";
+import { AdminSendEmailModal } from "@/components/admin/admin-send-email-modal";
 import {
   sendNotificationToRole,
   sendNotificationToUser,
@@ -50,6 +51,7 @@ export default function AdminNotificationsPage() {
   const [loading, setLoading] = useState(false);
   const [readOnly, setReadOnly] = useState(false);
   const [permissionChecked, setPermissionChecked] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
   // Multi-student select state
   const [students, setStudents] = useState<StudentItem[]>([]);
@@ -227,6 +229,16 @@ export default function AdminNotificationsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => setEmailModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 transition-all cursor-pointer"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>Send Email Message</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => navigateAdmin("/Admin/reports")}
@@ -503,6 +515,12 @@ export default function AdminNotificationsPage() {
           </div>
         </form>
       </div>
+
+      <AdminSendEmailModal
+        open={emailModalOpen}
+        onOpenChange={setEmailModalOpen}
+        allowCustomRecipient
+      />
     </div>
   );
 }

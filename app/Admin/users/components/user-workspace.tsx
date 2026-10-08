@@ -26,6 +26,7 @@ import {
   Check,
   Trash2,
   IdCard,
+  Mail,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { createClient } from "@/lib/supabase/client";
@@ -44,6 +45,7 @@ import { isPrimaryAdmin, canAccess } from "@/lib/permissions";
 import { getCurrentUser } from "@/lib/auth-utils";
 import { UserExamLimitDialog } from "@/components/user-exam-limit-dialog";
 import { UserPerformanceModal } from "@/components/user-performance-modal";
+import { AdminSendEmailModal, type EmailRecipient } from "@/components/admin/admin-send-email-modal";
 import { getUserStats, getUsersWorkspaceData } from "../../actions/users";
 
 let cachedWorkspaceUsers: UserWithStatus[] | null = null;
@@ -134,6 +136,10 @@ export function UserWorkspace({
     user: UserWithStatus;
   } | null>(null);
   const [performanceUser, setPerformanceUser] = useState<UserWithStatus | null>(null);
+  const [emailModalState, setEmailModalState] = useState<{
+    open: boolean;
+    recipient: EmailRecipient | null;
+  }>({ open: false, recipient: null });
   const [currentUser, setCurrentUser] = useState<any>(null);
   const router = useRouter();
 
@@ -419,6 +425,15 @@ export function UserWorkspace({
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setEmailModalState({ open: true, recipient: null })}
+            className="rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+          >
+            <Mail className="h-4 w-4 mr-2 text-primary" />
+            Send Email
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={refresh}
             disabled={isRefreshing}
             className="rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
@@ -505,28 +520,28 @@ export function UserWorkspace({
               <select
                 value={filters.role}
                 onChange={(e) => setFilters((f) => ({ ...f, role: e.target.value }))}
-                className="h-9 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-text)] px-3 text-xs font-bold"
+                className="h-9 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-text)] px-3 text-xs font-bold cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
-                <option value="all">{t("allRoles")}</option>
-                <option value="Student">{t("student")}</option>
-                <option value="Admin">{t("admin")}</option>
+                <option value="all" className="bg-background text-foreground dark:bg-[#141418] dark:text-slate-100">{t("allRoles")}</option>
+                <option value="Student" className="bg-background text-foreground dark:bg-[#141418] dark:text-slate-100">{t("student")}</option>
+                <option value="Admin" className="bg-background text-foreground dark:bg-[#141418] dark:text-slate-100">{t("admin")}</option>
               </select>
               <select
                 value={filters.status}
                 onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-                className="h-9 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-text)] px-3 text-xs font-bold"
+                className="h-9 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-text)] px-3 text-xs font-bold cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
-                <option value="all">{t("allStatuses")}</option>
-                <option value="active">{t("active")}</option>
-                <option value="suspended">{t("suspended")}</option>
+                <option value="all" className="bg-background text-foreground dark:bg-[#141418] dark:text-slate-100">{t("allStatuses")}</option>
+                <option value="active" className="bg-background text-foreground dark:bg-[#141418] dark:text-slate-100">{t("active")}</option>
+                <option value="suspended" className="bg-background text-foreground dark:bg-[#141418] dark:text-slate-100">{t("suspended")}</option>
               </select>
               <select
                 value={filters.country}
                 onChange={(e) => setFilters((f) => ({ ...f, country: e.target.value }))}
-                className="h-9 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-text)] px-3 text-xs font-bold"
+                className="h-9 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] text-[var(--admin-text)] px-3 text-xs font-bold cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 {COUNTRIES.map((c) => (
-                  <option key={c} value={c}>
+                  <option key={c} value={c} className="bg-background text-foreground dark:bg-[#141418] dark:text-slate-100">
                     {c}
                   </option>
                 ))}
@@ -597,6 +612,18 @@ export function UserWorkspace({
               onSuspend={(u: UserWithStatus) => setConfirm({ action: "suspend", user: u })}
               onActivate={(u: UserWithStatus) => setConfirm({ action: "activate", user: u })}
               onDelete={(u: UserWithStatus) => setConfirm({ action: "delete", user: u })}
+              onSendEmail={(u: UserWithStatus) =>
+                setEmailModalState({
+                  open: true,
+                  recipient: {
+                    id: u.id,
+                    email: u.email || "",
+                    full_name: u.full_name,
+                    username: u.username,
+                    role: u.role,
+                  },
+                })
+              }
             />
           )}
         </motion.div>
@@ -676,6 +703,13 @@ export function UserWorkspace({
           }}
         />
       )}
+
+      <AdminSendEmailModal
+        open={emailModalState.open}
+        onOpenChange={(open) => setEmailModalState((prev) => ({ ...prev, open }))}
+        recipient={emailModalState.recipient}
+        allowCustomRecipient={!emailModalState.recipient}
+      />
     </div>
   );
 }

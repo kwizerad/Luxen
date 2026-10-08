@@ -107,6 +107,11 @@ export function UserDevicesList({
 
   useEffect(() => {
     fetchDevices();
+    return () => {
+      if (typeof document !== "undefined") {
+        document.body.style.pointerEvents = "";
+      }
+    };
   }, [fetchDevices]);
 
   const copyToClipboard = (text: string) => {
@@ -459,7 +464,10 @@ export function UserDevicesList({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>{t("cancel") || "Cancel"}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteDevice}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteDevice();
+              }}
               disabled={deleting}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
@@ -487,7 +495,10 @@ export function UserDevicesList({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={revokingOthers}>{t("cancel") || "Cancel"}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleRevokeOtherDevices}
+              onClick={(e) => {
+                e.preventDefault();
+                handleRevokeOtherDevices();
+              }}
               disabled={revokingOthers}
               className="bg-red-600 hover:bg-red-700 text-white"
             >

@@ -45,9 +45,13 @@ export default function AdminSettingsPage() {
       }
 
       const permUser = user as PermUser;
+      const { isStrictlyStudentEmail } = await import("@/lib/permissions");
+      if (isStrictlyStudentEmail(user.email)) {
+        router.replace("/dashboard");
+        return;
+      }
       const isUserPrimary =
-        user.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() ||
-        user.email?.toLowerCase() === "kwizeradiementwari@gmail.com";
+        user.email?.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase();
       const isUserAdmin =
         isUserPrimary ||
         user.role?.toLowerCase() === "admin" ||

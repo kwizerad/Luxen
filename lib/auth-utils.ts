@@ -135,6 +135,11 @@ export async function getCurrentUser(retryCount = 0, forceRefresh = false): Prom
           ? "Admin"
           : profile?.role || user.user_metadata?.role || "Student";
 
+        if (isStrictlyStudent && (profile?.role === "Admin" || user.user_metadata?.role === "Admin")) {
+          supabase.from("user_profiles").update({ role: "Student" }).eq("id", user.id).then(() => {});
+          supabase.auth.updateUser({ data: { role: "Student", permissions: null } }).catch(() => {});
+        }
+
         (user as any).role = resolvedRole;
         (user as any).avatar_url = bestAvatar;
         user.user_metadata = {

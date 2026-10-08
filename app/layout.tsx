@@ -62,8 +62,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(defaultUrl),
     title: {
-      default: "Navo PVS",
-      template: "%s | Navo PVS",
+      default: configuredSystemName,
+      template: `%s | ${configuredSystemName}`,
     },
     description:
       "Pass your Rwanda driving theory exam. Study official traffic regulations (Amategeko y'Umuhanda), practice real mock exams, road signs, and audio lessons in Kinyarwanda, English, and French.",
@@ -96,7 +96,7 @@ export async function generateMetadata(): Promise<Metadata> {
       alternateLocale: ["en_US", "fr_FR"],
       url: "https://navo.rw",
       siteName: configuredSystemName,
-      title: "Navo PVS",
+      title: configuredSystemName,
       description:
         "Pass your Rwanda driving theory exam with official practice tests, traffic regulations, AI explanations, and multilingual study guides in Kinyarwanda, English, and French.",
       images: [
@@ -110,7 +110,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: "Navo PVS",
+      title: configuredSystemName,
       description: "Official Rwanda traffic regulations, mock exams, road signs, and voice explanations.",
       images: [ogImage],
     },

@@ -2,7 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { isPrimaryAdmin, migratePermissions, type AdminPermissions, type User } from "@/lib/permissions";
+import { isPrimaryAdmin, isStrictlyStudentEmail, migratePermissions, type AdminPermissions, type User } from "@/lib/permissions";
 import { PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
 import { logAdminAction } from "@/lib/admin-audit";
 
@@ -54,18 +54,20 @@ export async function getAdmins(): Promise<AdminListItem[]> {
     console.warn("[admin-management] Failed to list auth users for permissions:", err);
   }
 
-  return (profiles || []).map((p) => {
-    const rawPerms = authUserMap.get(p.id);
-    const perms = rawPerms ? migratePermissions(rawPerms) : null;
-    return {
-      id: p.id,
-      email: p.email,
-      full_name: p.full_name,
-      username: p.username,
-      created_at: p.created_at,
-      permissions: perms,
-    };
-  });
+  return (profiles || [])
+    .filter((p) => !isStrictlyStudentEmail(p.email))
+    .map((p) => {
+      const rawPerms = authUserMap.get(p.id);
+      const perms = rawPerms ? migratePermissions(rawPerms) : null;
+      return {
+        id: p.id,
+        email: p.email,
+        full_name: p.full_name,
+        username: p.username,
+        created_at: p.created_at,
+        permissions: perms,
+      };
+    });
 }
 
 export async function inviteAdmin(
@@ -74,6 +76,9 @@ export async function inviteAdmin(
   permissions: AdminPermissions
 ): Promise<{ success: boolean; error?: string }> {
   const actor = await requirePrimaryAdmin();
+  if (isStrictlyStudentEmail(email)) {
+    return { success: false, error: "This account is strictly reserved for student use and cannot be assigned admin privileges." };
+  }
   const adminSupabase = createAdminClient();
 
   const { data, error } = await adminSupabase.auth.admin.inviteUserByEmail(

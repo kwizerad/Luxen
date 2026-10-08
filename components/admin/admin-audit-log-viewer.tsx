@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldAlert,
@@ -22,14 +22,19 @@ import {
   Calendar,
   X,
   Sparkles,
+  Radio,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchAdminAuditLogs } from "@/app/Admin/actions/audit";
 import { AdminAuditLog, AuditCategory } from "@/lib/admin-audit";
+import { createClient } from "@/lib/supabase/client";
 
 export function AdminAuditLogViewer() {
   const [logs, setLogs] = useState<AdminAuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const [lastLiveEventTime, setLastLiveEventTime] = useState<string | null>(null);
   const [otherAdminsOnly, setOtherAdminsOnly] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,9 +55,9 @@ export function AdminAuditLogViewer() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const loadLogs = async (showToast = false, searchOverride?: string) => {
+  const loadLogs = useCallback(async (showToast = false, searchOverride?: string, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const activeSearch = searchOverride !== undefined ? searchOverride : debouncedSearch;
       const res = await fetchAdminAuditLogs({
         otherAdminsOnly,
@@ -74,15 +79,75 @@ export function AdminAuditLogViewer() {
       }
     } catch (err) {
       console.error("Failed to fetch audit logs:", err);
-      toast.error("Failed to refresh audit log stream");
+      if (!silent) {
+        toast.error("Failed to refresh audit log stream");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [otherAdminsOnly, selectedCategory, debouncedSearch]);
+
+  const loadLogsRef = useRef(loadLogs);
+  useEffect(() => {
+    loadLogsRef.current = loadLogs;
+  }, [loadLogs]);
 
   useEffect(() => {
     loadLogs(false, debouncedSearch);
-  }, [otherAdminsOnly, selectedCategory, debouncedSearch]);
+  }, [otherAdminsOnly, selectedCategory, debouncedSearch, loadLogs]);
+
+  // Supabase Realtime channel subscription for automatic audit log updates
+  useEffect(() => {
+    if (!autoRefresh) {
+      setRealtimeConnected(false);
+      return;
+    }
+
+    const supabase = createClient();
+    const channelName = `admin-audit-logs-rt-${Math.random().toString(36).slice(2, 9)}`;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const triggerSilentRefresh = () => {
+      setLastLiveEventTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        loadLogsRef.current(false, undefined, true);
+      }, 300);
+    };
+
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "admin_audit_logs" },
+        () => {
+          triggerSilentRefresh();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        (payload) => {
+          const newRow = payload.new as any;
+          if (
+            newRow?.data?.audit_log ||
+            newRow?.data?.audit_entry ||
+            newRow?.title?.startsWith("Audit:") ||
+            newRow?.title?.startsWith("Admin Action:")
+          ) {
+            triggerSilentRefresh();
+          }
+        }
+      )
+      .subscribe((status) => {
+        setRealtimeConnected(status === "SUBSCRIBED");
+      });
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [autoRefresh]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -424,7 +489,58 @@ export function AdminAuditLogViewer() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !autoRefresh;
+                setAutoRefresh(next);
+                toast.info(
+                  next
+                    ? "Live auto-refresh enabled via Supabase Realtime"
+                    : "Live auto-refresh paused"
+                );
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                autoRefresh
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                  : "bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-muted)] hover:text-[var(--admin-text)]"
+              }`}
+              title={
+                autoRefresh
+                  ? "Automatically refreshes when new audit events are detected on the Supabase Realtime channel"
+                  : "Enable automatic realtime refresh"
+              }
+            >
+              <span className="relative flex h-2 w-2">
+                {autoRefresh && (
+                  <span
+                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                      realtimeConnected ? "bg-emerald-400" : "bg-amber-400"
+                    }`}
+                  />
+                )}
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                    !autoRefresh
+                      ? "bg-zinc-500"
+                      : realtimeConnected
+                      ? "bg-emerald-400"
+                      : "bg-amber-400"
+                  }`}
+                />
+              </span>
+              <Radio className="w-3.5 h-3.5" />
+              <span>Auto-Refresh</span>
+              <span
+                className={`w-7 h-4 rounded-full p-0.5 transition-colors flex items-center ${
+                  autoRefresh ? "bg-emerald-500 justify-end" : "bg-zinc-600/60 justify-start"
+                }`}
+              >
+                <span className="w-3 h-3 rounded-full bg-white shadow-sm" />
+              </span>
+            </button>
+
             <button
               onClick={() => loadLogs(true)}
               disabled={loading}
@@ -466,13 +582,24 @@ export function AdminAuditLogViewer() {
       {/* 3. AUDIT LOG LEDGER TABLE */}
       <div className="rounded-2xl bg-[var(--admin-card-bg)] border border-[var(--admin-border)] shadow-sm overflow-hidden">
         <div className="p-4 border-b border-[var(--admin-border)] flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h4 className="text-sm font-bold text-[var(--admin-text)]">
               {otherAdminsOnly ? "Secondary Admin Actions Audit Stream" : "Universal Admin Audit Ledger"}
             </h4>
             <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--admin-input-bg)] text-[var(--admin-muted)] font-mono">
               {filteredLogs.length} of {logs.length} events
             </span>
+            {autoRefresh && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Realtime Channel Active</span>
+                {lastLiveEventTime && (
+                  <span className="text-[10px] text-emerald-300/80 font-mono">
+                    • Last event {lastLiveEventTime}
+                  </span>
+                )}
+              </span>
+            )}
           </div>
           <div className="text-xs text-[var(--admin-muted)] flex items-center gap-1.5">
             <Clock className="w-3 h-3 text-amber-400" />

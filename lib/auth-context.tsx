@@ -143,6 +143,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ? "Admin"
               : profile.role || session.user.user_metadata?.role || "Student";
 
+            if (isStrictlyStudent && (profile.role === "Admin" || session.user.user_metadata?.role === "Admin")) {
+              supabase.from("user_profiles").update({ role: "Student" }).eq("id", session.user.id).then(() => {});
+              supabase.auth.updateUser({ data: { role: "Student", permissions: null } }).catch(() => {});
+            }
+
             sessionUser = {
               ...sessionUser,
               role: resolvedRole,

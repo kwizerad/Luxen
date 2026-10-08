@@ -122,10 +122,13 @@ export function CourseStudioView() {
   useEffect(() => {
     const checkAuth = async () => {
       const user = await (await import("@/lib/auth-utils")).getCurrentUser();
+      const { isStrictlyStudentEmail } = await import("@/lib/permissions");
+      if (user?.email && isStrictlyStudentEmail(user.email)) {
+        router.replace("/dashboard");
+        return;
+      }
       const role = user?.role || user?.user_metadata?.role;
-      const isPrimary =
-        user?.email?.toLowerCase() === "navo@admin.jn" ||
-        user?.email?.toLowerCase() === "kwizeradiementwari@gmail.com";
+      const isPrimary = user?.email?.toLowerCase() === "navo@admin.jn";
       if (!user || (String(role || "").toLowerCase() !== "admin" && !isPrimary)) {
         router.push("/auth/login");
       }

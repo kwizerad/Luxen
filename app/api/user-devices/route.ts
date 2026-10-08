@@ -254,17 +254,35 @@ export async function DELETE(req: NextRequest) {
     const adminSupabase = createAdminClient();
 
     if (revokeOthers && keepFingerprint) {
-      const { error } = await adminSupabase
+      await adminSupabase
         .from("user_devices")
         .delete()
         .eq("user_id", user.id)
         .neq("fingerprint", keepFingerprint);
 
-      if (error) throw error;
+      await adminSupabase
+        .from("anonymous_visits")
+        .delete()
+        .eq("linked_user_id", user.id)
+        .neq("fingerprint", keepFingerprint);
+
       return NextResponse.json({ ok: true, message: "Other devices revoked successfully" });
     }
 
     if (deviceId) {
+      if (deviceId.startsWith("visit-")) {
+        const visitId = deviceId.replace("visit-", "");
+        await adminSupabase
+          .from("anonymous_visits")
+          .delete()
+          .eq("linked_user_id", user.id)
+          .eq("id", visitId);
+        return NextResponse.json({ ok: true, message: "Device revoked successfully" });
+      }
+      if (deviceId === "current-session") {
+        return NextResponse.json({ ok: true, message: "Current session retained" });
+      }
+
       const { error } = await adminSupabase
         .from("user_devices")
         .delete()
@@ -304,6 +322,13 @@ export async function PATCH(req: NextRequest) {
     const updatePayload: Record<string, any> = { updated_at: new Date().toISOString() };
     if (typeof is_trusted === "boolean") updatePayload.is_trusted = is_trusted;
     if (typeof device_name === "string" && device_name.trim()) updatePayload.device_name = device_name.trim();
+
+    if (String(id).startsWith("visit-") || String(id) === "current-session") {
+      return NextResponse.json({
+        ok: true,
+        device: { id, user_id: user.id, ...updatePayload },
+      });
+    }
 
     const { data, error } = await adminSupabase
       .from("user_devices")

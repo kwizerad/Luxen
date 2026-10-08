@@ -1773,6 +1773,38 @@ body.admin-portal-active [role="option"]:focus {
   color: var(--admin-text) !important;
 }
 
+/* Native <select> and <option> contrast fix across light & dark modes */
+select {
+  color-scheme: light;
+}
+
+.dark select,
+html.dark select,
+.admin-portal select {
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.dark select option,
+.dark select optgroup,
+html.dark select option,
+html.dark select optgroup,
+.dark .admin-portal select option,
+html.dark .admin-portal select option {
+  background-color: #141418 !important;
+  color: #f8fafc !important;
+}
+
+html:not(.dark) .admin-portal select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
 /* Admin Switch — Radix renders button[role="switch"] */
 .admin-portal button[role="switch"] {
   background: var(--admin-hover-bg) !important;

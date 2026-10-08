@@ -51,6 +51,7 @@ import { getUserActivity, getStudentProgressSummary, getStudentLessonProgressDet
 import { DeviceInfoTab } from "./device-info-tab";
 import { sendPasswordReset } from "@/app/Admin/actions/devices";
 import { UserFullActionReport } from "@/components/admin/user-full-action-report";
+import { AdminSendEmailModal } from "@/components/admin/admin-send-email-modal";
 
 interface UserProfileDrawerProps {
   user: UserWithStatus | null;
@@ -81,6 +82,7 @@ export function UserProfileDrawer({
   const [activeTab, setActiveTab] = useState("personal");
   const [resetLoading, setResetLoading] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [notifyTitle, setNotifyTitle] = useState("");
   const [notifyMessage, setNotifyMessage] = useState("");
   const [notifyLoading, setNotifyLoading] = useState(false);
@@ -258,6 +260,17 @@ export function UserProfileDrawer({
                   <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   {t("performance")}
                 </Button>
+                {user.email && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEmailModalOpen(true)}
+                    className="h-8 text-xs sm:text-sm gap-1.5"
+                  >
+                    <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                    <span>Send Email</span>
+                  </Button>
+                )}
                 {user.role === "Student" && (
                   <>
                     <Button size="sm" variant="outline" onClick={() => onExamLimit(user)} className="h-8 text-xs sm:text-sm">
@@ -503,6 +516,13 @@ export function UserProfileDrawer({
                           label={t("sendNotification")}
                           onClick={() => setNotifyOpen(true)}
                         />
+                        {user.email && (
+                          <SecurityItem
+                            icon={<Mail className="h-4 w-4" />}
+                            label="Send Email Message"
+                            onClick={() => setEmailModalOpen(true)}
+                          />
+                        )}
                         {user.role === "Student" && (
                           <SecurityItem
                             icon={<Ban className="h-4 w-4" />}
@@ -565,6 +585,18 @@ export function UserProfileDrawer({
             </form>
           </DialogContent>
         </Dialog>
+
+        <AdminSendEmailModal
+          open={emailModalOpen}
+          onOpenChange={setEmailModalOpen}
+          recipient={{
+            id: user.id,
+            email: user.email || "",
+            full_name: user.full_name,
+            username: user.username,
+            role: user.role,
+          }}
+        />
       </SheetContent>
     </Sheet>
   );

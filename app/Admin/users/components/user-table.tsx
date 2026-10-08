@@ -32,6 +32,7 @@ import {
   Hash,
   ArrowUpDown,
   Shield,
+  Mail,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import type { UserWithStatus } from "./types";
@@ -52,6 +53,7 @@ interface UserTableProps {
   onSuspend: (user: UserWithStatus) => void;
   onActivate: (user: UserWithStatus) => void;
   onDelete: (user: UserWithStatus) => void;
+  onSendEmail?: (user: UserWithStatus) => void;
 }
 
 export function UserTable({
@@ -65,6 +67,7 @@ export function UserTable({
   onSuspend,
   onActivate,
   onDelete,
+  onSendEmail,
 }: UserTableProps) {
   const { t } = useLanguage();
   const [sortBy, setSortBy] = useState<SortKey>("created_at");
@@ -257,6 +260,12 @@ export function UserTable({
                           <Eye className="h-4 w-4 mr-2" />
                           {t("viewProfile")}
                         </DropdownMenuItem>
+                        {onSendEmail && user.email && (
+                          <DropdownMenuItem onClick={() => onSendEmail(user)}>
+                            <Mail className="h-4 w-4 mr-2 text-primary" />
+                            Send Email Message
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => onPerformance(user)}>
                           <Trophy className="h-4 w-4 mr-2" />
                           {t("performance")}
