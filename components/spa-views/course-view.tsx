@@ -60,6 +60,7 @@ import { TermLookupTooltip } from "@/components/course/term-lookup-tooltip";
 import { PlainLanguageCard, type PlainLanguageData } from "@/components/course/plain-language-card";
 import { AINeuralVoicePlayer } from "@/components/course/ai-neural-voice-player";
 import { markTTSDisabledForSession } from "@/components/course/question-tts-button";
+import { ExternalCoursesView } from "@/components/course/external-courses-view";
 import { ModuleExamRunner, type ExamType } from "@/components/module-exam-runner";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -307,6 +308,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   // View state: "modules" (Course overview) | "module-lessons" (Selected module's lesson list) | "study" (Active reader)
   const [viewMode, setViewMode] = useState<"modules" | "module-lessons" | "study">("modules");
+  const [courseSourceTab, setCourseSourceTab] = useState<"main" | "external">(() =>
+    params.get("tab") === "external" ? "external" : "main"
+  );
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
@@ -1411,13 +1415,59 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     return null;
   }, [course, flatList, learningLanguage, completedItems]);
 
-  if (loading) {
+  if (loading && courseSourceTab === "main") {
     return <CourseViewSkeleton />;
+  }
+
+  if (courseSourceTab === "external") {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <button
+            onClick={() => navigate("back", { fallback: "home" })}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>{t("back") || t("backToHome") || "Back"}</span>
+          </button>
+
+          <div className="inline-flex items-center p-1 rounded-xl bg-muted/80 border border-border">
+            <button
+              type="button"
+              onClick={() => setCourseSourceTab("main")}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+            >
+              Main Course
+            </button>
+            <button
+              type="button"
+              onClick={() => setCourseSourceTab("external")}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-background text-foreground shadow-xs transition-all cursor-pointer"
+            >
+              External Courses &amp; Quizzes
+            </button>
+          </div>
+        </div>
+
+        <ExternalCoursesView />
+      </div>
+    );
   }
 
   if (!learningLanguage) {
     return (
       <div className="max-w-xl mx-auto rounded-[20px] border bg-card p-6 sm:p-8 space-y-6 shadow-sm mt-8">
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCourseSourceTab("external")}
+            className="rounded-xl text-xs"
+          >
+            Open External Courses &amp; Quizzes
+          </Button>
+        </div>
         <div className="text-center space-y-2">
           <BookOpen className="h-10 w-10 mx-auto text-primary-readable" />
           <h1 className="text-2xl font-bold">{t("chooseLearningLanguage") || "Choose the language you want to study in"}</h1>
@@ -1441,10 +1491,15 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   if (!course) {
     return (
-      <div className="text-center py-16 border border-dashed rounded-[20px] bg-muted/40 max-w-2xl mx-auto mt-8 p-8">
-        <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-40" />
+      <div className="text-center py-16 border border-dashed rounded-[20px] bg-muted/40 max-w-2xl mx-auto mt-8 p-8 space-y-4">
+        <BookOpen className="h-12 w-12 mx-auto mb-2 text-muted-foreground opacity-40" />
         <p className="text-lg font-semibold">{t("noCoursesAvailable") || "No courses available"}</p>
         <p className="text-sm text-muted-foreground mt-1">{(t("noPublishedCourse") || "There is no published {language} course right now.").replace("{language}", learningLanguage)}</p>
+        <div className="pt-2">
+          <Button type="button" onClick={() => setCourseSourceTab("external")} className="rounded-xl">
+            Open External Courses &amp; Quizzes
+          </Button>
+        </div>
       </div>
     );
   }
@@ -1480,7 +1535,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       <div className="min-h-[calc(100vh-4rem)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200">
         {/* Course Header */}
         <div className="space-y-2.5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <button
               onClick={() => navigate("back", { fallback: "home" })}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors"
@@ -1488,6 +1543,23 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>{t("back") || t("backToHome") || "Back"}</span>
             </button>
+
+            <div className="inline-flex items-center p-1 rounded-xl bg-muted/80 border border-border">
+              <button
+                type="button"
+                onClick={() => setCourseSourceTab("main")}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-background text-foreground shadow-xs transition-all cursor-pointer"
+              >
+                Main Course
+              </button>
+              <button
+                type="button"
+                onClick={() => setCourseSourceTab("external")}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+              >
+                External Courses &amp; Quizzes
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

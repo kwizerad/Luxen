@@ -2,19 +2,20 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { BookOpen, Layers, Languages, Loader2 } from "lucide-react";
+import { BookOpen, Layers, Languages, Loader2, Database } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { CourseManagementView } from "../course-management/CourseManagementView";
 import { CourseStudioView } from "../course-studio/CourseStudioView";
 import { CourseTranslationStatusView } from "./CourseTranslationStatusView";
+import { ExternalCoursesView } from "@/components/course/external-courses-view";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { canAccess, type User as PermUser } from "@/lib/permissions";
 import { translationQueue } from "@/lib/translation-queue";
 
-type CourseTab = "management" | "translation" | "studio";
+type CourseTab = "management" | "translation" | "studio" | "external";
 
-const VALID_TABS: CourseTab[] = ["management", "translation", "studio"];
+const VALID_TABS: CourseTab[] = ["management", "translation", "studio", "external"];
 
 export default function CoursePage() {
   const { t } = useLanguage();
@@ -129,6 +130,11 @@ export default function CoursePage() {
           },
         ]
       : []),
+    {
+      id: "external" as CourseTab,
+      label: "External Courses",
+      icon: Database,
+    },
   ];
 
   return (
@@ -198,6 +204,16 @@ export default function CoursePage() {
           aria-hidden={activeTab !== "studio"}
         >
           <CourseStudioView />
+        </div>
+      )}
+
+      {visitedTabs.has("external") && (
+        <div
+          role="tabpanel"
+          hidden={activeTab !== "external"}
+          aria-hidden={activeTab !== "external"}
+        >
+          <ExternalCoursesView isAdminMode />
         </div>
       )}
     </div>
