@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createExternalAdminClient, isExternalSupabaseConfigured } from "@/lib/supabase/external";
+import { getExternalAdminClient } from "@/lib/supabase/external";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin, isPrimaryAdmin } from "@/lib/permissions";
@@ -38,14 +38,14 @@ async function checkIsAdminUser(): Promise<boolean> {
 
 export async function GET() {
   try {
-    if (!isExternalSupabaseConfigured()) {
+    const extSb = await getExternalAdminClient();
+    if (!extSb) {
       return NextResponse.json(
         { error: "External Supabase database is not configured in environment variables." },
         { status: 500 }
       );
     }
 
-    const extSb = createExternalAdminClient();
     const [chaptersRes, sectionsRes, lessonsRes, questionsRes, setsRes, isAdminUser] = await Promise.all([
       extSb.from("chapters").select("*").order("chapter_number", { ascending: true }),
       extSb.from("sections").select("*").order("section_number", { ascending: true }),
@@ -112,7 +112,13 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "type, id, and payload are required" }, { status: 400 });
     }
 
-    const extSb = createExternalAdminClient();
+    const extSb = await getExternalAdminClient();
+    if (!extSb) {
+      return NextResponse.json(
+        { error: "External Supabase database is not configured in environment variables." },
+        { status: 500 }
+      );
+    }
     const now = new Date().toISOString();
 
     if (type === "question") {
@@ -224,7 +230,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Image file is required" }, { status: 400 });
       }
 
-      const extSb = createExternalAdminClient();
+      const extSb = await getExternalAdminClient();
+      if (!extSb) {
+        return NextResponse.json(
+          { error: "External Supabase database is not configured in environment variables." },
+          { status: 500 }
+        );
+      }
       const bucketName = "question-images";
       try {
         await extSb.storage.createBucket(bucketName, { public: true });
@@ -398,7 +410,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Admin authorization required" }, { status: 403 });
     }
 
-    const extSb = createExternalAdminClient();
+    const extSb = await getExternalAdminClient();
+    if (!extSb) {
+      return NextResponse.json(
+        { error: "External Supabase database is not configured in environment variables." },
+        { status: 500 }
+      );
+    }
     const now = new Date().toISOString();
 
     if (action === "create_question") {
