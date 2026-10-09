@@ -4,19 +4,20 @@ import { analyzeGazetteContent } from "@/lib/ai/gazette-analyzer";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { gazetteText = "", instructions = "", language = "English", fileData } = body;
+    const { gazetteText = "", instructions = "", language = "English", fileData, useRepoSignCatalog = true } = body;
 
     const hasText = typeof gazetteText === "string" && gazetteText.trim().length >= 20;
     const hasFile = Boolean(fileData?.base64 && fileData.base64.length > 50);
+    const hasInstructions = typeof instructions === "string" && instructions.trim().length >= 5;
 
-    if (!hasText && !hasFile) {
+    if (!hasText && !hasFile && !hasInstructions) {
       return NextResponse.json(
-        { error: "Please attach a document (PDF, TXT, DOCX) or paste at least 20 characters from the Rwanda Traffic Gazette." },
+        { error: "Please enter a command/instruction, attach a Gazette PDF, or paste Gazette articles." },
         { status: 400 }
       );
     }
 
-    const result = await analyzeGazetteContent(gazetteText, instructions, language, fileData);
+    const result = await analyzeGazetteContent(gazetteText, instructions, language, fileData, useRepoSignCatalog);
 
     return NextResponse.json({
       success: true,

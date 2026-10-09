@@ -1,0 +1,1522 @@
+[
+  {
+    "path": "Belgian_traffic_sign_C22.png",
+    "publicUrl": "/images/Belgian_traffic_sign_C22.png",
+    "title_en": "No entry for coaches / buses",
+    "title_rw": "Bujijwe ku modoka zitwara abagenzi mu buryo bwa rusange (Bisi)",
+    "title_fr": "Accès interdit aux autocars",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border showing a black bus silhouette.",
+    "relevant_topics": [
+      "buses",
+      "prohibitory",
+      "no_entry",
+      "vehicles",
+      "heavy_vehicles"
+    ]
+  },
+  {
+    "path": "Belgian_traffic_sign_C46.png",
+    "publicUrl": "/images/Belgian_traffic_sign_C46.png",
+    "title_en": "End of all local prohibitions for moving vehicles",
+    "title_rw": "Iherezo ry ibyo wabujijwe byose ku binyabiziga bigenda",
+    "title_fr": "Fin de toutes les interdictions précédemment signalées",
+    "category": "prohibitory",
+    "shape": "white_circle",
+    "visual_description": "White circle with black border and a diagonal black band.",
+    "relevant_topics": [
+      "end_of_prohibition",
+      "speed",
+      "overtaking",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "France_road_sign_A14.png",
+    "publicUrl": "/images/France_road_sign_A14.png",
+    "title_en": "Other danger Ahead (Caution)",
+    "title_rw": " indi mpanuka itavuzwe (Icyago kitazwi)",
+    "title_fr": "Autres dangers",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "White triangle with red border and a black exclamation mark (!).",
+    "relevant_topics": [
+      "danger",
+      "caution",
+      "hazards",
+      "pedestrians",
+      "general_safety"
+    ]
+  },
+  {
+    "path": "France_road_sign_A4.png",
+    "publicUrl": "/images/France_road_sign_A4.png",
+    "title_en": "Slippery road surface ahead",
+    "title_rw": "Umuhanda unyerera",
+    "title_fr": "Chaussée glissante",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "White triangle with red border showing a car skidding with curved tire tracks.",
+    "relevant_topics": [
+      "danger",
+      "slippery_road",
+      "weather",
+      "speed"
+    ]
+  },
+  {
+    "path": "France_road_sign_B10a.png",
+    "publicUrl": "/images/France_road_sign_B10a.png",
+    "title_en": "No entry for goods vehicles / trucks",
+    "title_rw": "Bujijwe ku makamyo n ibinyabizigaorema imitwaro",
+    "title_fr": "Accès interdit aux véhicules affectés au transport de marchandises",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border showing a black truck silhouette.",
+    "relevant_topics": [
+      "trucks",
+      "prohibitory",
+      "no_entry",
+      "goods_vehicles"
+    ]
+  },
+  {
+    "path": "France_road_sign_B11.png",
+    "publicUrl": "/images/France_road_sign_B11.png",
+    "title_en": "No entry for vehicles exceeding width limit (2.5m)",
+    "title_rw": "Bujijwe ku binyabiziga bifite ubugari burenga metero 2.5",
+    "title_fr": "Accès interdit aux véhicules ayant une largeur supérieure à 2,5m",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border showing horizontal arrows and 2.5m width limit.",
+    "relevant_topics": [
+      "dimensions",
+      "width_limit",
+      "prohibitory",
+      "trucks"
+    ]
+  },
+  {
+    "path": "France_road_sign_B8.png",
+    "publicUrl": "/images/France_road_sign_B8.png",
+    "title_en": "No entry for goods vehicles",
+    "title_rw": "Bujijwe ku binyabiziga bitwara ibicuruzwa",
+    "title_fr": "Accès interdit aux véhicules de transport de marchandises",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and black lorry/truck symbol.",
+    "relevant_topics": [
+      "trucks",
+      "prohibitory",
+      "goods_vehicles"
+    ]
+  },
+  {
+    "path": "France_road_sign_B9a.png",
+    "publicUrl": "/images/France_road_sign_B9a.png",
+    "title_en": "No entry for pedestrians",
+    "title_rw": "Bujijwe ku banyamaguru kunyura aha",
+    "title_fr": "Accès interdit aux piétons",
+    "category": "pedestrian",
+    "shape": "red_circle",
+    "visual_description": "White circle with thick red border and a black walking pedestrian figure inside.",
+    "relevant_topics": [
+      "pedestrians",
+      "no_pedestrians",
+      "prohibitory",
+      "footpath",
+      "pedestrian_rules"
+    ]
+  },
+  {
+    "path": "HK_traffic_sign_106.png",
+    "publicUrl": "/images/HK_traffic_sign_106.png",
+    "title_en": "Keep Left / Pass on Left Side",
+    "title_rw": "Kunyuza ibumoso (Icyerekezo gitegetswe ibumoso)",
+    "title_fr": "Contournement obligatoire par la gauche",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white downward-left diagonal arrow.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "keep_left",
+      "obstacles"
+    ]
+  },
+  {
+    "path": "IE_road_sign_RUS-004.png",
+    "publicUrl": "/images/IE_road_sign_RUS-004.png",
+    "title_en": "Turn Left Ahead (Mandatory)",
+    "title_rw": "Tegetswe gukata ibumoso imbere",
+    "title_fr": "Direction obligatoire à la prochaine intersection : à gauche",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white curved arrow pointing left.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "turning"
+    ]
+  },
+  {
+    "path": "IE_road_sign_RUS-049.png",
+    "publicUrl": "/images/IE_road_sign_RUS-049.png",
+    "title_en": "Shared Pedestrian and Cycle Track",
+    "title_rw": "Inzira yagenewe abanyamaguru n amagare",
+    "title_fr": "Chemin obligatoire pour piétons et cyclistes",
+    "category": "pedestrian",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white pedestrian and bicycle symbols.",
+    "relevant_topics": [
+      "pedestrians",
+      "cyclists",
+      "mandatory",
+      "shared_path",
+      "pedestrian_rules"
+    ]
+  },
+  {
+    "path": "IR_road_sign_2-46.png",
+    "publicUrl": "/images/IR_road_sign_2-46.png",
+    "title_en": "Mandatory Footpath for Pedestrians",
+    "title_rw": "Inzira itegetswe ku banyamaguru",
+    "title_fr": "Chemin obligatoire pour piétons",
+    "category": "pedestrian",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white walking pedestrian figure.",
+    "relevant_topics": [
+      "pedestrians",
+      "mandatory",
+      "footpath",
+      "pedestrian_rules"
+    ]
+  },
+  {
+    "path": "Italian_traffic_signs_-_direzioni_consentite_a_destra_ed_a_sinistra.png",
+    "publicUrl": "/images/Italian_traffic_signs_-_direzioni_consentite_a_destra_ed_a_sinistra.png",
+    "title_en": "Mandatory Direction: Turn Left or Right Only",
+    "title_rw": "Ibyerekezo bitegetswe: iburyo cyangwa ibumoso",
+    "title_fr": "Directions obligatoires : à droite ou à gauche",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with split white arrows pointing left and right.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "turning",
+      "intersections"
+    ]
+  },
+  {
+    "path": "Italian_traffic_signs_-_direzioni_consentite_a_dritto_ed_a_destra.png",
+    "publicUrl": "/images/Italian_traffic_signs_-_direzioni_consentite_a_dritto_ed_a_destra.png",
+    "title_en": "Mandatory Direction: Straight Ahead or Turn Right",
+    "title_rw": "Ibyerekezo bitegetswe: imbere cyangwa iburyo",
+    "title_fr": "Directions obligatoires : tout droit ou à droite",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white arrows pointing straight and right.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "turning",
+      "intersections"
+    ]
+  },
+  {
+    "path": "Italian_traffic_signs_-_direzioni_consentite_a_dritto_ed_a_sinistra.png",
+    "publicUrl": "/images/Italian_traffic_signs_-_direzioni_consentite_a_dritto_ed_a_sinistra.png",
+    "title_en": "Mandatory Direction: Straight Ahead or Turn Left",
+    "title_rw": "Ibyerekezo bitegetswe: imbere cyangwa ibumoso",
+    "title_fr": "Directions obligatoires : tout droit ou à gauche",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white arrows pointing straight and left.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "turning",
+      "intersections"
+    ]
+  },
+  {
+    "path": "Italian_traffic_signs_-_fine_pista_ciclabile.png",
+    "publicUrl": "/images/Italian_traffic_signs_-_fine_pista_ciclabile.png",
+    "title_en": "End of Compulsory Cycle Track",
+    "title_rw": "Iherezo ry inzira y amagare",
+    "title_fr": "Fin de piste cyclable obligatoire",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white bicycle symbol crossed by a red diagonal bar.",
+    "relevant_topics": [
+      "cyclists",
+      "mandatory",
+      "pedestrians"
+    ]
+  },
+  {
+    "path": "MK_road_sign_217.png",
+    "publicUrl": "/images/MK_road_sign_217.png",
+    "title_en": "No Entry for Mopeds / Motorcycles",
+    "title_rw": "Bujijwe kuri moto na velomoteri",
+    "title_fr": "Accès interdit aux cyclomoteurs",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border showing a black moped/motorcycle.",
+    "relevant_topics": [
+      "motorcycles",
+      "prohibitory",
+      "no_entry"
+    ]
+  },
+  {
+    "path": "MK_road_sign_232.png",
+    "publicUrl": "/images/MK_road_sign_232.png",
+    "title_en": "No Turning Left",
+    "title_rw": "Bujijwe gukata ibumoso",
+    "title_fr": "Interdiction de tourner à gauche",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and a left-turning arrow crossed out.",
+    "relevant_topics": [
+      "turning",
+      "prohibitory",
+      "intersections"
+    ]
+  },
+  {
+    "path": "MK_road_sign_243.png",
+    "publicUrl": "/images/MK_road_sign_243.png",
+    "title_en": "End of Speed Limit",
+    "title_rw": "Iherezo ry umuvuduko ntarengwa",
+    "title_fr": "Fin de limitation de vitesse",
+    "category": "speed_limit",
+    "shape": "white_circle",
+    "visual_description": "White circle with number and diagonal black cancellation lines.",
+    "relevant_topics": [
+      "speed",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "Mauritius_Road_Signs_-_Mandatory_Sign_-_Left_turn_only.png",
+    "publicUrl": "/images/Mauritius_Road_Signs_-_Mandatory_Sign_-_Left_turn_only.png",
+    "title_en": "Turn Left Only (Mandatory)",
+    "title_rw": "Icyerekezo gitegetswe: ibumoso gusa",
+    "title_fr": "Direction obligatoire : à gauche",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white left arrow.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "turning"
+    ]
+  },
+  {
+    "path": "Regulatory signs/330px-BG_road_sign_А6.svg.webp",
+    "publicUrl": "/images/Regulatory%20signs/330px-BG_road_sign_%D0%906.svg.webp",
+    "title_en": "Dangerous Double Curve (First to Left)",
+    "title_rw": "amakoni abiri ateje akaga (irya mbere ibumoso)",
+    "title_fr": "Succession de virages dont le premier est à gauche",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "White triangle with red border showing a double curve arrow.",
+    "relevant_topics": [
+      "danger",
+      "curves",
+      "speed"
+    ]
+  },
+  {
+    "path": "Regulatory signs/330px-Slippery_road_surfaceAL.png",
+    "publicUrl": "/images/Regulatory%20signs/330px-Slippery_road_surfaceAL.png",
+    "title_en": "Slippery Road Surface",
+    "title_rw": "Umuhanda unyerera",
+    "title_fr": "Chaussée glissante",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "Red-bordered warning triangle with skidding car symbol.",
+    "relevant_topics": [
+      "danger",
+      "slippery_road",
+      "weather"
+    ]
+  },
+  {
+    "path": "Regulatory signs/500px-CSA_Z321_Prohibited_Parking.svg.webp",
+    "publicUrl": "/images/Regulatory%20signs/500px-CSA_Z321_Prohibited_Parking.svg.webp",
+    "title_en": "No Parking",
+    "title_rw": "Bujijwe guhagarara umwanya munini (Guparika)",
+    "title_fr": "Stationnement interdit",
+    "category": "parking",
+    "shape": "red_circle",
+    "visual_description": "No parking sign with letter P crossed by red diagonal slash.",
+    "relevant_topics": [
+      "parking",
+      "prohibitory",
+      "stopping"
+    ]
+  },
+  {
+    "path": "Regulatory signs/BG_road_sign_А4.png",
+    "publicUrl": "/images/Regulatory%20signs/BG_road_sign_%D0%904.png",
+    "title_en": "Dangerous Curve to the Left",
+    "title_rw": "Ikoni riteje akaga ibumoso",
+    "title_fr": "Virage dangereux à gauche",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "Red triangle warning sign with black curve to the left.",
+    "relevant_topics": [
+      "danger",
+      "curves"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Brasil_R-26.png",
+    "publicUrl": "/images/Regulatory%20signs/Brasil_R-26.png",
+    "title_en": "Proceed Straight Ahead Only",
+    "title_rw": "Icyerekezo gitegetswe: imbere gusa",
+    "title_fr": "Direction obligatoire : tout droit",
+    "category": "mandatory",
+    "shape": "red_circle",
+    "visual_description": "Upward arrow indicating straight ahead mandatory movement.",
+    "relevant_topics": [
+      "mandatory",
+      "direction"
+    ]
+  },
+  {
+    "path": "Regulatory signs/CA-ON_road_sign_Rb-016.png",
+    "publicUrl": "/images/Regulatory%20signs/CA-ON_road_sign_Rb-016.png",
+    "title_en": "No Bicycles Allowed",
+    "title_rw": "Bujijwe ku magare",
+    "title_fr": "Accès interdit aux cycles",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "Prohibitory circle with bicycle crossed out.",
+    "relevant_topics": [
+      "cyclists",
+      "prohibitory",
+      "pedestrians"
+    ]
+  },
+  {
+    "path": "Regulatory signs/CZ_road_sign_B-21a.png",
+    "publicUrl": "/images/Regulatory%20signs/CZ_road_sign_B-21a.png",
+    "title_en": "No Overtaking",
+    "title_rw": "Bujijwe kunyuranaho",
+    "title_fr": "Interdiction de dépasser",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border showing a red car beside a black car.",
+    "relevant_topics": [
+      "overtaking",
+      "prohibitory",
+      "lanes"
+    ]
+  },
+  {
+    "path": "Regulatory signs/France_road_sign_A15a1.png",
+    "publicUrl": "/images/Regulatory%20signs/France_road_sign_A15a1.png",
+    "title_en": "Domestic Animals Crossing (Cattle)",
+    "title_rw": "Aho amatungo ambukira umuhanda",
+    "title_fr": "Passage d animaux domestiques",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "White triangle with red border and cow/cattle silhouette.",
+    "relevant_topics": [
+      "danger",
+      "animals",
+      "rural_roads"
+    ]
+  },
+  {
+    "path": "Regulatory signs/France_road_sign_A1d.png",
+    "publicUrl": "/images/Regulatory%20signs/France_road_sign_A1d.png",
+    "title_en": "Series of Dangerous Curves",
+    "title_rw": "Uruhererekane rw amakoni ateje akaga",
+    "title_fr": "Succession de virages",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "White triangle with red border and winding road arrow.",
+    "relevant_topics": [
+      "danger",
+      "curves"
+    ]
+  },
+  {
+    "path": "Regulatory signs/France_road_sign_A7.png",
+    "publicUrl": "/images/Regulatory%20signs/France_road_sign_A7.png",
+    "title_en": "Level Crossing with Gates / Barriers Ahead",
+    "title_rw": "Inzira ya gariyamoshi ifite bariyeri",
+    "title_fr": "Passage à niveau muni de barrières",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "White triangle with red border showing a fence/gate barrier.",
+    "relevant_topics": [
+      "danger",
+      "railway",
+      "level_crossing"
+    ]
+  },
+  {
+    "path": "Regulatory signs/France_road_sign_AB25.png",
+    "publicUrl": "/images/Regulatory%20signs/France_road_sign_AB25.png",
+    "title_en": "Roundabout Ahead (Yield to Traffic in Roundabout)",
+    "title_rw": "Amasangano y umuzenguruko (Rond-point)",
+    "title_fr": "Carrefour à sens giratoire",
+    "category": "priority",
+    "shape": "red_triangle",
+    "visual_description": "White triangle with red border and three circular black arrows.",
+    "relevant_topics": [
+      "roundabout",
+      "priority",
+      "danger",
+      "intersections"
+    ]
+  },
+  {
+    "path": "Regulatory signs/France_road_sign_AB4.png",
+    "publicUrl": "/images/Regulatory%20signs/France_road_sign_AB4.png",
+    "title_en": "STOP — Come to a Complete Halt and Yield",
+    "title_rw": "HAGARARA (STOP) — Guhagarara rwose mbere yo kwambuka",
+    "title_fr": "Arrêt obligatoire à l intersection (STOP)",
+    "category": "priority",
+    "shape": "octagon",
+    "visual_description": "Red octagon sign with white border and bold white word STOP.",
+    "relevant_topics": [
+      "priority",
+      "stop",
+      "intersections",
+      "pedestrians"
+    ]
+  },
+  {
+    "path": "Regulatory signs/France_road_sign_B6a1.png",
+    "publicUrl": "/images/Regulatory%20signs/France_road_sign_B6a1.png",
+    "title_en": "No Parking (Stationnement Interdit)",
+    "title_rw": "Bujijwe guhagarara umwanya munini",
+    "title_fr": "Stationnement interdit",
+    "category": "parking",
+    "shape": "red_circle",
+    "visual_description": "Blue circle with red border and one red diagonal bar.",
+    "relevant_topics": [
+      "parking",
+      "prohibitory",
+      "stopping"
+    ]
+  },
+  {
+    "path": "Regulatory signs/France_road_sign_B6d.png",
+    "publicUrl": "/images/Regulatory%20signs/France_road_sign_B6d.png",
+    "title_en": "No Stopping and No Parking (Arrêt et Stationnement Interdits)",
+    "title_rw": "Bujijwe guhagarara umwanya muto n umunini",
+    "title_fr": "Arrêt et stationnement interdits",
+    "category": "parking",
+    "shape": "red_circle",
+    "visual_description": "Blue circle with red border and red X cross.",
+    "relevant_topics": [
+      "parking",
+      "stopping",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Hungary_road_sign_A-002.png",
+    "publicUrl": "/images/Regulatory%20signs/Hungary_road_sign_A-002.png",
+    "title_en": "Dangerous Curve to theLeft",
+    "title_rw": "Ikoni riteje akaga",
+    "title_fr": "Virage dangereux",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "Red triangle warning sign with curved arrow.",
+    "relevant_topics": [
+      "danger",
+      "curves"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Indian_Road_Sign_II-2.png",
+    "publicUrl": "/images/Regulatory%20signs/Indian_Road_Sign_II-2.png",
+    "title_en": "Steep Ascent / Steep Hill Upwards",
+    "title_rw": "Umusozi utumburutse cyane (azamuka)",
+    "title_fr": "Montée à forte inclinaison",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "Red triangle warning sign showing steep uphill slope.",
+    "relevant_topics": [
+      "danger",
+      "hills",
+      "slopes"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Italian_traffic_signs_-_limite_di_velocità_10.png",
+    "publicUrl": "/images/Regulatory%20signs/Italian_traffic_signs_-_limite_di_velocit%C3%A0_10.png",
+    "title_en": "Maximum Speed Limit 10 km/h",
+    "title_rw": "Umuvuduko ntarengwa wa km 10 mu isaha",
+    "title_fr": "Vitesse maximale limitée à 10 km/h",
+    "category": "speed_limit",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and black number 10.",
+    "relevant_topics": [
+      "speed",
+      "pedestrians",
+      "residential_zone",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Italian_traffic_signs_-_limite_di_velocità_30.png",
+    "publicUrl": "/images/Regulatory%20signs/Italian_traffic_signs_-_limite_di_velocit%C3%A0_30.png",
+    "title_en": "Maximum Speed Limit 30 km/h (School / Pedestrian Zone)",
+    "title_rw": "Umuvuduko ntarengwa wa km 30 mu isaha",
+    "title_fr": "Vitesse maximale limitée à 30 km/h",
+    "category": "speed_limit",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and black number 30.",
+    "relevant_topics": [
+      "speed",
+      "pedestrians",
+      "school_zone",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Italian_traffic_signs_-_limite_di_velocità_40.png",
+    "publicUrl": "/images/Regulatory%20signs/Italian_traffic_signs_-_limite_di_velocit%C3%A0_40.png",
+    "title_en": "Maximum Speed Limit 40 km/h",
+    "title_rw": "Umuvuduko ntarengwa wa km 40 mu isaha",
+    "title_fr": "Vitesse maximale limitée à 40 km/h",
+    "category": "speed_limit",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and black number 40.",
+    "relevant_topics": [
+      "speed",
+      "urban_driving",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Italian_traffic_signs_-_limite_di_velocità_50.png",
+    "publicUrl": "/images/Regulatory%20signs/Italian_traffic_signs_-_limite_di_velocit%C3%A0_50.png",
+    "title_en": "Maximum Speed Limit 50 km/h (Urban Built-up Area)",
+    "title_rw": "Umuvuduko ntarengwa wa km 50 mu isaha mu mujyi",
+    "title_fr": "Vitesse maximale limitée à 50 km/h",
+    "category": "speed_limit",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and black number 50.",
+    "relevant_topics": [
+      "speed",
+      "urban_driving",
+      "pedestrians",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Italian_traffic_signs_-_limite_di_velocità_60.png",
+    "publicUrl": "/images/Regulatory%20signs/Italian_traffic_signs_-_limite_di_velocit%C3%A0_60.png",
+    "title_en": "Maximum Speed Limit 60 km/h",
+    "title_rw": "Umuvuduko ntarengwa wa km 60 mu isaha",
+    "title_fr": "Vitesse maximale limitée à 60 km/h",
+    "category": "speed_limit",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and black number 60.",
+    "relevant_topics": [
+      "speed",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Italian_traffic_signs_-_limite_di_velocità_70.png",
+    "publicUrl": "/images/Regulatory%20signs/Italian_traffic_signs_-_limite_di_velocit%C3%A0_70.png",
+    "title_en": "Maximum Speed Limit 70 km/h",
+    "title_rw": "Umuvuduko ntarengwa wa km 70 mu isaha",
+    "title_fr": "Vitesse maximale limitée à 70 km/h",
+    "category": "speed_limit",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and black number 70.",
+    "relevant_topics": [
+      "speed",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Italian_traffic_signs_-_limite_di_velocità_80.png",
+    "publicUrl": "/images/Regulatory%20signs/Italian_traffic_signs_-_limite_di_velocit%C3%A0_80.png",
+    "title_en": "Maximum Speed Limit 80 km/h (Highway / Rural Road)",
+    "title_rw": "Umuvuduko ntarengwa wa km 80 mu isaha",
+    "title_fr": "Vitesse maximale limitée à 80 km/h",
+    "category": "speed_limit",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and black number 80.",
+    "relevant_topics": [
+      "speed",
+      "highway",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Italian_traffic_signs_-_senso_vietato.png",
+    "publicUrl": "/images/Regulatory%20signs/Italian_traffic_signs_-_senso_vietato.png",
+    "title_en": "No Entry (One-Way Street Exit)",
+    "title_rw": "Ntihanyurwa mu cyerekezo uje uganamo (Sens Interdit)",
+    "title_fr": "Sens interdit à tout véhicule",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "Solid red circle with a thick horizontal white bar in the center.",
+    "relevant_topics": [
+      "no_entry",
+      "prohibitory",
+      "one_way",
+      "intersections"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Jamaica_road_sign_R35-1.png",
+    "publicUrl": "/images/Regulatory%20signs/Jamaica_road_sign_R35-1.png",
+    "title_en": "No Left Turn",
+    "title_rw": "Bujijwe gukata ibumoso",
+    "title_fr": "Interdiction de tourner à gauche",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and left turn arrow crossed by red slash.",
+    "relevant_topics": [
+      "turning",
+      "prohibitory",
+      "intersections"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Jamaica_road_sign_R35-4.png",
+    "publicUrl": "/images/Regulatory%20signs/Jamaica_road_sign_R35-4.png",
+    "title_en": "No Right Turn",
+    "title_rw": "Bujijwe gukata iburyo",
+    "title_fr": "Interdiction de tourner à droite",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and right turn arrow crossed by red slash.",
+    "relevant_topics": [
+      "turning",
+      "prohibitory",
+      "intersections"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Jamaica_road_sign_R35-5.png",
+    "publicUrl": "/images/Regulatory%20signs/Jamaica_road_sign_R35-5.png",
+    "title_en": "No U-Turn Allowed",
+    "title_rw": "Bujijwe gukora demi-tour (Guhindukira mu muhanda)",
+    "title_fr": "Demi-tour interdit",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and U-turn arrow crossed by red slash.",
+    "relevant_topics": [
+      "turning",
+      "u_turn",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Jamaica_road_sign_R35-7.png",
+    "publicUrl": "/images/Regulatory%20signs/Jamaica_road_sign_R35-7.png",
+    "title_en": "No Overtaking",
+    "title_rw": "Bujijwe kunyuranaho",
+    "title_fr": "Interdiction de dépasser",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and two cars with red diagonal slash.",
+    "relevant_topics": [
+      "overtaking",
+      "prohibitory"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Jamaica_road_sign_R35-8.png",
+    "publicUrl": "/images/Regulatory%20signs/Jamaica_road_sign_R35-8.png",
+    "title_en": "No Entry for Motor Vehicles",
+    "title_rw": "Bujijwe ku binyabiziga bifite moteri",
+    "title_fr": "Accès interdit aux véhicules à moteur",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and front car silhouette crossed out.",
+    "relevant_topics": [
+      "no_entry",
+      "prohibitory",
+      "pedestrians"
+    ]
+  },
+  {
+    "path": "Regulatory signs/Jamaica_road_sign_R37.png",
+    "publicUrl": "/images/Regulatory%20signs/Jamaica_road_sign_R37.png",
+    "title_en": "No Horn / Sounding Horn Prohibited",
+    "title_rw": "Bujijwe kuvuza ihoni",
+    "title_fr": "Signaux sonores interdits",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and horn/trumpet symbol crossed out.",
+    "relevant_topics": [
+      "horn",
+      "hospital_zone",
+      "prohibitory",
+      "pedestrians"
+    ]
+  },
+  {
+    "path": "SADC_road_sign_R109.png",
+    "publicUrl": "/images/SADC_road_sign_R109.png",
+    "title_en": "Mandatory Pedestrian Footpath",
+    "title_rw": "Inzira itegetswe ku banyamaguru",
+    "title_fr": "Chemin obligatoire pour piétons",
+    "category": "pedestrian",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white pedestrian walking symbol.",
+    "relevant_topics": [
+      "pedestrians",
+      "footpath",
+      "mandatory",
+      "pedestrian_rules"
+    ]
+  },
+  {
+    "path": "SADC_road_sign_R216.png",
+    "publicUrl": "/images/SADC_road_sign_R216.png",
+    "title_en": "No Pedestrians Allowed",
+    "title_rw": "Bujijwe ku banyamaguru",
+    "title_fr": "Accès interdit aux piétons",
+    "category": "pedestrian",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border and black pedestrian crossed by red slash.",
+    "relevant_topics": [
+      "pedestrians",
+      "no_pedestrians",
+      "prohibitory",
+      "pedestrian_rules"
+    ]
+  },
+  {
+    "path": "Thailand_road_sign_บ-39.png",
+    "publicUrl": "/images/Thailand_road_sign_%E0%B8%9A-39.png",
+    "title_en": "Keep Right / Pass on Right Side",
+    "title_rw": "Kunyuza iburyo",
+    "title_fr": "Contournement obligatoire par la droite",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white downward-right diagonal arrow.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "keep_right"
+    ]
+  },
+  {
+    "path": "Thailand_road_sign_บ-46.png",
+    "publicUrl": "/images/Thailand_road_sign_%E0%B8%9A-46.png",
+    "title_en": "Compulsory Pedestrian Path",
+    "title_rw": "Inzira yagenewe abanyamaguru",
+    "title_fr": "Chemin obligatoire pour piétons",
+    "category": "pedestrian",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white walking person icon.",
+    "relevant_topics": [
+      "pedestrians",
+      "mandatory",
+      "footpath",
+      "pedestrian_rules"
+    ]
+  },
+  {
+    "path": "Thailand_road_sign_บ-47.png",
+    "publicUrl": "/images/Thailand_road_sign_%E0%B8%9A-47.png",
+    "title_en": "School Children / Pedestrians Ahead",
+    "title_rw": "Inzira y abanyamaguru cyangwa abanyeshuri",
+    "title_fr": "Passage pour piétons / écoliers",
+    "category": "pedestrian",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white adult and child pedestrian figures.",
+    "relevant_topics": [
+      "pedestrians",
+      "children",
+      "school_zone",
+      "pedestrian_rules"
+    ]
+  },
+  {
+    "path": "UA_road_sign_4.2.png",
+    "publicUrl": "/images/UA_road_sign_4.2.png",
+    "title_en": "Turn Right Only (Mandatory)",
+    "title_rw": "Icyerekezo gitegetswe: iburyo gusa",
+    "title_fr": "Direction obligatoire : à droite",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white arrow pointing right.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "turning"
+    ]
+  },
+  {
+    "path": "UK_traffic_sign_606_(right).png",
+    "publicUrl": "/images/UK_traffic_sign_606_(right).png",
+    "title_en": "Vehicular Traffic Must Turn Right",
+    "title_rw": "Ibinyabiziga bitegetswe gukata iburyo",
+    "title_fr": "Direction obligatoire : à droite",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white horizontal arrow pointing right.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "turning"
+    ]
+  },
+  {
+    "path": "UK_traffic_sign_619.png",
+    "publicUrl": "/images/UK_traffic_sign_619.png",
+    "title_en": "No Motor Vehicles (Cars and Motorcycles Prohibited)",
+    "title_rw": "Bujijwe ku modoka na moto (Inzira y abanyamaguru)",
+    "title_fr": "Accès interdit aux véhicules à moteur",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "White circle with red border showing a motorcycle above a car.",
+    "relevant_topics": [
+      "prohibitory",
+      "no_entry",
+      "pedestrians",
+      "motorcycles"
+    ]
+  },
+  {
+    "path": "Zeichen_209_-_Vorgeschriebene_Fahrtrichtung,_rechts,_StVO_2017.png",
+    "publicUrl": "/images/Zeichen_209_-_Vorgeschriebene_Fahrtrichtung%2C_rechts%2C_StVO_2017.png",
+    "title_en": "Mandatory Turn Right Ahead",
+    "title_rw": "Tegetswe gukata iburyo imbere",
+    "title_fr": "Direction obligatoire à droite",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white curved right arrow.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "turning"
+    ]
+  },
+  {
+    "path": "Zeichen_214-30_-_Vorgeschriebene_Fahrtrichtung,_Rechts_oder_links,_StVO_2017.png",
+    "publicUrl": "/images/Zeichen_214-30_-_Vorgeschriebene_Fahrtrichtung%2C_Rechts_oder_links%2C_StVO_2017.png",
+    "title_en": "Mandatory Turn Left or Right",
+    "title_rw": "Tegetswe gukata iburyo cyangwa ibumoso",
+    "title_fr": "Direction obligatoire à gauche ou à droite",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white split arrow pointing left and right.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "turning"
+    ]
+  },
+  {
+    "path": "Zeichen_214_-_Vorgeschriebene_Fahrtrichtung,_Geradeaus_oder_rechts,_StVO_2017.png",
+    "publicUrl": "/images/Zeichen_214_-_Vorgeschriebene_Fahrtrichtung%2C_Geradeaus_oder_rechts%2C_StVO_2017.png",
+    "title_en": "Mandatory Straight Ahead or Turn Right",
+    "title_rw": "Tegetswe kugenda imbere cyangwa gukata iburyo",
+    "title_fr": "Direction obligatoire tout droit ou à droite",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with white arrow pointing straight and right.",
+    "relevant_topics": [
+      "mandatory",
+      "direction",
+      "turning"
+    ]
+  },
+  {
+    "path": "Zeichen_215_-_Kreisverkehr,_StVO_2000.png",
+    "publicUrl": "/images/Zeichen_215_-_Kreisverkehr%2C_StVO_2000.png",
+    "title_en": "Compulsory Roundabout (Circular Traffic)",
+    "title_rw": "Umuzenguruko utegetswe (Rond-point)",
+    "title_fr": "Sens giratoire obligatoire",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "Blue circle with three white arrows in a counter-clockwise circle.",
+    "relevant_topics": [
+      "roundabout",
+      "mandatory",
+      "priority",
+      "intersections"
+    ]
+  },
+  {
+    "path": "Gemini_Generated_Image_1qeyvt1qeyvt1qey.png",
+    "title_en": "Minimum Speed 30",
+    "title_rw": "Umuvuduko muto ugomba kuba 30",
+    "title_fr": "Vitesse minimale obligatoire 30",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "A blue circular sign with white text showing the number 30 inside, indicating a mandatory minimum speed.",
+    "relevant_topics": [
+      "speed"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_1qeyvt1qeyvt1qey.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_38dk9r38dk9r38dk.png",
+    "title_en": "Dead End",
+    "title_rw": "Inzira ifunze",
+    "title_fr": "Impasse",
+    "category": "indication",
+    "shape": "blue_square",
+    "visual_description": "A blue rectangular or square sign featuring a white T-shape symbol with a red bar across the top bar, indicating a dead-end road ahead.",
+    "relevant_topics": [
+      "no_entry"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_38dk9r38dk9r38dk.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_457khp457khp457k.png",
+    "title_en": "Crosswind",
+    "title_rw": "Umuyaga ukomeye",
+    "title_fr": "Vent latéral",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "Two traffic sign options labeled a and b; sign 'a' is a red-bordered triangle containing a windsock symbol warning of crosswinds, while sign 'b' is a red-bordered prohibition circle with a diagonal bar over a right-turning arrow.",
+    "relevant_topics": [
+      "turning"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_457khp457khp457k.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_6aipv36aipv36aip.png",
+    "title_en": "No Stopping",
+    "title_rw": "Hahagarara",
+    "title_fr": "Arrêt et stationnement interdits",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "A red circular sign with a thick red border and a red cross over a blue background, indicating that stopping and parking are prohibited.",
+    "relevant_topics": [
+      "parking"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_6aipv36aipv36aip.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_7q33ks7q33ks7q33.png",
+    "title_en": "Priority over oncoming traffic",
+    "title_rw": "Kuyobora umuhanda imbere y'imodoka ziturutse imbere",
+    "title_fr": "Priorité par rapport à la circulation venant en sens inverse",
+    "category": "priority",
+    "shape": "blue_square",
+    "visual_description": "A blue rectangular sign featuring a white upward arrow and a red downward arrow, indicating priority over oncoming vehicles.",
+    "relevant_topics": [
+      "priority",
+      "oncoming_traffic"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_7q33ks7q33ks7q33.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_aro9kearo9kearo9 (1).png",
+    "title_en": "No parking",
+    "title_rw": "Hahahariho guhagarara",
+    "title_fr": "Stationnement interdit",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "A red circle with a diagonal red bar crossing out a black letter P on a white background, signifying that parking is prohibited.",
+    "relevant_topics": [
+      "parking",
+      "no_parking",
+      "prohibition"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_aro9kearo9kearo9%20(1).png"
+  },
+  {
+    "path": "Gemini_Generated_Image_bnmdvnbnmdvnbnmd.png",
+    "title_en": "End of motorway",
+    "title_rw": "Imperuka y'umuhanda w'imodoka zihuta",
+    "title_fr": "Fin d'autoroute",
+    "category": "indication",
+    "shape": "blue_square",
+    "visual_description": "A blue square sign depicting a motorway symbol crossed out by a red diagonal stripe, denoting the end of motorway regulations.",
+    "relevant_topics": [
+      "motorway",
+      "end_of_motorway",
+      "highway"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_bnmdvnbnmdvnbnmd.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_bxnx67bxnx67bxnx.png",
+    "title_en": "Danger warning sign",
+    "title_rw": "Icyapa cy'imbuzi y'ibyago",
+    "title_fr": "Panonceau de danger",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "An empty red triangular border pointing upwards on a white background, indicating a general warning for upcoming hazards.",
+    "relevant_topics": [
+      "danger",
+      "warning"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_bxnx67bxnx67bxnx.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_hotcj5hotcj5hotc.png",
+    "title_en": "Two-way Traffic",
+    "title_rw": "Umuhanda w'ibyerekezo bibiri",
+    "title_fr": "Circulation à double sens",
+    "category": "danger",
+    "shape": "other",
+    "visual_description": "Three examples of two-way traffic signs including a warning triangle, a prohibitory circular sign, and a mandatory rectangular sign.",
+    "relevant_topics": [
+      "two_way",
+      "traffic",
+      "warning"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_hotcj5hotcj5hotc.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_jbiyzojbiyzojbiy.png",
+    "title_en": "Compulsory Path for Pedestrians and Cyclists",
+    "title_rw": "Inzira yagenewe abanyamaguru n'abatwara amagare",
+    "title_fr": "Chemin obligatoire pour piétons et cyclistes",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "A blue circular sign depicting a bicycle symbol above a pedestrian adult and child holding hands.",
+    "relevant_topics": [
+      "pedestrians",
+      "cyclists",
+      "children",
+      "compulsory_path"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_jbiyzojbiyzojbiy.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_jdbm1fjdbm1fjdbm.png",
+    "title_en": "Traffic Sign Collection",
+    "title_rw": "Ibindi byapa by'umuhanda",
+    "title_fr": "Collection de panneaux de signalisation",
+    "category": "danger",
+    "shape": "other",
+    "visual_description": "A four-panel composite showing a crosswind warning sign, a no-left-turn prohibitory sign, a mandatory straight-ahead sign, and a no-parking sign.",
+    "relevant_topics": [
+      "wind",
+      "turning",
+      "straight_ahead",
+      "parking"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_jdbm1fjdbm1fjdbm.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_mo2x8mo2x8mo2x8m.png",
+    "title_en": "Traffic Sign Collection Two",
+    "title_rw": "Ibindi byapa by'umuhanda bindi",
+    "title_fr": "Collection de panneaux de signalisation deux",
+    "category": "prohibitory",
+    "shape": "other",
+    "visual_description": "A four-panel composite displaying a no-stopping/no-parking sign, a no-motor-vehicles sign, an end-of-all-restrictions sign, and a no-overtaking sign.",
+    "relevant_topics": [
+      "parking",
+      "vehicles",
+      "overtaking",
+      "restrictions"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_mo2x8mo2x8mo2x8m.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_p5k1iop5k1iop5k1.png",
+    "title_en": "Roundabout",
+    "title_rw": "Insangira nzira / Igitondo",
+    "title_fr": "Carrefour à sens giratoire",
+    "category": "mandatory",
+    "shape": "blue_circle",
+    "visual_description": "A blue circular sign containing three white curved arrows forming a clockwise circle, indicating a roundabout.",
+    "relevant_topics": [
+      "roundabout",
+      "turning",
+      "priority"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_p5k1iop5k1iop5k1.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_pl0usxpl0usxpl0u.png",
+    "title_en": "Pedestrians Prohibited",
+    "title_rw": "Abanyamaguru ntibemerewe kuhanyura",
+    "title_fr": "Accès interdit aux piétons",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "A red-bordered circular sign with a white background depicting a black silhouette of a walking person inside, crossed out or signifying prohibition for pedestrians.",
+    "relevant_topics": [
+      "pedestrians",
+      "no_entry"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_pl0usxpl0usxpl0u.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_rw0ejtrw0ejtrw0e.png",
+    "title_en": "End of Speed Limit",
+    "title_rw": "Imperuka y'umuvuduko ntarengwa",
+    "title_fr": "Fin de limitation de vitesse",
+    "category": "prohibitory",
+    "shape": "blue_circle",
+    "visual_description": "A blue circular sign displaying the number 30 in white with a diagonal red stripe across it, indicating the end of a 30 speed limit.",
+    "relevant_topics": [
+      "speed",
+      "speed_limit"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_rw0ejtrw0ejtrw0e.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_x623ofx623ofx623.png",
+    "title_en": "Hospital",
+    "title_rw": "Ivuriro / Ibitaro",
+    "title_fr": "Hôpital",
+    "category": "indication",
+    "shape": "blue_square",
+    "visual_description": "A blue rectangular or square sign with rounded corners featuring a large white capital letter 'H' in the center.",
+    "relevant_topics": [
+      "hospital",
+      "indication"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_x623ofx623ofx623.png"
+  },
+  {
+    "path": "Gemini_Generated_Image_xlbr85xlbr85xlbr.png",
+    "title_en": "Intersection with a minor road",
+    "title_rw": "Inkomane y'umuhanda w'ingenzi n'uworoheje",
+    "title_fr": "Intersection avec une route secondaire",
+    "category": "indication",
+    "shape": "blue_square",
+    "visual_description": "A blue square sign depicting a main vertical road with a minor branch diverging to the left.",
+    "relevant_topics": [
+      "intersection",
+      "turning",
+      "priority"
+    ],
+    "publicUrl": "/images/Gemini_Generated_Image_xlbr85xlbr85xlbr.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_150mff150mff150m.png",
+    "title_en": "Two-way traffic",
+    "title_rw": "Umuhanda w'ibyerekezo bibiri",
+    "title_fr": "Circulation à double sens",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "A circular sign with a red border containing a black downward arrow and a red upward arrow, indicating two-way traffic.",
+    "relevant_topics": [
+      "two_way",
+      "priority",
+      "overtaking"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_150mff150mff150m.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_36pnli36pnli36pn.png",
+    "title_en": "Double bend, first to the left",
+    "title_rw": "Amorero abiri, uw'imbere ugana ibumoso",
+    "title_fr": "Double virage, le premier à gauche",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign featuring a black zigzag line indicating a double curve starting to the left.",
+    "relevant_topics": [
+      "turning",
+      "speed"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_36pnli36pnli36pn.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_5gi7zm5gi7zm5gi7.png",
+    "title_en": "Two-way traffic ahead",
+    "title_rw": "Umuhanda w'ibyerekezo bibiri imbere",
+    "title_fr": "Circulation à double sens prochaine",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign showing two vertical black arrows pointing in opposite directions.",
+    "relevant_topics": [
+      "two_way",
+      "priority",
+      "overtaking"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_5gi7zm5gi7zm5gi7.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_6e1kwk6e1kwk6e1k.png",
+    "title_en": "Quay or River Bank Ahead",
+    "title_rw": "Umuhanda ujya ku mazi cyangwa icyambu",
+    "title_fr": "Quai ou berge",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign showing a car driving off a cliff or high embankment toward wavy water lines.",
+    "relevant_topics": [
+      "water",
+      "river",
+      "embankment",
+      "danger",
+      "cliff"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_6e1kwk6e1kwk6e1k.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_6jufn6jufn6jufn6.png",
+    "title_en": "Steep Downward Gradient",
+    "title_rw": "Manika y'umwijima cyangwa y'imanuka rikomeye",
+    "title_fr": "Descente dangereuse",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign featuring a black sloping shape representing a downward hill with the text '10%'.",
+    "relevant_topics": [
+      "hill",
+      "downward",
+      "slope",
+      "gradient",
+      "brakes"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_6jufn6jufn6jufn6.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_912ycb912ycb912y.png",
+    "title_en": "General Danger / Other Danger",
+    "title_rw": "Ibindi bimenyetso by'ibyago",
+    "title_fr": "Danger divers",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign with a black exclamation mark in the center indicating general hazard ahead.",
+    "relevant_topics": [
+      "danger",
+      "hazard",
+      "caution",
+      "warning"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_912ycb912ycb912y.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_9lkiho9lkiho9lki.png",
+    "title_en": "Loose Gravel",
+    "title_rw": "Amabuye mato cyangwa imicanga byangiza",
+    "title_fr": "Projections de gravillons",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign showing the rear of a car kicking up loose stones and gravel from the road surface.",
+    "relevant_topics": [
+      "gravel",
+      "stones",
+      "loose_surface",
+      "windshield",
+      "tires"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_9lkiho9lkiho9lki.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_9w0knt9w0knt9w0k.png",
+    "title_en": "Road narrows on both sides",
+    "title_rw": "Umuhanda ugenda ufunana impande zombi",
+    "title_fr": "Rétrécissement de la chaussée des deux côtés",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign showing two black vertical lines converging from both sides to indicate that the road ahead narrows.",
+    "relevant_topics": [
+      "road_narrows",
+      "chokepoint",
+      "merging"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_9w0knt9w0knt9w0k.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_a6cotea6cotea6co.png",
+    "title_en": "No entry for goods vehicles",
+    "title_rw": "Ntabwo byemewe ko amakamyo yinjira",
+    "title_fr": "Accès interdit aux véhicules de transport de marchandises",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "A red circular prohibition sign with a white background featuring a black silhouette of a cargo truck.",
+    "relevant_topics": [
+      "trucks",
+      "freight",
+      "no_entry"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_a6cotea6cotea6co.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_f2kyagf2kyagf2ky.png",
+    "title_en": "Crosswind",
+    "title_rw": "Umuyaga ukomeye",
+    "title_fr": "Vent latéral",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign depicting a windsock attached to a pole, indicating the danger of strong crosswinds.",
+    "relevant_topics": [
+      "wind",
+      "weather",
+      "driving_safety"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_f2kyagf2kyagf2ky.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_id5enrid5enrid5e.png",
+    "title_en": "Uneven road / Speed bump",
+    "title_rw": "Umuhanda utaringaniye / Iterabiti",
+    "title_fr": "Dos d'âne ou passage surélevé",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign featuring a black convex hump shape representing an uneven road or speed bump ahead.",
+    "relevant_topics": [
+      "bumps",
+      "uneven_surface",
+      "speed_reduction"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_id5enrid5enrid5e.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_kvjgookvjgookvjg.png",
+    "title_en": "No motorcycles",
+    "title_rw": "Ntabwo byemewe ko amagare n'ipositeri/moto zigenda",
+    "title_fr": "Interdiction aux motocycles",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "A red circular prohibition sign with a white background displaying a black silhouette of a motorcycle and rider.",
+    "relevant_topics": [
+      "motorcycles",
+      "no_entry",
+      "vehicles"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_kvjgookvjgookvjg.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_l5puexl5puexl5pu.png",
+    "title_en": "Road narrows on the right",
+    "title_rw": "Umuhanda ugenda ufunana iburyo",
+    "title_fr": "Rétrécissement de la chaussée par la droite",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign showing a straight vertical line on the left and a line narrowing from the right side.",
+    "relevant_topics": [
+      "road_narrows",
+      "right_side",
+      "merging"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_l5puexl5puexl5pu.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_lg3fimlg3fimlg3f.png",
+    "title_en": "Side road junction to the right",
+    "title_rw": "Ihuriro ry'umuhanda w'iburyo",
+    "title_fr": "Débouché d'une route secondaire à droite",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A triangular warning sign showing a main vertical road with a secondary road branching off to the right.",
+    "relevant_topics": [
+      "junction",
+      "intersection",
+      "turning"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_lg3fimlg3fimlg3f.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_lixof8lixof8lixo.png",
+    "title_en": "Pedestrian crossing",
+    "title_rw": "Ahanyurwa n'abanyamaguru",
+    "title_fr": "Passage pour piétons",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign featuring a black silhouette of a pedestrian walking over zebra crossing stripes.",
+    "relevant_topics": [
+      "pedestrians",
+      "crosswalk",
+      "zebra_crossing"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_lixof8lixof8lixo.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_lz0k91lz0k91lz0k.png",
+    "title_en": "Blank Sign Shapes Reference",
+    "title_rw": "Ibimenyetso by'umuhanda rusange",
+    "title_fr": "Formes de panneaux de signalisation de référence",
+    "category": "indication",
+    "shape": "other",
+    "visual_description": "Four blank road sign shape outlines labeled a, b, c, and d showing a triangle, circle, octagon, and inverted triangle respectively.",
+    "relevant_topics": [
+      "signs",
+      "shapes",
+      "priority"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_lz0k91lz0k91lz0k.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_og15teog15teog15.png",
+    "title_en": "No Overtaking",
+    "title_rw": "Gucinya ku modoka",
+    "title_fr": "Interdiction de dépassement",
+    "category": "prohibitory",
+    "shape": "red_circle",
+    "visual_description": "A circular red-bordered sign featuring two cars side-by-side, one red and one black, indicating overtaking is prohibited.",
+    "relevant_topics": [
+      "overtaking",
+      "no_entry",
+      "prohibitory"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_og15teog15teog15.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_ttxggrttxggrttxg.png",
+    "title_en": "Children Crossing",
+    "title_rw": "Abana bambuka",
+    "title_fr": "Passage pour enfants",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign showing a silhouette of an adult and a child holding hands walking across.",
+    "relevant_topics": [
+      "children",
+      "pedestrians",
+      "danger"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_ttxggrttxggrttxg.png"
+  },
+  {
+    "path": "Regulatory signs/Gemini_Generated_Image_ydh9xvydh9xvydh9.png",
+    "title_en": "Level Crossing with Barrier Ahead",
+    "title_rw": "Ahanyurwa n'inzira ya gari ya moshi ifite imbogamizi",
+    "title_fr": "Passage à niveau muni de barrières ou de demi-barrières",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red triangular warning sign depicting a fence or railway barrier symbolizing a level crossing ahead.",
+    "relevant_topics": [
+      "railway",
+      "crossing",
+      "danger"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/Gemini_Generated_Image_ydh9xvydh9xvydh9.png"
+  },
+  {
+    "path": "Regulatory signs/c155ea3ab9944458a38d1a82e91d7360.png",
+    "title_en": "Strong cross winds",
+    "title_rw": "Umuyaga ukomeye",
+    "title_fr": "Vent latéral",
+    "category": "danger",
+    "shape": "red_triangle",
+    "visual_description": "A red-bordered triangular sign featuring a black windsack, warning drivers of the danger of strong side winds.",
+    "relevant_topics": [
+      "wind",
+      "weather",
+      "danger",
+      "warning"
+    ],
+    "publicUrl": "/images/Regulatory%20signs/c155ea3ab9944458a38d1a82e91d7360.png"
+  },
+  {
+    "path": "Screenshot 2026-02-23 011307.png",
+    "title_en": "Multiple Traffic Signs Reference",
+    "title_rw": "Ibyapa bitandukanye by'umuhanda",
+    "title_fr": "Panneaux de signalisation multiples",
+    "category": "prohibitory",
+    "shape": "other",
+    "visual_description": "An educational guide image displaying four different traffic signs labeled C.1 (No entry), E.14 (Dead end), C.2a (Closed to all vehicles in both directions), and B.2a (Stop), each with its respective code.",
+    "relevant_topics": [
+      "no_entry",
+      "dead_end",
+      "stop",
+      "prohibition"
+    ],
+    "publicUrl": "/images/Screenshot%202026-02-23%20011307.png"
+  }
+]

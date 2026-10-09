@@ -1419,6 +1419,7 @@ export async function importGazetteModule(
     }>;
     questions: Array<{
       question: string;
+      question_image?: string;
       type: "multiple_choice" | "true_false";
       option_a: string;
       option_b: string;
@@ -1509,6 +1510,7 @@ export async function importGazetteModule(
           await supabase.from("module_exam_questions").insert({
             module_id: moduleId,
             question: q.question,
+            question_image: q.question_image || null,
             type: q.type,
             option_a: q.option_a,
             option_b: q.option_b,
@@ -1518,6 +1520,7 @@ export async function importGazetteModule(
             explanation: q.explanation || "",
             points: 1,
             order_index: qIdx,
+            is_published: true,
             created_by: admin.id,
             updated_by: admin.id,
           });
