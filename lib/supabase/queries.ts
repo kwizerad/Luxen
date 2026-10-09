@@ -4,6 +4,7 @@ import { createClient } from "./client";
 import { isAdmin, isPrimaryAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
 import { getCurrentUser } from "@/lib/auth-utils";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
+import { EXTERNAL_EXAM_CATEGORY_ID, isExternalExamCategoryId, isExternalModuleId, isExternalLessonId } from "@/lib/supabase/external";
 import type { ExamCategory, ExamQuestion, ExamAnswer, ExamAttempt, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
 
 // Helper function to handle Supabase auth lock errors and enrich user profile role
@@ -86,6 +87,56 @@ export async function getExamCategories() {
     duration_minutes: settingsMap.get(c.id)?.duration_minutes ?? undefined,
     question_count: settingsMap.get(c.id)?.question_count ?? undefined,
   }));
+
+  // Also check if External DB Exam is published (or if admin is viewing categories)
+  try {
+    const { data: extCfgRows } = await supabase
+      .from("system_config")
+      .select("key, value")
+      .in("key", [
+        "external_exam_published",
+        "external_exam_title",
+        "external_exam_duration_minutes",
+        "external_exam_question_count",
+      ]);
+    const extMap = new Map<string, string>();
+    for (const r of extCfgRows || []) {
+      if (r.key && r.value !== undefined && r.value !== null) {
+        extMap.set(String(r.key), String(r.value));
+      }
+    }
+    const extPublished = extMap.get("external_exam_published") === "true";
+    const extTitle = extMap.get("external_exam_title") || "Navo's Mock Exam (External DB)";
+    const extDuration = Number(extMap.get("external_exam_duration_minutes")) || 20;
+    const extQuestions = Number(extMap.get("external_exam_question_count")) || 20;
+
+    const existingIdx = categoriesWithSettings.findIndex((c) => c.id === EXTERNAL_EXAM_CATEGORY_ID);
+    if (extPublished || isUserAdmin) {
+      const extCategoryObj: ExamCategory = {
+        id: EXTERNAL_EXAM_CATEGORY_ID,
+        name: extTitle,
+        description: "Official Traffic Rules & Road Signs Mock Exam from External Question Bank",
+        is_published: extPublished,
+        duration_minutes: extDuration,
+        question_count: extQuestions,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      if (existingIdx >= 0) {
+        categoriesWithSettings[existingIdx] = {
+          ...categoriesWithSettings[existingIdx],
+          ...extCategoryObj,
+        };
+      } else if (extPublished || isUserAdmin) {
+        categoriesWithSettings.unshift(extCategoryObj);
+      }
+      if (!questionCounts[EXTERNAL_EXAM_CATEGORY_ID]) {
+        questionCounts[EXTERNAL_EXAM_CATEGORY_ID] = 451;
+      }
+    } else if (existingIdx >= 0 && !isUserAdmin) {
+      categoriesWithSettings.splice(existingIdx, 1);
+    }
+  } catch {}
 
   return { categories: categoriesWithSettings, question_counts: questionCounts, is_admin: isUserAdmin };
 }
@@ -177,6 +228,26 @@ export async function toggleCategoryPublishStatus(id: string, is_published: bool
 
   if (!id || typeof is_published !== "boolean") {
     throw new Error("Category ID and is_published are required");
+  }
+
+  if (isExternalExamCategoryId(id)) {
+    const res = await fetch("/api/external-courses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update_publish_settings",
+        payload: { examPublished: is_published },
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Failed to update external exam publish status");
+    }
+    return {
+      success: true,
+      category: { id, is_published },
+      message: is_published ? "External exam published" : "External exam unpublished",
+    };
   }
 
   const { data, error } = await supabase
@@ -678,6 +749,26 @@ export async function createExamAttempt(attemptData: {
 
   if (!category_id || !category_name || !total_questions || !answers) {
     throw new Error("Missing required fields");
+  }
+
+  // Handle External DB Exam grading and persistence via server route
+  if (isExternalExamCategoryId(category_id)) {
+    const res = await fetch("/api/external-courses/exam", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "submit_exam",
+        attemptData,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json.error || "Failed to submit external exam");
+    }
+    return {
+      attempt: json.attempt,
+      questionDetails: json.questionDetails || {},
+    };
   }
 
   // Check admin saving settings
@@ -1189,6 +1280,24 @@ export async function getExamForTaking(categoryId: string, challengeId?: string)
   // Only enforce limit if user is in limited mode
   if (isLimited && attemptsCount >= dailyLimit) {
     throw new Error(`Daily exam limit reached. You can take ${dailyLimit} exam(s) per day. Please try again tomorrow.`);
+  }
+
+  // Handle External DB Exam taking via server route
+  if (isExternalExamCategoryId(categoryId)) {
+    const res = await fetch("/api/external-courses/exam", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "take_exam",
+        categoryId,
+        challengeId,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json.error || "Failed to load external exam questions");
+    }
+    return json;
   }
 
   // Load settings
@@ -1880,6 +1989,26 @@ export async function getModuleExamForTaking(
   const user = await getAuthUser();
   if (!user) throw new Error("Not authenticated");
 
+  if (isExternalModuleId(moduleId)) {
+    const res = await fetch("/api/external-courses/exam", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "take_module_exam",
+        moduleId,
+        examType: "module",
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json.error || "Failed to load external course quiz");
+    }
+    return {
+      settings: json.settings as ModuleExamSettings,
+      questions: json.questions as ModuleExamQuestion[],
+    };
+  }
+
   const { data: settings, error: settingsError } = await supabase
     .from("module_exam_settings")
     .select("*")
@@ -1928,6 +2057,25 @@ export async function getMidtermExamForTaking(
   const user = await getAuthUser();
   if (!user) throw new Error("Not authenticated");
 
+  if (completedModuleIds.some((id) => isExternalModuleId(id))) {
+    const res = await fetch("/api/external-courses/exam", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "take_module_exam",
+        examType: "midterm",
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && Array.isArray(json.questions)) {
+      return {
+        questions: json.questions.slice(0, questionCount) as ModuleExamQuestion[],
+        durationMinutes: json.settings?.duration_minutes || durationMinutes,
+        questionCount: Math.min(questionCount, json.questions.length),
+      };
+    }
+  }
+
   const { data: questions, error } = await supabase
     .from("module_exam_questions")
     .select("*")
@@ -1959,6 +2107,25 @@ export async function getFinalExamForTaking(
   const supabase = createClient();
   const user = await getAuthUser();
   if (!user) throw new Error("Not authenticated");
+
+  if (allModuleIds.some((id) => isExternalModuleId(id))) {
+    const res = await fetch("/api/external-courses/exam", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "take_module_exam",
+        examType: "final",
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && Array.isArray(json.questions)) {
+      return {
+        questions: json.questions.slice(0, questionCount) as ModuleExamQuestion[],
+        durationMinutes: json.settings?.duration_minutes || durationMinutes,
+        questionCount: Math.min(questionCount, json.questions.length),
+      };
+    }
+  }
 
   const { data: questions, error } = await supabase
     .from("module_exam_questions")
@@ -1999,6 +2166,41 @@ export async function createModuleExamAttempt(
 
   const hasAnsweredAny = (attemptData.answers || []).some((ans) => Boolean(ans.selected_answer));
   const answersToPersist: ModuleExamAnswer[] = hasAnsweredAny ? attemptData.answers : [];
+
+  if (isExternalModuleId(attemptData.module_id)) {
+    // Also save local progress so module completion unlocks next module immediately
+    if (typeof window !== "undefined" && attemptData.module_id) {
+      try {
+        const raw = localStorage.getItem("luxen_external_module_exams") || "{}";
+        const parsed = JSON.parse(raw);
+        const prev = parsed[attemptData.module_id] || { exam_attempts: 0, best_score: 0, exam_passed: false };
+        parsed[attemptData.module_id] = {
+          module_id: attemptData.module_id,
+          exam_attempts: (prev.exam_attempts || 0) + 1,
+          best_score: Math.max(prev.best_score || 0, attemptData.score_percentage),
+          exam_passed: Boolean(attemptData.passed || prev.exam_passed),
+          updated_at: new Date().toISOString(),
+        };
+        localStorage.setItem("luxen_external_module_exams", JSON.stringify(parsed));
+      } catch {}
+    }
+
+    const res = await fetch("/api/external-courses/exam", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "submit_module_exam",
+        attemptData: {
+          ...attemptData,
+          answers: answersToPersist,
+        },
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.attempt) {
+      return json.attempt as ModuleExamAttempt;
+    }
+  }
 
   const savingConfig = await getExamSavingConfig();
   if (!savingConfig.saveIndividualExams) {
@@ -2125,6 +2327,19 @@ export async function getModuleExamAttempts(
 }
 
 export async function getStudentModuleProgress(moduleIds: string[]) {
+  if (moduleIds.some((id) => isExternalModuleId(id))) {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("luxen_external_module_exams") || "{}";
+        const parsed = JSON.parse(raw);
+        return moduleIds
+          .map((id) => parsed[id])
+          .filter(Boolean);
+      } catch {}
+    }
+    return [];
+  }
+
   const supabase = createClient();
   const user = await getAuthUser();
   if (!user) return [];
@@ -2142,6 +2357,18 @@ export async function getStudentModuleProgress(moduleIds: string[]) {
 }
 
 export async function getStudentLessonProgress(moduleIds: string[]) {
+  if (moduleIds.some((id) => isExternalModuleId(id))) {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("luxen_external_lesson_progress") || "{}";
+        const parsed = JSON.parse(raw);
+        const modSet = new Set(moduleIds);
+        return Object.values(parsed).filter((row: any) => row && modSet.has(row.module_id));
+      } catch {}
+    }
+    return [];
+  }
+
   const supabase = createClient();
   const user = await getAuthUser();
   if (!user) return [];
@@ -2165,6 +2392,26 @@ export async function upsertLessonProgress(
   timeSpentSeconds: number,
   exceededTimeSeconds: number = 0
 ): Promise<void> {
+  if (isExternalModuleId(moduleId) || isExternalLessonId(lessonId)) {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("luxen_external_lesson_progress") || "{}";
+        const parsed = JSON.parse(raw);
+        const prev = parsed[lessonId] || { completed: false, time_spent_seconds: 0, exceeded_time_seconds: 0 };
+        parsed[lessonId] = {
+          lesson_id: lessonId,
+          module_id: moduleId,
+          completed: Boolean(completed || prev.completed),
+          time_spent_seconds: (prev.time_spent_seconds || 0) + timeSpentSeconds,
+          exceeded_time_seconds: (prev.exceeded_time_seconds || 0) + exceededTimeSeconds,
+          updated_at: new Date().toISOString(),
+        };
+        localStorage.setItem("luxen_external_lesson_progress", JSON.stringify(parsed));
+      } catch {}
+    }
+    return;
+  }
+
   // First try direct API endpoint for guaranteed server-side execution
   try {
     if (typeof window !== "undefined") {
@@ -2227,6 +2474,9 @@ export async function updateModuleTimeSpent(
   additionalSeconds: number,
   exceededSeconds: number = 0
 ): Promise<void> {
+  if (isExternalModuleId(moduleId)) {
+    return;
+  }
   const supabase = createClient();
   const user = await getAuthUser();
   if (!user) return;
@@ -2316,6 +2566,9 @@ export async function canRetakeExam(
   moduleId: string,
   examType: ExamRetakeType
 ): Promise<{ canRetake: boolean; needsApproval: boolean; reason?: string }> {
+  if (isExternalModuleId(moduleId)) {
+    return { canRetake: true, needsApproval: false };
+  }
   const supabase = createClient();
   const user = await getAuthUser();
   if (!user) throw new Error("Not authenticated");

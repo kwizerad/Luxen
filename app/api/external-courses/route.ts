@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getExternalAdminClient } from "@/lib/supabase/external";
+import { getExternalAdminClient, EXTERNAL_EXAM_CATEGORY_ID } from "@/lib/supabase/external";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin, isPrimaryAdmin } from "@/lib/permissions";
@@ -103,10 +103,82 @@ export async function GET() {
     }));
     const questionSets = setsRes.data || [];
 
+    // Fetch publish & quiz settings from primary system_config
+    let publishConfig = {
+      examPublished: false,
+      examTitle: "Navo's Mock Exam (External DB)",
+      examDurationMinutes: 20,
+      examQuestionCount: 20,
+      coursePublished: false,
+      courseTitle: "Official Traffic Rules & Road Signs Course",
+      quizSettings: {
+        globalDurationMinutes: 20,
+        globalQuestionCount: 20,
+        perCourse: {} as Record<string, { durationMinutes?: number; questionCount?: number }>,
+      },
+    };
+
+    try {
+      const adminSb = createAdminClient();
+      const { data: cfgRows } = await adminSb
+        .from("system_config")
+        .select("key, value")
+        .in("key", [
+          "external_exam_published",
+          "external_exam_title",
+          "external_exam_duration_minutes",
+          "external_exam_question_count",
+          "external_course_published",
+          "external_course_title",
+          "external_course_quiz_settings",
+        ]);
+
+      const cfgMap = new Map<string, string>();
+      for (const r of cfgRows || []) {
+        if (r.key && r.value !== undefined && r.value !== null) {
+          cfgMap.set(String(r.key), String(r.value));
+        }
+      }
+
+      if (cfgMap.has("external_exam_published")) {
+        publishConfig.examPublished = cfgMap.get("external_exam_published") === "true";
+      }
+      if (cfgMap.get("external_exam_title")) {
+        publishConfig.examTitle = cfgMap.get("external_exam_title")!;
+      }
+      if (cfgMap.get("external_exam_duration_minutes")) {
+        publishConfig.examDurationMinutes = Number(cfgMap.get("external_exam_duration_minutes")) || 20;
+      }
+      if (cfgMap.get("external_exam_question_count")) {
+        publishConfig.examQuestionCount = Number(cfgMap.get("external_exam_question_count")) || 20;
+      }
+      if (cfgMap.has("external_course_published")) {
+        publishConfig.coursePublished = cfgMap.get("external_course_published") === "true";
+      }
+      if (cfgMap.get("external_course_title")) {
+        publishConfig.courseTitle = cfgMap.get("external_course_title")!;
+      }
+      if (cfgMap.get("external_course_quiz_settings")) {
+        try {
+          const parsed = JSON.parse(cfgMap.get("external_course_quiz_settings")!);
+          if (parsed && typeof parsed === "object") {
+            publishConfig.quizSettings = {
+              globalDurationMinutes: Number(parsed.globalDurationMinutes) || 20,
+              globalQuestionCount: Number(parsed.globalQuestionCount) || 20,
+              perCourse: parsed.perCourse && typeof parsed.perCourse === "object" ? parsed.perCourse : {},
+            };
+          }
+        } catch {}
+      }
+    } catch (cfgErr) {
+      console.warn("Could not read external publishConfig:", cfgErr);
+    }
+
     return NextResponse.json(
       {
         success: true,
         isAdmin: isAdminUser,
+        publishConfig,
         chapters,
         sections,
         lessons,
@@ -506,6 +578,184 @@ export async function POST(req: NextRequest) {
       const { id } = body;
       const { error } = await extSb.from("lessons").delete().eq("id", id);
       if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "create_chapter") {
+      const { payload } = body;
+      const newChapter = {
+        id: payload.id || crypto.randomUUID(),
+        title: String(payload.title || "New Course"),
+        chapter_number: Number(payload.chapter_number || 1),
+        image: payload.image ? String(payload.image).trim() : null,
+        created_at: now,
+        updated_at: now,
+      };
+      const { data, error } = await extSb.from("chapters").insert(newChapter).select().single();
+      if (error) throw error;
+
+      // Also create a default section for this chapter so lessons can be added right away
+      const defaultSection = {
+        id: crypto.randomUUID(),
+        title: String(payload.section_title || "Section 1"),
+        section_number: 1,
+        chapter_id: data.id,
+        created_at: now,
+        updated_at: now,
+      };
+      const { data: secData } = await extSb.from("sections").insert(defaultSection).select().single();
+
+      return NextResponse.json({ success: true, data, section: secData || null });
+    }
+
+    if (action === "create_section") {
+      const { payload } = body;
+      const newSection = {
+        id: payload.id || crypto.randomUUID(),
+        title: String(payload.title || "New Section"),
+        section_number: Number(payload.section_number || 1),
+        chapter_id: payload.chapter_id,
+        created_at: now,
+        updated_at: now,
+      };
+      const { data, error } = await extSb.from("sections").insert(newSection).select().single();
+      if (error) throw error;
+      return NextResponse.json({ success: true, data });
+    }
+
+    if (action === "delete_chapter") {
+      const { id } = body;
+      const { error } = await extSb.from("chapters").delete().eq("id", id);
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "update_publish_settings") {
+      const { payload } = body;
+      const adminSb = createAdminClient();
+      const upserts: Array<{ key: string; value: string; description: string; updated_at: string }> = [];
+
+      if (payload.examPublished !== undefined) {
+        upserts.push({
+          key: "external_exam_published",
+          value: String(Boolean(payload.examPublished)),
+          description: "Publish external DB questions as Navo's Mock Exam",
+          updated_at: now,
+        });
+      }
+      if (payload.examTitle !== undefined) {
+        upserts.push({
+          key: "external_exam_title",
+          value: String(payload.examTitle).trim() || "Navo's Mock Exam (External DB)",
+          description: "Title for published external DB exam",
+          updated_at: now,
+        });
+      }
+      if (payload.examDurationMinutes !== undefined) {
+        upserts.push({
+          key: "external_exam_duration_minutes",
+          value: String(Math.max(1, Number(payload.examDurationMinutes) || 20)),
+          description: "Duration in minutes for external DB exam",
+          updated_at: now,
+        });
+      }
+      if (payload.examQuestionCount !== undefined) {
+        upserts.push({
+          key: "external_exam_question_count",
+          value: String(Math.max(1, Number(payload.examQuestionCount) || 20)),
+          description: "Question count for external DB exam",
+          updated_at: now,
+        });
+      }
+      if (payload.coursePublished !== undefined) {
+        upserts.push({
+          key: "external_course_published",
+          value: String(Boolean(payload.coursePublished)),
+          description: "Publish external courses as the single student course (Courses as Modules, Lessons as Lessons)",
+          updated_at: now,
+        });
+      }
+      if (payload.courseTitle !== undefined) {
+        upserts.push({
+          key: "external_course_title",
+          value: String(payload.courseTitle).trim() || "Official Traffic Rules & Road Signs Course",
+          description: "Title for published external course",
+          updated_at: now,
+        });
+      }
+      if (payload.quizSettings !== undefined) {
+        upserts.push({
+          key: "external_course_quiz_settings",
+          value: JSON.stringify(payload.quizSettings),
+          description: "Quiz duration and question count settings for external courses (global and per-course)",
+          updated_at: now,
+        });
+      }
+
+      if (upserts.length > 0) {
+        const { error: cfgErr } = await adminSb
+          .from("system_config")
+          .upsert(upserts, { onConflict: "key" });
+        if (cfgErr) throw cfgErr;
+      }
+
+      // Sync exam_categories row so foreign keys for exam_attempts & exam_challenges work seamlessly
+      if (
+        payload.examPublished !== undefined ||
+        payload.examTitle !== undefined ||
+        payload.examDurationMinutes !== undefined ||
+        payload.examQuestionCount !== undefined
+      ) {
+        try {
+          const { data: currentCfg } = await adminSb
+            .from("system_config")
+            .select("key, value")
+            .in("key", [
+              "external_exam_published",
+              "external_exam_title",
+              "external_exam_duration_minutes",
+              "external_exam_question_count",
+            ]);
+          const map = new Map<string, string>();
+          for (const r of currentCfg || []) {
+            if (r.key && r.value !== undefined) map.set(String(r.key), String(r.value));
+          }
+          const isPub = map.get("external_exam_published") === "true";
+          const title = map.get("external_exam_title") || "Navo's Mock Exam (External DB)";
+          const dur = Number(map.get("external_exam_duration_minutes")) || 20;
+          const qCount = Number(map.get("external_exam_question_count")) || 20;
+
+          if (isPub) {
+            await adminSb.from("exam_categories").upsert(
+              {
+                id: EXTERNAL_EXAM_CATEGORY_ID,
+                name: title,
+                is_published: true,
+                updated_at: now,
+              },
+              { onConflict: "id" }
+            );
+            await adminSb.from("exam_settings").upsert(
+              {
+                category_id: EXTERNAL_EXAM_CATEGORY_ID,
+                duration_minutes: dur,
+                question_count: qCount,
+                sorting_mode: "random",
+                updated_at: now,
+              },
+              { onConflict: "category_id" }
+            );
+          } else {
+            await adminSb
+              .from("exam_categories")
+              .update({ is_published: false, updated_at: now })
+              .eq("id", EXTERNAL_EXAM_CATEGORY_ID);
+          }
+        } catch (syncErr) {
+          console.warn("Could not sync external exam category row:", syncErr);
+        }
+      }
+
       return NextResponse.json({ success: true });
     }
 

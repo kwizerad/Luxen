@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getExternalAdminClient, EXTERNAL_COURSE_ID } from "@/lib/supabase/external";
 import type {
   CourseLanguageCourse,
   CourseModule,
@@ -21,9 +23,228 @@ export interface LoadCourseResult {
   course: CourseWithModules | null;
 }
 
+function formatExternalLessonHtml(rawTitle: string, lessonImage: string | null): { shortTitle: string; htmlContent: string } {
+  const lines = String(rawTitle || "").trim().split(/\r?\n/).filter((l) => l.trim().length > 0);
+  const firstLine = lines[0] || "Lesson";
+  const shortTitle = firstLine.length > 90 ? firstLine.slice(0, 87) + "..." : firstLine;
+
+  const paragraphsHtml = String(rawTitle || "")
+    .trim()
+    .split(/\r?\n\r?\n|\r?\n/)
+    .filter((p) => p.trim().length > 0)
+    .map((p) => `<p class="mb-3 leading-relaxed">${p.trim()}</p>`)
+    .join("");
+
+  const imageHtml =
+    lessonImage && lessonImage.startsWith("http")
+      ? `<div class="my-4 flex justify-center"><img src="${lessonImage}" alt="${shortTitle.replace(/"/g, "&quot;")}" class="max-h-72 rounded-xl object-contain border border-border/60 p-2 bg-white" /></div>`
+      : "";
+
+  return {
+    shortTitle,
+    htmlContent: `${imageHtml}${paragraphsHtml || `<p>${shortTitle}</p>`}`,
+  };
+}
+
+async function loadPublishedExternalCourse(language: string): Promise<CourseWithModules | null> {
+  try {
+    const adminSb = createAdminClient();
+    const { data: cfgRows } = await adminSb
+      .from("system_config")
+      .select("key, value")
+      .in("key", [
+        "external_course_published",
+        "external_course_title",
+        "external_course_quiz_settings",
+      ]);
+
+    const cfgMap = new Map<string, string>();
+    for (const r of cfgRows || []) {
+      if (r.key && r.value !== undefined && r.value !== null) {
+        cfgMap.set(String(r.key), String(r.value));
+      }
+    }
+
+    if (cfgMap.get("external_course_published") !== "true") {
+      return null;
+    }
+
+    const extSb = await getExternalAdminClient();
+    if (!extSb) return null;
+
+    const [chaptersRes, sectionsRes, lessonsRes, questionsRes] = await Promise.all([
+      extSb.from("chapters").select("*").order("chapter_number", { ascending: true }).order("id", { ascending: true }),
+      extSb.from("sections").select("*").order("section_number", { ascending: true }).order("id", { ascending: true }),
+      extSb.from("lessons").select("*").order("lesson_number", { ascending: true }).order("id", { ascending: true }),
+      extSb.from("questions").select("id, chapter_id"),
+    ]);
+
+    const chapters = chaptersRes.data || [];
+    const sections = sectionsRes.data || [];
+    const lessons = lessonsRes.data || [];
+    const questions = questionsRes.data || [];
+
+    if (chapters.length === 0) return null;
+
+    let quizSettings: {
+      globalDurationMinutes: number;
+      globalQuestionCount: number;
+      perCourse: Record<string, { durationMinutes?: number; questionCount?: number }>;
+    } = {
+      globalDurationMinutes: 20,
+      globalQuestionCount: 20,
+      perCourse: {},
+    };
+
+    const rawQuiz = cfgMap.get("external_course_quiz_settings");
+    if (rawQuiz) {
+      try {
+        const parsed = JSON.parse(rawQuiz);
+        if (parsed && typeof parsed === "object") {
+          quizSettings = {
+            globalDurationMinutes: Number(parsed.globalDurationMinutes) || 20,
+            globalQuestionCount: Number(parsed.globalQuestionCount) || 20,
+            perCourse: parsed.perCourse && typeof parsed.perCourse === "object" ? parsed.perCourse : {},
+          };
+        }
+      } catch {}
+    }
+
+    // Group sections by chapter_id
+    const sectionsByChapter = new Map<string, any[]>();
+    for (const s of sections) {
+      const list = sectionsByChapter.get(s.chapter_id) || [];
+      list.push(s);
+      sectionsByChapter.set(s.chapter_id, list);
+    }
+
+    // Group lessons by section_id
+    const lessonsBySection = new Map<string, any[]>();
+    for (const l of lessons) {
+      const list = lessonsBySection.get(l.section_id) || [];
+      list.push(l);
+      lessonsBySection.set(l.section_id, list);
+    }
+
+    // Count questions per chapter_id
+    const questionCountByChapter = new Map<string, number>();
+    for (const q of questions) {
+      if (q.chapter_id) {
+        questionCountByChapter.set(q.chapter_id, (questionCountByChapter.get(q.chapter_id) || 0) + 1);
+      }
+    }
+
+    const now = new Date().toISOString();
+    const modules: ModuleWithLessons[] = chapters.map((chap: any, chapIdx: number) => {
+      const modId = `ext-mod-${chap.id}`;
+      const chapSections = sectionsByChapter.get(chap.id) || [];
+      const chapLessonsRaw: any[] = [];
+      for (const sec of chapSections) {
+        const secLessons = lessonsBySection.get(sec.id) || [];
+        for (const l of secLessons) {
+          chapLessonsRaw.push({ ...l, _sectionTitle: sec.title });
+        }
+      }
+      chapLessonsRaw.sort((a, b) => (a.lesson_number || 0) - (b.lesson_number || 0));
+
+      // Map each external lesson directly to a CourseLesson with topics: [] so there is only (Course/Module -> Lesson)
+      const mappedLessons: CourseLesson[] = chapLessonsRaw.map((l: any, lIdx: number) => {
+        const { shortTitle, htmlContent } = formatExternalLessonHtml(l.title, l.lesson_image);
+        return {
+          id: `ext-les-${l.id}`,
+          module_id: modId,
+          title: shortTitle,
+          content: htmlContent,
+          content_type: "text",
+          media_url: l.lesson_image || null,
+          image_url: l.lesson_image || null,
+          order_index: lIdx,
+          is_published: true,
+          status: "published",
+          topics: [],
+          estimated_minutes: 3,
+          created_at: l.created_at || now,
+          updated_at: l.updated_at || now,
+          deleted_at: null,
+        } as unknown as CourseLesson;
+      });
+
+      const courseOverride = quizSettings.perCourse?.[chap.id];
+      const durMins = Number(courseOverride?.durationMinutes) || Number(quizSettings.globalDurationMinutes) || 20;
+      const reqQCount = Number(courseOverride?.questionCount) || Number(quizSettings.globalQuestionCount) || 20;
+      const availableQ = questionCountByChapter.get(chap.id) || questions.length || 20;
+      const finalQCount = Math.min(reqQCount, Math.max(1, availableQ));
+
+      const examSettings: ModuleExamSettings = {
+        id: `ext-exam-settings-${chap.id}`,
+        module_id: modId,
+        title: `Quiz: Course ${chap.chapter_number || chapIdx + 1} - ${chap.title}`,
+        question_count: finalQCount,
+        duration_minutes: durMins,
+        passing_percentage: 70,
+        randomize_questions: true,
+        randomize_answers: false,
+        max_attempts: 10,
+        retake_limit: 10,
+        allow_review: true,
+        show_results_immediately: true,
+        show_explanations: true,
+        status: "published",
+        created_at: now,
+        updated_at: now,
+      } as unknown as ModuleExamSettings;
+
+      return {
+        id: modId,
+        language_id: EXTERNAL_COURSE_ID,
+        title: `Course ${chap.chapter_number || chapIdx + 1}: ${chap.title}`,
+        description: `${mappedLessons.length} Lessons • ${finalQCount} Quiz Questions (${durMins} min)`,
+        order_index: chapIdx,
+        is_published: true,
+        status: "published",
+        created_at: chap.created_at || now,
+        updated_at: chap.updated_at || now,
+        deleted_at: null,
+        lessons: mappedLessons,
+        examSettings,
+      } as unknown as ModuleWithLessons;
+    });
+
+    const courseTitle = cfgMap.get("external_course_title") || "Official Traffic Rules & Road Signs Course";
+
+    return {
+      id: EXTERNAL_COURSE_ID,
+      language: (language as any) || "Kinyarwanda",
+      title: courseTitle,
+      description: "Complete traffic code curriculum with interactive modules, visual road sign lessons, and quizzes.",
+      is_published: true,
+      status: "published",
+      order_index: 0,
+      midterm_enabled: false,
+      midterm_interval: 3,
+      midterm_question_count: quizSettings.globalQuestionCount || 20,
+      midterm_duration_minutes: quizSettings.globalDurationMinutes || 20,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+      modules,
+    } as unknown as CourseWithModules;
+  } catch (err) {
+    console.warn("Failed to load published external course:", err);
+    return null;
+  }
+}
+
 export async function loadCourseByLanguage(
   language: string
 ): Promise<LoadCourseResult> {
+  // Check if External Course is published — when enabled, serve it as the single course
+  // with External Courses mapped to Modules and External Lessons mapped to Lessons
+  const extCourse = await loadPublishedExternalCourse(language);
+  if (extCourse) {
+    return { course: extCourse };
+  }
+
   const supabase = await createClient();
 
   const { data: courseData, error: courseError } = await supabase
@@ -193,6 +414,18 @@ async function resolveLearningLanguage(
       return lang;
     }
   }
+
+  // If external course is published, default to Kinyarwanda (or first enabled language)
+  try {
+    const { data: extCourseCfg } = await supabase
+      .from("system_config")
+      .select("value")
+      .eq("key", "external_course_published")
+      .maybeSingle();
+    if (extCourseCfg?.value === "true") {
+      return isLanguageEnabled("Kinyarwanda") ? "Kinyarwanda" : "English";
+    }
+  } catch {}
 
   return null;
 }

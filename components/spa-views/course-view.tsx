@@ -585,7 +585,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         ? await supabase.from("user_profiles").select("learning_language").eq("id", user.id).maybeSingle()
         : { data: null };
       const savedLanguage = profile?.learning_language;
-      const selectedLanguage = isLearningLanguage(savedLanguage || "") ? savedLanguage : null;
+      const selectedLanguage = isLearningLanguage(savedLanguage || "") ? savedLanguage : "Kinyarwanda";
       setLearningLanguage(selectedLanguage);
       await loadCourse(selectedLanguage);
     };

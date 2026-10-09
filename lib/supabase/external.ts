@@ -50,6 +50,24 @@ export interface ExternalQuestionSet {
   updated_at?: string;
 }
 
+export const EXTERNAL_EXAM_CATEGORY_ID = "00000000-0000-4000-8000-000000000e01";
+export const EXTERNAL_COURSE_ID = "00000000-0000-4000-8000-000000000c01";
+
+export function isExternalExamCategoryId(categoryId?: string | null): boolean {
+  if (!categoryId) return false;
+  return categoryId === EXTERNAL_EXAM_CATEGORY_ID || categoryId.startsWith("ext-exam-");
+}
+
+export function isExternalModuleId(moduleId?: string | null): boolean {
+  if (!moduleId) return false;
+  return moduleId.startsWith("ext-mod-");
+}
+
+export function isExternalLessonId(lessonId?: string | null): boolean {
+  if (!lessonId) return false;
+  return lessonId.startsWith("ext-les-");
+}
+
 let cachedExternalCredentials: { url: string; key: string } | null = null;
 
 export function isExternalSupabaseConfigured(): boolean {
