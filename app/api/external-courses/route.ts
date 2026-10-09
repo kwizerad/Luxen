@@ -7,6 +7,9 @@ import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import { translateTextSnippets, type TargetLanguage } from "@/lib/ai/tiptap-translator";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function checkIsAdminUser(): Promise<boolean> {
   try {
     const supabase = await createClient();
@@ -47,11 +50,31 @@ export async function GET() {
     }
 
     const [chaptersRes, sectionsRes, lessonsRes, questionsRes, setsRes, isAdminUser] = await Promise.all([
-      extSb.from("chapters").select("*").order("chapter_number", { ascending: true }),
-      extSb.from("sections").select("*").order("section_number", { ascending: true }),
-      extSb.from("lessons").select("*").order("lesson_number", { ascending: true }),
-      extSb.from("questions").select("*").order("question_numbers", { ascending: true, nullsFirst: false }),
-      extSb.from("question_sets").select("*").order("set_number", { ascending: true }),
+      extSb
+        .from("chapters")
+        .select("*")
+        .order("chapter_number", { ascending: true })
+        .order("id", { ascending: true }),
+      extSb
+        .from("sections")
+        .select("*")
+        .order("section_number", { ascending: true })
+        .order("id", { ascending: true }),
+      extSb
+        .from("lessons")
+        .select("*")
+        .order("lesson_number", { ascending: true })
+        .order("id", { ascending: true }),
+      extSb
+        .from("questions")
+        .select("*")
+        .order("question_numbers", { ascending: true, nullsFirst: false })
+        .order("id", { ascending: true }),
+      extSb
+        .from("question_sets")
+        .select("*")
+        .order("set_number", { ascending: true })
+        .order("id", { ascending: true }),
       checkIsAdminUser(),
     ]);
 
@@ -80,15 +103,24 @@ export async function GET() {
     }));
     const questionSets = setsRes.data || [];
 
-    return NextResponse.json({
-      success: true,
-      isAdmin: isAdminUser,
-      chapters,
-      sections,
-      lessons,
-      questions,
-      questionSets,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        isAdmin: isAdminUser,
+        chapters,
+        sections,
+        lessons,
+        questions,
+        questionSets,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   } catch (error: any) {
     console.error("GET /api/external-courses error:", error);
     return NextResponse.json(
@@ -262,33 +294,39 @@ export async function POST(req: NextRequest) {
       const { data: pubData } = extSb.storage.from(bucketName).getPublicUrl(filePath);
       const publicUrl = pubData.publicUrl;
 
-      // Optionally update the record right away if entityType & entityId are provided
+      // Update the record right away if entityType & entityId are provided
       let updatedRecord = null;
       if (entityType && entityId) {
         const now = new Date().toISOString();
         if (entityType === "question") {
-          const { data } = await extSb
+          const { data, error: dbErr } = await extSb
             .from("questions")
             .update({ image: publicUrl, updated_at: now })
             .eq("id", entityId)
             .select()
             .single();
+          if (dbErr) throw dbErr;
+          if (!data) throw new Error(`Question record (${entityId}) not found in external database.`);
           updatedRecord = data;
         } else if (entityType === "lesson") {
-          const { data } = await extSb
+          const { data, error: dbErr } = await extSb
             .from("lessons")
             .update({ lesson_image: publicUrl, updated_at: now })
             .eq("id", entityId)
             .select()
             .single();
+          if (dbErr) throw dbErr;
+          if (!data) throw new Error(`Lesson record (${entityId}) not found in external database.`);
           updatedRecord = data;
         } else if (entityType === "chapter") {
-          const { data } = await extSb
+          const { data, error: dbErr } = await extSb
             .from("chapters")
             .update({ image: publicUrl, updated_at: now })
             .eq("id", entityId)
             .select()
             .single();
+          if (dbErr) throw dbErr;
+          if (!data) throw new Error(`Chapter record (${entityId}) not found in external database.`);
           updatedRecord = data;
         }
       }

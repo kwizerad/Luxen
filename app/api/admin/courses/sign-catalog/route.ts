@@ -4,7 +4,7 @@ import path from "path";
 import { GoogleGenAI } from "@google/genai";
 import { getGeminiApiKey } from "@/lib/ai/gemini-client";
 
-export interface SignCatalogItem {
+interface SignCatalogItem {
   path: string;
   publicUrl: string;
   title_en: string;
@@ -42,7 +42,7 @@ function getAllDiskImageFiles(dir: string, base = ""): { rel: string; full: stri
   return results;
 }
 
-export function loadSignCatalog(): SignCatalogItem[] {
+function loadSignCatalog(): SignCatalogItem[] {
   let catalog: SignCatalogItem[] = [];
   try {
     if (fs.existsSync(CATALOG_FILE)) {

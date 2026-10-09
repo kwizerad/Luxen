@@ -18,6 +18,7 @@ export interface EmbeddedSignInfo {
   publicUrl: string;
   title: string;
   caption: string;
+  category?: string;
 }
 
 export interface GeneratedTopic {
@@ -52,6 +53,7 @@ export interface GazetteAnalysisResult {
   questions: GeneratedQuestion[];
   keyLawArticlesReferenced: string[];
   matchedSignsCount?: number;
+  matchedSigns?: EmbeddedSignInfo[];
 }
 
 export const OFFICIAL_RWANDA_GAZETTE_2026_DIGEST = `
@@ -381,6 +383,8 @@ Return ONLY valid JSON matching this schema:
   const parsed = JSON.parse(cleaned);
 
   let totalMatchedSigns = 0;
+  const allMatchedSigns: EmbeddedSignInfo[] = [];
+  const globalSeenPaths = new Set<string>();
 
   const formattedLessons: GeneratedLesson[] = (parsed.lessons || []).map((l: any) => ({
     title: l.title || "Lesson",
@@ -394,12 +398,18 @@ Return ONLY valid JSON matching this schema:
         if (entry && !seenPaths.has(entry.path)) {
           seenPaths.add(entry.path);
           totalMatchedSigns++;
-          resolvedSigns.push({
+          const signInfo: EmbeddedSignInfo = {
             path: entry.path,
             publicUrl: entry.publicUrl,
             title: ms.title || getSignTitleByLanguage(entry, language),
             caption: ms.caption || entry.visual_description,
-          });
+            category: entry.category,
+          };
+          resolvedSigns.push(signInfo);
+          if (!globalSeenPaths.has(entry.path)) {
+            globalSeenPaths.add(entry.path);
+            allMatchedSigns.push(signInfo);
+          }
         }
       }
 
@@ -446,5 +456,6 @@ Return ONLY valid JSON matching this schema:
     questions: formattedQuestions,
     keyLawArticlesReferenced: parsed.keyLawArticlesReferenced || [],
     matchedSignsCount: totalMatchedSigns,
+    matchedSigns: allMatchedSigns,
   };
 }

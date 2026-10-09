@@ -141,7 +141,13 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
 
-      const res = await fetch("/api/external-courses");
+      const res = await fetch(`/api/external-courses?_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      });
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to load external courses");
@@ -406,16 +412,25 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
         throw new Error(data.error || "Upload failed");
       }
 
-      const newUrl = data.publicUrl;
+      const newUrl = data.updatedRecord?.image || data.updatedRecord?.lesson_image || data.publicUrl;
+      if (id && !data.updatedRecord) {
+        throw new Error("Image uploaded, but database row update returned no record.");
+      }
 
       if (type === "question") {
-        setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, image: newUrl } : q)));
+        setQuestions((prev) =>
+          prev.map((q) => (q.id === id ? { ...q, ...(data.updatedRecord || {}), image: newUrl } : q))
+        );
         if (editingQuestion?.id === id) setQFormImage(newUrl);
       } else if (type === "lesson") {
-        setLessons((prev) => prev.map((l) => (l.id === id ? { ...l, lesson_image: newUrl } : l)));
+        setLessons((prev) =>
+          prev.map((l) => (l.id === id ? { ...l, ...(data.updatedRecord || {}), lesson_image: newUrl } : l))
+        );
         if (editingLesson?.id === id) setLFormImage(newUrl);
       } else if (type === "chapter") {
-        setChapters((prev) => prev.map((c) => (c.id === id ? { ...c, image: newUrl } : c)));
+        setChapters((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, ...(data.updatedRecord || {}), image: newUrl } : c))
+        );
         if (editingChapter?.id === id) setCFormImage(newUrl);
       }
 
@@ -1448,10 +1463,26 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {questionsWithPictures
-                    .slice(0, pictureFilter === "with_picture" ? quizPage * QUIZZES_PER_PAGE : 80)
-                    .map(renderQuizCard)}
+                  {(pictureFilter === "with_picture"
+                    ? questionsWithPictures.slice(0, quizPage * QUIZZES_PER_PAGE)
+                    : questionsWithPictures
+                  ).map(renderQuizCard)}
                 </div>
+
+                {pictureFilter === "with_picture" &&
+                  questionsWithPictures.length > quizPage * QUIZZES_PER_PAGE && (
+                    <div className="flex justify-center pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setQuizPage((p) => p + 1)}
+                        className="rounded-xl"
+                      >
+                        Load More Picture Questions (
+                        {questionsWithPictures.length - quizPage * QUIZZES_PER_PAGE} remaining)
+                      </Button>
+                    </div>
+                  )}
               </div>
             )}
 
