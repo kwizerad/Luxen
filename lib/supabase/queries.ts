@@ -90,15 +90,37 @@ export async function getExamCategories() {
 
   // Also check if External DB Exam is published (or if admin is viewing categories)
   try {
-    const { data: extCfgRows } = await supabase
-      .from("system_config")
-      .select("key, value")
-      .in("key", [
-        "external_exam_published",
-        "external_exam_title",
-        "external_exam_duration_minutes",
-        "external_exam_question_count",
-      ]);
+    const extKeys = [
+      "external_exam_published",
+      "external_exam_title",
+      "external_exam_duration_minutes",
+      "external_exam_question_count",
+    ];
+    let extCfgRows: Array<{ key: string; value: string }> | null = null;
+
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch(
+          `/api/system-config?keys=${encodeURIComponent(extKeys.join(","))}`,
+          { cache: "no-store" }
+        );
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json.configs)) {
+            extCfgRows = json.configs;
+          }
+        }
+      } catch {}
+    }
+
+    if (!extCfgRows) {
+      const { data } = await supabase
+        .from("system_config")
+        .select("key, value")
+        .in("key", extKeys);
+      extCfgRows = data || [];
+    }
+
     const extMap = new Map<string, string>();
     for (const r of extCfgRows || []) {
       if (r.key && r.value !== undefined && r.value !== null) {
@@ -2476,6 +2498,30 @@ export async function updateModuleTimeSpent(
   exceededSeconds: number = 0
 ): Promise<void> {
   if (isExternalModuleId(moduleId)) {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("luxen_external_module_exams") || "{}";
+        const parsed = JSON.parse(raw);
+        const prev = parsed[moduleId] || {
+          module_id: moduleId,
+          lessons_completed: 0,
+          total_lessons: 0,
+          exam_passed: false,
+          exam_attempts: 0,
+          best_score: null,
+          time_spent_seconds: 0,
+          exceeded_time_seconds: 0,
+        };
+        parsed[moduleId] = {
+          ...prev,
+          module_id: moduleId,
+          time_spent_seconds: (prev.time_spent_seconds || 0) + additionalSeconds,
+          exceeded_time_seconds: (prev.exceeded_time_seconds || 0) + exceededSeconds,
+          updated_at: new Date().toISOString(),
+        };
+        localStorage.setItem("luxen_external_module_exams", JSON.stringify(parsed));
+      } catch {}
+    }
     return;
   }
   const supabase = createClient();

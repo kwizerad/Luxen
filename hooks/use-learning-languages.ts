@@ -34,14 +34,31 @@ export function useLearningLanguages() {
     );
 
     const fetchEnabled = async () => {
-      const { data } = await supabase
-        .from("system_config")
-        .select("key, value")
-        .in("key", configKeys);
+      let rows: Array<{ key: string; value: string }> | null = null;
+      try {
+        const res = await fetch(
+          `/api/system-config?keys=${encodeURIComponent(configKeys.join(","))}`,
+          { cache: "no-store" }
+        );
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json.configs)) {
+            rows = json.configs;
+          }
+        }
+      } catch {}
+
+      if (!rows) {
+        const { data } = await supabase
+          .from("system_config")
+          .select("key, value")
+          .in("key", configKeys);
+        rows = data || [];
+      }
 
       const enabledSet = new Set<string>(ALL_LEARNING_LANGUAGES as readonly string[]);
 
-      for (const row of data || []) {
+      for (const row of rows || []) {
         // Extract the language name from the key
         const match = row.key.match(/^learning_language_(.+)_enabled$/);
         if (match) {

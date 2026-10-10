@@ -37,6 +37,25 @@ export function getCachedGroupExamEnabled(): boolean | null {
  */
 export async function isGroupExamEnabled(): Promise<boolean> {
   try {
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch("/api/system-config?key=group_exam_enabled", {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.config) {
+            const isEnabled = String(json.config.value).toLowerCase() !== "false";
+            cachedGroupExam = isEnabled;
+            try {
+              sessionStorage.setItem("app_group_exam_enabled", String(isEnabled));
+            } catch {}
+            return isEnabled;
+          }
+        }
+      } catch {}
+    }
+
     const supabase = createClient();
     const { data, error } = await supabase
       .from("system_config")
@@ -67,6 +86,25 @@ export async function isGroupExamEnabled(): Promise<boolean> {
  */
 export async function isStandaloneExamEnabled(): Promise<boolean> {
   try {
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch("/api/system-config?key=standalone_exam_enabled", {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.config) {
+            const isEnabled = String(json.config.value).toLowerCase() !== "false";
+            cachedStandaloneExam = isEnabled;
+            try {
+              sessionStorage.setItem("app_standalone_exam_enabled", String(isEnabled));
+            } catch {}
+            return isEnabled;
+          }
+        }
+      } catch {}
+    }
+
     const supabase = createClient();
     const { data, error } = await supabase
       .from("system_config")

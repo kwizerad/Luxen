@@ -27,6 +27,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "lessonId and moduleId are required" }, { status: 400 });
     }
 
+    // External course modules/lessons use string prefixes (e.g., ext-mod-*, ext-lesson-*) and are tracked in localStorage
+    if (String(lessonId).startsWith("ext-") || String(moduleId).startsWith("ext-")) {
+      return NextResponse.json({ success: true, external: true });
+    }
+
     // Try user client first, fallback to admin client if RLS is restrictive
     let client = supabase;
     const adminSupabase = createAdminClient();

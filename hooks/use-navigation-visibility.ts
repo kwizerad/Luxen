@@ -119,7 +119,14 @@ export function useNavigationVisibility(adminMode = false) {
             .from("course_modules")
             .select("id, language_id, status, is_published, deleted_at, lessons:course_lessons(id, status, is_published, deleted_at)")
             .is("deleted_at", null),
-          supabase.from("system_config").select("key, value"),
+          fetch("/api/system-config", { cache: "no-store" })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((json) =>
+              json && Array.isArray(json.configs)
+                ? { data: json.configs as Array<{ key: string; value: string }> }
+                : supabase.from("system_config").select("key, value")
+            )
+            .catch(() => supabase.from("system_config").select("key, value")),
           user?.id
             ? supabase
                 .from("user_profiles")
@@ -131,6 +138,24 @@ export function useNavigationVisibility(adminMode = false) {
 
       setStandaloneExamEnabled(examEnabled);
       setServicesPageEnabled(servicesCfg.pageEnabled);
+
+      // Parse any explicit admin toggles from system_config
+      let isExternalCoursePublished = false;
+      if (systemConfigsRes.data) {
+        const toggles: Record<string, boolean> = {};
+        for (const row of systemConfigsRes.data as Array<{ key: string; value: string }>) {
+          const isEnabled = String(row.value).toLowerCase() !== "false";
+          toggles[row.key] = isEnabled;
+          if (row.key === "external_course_published" && String(row.value).toLowerCase() === "true") {
+            isExternalCoursePublished = true;
+          }
+        }
+        cachedNavToggles = toggles;
+        setAdminToggles(toggles);
+        try {
+          sessionStorage.setItem("app_admin_nav_toggles", JSON.stringify(toggles));
+        } catch {}
+      }
 
       // Build map of course_language.id -> whether it has at least one published module with at least one published lesson
       const courseIdsWithPublishedContent = new Set<string>();
@@ -157,9 +182,14 @@ export function useNavigationVisibility(adminMode = false) {
         }
       }
 
-      // Determine published course languages from `course_languages`
+      // Determine published course languages from `course_languages` or external published course
+      const pubSet = new Set<string>();
+      if (isExternalCoursePublished) {
+        pubSet.add("English");
+        pubSet.add("French");
+        pubSet.add("Kinyarwanda");
+      }
       if (courseLangsRes.data && courseLangsRes.data.length > 0) {
-        const pubSet = new Set<string>();
         for (const row of courseLangsRes.data as any[]) {
           const isPub =
             !row.deleted_at &&
@@ -172,41 +202,20 @@ export function useNavigationVisibility(adminMode = false) {
             pubSet.add(normalizeLanguageName(row.language));
           }
         }
-        cachedPublishedCourses = pubSet;
-        setPublishedCourseLanguages(pubSet);
-        try {
-          sessionStorage.setItem(
-            "app_published_course_languages",
-            JSON.stringify(Array.from(pubSet))
-          );
-        } catch {}
-      } else {
-        const emptySet = new Set<string>();
-        cachedPublishedCourses = emptySet;
-        setPublishedCourseLanguages(emptySet);
-        try {
-          sessionStorage.setItem("app_published_course_languages", "[]");
-        } catch {}
       }
+      cachedPublishedCourses = pubSet;
+      setPublishedCourseLanguages(pubSet);
+      try {
+        sessionStorage.setItem(
+          "app_published_course_languages",
+          JSON.stringify(Array.from(pubSet))
+        );
+      } catch {}
 
       if (profileRes?.data?.learning_language) {
         const normalized = normalizeLanguageName(profileRes.data.learning_language);
         cachedUserLearningLanguage = normalized;
         setUserLearningLanguage(normalized);
-      }
-
-      // Parse any explicit admin toggles from system_config
-      if (systemConfigsRes.data) {
-        const toggles: Record<string, boolean> = {};
-        for (const row of systemConfigsRes.data as Array<{ key: string; value: string }>) {
-          const isEnabled = String(row.value).toLowerCase() !== "false";
-          toggles[row.key] = isEnabled;
-        }
-        cachedNavToggles = toggles;
-        setAdminToggles(toggles);
-        try {
-          sessionStorage.setItem("app_admin_nav_toggles", JSON.stringify(toggles));
-        } catch {}
       }
     } catch {
       // Ignore transient errors and keep cached state

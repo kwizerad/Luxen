@@ -356,19 +356,25 @@ async function resolveLearningLanguage(
   user: { id: string },
   interfaceLanguage?: string
 ): Promise<LearningLanguage | null> {
-  // Fetch enabled languages from system_config
-  const { data: langConfigs } = await supabase
+  const adminSb = createAdminClient();
+
+  // Fetch enabled languages & external course publish status from system_config using admin client
+  const { data: langConfigs } = await adminSb
     .from("system_config")
     .select("key, value")
     .in("key", [
       "learning_language_english_enabled",
       "learning_language_french_enabled",
       "learning_language_kinyarwanda_enabled",
+      "external_course_published",
     ]);
 
   const disabledLanguages = new Set<string>();
+  let isExternalCoursePublished = false;
   for (const row of langConfigs || []) {
-    if (row.value === "false") {
+    if (row.key === "external_course_published" && String(row.value).toLowerCase() === "true") {
+      isExternalCoursePublished = true;
+    } else if (row.value === "false") {
       const match = row.key.match(/^learning_language_(.+)_enabled$/);
       if (match) {
         // Capitalize first letter to match LEARNING_LANGUAGES format
@@ -416,16 +422,9 @@ async function resolveLearningLanguage(
   }
 
   // If external course is published, default to Kinyarwanda (or first enabled language)
-  try {
-    const { data: extCourseCfg } = await supabase
-      .from("system_config")
-      .select("value")
-      .eq("key", "external_course_published")
-      .maybeSingle();
-    if (extCourseCfg?.value === "true") {
-      return isLanguageEnabled("Kinyarwanda") ? "Kinyarwanda" : "English";
-    }
-  } catch {}
+  if (isExternalCoursePublished) {
+    return isLanguageEnabled("Kinyarwanda") ? "Kinyarwanda" : "English";
+  }
 
   return null;
 }
@@ -490,21 +489,24 @@ export async function getDashboardData(
   }
 
   const moduleIds = course.modules.map((m) => m.id);
+  const isExternalCourse = course.id === EXTERNAL_COURSE_ID || moduleIds.some((id) => id.startsWith("ext-mod-"));
 
-  // Parallel: lesson progress + module progress (need exam_attempts for completion check)
-  const [lessonProgressResult, moduleProgressResult] = await Promise.all([
-    supabase
-      .from("student_lesson_progress")
-      .select("*")
-      .eq("user_id", user.id)
-      .in("module_id", moduleIds)
-      .order("updated_at", { ascending: false }),
-    supabase
-      .from("student_module_progress")
-      .select("module_id, exam_attempts")
-      .eq("user_id", user.id)
-      .in("module_id", moduleIds),
-  ]);
+  // Parallel: lesson progress + module progress (skip UUID-typed tables when external course IDs are used)
+  const [lessonProgressResult, moduleProgressResult] = isExternalCourse
+    ? [{ data: [] as any[] }, { data: [] as any[] }]
+    : await Promise.all([
+        supabase
+          .from("student_lesson_progress")
+          .select("*")
+          .eq("user_id", user.id)
+          .in("module_id", moduleIds)
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from("student_module_progress")
+          .select("module_id, exam_attempts")
+          .eq("user_id", user.id)
+          .in("module_id", moduleIds),
+      ]);
 
   const lessonProgress = lessonProgressResult.data || [];
   const moduleProgress = moduleProgressResult.data || [];
