@@ -82,7 +82,7 @@ export async function getExamCategories() {
     }
   }
 
-  const categoriesWithSettings = (categories || []).map((c: ExamCategory) => ({
+  const categoriesWithSettings: ExamCategory[] = (categories || []).map((c: ExamCategory) => ({
     ...c,
     duration_minutes: settingsMap.get(c.id)?.duration_minutes ?? undefined,
     question_count: settingsMap.get(c.id)?.question_count ?? undefined,
@@ -116,6 +116,7 @@ export async function getExamCategories() {
         id: EXTERNAL_EXAM_CATEGORY_ID,
         name: extTitle,
         description: "Official Traffic Rules & Road Signs Mock Exam from External Question Bank",
+        created_by: user?.id || "system",
         is_published: extPublished,
         duration_minutes: extDuration,
         question_count: extQuestions,
