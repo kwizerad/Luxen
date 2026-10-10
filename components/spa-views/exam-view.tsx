@@ -1126,7 +1126,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     }
 
     try {
-      const data = await getExamForTaking(targetCategoryId, challengeId || undefined);
+      const data = await getExamForTaking(targetCategoryId, challengeId || undefined, language);
       setExam(data as TakeResponse);
       setCurrentIndex(0);
       setSecondsLeft((data.settings?.duration_minutes ?? 20) * 60);

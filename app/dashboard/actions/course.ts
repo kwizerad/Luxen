@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getExternalAdminClient, EXTERNAL_COURSE_ID } from "@/lib/supabase/external";
+import { translateTextSnippets, type TargetLanguage } from "@/lib/ai/tiptap-translator";
+import crypto from "crypto";
 import type {
   CourseLanguageCourse,
   CourseModule,
@@ -21,6 +23,7 @@ export interface CourseWithModules extends CourseLanguageCourse {
 
 export interface LoadCourseResult {
   course: CourseWithModules | null;
+  sequentialUnlockEnabled?: boolean;
 }
 
 function formatExternalLessonHtml(rawTitle: string, lessonImage: string | null): { shortTitle: string; htmlContent: string } {
@@ -86,6 +89,93 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
 
     if (chapters.length === 0) return null;
 
+    const targetLang: TargetLanguage =
+      language === "English" || language === "en"
+        ? "English"
+        : language === "French" || language === "fr"
+        ? "French"
+        : "Kinyarwanda";
+
+    // Translate chapter titles and lesson content if targetLang is English or French
+    const translatedChapterTitles = new Map<string, string>();
+    const translatedLessonTexts = new Map<string, string>();
+
+    if (targetLang !== "Kinyarwanda") {
+      try {
+        const chapEntityIds = chapters.map((c: any) => `ext_chap_${c.id}`);
+        const lesEntityIds = lessons.map((l: any) => `ext_lesson_${l.id}`);
+        const allEntityIds = [...chapEntityIds, ...lesEntityIds];
+
+        const { data: cachedRows } = await adminSb
+          .from("course_ai_cache")
+          .select("entity_id, content_hash, cached_data")
+          .in("entity_id", allEntityIds)
+          .eq("target_language", targetLang)
+          .eq("feature_type", "external_translation");
+
+        const cachedMap = new Map<string, { hash: string; text: string }>();
+        for (const row of cachedRows || []) {
+          if (row.cached_data?.text) {
+            cachedMap.set(row.entity_id, {
+              hash: row.content_hash,
+              text: row.cached_data.text,
+            });
+          }
+        }
+
+        const missingChapters: { id: string; text: string; hash: string }[] = [];
+        for (const c of chapters) {
+          const text = String(c.title || "").trim();
+          if (!text) continue;
+          const hash = crypto.createHash("md5").update(text).digest("hex");
+          const cached = cachedMap.get(`ext_chap_${c.id}`);
+          if (cached && cached.hash === hash) {
+            translatedChapterTitles.set(c.id, cached.text);
+          } else {
+            missingChapters.push({ id: c.id, text, hash });
+          }
+        }
+
+        for (const l of lessons) {
+          const text = String(l.title || "").trim();
+          if (!text) continue;
+          const hash = crypto.createHash("md5").update(text).digest("hex");
+          const cached = cachedMap.get(`ext_lesson_${l.id}`);
+          if (cached && cached.hash === hash) {
+            translatedLessonTexts.set(l.id, cached.text);
+          }
+        }
+
+        if (missingChapters.length > 0) {
+          const snippets = missingChapters.map((m, idx) => ({ id: idx, text: m.text }));
+          const translatedMap = await translateTextSnippets(snippets, "Kinyarwanda", targetLang);
+          const nowStr = new Date().toISOString();
+          const upserts = [];
+          for (let i = 0; i < missingChapters.length; i++) {
+            const item = missingChapters[i];
+            const tText = translatedMap.get(i) || item.text;
+            translatedChapterTitles.set(item.id, tText);
+            upserts.push({
+              entity_id: `ext_chap_${item.id}`,
+              target_language: targetLang,
+              feature_type: "external_translation",
+              content_hash: item.hash,
+              cached_data: { text: tText, updatedAt: nowStr },
+              updated_at: nowStr,
+            });
+          }
+          if (upserts.length > 0) {
+            await adminSb
+              .from("course_ai_cache")
+              .upsert(upserts, { onConflict: "entity_id,target_language,feature_type" })
+              .then(() => {}, () => {});
+          }
+        }
+      } catch (tErr) {
+        console.warn("Could not translate external course titles:", tErr);
+      }
+    }
+
     let quizSettings: {
       globalDurationMinutes: number;
       globalQuestionCount: number;
@@ -134,6 +224,17 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
       }
     }
 
+    const courseWord =
+      targetLang === "French" ? "Cours" : targetLang === "Kinyarwanda" ? "Isomo" : "Course";
+    const lessonsWord =
+      targetLang === "French" ? "Leçons" : targetLang === "Kinyarwanda" ? "Amasomo" : "Lessons";
+    const quizQuestionsWord =
+      targetLang === "French"
+        ? "Questions de Quiz"
+        : targetLang === "Kinyarwanda"
+        ? "Ibibazo by'umwitozo"
+        : "Quiz Questions";
+
     const now = new Date().toISOString();
     const modules: ModuleWithLessons[] = chapters.map((chap: any, chapIdx: number) => {
       const modId = `ext-mod-${chap.id}`;
@@ -149,7 +250,8 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
 
       // Map each external lesson directly to a CourseLesson with topics: [] so there is only (Course/Module -> Lesson)
       const mappedLessons: CourseLesson[] = chapLessonsRaw.map((l: any, lIdx: number) => {
-        const { shortTitle, htmlContent } = formatExternalLessonHtml(l.title, l.lesson_image);
+        const rawText = translatedLessonTexts.get(l.id) || l.title;
+        const { shortTitle, htmlContent } = formatExternalLessonHtml(rawText, l.lesson_image);
         return {
           id: `ext-les-${l.id}`,
           module_id: modId,
@@ -174,11 +276,12 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
       const reqQCount = Number(courseOverride?.questionCount) || Number(quizSettings.globalQuestionCount) || 20;
       const availableQ = questionCountByChapter.get(chap.id) || questions.length || 20;
       const finalQCount = Math.min(reqQCount, Math.max(1, availableQ));
+      const displayChapTitle = translatedChapterTitles.get(chap.id) || chap.title;
 
       const examSettings: ModuleExamSettings = {
         id: `ext-exam-settings-${chap.id}`,
         module_id: modId,
-        title: `Quiz: Course ${chap.chapter_number || chapIdx + 1} - ${chap.title}`,
+        title: `Quiz: ${courseWord} ${chap.chapter_number || chapIdx + 1} - ${displayChapTitle}`,
         question_count: finalQCount,
         duration_minutes: durMins,
         passing_percentage: 70,
@@ -197,8 +300,8 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
       return {
         id: modId,
         language_id: EXTERNAL_COURSE_ID,
-        title: `Course ${chap.chapter_number || chapIdx + 1}: ${chap.title}`,
-        description: `${mappedLessons.length} Lessons • ${finalQCount} Quiz Questions (${durMins} min)`,
+        title: `${courseWord} ${chap.chapter_number || chapIdx + 1}: ${displayChapTitle}`,
+        description: `${mappedLessons.length} ${lessonsWord} • ${finalQCount} ${quizQuestionsWord} (${durMins} min)`,
         order_index: chapIdx,
         is_published: true,
         status: "published",
@@ -210,13 +313,24 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
       } as unknown as ModuleWithLessons;
     });
 
-    const courseTitle = cfgMap.get("external_course_title") || "Official Traffic Rules & Road Signs Course";
+    const rawCourseTitle = cfgMap.get("external_course_title") || "Official Traffic Rules & Road Signs Course";
+    const defaultCourseTitle =
+      targetLang === "Kinyarwanda" && rawCourseTitle === "Official Traffic Rules & Road Signs Course"
+        ? "Amategeko y'Umuhanda n'Ibyapa by'Umuhanda"
+        : targetLang === "French" && rawCourseTitle === "Official Traffic Rules & Road Signs Course"
+        ? "Cours Officiel du Code de la Route et des Panneaux"
+        : rawCourseTitle;
 
     return {
       id: EXTERNAL_COURSE_ID,
-      language: (language as any) || "Kinyarwanda",
-      title: courseTitle,
-      description: "Complete traffic code curriculum with interactive modules, visual road sign lessons, and quizzes.",
+      language: targetLang as any,
+      title: defaultCourseTitle,
+      description:
+        targetLang === "Kinyarwanda"
+          ? "Porogaramu yuzuye y'amategeko y'umuhanda, ibyapa n'ibibazo by'imyitozo."
+          : targetLang === "French"
+          ? "Programme complet du code de la route avec modules interactifs, panneaux et quiz."
+          : "Complete traffic code curriculum with interactive modules, visual road sign lessons, and quizzes.",
       is_published: true,
       status: "published",
       order_index: 0,
@@ -238,16 +352,29 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
 export async function loadCourseByLanguage(
   language: string
 ): Promise<LoadCourseResult> {
+  let sequentialUnlockEnabled = true;
+  try {
+    const adminSb = createAdminClient();
+    const { data: seqRow } = await adminSb
+      .from("system_config")
+      .select("value")
+      .eq("key", "course_sequential_unlock")
+      .maybeSingle();
+    if (seqRow && seqRow.value !== undefined && seqRow.value !== null) {
+      sequentialUnlockEnabled = String(seqRow.value).toLowerCase() !== "false";
+    }
+  } catch {}
+
   // Check if External Course is published — when enabled, serve it as the single course
   // with External Courses mapped to Modules and External Lessons mapped to Lessons
   const extCourse = await loadPublishedExternalCourse(language);
   if (extCourse) {
-    return { course: extCourse };
+    return { course: extCourse, sequentialUnlockEnabled };
   }
 
   const supabase = await createClient();
 
-  const { data: courseData, error: courseError } = await supabase
+  let { data: courseData, error: courseError } = await supabase
     .from("course_languages")
     .select("*")
     .eq("language", language)
@@ -256,9 +383,24 @@ export async function loadCourseByLanguage(
     .limit(1)
     .maybeSingle();
 
+  if (!courseData) {
+    const { data: fallbackCourse } = await supabase
+      .from("course_languages")
+      .select("*")
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .order("order_index", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (fallbackCourse) {
+      courseData = fallbackCourse;
+      courseError = null;
+    }
+  }
+
   if (courseError || !courseData) {
     console.error("Failed to load course:", courseError);
-    return { course: null };
+    return { course: null, sequentialUnlockEnabled };
   }
 
   const { data: modulesData, error: modulesError } = await supabase
@@ -270,7 +412,7 @@ export async function loadCourseByLanguage(
 
   if (modulesError || !modulesData) {
     console.error("Failed to load modules:", modulesError);
-    return { course: { ...courseData, modules: [] } as CourseWithModules };
+    return { course: { ...courseData, modules: [] } as CourseWithModules, sequentialUnlockEnabled };
   }
 
   const typedModules = modulesData as Array<CourseModule & { lessons: CourseLesson[] }>;
@@ -299,6 +441,7 @@ export async function loadCourseByLanguage(
 
   return {
     course: { ...courseData, modules } as CourseWithModules,
+    sequentialUnlockEnabled,
   };
 }
 

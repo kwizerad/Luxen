@@ -56,6 +56,8 @@ interface ModuleExamRunnerProps {
   examType: ExamType;
   moduleId?: string;
   moduleTitle?: string;
+  nextCourseTitle?: string;
+  onNextCourse?: () => void;
   midtermModuleIds?: string[];
   midtermQuestionCount?: number;
   midtermDurationMinutes?: number;
@@ -82,6 +84,8 @@ export function ModuleExamRunner({
   examType,
   moduleId,
   moduleTitle,
+  nextCourseTitle,
+  onNextCourse,
   midtermModuleIds,
   midtermQuestionCount = 30,
   midtermDurationMinutes = 30,
@@ -160,7 +164,7 @@ export function ModuleExamRunner({
         setSecuritySettings(settings);
 
         if (examType === "module" && moduleId) {
-          const data = await getModuleExamForTaking(moduleId);
+          const data = await getModuleExamForTaking(moduleId, language);
           setQuestions(data.questions);
           setSettings(data.settings);
           setDurationMinutes(data.settings.duration_minutes || 20);
@@ -168,7 +172,8 @@ export function ModuleExamRunner({
           const data = await getMidtermExamForTaking(
             midtermModuleIds,
             midtermQuestionCount,
-            midtermDurationMinutes
+            midtermDurationMinutes,
+            language
           );
           setQuestions(data.questions);
           setDurationMinutes(data.durationMinutes);
@@ -176,7 +181,8 @@ export function ModuleExamRunner({
           const data = await getFinalExamForTaking(
             finalModuleIds,
             finalQuestionCount,
-            finalDurationMinutes
+            finalDurationMinutes,
+            language
           );
           setQuestions(data.questions);
           setDurationMinutes(data.durationMinutes);
@@ -190,7 +196,7 @@ export function ModuleExamRunner({
       }
     };
     loadExam();
-  }, [examType, moduleId, midtermModuleIds, finalModuleIds, midtermQuestionCount, midtermDurationMinutes, finalQuestionCount, finalDurationMinutes, onExit, t]);
+  }, [examType, moduleId, midtermModuleIds, finalModuleIds, midtermQuestionCount, midtermDurationMinutes, finalQuestionCount, finalDurationMinutes, language, onExit, t]);
 
   // Timer
   useEffect(() => {
@@ -573,18 +579,56 @@ export function ModuleExamRunner({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Badge variant={examResult.passed ? "default" : "destructive"}>
-                {examResult.passed ? (
-                  <><CheckCircle className="h-3 w-3 mr-1" /> {t("passed") || "Passed"}</>
-                ) : (
-                  <><XCircle className="h-3 w-3 mr-1" /> {t("failed") || "Failed"}</>
-                )}
-              </Badge>
-              <span className="text-xs sm:text-sm text-muted-foreground">
-                {t("passingScore") || "Passing score"}: {settings?.passing_percentage ?? 70}%
-              </span>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Badge variant={examResult.passed ? "default" : "destructive"}>
+                  {examResult.passed ? (
+                    <><CheckCircle className="h-3 w-3 mr-1" /> {t("passed") || "Passed"}</>
+                  ) : (
+                    <><XCircle className="h-3 w-3 mr-1" /> {t("failed") || "Failed"}</>
+                  )}
+                </Badge>
+                <span className="text-xs sm:text-sm text-muted-foreground">
+                  {t("passingScore") || "Passing score"}: {settings?.passing_percentage ?? 70}%
+                </span>
+              </div>
+
+              {onNextCourse && (
+                <Button
+                  size="sm"
+                  onClick={onNextCourse}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2 font-semibold rounded-xl shadow-sm"
+                >
+                  <span>
+                    {nextCourseTitle
+                      ? `${t("continueToNextCourse") || "Continue to Next Course"}: ${nextCourseTitle}`
+                      : (t("continueToNextCourse") || "Continue to Next Course")}
+                  </span>
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              )}
             </div>
+
+            {onNextCourse && (
+              <div className="rounded-xl border border-primary/30 bg-primary/10 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5 min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary block">
+                    {t("nextUp") || "Next Up"}
+                  </span>
+                  <p className="text-xs sm:text-sm font-bold text-foreground truncate">
+                    {nextCourseTitle || (t("continueToNextCourse") || "Next Course")}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={onNextCourse}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5 font-semibold rounded-lg shrink-0"
+                >
+                  <span>{t("continueToNextCourse") || "Continue to Next Course"}</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
 
             {/* Answer breakdown */}
             {settings?.show_results_immediately !== false && (

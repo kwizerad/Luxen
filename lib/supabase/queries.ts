@@ -128,7 +128,24 @@ export async function getExamCategories() {
       }
     }
     const extPublished = extMap.get("external_exam_published") === "true";
-    const extTitle = extMap.get("external_exam_title") || "Navo's Mock Exam (External DB)";
+    const rawExtTitle = extMap.get("external_exam_title") || "Navo's Mock Exam (External DB)";
+    const activeUiLang = typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || "rw" : "rw";
+    const isDefaultExtTitle =
+      rawExtTitle === "Navo's Mock Exam (External DB)" ||
+      rawExtTitle === "Navo's Mock Exam (External Question Bank)";
+    const extTitle = isDefaultExtTitle
+      ? activeUiLang === "fr"
+        ? "Examen Blanc Officiel du Code de la Route"
+        : activeUiLang === "en"
+        ? "Official Traffic Rules & Road Signs Mock Exam"
+        : "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda"
+      : rawExtTitle;
+    const extDesc =
+      activeUiLang === "fr"
+        ? "Examen blanc officiel des règles de circulation et des panneaux routiers"
+        : activeUiLang === "en"
+        ? "Official Traffic Rules & Road Signs Mock Exam from Question Bank"
+        : "Ikizamini cy'imyitozo cy'amategeko y'umuhanda n'ibyapa by'umuhanda";
     const extDuration = Number(extMap.get("external_exam_duration_minutes")) || 20;
     const extQuestions = Number(extMap.get("external_exam_question_count")) || 20;
 
@@ -137,7 +154,7 @@ export async function getExamCategories() {
       const extCategoryObj: ExamCategory = {
         id: EXTERNAL_EXAM_CATEGORY_ID,
         name: extTitle,
-        description: "Official Traffic Rules & Road Signs Mock Exam from External Question Bank",
+        description: extDesc,
         created_by: user?.id || "system",
         is_published: extPublished,
         duration_minutes: extDuration,
@@ -1244,7 +1261,7 @@ function seededShuffle<T>(array: T[], seed: string): T[] {
   return arr;
 }
 
-export async function getExamForTaking(categoryId: string, challengeId?: string) {
+export async function getExamForTaking(categoryId: string, challengeId?: string, language?: string) {
   const supabase = createClient();
   const user = await getAuthUser();
 
@@ -1305,6 +1322,10 @@ export async function getExamForTaking(categoryId: string, challengeId?: string)
     throw new Error(`Daily exam limit reached. You can take ${dailyLimit} exam(s) per day. Please try again tomorrow.`);
   }
 
+  const activeLang =
+    language ||
+    (typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || undefined : undefined);
+
   // Handle External DB Exam taking via server route
   if (isExternalExamCategoryId(categoryId)) {
     const res = await fetch("/api/external-courses/exam", {
@@ -1314,6 +1335,7 @@ export async function getExamForTaking(categoryId: string, challengeId?: string)
         action: "take_exam",
         categoryId,
         challengeId,
+        language: activeLang,
       }),
     });
     const json = await res.json().catch(() => ({}));
@@ -1383,7 +1405,27 @@ export async function getExamForTaking(categoryId: string, challengeId?: string)
 
   // Never send correct_answer/explanation to the client before submission —
   // otherwise anyone can read the answer key straight from the network tab.
-  const sanitizedQuestions = picked.map(({ correct_answer, explanation, ...rest }) => rest);
+  let sanitizedQuestions = picked.map(({ correct_answer, explanation, ...rest }) => rest);
+
+  if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda") {
+    try {
+      const tRes = await fetch("/api/external-courses/exam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "translate_questions",
+          questions: sanitizedQuestions,
+          language: activeLang,
+        }),
+      });
+      if (tRes.ok) {
+        const tJson = await tRes.json();
+        if (Array.isArray(tJson.questions)) {
+          sanitizedQuestions = tJson.questions;
+        }
+      }
+    } catch {}
+  }
 
   return {
     categoryId,
@@ -2006,11 +2048,16 @@ export interface ModuleExamTakeData {
 }
 
 export async function getModuleExamForTaking(
-  moduleId: string
+  moduleId: string,
+  language?: string
 ): Promise<ModuleExamTakeData> {
   const supabase = createClient();
   const user = await getAuthUser();
   if (!user) throw new Error("Not authenticated");
+
+  const activeLang =
+    language ||
+    (typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || undefined : undefined);
 
   if (isExternalModuleId(moduleId)) {
     const res = await fetch("/api/external-courses/exam", {
@@ -2020,6 +2067,7 @@ export async function getModuleExamForTaking(
         action: "take_module_exam",
         moduleId,
         examType: "module",
+        language: activeLang,
       }),
     });
     const json = await res.json().catch(() => ({}));
@@ -2061,6 +2109,26 @@ export async function getModuleExamForTaking(
     finalQuestions = finalQuestions.slice(0, questionCount);
   }
 
+  if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda" && finalQuestions.length > 0) {
+    try {
+      const tRes = await fetch("/api/external-courses/exam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "translate_questions",
+          questions: finalQuestions,
+          language: activeLang,
+        }),
+      });
+      if (tRes.ok) {
+        const tJson = await tRes.json();
+        if (Array.isArray(tJson.questions)) {
+          finalQuestions = tJson.questions;
+        }
+      }
+    } catch {}
+  }
+
   return {
     settings: settings as ModuleExamSettings,
     questions: finalQuestions as ModuleExamQuestion[],
@@ -2070,7 +2138,8 @@ export async function getModuleExamForTaking(
 export async function getMidtermExamForTaking(
   completedModuleIds: string[],
   questionCount: number,
-  durationMinutes: number
+  durationMinutes: number,
+  language?: string
 ): Promise<{ questions: ModuleExamQuestion[]; durationMinutes: number; questionCount: number }> {
   if (completedModuleIds.length === 0) {
     return { questions: [], durationMinutes, questionCount };
@@ -2080,6 +2149,10 @@ export async function getMidtermExamForTaking(
   const user = await getAuthUser();
   if (!user) throw new Error("Not authenticated");
 
+  const activeLang =
+    language ||
+    (typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || undefined : undefined);
+
   if (completedModuleIds.some((id) => isExternalModuleId(id))) {
     const res = await fetch("/api/external-courses/exam", {
       method: "POST",
@@ -2087,6 +2160,7 @@ export async function getMidtermExamForTaking(
       body: JSON.stringify({
         action: "take_module_exam",
         examType: "midterm",
+        language: activeLang,
       }),
     });
     const json = await res.json().catch(() => ({}));
@@ -2109,7 +2183,27 @@ export async function getMidtermExamForTaking(
   if (error) throw error;
 
   const shuffled = shuffleArray(questions || []);
-  const sliced = shuffled.slice(0, questionCount);
+  let sliced = shuffled.slice(0, questionCount);
+
+  if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda" && sliced.length > 0) {
+    try {
+      const tRes = await fetch("/api/external-courses/exam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "translate_questions",
+          questions: sliced,
+          language: activeLang,
+        }),
+      });
+      if (tRes.ok) {
+        const tJson = await tRes.json();
+        if (Array.isArray(tJson.questions)) {
+          sliced = tJson.questions;
+        }
+      }
+    } catch {}
+  }
 
   return {
     questions: sliced as ModuleExamQuestion[],
@@ -2121,7 +2215,8 @@ export async function getMidtermExamForTaking(
 export async function getFinalExamForTaking(
   allModuleIds: string[],
   questionCount: number,
-  durationMinutes: number
+  durationMinutes: number,
+  language?: string
 ): Promise<{ questions: ModuleExamQuestion[]; durationMinutes: number; questionCount: number }> {
   if (allModuleIds.length === 0) {
     return { questions: [], durationMinutes, questionCount };
@@ -2131,6 +2226,10 @@ export async function getFinalExamForTaking(
   const user = await getAuthUser();
   if (!user) throw new Error("Not authenticated");
 
+  const activeLang =
+    language ||
+    (typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || undefined : undefined);
+
   if (allModuleIds.some((id) => isExternalModuleId(id))) {
     const res = await fetch("/api/external-courses/exam", {
       method: "POST",
@@ -2138,6 +2237,7 @@ export async function getFinalExamForTaking(
       body: JSON.stringify({
         action: "take_module_exam",
         examType: "final",
+        language: activeLang,
       }),
     });
     const json = await res.json().catch(() => ({}));
@@ -2160,7 +2260,27 @@ export async function getFinalExamForTaking(
   if (error) throw error;
 
   const shuffled = shuffleArray(questions || []);
-  const sliced = shuffled.slice(0, questionCount);
+  let sliced = shuffled.slice(0, questionCount);
+
+  if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda" && sliced.length > 0) {
+    try {
+      const tRes = await fetch("/api/external-courses/exam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "translate_questions",
+          questions: sliced,
+          language: activeLang,
+        }),
+      });
+      if (tRes.ok) {
+        const tJson = await tRes.json();
+        if (Array.isArray(tJson.questions)) {
+          sliced = tJson.questions;
+        }
+      }
+    } catch {}
+  }
 
   return {
     questions: sliced as ModuleExamQuestion[],

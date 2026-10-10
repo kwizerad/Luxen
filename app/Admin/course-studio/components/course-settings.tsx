@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/select";
 import { useLanguage } from "@/lib/language-context";
 import { Course, CourseStatus } from "@/lib/courses-store";
-import { Settings, ChevronDown, ChevronUp, Shield } from "lucide-react";
+import { Settings, ChevronDown, ChevronUp, Shield, Lock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 
 interface CourseSettingsProps {
   course: Course;
@@ -27,6 +28,46 @@ const STATUSES: CourseStatus[] = ["draft", "published"];
 export function CourseSettings({ course, onChange, initiallyOpen = true }: CourseSettingsProps) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(initiallyOpen);
+  const [sequentialUnlock, setSequentialUnlock] = useState<boolean>(true);
+  const [savingSeq, setSavingSeq] = useState<boolean>(false);
+
+  useEffect(() => {
+    fetch("/api/system-config?key=course_sequential_unlock", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (json?.config && json.config.value !== undefined) {
+          setSequentialUnlock(String(json.config.value).toLowerCase() !== "false");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleToggleSequential = async (checked: boolean) => {
+    setSequentialUnlock(checked);
+    setSavingSeq(true);
+    try {
+      const res = await fetch("/api/system-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "course_sequential_unlock",
+          value: String(checked),
+          description: "Require students to complete courses/modules sequentially starting from Course 1",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(
+        checked
+          ? "Sequential Mode ON: Students must start from Course 1 in order."
+          : "Free Choice Mode ON: Students can choose any course without completing previous ones."
+      );
+    } catch {
+      setSequentialUnlock(!checked);
+      toast.error("Failed to update course progression mode");
+    } finally {
+      setSavingSeq(false);
+    }
+  };
 
   return (
     <div className="rounded-[5px] border border-[var(--admin-border)] bg-[var(--admin-card)] overflow-hidden">
@@ -90,6 +131,26 @@ export function CourseSettings({ course, onChange, initiallyOpen = true }: Cours
                 {STATUSES.map((s) => <SelectItem key={s} value={s}>{t(s) || s}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Student Course Progression Mode */}
+          <div className="rounded-[5px] border border-[var(--admin-border)] p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-[var(--admin-text)] font-medium text-xs sm:text-sm">
+                <Lock className="h-4 w-4 text-[var(--admin-primary)]" />
+                <span>Start from Course 1 (Sequential Lock)</span>
+              </div>
+              <Switch
+                checked={sequentialUnlock}
+                disabled={savingSeq}
+                onCheckedChange={(checked) => void handleToggleSequential(checked)}
+              />
+            </div>
+            <p className="text-xs text-[var(--admin-muted)]">
+              {sequentialUnlock
+                ? "ON: Students must start from Course 1 and complete previous courses/modules in order."
+                : "OFF: Students can choose and open any course freely without completing previous courses."}
+            </p>
           </div>
 
           {/* Midterm Configuration */}

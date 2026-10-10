@@ -44,10 +44,21 @@ export function CourseManagementView() {
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [loadingModules, setLoadingModules] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ type: "course"; course: CourseWithCounts } | { type: "module"; course: CourseWithCounts; module: ModuleWithLessons } | { type: "lesson"; course: CourseWithCounts; module: ModuleWithLessons; lesson: CourseLesson } | null>(null);
+  const [sequentialUnlock, setSequentialUnlock] = useState<boolean>(true);
+  const [savingSeqUnlock, setSavingSeqUnlock] = useState<boolean>(false);
 
   const load = async () => {
     const supabase = createClient();
     if (!cachedCoursesWithCounts) setLoading(true);
+    try {
+      const cfgRes = await fetch("/api/system-config?key=course_sequential_unlock", { cache: "no-store" });
+      if (cfgRes.ok) {
+        const cfgJson = await cfgRes.json();
+        if (cfgJson?.config && cfgJson.config.value !== undefined) {
+          setSequentialUnlock(String(cfgJson.config.value).toLowerCase() !== "false");
+        }
+      }
+    } catch {}
     const [
       { data: coursesData, error: coursesError },
       { data: modulesData, error: modulesError },
@@ -120,6 +131,33 @@ export function CourseManagementView() {
   const togglePublish = (course: CourseWithCounts) => {
     const newStatus: CourseStatus = course.is_published ? "draft" : "published";
     handleStatusChange(course.id, newStatus);
+  };
+
+  const handleToggleSequentialUnlock = async (nextVal: boolean) => {
+    setSequentialUnlock(nextVal);
+    setSavingSeqUnlock(true);
+    try {
+      const res = await fetch("/api/system-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "course_sequential_unlock",
+          value: String(nextVal),
+          description: "Require students to complete courses/modules sequentially starting from Course 1",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update setting");
+      toast.success(
+        nextVal
+          ? "Sequential Mode ON: Students must start from Course 1 and complete in order."
+          : "Free Choice Mode ON: Students can choose and study any course without completing previous courses."
+      );
+    } catch {
+      setSequentialUnlock(!nextVal);
+      toast.error("Failed to update course progression mode.");
+    } finally {
+      setSavingSeqUnlock(false);
+    }
   };
 
   const loadModules = useCallback(async (courseId: string) => {
@@ -292,6 +330,55 @@ export function CourseManagementView() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Student Course Progression Mode Toggle (Sequential from Course 1 vs Choose Any Course) */}
+      <div className="admin-card !rounded-[5px] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[var(--admin-border)]">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Lock className="h-4 w-4 text-[var(--admin-primary)]" />
+            <h3 className="text-sm sm:text-base font-bold text-[var(--admin-text)]">
+              Student Course Progression Mode
+            </h3>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                sequentialUnlock
+                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                  : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
+              {sequentialUnlock ? "Start from Course 1 (Sequential Lock)" : "Choose Any Course Freely (Unlocked)"}
+            </span>
+          </div>
+          <p className="text-xs text-[var(--admin-muted)] max-w-2xl">
+            {sequentialUnlock
+              ? "Students must start from Course 1 / Module 1 and complete previous courses and lessons in order before unlocking the next ones."
+              : "Students can freely choose and study any course or lesson without completing previous courses first."}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+          <span className="text-xs font-medium text-[var(--admin-muted)]">
+            {sequentialUnlock ? "Require Sequential Order" : "Allow Any Course"}
+          </span>
+          <button
+            type="button"
+            disabled={savingSeqUnlock}
+            onClick={() => handleToggleSequentialUnlock(!sequentialUnlock)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+              sequentialUnlock ? "bg-[var(--admin-primary)]" : "bg-emerald-600"
+            }`}
+            role="switch"
+            aria-checked={sequentialUnlock}
+            title="Toggle between starting from Course 1 sequentially or allowing students to choose any course"
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                sequentialUnlock ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
       {/* Course cards — responsive grid with curved corners */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
         {courses.map((course) => {

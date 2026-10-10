@@ -2,8 +2,152 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getExternalAdminClient, EXTERNAL_EXAM_CATEGORY_ID, isExternalModuleId } from "@/lib/supabase/external";
+import { translateTextSnippets, type TargetLanguage } from "@/lib/ai/tiptap-translator";
+import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
+
+function resolveTargetLang(language?: string | null): TargetLanguage {
+  const l = String(language || "").toLowerCase();
+  if (l === "en" || l === "english") return "English";
+  if (l === "fr" || l === "french" || l === "français") return "French";
+  return "Kinyarwanda";
+}
+
+async function translateQuestionBatch<
+  T extends {
+    id: string;
+    question?: string | null;
+    option_a?: string | null;
+    option_b?: string | null;
+    option_c?: string | null;
+    option_d?: string | null;
+    explanation?: string | null;
+  }
+>(
+  adminSb: ReturnType<typeof createAdminClient>,
+  questions: T[],
+  language?: string | null
+): Promise<T[]> {
+  const targetLang = resolveTargetLang(language);
+  if (targetLang === "Kinyarwanda" || questions.length === 0) {
+    return questions;
+  }
+
+  try {
+    const entityIds = questions.map((q) => `q_trans_${q.id}`);
+    const { data: cachedRows } = await adminSb
+      .from("course_ai_cache")
+      .select("entity_id, content_hash, cached_data")
+      .in("entity_id", entityIds)
+      .eq("target_language", targetLang)
+      .eq("feature_type", "question_translation");
+
+    const cachedMap = new Map<string, { hash: string; data: any }>();
+    for (const row of cachedRows || []) {
+      if (row.cached_data) {
+        cachedMap.set(row.entity_id, { hash: row.content_hash, data: row.cached_data });
+      }
+    }
+
+    const toTranslate: {
+      qIdx: number;
+      qId: string;
+      hash: string;
+      qText: string;
+      optA: string;
+      optB: string;
+      optC: string;
+      optD: string;
+    }[] = [];
+
+    const result = questions.map((q) => ({ ...q }));
+
+    for (let i = 0; i < result.length; i++) {
+      const q = result[i];
+      const qText = String(q.question || "").trim();
+      const optA = String(q.option_a || "").trim();
+      const optB = String(q.option_b || "").trim();
+      const optC = String(q.option_c || "").trim();
+      const optD = String(q.option_d || "").trim();
+      const combined = `${qText}||${optA}||${optB}||${optC}||${optD}`;
+      const hash = crypto.createHash("md5").update(combined).digest("hex");
+      const cached = cachedMap.get(`q_trans_${q.id}`);
+
+      if (cached && cached.hash === hash && cached.data) {
+        if (cached.data.question) q.question = cached.data.question;
+        if (cached.data.option_a) q.option_a = cached.data.option_a;
+        if (cached.data.option_b) q.option_b = cached.data.option_b;
+        if (cached.data.option_c) q.option_c = cached.data.option_c;
+        if (cached.data.option_d) q.option_d = cached.data.option_d;
+      } else {
+        toTranslate.push({ qIdx: i, qId: q.id, hash, qText, optA, optB, optC, optD });
+      }
+    }
+
+    if (toTranslate.length > 0) {
+      const snippets: { id: number; text: string }[] = [];
+      for (let idx = 0; idx < toTranslate.length; idx++) {
+        const item = toTranslate[idx];
+        const base = idx * 5;
+        if (item.qText) snippets.push({ id: base + 0, text: item.qText });
+        if (item.optA) snippets.push({ id: base + 1, text: item.optA });
+        if (item.optB) snippets.push({ id: base + 2, text: item.optB });
+        if (item.optC) snippets.push({ id: base + 3, text: item.optC });
+        if (item.optD) snippets.push({ id: base + 4, text: item.optD });
+      }
+
+      const translatedMap = await translateTextSnippets(snippets, "Kinyarwanda", targetLang);
+      const nowStr = new Date().toISOString();
+      const upserts = [];
+
+      for (let idx = 0; idx < toTranslate.length; idx++) {
+        const item = toTranslate[idx];
+        const base = idx * 5;
+        const tQ = translatedMap.get(base + 0) || item.qText;
+        const tA = translatedMap.get(base + 1) || item.optA;
+        const tB = translatedMap.get(base + 2) || item.optB;
+        const tC = translatedMap.get(base + 3) || item.optC;
+        const tD = translatedMap.get(base + 4) || item.optD;
+
+        const targetObj = result[item.qIdx];
+        if (tQ) targetObj.question = tQ;
+        if (tA) targetObj.option_a = tA;
+        if (tB) targetObj.option_b = tB;
+        if (tC) targetObj.option_c = tC;
+        if (tD) targetObj.option_d = tD;
+
+        upserts.push({
+          entity_id: `q_trans_${item.qId}`,
+          target_language: targetLang,
+          feature_type: "question_translation",
+          content_hash: item.hash,
+          cached_data: {
+            question: tQ,
+            option_a: tA,
+            option_b: tB,
+            option_c: tC,
+            option_d: tD,
+            updatedAt: nowStr,
+          },
+          updated_at: nowStr,
+        });
+      }
+
+      if (upserts.length > 0) {
+        await adminSb
+          .from("course_ai_cache")
+          .upsert(upserts, { onConflict: "entity_id,target_language,feature_type" })
+          .then(() => {}, () => {});
+      }
+    }
+
+    return result;
+  } catch (err) {
+    console.warn("Question translation fallback:", err);
+    return questions;
+  }
+}
 
 const DEFAULT_EXAM_SETTINGS = {
   question_count: 20,
@@ -47,9 +191,15 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { action } = body;
+    const { action, language } = body;
 
     const adminSb = createAdminClient();
+
+    if (action === "translate_questions" && Array.isArray(body.questions)) {
+      const translated = await translateQuestionBatch(adminSb, body.questions, language);
+      return NextResponse.json({ questions: translated });
+    }
+
     const extSb = await getExternalAdminClient();
 
     if (!extSb) {
@@ -177,8 +327,11 @@ export async function POST(req: NextRequest) {
         selectedQuestions = shuffled.slice(0, Math.min(questionCount, shuffled.length));
       }
 
+      // Translate questions into requested UI language if needed
+      const translatedSelected = await translateQuestionBatch(adminSb, selectedQuestions, language);
+
       // Strip correct_answer before sending to client
-      const safeQuestions = selectedQuestions.map(({ correct_answer, explanation, ...rest }) => rest);
+      const safeQuestions = translatedSelected.map(({ correct_answer, explanation, ...rest }) => rest);
 
       return NextResponse.json({
         categoryId: categoryId || EXTERNAL_EXAM_CATEGORY_ID,
@@ -345,12 +498,13 @@ export async function POST(req: NextRequest) {
 
       const shuffled = [...formatted].sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, Math.min(questionCount, shuffled.length));
+      const translatedSelected = await translateQuestionBatch(adminSb, selected, language);
 
       return NextResponse.json({
         settings: {
           id: `ext-settings-${rawChapterId || examType}`,
           module_id: moduleId || rawChapterId,
-          question_count: selected.length,
+          question_count: translatedSelected.length,
           duration_minutes: durationMinutes,
           passing_percentage: 70,
           randomize_questions: true,
@@ -362,7 +516,7 @@ export async function POST(req: NextRequest) {
           retake_limit: 10,
           status: "published",
         },
-        questions: selected,
+        questions: translatedSelected,
       });
     }
 

@@ -180,6 +180,7 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
   const [examQuestionCount, setExamQuestionCount] = useState("20");
   const [coursePublished, setCoursePublished] = useState(false);
   const [courseTitle, setCourseTitle] = useState("Official Traffic Rules & Road Signs Course");
+  const [sequentialUnlock, setSequentialUnlock] = useState(true);
   const [globalQuizDuration, setGlobalQuizDuration] = useState("20");
   const [globalQuizQuestionCount, setGlobalQuizQuestionCount] = useState("20");
   const [perCourseQuizSettings, setPerCourseQuizSettings] = useState<
@@ -227,6 +228,9 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
         setExamQuestionCount(String(data.publishConfig.examQuestionCount || 20));
         setCoursePublished(Boolean(data.publishConfig.coursePublished));
         if (data.publishConfig.courseTitle) setCourseTitle(data.publishConfig.courseTitle);
+        if (data.publishConfig.sequentialUnlock !== undefined) {
+          setSequentialUnlock(Boolean(data.publishConfig.sequentialUnlock));
+        }
         if (data.publishConfig.quizSettings) {
           const gDur = String(data.publishConfig.quizSettings.globalDurationMinutes || 20);
           const gCnt = String(data.publishConfig.quizSettings.globalQuestionCount || 20);
@@ -1014,6 +1018,7 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
       {
         coursePublished: nextVal,
         courseTitle,
+        sequentialUnlock,
         quizSettings: {
           globalDurationMinutes: Number(globalQuizDuration) || 20,
           globalQuestionCount: Number(globalQuizQuestionCount) || 20,
@@ -1023,6 +1028,18 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
       nextVal
         ? "External Course published as single course (Courses = Modules, Lessons = Lessons)!"
         : "External Course unpublished"
+    );
+  };
+
+  const handleToggleSequentialUnlock = async (nextVal: boolean) => {
+    setSequentialUnlock(nextVal);
+    await handleSavePublishSettings(
+      {
+        sequentialUnlock: nextVal,
+      },
+      nextVal
+        ? "Sequential Mode ON: Students must start from Course 1 and complete courses in order."
+        : "Free Choice Mode ON: Students can choose any course without completing previous courses!"
     );
   };
 
@@ -1268,8 +1285,42 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
                   </p>
                 </div>
 
-                <div className="space-y-1.5 pt-2 border-t border-border/60">
-                  <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="space-y-2.5 pt-2 border-t border-border/60">
+                  <div className="flex items-center justify-between gap-2 rounded-lg border bg-background/80 p-2">
+                    <div className="space-y-0.5 min-w-0">
+                      <span className="text-[11px] font-bold text-foreground block">
+                        {sequentialUnlock
+                          ? "Start from Course 1 (Sequential)"
+                          : "Allow Any Course (Unlocked)"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block leading-tight">
+                        {sequentialUnlock
+                          ? "Students must complete previous courses first"
+                          : "Students can choose any course freely"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={savingPublishSettings}
+                      onClick={() => handleToggleSequentialUnlock(!sequentialUnlock)}
+                      className={cn(
+                        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                        sequentialUnlock ? "bg-primary" : "bg-emerald-600"
+                      )}
+                      role="switch"
+                      aria-checked={sequentialUnlock}
+                      title="Toggle ON to require starting from Course 1 sequentially, or OFF to allow students to choose any course"
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                          sequentialUnlock ? "translate-x-4" : "translate-x-0"
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
                     Published Course Title
                   </label>
                   <div className="flex items-center gap-1.5">
@@ -1286,7 +1337,7 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
                       disabled={savingPublishSettings}
                       onClick={() =>
                         handleSavePublishSettings(
-                          { courseTitle, coursePublished },
+                          { courseTitle, coursePublished, sequentialUnlock },
                           "External course title saved!"
                         )
                       }

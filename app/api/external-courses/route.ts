@@ -111,6 +111,7 @@ export async function GET() {
       examQuestionCount: 20,
       coursePublished: false,
       courseTitle: "Official Traffic Rules & Road Signs Course",
+      sequentialUnlock: true,
       quizSettings: {
         globalDurationMinutes: 20,
         globalQuestionCount: 20,
@@ -131,6 +132,7 @@ export async function GET() {
           "external_course_published",
           "external_course_title",
           "external_course_quiz_settings",
+          "course_sequential_unlock",
         ]);
 
       const cfgMap = new Map<string, string>();
@@ -157,6 +159,9 @@ export async function GET() {
       }
       if (cfgMap.get("external_course_title")) {
         publishConfig.courseTitle = cfgMap.get("external_course_title")!;
+      }
+      if (cfgMap.has("course_sequential_unlock")) {
+        publishConfig.sequentialUnlock = cfgMap.get("course_sequential_unlock") !== "false";
       }
       if (cfgMap.get("external_course_quiz_settings")) {
         try {
@@ -688,6 +693,14 @@ export async function POST(req: NextRequest) {
           key: "external_course_quiz_settings",
           value: JSON.stringify(payload.quizSettings),
           description: "Quiz duration and question count settings for external courses (global and per-course)",
+          updated_at: now,
+        });
+      }
+      if (payload.sequentialUnlock !== undefined) {
+        upserts.push({
+          key: "course_sequential_unlock",
+          value: String(Boolean(payload.sequentialUnlock)),
+          description: "Require students to complete courses/modules sequentially starting from Course 1",
           updated_at: now,
         });
       }

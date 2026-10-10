@@ -301,6 +301,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const { t, language: interfaceLanguage } = useLanguage();
   const { enabledLanguages } = useLearningLanguages();
   const [course, setCourse] = useState<CourseWithModules | null>(null);
+  const [sequentialUnlockEnabled, setSequentialUnlockEnabled] = useState(true);
   const [learningLanguage, setLearningLanguage] = useState<LearningLanguage | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingLanguage, setSavingLanguage] = useState(false);
@@ -412,7 +413,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [selectedTerm, setSelectedTerm] = useState<string | null>(null);
   const [termPosition, setTermPosition] = useState<{ x: number; y: number } | null>(null);
 
-  // Reset transient translation on topic change
+  // Reset transient translation on topic change, and auto-translate if course content is in another language (e.g. external Kinyarwanda course when UI is English/French)
   useEffect(() => {
     setTranslatedContent(null);
     setTranslatedTitle(null);
@@ -423,7 +424,18 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     setTtsAudioUrl(null);
     setSelectedTerm(null);
     setTermPosition(null);
-  }, [currentItemIndex]);
+
+    if (viewMode === "study" && course && learningLanguage) {
+      const isExtCourse = course.id === "00000000-0000-0000-0000-00000000e001";
+      const targetLang = learningLanguage as "English" | "French" | "Kinyarwanda";
+      if (isExtCourse && targetLang !== "Kinyarwanda") {
+        const timer = setTimeout(() => {
+          void handleLanguageSelect(targetLang);
+        }, 50);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [currentItemIndex, viewMode, course?.id, learningLanguage]);
 
   // Touch swipe handling
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -538,6 +550,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
 
     const cachedCourse = spaCache.get<CourseWithModules>(`spa_course_${selectedLanguage}`);
+    const cachedSeq = spaCache.get<boolean>(`spa_course_seq_${selectedLanguage}`);
+    if (cachedSeq !== null && cachedSeq !== undefined) {
+      setSequentialUnlockEnabled(cachedSeq);
+    }
     if (cachedCourse) {
       setCourse(cachedCourse);
       if (cachedCourse.modules.length > 0 && !selectedModuleId) {
@@ -549,7 +565,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       setLoading(true);
     }
 
-    const { course } = await loadCourseByLanguage(selectedLanguage);
+    const { course, sequentialUnlockEnabled: seqUnlock } = await loadCourseByLanguage(selectedLanguage);
+    const resolvedSeq = seqUnlock !== false;
+    setSequentialUnlockEnabled(resolvedSeq);
+    spaCache.set(`spa_course_seq_${selectedLanguage}`, resolvedSeq);
     if (!course) {
       spaCache.delete(`spa_course_${selectedLanguage}`);
       setCourse(null);
@@ -784,14 +803,16 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   }, [course, isLessonCompleted, moduleProgress]);
 
   const isModuleUnlocked = useCallback((modIdx: number): boolean => {
+    if (!sequentialUnlockEnabled) return true;
     if (modIdx === 0) return true;
     if (!course) return false;
     const prevMod = course.modules[modIdx - 1];
     return prevMod ? isModuleCompleted(prevMod.id) : false;
-  }, [course, isModuleCompleted]);
+  }, [course, isModuleCompleted, sequentialUnlockEnabled]);
 
   const isLessonUnlocked = useCallback((moduleId: string, lessonIdx: number): boolean => {
     if (!course) return false;
+    if (!sequentialUnlockEnabled) return true;
     const modIdx = course.modules.findIndex((m) => m.id === moduleId);
     if (modIdx < 0 || !isModuleUnlocked(modIdx)) return false;
 
@@ -802,9 +823,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     const mod = course.modules[modIdx];
     const prevLesson = mod.lessons[lessonIdx - 1];
     return prevLesson ? isLessonCompleted(prevLesson.id) : false;
-  }, [course, isModuleUnlocked, isLessonCompleted]);
+  }, [course, isModuleUnlocked, isLessonCompleted, sequentialUnlockEnabled]);
 
   const isItemUnlocked = useCallback((index: number): boolean => {
+    if (!sequentialUnlockEnabled) return true;
     if (index === 0) return true;
     const item = flatList[index];
     if (!item) return false;
@@ -825,7 +847,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
 
     return true;
-  }, [flatList, completedItems, course, isModuleUnlocked, isLessonUnlocked]);
+  }, [flatList, completedItems, course, isModuleUnlocked, isLessonUnlocked, sequentialUnlockEnabled]);
 
   const isLastItemInLesson = (item: FlatItem | null): boolean => {
     if (!item) return false;
@@ -1090,7 +1112,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       setShowCelebration(true);
       setTimeout(() => setShowCelebration(false), 4000);
     }
-    setActiveExam(null);
+    // Keep activeExam mounted so ModuleExamRunner displays the quiz results card!
   };
 
   const continueToNextLesson = () => {
@@ -1142,7 +1164,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   // 1-Click Language Switcher (Instant Cache or API Fetch)
   const handleLanguageSelect = async (targetLang: "English" | "French" | "Kinyarwanda") => {
-    const activeBaseLang = (learningLanguage as "English" | "French" | "Kinyarwanda") || "English";
+    const isExtCourse = course?.id === "00000000-0000-0000-0000-00000000e001";
+    const activeBaseLang = isExtCourse
+      ? "Kinyarwanda"
+      : ((learningLanguage as "English" | "French" | "Kinyarwanda") || "English");
 
     // Revert to original
     if (targetLang === activeBaseLang) {
@@ -1473,11 +1498,32 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       .filter((m) => isModuleCompleted(m.id))
       .map((m) => m.id);
 
+    const activeModIdx = activeExam.moduleId
+      ? course.modules.findIndex((m) => m.id === activeExam.moduleId)
+      : -1;
+    const nextModule =
+      activeModIdx >= 0 && activeModIdx + 1 < course.modules.length
+        ? course.modules[activeModIdx + 1]
+        : null;
+
     return (
       <ModuleExamRunner
         examType={activeExam.type}
         moduleId={activeExam.moduleId}
         moduleTitle={activeExam.moduleTitle}
+        nextCourseTitle={nextModule?.title}
+        onNextCourse={
+          nextModule
+            ? () => {
+                setActiveExam(null);
+                setSelectedModuleId(nextModule.id);
+                setViewMode("module-lessons");
+              }
+            : () => {
+                setActiveExam(null);
+                setViewMode("modules");
+              }
+        }
         midtermModuleIds={activeExam.type === "midterm" ? completedModuleIds : undefined}
         midtermQuestionCount={course.midterm_question_count || 30}
         midtermDurationMinutes={course.midterm_duration_minutes || 30}
@@ -1689,12 +1735,31 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                       </div>
                     </div>
 
-                    {isUnlocked && (
-                      <div className="w-full pt-0.5 flex items-center justify-between text-xs font-semibold text-foreground/80 dark:text-zinc-300 group-hover:text-primary dark:group-hover:text-white transition-colors">
-                        <span>{t("viewLessons") || "View Lessons"}</span>
-                        <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
-                      </div>
-                    )}
+                    <div className="pt-1 flex items-center justify-between gap-2">
+                      {isUnlocked ? (
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openModuleLessons(module.id);
+                          }}
+                          className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-xs rounded-lg shadow-none h-8"
+                        >
+                          <span>{t("open") || "Open"}</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled
+                          className="w-full gap-1.5 text-xs rounded-lg h-8 opacity-70"
+                        >
+                          <Lock className="h-3.5 w-3.5" />
+                          <span>{t("locked") || "Locked"}</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
