@@ -119,14 +119,19 @@ export function useNavigationVisibility(adminMode = false) {
             .from("course_modules")
             .select("id, language_id, status, is_published, deleted_at, lessons:course_lessons(id, status, is_published, deleted_at)")
             .is("deleted_at", null),
-          fetch("/api/system-config", { cache: "no-store" })
-            .then((r) => (r.ok ? r.json() : null))
-            .then((json) =>
-              json && Array.isArray(json.configs)
-                ? { data: json.configs as Array<{ key: string; value: string }> }
-                : supabase.from("system_config").select("key, value")
-            )
-            .catch(() => supabase.from("system_config").select("key, value")),
+          (async (): Promise<{ data: Array<{ key: string; value: string }> | null }> => {
+            try {
+              const r = await fetch("/api/system-config", { cache: "no-store" });
+              if (r.ok) {
+                const json = await r.json();
+                if (json && Array.isArray(json.configs)) {
+                  return { data: json.configs as Array<{ key: string; value: string }> };
+                }
+              }
+            } catch {}
+            const res = await supabase.from("system_config").select("key, value");
+            return { data: (res.data as Array<{ key: string; value: string }>) || null };
+          })(),
           user?.id
             ? supabase
                 .from("user_profiles")
