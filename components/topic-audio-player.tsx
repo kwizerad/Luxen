@@ -90,7 +90,7 @@ export function TopicAudioPlayer({ audioUrl, topicTitle, className }: TopicAudio
   return (
     <div
       className={cn(
-        "rounded-[16px] border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-3.5 sm:p-4 space-y-2.5 transition-all shadow-xs",
+        "rounded-[16px] border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3.5 sm:p-4 space-y-2.5 transition-all shadow-xs",
         className
       )}
     >
@@ -106,11 +106,11 @@ export function TopicAudioPlayer({ audioUrl, topicTitle, className }: TopicAudio
 
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="h-7 w-7 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+          <div className="h-7 w-7 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0">
             <Volume2 className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider block leading-none">
+            <span className="text-[11px] font-bold text-primary uppercase tracking-wider block leading-none">
               Audio Lesson
             </span>
             <p className="text-xs text-foreground/80 truncate font-medium">
@@ -127,7 +127,7 @@ export function TopicAudioPlayer({ audioUrl, topicTitle, className }: TopicAudio
             className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold bg-background border hover:bg-muted text-foreground/80 transition-colors"
             title="Audio speed"
           >
-            <Gauge className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+            <Gauge className="h-3 w-3 text-primary" />
             <span>{playbackRate}x</span>
           </button>
 
@@ -141,7 +141,7 @@ export function TopicAudioPlayer({ audioUrl, topicTitle, className }: TopicAudio
                   className={cn(
                     "px-2 py-1 rounded-md text-[10px] font-semibold transition-all",
                     playbackRate === speed
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "hover:bg-muted text-foreground"
                   )}
                 >
@@ -162,7 +162,7 @@ export function TopicAudioPlayer({ audioUrl, topicTitle, className }: TopicAudio
           step="0.1"
           value={currentTime}
           onChange={handleSeek}
-          className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-emerald-600 focus:outline-none"
+          className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
         />
         <div className="flex justify-between text-[10px] tabular-nums text-muted-foreground font-medium">
           <span>{formatTime(currentTime)}</span>
@@ -176,7 +176,7 @@ export function TopicAudioPlayer({ audioUrl, topicTitle, className }: TopicAudio
           <button
             type="button"
             onClick={() => skipTime(-5)}
-            className="p-1.5 rounded-full hover:bg-emerald-500/15 text-foreground/80 hover:text-foreground transition-colors"
+            className="p-1.5 rounded-full hover:bg-primary/15 text-foreground/80 hover:text-foreground transition-colors"
             title="Rewind 5s"
           >
             <RotateCcw className="h-3.5 w-3.5" />
@@ -184,7 +184,7 @@ export function TopicAudioPlayer({ audioUrl, topicTitle, className }: TopicAudio
           <button
             type="button"
             onClick={togglePlay}
-            className="flex items-center justify-center h-8 w-8 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white transition-transform active:scale-95 shadow-sm"
+            className="flex items-center justify-center h-8 w-8 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground transition-transform active:scale-95 shadow-sm"
             title={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
@@ -192,7 +192,7 @@ export function TopicAudioPlayer({ audioUrl, topicTitle, className }: TopicAudio
           <button
             type="button"
             onClick={() => skipTime(5)}
-            className="p-1.5 rounded-full hover:bg-emerald-500/15 text-foreground/80 hover:text-foreground transition-colors"
+            className="p-1.5 rounded-full hover:bg-primary/15 text-foreground/80 hover:text-foreground transition-colors"
             title="Forward 5s"
           >
             <RotateCw className="h-3.5 w-3.5" />

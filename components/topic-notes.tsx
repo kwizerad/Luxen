@@ -75,14 +75,14 @@ export function TopicNotes({ topicId, topicTitle, lessonTitle }: TopicNotesProps
     <div className="rounded-[16px] border bg-card/60 backdrop-blur-sm p-4 space-y-3 shadow-xs">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <StickyNote className="h-4 w-4 text-amber-500" />
+          <StickyNote className="h-4 w-4 text-primary" />
           <h4 className="text-xs font-bold uppercase tracking-wider text-foreground/90">
             Study Scratchpad & Notes
           </h4>
         </div>
         <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
           {saved && (
-            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+            <span className="flex items-center gap-1 text-primary font-medium">
               <Check className="h-3 w-3" /> Auto-saved
             </span>
           )}

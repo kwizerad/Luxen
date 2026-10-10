@@ -934,7 +934,7 @@ function ExamInvitationsContent({
                             size="sm"
                             disabled={actionLoadingKey !== null}
                             onClick={() => handleRespondToInvitation(challenge.id, challenge.category_id, true)}
-                            className="flex-1 h-9 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm gap-1.5 transition-all"
+                            className="flex-1 h-9 rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm gap-1.5 transition-all"
                           >
                             {actionLoadingKey === `${challenge.id}-join` ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -969,7 +969,7 @@ function ExamInvitationsContent({
                               from: "classmates",
                             });
                           }}
-                          className="w-full h-9 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm gap-1.5 transition-all"
+                          className="w-full h-9 rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm gap-1.5 transition-all"
                         >
                           <Play className="h-3.5 w-3.5 fill-current" />
                           <span>{t("joinExam") || "Injira mu Kizamini Ubu"}</span>

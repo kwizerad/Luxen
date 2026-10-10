@@ -1650,16 +1650,16 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                 >
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
                         <FileText className="h-4 w-4" />
                       </div>
-                      <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20 dark:border-emerald-800/40 px-2 py-0.5 rounded">
+                      <span className="text-[10px] font-medium text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
                         {t("available") || "Available"}
                       </span>
                     </div>
                     
                     <div className="space-y-1">
-                      <h3 className="text-sm font-bold text-foreground dark:text-zinc-100 group-hover:text-primary dark:group-hover:text-emerald-400 transition-colors">{category.name}</h3>
+                      <h3 className="text-sm font-bold text-foreground dark:text-zinc-100 group-hover:text-primary transition-colors">{category.name}</h3>
                       <p className="text-xs text-muted-foreground dark:text-zinc-400 line-clamp-2 leading-relaxed">
                         {category.description || t("examCategoryDescription") || "Take exam in this category"}
                       </p>
@@ -1684,7 +1684,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                       <span className="font-mono text-foreground dark:text-zinc-200">{category.question_count ?? 20}</span>
                     </div>
 
-                    <Button className="w-full h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-zinc-800 dark:hover:bg-emerald-600 dark:hover:text-white dark:text-zinc-200 border border-emerald-600/20 dark:border-zinc-700/60 rounded-lg shadow-xs transition-colors" size="sm">
+                    <Button className="w-full h-8 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-xs transition-colors" size="sm">
                       {t("select") || "Select"}
                     </Button>
                   </div>

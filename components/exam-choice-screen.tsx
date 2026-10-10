@@ -91,15 +91,15 @@ export function ExamChoiceScreen({
           <div className="space-y-2.5 sm:space-y-3">
             <div className="flex items-start justify-between gap-2">
               <div className="space-y-0.5 min-w-0">
-                <h2 className="text-sm sm:text-lg font-bold text-foreground dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-tight">
+                <h2 className="text-sm sm:text-lg font-bold text-foreground dark:text-zinc-100 group-hover:text-primary transition-colors leading-tight">
                   {t("individualExam") || "Individual Exam"}
                 </h2>
-                <span className="inline-block text-[10px] sm:text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                <span className="inline-block text-[10px] sm:text-[11px] font-medium text-primary">
                   {t("soloMode") || "Standard (Solo)"}
                 </span>
               </div>
 
-              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
                 <FileText className="h-4 w-4" />
               </div>
             </div>
@@ -110,15 +110,15 @@ export function ExamChoiceScreen({
 
             <div className="pt-2 border-t border-border/80 dark:border-zinc-800/80 space-y-1.5">
               <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-foreground/80 dark:text-zinc-300">
-                <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
                 <span className="truncate">{t("selfPacedPractice") || "Self-paced & timed practice"}</span>
               </div>
               <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-foreground/80 dark:text-zinc-300">
-                <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
                 <span className="truncate">{t("instantResultReview") || "Detailed regulation explanations"}</span>
               </div>
               <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-foreground/80 dark:text-zinc-300">
-                <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
                 <span className="truncate">{t("passMarkThreshold") || "Passing score is 60% (12/20)"}</span>
               </div>
             </div>
@@ -127,7 +127,7 @@ export function ExamChoiceScreen({
           <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-border/60 dark:border-zinc-800/60">
             <Button
               type="button"
-              className="w-full h-8 sm:h-9 rounded-lg text-[11px] sm:text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs justify-between px-2.5 sm:px-3.5 transition-colors"
+              className="w-full h-8 sm:h-9 rounded-lg text-[11px] sm:text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs justify-between px-2.5 sm:px-3.5 transition-colors"
             >
               <span className="truncate">{t("startIndividualExam") || "Start Exam"}</span>
               <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
@@ -149,16 +149,16 @@ export function ExamChoiceScreen({
             <div className="space-y-2.5 sm:space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-0.5 min-w-0">
-                  <h2 className="text-sm sm:text-lg font-bold text-foreground dark:text-zinc-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors leading-tight">
+                  <h2 className="text-sm sm:text-lg font-bold text-foreground dark:text-zinc-100 group-hover:text-primary transition-colors leading-tight">
                     {t("groupExam") || "Group Exam"}
                   </h2>
-                  <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-amber-700 dark:text-amber-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                  <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-primary">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse shrink-0" />
                     <span className="truncate">{t("multiplayerMode") || "Multiplayer"}</span>
                   </span>
                 </div>
 
-                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
                   <Users className="h-4 w-4" />
                 </div>
               </div>
@@ -169,15 +169,15 @@ export function ExamChoiceScreen({
 
               <div className="pt-2 border-t border-border/80 dark:border-zinc-800/80 space-y-1.5">
                 <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-foreground/80 dark:text-zinc-300">
-                  <Trophy className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <Trophy className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
                   <span className="truncate">{t("liveLeaderboard") || "Live Leaderboard"}</span>
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-foreground/80 dark:text-zinc-300">
-                  <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
                   <span className="truncate">{t("realTimeChallenge") || "Synchronized timer"}</span>
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-foreground/80 dark:text-zinc-300">
-                  <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
                   <span className="truncate">{t("requiresAtLeastTwo") || "Requires at least 2 students"}</span>
                 </div>
               </div>
@@ -186,7 +186,7 @@ export function ExamChoiceScreen({
             <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-border/60 dark:border-zinc-800/60">
               <Button
                 type="button"
-                className="w-full h-8 sm:h-9 rounded-lg text-[11px] sm:text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white shadow-xs justify-between px-2.5 sm:px-3.5 transition-colors"
+                className="w-full h-8 sm:h-9 rounded-lg text-[11px] sm:text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs justify-between px-2.5 sm:px-3.5 transition-colors"
               >
                 <span className="truncate">{t("startGroupExam") || "Group Exam"}</span>
                 <Trophy className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 group-hover:scale-105 transition-transform" />

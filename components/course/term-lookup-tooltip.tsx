@@ -111,8 +111,8 @@ export function TermLookupTooltip({ term, context = "", position, onClose }: Ter
           )}
 
           {data.tip && (
-            <div className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 p-2 rounded-xl flex items-center gap-1.5">
-              <Sparkles className="h-3 w-3 shrink-0 text-amber-500" />
+            <div className="text-[11px] text-primary bg-primary/10 border border-primary/20 p-2 rounded-xl flex items-center gap-1.5">
+              <Sparkles className="h-3 w-3 shrink-0 text-primary" />
               <span>{data.tip}</span>
             </div>
           )}

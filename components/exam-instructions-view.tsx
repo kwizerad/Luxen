@@ -220,7 +220,7 @@ export function ExamInstructionsView({
         <div className="p-4 sm:p-5 rounded-2xl border border-border/70 bg-card/70 dark:bg-card/50 backdrop-blur-md flex flex-col justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 shrink-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0">
                 <CheckCircle2 className="h-4 w-4" />
               </div>
               <h3 className="font-bold text-sm text-foreground">{text.answerTitle}</h3>

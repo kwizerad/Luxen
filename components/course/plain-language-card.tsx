@@ -18,16 +18,16 @@ interface PlainLanguageCardProps {
 
 export function PlainLanguageCard({ data, language, onClose }: PlainLanguageCardProps) {
   return (
-    <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-5 sm:p-6 space-y-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-      <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+    <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 sm:p-6 space-y-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+      <div className="flex items-center justify-between border-b border-primary/20 pb-3">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+          <div className="h-8 w-8 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
             <Lightbulb className="h-4 w-4" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
               <span>Plain Terms &amp; Real-World Road Rules</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-semibold">
                 Simplified
               </span>
             </h3>
@@ -47,8 +47,8 @@ export function PlainLanguageCard({ data, language, onClose }: PlainLanguageCard
       </div>
 
       {/* Core takeaway */}
-      <div className="p-3.5 rounded-xl bg-background/80 border border-amber-500/20 text-xs sm:text-sm font-semibold text-foreground leading-relaxed flex items-start gap-2.5">
-        <Sparkles className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+      <div className="p-3.5 rounded-xl bg-background/80 border border-primary/20 text-xs sm:text-sm font-semibold text-foreground leading-relaxed flex items-start gap-2.5">
+        <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <span>{data.summary}</span>
       </div>
 
@@ -62,7 +62,7 @@ export function PlainLanguageCard({ data, language, onClose }: PlainLanguageCard
                 key={idx}
                 className="flex items-start gap-2.5 text-xs text-foreground bg-muted/40 p-2.5 rounded-xl border border-border/40"
               >
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                 <span className="leading-relaxed">{pt}</span>
               </div>
             ))}
@@ -72,8 +72,8 @@ export function PlainLanguageCard({ data, language, onClose }: PlainLanguageCard
 
       {/* Real-world Rwanda driving example */}
       {data.practicalExample && (
-        <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs space-y-1">
-          <div className="flex items-center gap-1.5 font-bold text-blue-800 dark:text-blue-300">
+        <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-xs space-y-1">
+          <div className="flex items-center gap-1.5 font-bold text-primary">
             <Car className="h-3.5 w-3.5" />
             <span>Rwanda Real-World Scenario:</span>
           </div>
@@ -83,9 +83,9 @@ export function PlainLanguageCard({ data, language, onClose }: PlainLanguageCard
 
       {/* Police exam tip */}
       {data.examTip && (
-        <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-xs space-y-1 text-amber-900 dark:text-amber-200">
-          <div className="flex items-center gap-1.5 font-bold">
-            <Award className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+        <div className="p-3 rounded-xl bg-primary/15 border border-primary/30 text-xs space-y-1 text-foreground">
+          <div className="flex items-center gap-1.5 font-bold text-primary">
+            <Award className="h-3.5 w-3.5 text-primary" />
             <span>Police Exam Tip:</span>
           </div>
           <p className="leading-relaxed pl-5">{data.examTip}</p>

@@ -60,7 +60,6 @@ import { TermLookupTooltip } from "@/components/course/term-lookup-tooltip";
 import { PlainLanguageCard, type PlainLanguageData } from "@/components/course/plain-language-card";
 import { AINeuralVoicePlayer } from "@/components/course/ai-neural-voice-player";
 import { markTTSDisabledForSession } from "@/components/course/question-tts-button";
-import { ExternalCoursesView } from "@/components/course/external-courses-view";
 import { ModuleExamRunner, type ExamType } from "@/components/module-exam-runner";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -308,9 +307,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   // View state: "modules" (Course overview) | "module-lessons" (Selected module's lesson list) | "study" (Active reader)
   const [viewMode, setViewMode] = useState<"modules" | "module-lessons" | "study">("modules");
-  const [courseSourceTab, setCourseSourceTab] = useState<"main" | "external">(() =>
-    params.get("tab") === "external" ? "external" : "main"
-  );
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
@@ -889,6 +885,27 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         return next;
       });
 
+      // Save progress to database in background
+      void saveLessonProgress(currentItem, true, totalLessonTime);
+
+      // For courses that have Course and Lessons alone (no topics), skip the completion card modal and advance directly
+      const hasTopicsInLesson = currentItem.type === "topic" && (currentItem.topicCount ?? 0) > 1;
+      if (!hasTopicsInLesson) {
+        if (currentItemIndex < flatList.length - 1) {
+          const nextIdx = currentItemIndex + 1;
+          if (flatList[nextIdx]?.type === "exam") {
+            setSelectedModuleId(currentItem.moduleId);
+            setViewMode("module-lessons");
+          } else {
+            setCurrentItemIndex(nextIdx);
+          }
+        } else {
+          setSelectedModuleId(currentItem.moduleId);
+          setViewMode("module-lessons");
+        }
+        return;
+      }
+
       // Set completion meta and pop up modal INSTANTLY with zero network delay
       setCompletedLessonMeta({
         lessonTitle: currentItem.lessonTitle,
@@ -898,9 +915,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         hasNextLesson: currentItemIndex < flatList.length - 1,
       });
       setShowLessonCompleteModal(true);
-
-      // Save progress to database in background
-      void saveLessonProgress(currentItem, true, totalLessonTime);
       return;
     }
 
@@ -1415,59 +1429,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     return null;
   }, [course, flatList, learningLanguage, completedItems]);
 
-  if (loading && courseSourceTab === "main") {
+  if (loading) {
     return <CourseViewSkeleton />;
-  }
-
-  if (courseSourceTab === "external") {
-    return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <button
-            onClick={() => navigate("back", { fallback: "home" })}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>{t("back") || t("backToHome") || "Back"}</span>
-          </button>
-
-          <div className="inline-flex items-center p-1 rounded-xl bg-muted/80 border border-border">
-            <button
-              type="button"
-              onClick={() => setCourseSourceTab("main")}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-            >
-              Main Course
-            </button>
-            <button
-              type="button"
-              onClick={() => setCourseSourceTab("external")}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-background text-foreground shadow-xs transition-all cursor-pointer"
-            >
-              External Courses &amp; Quizzes
-            </button>
-          </div>
-        </div>
-
-        <ExternalCoursesView />
-      </div>
-    );
   }
 
   if (!learningLanguage) {
     return (
       <div className="max-w-xl mx-auto rounded-[20px] border bg-card p-6 sm:p-8 space-y-6 shadow-sm mt-8">
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setCourseSourceTab("external")}
-            className="rounded-xl text-xs"
-          >
-            Open External Courses &amp; Quizzes
-          </Button>
-        </div>
         <div className="text-center space-y-2">
           <BookOpen className="h-10 w-10 mx-auto text-primary-readable" />
           <h1 className="text-2xl font-bold">{t("chooseLearningLanguage") || "Choose the language you want to study in"}</h1>
@@ -1495,11 +1463,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         <BookOpen className="h-12 w-12 mx-auto mb-2 text-muted-foreground opacity-40" />
         <p className="text-lg font-semibold">{t("noCoursesAvailable") || "No courses available"}</p>
         <p className="text-sm text-muted-foreground mt-1">{(t("noPublishedCourse") || "There is no published {language} course right now.").replace("{language}", learningLanguage)}</p>
-        <div className="pt-2">
-          <Button type="button" onClick={() => setCourseSourceTab("external")} className="rounded-xl">
-            Open External Courses &amp; Quizzes
-          </Button>
-        </div>
       </div>
     );
   }
@@ -1543,23 +1506,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>{t("back") || t("backToHome") || "Back"}</span>
             </button>
-
-            <div className="inline-flex items-center p-1 rounded-xl bg-muted/80 border border-border">
-              <button
-                type="button"
-                onClick={() => setCourseSourceTab("main")}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-background text-foreground shadow-xs transition-all cursor-pointer"
-              >
-                Main Course
-              </button>
-              <button
-                type="button"
-                onClick={() => setCourseSourceTab("external")}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-              >
-                External Courses &amp; Quizzes
-              </button>
-            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1579,7 +1525,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   setSelectedModuleId(resumeTarget.item.moduleId);
                   setViewMode("study");
                 }}
-                className="gap-2 font-semibold text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-none px-4 py-2 self-start sm:self-auto"
+                className="gap-2 font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-none px-4 py-2 self-start sm:self-auto"
               >
                 <Play className="h-3.5 w-3.5 fill-current" />
                 <span>{t("continueFromLastTopic") || t("resumeLearning") || "Resume Topic"}</span>
@@ -1590,10 +1536,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
         {/* Continue from Last Topic Bento Card */}
         {resumeTarget && (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-950/20 hover:bg-emerald-500/15 dark:hover:bg-emerald-950/30 p-4 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-none">
+          <div className="rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 p-4 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-none">
             <div className="space-y-1.5 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 lowercase">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/20 text-primary border border-primary/30 lowercase">
                   <BookMarked className="w-3 h-3" />
                   <span>{t("resumeLearning") || "resume"}</span>
                 </span>
@@ -1620,7 +1566,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   setSelectedModuleId(resumeTarget.item.moduleId);
                   setViewMode("study");
                 }}
-                className="w-full sm:w-auto gap-2 px-4 py-2 rounded-lg font-semibold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-none"
+                className="w-full sm:w-auto gap-2 px-4 py-2 rounded-lg font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-none"
               >
                 <Play className="h-3.5 w-3.5 fill-current" />
                 <span>{t("continueFromLastTopic") || "Continue Learning"}</span>
@@ -1665,10 +1611,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                       <div
                         className={cn(
                           "flex items-center justify-center h-9 w-9 rounded-lg shrink-0 font-mono text-xs font-bold border",
-                          isComplete
-                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                            : isUnlocked
-                            ? "bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400"
+                          isComplete || isUnlocked
+                            ? "bg-primary/10 border-primary/20 text-primary"
                             : "bg-muted dark:bg-zinc-800/60 border-border dark:border-zinc-700/40 text-muted-foreground dark:text-zinc-500"
                         )}
                       >
@@ -1686,12 +1630,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                           0{modIdx + 1}
                         </span>
                         {isComplete && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-400 font-semibold lowercase">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase">
                             {t("completed") || "done"}
                           </span>
                         )}
                         {!isComplete && isUnlocked && completedLessonsCount > 0 && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/20 dark:border-amber-800/40 text-amber-700 dark:text-amber-400 font-semibold lowercase">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase">
                             {t("inProgress") || "in-progress"}
                           </span>
                         )}
@@ -1722,7 +1666,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                         {formatMinutes(calcModuleTime)}
                       </span>
                       {module.examSettings && (
-                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+                        <span className="flex items-center gap-1 text-primary font-medium">
                           <FileText className="h-3 w-3" />
                           {t("moduleExam") || "Module Exam"}
                         </span>
@@ -1739,7 +1683,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                       </div>
                       <div className="h-1.5 rounded-full bg-muted dark:bg-zinc-800 overflow-hidden">
                         <div
-                          className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                          className="h-full bg-primary transition-all duration-500 rounded-full"
                           style={{ width: `${modulePct}%` }}
                         />
                       </div>
@@ -1798,13 +1742,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-[rgb(15,15,16)] p-3.5 space-y-2 mt-2 shadow-xs">
             <div className="flex items-center justify-between text-xs font-mono">
               <span className="text-muted-foreground dark:text-zinc-400">{t("progress") || "Progress"}</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+              <span className="text-primary font-bold">
                 {completedLessonsCount} / {totalLessons} {t("lessonsMastered") || "Mastered"} ({modulePct}%)
               </span>
             </div>
             <div className="h-1.5 rounded-full bg-muted dark:bg-zinc-800 overflow-hidden">
               <div
-                className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                className="h-full bg-primary transition-all duration-500 rounded-full"
                 style={{ width: `${modulePct}%` }}
               />
             </div>
@@ -1857,10 +1801,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                       <div
                         className={cn(
                           "flex items-center justify-center h-8 w-8 rounded-lg shrink-0 font-mono text-xs font-bold border",
-                          isComplete
-                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                            : isUnlocked
-                            ? "bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400"
+                          isComplete || isUnlocked
+                            ? "bg-primary/10 border-primary/20 text-primary"
                             : "bg-muted dark:bg-zinc-800/60 border-border dark:border-zinc-700/40 text-muted-foreground dark:text-zinc-500"
                         )}
                       >
@@ -1880,8 +1822,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                           </h3>
                         </div>
                         <div className="flex items-center gap-2.5 text-xs text-muted-foreground dark:text-zinc-400 font-mono">
-                          <span>{topics.length} {topics.length === 1 ? "topic" : "topics"}</span>
-                          <span>•</span>
+                          {topics.length > 0 && (
+                            <>
+                              <span>{topics.length} {topics.length === 1 ? "topic" : "topics"}</span>
+                              <span>•</span>
+                            </>
+                          )}
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {formatMinutes(calcLessonTime)}
@@ -1892,12 +1838,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
                     <div className="flex items-center gap-2 shrink-0">
                       {isComplete && (
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-400 font-semibold lowercase">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase">
                           {t("completed") || "completed"}
                         </span>
                       )}
                       {isInProgress && (
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/20 dark:border-amber-800/40 text-amber-700 dark:text-amber-400 font-semibold lowercase">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase">
                           {t("inProgress") || "in-progress"}
                         </span>
                       )}
@@ -1912,13 +1858,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
             {/* Module Exam Card if available */}
             {currentModule.examSettings && (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-950/20 p-4 flex items-center justify-between gap-4 shadow-none">
+              <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 flex items-center justify-between gap-4 shadow-none">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <div className="h-9 w-9 rounded-lg bg-primary/15 border border-primary/25 text-primary flex items-center justify-center shrink-0">
                     <Trophy className="h-4 w-4" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-mono text-amber-700 dark:text-amber-400 lowercase tracking-wider block">
+                    <span className="text-[10px] font-mono text-primary lowercase tracking-wider block">
                       {t("moduleExam") || "module exam"}
                     </span>
                     <h3 className="font-bold text-sm text-foreground dark:text-zinc-100">{currentModule.examSettings.title || "Module Test"}</h3>
@@ -1931,7 +1877,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 <Button
                   size="sm"
                   onClick={() => startModuleExam(currentModule.id, currentModule.examSettings?.title || currentModule.title)}
-                  className="bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold gap-1.5 shadow-none shrink-0"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-xs font-semibold gap-1.5 shadow-none shrink-0"
                 >
                   <Play className="h-3.5 w-3.5 fill-current" />
                   <span>{t("takeExam") || "Take Exam"}</span>
@@ -1973,7 +1919,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 8 }}
               transition={{ type: "spring", damping: 24, stiffness: 320 }}
-              className="relative z-10 text-center space-y-4 p-6 bg-card border-2 border-emerald-500 rounded-[28px] shadow-2xl transform-gpu"
+              className="relative z-10 text-center space-y-4 p-6 bg-card border-2 border-primary rounded-[28px] shadow-2xl transform-gpu"
             >
               <div className="text-6xl animate-bounce">🎉</div>
               <h2 className="text-3xl font-bold tracking-tight">{t("courseCompleted") || "Course Completed!"}</h2>
@@ -1983,7 +1929,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         )}
       </AnimatePresence>
 
-      {/* Lesson Complete Celebration Modal (Triggered ONLY on lesson completion) */}
+      {/* Lesson Complete Celebration Modal (Triggered ONLY on lesson completion when topics exist) */}
       <AnimatePresence>
         {showLessonCompleteModal && completedLessonMeta && (
           <motion.div
@@ -1998,13 +1944,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
-              className="relative max-w-md w-full rounded-[24px] border-2 border-emerald-500/40 bg-card shadow-2xl p-6 sm:p-8 space-y-6 transform-gpu"
+              className="relative max-w-md w-full rounded-[24px] border-2 border-primary/40 bg-card shadow-2xl p-6 sm:p-8 space-y-6 transform-gpu"
             >
               <div className="text-center space-y-3">
-                <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <div className="w-16 h-16 mx-auto rounded-full bg-primary/15 flex items-center justify-center text-primary">
                   <Award className="h-9 w-9 animate-pulse" />
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-primary block">
                   {t("lessonMastered") || "Lesson Mastered!"}
                 </span>
                 <h2 className="text-2xl font-bold tracking-tight">{completedLessonMeta.lessonTitle}</h2>
@@ -2020,12 +1966,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   <p className="text-lg font-bold">{completedLessonMeta.topicsCount}</p>
                   <span className="text-[10px] text-muted-foreground block">Completed all</span>
                 </div>
-                <div className="rounded-[14px] bg-emerald-500/10 border border-emerald-500/20 p-3 text-center space-y-1">
-                  <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold uppercase flex items-center justify-center gap-1">
+                <div className="rounded-[14px] bg-primary/10 border border-primary/20 p-3 text-center space-y-1">
+                  <span className="text-[10px] text-primary font-bold uppercase flex items-center justify-center gap-1">
                     <Clock className="h-3 w-3" />
                     {t("totalLessonTime") || "Total Time Taken"}
                   </span>
-                  <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                  <p className="text-lg font-extrabold text-primary tabular-nums">
                     {formatTimer(completedLessonMeta.timeSpentSeconds)}
                   </p>
                   <span className="text-[10px] text-muted-foreground block">
@@ -2038,8 +1984,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
               {/* Next Lesson Preview */}
               {completedLessonMeta.hasNextLesson && completedLessonMeta.nextLessonTitle && (
-                <div className="rounded-[14px] border bg-emerald-500/5 border-emerald-500/20 p-3.5 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                <div className="rounded-[14px] border bg-primary/5 border-primary/20 p-3.5 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
                     {t("nextUp") || "Next Up"}
                   </span>
                   <p className="text-xs font-semibold text-foreground truncate">
@@ -2053,7 +1999,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 {completedLessonMeta.hasNextLesson ? (
                   <Button
                     size="lg"
-                    className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm cursor-pointer"
+                    className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold shadow-sm cursor-pointer"
                     onClick={continueToNextLesson}
                   >
                     <ArrowRight className="h-4 w-4" />
@@ -2062,7 +2008,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 ) : (
                   <Button
                     size="lg"
-                    className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm cursor-pointer"
+                    className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold shadow-sm cursor-pointer"
                     onClick={backToModuleLessonsFromModal}
                   >
                     <Trophy className="h-4 w-4" />
@@ -2091,7 +2037,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         {!isFocusActive && (
           <div
             onClick={() => setIsFocusActive(true)}
-            className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 text-center text-xs font-medium text-amber-700 dark:text-amber-300 flex items-center justify-center gap-2 cursor-pointer transition-colors hover:bg-amber-500/20"
+            className="bg-primary/15 border-b border-primary/30 px-4 py-2 text-center text-xs font-medium text-primary flex items-center justify-center gap-2 cursor-pointer transition-colors hover:bg-primary/20"
           >
             <Pause className="h-3.5 w-3.5 shrink-0" />
             <span>{t("studyTimerPausedFocusLost") || "Study timer paused (Focus lost) — Click anywhere to resume studying"}</span>
@@ -2141,8 +2087,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             className={cn(
               "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tabular-nums border transition-colors",
               isFocusActive
-                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                ? "bg-primary/10 text-primary border-primary/20"
+                : "bg-muted text-muted-foreground border-border"
             )}
             title="Lesson Study Timer"
           >
@@ -2184,7 +2130,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             onClick={() => setShowNotes(!showNotes)}
             className={cn(
               "p-1.5 rounded-lg border text-xs font-medium transition-colors",
-              showNotes ? "bg-amber-500/15 border-amber-500/30 text-amber-600" : "bg-background hover:bg-muted text-muted-foreground"
+              showNotes ? "bg-primary/15 border-primary/30 text-primary" : "bg-background hover:bg-muted text-muted-foreground"
             )}
             title="Study notes & scratchpad"
           >
@@ -2242,7 +2188,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             className={cn(
               "hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
               isPlainLanguageOpen
-                ? "bg-amber-500 text-white border-amber-600 shadow-sm"
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
                 : "bg-background hover:bg-muted text-muted-foreground border-border"
             )}
             title="Explain road rules in plain, simple terms [Press P]"
@@ -2347,7 +2293,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                         className={cn(
                           "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all text-left group",
                           isCurrent
-                            ? "bg-primary/10 text-primary-readable font-bold"
+                            ? "bg-primary/10 text-primary font-bold"
                             : isUnlocked
                             ? "hover:bg-muted text-foreground"
                             : "opacity-40 cursor-not-allowed text-muted-foreground"
@@ -2357,11 +2303,11 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                           {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                         </span>
                         {isComplete ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
                         ) : isExpanded ? (
-                          <FolderOpen className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0" />
                         ) : isUnlocked ? (
-                          <Folder className="h-3.5 w-3.5 text-amber-500/80 shrink-0" />
+                          <Folder className="h-3.5 w-3.5 text-primary/80 shrink-0" />
                         ) : (
                           <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         )}
@@ -2385,18 +2331,18 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                                 className={cn(
                                   "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left",
                                   isTpCurrent
-                                    ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-slate-900 dark:text-slate-100 font-semibold border border-emerald-500/40 shadow-xs"
+                                    ? "bg-primary/15 text-foreground font-semibold border border-primary/40 shadow-xs"
                                     : isTpDone
-                                    ? "text-emerald-700 dark:text-emerald-400 hover:bg-muted"
+                                    ? "text-primary hover:bg-muted"
                                     : isTpUnlocked
-                                    ? "hover:bg-muted text-slate-800 dark:text-slate-200"
+                                    ? "hover:bg-muted text-foreground/80"
                                     : "opacity-40 cursor-not-allowed text-muted-foreground"
                                 )}
                               >
                                 {isTpDone ? (
-                                  <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                  <CheckCircle2 className="h-3 w-3 shrink-0 text-primary" />
                                 ) : isTpCurrent ? (
-                                  <FileText className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                  <FileText className="h-3 w-3 shrink-0 text-primary" />
                                 ) : isTpUnlocked ? (
                                   <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
                                 ) : (
@@ -2404,7 +2350,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                                 )}
                                 <span className="flex-1 truncate">{tp.title}</span>
                                 {tp.audioUrl && (
-                                  <Volume2 className={cn("h-3 w-3 shrink-0", isTpCurrent ? "text-emerald-600 dark:text-emerald-400" : "text-emerald-500")} />
+                                  <Volume2 className="h-3 w-3 shrink-0 text-primary" />
                                 )}
                               </button>
                             );
@@ -2427,7 +2373,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             <div className="rounded-[16px] border bg-card/80 p-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Layers className="h-3.5 w-3.5 text-primary-readable" />
+                  <Layers className="h-3.5 w-3.5 text-primary" />
                   {t("moduleProgress") || "Module Progress"}
                 </span>
                 <span className="text-foreground">
@@ -2436,7 +2382,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               </div>
               <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                 <div
-                  className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                  className="h-full bg-primary transition-all duration-500 rounded-full"
                   style={{ width: `${activeModuleProgressPct}%` }}
                 />
               </div>
@@ -2446,7 +2392,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             <div className="rounded-[16px] border bg-card/80 p-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="text-muted-foreground flex items-center gap-1.5">
-                  <BookOpen className="h-3.5 w-3.5 text-primary-readable" />
+                  <BookOpen className="h-3.5 w-3.5 text-primary" />
                   {t("lessonProgress") || "Lesson Progress"}
                 </span>
                 <span className="text-foreground">
@@ -2485,7 +2431,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   </div>
 
                   {currentItem && completedItems.has(itemKey(currentItem)) && (
-                    <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <span className="inline-flex items-center gap-1 text-primary font-semibold">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       {t("completed") || "Completed"}
                     </span>
@@ -2494,9 +2440,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
                 {/* Active AI Translation Banner */}
                 {translatedLang && !isDualView && (
-                  <div className="flex items-center justify-between p-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-800 dark:text-emerald-300">
+                  <div className="flex items-center justify-between p-2.5 px-3 rounded-xl bg-primary/10 border border-primary/30 text-xs text-primary">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <Sparkles className="h-4 w-4 text-primary shrink-0" />
                       <span>
                         AI Translated into <strong>{translatedLang}</strong> using Rwanda Traffic Code terminology (all signs &amp; styles preserved).
                       </span>
@@ -2565,13 +2511,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                     </div>
 
                     {/* Right: Translated Note */}
-                    <div className="space-y-3 p-4 sm:p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5">
-                      <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300">
+                    <div className="space-y-3 p-4 sm:p-5 rounded-2xl border border-primary/30 bg-primary/5">
+                      <div className="flex items-center justify-between pb-2 border-b border-primary/20 text-xs text-primary">
                         <span className="font-semibold flex items-center gap-1.5">
                           <span>{translatedLang === "French" ? "🇫🇷" : translatedLang === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
                           Translated Note ({translatedLang || "Translation"})
                         </span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">AI Synced</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/20 text-primary">AI Synced</span>
                       </div>
                       <div className="text-base sm:text-lg font-bold text-foreground">
                         {translatedTitle || (currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle)}
@@ -2653,7 +2599,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 <Button
                   size="sm"
                   onClick={() => void markCompleteAndAdvance()}
-                  className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-xs sm:text-sm shadow-sm"
+                  className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold text-xs sm:text-sm shadow-sm"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   <span>{t("completeLesson") || "Complete Lesson"}</span>

@@ -208,7 +208,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
             <span>{t("back") || "Back"}</span>
           </button>
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <span className="p-2 rounded-xl bg-primary/10 text-primary">
               <Users className="h-5 w-5" />
             </span>
             <div>
@@ -319,7 +319,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
             <CardHeader className="p-4 sm:p-5 pb-3 bg-muted/20 border-b">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Users className="h-4 w-4 text-amber-500" />
+                  <Users className="h-4 w-4 text-primary" />
                   <span>{t("selectInvitees") || "Select Invitees"}</span>
                 </CardTitle>
 
@@ -460,7 +460,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
           <Button
             onClick={handleStartExam}
             disabled={!selectedCategory || selectedInvitees.size === 0 || submitting}
-            className="w-full h-12 rounded-xl text-sm font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-lg transition-all active:scale-[0.99] gap-2"
+            className="w-full h-12 rounded-xl text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-all active:scale-[0.99] gap-2"
             size="lg"
           >
             {submitting ? (
