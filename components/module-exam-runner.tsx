@@ -751,7 +751,14 @@ export function ModuleExamRunner({
   }
 
   return (
-    <div className={`bg-transparent ${isExamActive ? "select-none" : ""}`}>
+    <div
+      className="bg-transparent select-none"
+      onContextMenu={(e) => e.preventDefault()}
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onPaste={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+    >
       <main className={isExamActive ? "relative mx-auto w-full max-w-5xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page student-page-no-nav !mx-auto max-w-5xl"}>
         <Watermark />
 

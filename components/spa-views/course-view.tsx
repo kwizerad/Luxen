@@ -970,7 +970,55 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
   };
 
-  // Keyboard navigation: ArrowLeft / ArrowRight to navigate topics
+  // Keyboard navigation: ArrowLeft / ArrowRight to navigate topics, and block copy/paste/select/right-click in Course view
+  useEffect(() => {
+    const preventClipboardAndMenu = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+
+    const preventSelect = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.getSelection()?.removeAllRanges();
+      return false;
+    };
+
+    const preventMultiClick = (e: MouseEvent) => {
+      if (e.detail > 1) {
+        e.preventDefault();
+        window.getSelection()?.removeAllRanges();
+      }
+    };
+
+    const preventCopyShortcuts = (e: KeyboardEvent) => {
+      const ctrlOrCmd = e.ctrlKey || e.metaKey;
+      if (ctrlOrCmd && ["c", "C", "v", "V", "x", "X", "a", "A"].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    document.addEventListener("contextmenu", preventClipboardAndMenu, true);
+    document.addEventListener("copy", preventClipboardAndMenu, true);
+    document.addEventListener("cut", preventClipboardAndMenu, true);
+    document.addEventListener("paste", preventClipboardAndMenu, true);
+    document.addEventListener("selectstart", preventSelect, true);
+    document.addEventListener("mousedown", preventMultiClick, true);
+    document.addEventListener("keydown", preventCopyShortcuts, true);
+
+    return () => {
+      document.removeEventListener("contextmenu", preventClipboardAndMenu, true);
+      document.removeEventListener("copy", preventClipboardAndMenu, true);
+      document.removeEventListener("cut", preventClipboardAndMenu, true);
+      document.removeEventListener("paste", preventClipboardAndMenu, true);
+      document.removeEventListener("selectstart", preventSelect, true);
+      document.removeEventListener("mousedown", preventMultiClick, true);
+      document.removeEventListener("keydown", preventCopyShortcuts, true);
+    };
+  }, []);
+
   useEffect(() => {
     if (viewMode !== "study" || activeExam || showLessonCompleteModal || showCelebration) return;
 
@@ -1541,7 +1589,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // ─────────────────────────────────────────────────────────────────────────────
   if (viewMode === "modules") {
     return (
-      <div className="min-h-[calc(100vh-4rem)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200">
+      <div
+        className="min-h-[calc(100vh-4rem)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200 select-none"
+        onContextMenu={(e) => e.preventDefault()}
+        onCopy={(e) => e.preventDefault()}
+        onCut={(e) => e.preventDefault()}
+        onPaste={(e) => e.preventDefault()}
+      >
         {/* Course Header */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1662,10 +1716,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                             : "bg-muted dark:bg-zinc-800/60 border-border dark:border-zinc-700/40 text-muted-foreground dark:text-zinc-500"
                         )}
                       >
-                        {isComplete ? (
-                          <CheckCircle2 className="h-4 w-4" />
-                        ) : isUnlocked ? (
-                          <Layers className="h-4 w-4" />
+                        {isUnlocked ? (
+                          isComplete || completedLessonsCount > 0 ? (
+                            <FolderOpen className="h-4 w-4" />
+                          ) : (
+                            <Folder className="h-4 w-4" />
+                          )
                         ) : (
                           <Lock className="h-4 w-4" />
                         )}
@@ -1780,7 +1836,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     const modulePct = totalLessons > 0 ? Math.round((completedLessonsCount / totalLessons) * 100) : 0;
 
     return (
-      <div className="min-h-[calc(100vh-4rem)] w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200">
+      <div
+        className="min-h-[calc(100vh-4rem)] w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200 select-none"
+        onContextMenu={(e) => e.preventDefault()}
+        onCopy={(e) => e.preventDefault()}
+        onCut={(e) => e.preventDefault()}
+        onPaste={(e) => e.preventDefault()}
+      >
         {/* Navigation Breadcrumb */}
         <div className="space-y-3 border-b border-border dark:border-zinc-800 pb-4">
           <button
@@ -1871,10 +1933,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                             : "bg-muted dark:bg-zinc-800/60 border-border dark:border-zinc-700/40 text-muted-foreground dark:text-zinc-500"
                         )}
                       >
-                        {isComplete ? (
-                          <CheckCircle2 className="h-4 w-4" />
-                        ) : isUnlocked ? (
-                          <span>{lessonIdx + 1}</span>
+                        {isUnlocked ? (
+                          <FileText className="h-4 w-4" />
                         ) : (
                           <Lock className="h-3.5 w-3.5" />
                         )}
@@ -1882,6 +1942,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
                       <div className="min-w-0 space-y-0.5">
                         <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-mono text-muted-foreground shrink-0">
+                            #{lessonIdx + 1}
+                          </span>
                           <h3 className="font-bold text-sm text-foreground dark:text-zinc-100 truncate">
                             {lesson.title}
                           </h3>
@@ -1961,9 +2024,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   return (
     <div
       className={cn(
-        "min-h-[calc(100vh-4rem)] flex flex-col transition-all overflow-x-clip touch-pan-y",
+        "min-h-[calc(100vh-4rem)] flex flex-col transition-all overflow-x-clip touch-pan-y select-none",
         isFocusMode ? "bg-background fixed inset-0 z-50 overflow-y-auto" : ""
       )}
+      onContextMenu={(e) => e.preventDefault()}
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onPaste={(e) => e.preventDefault()}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -2367,16 +2434,23 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                         <span className="p-0.5 text-muted-foreground">
                           {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                         </span>
-                        {isComplete ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
-                        ) : isExpanded ? (
-                          <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+                        {topics.length > 0 ? (
+                          isExpanded ? (
+                            <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+                          ) : isUnlocked ? (
+                            <Folder className="h-3.5 w-3.5 text-primary/80 shrink-0" />
+                          ) : (
+                            <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          )
                         ) : isUnlocked ? (
-                          <Folder className="h-3.5 w-3.5 text-primary/80 shrink-0" />
+                          <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
                         ) : (
                           <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         )}
                         <span className="flex-1 truncate">{lesson.title}</span>
+                        {isComplete && (
+                          <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />
+                        )}
                       </button>
 
                       {isExpanded && topics.length > 0 && (
@@ -2438,7 +2512,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             <div className="rounded-[16px] border bg-card/80 p-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Layers className="h-3.5 w-3.5 text-primary" />
+                  <FolderOpen className="h-3.5 w-3.5 text-primary" />
                   {t("moduleProgress") || "Module Progress"}
                 </span>
                 <span className="text-foreground">
@@ -2457,7 +2531,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             <div className="rounded-[16px] border bg-card/80 p-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="text-muted-foreground flex items-center gap-1.5">
-                  <BookOpen className="h-3.5 w-3.5 text-primary" />
+                  <FileText className="h-3.5 w-3.5 text-primary" />
                   {t("lessonProgress") || "Lesson Progress"}
                 </span>
                 <span className="text-foreground">

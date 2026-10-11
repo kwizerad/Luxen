@@ -91,15 +91,5 @@
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5"
-  },
-  "allowScripts": {
-    "@google/genai": true,
-    "protobufjs": true,
-    "unrs-resolver": true
-  },
-  "trustedDependencies": [
-    "@google/genai",
-    "protobufjs",
-    "unrs-resolver"
-  ]
+  }
 }

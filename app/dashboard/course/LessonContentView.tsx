@@ -175,7 +175,29 @@ export function LessonContentView({ content, textSize = "base" }: LessonContentV
     editable: false,
     editorProps: {
       attributes: {
-        class: "prose prose-slate dark:prose-invert max-w-none outline-none transition-all duration-200 [&_img]:rounded-lg [&_img]:max-w-full [&_img]:h-auto [&_img]:my-4 [&_img]:shadow-sm",
+        class: "prose prose-slate dark:prose-invert max-w-none outline-none select-none transition-all duration-200 [&_img]:rounded-lg [&_img]:max-w-full [&_img]:h-auto [&_img]:my-4 [&_img]:shadow-sm [&_img]:pointer-events-none",
+      },
+      handleDOMEvents: {
+        copy: (_view, event) => {
+          event.preventDefault();
+          return true;
+        },
+        cut: (_view, event) => {
+          event.preventDefault();
+          return true;
+        },
+        paste: (_view, event) => {
+          event.preventDefault();
+          return true;
+        },
+        contextmenu: (_view, event) => {
+          event.preventDefault();
+          return true;
+        },
+        selectstart: (_view, event) => {
+          event.preventDefault();
+          return true;
+        },
       },
     },
   });

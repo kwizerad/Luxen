@@ -5,6 +5,7 @@ import { createClient, setAdminSessionFlag } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-utils";
 import { isAdmin, isPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 import { clearOneTapDismissal } from "@/lib/auth/google";
+import { secureApiPost } from "@/lib/e2e-crypto";
 
 interface User {
   id: string;
@@ -105,11 +106,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (session?.user?.id) {
         try {
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("avatar_url, full_name, first_name, last_name, username, role, national_id, birthdate, gender, nationality")
-            .eq("id", session.user.id)
-            .maybeSingle();
+          let profile: any = null;
+          if (typeof window !== "undefined") {
+            const { ok, data: secData } = await secureApiPost("/api/e2e", {
+              action: "get_secure_user",
+            });
+            if (ok && secData?.profile) {
+              profile = secData.profile;
+            }
+          }
+          if (!profile) {
+            const { data: fallbackProfile } = await supabase
+              .from("user_profiles")
+              .select("avatar_url, full_name, first_name, last_name, username, role, national_id, birthdate, gender, nationality")
+              .eq("id", session.user.id)
+              .maybeSingle();
+            profile = fallbackProfile;
+          }
 
           if (profile) {
             const isStrictlyStudent = isStrictlyStudentEmail(session.user.email);

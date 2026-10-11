@@ -3,9 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getExternalAdminClient, EXTERNAL_EXAM_CATEGORY_ID, isExternalModuleId } from "@/lib/supabase/external";
 import { translateTextSnippets, type TargetLanguage } from "@/lib/ai/tiptap-translator";
+import { decryptPayload, encryptPayload, isEncryptedEnvelope } from "@/lib/e2e-crypto";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
+
+async function secureJsonResponse(data: unknown, status = 200) {
+  const encrypted = await encryptPayload(data);
+  return NextResponse.json(encrypted, { status });
+}
 
 function resolveTargetLang(language?: string | null): TargetLanguage {
   const l = String(language || "").toLowerCase();
@@ -187,25 +193,26 @@ export async function POST(req: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return secureJsonResponse({ error: "Unauthorized" }, 401);
     }
 
-    const body = await req.json();
-    const { action, language } = body;
+    const rawBody = await req.json();
+    const body = isEncryptedEnvelope(rawBody) ? await decryptPayload(rawBody) : rawBody;
+    const { action, language } = body || {};
 
     const adminSb = createAdminClient();
 
     if (action === "translate_questions" && Array.isArray(body.questions)) {
       const translated = await translateQuestionBatch(adminSb, body.questions, language);
-      return NextResponse.json({ questions: translated });
+      return secureJsonResponse({ questions: translated });
     }
 
     const extSb = await getExternalAdminClient();
 
     if (!extSb) {
-      return NextResponse.json(
+      return secureJsonResponse(
         { error: "External Supabase database is not configured." },
-        { status: 500 }
+        500
       );
     }
 
@@ -333,7 +340,7 @@ export async function POST(req: NextRequest) {
       // Strip correct_answer before sending to client
       const safeQuestions = translatedSelected.map(({ correct_answer, explanation, ...rest }) => rest);
 
-      return NextResponse.json({
+      return secureJsonResponse({
         categoryId: categoryId || EXTERNAL_EXAM_CATEGORY_ID,
         settings: {
           ...DEFAULT_EXAM_SETTINGS,
@@ -431,7 +438,7 @@ export async function POST(req: NextRequest) {
 
       if (insertErr) throw insertErr;
 
-      return NextResponse.json({
+      return secureJsonResponse({
         success: true,
         attempt: insertedAttempt,
         questionDetails,
@@ -500,7 +507,7 @@ export async function POST(req: NextRequest) {
       const selected = shuffled.slice(0, Math.min(questionCount, shuffled.length));
       const translatedSelected = await translateQuestionBatch(adminSb, selected, language);
 
-      return NextResponse.json({
+      return secureJsonResponse({
         settings: {
           id: `ext-settings-${rawChapterId || examType}`,
           module_id: moduleId || rawChapterId,
@@ -554,7 +561,7 @@ export async function POST(req: NextRequest) {
 
       if (insErr) throw insErr;
 
-      return NextResponse.json({
+      return secureJsonResponse({
         success: true,
         attempt: {
           ...inserted,
@@ -563,12 +570,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
+    return secureJsonResponse({ error: "Unsupported action" }, 400);
   } catch (error: any) {
-    console.error("POST /api/external-courses/exam error:", error);
-    return NextResponse.json(
+    return secureJsonResponse(
       { error: error?.message || "Failed to process external exam action" },
-      { status: 500 }
+      500
     );
   }
 }

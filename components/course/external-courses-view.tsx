@@ -2215,6 +2215,7 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
                         className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
                       >
                         <div className="flex items-center gap-3 min-w-0">
+                          <FileText className="h-4 w-4 text-primary shrink-0" />
                           <span className="text-xs font-mono text-muted-foreground shrink-0">
                             #{lesson.lesson_number}
                           </span>

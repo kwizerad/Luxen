@@ -1,4 +1,3 @@
 [install]
 concurrentScripts = 1
 networkConcurrency = 16
-ignoreScripts = true

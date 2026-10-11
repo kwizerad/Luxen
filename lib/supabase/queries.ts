@@ -5,6 +5,7 @@ import { isAdmin, isPrimaryAdmin, canAddQuestions, hasReadWriteQuestionAccess, c
 import { getCurrentUser } from "@/lib/auth-utils";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
 import { EXTERNAL_EXAM_CATEGORY_ID, isExternalExamCategoryId, isExternalModuleId, isExternalLessonId } from "@/lib/supabase/external";
+import { secureApiPost } from "@/lib/e2e-crypto";
 import type { ExamCategory, ExamQuestion, ExamAnswer, ExamAttempt, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
 
 // Helper function to handle Supabase auth lock errors and enrich user profile role
@@ -793,17 +794,12 @@ export async function createExamAttempt(attemptData: {
 
   // Handle External DB Exam grading and persistence via server route
   if (isExternalExamCategoryId(category_id)) {
-    const res = await fetch("/api/external-courses/exam", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "submit_exam",
-        attemptData,
-      }),
+    const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+      action: "submit_exam",
+      attemptData,
     });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(json.error || "Failed to submit external exam");
+    if (!ok) {
+      throw new Error(json?.error || "Failed to submit external exam");
     }
     return {
       attempt: json.attempt,
@@ -1328,19 +1324,14 @@ export async function getExamForTaking(categoryId: string, challengeId?: string,
 
   // Handle External DB Exam taking via server route
   if (isExternalExamCategoryId(categoryId)) {
-    const res = await fetch("/api/external-courses/exam", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "take_exam",
-        categoryId,
-        challengeId,
-        language: activeLang,
-      }),
+    const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+      action: "take_exam",
+      categoryId,
+      challengeId,
+      language: activeLang,
     });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(json.error || "Failed to load external exam questions");
+    if (!ok) {
+      throw new Error(json?.error || "Failed to load external exam questions");
     }
     return json;
   }
@@ -1409,20 +1400,13 @@ export async function getExamForTaking(categoryId: string, challengeId?: string,
 
   if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda") {
     try {
-      const tRes = await fetch("/api/external-courses/exam", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "translate_questions",
-          questions: sanitizedQuestions,
-          language: activeLang,
-        }),
+      const { ok, data: tJson } = await secureApiPost("/api/external-courses/exam", {
+        action: "translate_questions",
+        questions: sanitizedQuestions,
+        language: activeLang,
       });
-      if (tRes.ok) {
-        const tJson = await tRes.json();
-        if (Array.isArray(tJson.questions)) {
-          sanitizedQuestions = tJson.questions;
-        }
+      if (ok && Array.isArray(tJson?.questions)) {
+        sanitizedQuestions = tJson.questions;
       }
     } catch {}
   }
@@ -2060,19 +2044,14 @@ export async function getModuleExamForTaking(
     (typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || undefined : undefined);
 
   if (isExternalModuleId(moduleId)) {
-    const res = await fetch("/api/external-courses/exam", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "take_module_exam",
-        moduleId,
-        examType: "module",
-        language: activeLang,
-      }),
+    const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+      action: "take_module_exam",
+      moduleId,
+      examType: "module",
+      language: activeLang,
     });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(json.error || "Failed to load external course quiz");
+    if (!ok) {
+      throw new Error(json?.error || "Failed to load external course quiz");
     }
     return {
       settings: json.settings as ModuleExamSettings,
@@ -2111,20 +2090,13 @@ export async function getModuleExamForTaking(
 
   if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda" && finalQuestions.length > 0) {
     try {
-      const tRes = await fetch("/api/external-courses/exam", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "translate_questions",
-          questions: finalQuestions,
-          language: activeLang,
-        }),
+      const { ok, data: tJson } = await secureApiPost("/api/external-courses/exam", {
+        action: "translate_questions",
+        questions: finalQuestions,
+        language: activeLang,
       });
-      if (tRes.ok) {
-        const tJson = await tRes.json();
-        if (Array.isArray(tJson.questions)) {
-          finalQuestions = tJson.questions;
-        }
+      if (ok && Array.isArray(tJson?.questions)) {
+        finalQuestions = tJson.questions;
       }
     } catch {}
   }
@@ -2154,17 +2126,12 @@ export async function getMidtermExamForTaking(
     (typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || undefined : undefined);
 
   if (completedModuleIds.some((id) => isExternalModuleId(id))) {
-    const res = await fetch("/api/external-courses/exam", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "take_module_exam",
-        examType: "midterm",
-        language: activeLang,
-      }),
+    const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+      action: "take_module_exam",
+      examType: "midterm",
+      language: activeLang,
     });
-    const json = await res.json().catch(() => ({}));
-    if (res.ok && Array.isArray(json.questions)) {
+    if (ok && Array.isArray(json?.questions)) {
       return {
         questions: json.questions.slice(0, questionCount) as ModuleExamQuestion[],
         durationMinutes: json.settings?.duration_minutes || durationMinutes,
@@ -2187,20 +2154,13 @@ export async function getMidtermExamForTaking(
 
   if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda" && sliced.length > 0) {
     try {
-      const tRes = await fetch("/api/external-courses/exam", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "translate_questions",
-          questions: sliced,
-          language: activeLang,
-        }),
+      const { ok, data: tJson } = await secureApiPost("/api/external-courses/exam", {
+        action: "translate_questions",
+        questions: sliced,
+        language: activeLang,
       });
-      if (tRes.ok) {
-        const tJson = await tRes.json();
-        if (Array.isArray(tJson.questions)) {
-          sliced = tJson.questions;
-        }
+      if (ok && Array.isArray(tJson?.questions)) {
+        sliced = tJson.questions;
       }
     } catch {}
   }
@@ -2231,17 +2191,12 @@ export async function getFinalExamForTaking(
     (typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || undefined : undefined);
 
   if (allModuleIds.some((id) => isExternalModuleId(id))) {
-    const res = await fetch("/api/external-courses/exam", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "take_module_exam",
-        examType: "final",
-        language: activeLang,
-      }),
+    const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+      action: "take_module_exam",
+      examType: "final",
+      language: activeLang,
     });
-    const json = await res.json().catch(() => ({}));
-    if (res.ok && Array.isArray(json.questions)) {
+    if (ok && Array.isArray(json?.questions)) {
       return {
         questions: json.questions.slice(0, questionCount) as ModuleExamQuestion[],
         durationMinutes: json.settings?.duration_minutes || durationMinutes,
@@ -2264,20 +2219,13 @@ export async function getFinalExamForTaking(
 
   if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda" && sliced.length > 0) {
     try {
-      const tRes = await fetch("/api/external-courses/exam", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "translate_questions",
-          questions: sliced,
-          language: activeLang,
-        }),
+      const { ok, data: tJson } = await secureApiPost("/api/external-courses/exam", {
+        action: "translate_questions",
+        questions: sliced,
+        language: activeLang,
       });
-      if (tRes.ok) {
-        const tJson = await tRes.json();
-        if (Array.isArray(tJson.questions)) {
-          sliced = tJson.questions;
-        }
+      if (ok && Array.isArray(tJson?.questions)) {
+        sliced = tJson.questions;
       }
     } catch {}
   }
@@ -2328,19 +2276,14 @@ export async function createModuleExamAttempt(
       } catch {}
     }
 
-    const res = await fetch("/api/external-courses/exam", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "submit_module_exam",
-        attemptData: {
-          ...attemptData,
-          answers: answersToPersist,
-        },
-      }),
+    const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+      action: "submit_module_exam",
+      attemptData: {
+        ...attemptData,
+        answers: answersToPersist,
+      },
     });
-    const json = await res.json().catch(() => ({}));
-    if (res.ok && json.attempt) {
+    if (ok && json?.attempt) {
       return json.attempt as ModuleExamAttempt;
     }
   }

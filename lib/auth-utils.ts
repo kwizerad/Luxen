@@ -1,5 +1,6 @@
 import { createClient } from "./supabase/client";
 import { isPrimaryAdmin, isStrictlyStudentEmail } from "./permissions";
+import { secureApiPost } from "./e2e-crypto";
 
 let authRequestInProgress = false;
 let pendingAuthRequests: Array<{
@@ -60,7 +61,6 @@ export async function getCurrentUser(retryCount = 0, forceRefresh = false): Prom
   authRequestInProgress = true;
 
   try {
-    console.log(`Getting current user (attempt ${retryCount + 1})`);
     const supabase = createClient();
     const { data: { user }, error } = await supabase.auth.getUser();
 
@@ -85,7 +85,6 @@ export async function getCurrentUser(retryCount = 0, forceRefresh = false): Prom
     );
 
     if (isLockError && retryCount < 3) {
-      console.log(`Auth lock detected (${(error as any).message}), retrying...`, retryCount + 1);
       authRequestInProgress = false;
       
       // Wait before retrying
@@ -94,17 +93,28 @@ export async function getCurrentUser(retryCount = 0, forceRefresh = false): Prom
     }
 
     if (error) {
-      console.error("Auth error:", error);
       throw error;
     }
 
     if (user) {
       try {
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("avatar_url, full_name, first_name, last_name, username, role, national_id, birthdate, gender, nationality")
-          .eq("id", user.id)
-          .maybeSingle();
+        let profile: any = null;
+        if (typeof window !== "undefined") {
+          const { ok, data: secData } = await secureApiPost("/api/e2e", {
+            action: "get_secure_user",
+          });
+          if (ok && secData?.profile) {
+            profile = secData.profile;
+          }
+        }
+        if (!profile) {
+          const { data: fallbackProfile } = await supabase
+            .from("user_profiles")
+            .select("avatar_url, full_name, first_name, last_name, username, role, national_id, birthdate, gender, nationality")
+            .eq("id", user.id)
+            .maybeSingle();
+          profile = fallbackProfile;
+        }
 
         const isStrictlyStudent = isStrictlyStudentEmail(user.email);
         const isAdminUser =

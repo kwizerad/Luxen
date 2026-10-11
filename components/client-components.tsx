@@ -5,6 +5,11 @@ import { PWAInstallPrompt } from "./pwa-install-prompt";
 import { VisitorTracker } from "./visitor-tracker";
 import { useLoginRecorder } from "@/hooks/use-login-recorder";
 import { GoogleOneTap } from "@/components/auth/GoogleOneTap";
+import { installDevToolsPrivacyShield } from "@/lib/e2e-crypto";
+
+if (typeof window !== "undefined") {
+  installDevToolsPrivacyShield();
+}
 
 function LoginRecorder() {
   useLoginRecorder();

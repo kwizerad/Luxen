@@ -270,10 +270,17 @@ export function useExamSecurity({
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!settings.violationMeasuresEnabled || !examActive() || resultsShown()) return;
-
-      const isMac = navigator.platform?.toLowerCase().includes("mac");
       const ctrlOrCmd = e.ctrlKey || e.metaKey;
+
+      // Unconditionally block Copy / Paste / Cut / Select-All keyboard shortcuts during exam
+      if (ctrlOrCmd && ["c", "C", "v", "V", "x", "X", "a", "A"].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
+
+      if (!settings.violationMeasuresEnabled || !examActive() || resultsShown()) return;
 
       // Escape / F11 may leave fullscreen
       if (e.key === "Escape" || e.key === "F11") {
@@ -389,9 +396,9 @@ export function useExamSecurity({
     };
 
     const handleContextMenu = (e: MouseEvent) => {
-      if (!settings.violationMeasuresEnabled || !settings.rightClickEnabled || !examActive() || resultsShown()) return;
       e.preventDefault();
       e.stopPropagation();
+      return false;
     };
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -402,35 +409,39 @@ export function useExamSecurity({
     };
 
     const handleCopy = (e: ClipboardEvent) => {
-      if (!settings.violationMeasuresEnabled || !settings.copyPasteEnabled || !examActive() || resultsShown()) return;
       e.preventDefault();
-      recordViolation("copy", t("copyAttemptDetected"), t("copyNotAllowed"));
+      e.stopPropagation();
+      if (settings.violationMeasuresEnabled && settings.copyPasteEnabled && examActive() && !resultsShown()) {
+        recordViolation("copy", t("copyAttemptDetected"), t("copyNotAllowed"));
+      }
       return false;
     };
 
     const handlePaste = (e: ClipboardEvent) => {
-      if (!settings.violationMeasuresEnabled || !settings.copyPasteEnabled || !examActive() || resultsShown()) return;
       e.preventDefault();
-      recordViolation("paste", t("pasteAttemptDetected"), t("pasteNotAllowed"));
+      e.stopPropagation();
+      if (settings.violationMeasuresEnabled && settings.copyPasteEnabled && examActive() && !resultsShown()) {
+        recordViolation("paste", t("pasteAttemptDetected"), t("pasteNotAllowed"));
+      }
       return false;
     };
 
     const handleCut = (e: ClipboardEvent) => {
-      if (!settings.violationMeasuresEnabled || !settings.copyPasteEnabled || !examActive() || resultsShown()) return;
       e.preventDefault();
-      recordViolation("other", t("cutAttemptDetected"), t("cutNotAllowed"));
+      e.stopPropagation();
+      if (settings.violationMeasuresEnabled && settings.copyPasteEnabled && examActive() && !resultsShown()) {
+        recordViolation("other", t("cutAttemptDetected"), t("cutNotAllowed"));
+      }
       return false;
     };
 
     const handleSelectStart = (e: Event) => {
-      if (!settings.violationMeasuresEnabled || !settings.textSelectionEnabled || !examActive() || resultsShown()) return;
       e.preventDefault();
       e.stopPropagation();
       return false;
     };
 
     const handleMouseDown = (e: MouseEvent) => {
-      if (!settings.violationMeasuresEnabled || !settings.textSelectionEnabled || !examActive() || resultsShown()) return;
       if (e.detail > 1) {
         e.preventDefault();
         return false;

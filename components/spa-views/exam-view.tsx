@@ -435,9 +435,17 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!exam || showResults || !securitySettings.violationMeasuresEnabled) return;
-
       const ctrlOrCmd = e.ctrlKey || e.metaKey;
+
+      // Always block Copy / Paste / Cut / Select-All shortcuts in the Exam view
+      if (ctrlOrCmd && ["c", "C", "v", "V", "x", "X", "a", "A"].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
+
+      if (!exam || showResults || !securitySettings.violationMeasuresEnabled) return;
 
       // Escape / F11 may leave fullscreen
       if (e.key === 'Escape' || e.key === 'F11') {
@@ -534,11 +542,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     };
 
     const handleContextMenu = (e: MouseEvent) => {
-      // Prevent right-click context menu during exam
-      if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.rightClickEnabled) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
     };
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -569,46 +575,44 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
     // Prevent copy, paste, cut, and select during exam
     const handleCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.copyPasteEnabled) {
-        e.preventDefault();
         recordViolation(t("copyAttemptDetected"), "copy", t("copyNotAllowed"));
-        return false;
       }
+      return false;
     };
 
     const handlePaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.copyPasteEnabled) {
-        e.preventDefault();
         recordViolation(t("pasteAttemptDetected"), "paste", t("pasteNotAllowed"));
-        return false;
       }
+      return false;
     };
 
     const handleCut = (e: ClipboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.copyPasteEnabled) {
-        e.preventDefault();
         recordViolation(t("cutAttemptDetected"), "other", t("cutNotAllowed"));
-        return false;
       }
+      return false;
     };
 
     // Prevent ALL text selection during exam
     const handleSelectStart = (e: Event) => {
-      if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.textSelectionEnabled) {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
     };
 
     // Prevent double/triple click selection
     const handleMouseDown = (e: MouseEvent) => {
-      if (exam && !showResults && securitySettings.violationMeasuresEnabled && securitySettings.textSelectionEnabled) {
-        // Prevent text selection via double/triple click
-        if (e.detail > 1) {
-          e.preventDefault();
-          return false;
-        }
+      if (e.detail > 1) {
+        e.preventDefault();
+        return false;
       }
     };
 
@@ -1812,7 +1816,14 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const isExamActive = exam !== null && secondsLeft !== null;
 
   return (
-    <div className={`bg-transparent ${isExamActive ? 'select-none' : ''}`}>
+    <div
+      className="bg-transparent select-none"
+      onContextMenu={(e) => e.preventDefault()}
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onPaste={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+    >
       <main className={isExamActive ? "relative mx-auto w-full max-w-6xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page student-page-no-nav !mx-auto max-w-6xl !pt-4 pb-28 sm:pb-24"}>
         <Watermark />
         
