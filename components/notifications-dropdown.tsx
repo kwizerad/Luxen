@@ -120,6 +120,26 @@ export function NotificationsDropdown() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const getDismissedIds = useCallback((userId: string): Set<string> => {
+    if (typeof window === "undefined" || !userId) return new Set();
+    try {
+      const raw = localStorage.getItem(`dismissed_notifs_${userId}`);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set();
+    }
+  }, []);
+
+  const getLastSeenTime = useCallback((userId: string): number => {
+    if (typeof window === "undefined" || !userId) return 0;
+    try {
+      const val = localStorage.getItem(`notifs_last_seen_${userId}`);
+      return val ? parseInt(val, 10) : 0;
+    } catch {
+      return 0;
+    }
+  }, []);
+
   const fetchNotifications = useCallback(async () => {
     if (!user) {
       setNotifications([]);
@@ -130,8 +150,22 @@ export function NotificationsDropdown() {
 
     try {
       const data = await getNotifications();
-      setNotifications(data.notifications || []);
-      setUnreadCount(data.unread_count || 0);
+      const dismissed = getDismissedIds(user.id);
+      const lastSeen = getLastSeenTime(user.id);
+      const rawList: Notification[] = data.notifications || [];
+      const validNotifications = rawList.filter((n) => !dismissed.has(n.id));
+
+      setNotifications(validNotifications);
+
+      // Unread counter resets to 0 once user views them; only count notifications created after last seen
+      const newUnread = validNotifications.filter((n) => {
+        if (n.is_read) return false;
+        if (!lastSeen) return true;
+        const createdMs = new Date(n.created_at).getTime();
+        return createdMs > lastSeen;
+      }).length;
+
+      setUnreadCount(newUnread);
     } catch (error: any) {
       if (error?.message?.includes("Auth session missing") || error?.name === "AuthSessionMissingError") {
         setNotifications([]);
@@ -144,7 +178,7 @@ export function NotificationsDropdown() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, getDismissedIds, getLastSeenTime]);
 
   useEffect(() => {
     fetchNotifications();
@@ -357,44 +391,95 @@ export function NotificationsDropdown() {
     }
   };
 
-  const deleteNotification = async (notificationId: string) => {
-    try {
-      await deleteNotificationQuery(notificationId);
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
-      toast.success(t("notifications.deleted"));
-    } catch (error) {
-      console.error("Failed to delete notification:", error);
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen && user?.id) {
+      // User clicked on notification icon: mark all current notifications as seen and start counter from 0
+      setUnreadCount(0);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`notifs_last_seen_${user.id}`, String(Date.now()));
+      }
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      void markAllNotificationsAsRead().catch(() => {});
     }
   };
 
+  const deleteNotification = async (notificationId: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    if (typeof window !== "undefined" && user?.id) {
+      try {
+        const stored = localStorage.getItem(`dismissed_notifs_${user.id}`);
+        const set = new Set(stored ? JSON.parse(stored) : []);
+        set.add(notificationId);
+        localStorage.setItem(`dismissed_notifs_${user.id}`, JSON.stringify(Array.from(set)));
+      } catch {}
+    }
+    try {
+      await deleteNotificationQuery(notificationId);
+    } catch {
+      // Suppress permission error if non-admin; dismissed list handles user-level deletion
+    }
+    toast.success(t("notifications.deleted") || "Notification removed");
+  };
+
+  const clearAllNotifications = () => {
+    if (notifications.length === 0) return;
+    const allIds = notifications.map((n) => n.id);
+    setNotifications([]);
+    setUnreadCount(0);
+    if (typeof window !== "undefined" && user?.id) {
+      try {
+        const stored = localStorage.getItem(`dismissed_notifs_${user.id}`);
+        const set = new Set(stored ? JSON.parse(stored) : []);
+        allIds.forEach((id) => set.add(id));
+        localStorage.setItem(`dismissed_notifs_${user.id}`, JSON.stringify(Array.from(set)));
+      } catch {}
+    }
+    toast.success(t("notifications.allDeleted") || "All notifications cleared");
+  };
+
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative overflow-visible">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <span
-              className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-[20px] px-1 rounded-full bg-red-600 text-white text-[11px] font-black leading-none ring-2 ring-background shadow-md z-20"
+              className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-[20px] px-1 rounded-full bg-red-600 text-white text-[11px] font-black leading-none ring-2 ring-background shadow-md z-20 animate-in zoom-in-50 duration-200"
             >
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 max-h-[400px] overflow-y-auto">
-        <div className="flex items-center justify-between p-3 border-b">
-          <h3 className="font-semibold">{t("notifications")}</h3>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={markAllAsRead}
-              className="text-xs h-8"
-            >
-              <Check className="h-3 w-3 mr-1" />
-              {t("markAllRead")}
-            </Button>
-          )}
+      <DropdownMenuContent align="end" className="w-80 max-h-[420px] overflow-y-auto">
+        <div className="flex items-center justify-between p-3 border-b gap-2">
+          <h3 className="font-semibold text-sm">{t("notifications")}</h3>
+          <div className="flex items-center gap-1.5">
+            {notifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllNotifications}
+                className="text-xs h-7 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                title="Clear all notifications"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                <span>{t("clearAll") || "Clear All"}</span>
+              </Button>
+            )}
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={markAllAsRead}
+                className="text-xs h-7 px-2 text-primary"
+              >
+                <Check className="h-3 w-3 mr-1" />
+                {t("markAllRead")}
+              </Button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -472,13 +557,14 @@ export function NotificationsDropdown() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                      className="h-7 w-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                      title={t("delete") || "Delete notification"}
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteNotification(notification.id);
                       }}
                     >
-                      <Trash2 className="h-3 w-3 text-muted-foreground" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </DropdownMenuItem>

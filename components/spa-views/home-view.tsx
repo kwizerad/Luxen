@@ -144,7 +144,6 @@ export function HomeView({ navigate }: HomeViewProps) {
   });
   const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
   const [showVerifyIdModal, setShowVerifyIdModal] = useState(false);
-  const [showStatsModal, setShowStatsModal] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [localLastTopic, setLocalLastTopic] = useState<{
     moduleId?: string;
@@ -1038,297 +1037,83 @@ export function HomeView({ navigate }: HomeViewProps) {
             </div>
           </div>
 
-          {/* Theory Readiness Gauge & Quick Stats Popout Trigger */}
-          <button
-            type="button"
-            onClick={() => setShowStatsModal(true)}
-            className="flex items-center gap-4 bg-muted/40 hover:bg-muted/70 p-4 rounded-xl border border-border/50 hover:border-primary/40 shadow-inner shrink-0 text-left transition-all cursor-pointer group"
-          >
-            <div className="relative flex items-center justify-center w-14 h-14">
-              <svg className="w-14 h-14 -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-muted-foreground/20"
-                  strokeWidth="3.5"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className="text-primary transition-all duration-700 ease-out"
-                  strokeDasharray={`${readinessScore}, 100`}
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <span className="absolute text-sm font-bold tracking-tight">{readinessScore}%</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-primary transition-colors">
-                <span>{t("theoryReadiness") || "Theory Readiness"}</span>
-                <BarChart3 className="w-3.5 h-3.5" />
-              </div>
-              <div className="text-base font-bold text-foreground tracking-tight">
-                {readinessScore >= 80 ? (
-                  <span className="text-emerald-600 dark:text-emerald-400">{t("examReady") || "Exam Ready"}</span>
-                ) : readinessScore >= 50 ? (
-                  <span className="text-amber-600 dark:text-amber-400">{t("inProgress") || "In Progress"}</span>
-                ) : (
-                  <span className="text-blue-600 dark:text-blue-400">{t("gettingStarted") || "Getting Started"}</span>
-                )}
-              </div>
-              <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                <span>{examStats.total} {t("examsTaken") || "Exams"} · {formattedStudyTime}</span>
-                <ChevronRight className="w-3.5 h-3.5 opacity-60 group-hover:translate-x-0.5 transition-transform" />
-              </div>
-            </div>
-          </button>
+          {/* Quick Direct Actions on Banner */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => navigate("exam")}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs sm:text-sm font-semibold shadow-xs hover:shadow transition-all"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>{t("takeExam") || "Take Exam"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("course")}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-muted/60 text-foreground text-xs sm:text-sm font-semibold shadow-xs transition-all"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-primary" />
+              <span>{t("openCourse") || "Open Course"}</span>
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* Performance Stats Popout Card Modal */}
-      <Dialog open={showStatsModal} onOpenChange={setShowStatsModal}>
-        <DialogContent className="sm:max-w-lg rounded-2xl border-border/60 p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
-              <BarChart3 className="w-5 h-5 text-primary" />
-              <span>{t("performanceOverview") || "Performance & Study Statistics"}</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              {t("detailedAnalyticsDesc") || "Your detailed exam simulation metrics, accuracy, and study progress."}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
-            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{t("examsTaken") || "Exams Taken"}</span>
-                <FileText className="w-3.5 h-3.5 text-primary" />
-              </div>
-              <div className="text-xl font-bold text-foreground">{examStats.total}</div>
-              <div className="text-[11px] text-muted-foreground">
-                {examStats.passed} {t("passed") || "Passed"} · {Math.max(0, examStats.total - examStats.passed)} {t("failed") || "Failed"}
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{t("averageScore") || "Average Score"}</span>
-                <Target className="w-3.5 h-3.5 text-emerald-500" />
-              </div>
-              <div className="text-xl font-bold text-foreground">{examStats.avgScore}%</div>
-              <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                {t("best") || "Best"}: {examStats.bestScore}%
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{t("passRate") || "Pass Rate"}</span>
-                <Award className="w-3.5 h-3.5 text-amber-500" />
-              </div>
-              <div className="text-xl font-bold text-foreground">{examStats.passRate}%</div>
-              <div className="text-[11px] text-muted-foreground">
-                {t("passingScore") || "Target"}: 60%
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{t("studyTime") || "Study Time"}</span>
-                <Clock className="w-3.5 h-3.5 text-blue-500" />
-              </div>
-              <div className="text-xl font-bold text-foreground">{formattedStudyTime}</div>
-              <div className="text-[11px] text-muted-foreground">
-                {t("avgDuration") || "Avg"}: {formattedAvgDuration}
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{t("studyStreak") || "Study Streak"}</span>
-                <Flame className="w-3.5 h-3.5 text-orange-500" />
-              </div>
-              <div className="text-xl font-bold text-foreground">{streakDays} {t("days") || "Days"}</div>
-              <div className="text-[11px] text-muted-foreground">
-                {t("theoryReadiness") || "Readiness"}: {readinessScore}%
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl border border-border/60 bg-muted/30 space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{t("groupExams") || "Group Battles"}</span>
-                <Trophy className="w-3.5 h-3.5 text-purple-500" />
-              </div>
-              <div className="text-xl font-bold text-foreground">{battleStats.wins} / {battleStats.totalBattles}</div>
-              <div className="text-[11px] text-muted-foreground">
-                {t("wins") || "Wins recorded"}
-              </div>
-            </div>
-          </div>
-
-          {weakestCategory && (
-            <div className="mt-2 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                  {t("recommendedFocus") || "Recommended Focus Area"}
-                </div>
-                <div className="text-sm font-bold text-foreground truncate">{weakestCategory.categoryName}</div>
-                <div className="text-xs text-muted-foreground">
-                  {t("averageScore") || "Average"}: {weakestCategory.avgScorePercent}% ({weakestCategory.attemptsCount} {t("attempts") || "attempts"})
-                </div>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => {
-                  setShowStatsModal(false);
-                  navigate("exam", { category_id: weakestCategory.categoryId });
-                }}
-                className="shrink-0 rounded-xl text-xs font-semibold"
-              >
-                {t("practice") || "Practice"}
-              </Button>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setShowStatsModal(false);
-                navigate("results");
-              }}
-              className="rounded-xl text-xs font-semibold"
-            >
-              {t("viewFullHistory") || "View Full Exam History"}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => setShowStatsModal(false)}
-              className="rounded-xl text-xs font-semibold"
-            >
-              {t("close") || "Close"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Primary Hero Row: Practice Exam Card + Theory Curriculum Progress */}
+      {/* Primary Hero Row: Practice Exam Card + Theory Curriculum Card (Identical Balanced Sizing, No Stats Cards) */}
       {(standaloneExamEnabled || hasCourses) && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* 1. Take Exam Card */}
-          {standaloneExamEnabled && (
-            <div className={hasCourses ? "lg:col-span-2" : "lg:col-span-3"}>
-              <div className="h-full rounded-2xl border border-border/70 bg-card p-6 sm:p-7 shadow-sm flex flex-col justify-between">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+          {/* Card 1: Theory Course */}
+          {hasCourses && (
+            <div className="h-full">
+              <div className="h-full rounded-2xl sm:rounded-3xl border border-border/70 hover:border-primary/40 bg-card p-6 sm:p-7 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3.5">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-muted text-foreground border border-border">
-                      <Award className="w-4 h-4 text-primary" />
-                      {t("officialSimulation") || "Official Provisional License Simulation"}
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                      <BookOpen className="w-3.5 h-3.5" />
+                      {t("theoryCurriculum") || "Theory Curriculum"}
                     </span>
-                    <span className="text-xs font-semibold text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-full">
-                      20 Questions · Timed
+                    <span className="text-xs font-bold text-foreground bg-muted px-2.5 py-0.5 rounded-full border border-border/60">
+                      {progressPercent}% {t("completed") || "Completed"}
                     </span>
                   </div>
 
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mb-2">
-                    {t("takeExam") || "Take exam"}
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mb-2 group-hover:text-primary transition-colors">
+                    {localLastTopic?.moduleTitle || continueData?.moduleTitle || t("theoryCourse") || "Theory Course"}
                   </h2>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-6 leading-relaxed max-w-xl">
-                    {t("examSimulationDesc") || "Test your understanding of national traffic regulations, road signs, and right-of-way priorities under timed exam conditions."}
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-5 leading-relaxed">
+                    {t("learnModules") || "Master national road regulations, traffic signs, and driving safety principles across comprehensive syllabus modules."}
                   </p>
 
-                  <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-muted/40 border border-border/50 text-xs mb-6">
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{t("duration") || "Duration"}</div>
-                      <div className="text-sm sm:text-base font-bold text-foreground mt-0.5">20 min</div>
+                  {/* Progress Bar & Current Topic Info */}
+                  <div className="space-y-3 p-4 rounded-xl bg-muted/40 border border-border/50 mb-6">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        {t("courseProgress") || "Course Progress"}
+                      </span>
+                      <span className="text-xs font-bold text-foreground">
+                        {stats ? `${stats.lessonsCompleted} / ${stats.totalLessons} ${t("lessons") || "Lessons"}` : `${progressPercent}%`}
+                      </span>
                     </div>
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{t("passingScore") || "Passing Mark"}</div>
-                      <div className="text-sm sm:text-base font-bold text-primary mt-0.5">60% (12/20)</div>
+
+                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden shadow-inner">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all duration-700"
+                        style={{ width: `${progressPercent}%` }}
+                      />
                     </div>
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{t("yourPassRate") || "Pass Rate"}</div>
-                      <div className="text-sm sm:text-base font-bold text-foreground mt-0.5">{examStats.passRate}%</div>
+
+                    <div className="pt-1 flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="truncate max-w-[220px] font-medium text-foreground">
+                        {localLastTopic?.topicTitle || continueData?.topicTitle || localLastTopic?.lessonTitle || "Road Code & Priority"}
+                      </span>
+                      <span className="shrink-0 text-[11px] text-primary font-semibold">
+                        {localLastTopic?.topicIndex !== undefined ? `Topic ${localLastTopic.topicIndex + 1}` : "Ready"}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate("exam");
-                    }}
-                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-primary hover:bg-primary/90 active:scale-[0.98] text-primary-foreground font-semibold text-sm shadow-sm hover:shadow transition-all"
-                  >
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>{t("takeExam") || "Take exam"}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 2. Course Curriculum / Continue Learning Card */}
-          {hasCourses && (
-            <div className={standaloneExamEnabled ? "lg:col-span-1" : "lg:col-span-3"}>
-              <div className="h-full rounded-2xl border border-border/70 bg-card p-6 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
-                      <GraduationCap className="w-3.5 h-3.5" />
-                      {t("theoryCurriculum") || "Syllabus Progress"}
-                    </span>
-                    <span className="text-xs font-bold text-foreground">
-                      {progressPercent}%
-                    </span>
-                  </div>
-
-                  <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground mb-1">
-                    {localLastTopic?.moduleTitle || continueData?.moduleTitle || t("theoryCourse") || "Theory Curriculum"}
-                  </h2>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    {stats ? `${stats.lessonsCompleted} of ${stats.totalLessons} lessons completed` : t("loading")}
-                  </p>
-
-                  {/* Progress Bar */}
-                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden mb-4 shadow-inner">
-                    <div
-                      className="bg-primary h-2 rounded-full transition-all duration-700"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-
-                  {/* Active Lesson & Topic status */}
-                  <div className="p-3.5 rounded-xl bg-muted/40 border border-border/50 mb-4 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-                        {localLastTopic?.topicTitle || continueData?.topicTitle ? (t("lastActiveTopic") || "Current Topic") : "Next Step"}
-                      </span>
-                      {(localLastTopic?.topicIndex !== undefined && localLastTopic.topicCount) ||
-                      (continueData?.topicIndex !== undefined && continueData.totalTopics) ? (
-                        <span className="text-[10px] font-semibold text-primary px-1.5 py-0.5 rounded-md bg-primary/10">
-                          Topic {(localLastTopic?.topicIndex ?? continueData?.topicIndex ?? 0) + 1}/{(localLastTopic?.topicCount ?? continueData?.totalTopics ?? 1)}
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="text-xs font-bold text-foreground truncate">
-                      {localLastTopic?.topicTitle || continueData?.topicTitle || localLastTopic?.lessonTitle || continueData?.lessonTitle || t("continueNextLesson") || "Continue to next lesson"}
-                    </p>
-                    {(localLastTopic?.topicTitle || continueData?.topicTitle) && (
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {localLastTopic?.lessonTitle || continueData?.lessonTitle}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Action CTA */}
-                <div className="pt-2 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -1347,10 +1132,76 @@ export function HomeView({ navigate }: HomeViewProps) {
                         navigate("course");
                       }
                     }}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs sm:text-sm hover:bg-primary/90 shadow-sm transition-all"
+                    className="w-full inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-primary hover:bg-primary/90 active:scale-[0.98] text-primary-foreground font-semibold text-sm shadow-sm hover:shadow transition-all"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>{t("openCourse") || "Open Course"}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Card 2: Take Exam Card (Same dimensions and structure as Course Card) */}
+          {standaloneExamEnabled && (
+            <div className="h-full">
+              <div className="h-full rounded-2xl sm:rounded-3xl border border-border/70 hover:border-primary/40 bg-card p-6 sm:p-7 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3.5">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-muted text-foreground border border-border">
+                      <Award className="w-3.5 h-3.5 text-primary" />
+                      {t("officialSimulation") || "Official Simulation"}
+                    </span>
+                    <span className="text-xs font-semibold text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-full border border-border/60">
+                      20 Questions · Timed
+                    </span>
+                  </div>
+
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mb-2 group-hover:text-primary transition-colors">
+                    {t("takeExam") || "Take exam"}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-5 leading-relaxed">
+                    {t("examSimulationDesc") || "Test your understanding of national traffic regulations, road signs, and right-of-way priorities under timed exam conditions."}
+                  </p>
+
+                  {/* Clean Exam Simulation Info (No stats cards) */}
+                  <div className="space-y-3 p-4 rounded-xl bg-muted/40 border border-border/50 mb-6">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        {t("examFormat") || "Assessment Standard"}
+                      </span>
+                      <span className="text-xs font-bold text-foreground">
+                        Official Rwanda Traffic Code
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Clock className="w-3.5 h-3.5 text-primary" />
+                        <span>20 {t("minutes") || "Minutes"}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Target className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>60% (12/20) {t("passMark") || "Pass mark"}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-1 flex items-center justify-between text-xs text-muted-foreground border-t border-border/40">
+                      <span>{t("languagesAvailable") || "Languages"}: 🇷🇼 Kinyarwanda · 🇬🇧 English · 🇫🇷 Français</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate("exam");
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-primary hover:bg-primary/90 active:scale-[0.98] text-primary-foreground font-semibold text-sm shadow-sm hover:shadow transition-all"
                   >
                     <Play className="w-4 h-4 fill-current" />
-                    <span>{t("continueFromLastTopic") || t("continueLearning") || "Continue from Last Topic"}</span>
+                    <span>{t("takeExam") || "Take exam"}</span>
                   </button>
                 </div>
               </div>

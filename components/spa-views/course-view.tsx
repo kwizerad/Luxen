@@ -343,6 +343,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [comprehensionChecked, setComprehensionChecked] = useState<Record<string, boolean>>({});
+  const [showLanguagePicker, setShowLanguagePicker] = useState<boolean>(false);
 
   // AI Note translation & Study Booster state
   const [translatedContent, setTranslatedContent] = useState<string | null>(null);
@@ -413,29 +414,15 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [selectedTerm, setSelectedTerm] = useState<string | null>(null);
   const [termPosition, setTermPosition] = useState<{ x: number; y: number } | null>(null);
 
-  // Reset transient translation on topic change, and auto-translate if course content is in another language (e.g. external Kinyarwanda course when UI is English/French)
+  // Reset transient study aids on topic change
   useEffect(() => {
-    setTranslatedContent(null);
-    setTranslatedTitle(null);
-    setTranslatedLang(null);
     setPlainData(null);
     setIsPlainLanguageOpen(false);
     setIsTTSOpen(false);
     setTtsAudioUrl(null);
     setSelectedTerm(null);
     setTermPosition(null);
-
-    if (viewMode === "study" && course && learningLanguage) {
-      const isExtCourse = course.id === "00000000-0000-0000-0000-00000000e001";
-      const targetLang = learningLanguage as "English" | "French" | "Kinyarwanda";
-      if (isExtCourse && targetLang !== "Kinyarwanda") {
-        const timer = setTimeout(() => {
-          void handleLanguageSelect(targetLang);
-        }, 50);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [currentItemIndex, viewMode, course?.id, learningLanguage]);
+  }, [currentItemIndex, viewMode]);
 
   // Touch swipe handling
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -587,12 +574,14 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   useEffect(() => {
     const loadLearningLanguage = async () => {
-      const matchingLanguage = isLearningLanguage(interfaceLanguage) ? interfaceLanguage : null;
-      if (matchingLanguage) {
-        setLearningLanguage(matchingLanguage);
-        await loadCourse(matchingLanguage);
-        return;
-      }
+      const hasDeepLink = Boolean(
+        params.get("lesson") ||
+        params.get("lessonId") ||
+        params.get("topic") ||
+        params.get("topicId") ||
+        params.get("module") ||
+        params.get("moduleId")
+      );
 
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -600,13 +589,34 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         ? await supabase.from("user_profiles").select("learning_language").eq("id", user.id).maybeSingle()
         : { data: null };
       const savedLanguage = profile?.learning_language;
-      const selectedLanguage = isLearningLanguage(savedLanguage || "") ? savedLanguage : "Kinyarwanda";
+      const storedLocal = typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
+      const effectiveLang = (isLearningLanguage(storedLocal || "") ? storedLocal : null) || (isLearningLanguage(savedLanguage || "") ? savedLanguage : null);
+
+      if (!hasDeepLink && !effectiveLang) {
+        setShowLanguagePicker(true);
+        setLoading(false);
+        return;
+      }
+
+      const selectedLanguage = (effectiveLang as LearningLanguage) || "Kinyarwanda";
       setLearningLanguage(selectedLanguage);
       await loadCourse(selectedLanguage);
     };
 
     void loadLearningLanguage();
-  }, [interfaceLanguage, loadCourse]);
+  }, [loadCourse]);
+
+  const handleChooseCourseLanguage = async (chosen: LearningLanguage) => {
+    setShowLanguagePicker(false);
+    setLoading(true);
+    setLearningLanguage(chosen);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("luxen_course_lang", chosen);
+    }
+    await selectLearningLanguage(chosen);
+    await loadCourse(chosen);
+    setLoading(false);
+  };
 
   // Deep-linking: jump to a specific topic or lesson via ?lesson=<id>&topic=<id>
   useEffect(() => {
@@ -1506,25 +1516,105 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     return <CourseViewSkeleton />;
   }
 
-  if (!learningLanguage) {
+  if (showLanguagePicker || !learningLanguage) {
     return (
-      <div className="max-w-xl mx-auto rounded-[20px] border bg-card p-6 sm:p-8 space-y-6 shadow-sm mt-8">
-        <div className="text-center space-y-2">
-          <BookOpen className="h-10 w-10 mx-auto text-primary-readable" />
-          <h1 className="text-2xl font-bold">{t("chooseLearningLanguage") || "Choose the language you want to study in"}</h1>
-          <p className="text-sm text-muted-foreground">{t("learningLanguageSeparate") || "Your learning language is separate from the application interface language."}</p>
+      <div className="min-h-[calc(100vh-80px)] max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 animate-in fade-in duration-200 select-none">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => navigate("home")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 border border-border transition-colors shadow-xs"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>{t("backToHome") || "Back to Home"}</span>
+          </button>
         </div>
-        <div className="grid gap-3">
-          {enabledLanguages.map((option) => (
-            <Button key={option} type="button" variant="outline" className="h-12 justify-start font-medium text-sm rounded-xl" disabled={savingLanguage} onClick={() => void selectLearningLanguage(option)}>
-              {option === "English" ? "English" : option === "French" ? "Français" : "Kinyarwanda"}
-            </Button>
+
+        <div className="text-center max-w-2xl mx-auto space-y-2">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2">
+            <BookOpen className="h-6 w-6" />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            {t("chooseCourseLanguage") || "Choose Course Language"}
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            {t("chooseCourseLanguageDesc") || "Select the language you want to study your driving lessons in. You can take courses in any language regardless of your UI interface setting."}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-4">
+          {[
+            {
+              lang: "Kinyarwanda" as const,
+              flag: "🇷🇼",
+              label: "Ikinyarwanda",
+              badge: "Rwanda · Ikinyarwanda",
+              title: "Amategeko y'Umuhanda",
+              desc: "Wige amategeko y'umuhanda n'ibyapa byose by'u Rwanda mu Kinyarwanda cyimbitse kandi cyoroshye.",
+              btnText: "Fungura mu Kinyarwanda",
+            },
+            {
+              lang: "French" as const,
+              flag: "🇫🇷",
+              label: "Français",
+              badge: "Français · Code de la Route",
+              title: "Code de la Route en Français",
+              desc: "Étudiez les règles de circulation routière, la signalisation et les priorités en Français.",
+              btnText: "Ouvrir en Français",
+            },
+            {
+              lang: "English" as const,
+              flag: "🇬🇧",
+              label: "English",
+              badge: "English · Highway Code",
+              title: "Rwanda Highway Code",
+              desc: "Master Rwanda traffic regulations, road signs, and driving rules in English.",
+              btnText: "Open in English",
+            },
+          ].map((item) => (
+            <div
+              key={item.lang}
+              onClick={() => void handleChooseCourseLanguage(item.lang)}
+              className={cn(
+                "group cursor-pointer rounded-2xl sm:rounded-3xl border p-6 sm:p-7 flex flex-col justify-between transition-all hover:shadow-md hover:border-primary/50 bg-card",
+                learningLanguage === item.lang ? "border-primary ring-1 ring-primary/30" : "border-border/80"
+              )}
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-3xl">{item.flag}</span>
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                    {item.badge}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">
+                    {item.label}
+                  </h3>
+                  <p className="text-xs font-semibold text-primary/80 mt-0.5">
+                    {item.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-6">
+                <Button
+                  className="w-full rounded-xl py-2.5 font-semibold text-xs sm:text-sm group-hover:bg-primary/90 transition-colors"
+                  disabled={savingLanguage}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleChooseCourseLanguage(item.lang);
+                  }}
+                >
+                  <Play className="h-3.5 w-3.5 mr-2 fill-current" />
+                  <span>{item.btnText}</span>
+                </Button>
+              </div>
+            </div>
           ))}
-          {enabledLanguages.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              {t("noLearningLanguagesAvailable") || "No learning languages are currently available. Please contact an administrator."}
-            </p>
-          )}
         </div>
       </div>
     );
@@ -2269,48 +2359,16 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             <StickyNote className="h-4 w-4" />
           </button>
 
-          {/* 1-Click Segmented Language Switcher (Zero Dropdown Hunting, 0ms Cache) */}
-          <div className="flex items-center p-0.5 rounded-xl bg-muted/70 border border-border/50 text-xs">
-            {(["English", "French", "Kinyarwanda"] as const).map((lang) => {
-              const activeLang = translatedLang || learningLanguage || "English";
-              const isActive = activeLang === lang;
-              const isPending = isTranslatingNote && pendingLang === lang;
-              return (
-                <button
-                  key={lang}
-                  type="button"
-                  onClick={() => handleLanguageSelect(lang)}
-                  disabled={isTranslatingNote}
-                  className={cn(
-                    "px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer",
-                    isActive
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  title={`Read note in ${lang === "French" ? "Français" : lang} [Hotkey: T]`}
-                >
-                  <span>{lang === "English" ? "🇬🇧" : lang === "French" ? "🇫🇷" : "🇷🇼"}</span>
-                  <span className="hidden sm:inline">{lang === "French" ? "FR" : lang === "English" ? "EN" : "RW"}</span>
-                  {isPending && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Bilingual Dual View Split Toggle (PC Mode) */}
+          {/* Current Selected Course Language */}
           <button
             type="button"
-            onClick={handleToggleDualView}
-            className={cn(
-              "hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
-              isDualView
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-background hover:bg-muted text-muted-foreground border-border"
-            )}
-            title="Side-by-side bilingual comparison (PC Mode) [Press B]"
+            onClick={() => setLearningLanguage(null)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border/70 hover:border-primary/40 bg-card hover:bg-muted text-xs font-semibold transition-colors cursor-pointer text-foreground"
+            title={t("changeLanguage") || "Change course language"}
           >
-            <Columns2 className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">Dual View</span>
+            <span>{learningLanguage === "French" ? "🇫🇷" : learningLanguage === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
+            <span className="hidden sm:inline">{learningLanguage || "Course Language"}</span>
+            <span className="text-[10px] text-primary underline ml-1">{t("change") || "Change"}</span>
           </button>
 
           {/* Plain Terms Legal Explainer Toggle */}
@@ -2577,27 +2635,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   )}
                 </div>
 
-                {/* Active AI Translation Banner */}
-                {translatedLang && !isDualView && (
-                  <div className="flex items-center justify-between p-2.5 px-3 rounded-xl bg-primary/10 border border-primary/30 text-xs text-primary">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                      <span>
-                        AI Translated into <strong>{translatedLang}</strong> using Rwanda Traffic Code terminology (all signs &amp; styles preserved).
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleResetTranslation}
-                      className="underline text-[11px] hover:text-foreground font-semibold ml-2 shrink-0 cursor-pointer"
-                    >
-                      Revert
-                    </button>
-                  </div>
-                )}
-
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                  {translatedTitle || (currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle)}
+                  {currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle}
                 </h1>
               </div>
 
@@ -2606,8 +2645,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 <AINeuralVoicePlayer
                   audioUrl={ttsAudioUrl}
                   isLoading={isLoadingTTS}
-                  language={translatedLang || learningLanguage || "English"}
-                  topicTitle={translatedTitle || currentTopic?.title || currentLesson?.title || "Lesson Note"}
+                  language={learningLanguage || "English"}
+                  topicTitle={currentTopic?.title || currentLesson?.title || "Lesson Note"}
                   onClose={() => setIsTTSOpen(false)}
                   onRetry={handleToggleTTS}
                 />
@@ -2617,7 +2656,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               {isPlainLanguageOpen && plainData && (
                 <PlainLanguageCard
                   data={plainData}
-                  language={translatedLang || learningLanguage || "English"}
+                  language={learningLanguage || "English"}
                   onClose={() => setIsPlainLanguageOpen(false)}
                 />
               )}
@@ -2630,49 +2669,15 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 />
               )}
 
-              {/* Topic Body Content: Side-by-Side Bilingual Dual View on PC or Standard View */}
+              {/* Topic Body Content in Selected Language */}
               <div onMouseUp={handleMouseUpContent}>
-                {isDualView && translatedContent ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                    {/* Left: Original Note */}
-                    <div className="space-y-3 p-4 sm:p-5 rounded-2xl border bg-muted/20 border-border/60">
-                      <div className="flex items-center justify-between pb-2 border-b text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground flex items-center gap-1.5">
-                          <span>{learningLanguage === "French" ? "🇫🇷" : learningLanguage === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
-                          Original Note ({learningLanguage || "Original"})
-                        </span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted">Source</span>
-                      </div>
-                      <div className="text-base sm:text-lg font-bold text-foreground">
-                        {currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle}
-                      </div>
-                      <LessonContentView content={currentContent} textSize={textSize} />
-                    </div>
-
-                    {/* Right: Translated Note */}
-                    <div className="space-y-3 p-4 sm:p-5 rounded-2xl border border-primary/30 bg-primary/5">
-                      <div className="flex items-center justify-between pb-2 border-b border-primary/20 text-xs text-primary">
-                        <span className="font-semibold flex items-center gap-1.5">
-                          <span>{translatedLang === "French" ? "🇫🇷" : translatedLang === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
-                          Translated Note ({translatedLang || "Translation"})
-                        </span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/20 text-primary">AI Synced</span>
-                      </div>
-                      <div className="text-base sm:text-lg font-bold text-foreground">
-                        {translatedTitle || (currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle)}
-                      </div>
-                      <LessonContentView content={translatedContent} textSize={textSize} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-full transition-all leading-relaxed">
-                    {currentContent ? (
-                      <LessonContentView content={translatedContent || currentContent} textSize={textSize} />
-                    ) : (
-                      <p className="text-muted-foreground italic">{t("noContent") || "No content available yet."}</p>
-                    )}
-                  </div>
-                )}
+                <div className="w-full transition-all leading-relaxed">
+                  {currentContent ? (
+                    <LessonContentView content={currentContent} textSize={textSize} />
+                  ) : (
+                    <p className="text-muted-foreground italic">{t("noContent") || "No content available yet."}</p>
+                  )}
+                </div>
               </div>
 
               {/* Floating Term Tooltip on Selection */}
@@ -2690,16 +2695,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               {/* PC Desktop Hotkey Hints */}
               <div className="hidden md:flex items-center justify-end gap-3 pt-2 text-[11px] text-muted-foreground border-t border-border/40">
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[10px]">T</kbd>
-                  <span>Translate</span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[10px]">B</kbd>
-                  <span>Bilingual Split</span>
-                </span>
-                <span className="flex items-center gap-1">
                   <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[10px]">P</kbd>
-                  <span>Plain Terms</span>
+                  <span>{t("plainTerms") || "Plain Terms"}</span>
                 </span>
               </div>
 

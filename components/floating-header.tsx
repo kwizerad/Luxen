@@ -203,13 +203,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       view: "results",
       isActive: pathname === "/dashboard" && currentView === "results",
     },
-    {
-      id: "settings",
-      label: t("settings") || "Settings",
-      icon: Settings,
-      view: "settings",
-      isActive: pathname === "/dashboard" && currentView === "settings",
-    },
   ];
 
   const activeAdminPath = adminMode ? (adminSpaPathname || pathname || "/Admin") : pathname;
@@ -278,14 +271,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
             activeAdminPath?.startsWith("/Admin/audit") ||
             activeAdminPath?.startsWith("/Admin/notifications")
         ),
-    },
-    {
-      id: "admin-settings",
-      label: t("settings") || "Settings",
-      icon: Settings,
-      href: "/Admin/settings",
-      isActive:
-        adminSpaView === "settings" || Boolean(activeAdminPath?.startsWith("/Admin/settings")),
     },
   ];
 

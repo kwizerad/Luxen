@@ -205,22 +205,6 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       openFallback: "Check Status",
     },
     {
-      key: "group-exam",
-      view: "services/group-exam",
-      icon: Trophy,
-      tag: "service · multiplayer arena",
-      badge: "Live Arena",
-      titleKey: "groupExamService",
-      descKey: "groupExamServiceDesc",
-      titleFallback: "Group Exam Battles",
-      descFallback: "Engage in timed head-to-head multiplayer driving test battles with peers and classmates in real-time.",
-      iconBox: "bg-primary/10 border border-primary/20 text-primary",
-      badgeClass: "bg-primary/10 border border-primary/20 text-primary",
-      btnClass: "bg-primary hover:bg-primary/90 text-primary-foreground",
-      openLabelKey: "groupExamOpen",
-      openFallback: "Enter Arena",
-    },
-    {
       key: "driver-hub",
       view: "driver-hub",
       icon: Users,
@@ -239,7 +223,6 @@ export function ServicesView({ navigate }: ServicesViewProps) {
   ];
 
   const services = allServices.filter((svc) => {
-    if (svc.key === "group-exam" && !groupExamOn) return false;
     if (serviceToggles && serviceToggles[svc.key] === false) return false;
     return true;
   });

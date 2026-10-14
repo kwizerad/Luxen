@@ -1056,8 +1056,14 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     return () => clearInterval(id);
   }, [secondsLeft]);
 
-  const startExam = async (catId?: string) => {
+  const [selectedExamLanguage, setSelectedExamLanguage] = useState<string>("Kinyarwanda");
+
+  const startExam = async (catId?: string, examLang?: string) => {
     let targetCategoryId = catId || categoryId;
+    const activeExamLang = examLang || selectedExamLanguage || "Kinyarwanda";
+    if (examLang) {
+      setSelectedExamLanguage(examLang);
+    }
 
     // If targetCategoryId is missing but we have a challengeId, look it up immediately
     if (!targetCategoryId && challengeId) {
@@ -1075,6 +1081,11 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       } catch (e) {
         console.error("Failed to fetch challenge category before starting exam:", e);
       }
+    }
+
+    if (!targetCategoryId && categories.length > 0) {
+      targetCategoryId = categories[0].id;
+      setCategoryId(categories[0].id);
     }
 
     if (!targetCategoryId) {
@@ -1130,7 +1141,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     }
 
     try {
-      const data = await getExamForTaking(targetCategoryId, challengeId || undefined, language);
+      const data = await getExamForTaking(targetCategoryId, challengeId || undefined, activeExamLang);
       setExam(data as TakeResponse);
       setCurrentIndex(0);
       setSecondsLeft((data.settings?.duration_minutes ?? 20) * 60);
@@ -1859,149 +1870,128 @@ export function ExamView({ navigate, params }: ExamViewProps) {
               </div>
             </div>
             <div>
-              {categories.length === 0 ? (
-                // Loading or no exams
-                <div className="text-center py-8">
-                  {loadingCategories ? (
-                    <ExamCategorySkeleton />
-                  ) : (
-                    <>
-                      <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-muted-foreground mb-2">{t("pleaseWait")}</p>
-                      <p className="text-sm text-muted-foreground">{t("examsBeingPrepared")}</p>
-                    </>
-                  )}
-                </div>
-              ) : categories.length === 1 ? (
-                // Single category — display directly without selection grid
-                <div className="max-w-md">
-                  <Card className="group h-full rounded-[14px] sm:rounded-[24px]">
-                    <CardHeader className="p-3 sm:pb-4 sm:p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="w-9 h-9 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                          <FileText className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
-                        </div>
-                        <Badge variant="secondary" className="bg-primary/10 text-primary text-[10px] sm:text-xs">
-                          {t("available")}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-base sm:text-xl font-bold mt-2 sm:mt-3 line-clamp-2">{categories[0].name}</CardTitle>
-                      <CardDescription className="text-[11px] sm:text-sm line-clamp-2">
-                        {t("clickToStartExamInCategory")}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0 p-3 sm:p-6 sm:pt-0">
-                      <div className="space-y-2 sm:space-y-3">
-                        <div className="flex items-center justify-between text-[11px] sm:text-sm">
-                          <span className="text-muted-foreground flex items-center gap-1.5">
-                            <Hash className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                            {t("questions")}
-                          </span>
-                          <span className="font-medium">{categories[0].question_count ?? "—"}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px] sm:text-sm">
-                          <span className="text-muted-foreground flex items-center gap-1.5">
-                            <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                            {t("duration")}
-                          </span>
-                          <span className="font-medium">{categories[0].duration_minutes ? `${categories[0].duration_minutes} ${t("minutes")}` : t("timed")}</span>
-                        </div>
-                        <Button
-                          size="sm"
-                          className="w-full mt-3 sm:mt-4"
-                          disabled={loadingExam}
-                          onClick={() => {
-                            setCategoryId(categories[0].id);
-                            startExam(categories[0].id);
-                          }}
-                        >
-                          {loadingExam ? (
-                            <>
-                              <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
-                              {t("starting")}
-                            </>
-                          ) : (
-                            <>
-                              <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
-                              {t("startExam")}
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+              {loadingCategories ? (
+                <div className="py-8">
+                  <ExamCategorySkeleton />
                 </div>
               ) : (
-                // Display all exams in consistent grid layout
-                <>
-                  <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3">
-                    {categories.map((category) => (
-                      <Card 
-                        key={category.id}
-                        className="group cursor-pointer h-full rounded-[14px] sm:rounded-[24px]"
+                <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-3">
+                  {[
+                    {
+                      key: "Kinyarwanda",
+                      code: "rw",
+                      flag: "🇷🇼",
+                      title: "Ikizamini mu Kinyarwanda",
+                      categoryTitle: "Ikinyarwanda Category",
+                      description: "Ikizamini cyuzuye cy'ibibazo 20 by'amategeko y'umuhanda n'ibyapa mu Kinyarwanda cyimbitse.",
+                      questionCount: 20,
+                      durationMinutes: 20,
+                      passMark: "60% (12/20)",
+                      btnLabel: "Tangira mu Kinyarwanda",
+                    },
+                    {
+                      key: "English",
+                      code: "en",
+                      flag: "🇬🇧",
+                      title: "English Road Code Exam",
+                      categoryTitle: "English Category",
+                      description: "Official 20-question provisional driving license assessment in English with official scoring.",
+                      questionCount: 20,
+                      durationMinutes: 20,
+                      passMark: "60% (12/20)",
+                      btnLabel: "Start Exam in English",
+                    },
+                    {
+                      key: "French",
+                      code: "fr",
+                      flag: "🇫🇷",
+                      title: "Examen du Code en Français",
+                      categoryTitle: "Catégorie Français",
+                      description: "Évaluation officielle chronométrée de 20 questions sur la réglementation routière en Français.",
+                      questionCount: 20,
+                      durationMinutes: 20,
+                      passMark: "60% (12/20)",
+                      btnLabel: "Commencer en Français",
+                    },
+                  ].map((examCat) => {
+                    const targetId = categories[0]?.id || categoryId;
+                    return (
+                      <Card
+                        key={examCat.key}
+                        className="group cursor-pointer h-full rounded-2xl sm:rounded-3xl border border-border/80 hover:border-primary/50 bg-card hover:shadow-md transition-all flex flex-col justify-between"
                         onClick={() => {
-                          setCategoryId(category.id);
-                          startExam(category.id);
+                          startExam(targetId, examCat.key);
                         }}
                       >
-                        <CardHeader className="p-3 sm:pb-4 sm:p-6">
+                        <CardHeader className="p-4 sm:p-6 space-y-3">
                           <div className="flex items-center justify-between">
-                            <div className="w-9 h-9 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                              <FileText className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform">
+                              <span>{examCat.flag}</span>
                             </div>
-                            <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 text-[10px] sm:text-xs">
-                              {t("available")}
+                            <Badge variant="secondary" className="bg-primary/10 text-primary text-[11px] font-semibold">
+                              {examCat.categoryTitle}
                             </Badge>
                           </div>
-                          <CardTitle className="text-base sm:text-xl font-bold mt-2 sm:mt-3 line-clamp-2">{category.name}</CardTitle>
-                          <CardDescription className="text-[11px] sm:text-sm line-clamp-2">
-                            {t("clickToStartExamInCategory")}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="pt-0 p-3 sm:p-6 sm:pt-0">
-                          <div className="space-y-2 sm:space-y-3">
-                            <div className="flex items-center justify-between text-[11px] sm:text-sm">
-                              <span className="text-muted-foreground flex items-center gap-1.5">
-                                <Hash className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                                {t("questions")}
-                              </span>
-                              <span className="font-medium">{category.question_count ?? "—"}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-[11px] sm:text-sm">
-                              <span className="text-muted-foreground flex items-center gap-1.5">
-                                <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                                {t("duration")}
-                              </span>
-                              <span className="font-medium">{category.duration_minutes ? `${category.duration_minutes} ${t("minutes")}` : t("timed")}</span>
-                            </div>
-                            <Button 
-                              size="sm"
-                              className="w-full mt-3 sm:mt-4 group-hover:bg-primary/90 transition-colors"
-                              disabled={loadingExam}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCategoryId(category.id);
-                                startExam(category.id);
-                              }}
-                            >
-                              {loadingExam ? (
-                                <>
-                                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
-                                  {t("starting")}
-                                </>
-                              ) : (
-                                <>
-                                  <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
-                                  {t("startExam")}
-                                </>
-                              )}
-                            </Button>
+                          <div>
+                            <CardTitle className="text-base sm:text-lg font-bold group-hover:text-primary transition-colors">
+                              {examCat.title}
+                            </CardTitle>
+                            <CardDescription className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                              {examCat.description}
+                            </CardDescription>
                           </div>
+                        </CardHeader>
+                        <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                          <div className="space-y-2 p-3 rounded-xl bg-muted/40 border border-border/50 text-xs">
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span className="flex items-center gap-1.5">
+                                <Hash className="h-3.5 w-3.5 text-primary" />
+                                {t("questions") || "Questions"}
+                              </span>
+                              <span className="font-bold text-foreground">{examCat.questionCount} Questions</span>
+                            </div>
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span className="flex items-center gap-1.5">
+                                <Clock className="h-3.5 w-3.5 text-primary" />
+                                {t("duration") || "Duration"}
+                              </span>
+                              <span className="font-bold text-foreground">{examCat.durationMinutes} {t("minutes") || "Minutes"}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-muted-foreground border-t border-border/40 pt-1.5">
+                              <span className="flex items-center gap-1.5">
+                                <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                                {t("passMark") || "Passing score"}
+                              </span>
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">{examCat.passMark}</span>
+                            </div>
+                          </div>
+
+                          <Button
+                            size="sm"
+                            className="w-full rounded-xl py-2.5 font-semibold text-xs sm:text-sm group-hover:bg-primary/90 transition-colors"
+                            disabled={loadingExam}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startExam(targetId, examCat.key);
+                            }}
+                          >
+                            {loadingExam && selectedExamLanguage === examCat.key ? (
+                              <>
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent mr-2" />
+                                {t("starting") || "Starting..."}
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-3.5 w-3.5 mr-2 fill-current" />
+                                {examCat.btnLabel}
+                              </>
+                            )}
+                          </Button>
                         </CardContent>
                       </Card>
-                    ))}
-                  </div>
-                </>
+                    );
+                  })}
+                </div>
               )}
             </div>
             
