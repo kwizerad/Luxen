@@ -1229,54 +1229,70 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     }));
   };
 
-  // Swipe functionality for mobile
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
-  const [touchEndX, setTouchEndX] = useState<number | null>(null);
-  const [touchEndY, setTouchEndY] = useState<number | null>(null);
-  const minSwipeDistance = 75;
+  // Swipe functionality for mobile and trackpad horizontal scrolling
+  // Allows user to swipe/scroll left or right even outside the question card [box]
+  useEffect(() => {
+    if (!exam) return;
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEndX(null);
-    setTouchEndY(null);
-    setTouchStartX(e.targetTouches[0].clientX);
-    setTouchStartY(e.targetTouches[0].clientY);
-  };
+    let startX: number | null = null;
+    let startY: number | null = null;
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEndX(e.targetTouches[0].clientX);
-    setTouchEndY(e.targetTouches[0].clientY);
-  };
+    const onTouchStartWindow = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
 
-  const onTouchEnd = useCallback(() => {
-    if (touchStartX === null || touchEndX === null || touchStartY === null || touchEndY === null) return;
-    const deltaX = touchStartX - touchEndX;
-    const deltaY = touchStartY - touchEndY;
+    const onTouchEndWindow = (e: TouchEvent) => {
+      if (startX === null || startY === null || e.changedTouches.length !== 1) return;
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const deltaX = startX - endX;
+      const deltaY = startY - endY;
+      const minSwipeDistance = 40;
 
-    // Only swipe if horizontal movement is clearly dominant over vertical scrolling
-    if (Math.abs(deltaX) > Math.abs(deltaY) * 1.5 && Math.abs(deltaX) > minSwipeDistance) {
-      const isLeftSwipe = deltaX > 0;
-      const isRightSwipe = deltaX < 0;
-
-      if (showExamInstructions) {
-        if (isLeftSwipe) {
-          setShowExamInstructions(false);
-        }
-      } else {
-        if (isLeftSwipe && exam && currentIndex < exam.questions.length - 1) {
-          setCurrentIndex((i) => Math.min(exam.questions.length - 1, i + 1));
-        }
-        if (isRightSwipe && currentIndex > 0) {
+      // Only swipe if horizontal movement is clearly dominant over vertical scrolling
+      if (Math.abs(deltaX) > Math.abs(deltaY) * 1.3 && Math.abs(deltaX) > minSwipeDistance) {
+        if (deltaX > 0) {
+          // Swiped Left -> Next question
+          if (showExamInstructions) {
+            setShowExamInstructions(false);
+          } else {
+            setCurrentIndex((i) => Math.min(exam.questions.length - 1, i + 1));
+          }
+        } else {
+          // Swiped Right -> Previous question
           setCurrentIndex((i) => Math.max(0, i - 1));
         }
       }
-    }
-    // reset after handling
-    setTouchStartX(null);
-    setTouchStartY(null);
-    setTouchEndX(null);
-    setTouchEndY(null);
-  }, [touchStartX, touchEndX, touchStartY, touchEndY, exam, currentIndex, showExamInstructions]);
+      startX = null;
+      startY = null;
+    };
+
+    const onWheelWindow = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > 40 && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 1.5) {
+        if (e.deltaX > 0) {
+          if (showExamInstructions) {
+            setShowExamInstructions(false);
+          } else {
+            setCurrentIndex((i) => Math.min(exam.questions.length - 1, i + 1));
+          }
+        } else {
+          setCurrentIndex((i) => Math.max(0, i - 1));
+        }
+      }
+    };
+
+    window.addEventListener("touchstart", onTouchStartWindow, { passive: true });
+    window.addEventListener("touchend", onTouchEndWindow, { passive: true });
+    window.addEventListener("wheel", onWheelWindow, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", onTouchStartWindow);
+      window.removeEventListener("touchend", onTouchEndWindow);
+      window.removeEventListener("wheel", onWheelWindow);
+    };
+  }, [exam, showExamInstructions]);
 
   const handleSubmitExam = async (isAutoSubmit = false) => {
     if (!exam || !examStartTime) return;
@@ -2222,12 +2238,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
               <CardContent className="space-y-3 sm:space-y-4 p-3 pt-0 sm:p-6 sm:pt-0">
                 {activeQuestion ? (
                   <>
-                    <div
-                      className="touch-pan-y space-y-3 sm:space-y-4"
-                      onTouchStart={onTouchStart}
-                      onTouchMove={onTouchMove}
-                      onTouchEnd={onTouchEnd}
-                    >
+                    <div className="touch-pan-y space-y-3 sm:space-y-4">
                       {activeQuestion.question && (
                         <div className="flex items-start justify-between gap-3">
                           <div className="text-base sm:text-lg font-medium flex-1">{activeQuestion.question}</div>

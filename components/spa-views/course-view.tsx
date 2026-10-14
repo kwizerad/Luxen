@@ -1058,44 +1058,66 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [viewMode, activeExam, showLessonCompleteModal, showCelebration, currentItemIndex, currentItem, completedItems, flatList]);
 
-  // Touch Swipe Handlers for mobile and tablet navigation
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchEndX(null);
-    setTouchEndY(null);
-    setTouchStartX(e.targetTouches[0].clientX);
-    setTouchStartY(e.targetTouches[0].clientY);
-  };
+  // Touch Swipe & Horizontal Scroll Handlers for mobile, tablet, and trackpad navigation
+  // Allows user to swipe/scroll left or right anywhere on screen (even outside the lesson card)
+  useEffect(() => {
+    if (viewMode !== "reading") return;
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEndX(e.targetTouches[0].clientX);
-    setTouchEndY(e.targetTouches[0].clientY);
-  };
+    let startX: number | null = null;
+    let startY: number | null = null;
 
-  const handleTouchEnd = () => {
-    if (touchStartX === null || touchEndX === null || touchStartY === null || touchEndY === null) return;
-    const deltaX = touchStartX - touchEndX;
-    const deltaY = touchStartY - touchEndY;
-    const minSwipeDistance = 75;
+    const onTouchStartWindow = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
 
-    // Only trigger if horizontal swipe is clearly dominant over vertical scrolling
-    if (Math.abs(deltaX) > Math.abs(deltaY) * 1.5 && Math.abs(deltaX) > minSwipeDistance) {
-      if (deltaX > 0) {
-        // Swiped Left -> Go to Next
-        if (currentItem && !completedItems.has(itemKey(currentItem)) && currentItemIndex < flatList.length - 1) {
-          void markCompleteAndAdvance();
+    const onTouchEndWindow = (e: TouchEvent) => {
+      if (startX === null || startY === null || e.changedTouches.length !== 1) return;
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const deltaX = startX - endX;
+      const deltaY = startY - endY;
+      const minSwipeDistance = 40;
+
+      // Only trigger if horizontal swipe is clearly dominant over vertical scrolling
+      if (Math.abs(deltaX) > Math.abs(deltaY) * 1.3 && Math.abs(deltaX) > minSwipeDistance) {
+        if (deltaX > 0) {
+          // Swiped Left -> Go to Next
+          if (currentItem && !completedItems.has(itemKey(currentItem)) && currentItemIndex < flatList.length - 1) {
+            void markCompleteAndAdvance();
+          } else {
+            goToNext();
+          }
         } else {
-          goToNext();
+          // Swiped Right -> Go to Previous
+          goToPrevious();
         }
-      } else {
-        // Swiped Right -> Go to Previous
-        goToPrevious();
       }
-    }
-    setTouchStartX(null);
-    setTouchStartY(null);
-    setTouchEndX(null);
-    setTouchEndY(null);
-  };
+      startX = null;
+      startY = null;
+    };
+
+    const onWheelWindow = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > 40 && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 1.5) {
+        if (e.deltaX > 0) {
+          goToNext();
+        } else {
+          goToPrevious();
+        }
+      }
+    };
+
+    window.addEventListener("touchstart", onTouchStartWindow, { passive: true });
+    window.addEventListener("touchend", onTouchEndWindow, { passive: true });
+    window.addEventListener("wheel", onWheelWindow, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", onTouchStartWindow);
+      window.removeEventListener("touchend", onTouchEndWindow);
+      window.removeEventListener("wheel", onWheelWindow);
+    };
+  }, [viewMode, currentItem, completedItems, currentItemIndex, flatList.length, goToNext, goToPrevious, markCompleteAndAdvance]);
 
   const openModuleLessons = (moduleId: string) => {
     setSelectedModuleId(moduleId);
@@ -2121,9 +2143,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       onCopy={(e) => e.preventDefault()}
       onCut={(e) => e.preventDefault()}
       onPaste={(e) => e.preventDefault()}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       {/* Celebration Overlay for Final Course Completion */}
       <AnimatePresence>
@@ -2253,8 +2272,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         )}
       </AnimatePresence>
 
-      {/* Top Study Header (Single Sticky Container to prevent headers overlapping) */}
-      <div className="sticky top-0 z-30 flex flex-col bg-card/90 backdrop-blur-md border-b shadow-sm">
+      {/* Top Study Header: docks right under fixed navbar (top-14 sm:top-16) or top-0 in focus mode */}
+      <div
+        className={cn(
+          "z-30 flex flex-col bg-card/90 backdrop-blur-md border-b shadow-xs transition-all",
+          isFocusMode ? "sticky top-0" : "sticky top-14 sm:top-16"
+        )}
+      >
         {/* Focus Lost Paused Alert Banner */}
         {!isFocusActive && (
           <div
@@ -2267,12 +2291,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         )}
 
         {/* Top Study Navigation Bar */}
-        <div
-          className={cn(
-            "px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar",
-            !isFocusMode && "pr-24 sm:pr-28 md:pr-32"
-          )}
-        >
+        <div className="px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
         {/* Breadcrumb path */}
         <div className="flex items-center gap-2 min-w-0 text-xs">
           <button
@@ -2610,10 +2629,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           </div>
 
           {/* Main Topic / Reading Card */}
-          <div className="rounded-[20px] border bg-card shadow-sm overflow-hidden">
+          <div className="rounded-[20px] border bg-card shadow-sm overflow-hidden relative">
             <div className="p-5 sm:p-8 space-y-6">
-              {/* Topic Header & Meta */}
-              <div className="space-y-2 border-b pb-4">
+              {/* Topic Header & Meta (Sticky inside card so title & reading progress remain always visible) */}
+              <div className="space-y-2 border-b pb-4 sticky top-0 bg-card/95 backdrop-blur-md z-10 pt-1 -mt-1">
                 <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground flex-wrap font-medium">
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-0.5 rounded-full bg-muted text-foreground font-semibold">
@@ -2669,8 +2688,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 />
               )}
 
-              {/* Topic Body Content in Selected Language */}
-              <div onMouseUp={handleMouseUpContent}>
+              {/* Topic Body Content in Selected Language (Scrollable so long lessons can be fully read without losing card view) */}
+              <div onMouseUp={handleMouseUpContent} className="max-h-[calc(100vh-16rem)] overflow-y-auto pr-1 sm:pr-2 scrollbar-thin">
                 <div className="w-full transition-all leading-relaxed">
                   {currentContent ? (
                     <LessonContentView content={currentContent} textSize={textSize} />
@@ -2713,8 +2732,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             </div>
           </div>
 
-          {/* Bottom Navigation Toolbar */}
-          <div className="flex items-center justify-between gap-3 pt-2">
+          {/* Bottom Navigation Toolbar (Sticky so user can always advance or go back regardless of scroll position) */}
+          <div className="sticky bottom-16 sm:bottom-4 z-20 bg-card/95 backdrop-blur-md px-3 sm:px-5 py-2.5 rounded-2xl border shadow-lg flex items-center justify-between gap-3 mt-4">
             <Button
               variant="outline"
               size="sm"

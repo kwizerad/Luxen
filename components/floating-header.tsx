@@ -289,16 +289,16 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
   return (
     <>
-      {/* Top Header Bar (Desktop >= 1024px only):
-          Hidden on mobile/small devices (< 1024px) so no sticky top header or title bar obscures the page or blocks pull-to-refresh. */}
+      {/* Top Header Bar:
+          Fixed at the top so it never disappears during scroll on any device size. */}
       <header
         dir={isRTL ? "rtl" : "ltr"}
         aria-hidden={isExamActive}
         className={`app-top-header-bar ${
           isExamActive
             ? "hidden pointer-events-none opacity-0 invisible select-none"
-            : "hidden lg:block"
-        } premium-glass-panel sticky top-0 z-50 w-full border-b transition-opacity`}
+            : "block"
+        } premium-glass-panel fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-200 shadow-xs`}
       >
         <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 gap-3">
           {/* Left: System Logo & Name */}
@@ -433,16 +433,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
         </div>
       </header>
 
-      {/* Mobile Floating Top-Right Actions (Notifications & Profile) — Non-blocking, no full-width header bar */}
-      {!isExamActive && !isChatActive && (
-        <div
-          dir={isRTL ? "rtl" : "ltr"}
-          className="fixed top-[max(0.75rem,env(safe-area-inset-top,0.75rem))] right-3 z-40 flex lg:hidden items-center gap-1.5 rounded-full border border-border/80 dark:border-zinc-800/80 bg-card/90 dark:bg-zinc-900/90 backdrop-blur-md px-2 py-1 shadow-md pointer-events-auto"
-        >
-          <NotificationsDropdown />
-          <FloatingUserSettings user={user} onMobile adminMode={adminMode} />
-        </div>
-      )}
+
 
       {/* Mobile & Tablet (< 1024px / lg:hidden) Fixed Bottom Navigation Bar (Nav Items Only) */}
       <nav

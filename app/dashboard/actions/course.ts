@@ -136,6 +136,7 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
           }
         }
 
+        const missingLessons: { id: string; text: string; hash: string }[] = [];
         for (const l of lessons) {
           const text = String(l.title || "").trim();
           if (!text) continue;
@@ -143,33 +144,68 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
           const cached = cachedMap.get(`ext_lesson_${l.id}`);
           if (cached && cached.hash === hash) {
             translatedLessonTexts.set(l.id, cached.text);
+          } else {
+            missingLessons.push({ id: l.id, text, hash });
           }
         }
 
+        const nowStr = new Date().toISOString();
+        const upserts: any[] = [];
+
         if (missingChapters.length > 0) {
-          const snippets = missingChapters.map((m, idx) => ({ id: idx, text: m.text }));
-          const translatedMap = await translateTextSnippets(snippets, "Kinyarwanda", targetLang);
-          const nowStr = new Date().toISOString();
-          const upserts = [];
-          for (let i = 0; i < missingChapters.length; i++) {
-            const item = missingChapters[i];
-            const tText = translatedMap.get(i) || item.text;
-            translatedChapterTitles.set(item.id, tText);
-            upserts.push({
-              entity_id: `ext_chap_${item.id}`,
-              target_language: targetLang,
-              feature_type: "external_translation",
-              content_hash: item.hash,
-              cached_data: { text: tText, updatedAt: nowStr },
-              updated_at: nowStr,
-            });
+          try {
+            const snippets = missingChapters.map((m, idx) => ({ id: idx, text: m.text }));
+            const translatedMap = await translateTextSnippets(snippets, "Kinyarwanda", targetLang);
+            for (let i = 0; i < missingChapters.length; i++) {
+              const item = missingChapters[i];
+              const tText = translatedMap.get(i) || item.text;
+              translatedChapterTitles.set(item.id, tText);
+              upserts.push({
+                entity_id: `ext_chap_${item.id}`,
+                target_language: targetLang,
+                feature_type: "external_translation",
+                content_hash: item.hash,
+                cached_data: { text: tText, updatedAt: nowStr },
+                updated_at: nowStr,
+              });
+            }
+          } catch (cErr) {
+            console.warn("Could not translate chapters on the fly:", cErr);
           }
-          if (upserts.length > 0) {
-            await adminSb
-              .from("course_ai_cache")
-              .upsert(upserts, { onConflict: "entity_id,target_language,feature_type" })
-              .then(() => {}, () => {});
+        }
+
+        if (missingLessons.length > 0) {
+          // Process missing lessons in chunks of 15 to stay within token limits and maintain fast responses
+          const CHUNK_SIZE = 15;
+          for (let start = 0; start < missingLessons.length; start += CHUNK_SIZE) {
+            const chunk = missingLessons.slice(start, start + CHUNK_SIZE);
+            try {
+              const snippets = chunk.map((m, idx) => ({ id: idx, text: m.text }));
+              const translatedMap = await translateTextSnippets(snippets, "Kinyarwanda", targetLang);
+              for (let i = 0; i < chunk.length; i++) {
+                const item = chunk[i];
+                const tText = translatedMap.get(i) || item.text;
+                translatedLessonTexts.set(item.id, tText);
+                upserts.push({
+                  entity_id: `ext_lesson_${item.id}`,
+                  target_language: targetLang,
+                  feature_type: "external_translation",
+                  content_hash: item.hash,
+                  cached_data: { text: tText, updatedAt: nowStr },
+                  updated_at: nowStr,
+                });
+              }
+            } catch (lErr) {
+              console.warn(`Could not translate lessons chunk ${start}:`, lErr);
+            }
           }
+        }
+
+        if (upserts.length > 0) {
+          await adminSb
+            .from("course_ai_cache")
+            .upsert(upserts, { onConflict: "entity_id,target_language,feature_type" })
+            .then(() => {}, () => {});
         }
       } catch (tErr) {
         console.warn("Could not translate external course titles:", tErr);

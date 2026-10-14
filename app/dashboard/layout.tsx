@@ -114,7 +114,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         className={`flex-1 w-full min-w-0 ${
           isExamInProgress || isFullBleedView
             ? "pt-0 pb-0"
-            : "pt-3 sm:pt-6 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-6"
+            : "pt-16 sm:pt-20 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-8"
         }`}
       >
         {children}
