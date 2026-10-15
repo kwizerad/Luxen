@@ -220,7 +220,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
   const [showPreSubmitModal, setShowPreSubmitModal] = useState(false);
   const [showQuestionPalette, setShowQuestionPalette] = useState(true);
-  const [examMode, setExamMode] = useState<"choice" | "individual" | "group" | "lobby">("individual");
+  const [examMode, setExamMode] = useState<"lang-select" | "choice" | "individual" | "group" | "lobby">("lang-select");
 
   const cheatingAttemptsRef = useRef(cheatingAttempts);
   const fullscreenRetryCountRef = useRef(fullscreenRetryCount);
@@ -1599,28 +1599,145 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     return <ExamChoiceSkeleton />;
   }
 
+  // 1. Show 3 Exam Language Cards first
+  if (examMode === "lang-select") {
+    return (
+      <div className="min-h-[calc(100vh-80px)] p-4 sm:p-6 max-w-6xl mx-auto space-y-5 animate-in fade-in duration-200">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => navigate("home")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 border border-border transition-colors shadow-xs"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>{t("back") || "Back"}</span>
+          </button>
+        </div>
+
+        <div className="space-y-1 pb-2 border-b border-border/80 dark:border-zinc-800">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground dark:text-zinc-100">
+            {t("selectExamLanguage") || "Select Exam Language"}
+          </h1>
+          <p className="text-xs text-muted-foreground dark:text-zinc-400">
+            {t("selectExamLanguageDesc") || "Choose your preferred language before taking your individual or group exam."}
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-3 pt-2">
+          {[
+            {
+              key: "Kinyarwanda",
+              flag: "🇷🇼",
+              title: "Ikizamini mu Kinyarwanda",
+              categoryTitle: "Ikinyarwanda Exam",
+              description: "Ikizamini cyuzuye cy'ibibazo 20 by'amategeko y'umuhanda n'ibyapa mu Kinyarwanda cyimbitse.",
+              questionCount: 20,
+              durationMinutes: 20,
+              passMark: "60% (12/20)",
+              btnLabel: "Tangira mu Kinyarwanda",
+            },
+            {
+              key: "English",
+              flag: "🇬🇧",
+              title: "English Road Code Exam",
+              categoryTitle: "English Exam",
+              description: "Official 20-question provisional driving license assessment in English with official scoring.",
+              questionCount: 20,
+              durationMinutes: 20,
+              passMark: "60% (12/20)",
+              btnLabel: "Start Exam in English",
+            },
+            {
+              key: "French",
+              flag: "🇫🇷",
+              title: "Examen du Code en Français",
+              categoryTitle: "Examen en Français",
+              description: "Évaluation officielle chronométrée de 20 questions sur la réglementation routière en Français.",
+              questionCount: 20,
+              durationMinutes: 20,
+              passMark: "60% (12/20)",
+              btnLabel: "Commencer en Français",
+            },
+          ].map((examCat) => (
+            <Card
+              key={examCat.key}
+              className="group cursor-pointer h-full rounded-2xl sm:rounded-3xl border border-border/80 hover:border-primary/50 bg-card hover:shadow-md transition-all flex flex-col justify-between"
+              onClick={() => {
+                setSelectedExamLanguage(examCat.key);
+                if (!groupExamEnabled) {
+                  setExamMode("individual");
+                  setShowInstructions(false);
+                } else {
+                  setExamMode("choice");
+                }
+              }}
+            >
+              <CardHeader className="p-4 sm:p-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform">
+                    <span>{examCat.flag}</span>
+                  </div>
+                  <Badge variant="secondary" className="bg-primary/10 text-primary text-[11px] font-semibold">
+                    {examCat.categoryTitle}
+                  </Badge>
+                </div>
+                <div>
+                  <CardTitle className="text-base sm:text-lg font-bold group-hover:text-primary transition-colors">
+                    {examCat.title}
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                    {examCat.description}
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                <div className="space-y-2 p-3 rounded-xl bg-muted/40 border border-border/50 text-xs">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Hash className="h-3.5 w-3.5 text-primary" />
+                      {t("questions") || "Questions"}
+                    </span>
+                    <span className="font-bold text-foreground">{examCat.questionCount} Questions</span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-primary" />
+                      {t("duration") || "Duration"}
+                    </span>
+                    <span className="font-bold text-foreground">{examCat.durationMinutes} {t("minutes") || "Minutes"}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground border-t border-border/40 pt-1.5">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                      {t("passMark") || "Passing score"}
+                    </span>
+                    <span className="font-bold text-foreground">{examCat.passMark}</span>
+                  </div>
+                </div>
+
+                <Button className="w-full h-9 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-xs justify-between px-4 transition-colors">
+                  <span>{examCat.btnLabel}</span>
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // Show exam choice screen first (skip if group exam is disabled)
   if (examMode === "choice") {
     if (!groupExamEnabled) {
       setExamMode("individual");
       setShowInstructions(false);
-      return (
-        <div className="min-h-[calc(100vh-80px)] p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-6xl mx-auto">
-            <div className="mb-6 h-5 w-24 rounded bg-muted animate-pulse" />
-            <div className="mb-8 space-y-2">
-              <div className="h-7 w-48 rounded bg-muted animate-pulse" />
-              <div className="h-4 w-72 rounded bg-muted animate-pulse" />
-            </div>
-            <ExamCategorySkeleton count={6} />
-          </div>
-        </div>
-      );
+      return null;
     }
     return (
       <ExamChoiceScreen
         groupExamEnabled={groupExamEnabled}
-        onBack={() => navigate("home")}
+        onBack={() => setExamMode("lang-select")}
         onNavigate={(choice) => {
           if (choice === "individual") {
             setExamMode("individual");

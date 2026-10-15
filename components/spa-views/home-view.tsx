@@ -156,6 +156,15 @@ export function HomeView({ navigate }: HomeViewProps) {
     topicCount?: number;
   } | null>(null);
 
+  const userCourseLang = typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
+  const courseBtnLabel = userCourseLang
+    ? userCourseLang === "French"
+      ? "Continuer en Français"
+      : userCourseLang === "English"
+      ? "Continue in English"
+      : "Komeza mu Kinyarwanda"
+    : "Tangira Kwiga";
+
   useEffect(() => {
     const readLocalLastTopic = () => {
       try {
@@ -1053,7 +1062,7 @@ export function HomeView({ navigate }: HomeViewProps) {
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-muted/60 text-foreground text-xs sm:text-sm font-semibold shadow-xs transition-all"
             >
               <BookOpen className="w-3.5 h-3.5 text-primary" />
-              <span>{t("openCourse") || "Open Course"}</span>
+              <span>{courseBtnLabel}</span>
             </button>
           </div>
         </div>
@@ -1135,7 +1144,7 @@ export function HomeView({ navigate }: HomeViewProps) {
                     className="w-full inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-primary hover:bg-primary/90 active:scale-[0.98] text-primary-foreground font-semibold text-sm shadow-sm hover:shadow transition-all"
                   >
                     <BookOpen className="w-4 h-4" />
-                    <span>{t("openCourse") || "Open Course"}</span>
+                    <span>{courseBtnLabel}</span>
                   </button>
                 </div>
               </div>
