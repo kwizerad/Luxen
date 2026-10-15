@@ -1061,7 +1061,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // Touch Swipe & Horizontal Scroll Handlers for mobile, tablet, and trackpad navigation
   // Allows user to swipe/scroll left or right anywhere on screen (even outside the lesson card)
   useEffect(() => {
-    if (viewMode !== "reading") return;
+    if (viewMode !== "study") return;
 
     let startX: number | null = null;
     let startY: number | null = null;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getExternalAdminClient, EXTERNAL_EXAM_CATEGORY_ID, isExternalModuleId } from "@/lib/supabase/external";
+import { getExternalAdminClient, EXTERNAL_EXAM_CATEGORY_ID, isExternalModuleId, isExternalExamCategoryId } from "@/lib/supabase/external";
 import { translateTextSnippets, type TargetLanguage } from "@/lib/ai/tiptap-translator";
 import { decryptPayload, encryptPayload, isEncryptedEnvelope } from "@/lib/e2e-crypto";
 import crypto from "crypto";
