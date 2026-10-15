@@ -1668,6 +1668,17 @@ export function ExamView({ navigate, params }: ExamViewProps) {
               passMark: "60% (12/20)",
               btnLabel: "Commencer en Français",
             },
+            {
+              key: "Kinyarwanda",
+              flag: "🇷🇼",
+              title: "Ikizamini cy'amategeko y'umuhanda",
+              categoryTitle: "Ikizamini mu Kinyarwanda",
+              description: "Ikizamini cyemewe cy'ibibazo 20 by'uruhushya rw'agateganyo rw'imodoka mu Kinyarwanda.",
+              questionCount: 20,
+              durationMinutes: 20,
+              passMark: "60% (12/20)",
+              btnLabel: "Tangira ikizamini mu Kinyarwanda",
+            },
           ].map((examCat) => (
             <Card
               key={examCat.key}
