@@ -43,6 +43,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import type { ExamCategory, ExamQuestion, ExamAttempt, ExamAnswer } from "@/lib/database.types";
+import en from "@/lib/translations/en";
+import rw from "@/lib/translations/rw";
+import fr from "@/lib/translations/fr";
 
 // Before submission, correct_answer/explanation are stripped server-side so
 // the answer key is never sent to the client ahead of grading.
@@ -195,7 +198,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const [showResults, setShowResults] = useState(false);
   const [examResult, setExamResult] = useState<ExamAttempt | null>(null);
   const [isSoloGroupAttempt, setIsSoloGroupAttempt] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(true);
+  const [showInstructions, setShowInstructions] = useState(false);
   const [instructionsAccepted, setInstructionsAccepted] = useState(false);
   const [showExamInstructions, setShowExamInstructions] = useState(true);
   const [showFullscreenWarning, setShowFullscreenWarning] = useState(false);
@@ -1058,6 +1061,13 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
   const [selectedExamLanguage, setSelectedExamLanguage] = useState<string>("Kinyarwanda");
 
+  const examTranslations: Record<string, Record<string, string>> = {
+    English: en,
+    Kinyarwanda: rw,
+    French: fr,
+  };
+  const examT = (key: string) => examTranslations[selectedExamLanguage]?.[key] || t(key);
+
   const startExam = async (catId?: string, examLang?: string) => {
     let targetCategoryId = catId || categoryId;
     const activeExamLang = examLang || selectedExamLanguage || "Kinyarwanda";
@@ -1661,9 +1671,10 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           ].map((examCat) => (
             <Card
               key={examCat.key}
-              className="group cursor-pointer h-full rounded-2xl sm:rounded-3xl border border-border/80 hover:border-primary/50 bg-card hover:shadow-md transition-all flex flex-col justify-between"
+              className="group cursor-pointer h-full rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 hover:shadow-lg transition-all flex flex-col justify-between shadow-sm"
               onClick={() => {
                 setSelectedExamLanguage(examCat.key);
+                setCategoryId(categories[0]?.id || "fallback-id");
                 if (!groupExamEnabled) {
                   setExamMode("individual");
                   setShowInstructions(false);
@@ -1746,6 +1757,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
             setExamMode("group");
           }
         }}
+        examT={examT}
       />
     );
   }
@@ -2051,7 +2063,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                     return (
                       <Card
                         key={examCat.key}
-                        className="group cursor-pointer h-full rounded-2xl sm:rounded-3xl border border-border/80 hover:border-primary/50 bg-card hover:shadow-md transition-all flex flex-col justify-between"
+                        className="group cursor-pointer h-full rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 hover:shadow-lg transition-all flex flex-col justify-between shadow-sm"
                         onClick={() => {
                           startExam(targetId, examCat.key);
                         }}

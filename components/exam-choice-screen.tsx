@@ -18,6 +18,7 @@ interface ExamChoiceScreenProps {
   onNavigate?: (choice: "individual" | "group") => void;
   onBack?: () => void;
   groupExamEnabled?: boolean;
+  examT?: (key: string) => string;
 }
 
 export function ExamChoiceScreen({
@@ -25,8 +26,10 @@ export function ExamChoiceScreen({
   onNavigate,
   onBack,
   groupExamEnabled = true,
+  examT,
 }: ExamChoiceScreenProps) {
-  const { t } = useLanguage();
+  const { t: uiT } = useLanguage();
+  const t = examT || uiT;
 
   const handleBack = () => {
     if (onBack) {
