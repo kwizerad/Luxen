@@ -119,7 +119,10 @@ export function safeContent(value: unknown): any {
     // Plain text fallback
     return {
       type: "doc",
-      content: [{ type: "paragraph", content: [{ type: "text", text: trimmed }] }],
+      content: trimmed.split(/\n+/).filter(p => p.trim().length > 0).map(p => ({
+        type: "paragraph",
+        content: [{ type: "text", text: p.trim() }]
+      }))
     };
   }
 
