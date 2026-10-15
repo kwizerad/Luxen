@@ -35,12 +35,16 @@ export default function DashboardPage() {
   // Warm up primary student SPA chunks during browser idle time after initial paint
   useEffect(() => {
     const preloadCoreViews = () => {
-      void import("@/components/spa-views/exam-view");
-      void import("@/components/spa-views/course-view");
-      void import("@/components/spa-views/classmates-view");
-      void import("@/components/spa-views/exam-history-view");
-      void import("@/components/spa-views/services-view");
-      void import("@/components/spa-views/settings-view");
+      try {
+        Promise.all([
+          import("@/components/spa-views/exam-view").catch(() => {}),
+          import("@/components/spa-views/course-view").catch(() => {}),
+          import("@/components/spa-views/classmates-view").catch(() => {}),
+          import("@/components/spa-views/exam-history-view").catch(() => {}),
+          import("@/components/spa-views/services-view").catch(() => {}),
+          import("@/components/spa-views/settings-view").catch(() => {}),
+        ]).catch(() => {});
+      } catch {}
     };
 
     if (typeof window !== "undefined" && "requestIdleCallback" in window) {
