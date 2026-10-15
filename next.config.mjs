@@ -22,6 +22,9 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   experimental: {
+    webpackBuildWorker: false,
+    cpus: 1,
+    workerThreads: false,
     optimizePackageImports: [
       'recharts',
       'lucide-react',

@@ -3,7 +3,7 @@
   "scripts": {
     "dev": "next dev -p 3000 -H 0.0.0.0",
     "dev:static": "next dev -p 3000 -H 0.0.0.0",
-    "build": "cross-env NODE_ENV=production next build",
+    "build": "cross-env NODE_OPTIONS=\"--max-old-space-size=1536\" NODE_ENV=production next build",
     "build:dev": "cross-env NODE_ENV=development next build",
     "cleanup:exams": "node scripts/cleanup-stale-exam-attempts.js",
     "remind:exams": "node scripts/remind-incomplete-exams.js",

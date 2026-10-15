@@ -1070,111 +1070,158 @@ export default function ExamManagementPage() {
 
         {/* Exam Settings Modal */}
         <Dialog open={showSettingsModal} onOpenChange={setShowSettingsModal}>
-          <DialogContent className="sm:max-w-lg max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{t("examSettings")}</DialogTitle>
-              <DialogDescription>
+          <DialogContent className="sm:max-w-lg max-w-[95vw] w-full max-h-[90vh] overflow-y-auto bg-white dark:bg-[#121218] border border-zinc-200 dark:border-zinc-800 shadow-xl rounded-2xl p-5 sm:p-6 text-foreground">
+            <DialogHeader className="mb-2">
+              <DialogTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                <Settings className="h-5 w-5 text-indigo-500" />
+                <span>{t("examSettings")}</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400">
                 {settingsCategory ? `${t("category")}: ${settingsCategory.name}` : t("configureExamRules")}
               </DialogDescription>
             </DialogHeader>
 
             {loadingSettings ? (
-              <div className="text-center py-8 text-muted-foreground">{t("loading") || "Loading..."}</div>
+              <div className="text-center py-8 text-muted-foreground flex items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span>{t("loading") || "Loading..."}</span>
+              </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <div>
-                    <div className="font-medium">{t("alwaysAvailable")}</div>
-                    <div className="text-sm text-muted-foreground">{t("alwaysAvailableDescription")}</div>
+                {/* Card 1: Availability Schedule */}
+                <div className="bg-zinc-50 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{t("alwaysAvailable")}</div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">{t("alwaysAvailableDescription")}</div>
+                    </div>
+                    <Switch
+                      checked={settingsForm.alwaysAvailable}
+                      onCheckedChange={(v) => setSettingsForm((p) => ({ ...p, alwaysAvailable: v }))}
+                    />
                   </div>
-                  <Switch
-                    checked={settingsForm.alwaysAvailable}
-                    onCheckedChange={(v) => setSettingsForm((p) => ({ ...p, alwaysAvailable: v }))}
-                  />
+
+                  {!settingsForm.alwaysAvailable && (
+                    <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="available_from" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                          {t("availableFrom")}
+                        </Label>
+                        <Input
+                          id="available_from"
+                          type="datetime-local"
+                          value={settingsForm.available_from}
+                          onChange={(e) => setSettingsForm((p) => ({ ...p, available_from: e.target.value }))}
+                          className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100"
+                        />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="available_to" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                          {t("availableTo")}
+                        </Label>
+                        <Input
+                          id="available_to"
+                          type="datetime-local"
+                          value={settingsForm.available_to}
+                          onChange={(e) => setSettingsForm((p) => ({ ...p, available_to: e.target.value }))}
+                          className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {!settingsForm.alwaysAvailable && (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="available_from">{t("availableFrom")}</Label>
+                {/* Card 2: Question Count, Timing, Passing Score */}
+                <div className="bg-zinc-50 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-xs">
+                  <div className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-3">
+                    {t("examParameters") || "Exam Parameters"}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="question_count" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                        {t("questionsNumber")}
+                      </Label>
                       <Input
-                        id="available_from"
-                        type="datetime-local"
-                        value={settingsForm.available_from}
-                        onChange={(e) => setSettingsForm((p) => ({ ...p, available_from: e.target.value }))}
+                        id="question_count"
+                        type="number"
+                        min={1}
+                        max={200}
+                        value={settingsForm.question_count}
+                        onChange={(e) => setSettingsForm((p) => ({ ...p, question_count: Number(e.target.value) }))}
+                        className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-700 font-mono text-zinc-900 dark:text-zinc-100"
                       />
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="available_to">{t("availableTo")}</Label>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="duration_minutes" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                        {t("timeMinutes")}
+                      </Label>
                       <Input
-                        id="available_to"
-                        type="datetime-local"
-                        value={settingsForm.available_to}
-                        onChange={(e) => setSettingsForm((p) => ({ ...p, available_to: e.target.value }))}
+                        id="duration_minutes"
+                        type="number"
+                        min={1}
+                        max={300}
+                        value={settingsForm.duration_minutes}
+                        onChange={(e) => setSettingsForm((p) => ({ ...p, duration_minutes: Number(e.target.value) }))}
+                        className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-700 font-mono text-zinc-900 dark:text-zinc-100"
                       />
                     </div>
-                  </div>
-                )}
-
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="grid gap-2">
-                    <Label htmlFor="question_count">{t("questionsNumber")}</Label>
-                    <Input
-                      id="question_count"
-                      type="number"
-                      min={1}
-                      max={200}
-                      value={settingsForm.question_count}
-                      onChange={(e) => setSettingsForm((p) => ({ ...p, question_count: Number(e.target.value) }))}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="duration_minutes">{t("timeMinutes")}</Label>
-                    <Input
-                      id="duration_minutes"
-                      type="number"
-                      min={1}
-                      max={300}
-                      value={settingsForm.duration_minutes}
-                      onChange={(e) => setSettingsForm((p) => ({ ...p, duration_minutes: Number(e.target.value) }))}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="passing_percentage">{t("passingPercentage") || "Passing Percentage (%)"}</Label>
-                    <Input
-                      id="passing_percentage"
-                      type="number"
-                      min={1}
-                      max={100}
-                      value={settingsForm.passing_percentage}
-                      onChange={(e) => setSettingsForm((p) => ({ ...p, passing_percentage: Math.min(100, Math.max(1, Number(e.target.value) || 60)) }))}
-                    />
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="passing_percentage" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                        {t("passingPercentage") || "Pass Score (%)"}
+                      </Label>
+                      <Input
+                        id="passing_percentage"
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={settingsForm.passing_percentage}
+                        onChange={(e) => setSettingsForm((p) => ({ ...p, passing_percentage: Math.min(100, Math.max(1, Number(e.target.value) || 60)) }))}
+                        className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-700 font-mono text-zinc-900 dark:text-zinc-100"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid gap-2">
-                  <Label>{t("questionSorting")}</Label>
+                {/* Card 3: Question Sorting Mode */}
+                <div className="bg-zinc-50 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+                      {t("questionSorting")}
+                    </Label>
+                    <span className="text-[11px] font-mono font-bold text-indigo-500">
+                      {settingsForm.sorting_mode}
+                    </span>
+                  </div>
                   <Select
                     value={settingsForm.sorting_mode}
                     onValueChange={(v) => setSettingsForm((p) => ({ ...p, sorting_mode: v as ExamQuestionSortingMode }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-xs">
                       <SelectValue placeholder={t("selectMode")} />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[99999] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-xl text-zinc-900 dark:text-zinc-100">
                       <SelectItem value="RANDOM">{t("sortingMode.random")}</SelectItem>
                       <SelectItem value="TEXT_ONLY">{t("sortingMode.textOnly")}</SelectItem>
                       <SelectItem value="WITH_PICTURE">{t("sortingMode.withPicture")}</SelectItem>
                       <SelectItem value="MIXED_50">{t("sortingMode.mixed50")}</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-normal pt-0.5">
+                    {settingsForm.sorting_mode === "TEXT_ONLY"
+                      ? "• Generates exam using text-only questions (no sign images)."
+                      : settingsForm.sorting_mode === "WITH_PICTURE"
+                      ? "• Generates exam exclusively with road sign / visual picture questions."
+                      : settingsForm.sorting_mode === "MIXED_50"
+                      ? "• Balanced 50% road signs & 50% traffic rule text questions."
+                      : "• Random selection across all questions in the bank."}
+                  </p>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="outline" onClick={() => setShowSettingsModal(false)}>
                     {t("cancel")}
                   </Button>
-                  <Button onClick={saveExamSettings} disabled={savingSettings}>
+                  <Button onClick={saveExamSettings} disabled={savingSettings} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold">
                     {savingSettings ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />

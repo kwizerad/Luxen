@@ -298,7 +298,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           isExamActive
             ? "hidden pointer-events-none opacity-0 invisible select-none"
             : "block"
-        } premium-glass-panel fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-200 shadow-xs`}
+        } fixed top-0 left-0 right-0 z-[60] w-full bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 transition-all duration-200 shadow-xs`}
       >
         <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 gap-3">
           {/* Left: System Logo & Name */}
@@ -323,7 +323,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                     </span>
                   )}
                 </div>
-                <span className="font-bold text-lg sm:text-xl tracking-tight text-foreground">
+                <span className="font-bold text-lg sm:text-xl tracking-tight text-zinc-900 dark:text-zinc-100">
                   {config.systemName || "Navo"}
                 </span>
               </Link>
@@ -352,7 +352,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                     </span>
                   )}
                 </div>
-                <span className="font-bold text-lg sm:text-xl tracking-tight text-foreground">
+                <span className="font-bold text-lg sm:text-xl tracking-tight text-zinc-900 dark:text-zinc-100">
                   {config.systemName || "Navo"}
                 </span>
               </button>
@@ -378,15 +378,15 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                   <Icon
                     className={`relative z-10 h-4 w-4 shrink-0 transition-colors ${
                       item.isActive
-                        ? "text-primary"
-                        : "text-muted-foreground group-hover:text-foreground"
+                        ? "text-primary font-bold"
+                        : "text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100"
                     }`}
                   />
                   <span
                     className={`relative z-10 text-xs lg:text-sm whitespace-nowrap transition-colors ${
                       item.isActive
-                        ? "font-semibold text-primary"
-                        : "font-medium text-muted-foreground group-hover:text-foreground"
+                        ? "font-bold text-primary"
+                        : "font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-950 dark:group-hover:text-white"
                     }`}
                   >
                     {item.label}
@@ -440,7 +440,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
         aria-label="Mobile Bottom Navigation"
         aria-hidden={isExamActive}
         dir={isRTL ? "rtl" : "ltr"}
-        className={`fixed bottom-0 left-0 right-0 z-50 lg:hidden premium-glass-panel border-t pb-[max(0.25rem,env(safe-area-inset-bottom))] transition-all duration-200 ${
+        className={`fixed bottom-0 left-0 right-0 z-[60] lg:hidden bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 pb-[max(0.25rem,env(safe-area-inset-bottom))] transition-all duration-200 ${
           isExamActive
             ? "hidden pointer-events-none opacity-0 invisible translate-y-full select-none"
             : "block opacity-100 visible translate-y-0"
@@ -462,7 +462,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                   className={`flex items-center justify-center w-8 h-7 rounded-full transition-colors ${
                     item.isActive
                       ? "bg-primary/15 text-primary"
-                      : "text-muted-foreground group-hover:text-foreground"
+                      : "text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100"
                   }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
@@ -470,8 +470,8 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                 <span
                   className={`text-[10px] leading-tight truncate max-w-[54px] transition-colors ${
                     item.isActive
-                      ? "font-semibold text-primary"
-                      : "font-medium text-muted-foreground"
+                      ? "font-bold text-primary"
+                      : "font-medium text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100"
                   }`}
                 >
                   {item.label}

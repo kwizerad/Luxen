@@ -265,8 +265,37 @@ export async function POST(req: NextRequest) {
     // ------------------------------------------------------------------------
     if (action === "take_exam") {
       const { categoryId, challengeId } = body;
-      const durationMinutes = Number(configMap.get("external_exam_duration_minutes")) || 20;
-      const questionCount = Number(configMap.get("external_exam_question_count")) || 20;
+      let durationMinutes = Number(configMap.get("external_exam_duration_minutes")) || 20;
+      let questionCount = Number(configMap.get("external_exam_question_count")) || 20;
+      let sortingMode = "RANDOM";
+      let passingPercentage = 70;
+      let availableFrom = null;
+      let availableTo = null;
+
+      const targetCatId = categoryId || EXTERNAL_EXAM_CATEGORY_ID;
+      let { data: dbSettings } = await adminSb
+        .from("exam_settings")
+        .select("*")
+        .eq("category_id", targetCatId)
+        .maybeSingle();
+
+      if (!dbSettings && isExternalExamCategoryId(targetCatId)) {
+        const { data: fallbackSettings } = await adminSb
+          .from("exam_settings")
+          .select("*")
+          .eq("category_id", EXTERNAL_EXAM_CATEGORY_ID)
+          .maybeSingle();
+        dbSettings = fallbackSettings;
+      }
+
+      if (dbSettings) {
+        if (dbSettings.question_count != null) questionCount = dbSettings.question_count;
+        if (dbSettings.duration_minutes != null) durationMinutes = dbSettings.duration_minutes;
+        if (dbSettings.sorting_mode != null) sortingMode = dbSettings.sorting_mode;
+        if (dbSettings.passing_percentage != null) passingPercentage = dbSettings.passing_percentage;
+        availableFrom = dbSettings.available_from;
+        availableTo = dbSettings.available_to;
+      }
 
       const { data: allExtQuestions, error: qErr } = await extSb
         .from("questions")
@@ -281,7 +310,7 @@ export async function POST(req: NextRequest) {
         const ansIdx = typeof q.choice_answer === "number" ? q.choice_answer : Number(q.choice_answer) || 0;
         return {
           id: String(q.id),
-          category_id: categoryId || EXTERNAL_EXAM_CATEGORY_ID,
+          category_id: targetCatId,
           question: String(q.title || ""),
           question_image: q.image || null,
           option_a: choices[0] || "Option A",
@@ -298,7 +327,43 @@ export async function POST(req: NextRequest) {
         };
       });
 
-      let selectedQuestions = formattedPool;
+      const hasImg = (img: any) => typeof img === "string" && img.trim().length > 0 && img.trim() !== "null" && img.trim() !== "undefined";
+      const typedQuestions = formattedPool;
+      const withPic = typedQuestions.filter((q) => hasImg(q.question_image));
+      const textOnly = typedQuestions.filter((q) => !hasImg(q.question_image));
+
+      const doShuffle = <T>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5);
+
+      let picked: typeof formattedPool = [];
+      if (sortingMode === "TEXT_ONLY") {
+        const primary = doShuffle(textOnly);
+        picked = primary.slice(0, questionCount);
+        if (picked.length < questionCount) {
+          const remainder = doShuffle(withPic).slice(0, questionCount - picked.length);
+          picked = [...picked, ...remainder];
+        }
+      } else if (sortingMode === "WITH_PICTURE") {
+        const primary = doShuffle(withPic);
+        picked = primary.slice(0, questionCount);
+        if (picked.length < questionCount) {
+          const remainder = doShuffle(textOnly).slice(0, questionCount - picked.length);
+          picked = [...picked, ...remainder];
+        }
+      } else if (sortingMode === "MIXED_50") {
+        const half = Math.floor(questionCount / 2);
+        const p1 = doShuffle(withPic).slice(0, half);
+        const p2 = doShuffle(textOnly).slice(0, questionCount - p1.length);
+        picked = doShuffle([...p1, ...p2]).slice(0, questionCount);
+        if (picked.length < questionCount) {
+          const usedIds = new Set(picked.map((p) => p.id));
+          const remainder = doShuffle(typedQuestions.filter((q) => !usedIds.has(q.id))).slice(0, questionCount - picked.length);
+          picked = [...picked, ...remainder];
+        }
+      } else {
+        picked = doShuffle(typedQuestions).slice(0, questionCount);
+      }
+
+      let selectedQuestions = picked;
 
       // Support shared question order for group challenges
       if (challengeId) {
@@ -321,17 +386,12 @@ export async function POST(req: NextRequest) {
             selectedQuestions = ordered;
           }
         } else {
-          const shuffled = [...formattedPool].sort(() => Math.random() - 0.5);
-          selectedQuestions = shuffled.slice(0, Math.min(questionCount, shuffled.length));
           const selectedIds = selectedQuestions.map((q) => q.id);
           await adminSb
             .from("exam_challenges")
             .update({ question_ids: selectedIds })
             .eq("id", challengeId);
         }
-      } else {
-        const shuffled = [...formattedPool].sort(() => Math.random() - 0.5);
-        selectedQuestions = shuffled.slice(0, Math.min(questionCount, shuffled.length));
       }
 
       // Translate questions into requested UI language if needed
@@ -343,9 +403,12 @@ export async function POST(req: NextRequest) {
       return secureJsonResponse({
         categoryId: categoryId || EXTERNAL_EXAM_CATEGORY_ID,
         settings: {
-          ...DEFAULT_EXAM_SETTINGS,
-          duration_minutes: durationMinutes,
           question_count: questionCount,
+          duration_minutes: durationMinutes,
+          sorting_mode: sortingMode,
+          passing_percentage: passingPercentage,
+          available_from: availableFrom,
+          available_to: availableTo,
         },
         questions: safeQuestions,
         serverTime: new Date().toISOString(),

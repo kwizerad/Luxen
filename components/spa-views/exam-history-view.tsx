@@ -294,6 +294,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                   answers: hasModAnsweredAny ? rawModAnswers : [],
                   challenge_id: null,
                   is_module: true,
+                  module_title: att.module_title,
                 } as ExamAttemptWithAnswers;
               })
             : [];
@@ -353,14 +354,19 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   };
 
   const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return "";
-    return new Date(dateStr).toLocaleDateString(undefined, {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "N/A";
+    const dateFormatted = d.toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
       day: "numeric",
+    });
+    const timeFormatted = d.toLocaleTimeString(undefined, {
       hour: "2-digit",
       minute: "2-digit",
     });
+    return `${dateFormatted} • ${timeFormatted}`;
   };
 
   const formatDuration = (seconds?: number | null) => {
@@ -401,6 +407,17 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
     setSearchQuery("");
   };
 
+  const extractCourseNumber = (categoryName?: string, moduleTitle?: string) => {
+    const text = `${categoryName || ""} ${moduleTitle || ""}`;
+    if (!text.trim()) return 999;
+    const match = text.match(/(?:course|isomo|module|chapter|igice|theme|amasomo|uwo)\s*#?\s*(\d+)/i);
+    if (match && match[1]) return parseInt(match[1], 10);
+    const modMatch = text.match(/(?:ext-mod-|chapter[_-]|mod[_-])(\d+)/i);
+    if (modMatch && modMatch[1]) return parseInt(modMatch[1], 10);
+    const num = text.match(/\b\d+\b/);
+    return num ? parseInt(num[0], 10) : 999;
+  };
+
   // Multi-tier filtering
   const filteredAndSortedAttempts = useMemo(() => {
     const now = Date.now();
@@ -410,6 +427,18 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
     let list = attempts.filter((a) => {
       // 1. Tab Filter
+      if (activeTab === "all") {
+        // Exclude separate quizzes & module exams from the all exams history tab
+        if (
+          a.is_module ||
+          a.category_name?.toLowerCase().includes("separate quiz") ||
+          a.category_name?.toLowerCase().includes("quick quiz") ||
+          a.category_name?.toLowerCase().includes("quiz") ||
+          a.category_name?.toLowerCase().includes("module exam")
+        ) {
+          return false;
+        }
+      }
       if (activeTab === "individual" && (a.challenge_id || a.is_module)) return false;
       if (activeTab === "group" && !a.challenge_id) return false;
       if (activeTab === "module" && !a.is_module) return false;
@@ -451,10 +480,17 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
       return true;
     });
 
-    // Sort logic
+    // Sort logic: Course quizzes must be ranked strictly based on their course's number ascending.
+    // Course 10 cannot be above Course 1 based on done_at time!
     list.sort((a, b) => {
-      const dateA = new Date(a.created_at || a.started_at || 0).getTime();
-      const dateB = new Date(b.created_at || b.started_at || 0).getTime();
+      const courseNumA = extractCourseNumber(a.category_name, (a as any).module_title);
+      const courseNumB = extractCourseNumber(b.category_name, (b as any).module_title);
+      if (courseNumA !== courseNumB) {
+        return courseNumA - courseNumB;
+      }
+
+      const dateA = new Date(a.completed_at || a.created_at || a.started_at || 0).getTime();
+      const dateB = new Date(b.completed_at || b.created_at || b.started_at || 0).getTime();
       const scoreA = a.score_percentage || 0;
       const scoreB = b.score_percentage || 0;
       const durA = a.duration_seconds || 0;
@@ -1295,12 +1331,12 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                   key={attempt.id}
                                   onClick={() => handleReview(attempt)}
                                   className={cn(
-                                    "group relative flex flex-col justify-between rounded-xl border bg-card dark:bg-zinc-900/50 hover:bg-muted/40 dark:hover:bg-zinc-800/60 p-3 sm:p-3.5 text-left transition-all duration-150 cursor-pointer overflow-hidden shadow-xs hover:shadow-md",
+                                    "group relative flex flex-col justify-between rounded-xl border bg-white dark:bg-[#111116] border-zinc-200 dark:border-zinc-800 shadow-xs hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 p-3.5 sm:p-4 text-left transition-all duration-150 cursor-pointer overflow-hidden",
                                     answeredCount === 0 && isCheating
-                                      ? "border-orange-500/40 hover:border-orange-500/70"
+                                      ? "border-orange-500/50 hover:border-orange-500/80"
                                       : answeredCount === 0
-                                      ? "border-amber-500/30 hover:border-amber-500/60"
-                                      : "border-border dark:border-zinc-800/90 hover:border-primary/50"
+                                      ? "border-amber-500/40 hover:border-amber-500/70"
+                                      : "border-zinc-200 dark:border-zinc-800/90 hover:border-primary/50"
                                   )}
                                 >
                                   {/* Header: File Icon + Score Badge */}
@@ -1394,19 +1430,15 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                         style={{ width: `${scorePct}%` }}
                                       />
                                     </div>
-                                    <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground dark:text-zinc-400">
-                                      <span>
+                                    <div className="pt-1.5 mt-1 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between gap-1 text-[10px] font-mono text-zinc-600 dark:text-zinc-400">
+                                      <div className="flex items-center gap-1 min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-300">
+                                        <Clock className="h-3 w-3 shrink-0 text-primary" />
+                                        <span className="truncate">{formatDate(attempt.completed_at || attempt.started_at || attempt.created_at)}</span>
+                                      </div>
+                                      <span className="shrink-0 font-bold text-zinc-800 dark:text-zinc-200">
                                         {isAbandoned
                                           ? `${answeredCount}/${attempt.total_questions || 20}`
                                           : `${attempt.correct_answers ?? 0}/${attempt.total_questions || 20}`}
-                                      </span>
-                                      <span className="truncate">
-                                        {new Date(
-                                          attempt.started_at || attempt.completed_at || ""
-                                        ).toLocaleDateString(undefined, {
-                                          month: "numeric",
-                                          day: "numeric",
-                                        })}
                                       </span>
                                     </div>
                                   </div>
