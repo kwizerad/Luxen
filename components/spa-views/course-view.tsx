@@ -306,8 +306,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [loading, setLoading] = useState(true);
   const [savingLanguage, setSavingLanguage] = useState(false);
 
-  // View state: "modules" (Course overview) | "module-lessons" (Selected module's lesson list) | "study" (Active reader)
-  const [viewMode, setViewMode] = useState<"modules" | "module-lessons" | "study">("modules");
+  // View state: "modules" (Course overview) | "module-lessons" (Selected module's lesson list) | "study" (Active reader) | "reading"
+  const [viewMode, setViewMode] = useState<"modules" | "module-lessons" | "study" | "reading">("modules");
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
