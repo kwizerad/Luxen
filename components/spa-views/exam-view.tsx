@@ -220,7 +220,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
   const [showPreSubmitModal, setShowPreSubmitModal] = useState(false);
   const [showQuestionPalette, setShowQuestionPalette] = useState(true);
-  const [examMode, setExamMode] = useState<"choice" | "individual" | "group" | "lobby">("choice");
+  const [examMode, setExamMode] = useState<"choice" | "individual" | "group" | "lobby">("individual");
 
   const cheatingAttemptsRef = useRef(cheatingAttempts);
   const fullscreenRetryCountRef = useRef(fullscreenRetryCount);

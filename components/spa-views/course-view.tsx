@@ -1718,6 +1718,26 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>{t("back") || t("backToHome") || "Back"}</span>
             </button>
+
+            {/* Language Switcher Bar */}
+            <div className="flex items-center gap-1 bg-card border border-border dark:border-zinc-800 rounded-xl p-1 shadow-xs">
+              {(["English", "French", "Kinyarwanda"] as const).map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => void handleChooseCourseLanguage(lang)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                    learningLanguage === lang
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  <span>{lang === "French" ? "🇫🇷" : lang === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
+                  <span className="hidden sm:inline">{lang}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
