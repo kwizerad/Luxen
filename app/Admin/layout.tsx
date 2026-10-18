@@ -12,7 +12,7 @@ import {
   Lock,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useLanguage } from "@/lib/language-context";
+import { useLanguage, LanguageProvider } from "@/lib/language-context";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import { isAdmin, isPrimaryAdmin as checkIsPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 import { useActivityTracker } from "@/hooks/use-activity-tracker";
@@ -167,7 +167,8 @@ export default function AdminLayout({
   }
 
   return (
-    <AdminSpaProvider>
+    <LanguageProvider>
+      <AdminSpaProvider>
       <div className={`admin-portal ${config.backgroundMode === 'gradient' ? 'admin-bg-gradient' : 'admin-bg-solid'}`}>
         {/* Aurora mesh gradient background — only in gradient mode */}
         {config.backgroundMode === 'gradient' && config.backgroundEnabled !== false && (
@@ -178,7 +179,7 @@ export default function AdminLayout({
         <FloatingHeader adminMode />
 
         {/* Admin layout */}
-        <div className="admin-shell">
+        <div className="admin-shell pt-16">
           {/* Main content area */}
           <div className="admin-content">
             {/* Page content — Unified 0ms Client-Side SPA Viewport */}
@@ -266,5 +267,6 @@ export default function AdminLayout({
       </AnimatePresence>
       </div>
     </AdminSpaProvider>
+    </LanguageProvider>
   );
 }

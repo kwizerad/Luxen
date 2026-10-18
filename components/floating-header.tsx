@@ -294,11 +294,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       <header
         dir={isRTL ? "rtl" : "ltr"}
         aria-hidden={isExamActive}
-        className={`app-top-header-bar ${
-          isExamActive
-            ? "hidden pointer-events-none opacity-0 invisible select-none"
-            : "block"
-        } fixed top-0 left-0 right-0 z-[60] w-full bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 transition-all duration-200 shadow-xs`}
+        className={`app-top-header-bar fixed top-0 left-0 right-0 z-[60] w-full bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 transition-all duration-200 shadow-xs`}
       >
         <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 gap-3">
           {/* Left: System Logo & Name */}
@@ -440,11 +436,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
         aria-label="Mobile Bottom Navigation"
         aria-hidden={isExamActive}
         dir={isRTL ? "rtl" : "ltr"}
-        className={`fixed bottom-0 left-0 right-0 z-[60] lg:hidden bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 pb-[max(0.25rem,env(safe-area-inset-bottom))] transition-all duration-200 ${
-          isExamActive
-            ? "hidden pointer-events-none opacity-0 invisible translate-y-full select-none"
-            : "block opacity-100 visible translate-y-0"
-        }`}
+        className="fixed bottom-0 left-0 right-0 z-[60] lg:hidden bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 pb-[max(0.25rem,env(safe-area-inset-bottom))] transition-all duration-200 block opacity-100 visible translate-y-0"
       >
         <div className="flex flex-row justify-around items-center h-16 px-1.5 max-w-2xl mx-auto">
           {navItems.map((item) => {

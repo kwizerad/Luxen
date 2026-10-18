@@ -1633,19 +1633,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-3 pt-2">
+        <div className="grid gap-3 sm:gap-5 grid-cols-2 md:grid-cols-3 pt-2">
           {[
-            {
-              key: "Kinyarwanda",
-              flag: "🇷🇼",
-              title: "Ikizamini mu Kinyarwanda",
-              categoryTitle: "Ikinyarwanda Exam",
-              description: "Ikizamini cyuzuye cy'ibibazo 20 by'amategeko y'umuhanda n'ibyapa mu Kinyarwanda cyimbitse.",
-              questionCount: 20,
-              durationMinutes: 20,
-              passMark: "60% (12/20)",
-              btnLabel: "Tangira mu Kinyarwanda",
-            },
             {
               key: "English",
               flag: "🇬🇧",
@@ -2031,7 +2020,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                   <ExamCategorySkeleton />
                 </div>
               ) : (
-                <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-3">
+                <div className="grid gap-3 sm:gap-5 grid-cols-2 md:grid-cols-3">
                   {[
                     {
                       key: "Kinyarwanda",
