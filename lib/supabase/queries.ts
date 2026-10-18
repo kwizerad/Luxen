@@ -39,7 +39,7 @@ async function getAuthUser() {
 
 export async function getExamCategories() {
   const supabase = createClient();
-  const user = await getAuthUser();
+  const user = await getAuthUser().catch(() => null);
   
   const isUserAdmin = Boolean(user && isAdmin(user));
 
@@ -52,20 +52,38 @@ export async function getExamCategories() {
     query = query.eq("is_published", true);
   }
 
-  const [
-    { data: categories, error },
-    { data: settingsData, error: settingsError },
-    { data: questionCategoryRows },
-  ] = await Promise.all([
+  const fetchPromise = Promise.all([
     query,
     supabase.from("exam_settings").select("category_id,duration_minutes,question_count"),
     supabase.from("exam_questions").select("category_id"),
   ]);
 
-  if (error) throw error;
+  const timeoutPromise = new Promise<any>((_, reject) =>
+    setTimeout(() => reject(new Error("Exam categories fetch timeout")), 5000)
+  );
 
-  if (settingsError && !settingsError.message.toLowerCase().includes("does not exist")) {
-    console.error("Error fetching exam settings:", settingsError);
+  let categories: any[] = [];
+  let settingsData: any[] = [];
+  let questionCategoryRows: any[] = [];
+
+  try {
+    const results: any = await Promise.race([fetchPromise, timeoutPromise]);
+    categories = results[0].data || [];
+    const error = results[0].error;
+    settingsData = results[1].data || [];
+    const settingsError = results[1].error;
+    questionCategoryRows = results[2].data || [];
+
+    if (error) {
+      console.warn("Exam categories fetch error:", error);
+      return { categories: [], question_counts: {}, is_admin: isUserAdmin };
+    }
+
+    if (settingsError && !settingsError.message.toLowerCase().includes("does not exist")) {
+      console.error("Error fetching exam settings:", settingsError);
+    }
+  } catch (err) {
+    console.warn("Exam categories fetch timeout or error:", err);
   }
 
   const settingsMap = new Map<string, { duration_minutes?: number; question_count?: number }>();
@@ -177,7 +195,9 @@ export async function getExamCategories() {
     } else if (existingIdx >= 0 && !isUserAdmin) {
       categoriesWithSettings.splice(existingIdx, 1);
     }
-  } catch {}
+  } catch (err) {
+    console.error("getExamCategories inner error:", err);
+  }
 
   return { categories: categoriesWithSettings, question_counts: questionCounts, is_admin: isUserAdmin };
 }

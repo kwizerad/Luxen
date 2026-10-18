@@ -575,7 +575,11 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
 
     try {
-      const { course, sequentialUnlockEnabled: seqUnlock } = await loadCourseByLanguage(selectedLanguage);
+      const loadPromise = loadCourseByLanguage(selectedLanguage);
+      const timeoutPromise = new Promise<{ course: null; sequentialUnlockEnabled: boolean }>((_, reject) =>
+        setTimeout(() => reject(new Error("Course load timeout")), 6000)
+      );
+      const { course, sequentialUnlockEnabled: seqUnlock } = await Promise.race([loadPromise, timeoutPromise]);
       const resolvedSeq = seqUnlock !== false;
       setSequentialUnlockEnabled(resolvedSeq);
       spaCache.set(`spa_course_seq_${selectedLanguage}`, resolvedSeq);

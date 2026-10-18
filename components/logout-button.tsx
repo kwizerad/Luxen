@@ -10,14 +10,19 @@ export function LogoutButton() {
   const { t } = useLanguage();
 
   const logout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {}
     if (typeof window !== "undefined") {
-      sessionStorage.removeItem("navo-is-admin");
-      sessionStorage.removeItem("navo-auth-token");
-      localStorage.removeItem("navo-auth-token");
+      try {
+        sessionStorage.clear();
+        localStorage.removeItem("navo-is-admin");
+        localStorage.removeItem("navo-auth-token");
+        document.body.classList.remove("admin-portal-active", "exam-in-progress");
+      } catch {}
+      window.location.href = "/";
     }
-    router.push("/");
   };
 
   return <Button onClick={logout}>{t("logout")}</Button>;

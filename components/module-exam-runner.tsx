@@ -138,6 +138,10 @@ export function ModuleExamRunner({
   useEffect(() => {
     return () => {
       sessionStorage.removeItem("exam-active");
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("exam-in-progress");
+        document.documentElement.removeAttribute("data-exam-active");
+      }
       window.dispatchEvent(new CustomEvent("exam-state-change"));
     };
   }, []);
@@ -281,6 +285,10 @@ export function ModuleExamRunner({
     }
 
     sessionStorage.setItem("exam-active", "true");
+    if (typeof document !== "undefined") {
+      document.body.classList.add("exam-in-progress");
+      document.documentElement.setAttribute("data-exam-active", "true");
+    }
     window.dispatchEvent(new CustomEvent("exam-state-change"));
 
     // Trap back button
@@ -393,6 +401,10 @@ export function ModuleExamRunner({
       setShowResults(true);
 
       sessionStorage.removeItem("exam-active");
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("exam-in-progress");
+        document.documentElement.removeAttribute("data-exam-active");
+      }
       window.dispatchEvent(new CustomEvent("exam-state-change"));
 
       if (fullscreenEnabled) {
@@ -471,6 +483,10 @@ export function ModuleExamRunner({
     setInstructionsAccepted(false);
     security.resetSecurity();
     sessionStorage.removeItem("exam-active");
+    if (typeof document !== "undefined") {
+      document.body.classList.remove("exam-in-progress");
+      document.documentElement.removeAttribute("data-exam-active");
+    }
     window.dispatchEvent(new CustomEvent("exam-state-change"));
     onExit();
   };

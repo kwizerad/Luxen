@@ -75,12 +75,18 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
     const extSb = await getExternalAdminClient();
     if (!extSb) return null;
 
-    const [chaptersRes, sectionsRes, lessonsRes, questionsRes] = await Promise.all([
+    const extFetch = Promise.all([
       extSb.from("chapters").select("*").order("chapter_number", { ascending: true }).order("id", { ascending: true }),
       extSb.from("sections").select("*").order("section_number", { ascending: true }).order("id", { ascending: true }),
       extSb.from("lessons").select("*").order("lesson_number", { ascending: true }).order("id", { ascending: true }),
       extSb.from("questions").select("id, chapter_id"),
     ]);
+
+    const extTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("External course fetch timed out")), 5000)
+    );
+
+    const [chaptersRes, sectionsRes, lessonsRes, questionsRes] = await Promise.race([extFetch, extTimeout]);
 
     const chapters = chaptersRes.data || [];
     const sections = sectionsRes.data || [];
@@ -149,72 +155,16 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
           }
         }
 
-        const nowStr = new Date().toISOString();
-        const upserts: any[] = [];
-
-        if (missingChapters.length > 0) {
-          try {
-            const snippets = missingChapters.map((m, idx) => ({ id: idx, text: m.text }));
-            const translatedMap = await translateTextSnippets(snippets, "Kinyarwanda", targetLang);
-            for (let i = 0; i < missingChapters.length; i++) {
-              const item = missingChapters[i];
-              const tText = translatedMap.get(i) || item.text;
-              translatedChapterTitles.set(item.id, tText);
-              upserts.push({
-                entity_id: `ext_chap_${item.id}`,
-                target_language: targetLang,
-                feature_type: "external_translation",
-                content_hash: item.hash,
-                cached_data: { text: tText, updatedAt: nowStr },
-                updated_at: nowStr,
-              });
-            }
-          } catch (cErr) {
-            console.warn("Could not translate chapters on the fly:", cErr);
-          }
+        // Instantly populate fallback titles for any missing chapters or lessons
+        // so student course loading is instantaneous and never hangs in an endless void
+        for (const item of missingChapters) {
+          translatedChapterTitles.set(item.id, item.text);
         }
-
-        if (missingLessons.length > 0) {
-          // Immediately populate fallback text so lessons are never stuck in an endless waiting state
-          for (const item of missingLessons) {
-            translatedLessonTexts.set(item.id, item.text);
-          }
-
-          // Translate up to one chunk with strict 3-second timeout so page load remains sub-second
-          const quickChunk = missingLessons.slice(0, 15);
-          try {
-            const snippets = quickChunk.map((m, idx) => ({ id: idx, text: m.text }));
-            const translatePromise = translateTextSnippets(snippets, "Kinyarwanda", targetLang);
-            const timeoutPromise = new Promise<Map<number, string>>((_, reject) =>
-              setTimeout(() => reject(new Error("Translation timeout")), 3000)
-            );
-            const translatedMap = await Promise.race([translatePromise, timeoutPromise]);
-            for (let i = 0; i < quickChunk.length; i++) {
-              const item = quickChunk[i];
-              const tText = translatedMap.get(i) || item.text;
-              translatedLessonTexts.set(item.id, tText);
-              upserts.push({
-                entity_id: `ext_lesson_${item.id}`,
-                target_language: targetLang,
-                feature_type: "external_translation",
-                content_hash: item.hash,
-                cached_data: { text: tText, updatedAt: nowStr },
-                updated_at: nowStr,
-              });
-            }
-          } catch (lErr) {
-            console.warn("Could not translate lessons chunk on the fly:", lErr);
-          }
-        }
-
-        if (upserts.length > 0) {
-          await adminSb
-            .from("course_ai_cache")
-            .upsert(upserts, { onConflict: "entity_id,target_language,feature_type" })
-            .then(() => {}, () => {});
+        for (const item of missingLessons) {
+          translatedLessonTexts.set(item.id, item.text);
         }
       } catch (tErr) {
-        console.warn("Could not translate external course titles:", tErr);
+        console.warn("Could not load external course translation cache:", tErr);
       }
     }
 
@@ -409,9 +359,13 @@ export async function loadCourseByLanguage(
 
   // Check if External Course is published — when enabled, serve it as the single course
   // with External Courses mapped to Modules and External Lessons mapped to Lessons
-  const extCourse = await loadPublishedExternalCourse(language);
-  if (extCourse) {
-    return { course: extCourse, sequentialUnlockEnabled };
+  try {
+    const extCourse = await loadPublishedExternalCourse(language);
+    if (extCourse) {
+      return { course: extCourse, sequentialUnlockEnabled };
+    }
+  } catch (extErr) {
+    console.warn("External course loading error, falling back to local:", extErr);
   }
 
   const supabase = await createClient();

@@ -179,7 +179,7 @@ export default function AdminLayout({
         <FloatingHeader adminMode />
 
         {/* Admin layout */}
-        <div className="admin-shell pt-16">
+        <div className="admin-shell pt-20 sm:pt-24">
           {/* Main content area */}
           <div className="admin-content">
             {/* Page content — Unified 0ms Client-Side SPA Viewport */}

@@ -3009,3 +3009,30 @@ header.pwa-title-bar,
   }
 }
 
+/* Strict Exam Mode Navbar & Header Suppression for Small Devices & All Viewports */
+body.exam-in-progress .app-top-header-bar,
+body.exam-in-progress nav,
+body.exam-in-progress [aria-label="Mobile Bottom Navigation"],
+body.exam-in-progress [aria-label="Main Navigation"],
+[data-exam-active="true"] .app-top-header-bar,
+[data-exam-active="true"] nav,
+[data-exam-active="true"] [aria-label="Mobile Bottom Navigation"],
+[data-exam-active="true"] [aria-label="Main Navigation"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  transform: translateY(100%) !important;
+}
+
+/* Light Theme Button Hover/Active Text Readability Fix */
+:not(.dark) button:not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-emerald"]):not([class*="bg-green"]):hover,
+:not(.dark) button:not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-emerald"]):not([class*="bg-green"]):active {
+  color: #09090b !important;
+}
+
+
