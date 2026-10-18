@@ -657,7 +657,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     await selectLearningLanguage(chosen);
     await loadCourse(chosen);
     setLoading(false);
-    setViewMode("modules");
+    setViewMode((prev) => (prev === "language" ? "modules" : prev));
 
     toast.success(
       chosen === "French"
@@ -2042,22 +2042,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                     </div>
                   </div>
 
-                  <div className="space-y-2.5 pt-2.5 border-t border-border/80 dark:border-zinc-800/80">
-                    {/* Module Progress Bar */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground dark:text-zinc-400">
-                        <span>{t("progress") || "progress"}</span>
-                        <span className="text-foreground dark:text-zinc-300 font-bold">{completedLessonsCount}/{totalLessons} ({modulePct}%)</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-muted dark:bg-zinc-800 overflow-hidden">
-                        <div
-                          className="h-full bg-primary transition-all duration-500 rounded-full"
-                          style={{ width: `${modulePct}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="pt-1 flex items-center justify-between gap-2">
+                  <div className="pt-2 border-t border-border/80 dark:border-zinc-800/80">
+                    <div className="flex items-center justify-between gap-2">
                       {isUnlocked ? (
                         <Button
                           size="sm"
@@ -2065,7 +2051,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                             e.stopPropagation();
                             openModuleLessons(module.id);
                           }}
-                          className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-xs rounded-lg shadow-none h-8"
+                          className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-xs rounded-lg shadow-none h-8 cursor-pointer"
                         >
                           <span>{t("open") || "Open"}</span>
                           <ArrowRight className="h-3.5 w-3.5" />
@@ -2286,8 +2272,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   return (
     <div
       className={cn(
-        "min-h-[calc(100vh-4rem)] flex flex-col transition-all overflow-x-clip touch-pan-y select-none",
-        isFocusMode ? "bg-background fixed inset-0 z-50 overflow-y-auto" : ""
+        "fixed inset-x-0 top-14 sm:top-16 bottom-0 z-20 flex flex-col bg-background select-none overflow-hidden",
+        isFocusMode ? "top-0 z-50" : ""
       )}
       onContextMenu={(e) => e.preventDefault()}
       onCopy={(e) => e.preventDefault()}
@@ -2632,7 +2618,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     </div>
 
       {/* Main Study Layout — Decoupled Independent Scrolling */}
-      <div className="flex flex-1 h-[calc(100vh-7.5rem)] overflow-hidden relative">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {/* Left Sidebar (Toggleable, Independent Scrolling: Scroll here NEVER affects lesson content) */}
         {!isFocusMode && (
           <aside
