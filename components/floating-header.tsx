@@ -138,11 +138,26 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
     [pathname, router]
   );
 
+  if (
+    isExamActive ||
+    pathname === "/dashboard/exam" ||
+    Boolean(pathname?.startsWith("/dashboard/exam"))
+  ) {
+    return null;
+  }
+
   if (!user && !authLoading) {
     return null;
   }
 
   const allStudentNavItems: NavItem[] = [
+    {
+      id: "home",
+      label: t("home") || "Home",
+      icon: Home,
+      view: "home",
+      isActive: pathname === "/dashboard" && (currentView === "home" || !currentView),
+    },
     {
       id: "course",
       label: t("course") || t("theoryCourse") || "Course",
@@ -175,13 +190,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           currentView === "classmates/group-results"),
     },
     {
-      id: "home",
-      label: t("home") || "Home",
-      icon: Home,
-      view: "home",
-      isActive: pathname === "/dashboard" && (currentView === "home" || !currentView),
-    },
-    {
       id: "services",
       label: t("services") || "Services",
       icon: Car,
@@ -208,6 +216,13 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   const activeAdminPath = adminMode ? (adminSpaPathname || pathname || "/Admin") : pathname;
 
   const allAdminNavItems: NavItem[] = [
+    {
+      id: "admin-home",
+      label: t("dashboard") || "Dashboard",
+      icon: LayoutDashboard,
+      href: "/Admin",
+      isActive: adminSpaView === "dashboard" && activeAdminPath === "/Admin",
+    },
     {
       id: "admin-course",
       label: t("course") || "Course",
@@ -243,13 +258,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
         adminSpaView === "users" || Boolean(activeAdminPath?.startsWith("/Admin/users")),
     },
     {
-      id: "admin-home",
-      label: t("dashboard") || "Dashboard",
-      icon: LayoutDashboard,
-      href: "/Admin",
-      isActive: adminSpaView === "dashboard" && activeAdminPath === "/Admin",
-    },
-    {
       id: "admin-drivers",
       label: t("drivers") || "Drivers",
       icon: Car,
@@ -276,16 +284,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
   const navItems = filterNavItems(adminMode ? allAdminNavItems : allStudentNavItems);
   const activeIdPrefix = adminMode ? "admin" : "student";
-  const homeIdx = navItems.findIndex(
-    (item) => item.id === "home" || item.id === "admin-home"
-  );
-  const leftCount = homeIdx >= 0 ? homeIdx : 0;
-  const rightCount = homeIdx >= 0 ? navItems.length - 1 - homeIdx : 0;
-  // When an even number of items is visible (e.g. Course is hidden leaving 6 items),
-  // add an invisible flex spacer on the shorter side so the Home / Dashboard button
-  // remains at the exact geometric center of the navigation bar.
-  const padLeft = Math.max(0, rightCount - leftCount);
-  const padRight = Math.max(0, leftCount - rightCount);
 
   return (
     <>

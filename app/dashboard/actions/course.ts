@@ -175,29 +175,35 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
         }
 
         if (missingLessons.length > 0) {
-          // Process missing lessons in chunks of 15 to stay within token limits and maintain fast responses
-          const CHUNK_SIZE = 15;
-          for (let start = 0; start < missingLessons.length; start += CHUNK_SIZE) {
-            const chunk = missingLessons.slice(start, start + CHUNK_SIZE);
-            try {
-              const snippets = chunk.map((m, idx) => ({ id: idx, text: m.text }));
-              const translatedMap = await translateTextSnippets(snippets, "Kinyarwanda", targetLang);
-              for (let i = 0; i < chunk.length; i++) {
-                const item = chunk[i];
-                const tText = translatedMap.get(i) || item.text;
-                translatedLessonTexts.set(item.id, tText);
-                upserts.push({
-                  entity_id: `ext_lesson_${item.id}`,
-                  target_language: targetLang,
-                  feature_type: "external_translation",
-                  content_hash: item.hash,
-                  cached_data: { text: tText, updatedAt: nowStr },
-                  updated_at: nowStr,
-                });
-              }
-            } catch (lErr) {
-              console.warn(`Could not translate lessons chunk ${start}:`, lErr);
+          // Immediately populate fallback text so lessons are never stuck in an endless waiting state
+          for (const item of missingLessons) {
+            translatedLessonTexts.set(item.id, item.text);
+          }
+
+          // Translate up to one chunk with strict 3-second timeout so page load remains sub-second
+          const quickChunk = missingLessons.slice(0, 15);
+          try {
+            const snippets = quickChunk.map((m, idx) => ({ id: idx, text: m.text }));
+            const translatePromise = translateTextSnippets(snippets, "Kinyarwanda", targetLang);
+            const timeoutPromise = new Promise<Map<number, string>>((_, reject) =>
+              setTimeout(() => reject(new Error("Translation timeout")), 3000)
+            );
+            const translatedMap = await Promise.race([translatePromise, timeoutPromise]);
+            for (let i = 0; i < quickChunk.length; i++) {
+              const item = quickChunk[i];
+              const tText = translatedMap.get(i) || item.text;
+              translatedLessonTexts.set(item.id, tText);
+              upserts.push({
+                entity_id: `ext_lesson_${item.id}`,
+                target_language: targetLang,
+                feature_type: "external_translation",
+                content_hash: item.hash,
+                cached_data: { text: tText, updatedAt: nowStr },
+                updated_at: nowStr,
+              });
             }
+          } catch (lErr) {
+            console.warn("Could not translate lessons chunk on the fly:", lErr);
           }
         }
 

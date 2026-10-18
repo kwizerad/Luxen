@@ -313,6 +313,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // Language switch confirmation card state
   const [pendingSwitchLanguage, setPendingSwitchLanguage] = useState<LearningLanguage | null>(null);
   const [showSwitchConfirmModal, setShowSwitchConfirmModal] = useState(false);
+  const hasInitialLoadedRef = useRef(false);
 
   // Sidebar pagination: show 10 lessons at a time per course
   const [sidebarLessonPage, setSidebarLessonPage] = useState<Record<string, number>>({});
@@ -564,8 +565,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
     if (cachedCourse) {
       setCourse(cachedCourse);
-      if (cachedCourse.modules.length > 0 && !selectedModuleId) {
-        setSelectedModuleId(cachedCourse.modules[0].id);
+      if (cachedCourse.modules.length > 0) {
+        setSelectedModuleId((prev) => prev || cachedCourse.modules[0].id);
       }
       setLoading(false);
       void loadProgress(cachedCourse);
@@ -573,60 +574,74 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       setLoading(true);
     }
 
-    const { course, sequentialUnlockEnabled: seqUnlock } = await loadCourseByLanguage(selectedLanguage);
-    const resolvedSeq = seqUnlock !== false;
-    setSequentialUnlockEnabled(resolvedSeq);
-    spaCache.set(`spa_course_seq_${selectedLanguage}`, resolvedSeq);
-    if (!course) {
-      spaCache.delete(`spa_course_${selectedLanguage}`);
-      setCourse(null);
-      setLoading(false);
-      return;
-    }
-
-    spaCache.set(`spa_course_${selectedLanguage}`, course);
-    setCourse(course);
-    if (course.modules.length > 0 && !selectedModuleId) {
-      setSelectedModuleId(course.modules[0].id);
-    }
-    setLoading(false);
-    await loadProgress(course);
-  }, [loadProgress, selectedModuleId]);
-
-  useEffect(() => {
-    const loadLearningLanguage = async () => {
-      const hasDeepLink = Boolean(
-        params.get("lesson") ||
-        params.get("lessonId") ||
-        params.get("topic") ||
-        params.get("topicId") ||
-        params.get("module") ||
-        params.get("moduleId")
-      );
-
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = user
-        ? await supabase.from("user_profiles").select("learning_language").eq("id", user.id).maybeSingle()
-        : { data: null };
-      const savedLanguage = profile?.learning_language;
-      const storedLocal = typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
-      const effectiveLang = (isLearningLanguage(storedLocal || "") ? storedLocal : null) || (isLearningLanguage(savedLanguage || "") ? savedLanguage : null);
-
-      if (!hasDeepLink && !effectiveLang) {
-        setShowLanguagePicker(true);
-        setViewMode("language");
+    try {
+      const { course, sequentialUnlockEnabled: seqUnlock } = await loadCourseByLanguage(selectedLanguage);
+      const resolvedSeq = seqUnlock !== false;
+      setSequentialUnlockEnabled(resolvedSeq);
+      spaCache.set(`spa_course_seq_${selectedLanguage}`, resolvedSeq);
+      if (!course) {
+        spaCache.delete(`spa_course_${selectedLanguage}`);
+        setCourse(null);
         setLoading(false);
         return;
       }
 
-      const selectedLanguage = (effectiveLang as LearningLanguage) || "Kinyarwanda";
-      setLearningLanguage(selectedLanguage);
-      await loadCourse(selectedLanguage);
+      spaCache.set(`spa_course_${selectedLanguage}`, course);
+      setCourse(course);
+      if (course.modules.length > 0) {
+        setSelectedModuleId((prev) => prev || course.modules[0].id);
+      }
+      void loadProgress(course);
+    } catch (err) {
+      console.error("Failed to load course:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadProgress]);
+
+  useEffect(() => {
+    if (hasInitialLoadedRef.current) return;
+    hasInitialLoadedRef.current = true;
+
+    const loadLearningLanguage = async () => {
+      try {
+        const hasDeepLink = Boolean(
+          params.get("lesson") ||
+          params.get("lessonId") ||
+          params.get("topic") ||
+          params.get("topicId") ||
+          params.get("module") ||
+          params.get("moduleId")
+        );
+
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: profile } = user
+          ? await supabase.from("user_profiles").select("learning_language").eq("id", user.id).maybeSingle()
+          : { data: null };
+        const savedLanguage = profile?.learning_language;
+        const storedLocal = typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
+        const effectiveLang = (isLearningLanguage(storedLocal || "") ? storedLocal : null) || (isLearningLanguage(savedLanguage || "") ? savedLanguage : null);
+
+        if (!hasDeepLink && !effectiveLang) {
+          setShowLanguagePicker(true);
+          setViewMode("language");
+          setLoading(false);
+          return;
+        }
+
+        const selectedLanguage = (effectiveLang as LearningLanguage) || "Kinyarwanda";
+        setLearningLanguage(selectedLanguage);
+        await loadCourse(selectedLanguage);
+      } catch (err) {
+        console.error("Failed in loadLearningLanguage:", err);
+      } finally {
+        setLoading(false);
+      }
     };
 
     void loadLearningLanguage();
-  }, [loadCourse]);
+  }, [loadCourse, params]);
 
   // Request language switch: prompts confirmation card if user already has a language selected
   const requestLanguageSwitch = (targetLang: LearningLanguage) => {
@@ -654,10 +669,15 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       localStorage.setItem("navo-language", chosen);
     }
 
-    await selectLearningLanguage(chosen);
-    await loadCourse(chosen);
-    setLoading(false);
-    setViewMode((prev) => (prev === "language" ? "modules" : prev));
+    try {
+      await selectLearningLanguage(chosen);
+      await loadCourse(chosen);
+    } catch (err) {
+      console.error("Failed to switch language:", err);
+    } finally {
+      setLoading(false);
+      setViewMode((prev) => (prev === "language" ? "modules" : prev));
+    }
 
     toast.success(
       chosen === "French"
