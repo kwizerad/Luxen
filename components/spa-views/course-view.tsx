@@ -658,7 +658,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   };
 
   // Execute language switch: updates course, profile, and global interface translations
-    console.log("DEBUG: params useEffect triggered", { lessonId, topicId, moduleId, flatListLength: flatList.length });
   const executeLanguageSwitch = async (chosen: LearningLanguage) => {
     setShowSwitchConfirmModal(false);
     setPendingSwitchLanguage(null);
