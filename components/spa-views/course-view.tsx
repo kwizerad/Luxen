@@ -658,6 +658,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   };
 
   // Execute language switch: updates course, profile, and global interface translations
+    console.log("DEBUG: params useEffect triggered", { lessonId, topicId, moduleId, flatListLength: flatList.length });
   const executeLanguageSwitch = async (chosen: LearningLanguage) => {
     setShowSwitchConfirmModal(false);
     setPendingSwitchLanguage(null);
@@ -1313,6 +1314,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const currentContent =
     currentItem?.type === "topic"
       ? currentTopic?.content || ""
+  console.log("DEBUG: currentContent", { currentContent, currentItem, currentLesson, currentTopic });
       : currentLesson?.content || "";
 
   const currentEstimatedMinutes =
