@@ -2832,7 +2832,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         )}
 
         {/* Center Reader Content Canvas — Independent scroll container: Scroll here NEVER affects the sidebar */}
-        <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-contain p-4 sm:p-6 md:p-8 pb-32 max-w-4xl mx-auto scrollbar-thin">
+        <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-contain p-4 sm:p-6 md:p-8 pb-32 max-w-4xl mx-auto scrollbar-thin bg-background">
           {/* Main Topic / Reading Card — All content rendered together, NO inner scrollbar */}
           <div className="rounded-[20px] border bg-card shadow-sm overflow-hidden relative">
             <div className="p-5 sm:p-8 space-y-6">
@@ -2954,7 +2954,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         {/* Next Button (Bottom Right Corner) */}
         <button
           type="button"
-          onClick={() => void markCompleteAndAdvance()}
+          onClick={() => void goToNext()}
           className="fixed bottom-20 lg:bottom-6 right-4 sm:right-8 z-40 pointer-events-auto flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl shadow-primary/25 backdrop-blur-md transition-all hover:scale-105 active:scale-95 cursor-pointer"
           title="Next (or press Right Arrow)"
         >
