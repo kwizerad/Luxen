@@ -1,21 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { translateTiptapDoc, translateTextSnippets } from "@/lib/ai/tiptap-translator";
+import crypto from "crypto";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      content,
-      topicTitle,
-      sourceLang = "English",
-      targetLang = "Kinyarwanda",
+        content,
+        topicTitle,
+        sourceLang = "English",
+        targetLang = "Kinyarwanda",
     } = body;
+    // Cache key calculation
+    const cacheKey = crypto.createHash('md5').update(`${content || ''}|${topicTitle || ''}|${sourceLang}|${targetLang}`).digest('hex');
 
-    if (!content && !topicTitle) {
-      return NextResponse.json(
-        { error: "Content or topic title is required" },
-        { status: 400 }
-      );
+    const supabase = createClient();
+    const { data: cached } = await supabase
+      .from("course_ai_cache")
+      .select("cached_data")
+      .eq("entity_id", cacheKey)
+      .eq("target_language", targetLang)
+      .maybeSingle();
+
+    if (cached && cached.cached_data) {
+        return NextResponse.json({
+            success: true,
+            translatedTitle: cached.cached_data.title,
+            translatedContent: cached.cached_data.content,
+            targetLang,
+        });
     }
 
     let translatedTitle = topicTitle;
@@ -32,6 +46,14 @@ export async function POST(req: NextRequest) {
     if (content) {
       translatedContent = await translateTiptapDoc(content, sourceLang, targetLang);
     }
+
+    await supabase.from("course_ai_cache").insert({
+        entity_id: cacheKey,
+        target_language: targetLang,
+        feature_type: "note_translation",
+        cached_data: { title: translatedTitle, content: translatedContent },
+        updated_at: new Date().toISOString()
+    });
 
     return NextResponse.json({
       success: true,

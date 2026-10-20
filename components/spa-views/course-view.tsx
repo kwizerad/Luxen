@@ -363,6 +363,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // Side-by-side Dual View (PC Mode)
   const [isDualView, setIsDualView] = useState(false);
 
+  // Design Variation 10 (Desktop OS Terminal)
+  const [isVariation10Active, setIsVariation10Active] = useState(true);
+  const [showVariationToast, setShowVariationToast] = useState(true);
+
   // Plain Terms Legal Explainer
   const [isPlainLanguageOpen, setIsPlainLanguageOpen] = useState(false);
   const [plainData, setPlainData] = useState<PlainLanguageData | null>(null);
@@ -1353,6 +1357,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     setPendingLang(targetLang);
     const toastId = toast.loading(`Translating to ${targetLang}...`);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     try {
       const res = await fetch("/api/course/translate-note", {
         method: "POST",
@@ -1363,7 +1369,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           sourceLang: activeBaseLang,
           targetLang,
         }),
+        signal: controller.signal
       });
+      clearTimeout(timeout);
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Translation failed");
@@ -1855,6 +1863,229 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // VIEW 1: MODULES LIST (Course Level)
   // ─────────────────────────────────────────────────────────────────────────────
   if (viewMode === "modules") {
+    if (isVariation10Active) {
+      const activeModule = currentModule || course.modules[0];
+      const activeModIdx = activeModule ? course.modules.findIndex((m) => m.id === activeModule.id) : 0;
+      const totalLessonsInActive = activeModule?.lessons?.length || 0;
+      const completedLessonsInActive = activeModule?.lessons?.filter((l) => isLessonCompleted(l.id)).length || 0;
+      const activeModProgressPct = totalLessonsInActive > 0 ? Math.round((completedLessonsInActive / totalLessonsInActive) * 100) : 0;
+
+      return (
+        <div
+          className="fixed inset-0 z-30 flex flex-col bg-[#1A1B1E] text-[#E4E6EB] font-sans select-none overflow-hidden"
+          onContextMenu={(e) => e.preventDefault()}
+          onCopy={(e) => e.preventDefault()}
+          onCut={(e) => e.preventDefault()}
+          onPaste={(e) => e.preventDefault()}
+        >
+          {/* Top OS Header */}
+          <header className="h-12 bg-[#25262B] border-b border-white/[0.08] flex items-center px-6 justify-between shrink-0 z-40">
+            <div className="flex items-center gap-8">
+              <div className="font-mono font-extrabold text-[#4D90FE] tracking-tight text-sm flex items-center gap-2">
+                <span>NAVO.SYSTEM</span>
+              </div>
+              <nav className="flex items-center gap-6 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("modules")}
+                  className="text-white font-semibold opacity-100 transition-opacity cursor-pointer"
+                >
+                  Explorer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate?.("services")}
+                  className="text-[#E4E6EB] opacity-60 hover:opacity-100 transition-opacity font-medium cursor-pointer"
+                >
+                  Resources
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate?.("settings")}
+                  className="text-[#E4E6EB] opacity-60 hover:opacity-100 transition-opacity font-medium cursor-pointer"
+                >
+                  Settings
+                </button>
+              </nav>
+            </div>
+
+            {/* Design Tab (Active Variation 10 Tab) */}
+            <div className="flex items-center gap-2 px-3 py-1 bg-[#4D90FE]/20 text-[#4D90FE] border border-[#4D90FE]/40 rounded-t-lg text-xs font-mono font-semibold">
+              <span className="text-[11px] flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#4D90FE]" />
+                Design: Variation 10
+              </span>
+              <button
+                type="button"
+                title="Toggle to classic grid"
+                onClick={() => setIsVariation10Active(false)}
+                className="hover:text-white ml-1 text-sm leading-none opacity-70 hover:opacity-100 cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Status area */}
+            <div className="font-mono text-[11px] opacity-50 text-[#E4E6EB] tracking-wider hidden sm:block">
+              SYSTEM_STATUS: OK // RWA_REG_2024
+            </div>
+          </header>
+
+          {/* Desktop Workspace */}
+          <main className="flex-1 p-6 sm:p-8 flex flex-col gap-6 relative overflow-y-auto">
+            {/* Toast Message */}
+            {showVariationToast && (
+              <div className="bg-[#4D90FE] text-[#1A1B1E] px-5 py-3 rounded-md flex items-center justify-between font-mono text-[13px] font-bold shadow-md animate-in fade-in slide-in-from-top-2 duration-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (resumeTarget) {
+                      setCurrentItemIndex(resumeTarget.index);
+                      setSelectedModuleId(resumeTarget.item.moduleId);
+                      setViewMode("study");
+                    } else if (activeModule) {
+                      openModuleLessons(activeModule.id);
+                    }
+                  }}
+                  className="text-left hover:underline cursor-pointer"
+                >
+                  RESUME LEARNING: {resumeTarget?.topicTitle?.toUpperCase() || activeModule?.title?.toUpperCase() || "INZIRA NYABAGENDWA"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowVariationToast(false)}
+                  className="cursor-pointer text-base hover:opacity-80 px-1 leading-none"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
+            {/* Workspace Split */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 h-full">
+              {/* Main Canvas */}
+              <div className="flex flex-col">
+                <div className="mb-6 flex items-center justify-between">
+                  <h1 className="text-2xl font-bold tracking-tight text-white">
+                    Traffic Rules & Signs
+                  </h1>
+                </div>
+
+                {/* Folder Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-10 pt-2">
+                  {course.modules.map((module, modIdx) => {
+                    const isSelected = activeModule?.id === module.id;
+                    const modCode = `M0${modIdx + 1}`.slice(-3);
+                    return (
+                      <div
+                        key={module.id}
+                        onClick={() => setSelectedModuleId(module.id)}
+                        onDoubleClick={() => openModuleLessons(module.id)}
+                        className={cn(
+                          "flex flex-col items-center text-center cursor-pointer group transition-all duration-150 p-2.5 rounded-xl select-none",
+                          isSelected
+                            ? "bg-white/[0.06] ring-2 ring-[#4D90FE]"
+                            : "hover:bg-white/[0.03]"
+                        )}
+                      >
+                        {/* Realistic Golden Manila Folder Icon */}
+                        <div className="relative mb-3 transition-transform duration-150 group-hover:scale-105">
+                          {/* Folder Tab on top-left */}
+                          <div className="w-[40px] h-[10px] bg-[#FFD966] rounded-t-[6px]" />
+                          {/* Folder Body */}
+                          <div className="w-[100px] h-[80px] bg-[#FFD966] rounded-tr-[6px] rounded-b-[6px] relative shadow-lg flex items-end justify-end p-2 border-t border-[#ffe58f]">
+                            <span className="font-mono text-[9px] text-black/50 font-bold tracking-wider">
+                              {modCode}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Folder Label */}
+                        <span className="text-[13px] font-medium leading-snug text-[#E4E6EB] group-hover:text-white transition-colors max-w-[130px] line-clamp-2">
+                          {module.title}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right Context Pane */}
+              <aside className="bg-[#25262B] border border-white/[0.08] rounded-xl p-6 flex flex-col justify-between shrink-0 shadow-lg min-h-[380px]">
+                <div className="space-y-4">
+                  <div className="font-mono text-[11px] uppercase tracking-wider opacity-50 text-[#E4E6EB]">
+                    Selected Item Info
+                  </div>
+
+                  <div className="bg-white/[0.03] border border-white/[0.1] rounded-lg p-5 space-y-3">
+                    <div className="font-bold text-base text-white">
+                      {activeModule?.title || "Inzira Nyabagendwa"}
+                    </div>
+                    <div className="text-xs text-[#E4E6EB] opacity-70 leading-relaxed">
+                      {activeModule?.lessons?.[0]?.title
+                        ? `Isomo 1: ${activeModule.lessons[0].title.toUpperCase()}`
+                        : `Isomo ${activeModIdx + 1}: ${activeModule?.title?.toUpperCase() || ""}`}
+                    </div>
+                    <div className="font-mono text-xs text-[#E4E6EB] opacity-50">
+                      Progress: {activeModProgressPct}% complete
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (resumeTarget && resumeTarget.item.moduleId === activeModule?.id) {
+                          setCurrentItemIndex(resumeTarget.index);
+                          setSelectedModuleId(resumeTarget.item.moduleId);
+                          setViewMode("study");
+                        } else if (activeModule) {
+                          openModuleLessons(activeModule.id);
+                        }
+                      }}
+                      className="w-full bg-[#4D90FE] hover:bg-[#3b82f6] text-white py-2.5 px-4 rounded-md font-semibold text-xs transition-colors cursor-pointer shadow-sm mt-3"
+                    >
+                      Resume Learning
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-white/[0.08]">
+                  <div className="font-mono text-[11px] uppercase tracking-wider opacity-50 text-[#E4E6EB] mb-3">
+                    Configuration
+                  </div>
+                  <div className="flex gap-2">
+                    {(["English", "French", "Kinyarwanda"] as const).map((lang) => {
+                      const code = lang === "English" ? "EN" : lang === "French" ? "FR" : "RW";
+                      const isActive = learningLanguage === lang;
+                      return (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => handleChooseCourseLanguage(lang)}
+                          className={cn(
+                            "px-3.5 py-1.5 text-xs font-mono font-medium rounded border transition-colors cursor-pointer",
+                            isActive
+                              ? "bg-[#4D90FE] border-[#4D90FE] text-white"
+                              : "border-white/[0.1] text-[#E4E6EB]/70 hover:bg-white/[0.05] hover:text-white"
+                          )}
+                        >
+                          {code}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </main>
+
+          {/* Bottom OS Footer */}
+          <footer className="h-8 px-6 bg-[#25262B] border-t border-white/[0.08] font-mono text-[11px] text-[#E4E6EB] flex items-center justify-between opacity-60 shrink-0 select-none">
+            <div>OFFICIAL TRAFFIC REGULATIONS CODE 1.0</div>
+            <div>LOC_RWA :: LAT -1.9441 :: LON 30.0619</div>
+          </footer>
+        </div>
+      );
+    }
+
     return (
       <div
         className="min-h-[calc(100vh-4rem)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200 select-none"
@@ -1866,16 +2097,26 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         {/* Course Header */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <button
-              onClick={() => {
-                setShowLanguagePicker(true);
-                setViewMode("language");
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>{t("chooseLanguage") || "Change Language"}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setShowLanguagePicker(true);
+                  setViewMode("language");
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span>{t("chooseLanguage") || "Change Language"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsVariation10Active(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-[#4D90FE] bg-[#4D90FE]/10 hover:bg-[#4D90FE]/20 border border-[#4D90FE]/30 transition-colors cursor-pointer"
+              >
+                <span>📁 Variation 10 OS</span>
+              </button>
+            </div>
 
             {/* Language Switcher Bar */}
             <div className="flex items-center gap-1 bg-card border border-border dark:border-zinc-800 rounded-xl p-1 shadow-xs">
@@ -2293,6 +2534,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // ─────────────────────────────────────────────────────────────────────────────
   // VIEW 3: ACTIVE LESSON & TOPIC STUDY VIEW ("study")
   // ─────────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // VIEW 3: ACTIVE LESSON & TOPIC STUDY VIEW ("study")
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div
       className={cn(
@@ -2641,6 +2885,139 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       </div>
     </div>
 
+      {/* Celebration Overlay for Final Course Completion */}
+      <AnimatePresence>
+        {showCelebration && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center"
+          >
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-xs" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 8 }}
+              transition={{ type: "spring", damping: 24, stiffness: 320 }}
+              className="relative z-10 text-center space-y-4 p-6 bg-card border-2 border-primary rounded-[28px] shadow-2xl transform-gpu"
+            >
+              <div className="text-6xl animate-bounce">🎉</div>
+              <h2 className="text-3xl font-bold tracking-tight">{t("courseCompleted") || "Course Completed!"}</h2>
+              <p className="text-base text-muted-foreground">{t("congratulations") || "Congratulations on finishing all modules!"}</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Lesson Complete Celebration Modal (Triggered ONLY on lesson completion when topics exist) */}
+      <AnimatePresence>
+        {showLessonCompleteModal && completedLessonMeta && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
+              className="relative max-w-md w-full rounded-[24px] border-2 border-primary/40 bg-card shadow-2xl p-6 sm:p-8 space-y-6 transform-gpu"
+            >
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 mx-auto rounded-full bg-primary/15 flex items-center justify-center text-primary">
+                  <Award className="h-9 w-9 animate-pulse" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-primary block">
+                  {t("lessonMastered") || "Lesson Mastered!"}
+                </span>
+                <h2 className="text-2xl font-bold tracking-tight">{completedLessonMeta.lessonTitle}</h2>
+                <p className="text-xs text-muted-foreground">
+                  {t("lessonCompletedSummary") || "You have successfully finished all topics in this lesson."}
+                </p>
+              </div>
+
+              {/* Achievement Badges & Stats */}
+              <div className="grid grid-cols-2 gap-3 py-1">
+                <div className="rounded-[14px] bg-secondary/60 p-3 text-center space-y-1">
+                  <span className="text-[10px] text-muted-foreground font-semibold uppercase">{t("topicsMastered") || "Topics Mastered"}</span>
+                  <p className="text-lg font-bold">{completedLessonMeta.topicsCount}</p>
+                  <span className="text-[10px] text-muted-foreground block">Completed all</span>
+                </div>
+                <div className="rounded-[14px] bg-primary/10 border border-primary/20 p-3 text-center space-y-1">
+                  <span className="text-[10px] text-primary font-bold uppercase flex items-center justify-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {t("totalLessonTime") || "Total Time Taken"}
+                  </span>
+                  <p className="text-lg font-extrabold text-primary tabular-nums">
+                    {formatTimer(completedLessonMeta.timeSpentSeconds)}
+                  </p>
+                  <span className="text-[10px] text-muted-foreground block">
+                    {completedLessonMeta.timeSpentSeconds < 60
+                      ? `${completedLessonMeta.timeSpentSeconds}s (all ${completedLessonMeta.topicsCount} topics)`
+                      : `${Math.floor(completedLessonMeta.timeSpentSeconds / 60)}m ${completedLessonMeta.timeSpentSeconds % 60}s total`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Next Lesson Preview */}
+              {completedLessonMeta.hasNextLesson && completedLessonMeta.nextLessonTitle && (
+                <div className="rounded-[14px] border bg-primary/5 border-primary/20 p-3.5 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                    {t("nextUp") || "Next Up"}
+                  </span>
+                  <p className="text-xs font-semibold text-foreground truncate">
+                    {completedLessonMeta.nextLessonTitle}
+                  </p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2.5">
+                {completedLessonMeta.hasNextLesson ? (
+                  <Button
+                    size="lg"
+                    className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold shadow-sm cursor-pointer"
+                    onClick={() => {
+                        // Needs to be defined or restored
+                    }}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                    {t("continueToNextLesson") || "Continue to Next Lesson"}
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold shadow-sm cursor-pointer"
+                    onClick={() => {
+                        // Needs to be defined or restored
+                    }}
+                  >
+                    <Trophy className="h-4 w-4" />
+                    {t("viewModuleSummary") || "Module Completed · View Summary"}
+                  </Button>
+                )}
+
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full gap-2 rounded-xl font-medium cursor-pointer"
+                  onClick={() => {
+                      // Needs to be defined or restored
+                  }}
+                >
+                  <BookMarked className="h-4 w-4" />
+                  {t("backToLessons") || "Back to Lessons List"}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

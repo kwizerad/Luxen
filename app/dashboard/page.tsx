@@ -64,6 +64,9 @@ export default function DashboardPage() {
       case "exams":
         return <ExamView navigate={navigate} params={params} />;
       case "course":
+      case "terminal":
+      case "variation10":
+      case "traffic-rules":
         return <CourseView navigate={navigate} params={params} />;
       case "services":
         return <ServicesView navigate={navigate} />;
