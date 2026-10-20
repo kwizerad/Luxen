@@ -1879,56 +1879,19 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           onPaste={(e) => e.preventDefault()}
         >
           {/* Top OS Header */}
-          <header className="h-12 bg-[#25262B] border-b border-white/[0.08] flex items-center px-6 justify-between shrink-0 z-40">
-            <div className="flex items-center gap-8">
-              <div className="font-mono font-extrabold text-[#4D90FE] tracking-tight text-sm flex items-center gap-2">
-                <span>NAVO.SYSTEM</span>
-              </div>
-              <nav className="flex items-center gap-6 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setViewMode("modules")}
-                  className="text-white font-semibold opacity-100 transition-opacity cursor-pointer"
-                >
-                  Explorer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate?.("services")}
-                  className="text-[#E4E6EB] opacity-60 hover:opacity-100 transition-opacity font-medium cursor-pointer"
-                >
-                  Resources
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate?.("settings")}
-                  className="text-[#E4E6EB] opacity-60 hover:opacity-100 transition-opacity font-medium cursor-pointer"
-                >
-                  Settings
-                </button>
-              </nav>
+          <header className="h-16 flex items-center px-8 gap-10 border-b border-[#ffffff14] bg-[#0C0C0E]">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-[#22C55E] text-black font-black flex items-center justify-center rounded-[4px]">N</div>
+              <h1 className="font-syne text-xl uppercase tracking-widest font-extrabold">Navo</h1>
             </div>
-
-            {/* Design Tab (Active Variation 10 Tab) */}
-            <div className="flex items-center gap-2 px-3 py-1 bg-[#4D90FE]/20 text-[#4D90FE] border border-[#4D90FE]/40 rounded-t-lg text-xs font-mono font-semibold">
-              <span className="text-[11px] flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#4D90FE]" />
-                Design: Variation 10
-              </span>
-              <button
-                type="button"
-                title="Toggle to classic grid"
-                onClick={() => setIsVariation10Active(false)}
-                className="hover:text-white ml-1 text-sm leading-none opacity-70 hover:opacity-100 cursor-pointer"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Status area */}
-            <div className="font-mono text-[11px] opacity-50 text-[#E4E6EB] tracking-wider hidden sm:block">
-              SYSTEM_STATUS: OK // RWA_REG_2024
-            </div>
+            <nav className="flex gap-6">
+              <button className="text-[#22C55E] border-b-2 border-[#22C55E] h-16" onClick={() => setViewMode("modules")}>COURSE</button>
+              <button onClick={() => navigate?.("exams")}>EXAMS</button>
+              <button onClick={() => navigate?.("home")}>HOME</button>
+              <button onClick={() => navigate?.("results")}>RESULTS</button>
+              <button onClick={() => navigate?.("services")}>SERVICES</button>
+              <button onClick={() => navigate?.("chat")}>CHAT</button>
+            </nav>
           </header>
 
           {/* Desktop Workspace */}
