@@ -1624,6 +1624,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     return <CourseViewSkeleton />;
   }
 
+  if (!course && viewMode !== "language" && !showLanguagePicker) {
+    return <CourseViewSkeleton />;
+  }
+
   if (viewMode === "language" || showLanguagePicker || !learningLanguage) {
     return (
       <div className="min-h-[calc(100vh-80px)] max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 animate-in fade-in duration-200 select-none">
@@ -1864,8 +1868,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // ─────────────────────────────────────────────────────────────────────────────
   if (viewMode === "modules") {
     if (isVariation10Active) {
-      const activeModule = currentModule || course.modules[0];
-      const activeModIdx = activeModule ? course.modules.findIndex((m) => m.id === activeModule.id) : 0;
+      const activeModule = currentModule || course?.modules?.[0];
+      const activeModIdx = activeModule ? course?.modules?.findIndex((m) => m.id === activeModule.id) ?? 0 : 0;
       const totalLessonsInActive = activeModule?.lessons?.length || 0;
       const completedLessonsInActive = activeModule?.lessons?.filter((l) => isLessonCompleted(l.id)).length || 0;
       const activeModProgressPct = totalLessonsInActive > 0 ? Math.round((completedLessonsInActive / totalLessonsInActive) * 100) : 0;

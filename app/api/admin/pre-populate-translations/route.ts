@@ -40,7 +40,7 @@ export async function POST() {
     const snippets: { id: number; text: string }[] = [];
     for (let i = 0; i < needingTranslation.length; i++) {
       const q = needingTranslation[i];
-      const base = i * 5;
+      const base: number = i * 5;
       if (q.question) snippets.push({ id: base + 0, text: q.question });
       if (q.option_a) snippets.push({ id: base + 1, text: q.option_a });
       if (q.option_b) snippets.push({ id: base + 2, text: q.option_b });
