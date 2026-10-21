@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     // Cache key calculation
     const cacheKey = crypto.createHash('md5').update(`${content || ''}|${topicTitle || ''}|${sourceLang}|${targetLang}`).digest('hex');
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: cached } = await supabase
       .from("course_ai_cache")
       .select("cached_data")
