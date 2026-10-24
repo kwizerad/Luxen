@@ -298,7 +298,7 @@ function extractFromTiptapNode(node: any): string {
 }
 
 export function CourseView({ navigate, params }: CourseViewProps) {
-  const { t, language: interfaceLanguage, setLanguage } = useLanguage();
+  const { t, language: interfaceLanguage } = useLanguage();
   const { enabledLanguages } = useLearningLanguages();
   const [course, setCourse] = useState<CourseWithModules | null>(null);
   const [sequentialUnlockEnabled, setSequentialUnlockEnabled] = useState(true);
@@ -306,17 +306,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [loading, setLoading] = useState(true);
   const [savingLanguage, setSavingLanguage] = useState(false);
 
-  // View state: "language" (Step 2: Language choice) | "modules" (Step 3: 4-card courses) | "module-lessons" (Step 4: Lessons list) | "study" (Step 5: Learning view)
-  const [viewMode, setViewMode] = useState<"language" | "modules" | "module-lessons" | "study" | "reading">("modules");
+  // View state: "modules" (Course overview) | "module-lessons" (Selected module's lesson list) | "study" (Active reader) | "reading"
+  const [viewMode, setViewMode] = useState<"modules" | "module-lessons" | "study" | "reading">("modules");
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
-
-  // Language switch confirmation card state
-  const [pendingSwitchLanguage, setPendingSwitchLanguage] = useState<LearningLanguage | null>(null);
-  const [showSwitchConfirmModal, setShowSwitchConfirmModal] = useState(false);
-  const hasInitialLoadedRef = useRef(false);
-
-  // Sidebar pagination: show 10 lessons at a time per course
-  const [sidebarLessonPage, setSidebarLessonPage] = useState<Record<string, number>>({});
 
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
@@ -362,10 +354,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   // Side-by-side Dual View (PC Mode)
   const [isDualView, setIsDualView] = useState(false);
-
-  // Design Variation 10 (Desktop OS Terminal)
-  const [isVariation10Active, setIsVariation10Active] = useState(true);
-  const [showVariationToast, setShowVariationToast] = useState(true);
 
   // Plain Terms Legal Explainer
   const [isPlainLanguageOpen, setIsPlainLanguageOpen] = useState(false);
@@ -491,20 +479,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
   }, [currentItem?.lessonId]);
 
-  // Synchronize sidebar 10-lesson pagination page with current lesson
-  useEffect(() => {
-    if (currentLesson && currentModule) {
-      const lIdx = currentModule.lessons.findIndex((l) => l.id === currentLesson.id);
-      if (lIdx >= 0) {
-        const targetPage = Math.floor(lIdx / 10);
-        setSidebarLessonPage((prev) => {
-          if (prev[currentModule.id] === targetPage) return prev;
-          return { ...prev, [currentModule.id]: targetPage };
-        });
-      }
-    }
-  }, [currentLesson, currentModule]);
-
   const toggleLessonExpand = (lessonId: string) => {
     setExpandedLessons((prev) => {
       const next = new Set(prev);
@@ -569,8 +543,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
     if (cachedCourse) {
       setCourse(cachedCourse);
-      if (cachedCourse.modules.length > 0) {
-        setSelectedModuleId((prev) => prev || cachedCourse.modules[0].id);
+      if (cachedCourse.modules.length > 0 && !selectedModuleId) {
+        setSelectedModuleId(cachedCourse.modules[0].id);
       }
       setLoading(false);
       void loadProgress(cachedCourse);
@@ -578,126 +552,70 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       setLoading(true);
     }
 
-    try {
-      const loadPromise = loadCourseByLanguage(selectedLanguage);
-      const timeoutPromise = new Promise<{ course: null; sequentialUnlockEnabled: boolean }>((_, reject) =>
-        setTimeout(() => reject(new Error("Course load timeout")), 6000)
+    const { course, sequentialUnlockEnabled: seqUnlock } = await loadCourseByLanguage(selectedLanguage);
+    const resolvedSeq = seqUnlock !== false;
+    setSequentialUnlockEnabled(resolvedSeq);
+    spaCache.set(`spa_course_seq_${selectedLanguage}`, resolvedSeq);
+    if (!course) {
+      spaCache.delete(`spa_course_${selectedLanguage}`);
+      setCourse(null);
+      setLoading(false);
+      return;
+    }
+
+    spaCache.set(`spa_course_${selectedLanguage}`, course);
+    setCourse(course);
+    if (course.modules.length > 0 && !selectedModuleId) {
+      setSelectedModuleId(course.modules[0].id);
+    }
+    setLoading(false);
+    await loadProgress(course);
+  }, [loadProgress, selectedModuleId]);
+
+  useEffect(() => {
+    const loadLearningLanguage = async () => {
+      const hasDeepLink = Boolean(
+        params.get("lesson") ||
+        params.get("lessonId") ||
+        params.get("topic") ||
+        params.get("topicId") ||
+        params.get("module") ||
+        params.get("moduleId")
       );
-      const { course, sequentialUnlockEnabled: seqUnlock } = await Promise.race([loadPromise, timeoutPromise]);
-      const resolvedSeq = seqUnlock !== false;
-      setSequentialUnlockEnabled(resolvedSeq);
-      spaCache.set(`spa_course_seq_${selectedLanguage}`, resolvedSeq);
-      if (!course) {
-        spaCache.delete(`spa_course_${selectedLanguage}`);
-        setCourse(null);
+
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = user
+        ? await supabase.from("user_profiles").select("learning_language").eq("id", user.id).maybeSingle()
+        : { data: null };
+      const savedLanguage = profile?.learning_language;
+      const storedLocal = typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
+      const effectiveLang = (isLearningLanguage(storedLocal || "") ? storedLocal : null) || (isLearningLanguage(savedLanguage || "") ? savedLanguage : null);
+
+      if (!hasDeepLink && !effectiveLang) {
+        setShowLanguagePicker(true);
         setLoading(false);
         return;
       }
 
-      spaCache.set(`spa_course_${selectedLanguage}`, course);
-      setCourse(course);
-      if (course.modules.length > 0) {
-        setSelectedModuleId((prev) => prev || course.modules[0].id);
-      }
-      void loadProgress(course);
-    } catch (err) {
-      console.error("Failed to load course:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadProgress]);
-
-  useEffect(() => {
-    if (hasInitialLoadedRef.current) return;
-    hasInitialLoadedRef.current = true;
-
-    const loadLearningLanguage = async () => {
-      try {
-        const hasDeepLink = Boolean(
-          params.get("lesson") ||
-          params.get("lessonId") ||
-          params.get("topic") ||
-          params.get("topicId") ||
-          params.get("module") ||
-          params.get("moduleId")
-        );
-
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        const { data: profile } = user
-          ? await supabase.from("user_profiles").select("learning_language").eq("id", user.id).maybeSingle()
-          : { data: null };
-        const savedLanguage = profile?.learning_language;
-        const storedLocal = typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
-        const effectiveLang = (isLearningLanguage(storedLocal || "") ? storedLocal : null) || (isLearningLanguage(savedLanguage || "") ? savedLanguage : null);
-
-        if (!hasDeepLink && !effectiveLang) {
-          setShowLanguagePicker(true);
-          setViewMode("language");
-          setLoading(false);
-          return;
-        }
-
-        const selectedLanguage = (effectiveLang as LearningLanguage) || "Kinyarwanda";
-        setLearningLanguage(selectedLanguage);
-        await loadCourse(selectedLanguage);
-      } catch (err) {
-        console.error("Failed in loadLearningLanguage:", err);
-      } finally {
-        setLoading(false);
-      }
+      const selectedLanguage = (effectiveLang as LearningLanguage) || "Kinyarwanda";
+      setLearningLanguage(selectedLanguage);
+      await loadCourse(selectedLanguage);
     };
 
     void loadLearningLanguage();
-  }, [loadCourse, params]);
+  }, [loadCourse]);
 
-  // Request language switch: prompts confirmation card if user already has a language selected
-  const requestLanguageSwitch = (targetLang: LearningLanguage) => {
-    if (learningLanguage && learningLanguage !== targetLang) {
-      setPendingSwitchLanguage(targetLang);
-      setShowSwitchConfirmModal(true);
-    } else {
-      void executeLanguageSwitch(targetLang);
-    }
-  };
-
-  // Execute language switch: updates course, profile, and global interface translations
-  const executeLanguageSwitch = async (chosen: LearningLanguage) => {
-    setShowSwitchConfirmModal(false);
-    setPendingSwitchLanguage(null);
+  const handleChooseCourseLanguage = async (chosen: LearningLanguage) => {
     setShowLanguagePicker(false);
     setLoading(true);
     setLearningLanguage(chosen);
-
-    // Synchronize global interface language (translates buttons, navigation, headers)
-    setLanguage(chosen);
-
     if (typeof window !== "undefined") {
       localStorage.setItem("luxen_course_lang", chosen);
-      localStorage.setItem("navo-language", chosen);
     }
-
-    try {
-      await selectLearningLanguage(chosen);
-      await loadCourse(chosen);
-    } catch (err) {
-      console.error("Failed to switch language:", err);
-    } finally {
-      setLoading(false);
-      setViewMode((prev) => (prev === "language" ? "modules" : prev));
-    }
-
-    toast.success(
-      chosen === "French"
-        ? "Langue changée en Français"
-        : chosen === "Kinyarwanda"
-        ? "Ururimi rwahinduwe mu Kinyarwanda"
-        : "Language switched to English"
-    );
-  };
-
-  const handleChooseCourseLanguage = (chosen: LearningLanguage) => {
-    requestLanguageSwitch(chosen);
+    await selectLearningLanguage(chosen);
+    await loadCourse(chosen);
+    setLoading(false);
   };
 
   // Deep-linking: jump to a specific topic or lesson via ?lesson=<id>&topic=<id>
@@ -1357,8 +1275,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     setPendingLang(targetLang);
     const toastId = toast.loading(`Translating to ${targetLang}...`);
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
     try {
       const res = await fetch("/api/course/translate-note", {
         method: "POST",
@@ -1369,9 +1285,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           sourceLang: activeBaseLang,
           targetLang,
         }),
-        signal: controller.signal
       });
-      clearTimeout(timeout);
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Translation failed");
@@ -1624,28 +1538,17 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     return <CourseViewSkeleton />;
   }
 
-  if (!course && viewMode !== "language" && !showLanguagePicker) {
-    return <CourseViewSkeleton />;
-  }
-
-  if (viewMode === "language" || showLanguagePicker || !learningLanguage) {
+  if (showLanguagePicker || !learningLanguage) {
     return (
       <div className="min-h-[calc(100vh-80px)] max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 animate-in fade-in duration-200 select-none">
         <div className="flex items-center justify-between">
           <button
             type="button"
-            onClick={() => {
-              if (learningLanguage && course) {
-                setShowLanguagePicker(false);
-                setViewMode("modules");
-              } else {
-                navigate("back", { fallback: "home" });
-              }
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 border border-border transition-colors shadow-xs cursor-pointer"
+            onClick={() => navigate("home")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 border border-border transition-colors shadow-xs"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>{learningLanguage && course ? (t("backToCourses") || "Back to Courses") : (t("backToHome") || "Back to Home")}</span>
+            <span>{t("backToHome") || "Back to Home"}</span>
           </button>
         </div>
 
@@ -1693,10 +1596,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           ].map((item) => (
             <div
               key={item.lang}
-              onClick={() => void requestLanguageSwitch(item.lang)}
+              onClick={() => void handleChooseCourseLanguage(item.lang)}
               className={cn(
                 "group cursor-pointer rounded-2xl sm:rounded-3xl border p-6 sm:p-7 flex flex-col justify-between transition-all hover:shadow-md hover:border-primary/50 bg-card",
-                learningLanguage === item.lang ? "border-primary ring-2 ring-primary/30" : "border-border/80"
+                learningLanguage === item.lang ? "border-primary ring-1 ring-primary/30" : "border-border/80"
               )}
             >
               <div className="space-y-4">
@@ -1725,7 +1628,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   disabled={savingLanguage}
                   onClick={(e) => {
                     e.stopPropagation();
-                    void requestLanguageSwitch(item.lang);
+                    void handleChooseCourseLanguage(item.lang);
                   }}
                 >
                   <Play className="h-3.5 w-3.5 mr-2 fill-current" />
@@ -1735,76 +1638,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             </div>
           ))}
         </div>
-
-        {/* Language Switch Confirmation Modal */}
-        <AnimatePresence>
-          {showSwitchConfirmModal && pendingSwitchLanguage && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                className="max-w-md w-full bg-card rounded-2xl border border-border shadow-2xl p-6 space-y-5"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-primary/15 text-primary flex items-center justify-center font-bold text-2xl shrink-0">
-                    {pendingSwitchLanguage === "French" ? "🇫🇷" : pendingSwitchLanguage === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}
-                  </div>
-                  <div>
-                    <h3 className="text-base sm:text-lg font-bold text-foreground">
-                      {learningLanguage === "Kinyarwanda"
-                        ? "Guhindura Ururimi rw'Amasomo?"
-                        : learningLanguage === "French"
-                        ? "Changer la langue du cours ?"
-                        : "Switch Course Language?"}
-                    </h3>
-                    <p className="text-xs text-primary font-semibold">
-                      {pendingSwitchLanguage === "French" ? "Français" : pendingSwitchLanguage === "Kinyarwanda" ? "Ikinyarwanda" : "English"}
-                    </p>
-                  </div>
-                </div>
-
-                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                  {learningLanguage === "Kinyarwanda"
-                    ? `Wifuza guhindura ururimi rw'amasomo rukaba ${pendingSwitchLanguage}? Amasomo yose, ibikoresho by'ubufasha, n'uburyo bwo kwiga bizahindurwa muri urwo rurimi.`
-                    : learningLanguage === "French"
-                    ? `Souhaitez-vous changer la langue du cours en ${pendingSwitchLanguage} ? Tous les modules, leçons et textes de l'interface seront traduits.`
-                    : `Are you sure you want to switch the course language to ${pendingSwitchLanguage}? All course contents, lesson materials, and interface elements will be translated.`}
-                </p>
-
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-xl font-medium"
-                    onClick={() => {
-                      setShowSwitchConfirmModal(false);
-                      setPendingSwitchLanguage(null);
-                    }}
-                  >
-                    {t("cancel") || "Cancel"}
-                  </Button>
-                  <Button
-                    type="button"
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-bold shadow-sm"
-                    onClick={() => void executeLanguageSwitch(pendingSwitchLanguage)}
-                  >
-                    {learningLanguage === "Kinyarwanda"
-                      ? "Emeza Guhindura"
-                      : learningLanguage === "French"
-                      ? "Confirmer le changement"
-                      : "Confirm Switch"}
-                  </Button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     );
   }
@@ -1867,192 +1700,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // VIEW 1: MODULES LIST (Course Level)
   // ─────────────────────────────────────────────────────────────────────────────
   if (viewMode === "modules") {
-    if (isVariation10Active) {
-      const activeModule = currentModule || course?.modules?.[0];
-      const activeModIdx = activeModule ? course?.modules?.findIndex((m) => m.id === activeModule.id) ?? 0 : 0;
-      const totalLessonsInActive = activeModule?.lessons?.length || 0;
-      const completedLessonsInActive = activeModule?.lessons?.filter((l) => isLessonCompleted(l.id)).length || 0;
-      const activeModProgressPct = totalLessonsInActive > 0 ? Math.round((completedLessonsInActive / totalLessonsInActive) * 100) : 0;
-
-      return (
-        <div
-          className="fixed inset-0 z-30 flex flex-col bg-[#1A1B1E] text-[#E4E6EB] font-sans select-none overflow-hidden"
-          onContextMenu={(e) => e.preventDefault()}
-          onCopy={(e) => e.preventDefault()}
-          onCut={(e) => e.preventDefault()}
-          onPaste={(e) => e.preventDefault()}
-        >
-          {/* Top OS Header */}
-          <header className="h-16 flex items-center px-8 gap-10 border-b border-[#ffffff14] bg-[#0C0C0E]">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-[#22C55E] text-black font-black flex items-center justify-center rounded-[4px]">N</div>
-              <h1 className="font-syne text-xl uppercase tracking-widest font-extrabold">Navo</h1>
-            </div>
-            <nav className="flex gap-6">
-              <button className="text-[#22C55E] border-b-2 border-[#22C55E] h-16" onClick={() => setViewMode("modules")}>COURSE</button>
-              <button onClick={() => navigate?.("exams")}>EXAMS</button>
-              <button onClick={() => navigate?.("home")}>HOME</button>
-              <button onClick={() => navigate?.("results")}>RESULTS</button>
-              <button onClick={() => navigate?.("services")}>SERVICES</button>
-              <button onClick={() => navigate?.("chat")}>CHAT</button>
-            </nav>
-          </header>
-
-          {/* Desktop Workspace */}
-          <main className="flex-1 p-6 sm:p-8 flex flex-col gap-6 relative overflow-y-auto">
-            {/* Toast Message */}
-            {showVariationToast && (
-              <div className="bg-[#4D90FE] text-[#1A1B1E] px-5 py-3 rounded-md flex items-center justify-between font-mono text-[13px] font-bold shadow-md animate-in fade-in slide-in-from-top-2 duration-200">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (resumeTarget) {
-                      setCurrentItemIndex(resumeTarget.index);
-                      setSelectedModuleId(resumeTarget.item.moduleId);
-                      setViewMode("study");
-                    } else if (activeModule) {
-                      openModuleLessons(activeModule.id);
-                    }
-                  }}
-                  className="text-left hover:underline cursor-pointer"
-                >
-                  RESUME LEARNING: {resumeTarget?.topicTitle?.toUpperCase() || activeModule?.title?.toUpperCase() || "INZIRA NYABAGENDWA"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowVariationToast(false)}
-                  className="cursor-pointer text-base hover:opacity-80 px-1 leading-none"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-
-            {/* Workspace Split */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 h-full">
-              {/* Main Canvas */}
-              <div className="flex flex-col">
-                <div className="mb-6 flex items-center justify-between">
-                  <h1 className="text-2xl font-bold tracking-tight text-white">
-                    Traffic Rules & Signs
-                  </h1>
-                </div>
-
-                {/* Folder Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-10 pt-2">
-                  {course.modules.map((module, modIdx) => {
-                    const isSelected = activeModule?.id === module.id;
-                    const modCode = `M0${modIdx + 1}`.slice(-3);
-                    return (
-                      <div
-                        key={module.id}
-                        onClick={() => setSelectedModuleId(module.id)}
-                        onDoubleClick={() => openModuleLessons(module.id)}
-                        className={cn(
-                          "flex flex-col items-center text-center cursor-pointer group transition-all duration-150 p-2.5 rounded-xl select-none",
-                          isSelected
-                            ? "bg-white/[0.06] ring-2 ring-[#4D90FE]"
-                            : "hover:bg-white/[0.03]"
-                        )}
-                      >
-                        {/* Realistic Golden Manila Folder Icon */}
-                        <div className="relative mb-3 transition-transform duration-150 group-hover:scale-105">
-                          {/* Folder Tab on top-left */}
-                          <div className="w-[40px] h-[10px] bg-[#FFD966] rounded-t-[6px]" />
-                          {/* Folder Body */}
-                          <div className="w-[100px] h-[80px] bg-[#FFD966] rounded-tr-[6px] rounded-b-[6px] relative shadow-lg flex items-end justify-end p-2 border-t border-[#ffe58f]">
-                            <span className="font-mono text-[9px] text-black/50 font-bold tracking-wider">
-                              {modCode}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Folder Label */}
-                        <span className="text-[13px] font-medium leading-snug text-[#E4E6EB] group-hover:text-white transition-colors max-w-[130px] line-clamp-2">
-                          {module.title}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Right Context Pane */}
-              <aside className="bg-[#25262B] border border-white/[0.08] rounded-xl p-6 flex flex-col justify-between shrink-0 shadow-lg min-h-[380px]">
-                <div className="space-y-4">
-                  <div className="font-mono text-[11px] uppercase tracking-wider opacity-50 text-[#E4E6EB]">
-                    Selected Item Info
-                  </div>
-
-                  <div className="bg-white/[0.03] border border-white/[0.1] rounded-lg p-5 space-y-3">
-                    <div className="font-bold text-base text-white">
-                      {activeModule?.title || "Inzira Nyabagendwa"}
-                    </div>
-                    <div className="text-xs text-[#E4E6EB] opacity-70 leading-relaxed">
-                      {activeModule?.lessons?.[0]?.title
-                        ? `Isomo 1: ${activeModule.lessons[0].title.toUpperCase()}`
-                        : `Isomo ${activeModIdx + 1}: ${activeModule?.title?.toUpperCase() || ""}`}
-                    </div>
-                    <div className="font-mono text-xs text-[#E4E6EB] opacity-50">
-                      Progress: {activeModProgressPct}% complete
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (resumeTarget && resumeTarget.item.moduleId === activeModule?.id) {
-                          setCurrentItemIndex(resumeTarget.index);
-                          setSelectedModuleId(resumeTarget.item.moduleId);
-                          setViewMode("study");
-                        } else if (activeModule) {
-                          openModuleLessons(activeModule.id);
-                        }
-                      }}
-                      className="w-full bg-[#4D90FE] hover:bg-[#3b82f6] text-white py-2.5 px-4 rounded-md font-semibold text-xs transition-colors cursor-pointer shadow-sm mt-3"
-                    >
-                      Resume Learning
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-8 pt-6 border-t border-white/[0.08]">
-                  <div className="font-mono text-[11px] uppercase tracking-wider opacity-50 text-[#E4E6EB] mb-3">
-                    Configuration
-                  </div>
-                  <div className="flex gap-2">
-                    {(["English", "French", "Kinyarwanda"] as const).map((lang) => {
-                      const code = lang === "English" ? "EN" : lang === "French" ? "FR" : "RW";
-                      const isActive = learningLanguage === lang;
-                      return (
-                        <button
-                          key={lang}
-                          type="button"
-                          onClick={() => handleChooseCourseLanguage(lang)}
-                          className={cn(
-                            "px-3.5 py-1.5 text-xs font-mono font-medium rounded border transition-colors cursor-pointer",
-                            isActive
-                              ? "bg-[#4D90FE] border-[#4D90FE] text-white"
-                              : "border-white/[0.1] text-[#E4E6EB]/70 hover:bg-white/[0.05] hover:text-white"
-                          )}
-                        >
-                          {code}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </aside>
-            </div>
-          </main>
-
-          {/* Bottom OS Footer */}
-          <footer className="h-8 px-6 bg-[#25262B] border-t border-white/[0.08] font-mono text-[11px] text-[#E4E6EB] flex items-center justify-between opacity-60 shrink-0 select-none">
-            <div>OFFICIAL TRAFFIC REGULATIONS CODE 1.0</div>
-            <div>LOC_RWA :: LAT -1.9441 :: LON 30.0619</div>
-          </footer>
-        </div>
-      );
-    }
-
     return (
       <div
         className="min-h-[calc(100vh-4rem)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200 select-none"
@@ -2064,26 +1711,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         {/* Course Header */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setShowLanguagePicker(true);
-                  setViewMode("language");
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                <span>{t("chooseLanguage") || "Change Language"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsVariation10Active(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-[#4D90FE] bg-[#4D90FE]/10 hover:bg-[#4D90FE]/20 border border-[#4D90FE]/30 transition-colors cursor-pointer"
-              >
-                <span>📁 Variation 10 OS</span>
-              </button>
-            </div>
+            <button
+              onClick={() => navigate("back", { fallback: "home" })}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>{t("back") || t("backToHome") || "Back"}</span>
+            </button>
 
             {/* Language Switcher Bar */}
             <div className="flex items-center gap-1 bg-card border border-border dark:border-zinc-800 rounded-xl p-1 shadow-xs">
@@ -2123,7 +1757,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   setSelectedModuleId(resumeTarget.item.moduleId);
                   setViewMode("study");
                 }}
-                className="gap-2 font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-none px-4 py-2 self-start sm:self-auto cursor-pointer"
+                className="gap-2 font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-none px-4 py-2 self-start sm:self-auto"
               >
                 <Play className="h-3.5 w-3.5 fill-current" />
                 <span>{t("continueFromLastTopic") || t("resumeLearning") || "Resume Topic"}</span>
@@ -2164,7 +1798,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   setSelectedModuleId(resumeTarget.item.moduleId);
                   setViewMode("study");
                 }}
-                className="w-full sm:w-auto gap-2 px-4 py-2 rounded-lg font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-none cursor-pointer"
+                className="w-full sm:w-auto gap-2 px-4 py-2 rounded-lg font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-none"
               >
                 <Play className="h-3.5 w-3.5 fill-current" />
                 <span>{t("continueFromLastTopic") || "Continue Learning"}</span>
@@ -2173,18 +1807,18 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           </div>
         )}
 
-        {/* Modules Grid — 4 Cards per line on desktop */}
+        {/* Modules Grid */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground dark:text-zinc-400">
-              {t("coursesAndModules") || "Courses & Modules"}
+            <span className="text-xs font-medium text-muted-foreground dark:text-zinc-400">
+              {t("modules") || "Modules"}
             </span>
             <span className="text-xs font-mono text-muted-foreground dark:text-zinc-400">
               {course.modules.length} {course.modules.length === 1 ? (t("module") || "Module") : (t("modules") || "Modules")}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {course.modules.map((module, modIdx) => {
               const isUnlocked = isModuleUnlocked(modIdx);
               const isComplete = isModuleCompleted(module.id);
@@ -2274,8 +1908,22 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-border/80 dark:border-zinc-800/80">
-                    <div className="flex items-center justify-between gap-2">
+                  <div className="space-y-2.5 pt-2.5 border-t border-border/80 dark:border-zinc-800/80">
+                    {/* Module Progress Bar */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground dark:text-zinc-400">
+                        <span>{t("progress") || "progress"}</span>
+                        <span className="text-foreground dark:text-zinc-300 font-bold">{completedLessonsCount}/{totalLessons} ({modulePct}%)</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted dark:bg-zinc-800 overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all duration-500 rounded-full"
+                          style={{ width: `${modulePct}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-1 flex items-center justify-between gap-2">
                       {isUnlocked ? (
                         <Button
                           size="sm"
@@ -2283,7 +1931,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                             e.stopPropagation();
                             openModuleLessons(module.id);
                           }}
-                          className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-xs rounded-lg shadow-none h-8 cursor-pointer"
+                          className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-xs rounded-lg shadow-none h-8"
                         >
                           <span>{t("open") || "Open"}</span>
                           <ArrowRight className="h-3.5 w-3.5" />
@@ -2327,38 +1975,42 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         onCut={(e) => e.preventDefault()}
         onPaste={(e) => e.preventDefault()}
       >
-        {/* Navigation Back to Courses */}
-        <div className="flex items-center justify-between">
+        {/* Navigation Breadcrumb */}
+        <div className="space-y-3 border-b border-border dark:border-zinc-800 pb-4">
           <button
             onClick={() => setViewMode("modules")}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>{t("allCourses") || "All Courses"}</span>
+            <span>{t("allModules") || "All Modules"}</span>
           </button>
-        </div>
 
-        {/* Display Course Name prominently ABOVE ALL */}
-        <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 sm:p-7 space-y-2.5 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-wider">
-            <BookOpen className="h-4 w-4" />
-            <span>{t("course") || "Course"} #{modIdx + 1}</span>
+          <div className="space-y-1">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground dark:text-zinc-100">
+              {currentModule.title}
+            </h1>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground dark:text-zinc-100">
-            {currentModule.title}
-          </h1>
+
           {currentModule.description && (
-            <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-300 max-w-2xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 max-w-2xl">
               {currentModule.description}
             </p>
           )}
-          <div className="flex items-center gap-3 pt-2 text-xs font-mono text-muted-foreground dark:text-zinc-400">
-            <span>{currentModule.lessons.length} {t("lessons") || "Lessons"}</span>
-            <span>•</span>
-            <span className="flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" />
-              {formatMinutes(moduleTime(currentModule))} {t("studyTime") || "study time"}
-            </span>
+
+          {/* Module Progress Overview */}
+          <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-[rgb(15,15,16)] p-3.5 space-y-2 mt-2 shadow-xs">
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="text-muted-foreground dark:text-zinc-400">{t("progress") || "Progress"}</span>
+              <span className="text-primary font-bold">
+                {completedLessonsCount} / {totalLessons} {t("lessonsMastered") || "Mastered"} ({modulePct}%)
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted dark:bg-zinc-800 overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-500 rounded-full"
+                style={{ width: `${modulePct}%` }}
+              />
+            </div>
           </div>
         </div>
 
@@ -2501,14 +2153,11 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // ─────────────────────────────────────────────────────────────────────────────
   // VIEW 3: ACTIVE LESSON & TOPIC STUDY VIEW ("study")
   // ─────────────────────────────────────────────────────────────────────────────
-  // ─────────────────────────────────────────────────────────────────────────────
-  // VIEW 3: ACTIVE LESSON & TOPIC STUDY VIEW ("study")
-  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div
       className={cn(
-        "fixed inset-x-0 top-14 sm:top-16 bottom-0 z-20 flex flex-col bg-background select-none overflow-hidden",
-        isFocusMode ? "top-0 z-50" : ""
+        "min-h-[calc(100vh-4rem)] flex flex-col transition-all overflow-x-clip touch-pan-y select-none",
+        isFocusMode ? "bg-background fixed inset-0 z-50 overflow-y-auto" : ""
       )}
       onContextMenu={(e) => e.preventDefault()}
       onCopy={(e) => e.preventDefault()}
@@ -2663,8 +2312,15 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
         {/* Top Study Navigation Bar */}
         <div className="px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
-        {/* Navigation Back button to Lessons */}
+        {/* Breadcrumb path */}
         <div className="flex items-center gap-2 min-w-0 text-xs">
+          <button
+            onClick={() => setViewMode("modules")}
+            className="text-muted-foreground hover:text-foreground transition-colors font-medium shrink-0 hidden sm:inline"
+          >
+            {t("course") || "Course"}
+          </button>
+          <span className="text-muted-foreground/40 hidden sm:inline">/</span>
           <button
             onClick={() => {
               if (currentItem) {
@@ -2674,34 +2330,19 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 setViewMode("modules");
               }
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground bg-card hover:bg-muted border border-border transition-colors cursor-pointer shrink-0"
-            title="Back to Lessons"
+            className="text-muted-foreground hover:text-foreground transition-colors font-medium truncate max-w-[120px] sm:max-w-[180px]"
+            title={currentItem?.moduleTitle}
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t("backToLessons") || "Lessons"}</span>
-            <span className="sm:hidden">{t("back") || "Back"}</span>
+            {currentItem?.moduleTitle}
           </button>
-          <span className="text-muted-foreground/40 hidden sm:inline">/</span>
-          <span className="font-bold text-foreground truncate max-w-[150px] sm:max-w-[260px]">
+          <span className="text-muted-foreground/40">/</span>
+          <span className="font-bold text-foreground truncate max-w-[140px] sm:max-w-[220px]">
             {currentItem?.lessonTitle}
           </span>
         </div>
 
         {/* Action / Reader Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Sidebar Toggle Button */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="gap-1.5 rounded-xl font-medium text-xs border-border cursor-pointer h-8 px-2.5"
-            title={isSidebarOpen ? "Hide sidebar" : "Show sidebar"}
-          >
-            <Columns2 className="h-3.5 w-3.5" />
-            <span className="hidden md:inline">{isSidebarOpen ? (t("hideMenu") || "Hide Menu") : (t("courseMenu") || "Course Menu")}</span>
-          </Button>
-
           {/* Active Lesson Study Timer */}
           <div
             className={cn(
@@ -2757,49 +2398,17 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             <StickyNote className="h-4 w-4" />
           </button>
 
-          {/* Language Switcher Dropdown (Taking Lessons) */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border/70 hover:border-primary/40 bg-card hover:bg-muted text-xs font-semibold transition-colors cursor-pointer text-foreground shadow-2xs"
-                title={t("changeLanguage") || "Change course language"}
-              >
-                <span>{learningLanguage === "French" ? "🇫🇷" : learningLanguage === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
-                <span className="hidden sm:inline">{learningLanguage || "Language"}</span>
-                <ChevronDown className="h-3 w-3 text-muted-foreground ml-0.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 p-1.5 rounded-xl border border-border bg-card/95 backdrop-blur-md shadow-xl space-y-0.5 z-50">
-              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1 font-bold">
-                {t("courseLanguage") || "Course Language"}
-              </DropdownMenuLabel>
-              {[
-                { lang: "Kinyarwanda" as const, flag: "🇷🇼", label: "Ikinyarwanda" },
-                { lang: "French" as const, flag: "🇫🇷", label: "Français" },
-                { lang: "English" as const, flag: "🇬🇧", label: "English" },
-              ].map((item) => (
-                <DropdownMenuItem
-                  key={item.lang}
-                  onClick={() => requestLanguageSwitch(item.lang)}
-                  className={cn(
-                    "flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors",
-                    learningLanguage === item.lang
-                      ? "bg-primary/15 text-primary font-bold"
-                      : "hover:bg-muted text-foreground"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">{item.flag}</span>
-                    <span>{item.label}</span>
-                  </div>
-                  {learningLanguage === item.lang && (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Current Selected Course Language */}
+          <button
+            type="button"
+            onClick={() => setLearningLanguage(null)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border/70 hover:border-primary/40 bg-card hover:bg-muted text-xs font-semibold transition-colors cursor-pointer text-foreground"
+            title={t("changeLanguage") || "Change course language"}
+          >
+            <span>{learningLanguage === "French" ? "🇫🇷" : learningLanguage === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
+            <span className="hidden sm:inline">{learningLanguage || "Course Language"}</span>
+            <span className="text-[10px] text-primary underline ml-1">{t("change") || "Change"}</span>
+          </button>
 
           {/* Plain Terms Legal Explainer Toggle */}
           <button
@@ -2852,139 +2461,338 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       </div>
     </div>
 
-      {/* Celebration Overlay for Final Course Completion */}
-      <AnimatePresence>
-        {showCelebration && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center"
+      {/* Main Study Layout */}
+      <div className="flex flex-1 min-h-0 relative">
+        {/* Left Sidebar (Collapsible on Desktop, Folder Navigator) */}
+        {!isFocusMode && (
+          <aside
+            className={cn(
+              "border-r bg-card/50 transition-all duration-300 flex flex-col shrink-0",
+              isSidebarOpen ? "w-64" : "w-12",
+              "hidden lg:flex"
+            )}
           >
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-xs" />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 8 }}
-              transition={{ type: "spring", damping: 24, stiffness: 320 }}
-              className="relative z-10 text-center space-y-4 p-6 bg-card border-2 border-primary rounded-[28px] shadow-2xl transform-gpu"
-            >
-              <div className="text-6xl animate-bounce">🎉</div>
-              <h2 className="text-3xl font-bold tracking-tight">{t("courseCompleted") || "Course Completed!"}</h2>
-              <p className="text-base text-muted-foreground">{t("congratulations") || "Congratulations on finishing all modules!"}</p>
-            </motion.div>
-          </motion.div>
+            <div className="flex items-center justify-between p-2.5 border-b h-11">
+              {isSidebarOpen ? (
+                <>
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground truncate">
+                    {t("moduleLessons") || "Module Lessons"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground"
+                    title="Collapse sidebar"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="p-1 mx-auto rounded hover:bg-muted text-muted-foreground"
+                  title="Expand sidebar"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {isSidebarOpen && (
+              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                {currentModule?.lessons.map((lesson, lIdx) => {
+                  const isUnlocked = isLessonUnlocked(currentModule.id, lIdx);
+                  const isComplete = isLessonCompleted(lesson.id);
+                  const isCurrent = currentItem?.lessonId === lesson.id;
+                  const isExpanded = expandedLessons.has(lesson.id);
+                  const topics = parseTopics(lesson.topics);
+
+                  return (
+                    <div key={lesson.id} className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toggleLessonExpand(lesson.id);
+                          if (isUnlocked && !isCurrent) {
+                            startLesson(currentModule.id, lesson.id);
+                          }
+                        }}
+                        disabled={!isUnlocked}
+                        className={cn(
+                          "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all text-left group",
+                          isCurrent
+                            ? "bg-primary/10 text-primary font-bold"
+                            : isUnlocked
+                            ? "hover:bg-muted text-foreground"
+                            : "opacity-40 cursor-not-allowed text-muted-foreground"
+                        )}
+                      >
+                        <span className="p-0.5 text-muted-foreground">
+                          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                        </span>
+                        {topics.length > 0 ? (
+                          isExpanded ? (
+                            <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+                          ) : isUnlocked ? (
+                            <Folder className="h-3.5 w-3.5 text-primary/80 shrink-0" />
+                          ) : (
+                            <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          )
+                        ) : isUnlocked ? (
+                          <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                        ) : (
+                          <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        )}
+                        <span className="flex-1 truncate">{lesson.title}</span>
+                        {isComplete && (
+                          <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />
+                        )}
+                      </button>
+
+                      {isExpanded && topics.length > 0 && (
+                        <div className="ml-4 pl-2 border-l border-border/60 space-y-0.5">
+                          {topics.map((tp, tpIdx) => {
+                            const isTpCurrent = currentItem?.type === "topic" && currentItem.topicId === tp.id;
+                            const isTpDone = completedItems.has(`${lesson.id}:${tp.id}`);
+                            const targetIdx = flatList.findIndex((f) => f.lessonId === lesson.id && f.topicId === tp.id);
+                            const isTpUnlocked = targetIdx >= 0 && isItemUnlocked(targetIdx);
+
+                            return (
+                              <button
+                                key={tp.id}
+                                type="button"
+                                onClick={() => isTpUnlocked && targetIdx >= 0 && setCurrentItemIndex(targetIdx)}
+                                disabled={!isTpUnlocked}
+                                className={cn(
+                                  "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left",
+                                  isTpCurrent
+                                    ? "bg-primary/15 text-foreground font-semibold border border-primary/40 shadow-xs"
+                                    : isTpDone
+                                    ? "text-primary hover:bg-muted"
+                                    : isTpUnlocked
+                                    ? "hover:bg-muted text-foreground/80"
+                                    : "opacity-40 cursor-not-allowed text-muted-foreground"
+                                )}
+                              >
+                                {isTpDone ? (
+                                  <CheckCircle2 className="h-3 w-3 shrink-0 text-primary" />
+                                ) : isTpCurrent ? (
+                                  <FileText className="h-3 w-3 shrink-0 text-primary" />
+                                ) : isTpUnlocked ? (
+                                  <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                ) : (
+                                  <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                )}
+                                <span className="flex-1 truncate">{tp.title}</span>
+                                {tp.audioUrl && (
+                                  <Volume2 className="h-3 w-3 shrink-0 text-primary" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </aside>
         )}
-      </AnimatePresence>
 
-      {/* Lesson Complete Celebration Modal (Triggered ONLY on lesson completion when topics exist) */}
-      <AnimatePresence>
-        {showLessonCompleteModal && completedLessonMeta && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 8 }}
-              transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
-              className="relative max-w-md w-full rounded-[24px] border-2 border-primary/40 bg-card shadow-2xl p-6 sm:p-8 space-y-6 transform-gpu"
-            >
-              <div className="text-center space-y-3">
-                <div className="w-16 h-16 mx-auto rounded-full bg-primary/15 flex items-center justify-center text-primary">
-                  <Award className="h-9 w-9 animate-pulse" />
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-primary block">
-                  {t("lessonMastered") || "Lesson Mastered!"}
+        {/* Center Reader Content Canvas */}
+        <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 pb-24 lg:pb-8 space-y-6 max-w-4xl mx-auto overflow-x-hidden">
+          {/* Progress Indicators: Module Progress and Lesson Progress ONLY */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Module Progress */}
+            <div className="rounded-[16px] border bg-card/80 p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <FolderOpen className="h-3.5 w-3.5 text-primary" />
+                  {t("moduleProgress") || "Module Progress"}
                 </span>
-                <h2 className="text-2xl font-bold tracking-tight">{completedLessonMeta.lessonTitle}</h2>
-                <p className="text-xs text-muted-foreground">
-                  {t("lessonCompletedSummary") || "You have successfully finished all topics in this lesson."}
-                </p>
+                <span className="text-foreground">
+                  {activeModuleCompletedLessonsCount} / {activeModuleLessons.length} {t("lessons") || "Lessons"} ({activeModuleProgressPct}%)
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-500 rounded-full"
+                  style={{ width: `${activeModuleProgressPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Lesson Progress */}
+            <div className="rounded-[16px] border bg-card/80 p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                  {t("lessonProgress") || "Lesson Progress"}
+                </span>
+                <span className="text-foreground">
+                  {currentLessonTopics.length > 0
+                    ? `${currentLessonCompletedTopicsCount} / ${currentLessonTopics.length} Topics (${currentLessonProgressPct}%)`
+                    : isLessonCompleted(currentLesson?.id || "")
+                    ? "100%"
+                    : "0%"}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-500 rounded-full"
+                  style={{ width: `${currentLessonProgressPct}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Main Topic / Reading Card */}
+          <div className="rounded-[20px] border bg-card shadow-sm overflow-hidden relative">
+            <div className="p-5 sm:p-8 space-y-6">
+              {/* Topic Header & Meta (Sticky inside card so title & reading progress remain always visible) */}
+              <div className="space-y-2 border-b pb-4 sticky top-0 bg-card/95 backdrop-blur-md z-10 pt-1 -mt-1">
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground flex-wrap font-medium">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-muted text-foreground font-semibold">
+                      {currentItem?.type === "topic" && currentItem.topicIndex !== undefined
+                        ? `Topic ${currentItem.topicIndex + 1} of ${currentItem.topicCount}`
+                        : "Lesson"}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {formatMinutes(currentEstimatedMinutes)} {t("readingTime") || "reading"}
+                    </span>
+                  </div>
+
+                  {currentItem && completedItems.has(itemKey(currentItem)) && (
+                    <span className="inline-flex items-center gap-1 text-primary font-semibold">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {t("completed") || "Completed"}
+                    </span>
+                  )}
+                </div>
+
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+                  {currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle}
+                </h1>
               </div>
 
-              {/* Achievement Badges & Stats */}
-              <div className="grid grid-cols-2 gap-3 py-1">
-                <div className="rounded-[14px] bg-secondary/60 p-3 text-center space-y-1">
-                  <span className="text-[10px] text-muted-foreground font-semibold uppercase">{t("topicsMastered") || "Topics Mastered"}</span>
-                  <p className="text-lg font-bold">{completedLessonMeta.topicsCount}</p>
-                  <span className="text-[10px] text-muted-foreground block">Completed all</span>
-                </div>
-                <div className="rounded-[14px] bg-primary/10 border border-primary/20 p-3 text-center space-y-1">
-                  <span className="text-[10px] text-primary font-bold uppercase flex items-center justify-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {t("totalLessonTime") || "Total Time Taken"}
-                  </span>
-                  <p className="text-lg font-extrabold text-primary tabular-nums">
-                    {formatTimer(completedLessonMeta.timeSpentSeconds)}
-                  </p>
-                  <span className="text-[10px] text-muted-foreground block">
-                    {completedLessonMeta.timeSpentSeconds < 60
-                      ? `${completedLessonMeta.timeSpentSeconds}s (all ${completedLessonMeta.topicsCount} topics)`
-                      : `${Math.floor(completedLessonMeta.timeSpentSeconds / 60)}m ${completedLessonMeta.timeSpentSeconds % 60}s total`}
-                  </span>
-                </div>
-              </div>
-
-              {/* Next Lesson Preview */}
-              {completedLessonMeta.hasNextLesson && completedLessonMeta.nextLessonTitle && (
-                <div className="rounded-[14px] border bg-primary/5 border-primary/20 p-3.5 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                    {t("nextUp") || "Next Up"}
-                  </span>
-                  <p className="text-xs font-semibold text-foreground truncate">
-                    {completedLessonMeta.nextLessonTitle}
-                  </p>
-                </div>
+              {/* AI Cloud Neural Voice Player (Gemini TTS) */}
+              {isTTSOpen && !isTTSDisabled && (
+                <AINeuralVoicePlayer
+                  audioUrl={ttsAudioUrl}
+                  isLoading={isLoadingTTS}
+                  language={learningLanguage || "English"}
+                  topicTitle={currentTopic?.title || currentLesson?.title || "Lesson Note"}
+                  onClose={() => setIsTTSOpen(false)}
+                  onRetry={handleToggleTTS}
+                />
               )}
 
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-2.5">
-                {completedLessonMeta.hasNextLesson ? (
-                  <Button
-                    size="lg"
-                    className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold shadow-sm cursor-pointer"
-                    onClick={() => {
-                        // Needs to be defined or restored
-                    }}
-                  >
-                    <ArrowRight className="h-4 w-4" />
-                    {t("continueToNextLesson") || "Continue to Next Lesson"}
-                  </Button>
-                ) : (
-                  <Button
-                    size="lg"
-                    className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold shadow-sm cursor-pointer"
-                    onClick={() => {
-                        // Needs to be defined or restored
-                    }}
-                  >
-                    <Trophy className="h-4 w-4" />
-                    {t("viewModuleSummary") || "Module Completed · View Summary"}
-                  </Button>
-                )}
+              {/* Plain Language Explainer Card (Rwanda Traffic Code Simplified) */}
+              {isPlainLanguageOpen && plainData && (
+                <PlainLanguageCard
+                  data={plainData}
+                  language={learningLanguage || "English"}
+                  onClose={() => setIsPlainLanguageOpen(false)}
+                />
+              )}
 
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full gap-2 rounded-xl font-medium cursor-pointer"
-                  onClick={() => {
-                      // Needs to be defined or restored
-                  }}
-                >
-                  <BookMarked className="h-4 w-4" />
-                  {t("backToLessons") || "Back to Lessons List"}
-                </Button>
+              {/* Advanced Audio Player if Topic has pre-uploaded Audio */}
+              {currentTopic?.audioUrl && !isTTSOpen && (
+                <TopicAudioPlayer
+                  audioUrl={currentTopic.audioUrl}
+                  topicTitle={currentTopic.title}
+                />
+              )}
+
+              {/* Topic Body Content in Selected Language (Scrollable so long lessons can be fully read without losing card view) */}
+              <div onMouseUp={handleMouseUpContent} className="max-h-[calc(100vh-16rem)] overflow-y-auto pr-1 sm:pr-2 scrollbar-thin">
+                <div className="w-full transition-all leading-relaxed">
+                  {currentContent ? (
+                    <LessonContentView content={currentContent} textSize={textSize} />
+                  ) : (
+                    <p className="text-muted-foreground italic">{t("noContent") || "No content available yet."}</p>
+                  )}
+                </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+              {/* Floating Term Tooltip on Selection */}
+              {selectedTerm && termPosition && (
+                <TermLookupTooltip
+                  term={selectedTerm}
+                  position={termPosition}
+                  onClose={() => {
+                    setSelectedTerm(null);
+                    setTermPosition(null);
+                  }}
+                />
+              )}
+
+              {/* PC Desktop Hotkey Hints */}
+              <div className="hidden md:flex items-center justify-end gap-3 pt-2 text-[11px] text-muted-foreground border-t border-border/40">
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[10px]">P</kbd>
+                  <span>{t("plainTerms") || "Plain Terms"}</span>
+                </span>
+              </div>
+
+              {/* Study Scratchpad & Notes Drawer if toggled */}
+              {showNotes && currentTopic && currentLesson && (
+                <div className="pt-4 border-t">
+                  <TopicNotes
+                    topicId={currentTopic.id}
+                    topicTitle={currentTopic.title}
+                    lessonTitle={currentLesson.title}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom Navigation Toolbar (Sticky so user can always advance or go back regardless of scroll position) */}
+          <div className="sticky bottom-16 sm:bottom-4 z-20 bg-card/95 backdrop-blur-md px-3 sm:px-5 py-2.5 rounded-2xl border shadow-lg flex items-center justify-between gap-3 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPrevious}
+              disabled={currentItemIndex === 0}
+              className="gap-1.5 rounded-xl font-medium text-xs sm:text-sm"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span>{t("previousTopic") || "Previous"}</span>
+            </Button>
+
+            <div className="text-xs text-muted-foreground font-semibold tabular-nums">
+              {currentItemIndex + 1} / {flatList.length}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {currentItem && isLastItemInLesson(currentItem) ? (
+                <Button
+                  size="sm"
+                  onClick={() => void markCompleteAndAdvance()}
+                  className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold text-xs sm:text-sm shadow-sm"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>{t("completeLesson") || "Complete Lesson"}</span>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => void markCompleteAndAdvance()}
+                  className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold text-xs sm:text-sm shadow-sm"
+                >
+                  <span>{t("nextTopic") || "Next"}</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

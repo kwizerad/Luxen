@@ -24,7 +24,6 @@ import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useNavigationVisibility } from "@/hooks/use-navigation-visibility";
 import { useAdminSpa } from "@/lib/admin-spa-router";
-import { cn } from "@/lib/utils";
 
 interface NavItem {
   id: string;
@@ -60,9 +59,24 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
     const activeView = rawHash || "home";
     setCurrentView(activeView);
 
-    const examActive =
-      sessionStorage.getItem("exam-active") === "true" ||
-      (typeof document !== "undefined" && document.body.classList.contains("exam-in-progress"));
+    // If the user is on a non-exam dashboard view (e.g. home, classmates, services, results, settings),
+    // ensure any stale exam-active flag from an interrupted session is cleared so the bottom nav persists.
+    const isExamCapableView =
+      activeView === "exam" ||
+      activeView === "exams" ||
+      activeView === "course" ||
+      pathname === "/dashboard/exam" ||
+      Boolean(pathname?.startsWith("/dashboard/exam"));
+
+    if (
+      pathname === "/dashboard" &&
+      !isExamCapableView &&
+      sessionStorage.getItem("exam-active") === "true"
+    ) {
+      sessionStorage.removeItem("exam-active");
+    }
+
+    const examActive = sessionStorage.getItem("exam-active") === "true";
     setIsExamActive(examActive);
 
     const chatActive =
@@ -124,33 +138,11 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
     [pathname, router]
   );
 
-  if (
-    isExamActive ||
-    pathname === "/dashboard/exam" ||
-    Boolean(pathname?.startsWith("/dashboard/exam"))
-  ) {
-    return null;
-  }
-
   if (!user && !authLoading) {
     return null;
   }
 
-  // Professional Navigation Arrangement:
-  // 1. Home (Landing & overview)
-  // 2. Course (Theory curriculum & lessons)
-  // 3. Exams (Practice tests & certifications)
-  // 4. Results (Performance analysis & review)
-  // 5. Services (Driving school, instructors, bookings)
-  // 6. Chat (Community & classmates)
   const allStudentNavItems: NavItem[] = [
-    {
-      id: "home",
-      label: t("home") || "Home",
-      icon: Home,
-      view: "home",
-      isActive: pathname === "/dashboard" && (currentView === "home" || !currentView),
-    },
     {
       id: "course",
       label: t("course") || t("theoryCourse") || "Course",
@@ -171,11 +163,23 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           currentView === "services/group-exam"),
     },
     {
-      id: "results",
-      label: t("results") || t("examHistory") || "Results",
-      icon: Trophy,
-      view: "results",
-      isActive: pathname === "/dashboard" && currentView === "results",
+      id: "classmates",
+      label: t("chat") || "Chat",
+      icon: Users,
+      view: "classmates",
+      isActive:
+        pathname === "/dashboard" &&
+        (currentView === "classmates" ||
+          currentView === "chat" ||
+          currentView === "chat/conversation" ||
+          currentView === "classmates/group-results"),
+    },
+    {
+      id: "home",
+      label: t("home") || "Home",
+      icon: Home,
+      view: "home",
+      isActive: pathname === "/dashboard" && (currentView === "home" || !currentView),
     },
     {
       id: "services",
@@ -193,29 +197,17 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
           currentView === "my-training"),
     },
     {
-      id: "classmates",
-      label: t("chat") || "Chat",
-      icon: Users,
-      view: "classmates",
-      isActive:
-        pathname === "/dashboard" &&
-        (currentView === "classmates" ||
-          currentView === "chat" ||
-          currentView === "chat/conversation" ||
-          currentView === "classmates/group-results"),
+      id: "results",
+      label: t("results") || t("examHistory") || "Results",
+      icon: Trophy,
+      view: "results",
+      isActive: pathname === "/dashboard" && currentView === "results",
     },
   ];
 
   const activeAdminPath = adminMode ? (adminSpaPathname || pathname || "/Admin") : pathname;
 
   const allAdminNavItems: NavItem[] = [
-    {
-      id: "admin-home",
-      label: t("dashboard") || "Dashboard",
-      icon: LayoutDashboard,
-      href: "/Admin",
-      isActive: adminSpaView === "dashboard" && activeAdminPath === "/Admin",
-    },
     {
       id: "admin-course",
       label: t("course") || "Course",
@@ -251,6 +243,13 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
         adminSpaView === "users" || Boolean(activeAdminPath?.startsWith("/Admin/users")),
     },
     {
+      id: "admin-home",
+      label: t("dashboard") || "Dashboard",
+      icon: LayoutDashboard,
+      href: "/Admin",
+      isActive: adminSpaView === "dashboard" && activeAdminPath === "/Admin",
+    },
+    {
       id: "admin-drivers",
       label: t("drivers") || "Drivers",
       icon: Car,
@@ -277,6 +276,16 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
 
   const navItems = filterNavItems(adminMode ? allAdminNavItems : allStudentNavItems);
   const activeIdPrefix = adminMode ? "admin" : "student";
+  const homeIdx = navItems.findIndex(
+    (item) => item.id === "home" || item.id === "admin-home"
+  );
+  const leftCount = homeIdx >= 0 ? homeIdx : 0;
+  const rightCount = homeIdx >= 0 ? navItems.length - 1 - homeIdx : 0;
+  // When an even number of items is visible (e.g. Course is hidden leaving 6 items),
+  // add an invisible flex spacer on the shorter side so the Home / Dashboard button
+  // remains at the exact geometric center of the navigation bar.
+  const padLeft = Math.max(0, rightCount - leftCount);
+  const padRight = Math.max(0, leftCount - rightCount);
 
   return (
     <>
@@ -285,7 +294,11 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       <header
         dir={isRTL ? "rtl" : "ltr"}
         aria-hidden={isExamActive}
-        className={`app-top-header-bar fixed top-0 left-0 right-0 z-[60] w-full bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 transition-all duration-200 shadow-xs`}
+        className={`app-top-header-bar ${
+          isExamActive
+            ? "hidden pointer-events-none opacity-0 invisible select-none"
+            : "block"
+        } fixed top-0 left-0 right-0 z-[60] w-full bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 transition-all duration-200 shadow-xs`}
       >
         <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 gap-3">
           {/* Left: System Logo & Name */}
@@ -427,12 +440,11 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
         aria-label="Mobile Bottom Navigation"
         aria-hidden={isExamActive}
         dir={isRTL ? "rtl" : "ltr"}
-        className={cn(
-          "fixed bottom-0 left-0 right-0 z-[60] lg:hidden bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 pb-[max(0.25rem,env(safe-area-inset-bottom))] transition-all duration-200",
+        className={`fixed bottom-0 left-0 right-0 z-[60] lg:hidden bg-white/95 dark:bg-[#0a0a0e]/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 pb-[max(0.25rem,env(safe-area-inset-bottom))] transition-all duration-200 ${
           isExamActive
-            ? "hidden !opacity-0 !pointer-events-none translate-y-full"
+            ? "hidden pointer-events-none opacity-0 invisible translate-y-full select-none"
             : "block opacity-100 visible translate-y-0"
-        )}
+        }`}
       >
         <div className="flex flex-row justify-around items-center h-16 px-1.5 max-w-2xl mx-auto">
           {navItems.map((item) => {

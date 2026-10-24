@@ -53,7 +53,9 @@ export function FloatingSettings() {
 
   useEffect(() => {
     const checkExamActive = () => {
-      const isActive = sessionStorage.getItem("exam-active") === "true";
+      const hash = window.location.hash.replace(/^#/, "").split("?")[0];
+      const isHashExam = pathname === "/dashboard" && (hash === "exam" || hash === "exams");
+      const isActive = sessionStorage.getItem("exam-active") === "true" || isHashExam;
       setIsExamActive(isActive);
     };
     checkExamActive();

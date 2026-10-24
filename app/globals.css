@@ -2988,8 +2988,22 @@ header.pwa-title-bar,
   border: none !important;
 }
 
-/* Mobile & Small Device Touch & Scroll Optimization */
+/* Mobile & PWA Standalone Top Header Handling:
+   Ensure no top app bar or title bar obscures mobile viewports (< 1024px)
+   or blocks native pull-to-refresh gestures. */
 @media (max-width: 1023px) {
+  header.app-top-header-bar {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   html,
   body,
   main,
@@ -3008,31 +3022,4 @@ header.pwa-title-bar,
     padding-top: env(safe-area-inset-top, 0px) !important;
   }
 }
-
-/* Strict Exam Mode Navbar & Header Suppression for Small Devices & All Viewports */
-body.exam-in-progress .app-top-header-bar,
-body.exam-in-progress nav,
-body.exam-in-progress [aria-label="Mobile Bottom Navigation"],
-body.exam-in-progress [aria-label="Main Navigation"],
-[data-exam-active="true"] .app-top-header-bar,
-[data-exam-active="true"] nav,
-[data-exam-active="true"] [aria-label="Mobile Bottom Navigation"],
-[data-exam-active="true"] [aria-label="Main Navigation"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  transform: translateY(100%) !important;
-}
-
-/* Light Theme Button Hover/Active Text Readability Fix */
-:not(.dark) button:not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-emerald"]):not([class*="bg-green"]):hover,
-:not(.dark) button:not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-emerald"]):not([class*="bg-green"]):active {
-  color: #09090b !important;
-}
-
 

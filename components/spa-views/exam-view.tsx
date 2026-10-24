@@ -20,7 +20,6 @@ import { createClient } from "@/lib/supabase/client";
 import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings } from "@/lib/security-config";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { RwandaFlag, UKFlag, FranceFlag } from "@/components/ui/flag-icons";
 import { ExamCategorySkeleton, ExamChoiceSkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
 import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, ShieldAlert, HelpCircle, FileText, Play, LogOut, Monitor, Clock, Hash, ArrowLeft, History, ChevronLeft, ChevronRight, Check } from "lucide-react";
@@ -297,10 +296,6 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     // Clean up exam-active flag when component unmounts
     return () => {
       sessionStorage.removeItem('exam-active');
-      if (typeof document !== "undefined") {
-        document.body.classList.remove("exam-in-progress");
-        document.documentElement.removeAttribute("data-exam-active");
-      }
       window.dispatchEvent(new CustomEvent('exam-state-change'));
       console.log('Exam component unmounted - exam-active removed');
     };
@@ -312,12 +307,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     const isInProgress = Boolean(exam && !showResults);
     if (isInProgress) {
       sessionStorage.setItem("exam-active", "true");
-      document.body.classList.add("exam-in-progress");
-      document.documentElement.setAttribute("data-exam-active", "true");
     } else {
       sessionStorage.removeItem("exam-active");
-      document.body.classList.remove("exam-in-progress");
-      document.documentElement.removeAttribute("data-exam-active");
     }
     window.dispatchEvent(new CustomEvent("exam-state-change"));
   }, [exam, showResults]);
@@ -1642,40 +1633,51 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           </p>
         </div>
 
-        <div className="grid gap-3 sm:gap-5 grid-cols-2 md:grid-cols-3 pt-2">
+        <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-3 pt-2">
           {[
             {
               key: "Kinyarwanda",
               flag: "🇷🇼",
-              title: "Kinyarwanda",
-              categoryTitle: "Kinyarwanda",
-              description: "Ikizamini cyemewe cy'ibibazo 20 by'uruhushya rw'agateganyo rw'imodoka mu Kinyarwanda.",
+              title: "Ikizamini mu Kinyarwanda",
+              categoryTitle: "Ikinyarwanda Exam",
+              description: "Ikizamini cyuzuye cy'ibibazo 20 by'amategeko y'umuhanda n'ibyapa mu Kinyarwanda cyimbitse.",
               questionCount: 20,
               durationMinutes: 20,
               passMark: "60% (12/20)",
-              btnLabel: "Kinyarwanda",
+              btnLabel: "Tangira mu Kinyarwanda",
             },
             {
               key: "English",
               flag: "🇬🇧",
-              title: "English",
-              categoryTitle: "English",
+              title: "English Road Code Exam",
+              categoryTitle: "English Exam",
               description: "Official 20-question provisional driving license assessment in English with official scoring.",
               questionCount: 20,
               durationMinutes: 20,
               passMark: "60% (12/20)",
-              btnLabel: "English",
+              btnLabel: "Start Exam in English",
             },
             {
               key: "French",
               flag: "🇫🇷",
-              title: "French",
-              categoryTitle: "French",
+              title: "Examen du Code en Français",
+              categoryTitle: "Examen en Français",
               description: "Évaluation officielle chronométrée de 20 questions sur la réglementation routière en Français.",
               questionCount: 20,
               durationMinutes: 20,
               passMark: "60% (12/20)",
-              btnLabel: "French",
+              btnLabel: "Commencer en Français",
+            },
+            {
+              key: "Kinyarwanda",
+              flag: "🇷🇼",
+              title: "Ikizamini cy'amategeko y'umuhanda",
+              categoryTitle: "Ikizamini mu Kinyarwanda",
+              description: "Ikizamini cyemewe cy'ibibazo 20 by'uruhushya rw'agateganyo rw'imodoka mu Kinyarwanda.",
+              questionCount: 20,
+              durationMinutes: 20,
+              passMark: "60% (12/20)",
+              btnLabel: "Tangira ikizamini mu Kinyarwanda",
             },
           ].map((examCat) => (
             <Card
@@ -2029,58 +2031,120 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                   <ExamCategorySkeleton />
                 </div>
               ) : (
-                <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3 max-w-4xl mx-auto py-2">
+                <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-3">
                   {[
                     {
                       key: "Kinyarwanda",
-                      label: "Kinyarwanda",
-                      FlagComponent: RwandaFlag,
+                      code: "rw",
+                      flag: "🇷🇼",
+                      title: "Ikizamini mu Kinyarwanda",
+                      categoryTitle: "Ikinyarwanda Category",
+                      description: "Ikizamini cyuzuye cy'ibibazo 20 by'amategeko y'umuhanda n'ibyapa mu Kinyarwanda cyimbitse.",
+                      questionCount: 20,
+                      durationMinutes: 20,
+                      passMark: "60% (12/20)",
+                      btnLabel: "Tangira mu Kinyarwanda",
                     },
                     {
                       key: "English",
-                      label: "English",
-                      FlagComponent: UKFlag,
+                      code: "en",
+                      flag: "🇬🇧",
+                      title: "English Road Code Exam",
+                      categoryTitle: "English Category",
+                      description: "Official 20-question provisional driving license assessment in English with official scoring.",
+                      questionCount: 20,
+                      durationMinutes: 20,
+                      passMark: "60% (12/20)",
+                      btnLabel: "Start Exam in English",
                     },
                     {
                       key: "French",
-                      label: "French",
-                      FlagComponent: FranceFlag,
+                      code: "fr",
+                      flag: "🇫🇷",
+                      title: "Examen du Code en Français",
+                      categoryTitle: "Catégorie Français",
+                      description: "Évaluation officielle chronométrée de 20 questions sur la réglementation routière en Français.",
+                      questionCount: 20,
+                      durationMinutes: 20,
+                      passMark: "60% (12/20)",
+                      btnLabel: "Commencer en Français",
                     },
-                  ].map((examItem) => {
+                  ].map((examCat) => {
                     const targetId = categories[0]?.id || categoryId;
-                    const Flag = examItem.FlagComponent;
-                    const isLoadingThis = loadingExam && selectedExamLanguage === examItem.key;
-
                     return (
-                      <button
-                        key={examItem.key}
-                        type="button"
-                        disabled={loadingExam}
+                      <Card
+                        key={examCat.key}
+                        className="group cursor-pointer h-full rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 hover:shadow-lg transition-all flex flex-col justify-between shadow-sm"
                         onClick={() => {
-                          startExam(targetId, examItem.key);
+                          startExam(targetId, examCat.key);
                         }}
-                        className={cn(
-                          "group relative flex flex-col items-center p-3 sm:p-5 rounded-2xl sm:rounded-3xl border border-zinc-200/90 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md hover:bg-white dark:hover:bg-zinc-900 hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 transition-all duration-300 cursor-pointer text-center select-none active:scale-95 disabled:pointer-events-none",
-                          isLoadingThis && "ring-2 ring-primary ring-offset-2"
-                        )}
                       >
-                        {/* Flag Graphic Container */}
-                        <div className="w-full aspect-[3/2] rounded-xl sm:rounded-2xl overflow-hidden shadow-sm border border-black/10 dark:border-white/10 group-hover:shadow-md transition-all relative">
-                          <Flag className="w-full h-full object-cover" />
-
-                          {/* Loading Spinner Overlay when clicked */}
-                          {isLoadingThis && (
-                            <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center">
-                              <div className="h-6 w-6 sm:h-7 sm:w-7 animate-spin rounded-full border-2 border-white border-t-transparent shadow-lg" />
+                        <CardHeader className="p-4 sm:p-6 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform">
+                              <span>{examCat.flag}</span>
                             </div>
-                          )}
-                        </div>
+                            <Badge variant="secondary" className="bg-primary/10 text-primary text-[11px] font-semibold">
+                              {examCat.categoryTitle}
+                            </Badge>
+                          </div>
+                          <div>
+                            <CardTitle className="text-base sm:text-lg font-bold group-hover:text-primary transition-colors">
+                              {examCat.title}
+                            </CardTitle>
+                            <CardDescription className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                              {examCat.description}
+                            </CardDescription>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                          <div className="space-y-2 p-3 rounded-xl bg-muted/40 border border-border/50 text-xs">
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span className="flex items-center gap-1.5">
+                                <Hash className="h-3.5 w-3.5 text-primary" />
+                                {t("questions") || "Questions"}
+                              </span>
+                              <span className="font-bold text-foreground">{examCat.questionCount} Questions</span>
+                            </div>
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span className="flex items-center gap-1.5">
+                                <Clock className="h-3.5 w-3.5 text-primary" />
+                                {t("duration") || "Duration"}
+                              </span>
+                              <span className="font-bold text-foreground">{examCat.durationMinutes} {t("minutes") || "Minutes"}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-muted-foreground border-t border-border/40 pt-1.5">
+                              <span className="flex items-center gap-1.5">
+                                <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                                {t("passMark") || "Passing score"}
+                              </span>
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">{examCat.passMark}</span>
+                            </div>
+                          </div>
 
-                        {/* Language Name Only (Kinyarwanda / English / French) */}
-                        <span className="mt-3 sm:mt-4 text-base sm:text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 group-hover:text-primary transition-colors">
-                          {examItem.label}
-                        </span>
-                      </button>
+                          <Button
+                            size="sm"
+                            className="w-full rounded-xl py-2.5 font-semibold text-xs sm:text-sm group-hover:bg-primary/90 transition-colors"
+                            disabled={loadingExam}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startExam(targetId, examCat.key);
+                            }}
+                          >
+                            {loadingExam && selectedExamLanguage === examCat.key ? (
+                              <>
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent mr-2" />
+                                {t("starting") || "Starting..."}
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-3.5 w-3.5 mr-2 fill-current" />
+                                {examCat.btnLabel}
+                              </>
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
                     );
                   })}
                 </div>

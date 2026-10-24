@@ -219,7 +219,7 @@ export function LessonContentView({ content, textSize = "base" }: LessonContentV
     }
   }, [editor, parsedContent, content]);
 
-  if (!editor) return <div className="w-full h-32 animate-pulse bg-muted/50 rounded-xl" />;
+  if (!editor) return null;
 
   return (
     <div
