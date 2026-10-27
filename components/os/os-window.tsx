@@ -8,8 +8,6 @@ import {
   Maximize2,
   Minimize2,
   Compass,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 
@@ -37,22 +35,26 @@ export function OSWindow({
   const { isRTL } = useLanguage();
   const [isMaximized, setIsMaximized] = useState(false);
 
+  const toggleMaximize = () => {
+    setIsMaximized(!isMaximized);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.97, y: 8 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.98, y: 6 }}
       transition={{ type: "spring", damping: 26, stiffness: 320 }}
-      className={`flex flex-col rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl shadow-none overflow-hidden transition-all duration-200 ${
+      className={`flex flex-col rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl shadow-2xl overflow-hidden transition-all duration-200 z-30 ${
         isMaximized
-          ? "fixed inset-x-2 top-11 bottom-20 z-30"
+          ? "fixed inset-x-0 top-9 bottom-16 sm:inset-x-2 sm:top-10 sm:bottom-18 rounded-none sm:rounded-2xl"
           : "w-full max-w-7xl mx-auto min-h-[calc(100vh-8.5rem)] my-2"
       } ${className}`}
     >
       {/* OS Window Header / Title Bar */}
       <div
         dir={isRTL ? "rtl" : "ltr"}
-        className="h-11 px-4 border-b border-slate-200/60 dark:border-white/10 bg-slate-100/70 dark:bg-zinc-900/70 backdrop-blur-md flex items-center justify-between select-none shrink-0"
+        className="h-11 px-4 border-b border-slate-200/60 dark:border-white/10 bg-slate-100/80 dark:bg-zinc-900/80 backdrop-blur-md flex items-center justify-between select-none shrink-0"
       >
         {/* macOS Traffic Light Buttons */}
         <div className="flex items-center gap-2 w-20">
@@ -74,7 +76,7 @@ export function OSWindow({
           </button>
           <button
             type="button"
-            onClick={() => setIsMaximized(!isMaximized)}
+            onClick={toggleMaximize}
             title={isMaximized ? "Restore Size" : "Maximize Window"}
             className="w-3 h-3 rounded-full bg-emerald-500 hover:bg-emerald-600 transition-colors flex items-center justify-center group cursor-pointer shadow-none"
           >
@@ -117,3 +119,5 @@ export function OSWindow({
     </motion.div>
   );
 }
+
+export default OSWindow;

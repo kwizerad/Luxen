@@ -132,7 +132,13 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
               {/* App Icon Button */}
               <motion.button
                 type="button"
-                onClick={() => navigate(item.view)}
+                onClick={() => {
+                  if (isActive && item.view !== "home") {
+                    navigate("home");
+                  } else {
+                    navigate(item.view);
+                  }
+                }}
                 whileHover={{ scale: 1.18, y: -4 }}
                 whileTap={{ scale: 0.92 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
