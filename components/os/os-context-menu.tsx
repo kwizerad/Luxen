@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   RotateCcw,
-  Image as ImageIcon,
+  Home,
+  Copy,
   Search,
   BookOpen,
   FileText,
@@ -14,15 +15,13 @@ import {
   Maximize,
   Minimize,
   Eye,
-  Sparkles,
-  Sun,
-  Moon,
-  Laptop,
+  Check,
+  Compass,
 } from "lucide-react";
 import { AgoraIcon } from "@/components/ui/agora-icon";
 import { useLanguage } from "@/lib/language-context";
 import { useDesktopWidgets } from "@/lib/desktop-widgets";
-import { useTheme } from "next-themes";
+import { toast } from "sonner";
 
 interface OSContextMenuProps {
   children: React.ReactNode;
@@ -32,23 +31,23 @@ interface OSContextMenuProps {
 
 export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContextMenuProps) {
   const { t } = useLanguage();
-  const { theme, setTheme } = useTheme();
   const { restoreAll, dismissed } = useDesktopWidgets();
 
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Handle right-click contextmenu event
+  // Handle right-click contextmenu event across the dashboard
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    // Only intercept right-clicks directly on the OS desktop background or non-interactive containers
+    // Only intercept right-clicks directly on non-form elements
     const target = e.target as HTMLElement;
-    const isInteractive = target.closest("button, a, input, textarea, select, [role='button']");
+    const isInteractive = target.closest("input, textarea, select, [contenteditable='true']");
 
     if (isInteractive) {
-      // Allow native or element-specific context menu
+      // Allow native browser text editing context menu inside input fields
       return;
     }
 
@@ -56,7 +55,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
 
     // Bound coordinates within viewport
     const menuWidth = 240;
-    const menuHeight = 360;
+    const menuHeight = 390;
 
     let x = e.clientX;
     let y = e.clientY;
@@ -98,12 +97,34 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
     };
   }, [isOpen]);
 
-  const handleRefreshDesktop = () => {
+  const handleRefreshPage = () => {
     setIsRefreshing(true);
     setIsOpen(false);
+    toast.info("Refreshing workspace...", { duration: 1500 });
     setTimeout(() => {
-      setIsRefreshing(false);
-    }, 600);
+      window.location.reload();
+    }, 300);
+  };
+
+  const handleGoHome = () => {
+    navigate("home");
+    setIsOpen(false);
+    toast.success("Returned to Desktop Workspace");
+  };
+
+  const handleCopyUrl = async () => {
+    try {
+      if (typeof window !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(window.location.href);
+        setCopied(true);
+        toast.success("Current URL copied to clipboard!");
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
+      toast.error("Failed to copy URL");
+    } finally {
+      setIsOpen(false);
+    }
   };
 
   const toggleFullscreen = () => {
@@ -123,18 +144,18 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
       <AnimatePresence>
         {isRefreshing && (
           <motion.div
-            initial={{ opacity: 0.4 }}
+            initial={{ opacity: 0.5 }}
             animate={{ opacity: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            className="fixed inset-0 z-[100] bg-white/20 dark:bg-emerald-500/10 pointer-events-none backdrop-blur-xs"
+            transition={{ duration: 0.4 }}
+            className="fixed inset-0 z-[100] bg-emerald-500/20 pointer-events-none backdrop-blur-xs"
           />
         )}
       </AnimatePresence>
 
       {children}
 
-      {/* OS Desktop Right-Click Context Menu */}
+      {/* OS Dashboard Right-Click Context Menu */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -144,26 +165,54 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
             exit={{ opacity: 0, scale: 0.92, y: -2 }}
             transition={{ duration: 0.12, ease: "easeOut" }}
             style={{ top: position.y, left: position.x }}
-            className="fixed z-[120] w-60 bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-2xl border border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-2xl p-1.5 shadow-2xl select-none space-y-1"
+            className="fixed z-[120] w-64 bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-2xl border border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-2xl p-1.5 shadow-2xl select-none space-y-1"
           >
             {/* Context Menu Header */}
             <div className="px-2.5 py-1.5 flex items-center justify-between border-b border-border/60 dark:border-white/10 text-[11px] font-mono text-muted-foreground">
               <span className="font-semibold text-foreground dark:text-white">Navo OS</span>
-              <span>Desktop Context</span>
+              <span>Dashboard Actions</span>
             </div>
 
-            {/* Actions List */}
+            {/* Core Navigation Actions */}
             <div className="space-y-0.5 pt-1">
               <button
                 type="button"
-                onClick={handleRefreshDesktop}
+                onClick={handleRefreshPage}
                 className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer text-left"
               >
                 <div className="flex items-center gap-2">
                   <RotateCcw className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Refresh Desktop</span>
+                  <span className="font-medium">Refresh Page</span>
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground">F5</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGoHome}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <Home className="w-3.5 h-3.5 text-blue-500" />
+                  <span className="font-medium">Go Home</span>
+                </div>
+                <span className="font-mono text-[10px] text-muted-foreground">⌘1</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyUrl}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <div className="flex items-center gap-2">
+                  {copied ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-500" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5 text-cyan-500" />
+                  )}
+                  <span className="font-medium">{copied ? "Copied!" : "Copy Current URL"}</span>
+                </div>
+                <span className="font-mono text-[10px] text-muted-foreground">⌘C</span>
               </button>
 
               <button
@@ -176,7 +225,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
               >
                 <div className="flex items-center gap-2">
                   <Search className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Spotlight Search</span>
+                  <span className="font-medium">Spotlight Search</span>
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground">⌘K</span>
               </button>
@@ -192,7 +241,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
                 >
                   <div className="flex items-center gap-2">
                     <Eye className="w-3.5 h-3.5" />
-                    <span>Restore Desktop Cards</span>
+                    <span>Restore Hidden Cards</span>
                   </div>
                   <span className="font-mono text-[10px] font-bold">{dismissed.length}</span>
                 </button>
@@ -201,10 +250,10 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
 
             <div className="h-px bg-border/60 dark:bg-white/10 my-1" />
 
-            {/* Quick Student Apps Launchers */}
+            {/* Quick Student App Jump Section */}
             <div className="space-y-0.5">
               <div className="px-2.5 py-0.5 text-[10px] font-mono uppercase text-muted-foreground">
-                Student Apps
+                Student Features
               </div>
 
               <button
@@ -216,7 +265,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer text-left"
               >
                 <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Courses (Modules)</span>
+                <span>Courses</span>
               </button>
 
               <button
@@ -270,7 +319,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
 
             <div className="h-px bg-border/60 dark:bg-white/10 my-1" />
 
-            {/* Display & System Mode */}
+            {/* Display & Preferences */}
             <div className="space-y-0.5">
               <button
                 type="button"

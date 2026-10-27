@@ -11,6 +11,7 @@ import { OSSystemBar } from "@/components/os/os-system-bar";
 import { OSDesktopView } from "@/components/os/os-desktop-view";
 import { OSDock } from "@/components/os/os-dock";
 import { OSSpotlight } from "@/components/os/os-spotlight";
+import { OSContextMenu } from "@/components/os/os-context-menu";
 import { OSWallpaper } from "@/components/os/os-wallpaper";
 import { useLanguage } from "@/lib/language-context";
 import { formatLocalizedDate } from "@/lib/date-utils";
@@ -301,37 +302,39 @@ export default function Home() {
 
   // Authenticated: Render Navo OS Desktop
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col bg-zinc-100 dark:bg-[#0c0d10] text-foreground overflow-x-hidden selection:bg-emerald-500/30">
-      <AuthModalsContainer />
+    <OSContextMenu navigate={handleNavigate} onOpenSpotlight={() => setIsSpotlightOpen(true)}>
+      <div className="min-h-[100dvh] w-full flex flex-col bg-zinc-100 dark:bg-[#0c0d10] text-foreground overflow-x-hidden selection:bg-emerald-500/30">
+        <AuthModalsContainer />
 
-      {/* OS Top Global Menu Bar */}
-      <OSSystemBar
-        activeView="home"
-        navigate={handleNavigate}
-        onOpenSpotlight={() => setIsSpotlightOpen(true)}
-      />
-
-      {/* Main OS Stage / Desktop */}
-      <main className="flex-1 w-full min-w-0 flex flex-col pt-9 pb-20 lg:pb-24 px-2 sm:px-4">
-        <OSDesktopView
+        {/* OS Top Global Menu Bar */}
+        <OSSystemBar
+          activeView="home"
           navigate={handleNavigate}
           onOpenSpotlight={() => setIsSpotlightOpen(true)}
         />
-      </main>
 
-      {/* Bottom Floating OS Dock */}
-      <OSDock
-        activeView="home"
-        navigate={handleNavigate}
-        onOpenSpotlight={() => setIsSpotlightOpen(true)}
-      />
+        {/* Main OS Stage / Desktop */}
+        <main className="flex-1 w-full min-w-0 flex flex-col pt-9 pb-20 lg:pb-24 px-2 sm:px-4">
+          <OSDesktopView
+            navigate={handleNavigate}
+            onOpenSpotlight={() => setIsSpotlightOpen(true)}
+          />
+        </main>
 
-      {/* Global Spotlight Search Overlay (⌘K) */}
-      <OSSpotlight
-        isOpen={isSpotlightOpen}
-        onClose={() => setIsSpotlightOpen(false)}
-        navigate={handleNavigate}
-      />
-    </div>
+        {/* Bottom Floating OS Dock */}
+        <OSDock
+          activeView="home"
+          navigate={handleNavigate}
+          onOpenSpotlight={() => setIsSpotlightOpen(true)}
+        />
+
+        {/* Global Spotlight Search Overlay (⌘K) */}
+        <OSSpotlight
+          isOpen={isSpotlightOpen}
+          onClose={() => setIsSpotlightOpen(false)}
+          navigate={handleNavigate}
+        />
+      </div>
+    </OSContextMenu>
   );
 }

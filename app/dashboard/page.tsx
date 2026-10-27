@@ -6,6 +6,7 @@ import { useHashRouter } from "@/hooks/use-hash-router";
 import { ViewTransition } from "@/components/spa-views/view-transition";
 import { OSDesktopView } from "@/components/os/os-desktop-view";
 import { OSWindow } from "@/components/os/os-window";
+import { OSContextMenu } from "@/components/os/os-context-menu";
 import {
   BookOpen,
   FileText,
@@ -332,8 +333,10 @@ export default function DashboardPage() {
   };
 
   return (
-    <ViewTransition viewKey={view}>
-      {renderView()}
-    </ViewTransition>
+    <OSContextMenu navigate={navigate} onOpenSpotlight={() => {}}>
+      <ViewTransition viewKey={view}>
+        {renderView()}
+      </ViewTransition>
+    </OSContextMenu>
   );
 }
