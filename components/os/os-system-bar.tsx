@@ -157,21 +157,21 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
       case "course":
       case "terminal":
       case "traffic-rules":
-        return t("courseStudio") || "Course Studio";
+        return t("courses") || t("courseStudioNav") || "Courses";
       case "exam":
       case "exams":
-        return t("examCenter") || "Exam Center";
+        return t("examCenter") || "Exams";
       case "driver-hub":
       case "services/drivers":
-        return t("driverHub") || "Driver Hub";
-      case "classmates":
-        return t("classmates") || "Classmates";
-      case "results":
-        return t("resultsAnalytics") || "Analytics";
-      case "settings":
-        return t("systemPreferences") || "System Preferences";
       case "services":
         return t("services") || "Services";
+      case "classmates":
+      case "chat":
+        return "Agora";
+      case "results":
+        return t("resultsAnalytics") || "Performance";
+      case "settings":
+        return t("systemPreferences") || "Preferences";
       default:
         return t("desktop") || "Navo OS";
     }

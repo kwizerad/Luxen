@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
+import { AgoraIcon } from "@/components/ui/agora-icon";
 
 export interface OSDockProps {
   activeView: string;
@@ -49,7 +50,7 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
     {
       id: "course",
       view: "course",
-      title: getLabel("courseStudio", "Course Studio"),
+      title: getLabel("courses", getLabel("courseStudioNav", "Courses")),
       icon: BookOpen,
       color: "from-emerald-500 to-teal-600",
     },
@@ -61,30 +62,30 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
       color: "from-amber-500 to-orange-600",
     },
     {
+      id: "agora",
+      view: "classmates",
+      title: "Agora",
+      icon: AgoraIcon,
+      color: "from-indigo-600 via-purple-600 to-cyan-600",
+    },
+    {
       id: "driver-hub",
       view: "driver-hub",
-      title: getLabel("driverHub", "Driving Hub"),
+      title: getLabel("services", getLabel("driverHub", "Services")),
       icon: Car,
       color: "from-purple-500 to-pink-600",
     },
     {
-      id: "classmates",
-      view: "classmates",
-      title: getLabel("classmates", "Classmates Network"),
-      icon: Users,
-      color: "from-cyan-500 to-blue-600",
-    },
-    {
       id: "results",
       view: "results",
-      title: getLabel("resultsAnalytics", "Performance & Analytics"),
+      title: getLabel("resultsAnalytics", "Performance"),
       icon: BarChart3,
       color: "from-rose-500 to-red-600",
     },
     {
       id: "settings",
       view: "settings",
-      title: getLabel("systemPreferences", "System Preferences"),
+      title: getLabel("systemPreferences", "Preferences"),
       icon: Settings,
       color: "from-zinc-500 to-zinc-700",
     },

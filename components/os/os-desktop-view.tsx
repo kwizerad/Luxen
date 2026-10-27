@@ -22,6 +22,8 @@ import { useLanguage } from "@/lib/language-context";
 import { getDashboardData, type ContinueLearningData, type DashboardStats } from "@/app/dashboard/actions/course";
 import { useDesktopWidgets } from "@/lib/desktop-widgets";
 import { OSWallpaper } from "./os-wallpaper";
+import { AgoraIcon } from "@/components/ui/agora-icon";
+import { OSContextMenu } from "./os-context-menu";
 
 interface OSDesktopViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -62,10 +64,11 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     return val && val !== key ? val : fallback;
   };
 
+  // Student Allowed Apps Only: Courses, Exams, Agora (Chat & Community), Services, Performance, Preferences
   const desktopIcons = [
     {
       id: "course",
-      title: getTitle("courseStudio", "Course Studio"),
+      title: getTitle("courses", getTitle("courseStudioNav", "Courses")),
       subtitle: "Modules & Curriculum",
       icon: BookOpen,
       action: () => navigate("course"),
@@ -74,11 +77,19 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     },
     {
       id: "exams",
-      title: getTitle("examCenter", "Exam Center"),
+      title: getTitle("examCenter", "Exams"),
       subtitle: "Official Practice Tests",
       icon: FileText,
       action: () => navigate("exams"),
       gradient: "from-amber-500 to-orange-700",
+    },
+    {
+      id: "agora",
+      title: "Agora",
+      subtitle: "Community & Peer Forum",
+      icon: AgoraIcon,
+      action: () => navigate("classmates"),
+      gradient: "from-indigo-600 via-purple-600 to-cyan-600",
     },
     {
       id: "signs",
@@ -90,19 +101,11 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     },
     {
       id: "driver-hub",
-      title: getTitle("driverHub", "Driving Hub"),
+      title: getTitle("services", getTitle("driverHub", "Services")),
       subtitle: "Instructors & Schools",
       icon: Car,
       action: () => navigate("driver-hub"),
       gradient: "from-purple-500 to-pink-700",
-    },
-    {
-      id: "classmates",
-      title: getTitle("classmates", "Classmates"),
-      subtitle: "Peer Study Groups",
-      icon: Users,
-      action: () => navigate("classmates"),
-      gradient: "from-cyan-500 to-blue-700",
     },
     {
       id: "results",
@@ -135,15 +138,16 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     showReadinessWidget || showDailyRuleWidget || showQuickStatsWidget;
 
   return (
-    <div className="relative min-h-[calc(100vh-3.5rem)] w-full p-4 sm:p-6 lg:p-8 flex flex-col justify-start select-none overflow-hidden">
-      {/* High-Aesthetic Luminous OS Wallpaper (dynamic light/dark adaptation) */}
-      <OSWallpaper />
+    <OSContextMenu navigate={navigate} onOpenSpotlight={onOpenSpotlight}>
+      <div className="relative min-h-[calc(100vh-3.5rem)] w-full p-4 sm:p-6 lg:p-8 flex flex-col justify-start select-none overflow-hidden">
+        {/* High-Aesthetic Luminous OS Wallpaper (dynamic light/dark adaptation) */}
+        <OSWallpaper />
 
-      <div
-        className={`grid grid-cols-1 ${
-          hasAnyRightWidget ? "lg:grid-cols-[1fr_380px]" : "max-w-5xl"
-        } gap-8 max-w-7xl mx-auto w-full items-start transition-all duration-300 pt-2 sm:pt-4`}
-      >
+        <div
+          className={`grid grid-cols-1 ${
+            hasAnyRightWidget ? "lg:grid-cols-[1fr_380px]" : "max-w-5xl"
+          } gap-8 max-w-7xl mx-auto w-full items-start transition-all duration-300 pt-2 sm:pt-4`}
+        >
         {/* Left: Desktop Applications Grid */}
         <div className="space-y-6">
           {/* Desktop App Icons Grid */}
@@ -416,5 +420,6 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
         )}
       </div>
     </div>
+  </OSContextMenu>
   );
 }

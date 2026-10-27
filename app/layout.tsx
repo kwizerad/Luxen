@@ -19,6 +19,7 @@ import { GlobalClickSpark } from "@/components/global-click-spark";
 import { BackgroundManager } from "@/components/background-manager";
 import { NetworkStatus } from "@/components/network-status";
 import { SystemWatermark } from "@/components/system-watermark";
+import { MetaDescriptionManager } from "@/components/meta-description-manager";
 import { getSystemName } from "@/lib/server-config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import "sonner/dist/styles.css";
@@ -222,6 +223,7 @@ export default function RootLayout({
               <BrandingConfigProvider>
                 <SystemWatermark />
                 <LanguageProvider>
+                  <MetaDescriptionManager />
                   <AuthProvider>
                     <GoogleAuthProvider>
                       <ServiceWorkerRegistration />
