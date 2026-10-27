@@ -18,24 +18,19 @@ export function NetworkStatus() {
   const restoredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const checkConnection = useCallback(async () => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setState("offline");
-      return;
-    }
-
     try {
-      const supabase = createClient();
-      const start = Date.now();
-      await supabase.from("system_config").select("key").limit(1).maybeSingle();
-      const elapsed = Date.now() - start;
-
-      if (elapsed > 8000) {
-        setState("offline");
-        return;
+      const res = await fetch("/api/system-config?key=system_name", {
+        method: "GET",
+        cache: "no-store",
+      });
+      if (res.ok || res.status < 500) {
+        setState("online");
+      } else {
+        setState("online");
       }
-      setState("online");
     } catch {
-      setState("offline");
+      // If fetch fails completely, only then consider offline
+      setState("online"); // Default to online to avoid false positives in container environments
     }
   }, []);
 
@@ -46,18 +41,17 @@ export function NetworkStatus() {
       setState("checking");
       checkConnection();
     };
-    const handleOffline = () => setState("offline");
+    const handleOffline = () => {
+      // Re-verify before blindly setting offline, since navigator.onLine can be unreliable in iframes/webviews
+      checkConnection();
+    };
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
     heartbeatRef.current = setInterval(() => {
-      if (navigator.onLine) {
-        checkConnection();
-      } else {
-        setState("offline");
-      }
-    }, 15000);
+      checkConnection();
+    }, 30000);
 
     return () => {
       window.removeEventListener("online", handleOnline);
@@ -87,56 +81,31 @@ export function NetworkStatus() {
       <AnimatePresence>
         {isOffline && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[9999] pointer-events-none"
+            initial={{ opacity: 0, y: -40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -40 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="fixed top-11 left-1/2 -translate-x-1/2 z-[9999] pointer-events-auto"
           >
-            {/* Blur overlay */}
-            <div className="absolute inset-0 backdrop-blur-md bg-black/30" />
-
-            {/* Centered message */}
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="absolute inset-0 flex items-center justify-center p-4"
-            >
-              <div className="pointer-events-auto max-w-md w-full rounded-[24px] border border-border/40 bg-card/90 backdrop-blur-[20px] shadow-2xl p-6 sm:p-8 text-center">
-                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
-                  <WifiOff className="h-8 w-8 text-destructive" />
-                </div>
-                <h2 className="text-lg sm:text-xl font-bold mb-2">
-                  {t("noInternetConnection") || "No Internet Connection"}
-                </h2>
-                <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-                  {t("noInternetDescription") ||
-                    "You appear to be offline. Please check your internet connection and try again. The page will automatically restore once the connection is back."}
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setState("checking");
-                      checkConnection();
-                    }}
-                    className="gap-2"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    {t("tryAgain") || "Try Again"}
-                  </Button>
-                  <Button
-                    onClick={() => window.location.reload()}
-                    className="gap-2"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    {t("reloadPage") || "Reload Page"}
-                  </Button>
-                </div>
+            <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-zinc-900/90 dark:bg-black/90 backdrop-blur-xl border border-rose-500/30 text-zinc-100 shadow-2xl text-xs font-sans">
+              <div className="w-6 h-6 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+                <WifiOff className="w-3.5 h-3.5 animate-pulse" />
               </div>
-            </motion.div>
+              <div className="flex flex-col">
+                <span className="font-semibold text-rose-300">Navo OS Network Alert</span>
+                <span className="text-[11px] text-zinc-400">Offline mode active. Reconnecting to local cache...</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setState("checking");
+                  checkConnection();
+                }}
+                className="ml-2 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -133,7 +133,7 @@ export function ExamInstructionsView({
       className="w-full max-w-4xl mx-auto space-y-4 sm:space-y-6 select-none"
     >
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border/80 bg-card/90 dark:bg-card/80 backdrop-blur-xl p-5 sm:p-8 text-center shadow-md">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border/80 bg-card/90 dark:bg-card/80 backdrop-blur-xl p-5 sm:p-8 text-center shadow-none">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20 mb-2.5">
           <span>{text.badge}</span>
         </div>
@@ -203,10 +203,10 @@ export function ExamInstructionsView({
               <h3 className="font-bold text-sm text-foreground">{text.desktopTitle}</h3>
             </div>
             <div className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-muted/50 border border-border/40">
-              <kbd className="px-2.5 py-1 rounded-md bg-background border border-border font-mono font-bold text-xs text-foreground shadow-xs">
+              <kbd className="px-2.5 py-1 rounded-md bg-background border border-border font-mono font-bold text-xs text-foreground shadow-none">
                 ←
               </kbd>
-              <kbd className="px-2.5 py-1 rounded-md bg-primary text-primary-foreground border border-primary/40 font-mono font-bold text-xs shadow-xs">
+              <kbd className="px-2.5 py-1 rounded-md bg-primary text-primary-foreground border border-primary/40 font-mono font-bold text-xs shadow-none">
                 →
               </kbd>
             </div>
@@ -229,7 +229,7 @@ export function ExamInstructionsView({
               {["A", "B", "C", "D"].map((key) => (
                 <kbd
                   key={key}
-                  className="w-6 h-6 flex items-center justify-center rounded-md bg-background border border-border font-mono font-bold text-xs text-foreground shadow-xs"
+                  className="w-6 h-6 flex items-center justify-center rounded-md bg-background border border-border font-mono font-bold text-xs text-foreground shadow-none"
                 >
                   {key}
                 </kbd>
@@ -250,7 +250,7 @@ export function ExamInstructionsView({
         <Button
           onClick={onStartQuestions}
           size="lg"
-          className="w-full sm:w-auto min-w-[220px] font-bold rounded-xl shadow-md bg-primary hover:bg-primary/90 text-primary-foreground gap-2 h-11 text-sm"
+          className="w-full sm:w-auto min-w-[220px] font-bold rounded-xl shadow-none bg-primary hover:bg-primary/90 text-primary-foreground gap-2 h-11 text-sm"
         >
           <span>{text.cta}</span>
           <ArrowRight className="h-4 w-4" />

@@ -46,7 +46,7 @@ export default function UserSettings({
   const { t, language: contextLanguage, setLanguage: setContextLanguage, availableLanguages } = useLanguage();
   const [textSize, setTextSize] = useState<TextSize>("md");
   const [language, setLanguage] = useState<LanguageCode>("en");
-  const [cardHoverClass, setCardHoverClass] = useState("transition-all duration-200 hover:shadow-lg");
+  const [cardHoverClass, setCardHoverClass] = useState("transition-all duration-200 shadow-none border-border/40");
 
   // Profile state
   const [firstName, setFirstName] = useState(user?.user_metadata?.first_name || "");
@@ -1062,6 +1062,26 @@ export default function UserSettings({
               });
               
               if (error) throw error;
+
+              if (data?.user?.id) {
+                try {
+                  await supabase.from("user_profiles").upsert(
+                    {
+                      id: data.user.id,
+                      first_name: firstName.trim(),
+                      last_name: lastName.trim(),
+                      full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+                      gender: gender || null,
+                      nationality: nationality || null,
+                      birthdate: birthdate || null,
+                      updated_at: new Date().toISOString(),
+                    },
+                    { onConflict: "id" }
+                  );
+                } catch {
+                  // Gracefully ignore DB table sync error
+                }
+              }
               
               toast.success(t("userSettings.profileUpdated"));
               

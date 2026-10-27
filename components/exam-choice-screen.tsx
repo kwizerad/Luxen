@@ -89,7 +89,7 @@ export function ExamChoiceScreen({
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") handleChoice("individual");
           }}
-          className="flex flex-col justify-between rounded-xl border border-border/90 dark:border-zinc-800 bg-card hover:bg-muted/30 dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900/90 p-3 sm:p-5 transition-all duration-200 cursor-pointer group select-none shadow-xs hover:shadow-md"
+          className="flex flex-col justify-between rounded-xl border border-border/90 dark:border-zinc-800 bg-card hover:bg-muted/30 dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900/90 p-3 sm:p-5 transition-all duration-200 cursor-pointer group select-none shadow-none"
         >
           <div className="space-y-2.5 sm:space-y-3">
             <div className="flex items-start justify-between gap-2">
@@ -130,7 +130,7 @@ export function ExamChoiceScreen({
           <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-border/60 dark:border-zinc-800/60">
             <Button
               type="button"
-              className="w-full h-8 sm:h-9 rounded-lg text-[11px] sm:text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs justify-between px-2.5 sm:px-3.5 transition-colors"
+              className="w-full h-8 sm:h-9 rounded-lg text-[11px] sm:text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-none justify-between px-2.5 sm:px-3.5 transition-colors"
             >
               <span className="truncate">{t("startIndividualExam") || "Start Exam"}</span>
               <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
@@ -147,7 +147,7 @@ export function ExamChoiceScreen({
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") handleChoice("group");
             }}
-            className="flex flex-col justify-between rounded-xl border border-border/90 dark:border-zinc-800 bg-card hover:bg-muted/30 dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900/90 p-3 sm:p-5 transition-all duration-200 cursor-pointer group select-none shadow-xs hover:shadow-md"
+            className="flex flex-col justify-between rounded-xl border border-border/90 dark:border-zinc-800 bg-card hover:bg-muted/30 dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900/90 p-3 sm:p-5 transition-all duration-200 cursor-pointer group select-none shadow-none"
           >
             <div className="space-y-2.5 sm:space-y-3">
               <div className="flex items-start justify-between gap-2">
@@ -189,7 +189,7 @@ export function ExamChoiceScreen({
             <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-border/60 dark:border-zinc-800/60">
               <Button
                 type="button"
-                className="w-full h-8 sm:h-9 rounded-lg text-[11px] sm:text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs justify-between px-2.5 sm:px-3.5 transition-colors"
+                className="w-full h-8 sm:h-9 rounded-lg text-[11px] sm:text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-none justify-between px-2.5 sm:px-3.5 transition-colors"
               >
                 <span className="truncate">{t("startGroupExam") || "Group Exam"}</span>
                 <Trophy className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 group-hover:scale-105 transition-transform" />

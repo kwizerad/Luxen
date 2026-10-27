@@ -180,7 +180,7 @@ export function ThemeCustomizer() {
     toast.success("Theme reset to default");
   };
 
-  const cardHoverClass = "hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300";
+  const cardHoverClass = "hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300 shadow-none";
 
   const colorPresets = ["#22C55E", "#3B82F6", "#EF4444", "#F59E0B", "#8B5CF6", "#EC4899", "#14B8A6", "#1F2937"];
 

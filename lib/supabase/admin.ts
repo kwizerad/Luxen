@@ -17,6 +17,8 @@ export function isSupabaseAdminConfigured(): boolean {
   return true;
 }
 
+import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_SERVICE_ROLE_KEY } from "@/lib/supabase/constants";
+
 export function createAdminClient() {
   if (typeof window !== "undefined") {
     throw new Error(
@@ -26,8 +28,8 @@ export function createAdminClient() {
     );
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder-service-role-key";
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || DEFAULT_SUPABASE_SERVICE_ROLE_KEY;
 
   return createClient(url, key, {
     auth: {

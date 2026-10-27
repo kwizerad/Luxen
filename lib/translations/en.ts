@@ -2897,6 +2897,7 @@ const en: Record<string, string> = {
   "yourRank": "Your Rank",
   "yourRecentActions": "Your recent actions and achievements",
   "yourScore": "Your Score",
+  "navoOsTrafficCodeKernel": "NAVO OS · RWANDA TRAFFIC CODE KERNEL",
 };
 
 export default en;

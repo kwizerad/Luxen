@@ -21,6 +21,11 @@ import {
   ArrowRight,
   AlertCircle,
   CheckCircle2,
+  ChevronLeft,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Sparkles,
 } from "lucide-react";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -32,6 +37,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 interface LoginFormProps extends React.ComponentPropsWithoutRef<"div"> {
   onSuccess?: () => void;
   onSwitchToSignUp?: () => void;
+  onBack?: () => void;
 }
 
 type LoginMode = "options" | "id_verification" | "password";
@@ -40,11 +46,13 @@ export function LoginForm({
   className,
   onSuccess,
   onSwitchToSignUp,
+  onBack,
   ...props
 }: LoginFormProps) {
-  const [loginMode, setLoginMode] = useState<LoginMode>("options");
+  const [loginMode, setLoginMode] = useState<LoginMode>("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // ID Verification Login State
@@ -56,7 +64,7 @@ export function LoginForm({
   const [idErrorCode, setIdErrorCode] = useState<string | null>(null);
 
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const verificationInputRef = useRef<HTMLInputElement>(null);
   const nidInputRef = useRef<HTMLInputElement>(null);
 
@@ -185,90 +193,58 @@ export function LoginForm({
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      toast.error(t("login.noInternetConnection"));
-      return;
-    }
-
-    const supabase = createClient();
     setIsLoading(true);
 
     try {
       const cleanInput = email.trim();
-      let targetEmail = cleanInput.toLowerCase();
 
-      const digitsOnly = cleanInput.replace(/\D/g, "");
-      if (digitsOnly.length === 16 && !cleanInput.includes("@")) {
-        targetEmail = `${digitsOnly}@nid.rw`;
-        try {
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("email")
-            .eq("national_id", digitsOnly)
-            .maybeSingle();
-          if (profile?.email) {
-            targetEmail = profile.email.toLowerCase();
-          }
-        } catch {
-          // fallback to synthetic
-        }
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: targetEmail,
-        password,
+      // Call server-side authentication route
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier: cleanInput,
+          password: password,
+        }),
       });
 
-      if (error) {
-        if (
-          error.message.toLowerCase().includes("failed to fetch") ||
-          error.message.toLowerCase().includes("network") ||
-          error.message.toLowerCase().includes("fetch")
-        ) {
-          toast.error(t("login.noInternetConnection"));
-          setIsLoading(false);
-          return;
+      const authRes = await res.json().catch(() => ({}));
+
+      if (!res.ok || authRes.status !== "success") {
+        toast.error(
+          authRes.message ||
+          t("login.invalidCredentials") ||
+          "Imeyili cyangwa ijambo ry'ibanga ntibihuye (Invalid email or password)."
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      // Sync browser client session if session is returned
+      const supabase = createClient();
+      if (authRes.session?.access_token && authRes.session?.refresh_token) {
+        try {
+          await supabase.auth.setSession({
+            access_token: authRes.session.access_token,
+            refresh_token: authRes.session.refresh_token,
+          });
+        } catch {
+          // If browser client lock occurs, server session cookie is already active
         }
-        if (error.message.includes("Invalid login credentials")) {
-          toast.error(t("login.invalidCredentials") || "Invalid login credentials. If you haven't set a password, use Continue with ID.");
-          setIsLoading(false);
-          return;
-        }
-        throw error;
       }
 
       if (onSuccess) onSuccess();
 
-      const resolvedEmail = targetEmail || data.user?.email || "";
-      const isStrictlyStudent = isStrictlyStudentEmail(resolvedEmail);
-      const isPrimary = !isStrictlyStudent && isPrimaryAdmin({ email: resolvedEmail });
-      let role = isStrictlyStudent ? "Student" : data.user?.user_metadata?.role;
-      if (!isPrimary && !isStrictlyStudent && data.user?.id) {
-        try {
-          const { data: dbProfile } = await supabase
-            .from("user_profiles")
-            .select("role")
-            .eq("id", data.user.id)
-            .maybeSingle();
-          if (dbProfile?.role) {
-            role = dbProfile.role;
-          }
-        } catch {
-          // ignore
-        }
-      }
-      const isAdminUser =
-        !isStrictlyStudent &&
-        (isPrimary || (typeof role === "string" && role.toLowerCase() === "admin"));
-
+      const isAdminUser = Boolean(authRes.isAdmin);
       setAdminSessionFlag(isAdminUser);
 
-      const destination = isAdminUser ? "/Admin" : "/dashboard";
+      const destination = authRes.destination || (isAdminUser ? "/Admin" : "/dashboard");
+      toast.success(authRes.message || (isRw ? "Murakaza neza!" : "Welcome back!"));
       router.prefetch(destination);
       router.push(destination);
     } catch (error: unknown) {
       console.error("Login error:", error);
-      if (error instanceof Error) {
+      if (error instanceof Error && error.message) {
         toast.error(error.message);
       } else {
         toast.error(t("errorSomethingWentWrong"));
@@ -278,372 +254,340 @@ export function LoginForm({
     }
   };
 
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
+
+  interface LoginLabels {
+    title: string;
+    emailOrId: string;
+    emailPlaceholder: string;
+    password: string;
+    forgot: string;
+    submit: string;
+    loading: string;
+    idTitle: string;
+    idPlaceholder: string;
+    continueBtn: string;
+    officialName: string;
+    dob: string;
+    back: string;
+    noAccount: string;
+    signUp: string;
+    usePassword: string;
+    useIdOnly: string;
+    or: string;
+  }
+
+  const labels: LoginLabels = {
+    title: isRw ? "Injira" : isFr ? "Connexion" : "Sign In",
+    emailOrId: isRw ? "Email / Indandamuntu" : isFr ? "Email / Indandamuntu" : "Email or Indandamuntu",
+    emailPlaceholder: isRw ? "Email cyangwa Indandamuntu" : isFr ? "Email ou ID" : "Email or ID",
+    password: isRw ? "Ijambo ry'ibanga" : isFr ? "Mot de passe" : "Password",
+    forgot: isRw ? "Wibagiwe ijambobanga" : isFr ? "Oublié ?" : "Forgot?",
+    submit: isRw ? "Injira" : isFr ? "Connexion" : "Sign In",
+    loading: isRw ? "Tegereza..." : isFr ? "Connexion..." : "Signing in...",
+    idTitle: isRw ? "Indandamuntu" : isFr ? "Carte d'identité" : "National ID",
+    idPlaceholder: "1 1998 8 0012345 6 78",
+    continueBtn: isRw ? "Komeza" : isFr ? "Continuer" : "Continue",
+    officialName: isRw ? "Izina" : isFr ? "Nom officiel" : "Official Name",
+    dob: isRw ? "Itariki y'amavuko" : isFr ? "Date de naissance" : "Date of Birth",
+    back: isRw ? "Subira inyuma" : isFr ? "Retour" : "Back",
+    noAccount: isRw ? "Nta konti?" : isFr ? "Pas de compte ?" : "No account?",
+    signUp: isRw ? "Iyandikishe" : isFr ? "S'inscrire" : "Sign up",
+    usePassword: isRw ? "Injira n'ijambo ry'ibanga" : isFr ? "Connexion par mot de passe" : "Sign in with password",
+    useIdOnly: isRw ? "Injira na Indandamuntu gusa" : isFr ? "Connexion par ID" : "Sign in with ID only",
+    or: isRw ? "cyangwa" : isFr ? "ou" : "or",
+  };
+
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <div className="flex flex-col gap-5">
-        {/* Header */}
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">{t("login")}</h2>
-          <p className="text-sm text-muted-foreground">
-            {loginMode === "id_verification"
-              ? (t("idVerificationHelp") || "Enter your National ID")
-              : (t("enterYourEmail") || "Log in to your account")}
-          </p>
+    <div className={cn("relative flex flex-col items-center max-w-[300px] mx-auto w-full gap-2 select-none bg-transparent shadow-none border-0", className)} {...props}>
+      {/* Top Bar with Back Action */}
+      <div className="w-full flex items-center justify-between min-h-[20px]">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-1 p-1 -ml-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-white/10"
+            aria-label="Back"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        ) : (
+          <div className="w-5" />
+        )}
+      </div>
+
+      {/* Header Avatar & Title */}
+      <div className="flex flex-col items-center text-center -mt-2 space-y-1">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white flex items-center justify-center font-bold text-sm shadow-none">
+          N
         </div>
+        <h2 className="text-base font-bold tracking-tight text-foreground dark:text-white">
+          {loginMode === "id_verification" ? (isRw ? "Indandamuntu" : "National ID") : labels.title}
+        </h2>
+      </div>
 
-        {/* ================= FAST AUTH BUTTONS: CONTINUE WITH ID & CONTINUE WITH GOOGLE ================= */}
-        {loginMode === "options" && (
-          <div className="space-y-3">
-            {/* 1. Continue with ID Button */}
-            <Button
-              type="button"
-              onClick={() => {
-                setLoginMode("id_verification");
-                setIdError(null);
-              }}
-              className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md flex items-center justify-center gap-2.5 transition-all text-sm sm:text-base"
-            >
-              <CreditCard className="h-5 w-5" />
-              <span>{t("continueWithId") || "Continue with ID"}</span>
-            </Button>
+      {/* MODE 1: Standard Password Login (Google on top, then Indandamuntu, then Username/Password) */}
+      {loginMode === "password" && (
+        <form onSubmit={handlePasswordLogin} className="w-full space-y-2 pt-0.5">
+          {/* 1. Google Button on Top */}
+          <Button
+            variant="outline"
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className="w-full h-9 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 hover:bg-white dark:bg-zinc-800/60 dark:hover:bg-zinc-800 font-medium text-xs flex items-center justify-center gap-2 shadow-none cursor-pointer"
+          >
+            <GoogleIcon className="h-4 w-4" />
+            <span>Google</span>
+          </Button>
 
-            {/* 2. Continue with Google Button */}
-            <Button
-              variant="outline"
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={isLoading}
-              className="w-full h-12 rounded-xl border border-border/80 hover:bg-muted/60 font-medium flex items-center justify-center gap-2.5 shadow-sm text-sm sm:text-base"
-            >
-              <GoogleIcon className="h-5 w-5" />
-              <span>{t("continueWithGoogle") || "Continue with Google"}</span>
-            </Button>
+          {/* 2. Indandamuntu Quick Action Button */}
+          <Button
+            type="button"
+            onClick={() => {
+              setLoginMode("id_verification");
+              setIdError(null);
+            }}
+            variant="outline"
+            className="w-full h-9 rounded-xl border border-emerald-500/20 bg-emerald-50/30 dark:bg-emerald-950/15 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/25 font-semibold text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-center gap-2 shadow-none cursor-pointer"
+          >
+            <CreditCard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>{isRw ? "Indandamuntu" : "National ID"}</span>
+          </Button>
 
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground font-medium">
-                  {t("orContinueWithEmail") || "Or with Email & Password"}
-                </span>
-              </div>
-            </div>
-
-            {/* Button to open standard password login */}
-            <Button
-              variant="ghost"
-              type="button"
-              onClick={() => setLoginMode("password")}
-              className="w-full h-11 rounded-xl text-muted-foreground hover:text-foreground font-medium text-sm"
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              <span>{t("emailOrNationalId") || "Email & Password Login"}</span>
-            </Button>
-          </div>
-        )}
-
-        {/* ================= MODE: ID VERIFICATION LOGIN (PASSWORDLESS) ================= */}
-        {loginMode === "id_verification" && (
-          <div className="space-y-4 animate-in fade-in">
-            {/* Top switcher / back button */}
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4" />
-                {t("continueWithId") || "Continue with ID"}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginMode("options");
-                  setIdStep("id_entry");
-                }}
-                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-              >
-                {t("otherOptions") || "Other options"}
-              </button>
-            </div>
-
-            {/* CARD 1: National ID Entry */}
-            {idStep === "id_entry" && (
-              <div className="space-y-4 p-4 rounded-2xl border bg-card shadow-sm animate-in fade-in">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="login-nid-input" className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
-                      <CreditCard className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      {t("nationalId") || "National ID"}
-                    </Label>
-                    <span
-                      className={cn(
-                        "text-xs font-mono px-2.5 py-0.5 rounded-full border transition-all",
-                        isIdComplete
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold"
-                          : "bg-muted text-muted-foreground border-transparent"
-                      )}
-                    >
-                      {cleanId.length} / 16 {t("digitsEntered") || "digits"}
-                    </span>
-                  </div>
-                  <Input
-                    ref={nidInputRef}
-                    id="login-nid-input"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={16}
-                    placeholder="1199880012345678"
-                    value={nationalId}
-                    onChange={handleIdChange}
-                    required
-                    autoFocus
-                    className={cn(
-                      "font-mono tracking-widest text-base sm:text-lg h-12 text-center rounded-xl transition-all shadow-sm",
-                      isIdComplete
-                        ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20 dark:bg-emerald-950/10"
-                        : "focus-visible:ring-primary"
-                    )}
-                    autoComplete="off"
-                  />
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-0.5">
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>{t("enterIdToStart") || "Enter your National ID to continue"}</span>
-                  </p>
-                </div>
-
-                {idError && (
-                  <div className="p-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
-                    <span>{idError}</span>
-                  </div>
-                )}
-
-                {isIdComplete && (
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      randomizeChallenge();
-                      setIdStep("verify");
-                    }}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md h-11 text-sm rounded-xl transition-all"
-                  >
-                    <span>{t("continue") || "Continue"}</span>
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {/* CARD 2: Verification Challenge (Name or DoB prompted randomly by the system) */}
-            {idStep === "verify" && (
-              <form onSubmit={handleIdVerificationLogin} className="space-y-4 p-4 rounded-2xl border border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm animate-in fade-in slide-in-from-right-2 duration-300">
-                {/* ID Badge with change button */}
-                <div className="flex items-center justify-between pb-1 border-b border-emerald-500/20">
-                  <div className="flex items-center gap-1.5">
-                    <CreditCard className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span className="font-mono text-xs font-bold text-foreground tracking-wider">{cleanId}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIdStep("id_entry");
-                      setIdError(null);
-                      setIdErrorCode(null);
-                      setVerificationValue("");
-                      randomizeChallenge();
-                    }}
-                    className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold hover:underline"
-                  >
-                    {t("changeId") || "Change ID"}
-                  </button>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                    <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    {challengeType === "name"
-                      ? t("systemPromptName") || "Enter one of your official names:"
-                      : t("systemPromptDob") || "Select your Date of Birth:"}
-                  </Label>
-                </div>
-
-                {/* System Prompted Input based on random challenge */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="login-verify-value" className="text-xs font-semibold">
-                    {challengeType === "name"
-                      ? t("systemAskNameLabel") || "Official Name"
-                      : t("systemAskDobLabel") || "Date of Birth"}
-                  </Label>
-
-                  {challengeType === "dob" ? (
-                    <div className="relative flex items-center">
-                      <Input
-                        ref={verificationInputRef}
-                        id="login-verify-value"
-                        type="date"
-                        max={new Date().toISOString().split("T")[0]}
-                        min="1920-01-01"
-                        value={verificationValue}
-                        onChange={(e) => {
-                          setVerificationValue(e.target.value);
-                          if (idError) setIdError(null);
-                        }}
-                        required
-                        className={cn(
-                          "bg-background h-11 text-sm font-medium pr-10",
-                          idErrorCode === "verification_mismatch" && "border-red-500 focus-visible:ring-red-500"
-                        )}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const el = verificationInputRef.current as HTMLInputElement | null;
-                          if (el) {
-                            if (typeof (el as any).showPicker === "function") {
-                              (el as any).showPicker();
-                            } else {
-                              el.focus();
-                            }
-                          }
-                        }}
-                        className="absolute right-3 text-muted-foreground hover:text-foreground transition-colors p-1"
-                        aria-label="Open Calendar"
-                      >
-                        <Calendar className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      </button>
-                    </div>
-                  ) : (
-                    <Input
-                      ref={verificationInputRef}
-                      id="login-verify-value"
-                      type="text"
-                      placeholder={t("systemAskNamePlaceholder") || "e.g. Jean"}
-                      value={verificationValue}
-                      onChange={(e) => {
-                        setVerificationValue(e.target.value);
-                        if (idError) setIdError(null);
-                      }}
-                      required
-                      className={cn(
-                        "bg-background h-11 text-sm font-medium",
-                        idErrorCode === "verification_mismatch" && "border-red-500 focus-visible:ring-red-500"
-                      )}
-                      autoComplete="off"
-                    />
-                  )}
-                </div>
-
-                {/* Error Banner */}
-                {idError && (
-                  <div className="p-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs space-y-1.5 animate-in fade-in">
-                    <div className="flex items-start gap-2 font-medium">
-                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
-                      <span>{idError}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Submit button */}
-                <Button
-                  type="submit"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md h-11 text-sm rounded-xl transition-all"
-                  disabled={isLoading || !verificationValue.trim()}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t("verifyingAndLoggingIn") || "Logging in..."}
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                      <span>{t("verifyAndEnterDashboard") || "Continue"}</span>
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-              </form>
-            )}
-          </div>
-        )}
-
-        {/* ================= MODE: EMAIL / ID + PASSWORD LOGIN ================= */}
-        {loginMode === "password" && (
-          <form onSubmit={handlePasswordLogin} className="space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">
-                {t("emailOrNationalId") || "Standard Password Login"}
-              </span>
-              <button
-                type="button"
-                onClick={() => setLoginMode("options")}
-                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-              >
-                {t("otherOptions") || "Other options"}
-              </button>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="login-identifier" className="text-xs font-semibold">
-                {t("emailOrNationalId") || "Email or National ID"}
-              </Label>
+          {/* 3. Username / Email & Password */}
+          <div className="space-y-1">
+            <div className="relative flex items-center">
+              <User className="w-3.5 h-3.5 text-muted-foreground absolute left-3 pointer-events-none" />
               <Input
                 id="login-identifier"
                 type="text"
-                placeholder={t("emailOrNationalIdPlaceholder") || "1199... or email@example.com"}
+                placeholder={labels.emailPlaceholder}
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="username"
-                className="h-10"
+                className="pl-9 h-9 rounded-xl bg-slate-50/50 dark:bg-zinc-800/40 border border-slate-200/60 dark:border-white/10 focus-visible:ring-emerald-500/30 text-xs shadow-none"
               />
             </div>
+          </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-xs font-semibold">{t("password")}</Label>
-                <button
-                  type="button"
-                  onClick={() => router.push("/auth/forgot-password")}
-                  className="text-xs text-muted-foreground hover:underline"
-                >
-                  {t("forgotPassword")}
-                </button>
-              </div>
+          <div className="space-y-1">
+            <div className="relative flex items-center">
+              <Lock className="w-3.5 h-3.5 text-muted-foreground absolute left-3 pointer-events-none" />
               <Input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
-                className="h-10"
+                placeholder={labels.password}
+                className="pl-9 pr-9 h-9 rounded-xl bg-slate-50/50 dark:bg-zinc-800/40 border border-slate-200/60 dark:border-white/10 focus-visible:ring-emerald-500/30 text-xs shadow-none"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                tabIndex={-1}
+                aria-label="Toggle password"
+              >
+                {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
             </div>
+            <div className="flex justify-end pt-0.5">
+              <button
+                type="button"
+                onClick={() => router.push("/auth/forgot-password")}
+                className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer font-medium"
+              >
+                {labels.forgot}
+              </button>
+            </div>
+          </div>
 
-            <Button type="submit" className="w-full h-11 rounded-xl font-semibold shadow-sm" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("loggingIn") || "Logging in..."}
-                </>
-              ) : (
-                t("login") || "Log In"
-              )}
-            </Button>
-          </form>
-        )}
-
-        {/* Footer switch to sign up */}
-        <div className="text-center text-sm pt-1 text-muted-foreground">
-          {t("dontHaveAccount") || "Don't have an account?"}{" "}
-          <button
-            type="button"
-            onClick={onSwitchToSignUp}
-            className="underline underline-offset-4 text-foreground font-semibold hover:text-primary transition-colors"
+          {/* Primary Action Button */}
+          <Button
+            type="submit"
+            className="w-full h-9 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-none transition-all"
+            disabled={isLoading}
           >
-            {t("signUp") || "Sign up"}
-          </button>
+            {isLoading ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>{labels.loading}</span>
+              </>
+            ) : (
+              <>
+                <span>{labels.submit}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </>
+            )}
+          </Button>
+        </form>
+      )}
+
+
+
+      {/* MODE 2: ID Only Verification Login */}
+      {loginMode === "id_verification" && (
+        <div className="space-y-3 pt-1">
+          {idStep === "id_entry" && (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="login-nid-input" className="text-xs font-semibold text-foreground">
+                    {labels.idTitle}
+                  </Label>
+                  <span className="text-[11px] font-mono text-muted-foreground">
+                    {cleanId.length}/16
+                  </span>
+                </div>
+                <Input
+                  ref={nidInputRef}
+                  id="login-nid-input"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={16}
+                  placeholder={labels.idPlaceholder}
+                  value={nationalId}
+                  onChange={handleIdChange}
+                  required
+                  autoFocus
+                  className={cn(
+                    "font-mono tracking-widest text-center h-10 rounded-xl shadow-none text-sm",
+                    isIdComplete && "border-emerald-500 ring-2 ring-emerald-500/20"
+                  )}
+                  autoComplete="off"
+                />
+              </div>
+
+              {idError && (
+                <p className="text-xs text-red-500">{idError}</p>
+              )}
+
+              {isIdComplete && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    randomizeChallenge();
+                    setIdStep("verify");
+                  }}
+                  className="w-full h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-none flex items-center justify-center gap-1.5"
+                >
+                  <span>{labels.continueBtn}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              )}
+
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginMode("password");
+                    setIdError(null);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
+                >
+                  {labels.usePassword || labels.password}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {idStep === "verify" && (
+            <form onSubmit={handleIdVerificationLogin} className="space-y-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground pb-1">
+                <span className="font-mono font-medium">{cleanId}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdStep("id_entry");
+                    setIdError(null);
+                    setVerificationValue("");
+                  }}
+                  className="text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                >
+                  {labels.back}
+                </button>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="login-verify-value" className="text-xs font-semibold text-foreground">
+                  {challengeType === "name" ? labels.officialName : labels.dob}
+                </Label>
+
+                {challengeType === "dob" ? (
+                  <Input
+                    ref={verificationInputRef}
+                    id="login-verify-value"
+                    type="date"
+                    max={new Date().toISOString().split("T")[0]}
+                    min="1920-01-01"
+                    value={verificationValue}
+                    onChange={(e) => {
+                      setVerificationValue(e.target.value);
+                      if (idError) setIdError(null);
+                    }}
+                    required
+                    className="h-10 rounded-xl bg-slate-50/80 dark:bg-zinc-800/50 shadow-none text-sm"
+                  />
+                ) : (
+                  <Input
+                    ref={verificationInputRef}
+                    id="login-verify-value"
+                    type="text"
+                    placeholder={labels.officialName}
+                    value={verificationValue}
+                    onChange={(e) => {
+                      setVerificationValue(e.target.value);
+                      if (idError) setIdError(null);
+                    }}
+                    required
+                    className="h-10 rounded-xl bg-slate-50/80 dark:bg-zinc-800/50 shadow-none text-sm"
+                    autoComplete="off"
+                  />
+                )}
+              </div>
+
+              {idError && (
+                <p className="text-xs text-red-500">{idError}</p>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-none flex items-center justify-center gap-1.5"
+                disabled={isLoading || !verificationValue.trim()}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>{labels.loading}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{labels.continueBtn}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+          )}
         </div>
+      )}
+
+      {/* Footer Switch to Sign Up */}
+      <div className="pt-2 text-center text-xs text-muted-foreground border-t border-slate-200/60 dark:border-white/10">
+        <span>{labels.noAccount} </span>
+        <button
+          type="button"
+          onClick={onSwitchToSignUp}
+          className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+        >
+          {labels.signUp}
+        </button>
       </div>
     </div>
   );

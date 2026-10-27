@@ -55,7 +55,7 @@ const getDefaultSystemName = (): string => {
 const LANGUAGE_STORAGE_KEY = "navo-language";
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("English");
+  const [language, setLanguageState] = useState<Language>("Kinyarwanda");
   const [systemName, setSystemName] = useState<string>("Navo");
   const [mounted, setMounted] = useState(false);
   const [availableLanguages, setAvailableLanguages] = useState(ALL_LANGUAGES.map(l => ({ value: l.value, label: l.label, flag: l.flag })));
@@ -120,7 +120,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (savedLanguage) {
       applyLanguage(savedLanguage);
     } else {
-      applyLanguage("English");
+      applyLanguage("Kinyarwanda");
     }
 
     setSystemName(getDefaultSystemName());

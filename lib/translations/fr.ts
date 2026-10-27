@@ -2897,6 +2897,7 @@ const fr: Record<string, string> = {
   "yourRank": "Votre classement",
   "yourRecentActions": "Vos actions et réalisations récentes",
   "yourScore": "Votre score",
+  "navoOsTrafficCodeKernel": "NAVO OS · CODE DE LA ROUTE RWANDAIS",
 };
 
 export default fr;

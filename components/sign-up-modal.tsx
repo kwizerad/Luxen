@@ -20,9 +20,9 @@ export function SignUpModal({ size = "sm" }: SignUpModalProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size={size} variant="outline">Sign Up</Button>
+        <Button size={size} variant="outline" className="shadow-none">Sign Up</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-zinc-900/95 border-white/15 text-white backdrop-blur-2xl rounded-3xl p-6 shadow-none select-none">
         <DialogTitle className="sr-only">Sign Up</DialogTitle>
         <SignUpForm onSuccess={() => setOpen(false)} />
       </DialogContent>

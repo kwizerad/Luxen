@@ -236,7 +236,7 @@ export function GroupExamResults({ challengeId, examResult, questions, onReset, 
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="mb-6 relative overflow-hidden rounded-2xl border-2 border-amber-400/60 bg-linear-to-r from-amber-500/15 via-yellow-500/10 to-orange-500/15 p-4 sm:p-6 shadow-md"
+            className="mb-6 relative overflow-hidden rounded-2xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-orange-500/15 p-4 sm:p-6 shadow-none"
           >
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4 text-center sm:text-left flex-col sm:flex-row">

@@ -10,17 +10,17 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/35",
+          "bg-primary text-primary-foreground shadow-none hover:bg-primary/90",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-lg shadow-destructive/25 hover:bg-destructive/90 hover:shadow-xl hover:shadow-destructive/35",
+          "bg-destructive text-destructive-foreground shadow-none hover:bg-destructive/90",
         outline:
-          "border border-input bg-background/50 backdrop-blur-sm hover:bg-accent hover:text-accent-foreground hover:border-ring/50",
+          "border border-input bg-background/50 backdrop-blur-sm hover:bg-accent hover:text-accent-foreground hover:border-ring/50 shadow-none",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 hover:shadow-md",
-        ghost: "hover:bg-accent/80 hover:text-accent-foreground",
-        link: "text-primary-readable underline-offset-4 hover:underline",
+          "bg-secondary text-secondary-foreground shadow-none hover:bg-secondary/80",
+        ghost: "hover:bg-accent/80 hover:text-accent-foreground shadow-none",
+        link: "text-primary-readable underline-offset-4 hover:underline shadow-none",
         glass:
-          "glass-card text-foreground hover:-translate-y-0.5",
+          "glass-card text-foreground hover:-translate-y-0.5 shadow-none",
       },
       size: {
         default: "h-10 px-5 py-2",

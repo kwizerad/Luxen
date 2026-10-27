@@ -12,25 +12,34 @@ import { useActivityTracker } from "@/hooks/use-activity-tracker";
 import { useLoginRecorder } from "@/hooks/use-login-recorder";
 import { GlobalGroupExamInvite } from "@/components/global-group-exam-invite";
 
+import { OSSystemBar } from "@/components/os/os-system-bar";
+import { OSDock } from "@/components/os/os-dock";
+import { OSSpotlight } from "@/components/os/os-spotlight";
+import { OSWallpaper } from "@/components/os/os-wallpaper";
+import { useHashRouter } from "@/hooks/use-hash-router";
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
   const { isRTL } = useLanguage();
   const { config } = useBrandingConfig();
+  const { view: activeView, navigate } = useHashRouter();
+
   const [isExamActive, setIsExamActive] = useState(false);
   const [isChatActive, setIsChatActive] = useState(false);
   const [isFullBleedView, setIsFullBleedView] = useState(false);
+  const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
 
   // Check if current route is a full-bleed chat/classmates view
   useEffect(() => {
     const syncFullBleed = () => {
       if (typeof window === "undefined") return;
       const rawHash = window.location.hash.replace(/^#/, "").split("?")[0];
-      const activeView = rawHash || "home";
+      const active = rawHash || "home";
       setIsFullBleedView(
         pathname === "/dashboard" &&
-          (activeView === "classmates" || activeView === "chat/conversation")
+          (active === "classmates" || active === "chat/conversation")
       );
     };
     syncFullBleed();
@@ -84,41 +93,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useActivityTracker();
   useLoginRecorder();
 
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!user) {
-      router.replace("/");
-      return;
-    }
-  }, [authLoading, user, router]);
-
-  if (authLoading) {
-    return <DashboardLayoutSkeleton />;
-  }
-
-  if (!user) {
-    return <DashboardLayoutSkeleton />;
-  }
-
-  // Only hide header and dock nav during an active exam (in session)
+  // Allow guest and student preview access without redirecting to old landing page
   const isExamInProgress = isExamActive;
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col bg-transparent overflow-x-hidden" dir={isRTL ? "rtl" : "ltr"}>
-      <GlobalGroupExamInvite />
-      <FloatingHeader />
+    <div
+      className="relative min-h-[100dvh] w-full flex flex-col bg-slate-50/50 dark:bg-[#08090c] text-foreground overflow-x-hidden selection:bg-emerald-500/30"
+      dir={isRTL ? "rtl" : "ltr"}
+    >
+      {/* High-aesthetic OS Desktop Wallpaper */}
+      <OSWallpaper />
 
-      {/* Main Content */}
+      <GlobalGroupExamInvite />
+
+      {/* OS Top Global Menu Bar */}
+      {!isExamInProgress && (
+        <OSSystemBar
+          activeView={activeView}
+          navigate={navigate}
+          onOpenSpotlight={() => setIsSpotlightOpen(true)}
+        />
+      )}
+
+      {/* Main OS Stage / Desktop */}
       <main
-        className={`flex-1 w-full min-w-0 ${
+        className={`flex-1 w-full min-w-0 flex flex-col ${
           isExamInProgress || isFullBleedView
             ? "pt-0 pb-0"
-            : "pt-16 sm:pt-20 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-8"
+            : "pt-9 pb-20 lg:pb-24 px-2 sm:px-4"
         }`}
       >
         {children}
       </main>
+
+      {/* Bottom Floating OS Dock */}
+      {!isExamInProgress && !isChatActive && (
+        <OSDock
+          activeView={activeView}
+          navigate={navigate}
+          onOpenSpotlight={() => setIsSpotlightOpen(true)}
+        />
+      )}
+
+      {/* Global Spotlight Search Overlay (⌘K) */}
+      <OSSpotlight
+        isOpen={isSpotlightOpen}
+        onClose={() => setIsSpotlightOpen(false)}
+        navigate={navigate}
+      />
     </div>
   );
 }

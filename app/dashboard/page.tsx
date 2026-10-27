@@ -4,7 +4,18 @@ import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useHashRouter } from "@/hooks/use-hash-router";
 import { ViewTransition } from "@/components/spa-views/view-transition";
-import { HomeView } from "@/components/spa-views/home-view";
+import { OSDesktopView } from "@/components/os/os-desktop-view";
+import { OSWindow } from "@/components/os/os-window";
+import {
+  BookOpen,
+  FileText,
+  Compass,
+  Car,
+  Users,
+  BarChart3,
+  Settings,
+  Trophy,
+} from "lucide-react";
 
 const ExamView = dynamic(() => import("@/components/spa-views/exam-view").then((m) => m.ExamView));
 const CourseView = dynamic(() => import("@/components/spa-views/course-view").then((m) => m.CourseView));
@@ -59,54 +70,264 @@ export default function DashboardPage() {
   const renderView = () => {
     switch (view) {
       case "home":
-        return <HomeView navigate={navigate} />;
+        return <OSDesktopView navigate={navigate} onOpenSpotlight={() => {}} />;
+
       case "exam":
       case "exams":
-        return <ExamView navigate={navigate} params={params} />;
+        return (
+          <OSWindow
+            title="Exam Center"
+            subtitle="Official Timed Practice & Quizzes"
+            icon={FileText}
+            onClose={() => navigate("home")}
+          >
+            <ExamView navigate={navigate} params={params} />
+          </OSWindow>
+        );
+
       case "course":
-        return <CourseView navigate={navigate} params={params} />;
+        return (
+          <OSWindow
+            title="Course Studio"
+            subtitle="Rwanda Highway Code Curriculum"
+            icon={BookOpen}
+            onClose={() => navigate("home")}
+          >
+            <CourseView navigate={navigate} params={params} />
+          </OSWindow>
+        );
+
       case "services":
-        return <ServicesView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Driving Services"
+            subtitle="Hub Directory & Testing"
+            icon={Compass}
+            onClose={() => navigate("home")}
+          >
+            <ServicesView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "services/live-exam":
-        return <LiveExamView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Live Exam Simulator"
+            subtitle="Real-time Proctoring"
+            icon={FileText}
+            onClose={() => navigate("home")}
+          >
+            <LiveExamView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "services/group-exam":
-        return <GroupExamView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Group Exam Session"
+            subtitle="Multiplayer Challenge"
+            icon={Users}
+            onClose={() => navigate("home")}
+          >
+            <GroupExamView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "driver-hub":
-        return <DriverHubView navigate={navigate} />;
       case "services/drivers":
-        return <DriversListView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Driving Hub"
+            subtitle="Instructors & Certified Schools"
+            icon={Car}
+            onClose={() => navigate("home")}
+          >
+            <DriverHubView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "services/driver-detail":
-        return <DriverDetailView navigate={navigate} params={params} />;
+        return (
+          <OSWindow
+            title="Instructor Dossier"
+            subtitle="Profile & Booking"
+            icon={Car}
+            onClose={() => navigate("driver-hub")}
+          >
+            <DriverDetailView navigate={navigate} params={params} />
+          </OSWindow>
+        );
+
       case "services/request-code":
-        return <RequestCodeView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Request Exam Code"
+            subtitle="Access Voucher"
+            icon={FileText}
+            onClose={() => navigate("exams")}
+          >
+            <RequestCodeView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "results":
-        return <ExamHistoryView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Performance Analytics"
+            subtitle="Exam Transcripts & Progress Logs"
+            icon={Trophy}
+            onClose={() => navigate("home")}
+          >
+            <ExamHistoryView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "driver-panel":
-        return <DriverPanelView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Instructor Panel"
+            subtitle="Dashboard & Students"
+            icon={Car}
+            onClose={() => navigate("home")}
+          >
+            <DriverPanelView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "driver-panel/plans":
-        return <DriverPlansView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Training Packages"
+            subtitle="Instructor Plans"
+            icon={Car}
+            onClose={() => navigate("driver-panel")}
+          >
+            <DriverPlansView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "driver-panel/applications":
-        return <DriverApplicationsView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Student Applications"
+            subtitle="Incoming Requests"
+            icon={Car}
+            onClose={() => navigate("driver-panel")}
+          >
+            <DriverApplicationsView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "driver-panel/bookings":
-        return <DriverBookingsView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Lesson Bookings"
+            subtitle="Schedule & Calendar"
+            icon={Car}
+            onClose={() => navigate("driver-panel")}
+          >
+            <DriverBookingsView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "driver-panel/training-log":
-        return <TrainingLogView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Training Log"
+            subtitle="Driving Hours & Milestones"
+            icon={Car}
+            onClose={() => navigate("driver-panel")}
+          >
+            <TrainingLogView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "my-training":
-        return <StudentTrainingView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="My Training Record"
+            subtitle="Driving School Lessons"
+            icon={Car}
+            onClose={() => navigate("home")}
+          >
+            <StudentTrainingView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "my-reports":
-        return <MyReportsView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="My Reports"
+            subtitle="Weekly Activity Reports"
+            icon={BarChart3}
+            onClose={() => navigate("home")}
+          >
+            <MyReportsView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "chat":
-        return <ChatListView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Messages"
+            subtitle="Direct & Group Chats"
+            icon={Users}
+            onClose={() => navigate("home")}
+          >
+            <ChatListView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "chat/conversation":
-        return <ChatConversationView navigate={navigate} params={params} />;
+        return (
+          <OSWindow
+            title="Active Chat Conversation"
+            subtitle="Peer Discussion"
+            icon={Users}
+            onClose={() => navigate("chat")}
+          >
+            <ChatConversationView navigate={navigate} params={params} />
+          </OSWindow>
+        );
+
       case "classmates":
-        return <ClassmatesView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="Classmates Network"
+            subtitle="Study Circles & Leaderboards"
+            icon={Users}
+            onClose={() => navigate("home")}
+          >
+            <ClassmatesView navigate={navigate} />
+          </OSWindow>
+        );
+
       case "classmates/group-results":
-        return <GroupExamResultsView navigate={navigate} params={params} />;
+        return (
+          <OSWindow
+            title="Group Exam Results"
+            subtitle="Podium & Standings"
+            icon={Trophy}
+            onClose={() => navigate("classmates")}
+          >
+            <GroupExamResultsView navigate={navigate} params={params} />
+          </OSWindow>
+        );
+
       case "settings":
-        return <SettingsView navigate={navigate} />;
+        return (
+          <OSWindow
+            title="System Preferences"
+            subtitle="Display, Language & Privacy"
+            icon={Settings}
+            onClose={() => navigate("home")}
+          >
+            <SettingsView navigate={navigate} />
+          </OSWindow>
+        );
+
       default:
-        return <HomeView navigate={navigate} />;
+        return <OSDesktopView navigate={navigate} onOpenSpotlight={() => {}} />;
     }
   };
 

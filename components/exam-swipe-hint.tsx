@@ -82,10 +82,10 @@ export function ExamSwipeHint({ onDismiss, forceShow = false }: ExamSwipeHintPro
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -15, scale: 0.95 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
-          className="relative z-30 mb-4 overflow-hidden rounded-2xl border border-primary/25 bg-linear-to-r from-primary/10 via-background to-primary/10 p-3.5 sm:p-4 shadow-lg backdrop-blur-md"
+          className="relative z-30 mb-4 overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/10 via-background to-primary/10 p-3.5 sm:p-4 shadow-none backdrop-blur-md"
         >
           {/* Subtle animated background beam */}
-          <div className="absolute inset-0 bg-linear-to-r from-transparent via-primary/5 to-transparent pointer-events-none animate-pulse" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent pointer-events-none animate-pulse" />
 
           <div className="relative flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
             {/* Gesture Animation Graphic */}

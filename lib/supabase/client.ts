@@ -160,16 +160,18 @@ export function isSupabaseConfigured(): boolean {
   return true;
 }
 
+import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from "@/lib/supabase/constants";
+
 export function createClient() {
   if (clientInstance) {
     return clientInstance;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
   const supabaseKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    "placeholder-key";
+    DEFAULT_SUPABASE_ANON_KEY;
   clientInstance = createBrowserClient(supabaseUrl, supabaseKey, {
     auth: {
       storage: typeof window !== "undefined" ? customStorage : undefined,

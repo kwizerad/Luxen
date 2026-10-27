@@ -35,6 +35,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 interface SignUpFormProps extends React.ComponentPropsWithoutRef<"div"> {
   onSuccess?: () => void;
   onSwitchToLogin?: () => void;
+  onBack?: () => void;
 }
 
 type SignUpMethod = "national_id" | "email";
@@ -44,6 +45,7 @@ export function SignUpForm({
   className,
   onSuccess,
   onSwitchToLogin,
+  onBack,
   ...props
 }: SignUpFormProps) {
   const [method, setMethod] = useState<SignUpMethod>("national_id");
@@ -319,13 +321,24 @@ export function SignUpForm({
     <div className={cn("flex flex-col gap-5", className)} {...props}>
       <div className="flex flex-col gap-4">
         {/* Header */}
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">{t("signUp")}</h2>
-          <p className="text-sm text-muted-foreground">
-            {method === "national_id"
-              ? (t("enterNationalId") || "Enter your National ID")
-              : t("createAccount")}
-          </p>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight">{t("signUp")}</h2>
+            <p className="text-sm text-muted-foreground">
+              {method === "national_id"
+                ? (t("enterNationalId") || "Enter your National ID")
+                : t("createAccount")}
+            </p>
+          </div>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              Back
+            </button>
+          )}
         </div>
 
         {/* Visible Method Switcher Tabs */}
@@ -339,7 +352,7 @@ export function SignUpForm({
             className={cn(
               "flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 transition-all duration-200",
               method === "national_id"
-                ? "bg-background text-foreground shadow-sm font-semibold border border-border/50 text-emerald-700 dark:text-emerald-400"
+                ? "bg-background text-foreground shadow-none font-semibold border border-border/50 text-emerald-700 dark:text-emerald-400"
                 : "text-muted-foreground hover:text-foreground hover:bg-background/40"
             )}
           >
@@ -355,7 +368,7 @@ export function SignUpForm({
             className={cn(
               "flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 transition-all duration-200",
               method === "email"
-                ? "bg-background text-foreground shadow-sm font-semibold border border-border/50 text-blue-700 dark:text-blue-400"
+                ? "bg-background text-foreground shadow-none font-semibold border border-border/50 text-blue-700 dark:text-blue-400"
                 : "text-muted-foreground hover:text-foreground hover:bg-background/40"
             )}
           >
@@ -369,7 +382,7 @@ export function SignUpForm({
           <div className="space-y-4">
             {/* CARD 1: National ID Entry */}
             {idStep === "id_entry" && (
-              <div className="space-y-4 p-4 rounded-2xl border bg-card shadow-sm animate-in fade-in">
+              <div className="space-y-4 p-4 rounded-2xl border bg-card shadow-none animate-in fade-in">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="nid-input" className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
@@ -393,23 +406,20 @@ export function SignUpForm({
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={16}
-                    placeholder="1199880012345678"
+                    placeholder="1 1998 8 0012345 6 78"
                     value={nationalId}
                     onChange={handleIdChange}
                     required
                     autoFocus
                     className={cn(
-                      "font-mono tracking-widest text-base sm:text-lg h-12 text-center rounded-xl transition-all shadow-sm",
+                      "font-mono tracking-widest text-base sm:text-lg h-12 text-center rounded-xl transition-all shadow-none",
                       isIdComplete
                         ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20 dark:bg-emerald-950/10"
                         : "focus-visible:ring-primary"
                     )}
                     autoComplete="off"
                   />
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-0.5">
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>{t("enterIdToStart") || "Enter your National ID to continue"}</span>
-                  </p>
+                  
                 </div>
 
                 {idError && (
@@ -426,7 +436,7 @@ export function SignUpForm({
                       randomizeChallenge();
                       setIdStep("verify");
                     }}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md h-11 text-sm rounded-xl transition-all"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-none h-11 text-sm rounded-xl transition-all"
                   >
                     <span>{t("continue") || "Continue"}</span>
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -437,7 +447,7 @@ export function SignUpForm({
 
             {/* CARD 2: Verification Challenge (Name or DoB prompted randomly by the system) */}
             {idStep === "verify" && (
-              <form onSubmit={handleVerifyIdentity} className="space-y-4 p-4 rounded-2xl border border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm animate-in fade-in slide-in-from-right-2 duration-300">
+              <form onSubmit={handleVerifyIdentity} className="space-y-4 p-4 rounded-2xl border border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-none animate-in fade-in slide-in-from-right-2 duration-300">
                 {/* ID Badge with change button */}
                 <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20">
                   <div className="flex items-center gap-1.5">
@@ -547,7 +557,7 @@ export function SignUpForm({
                 {/* Verify Identity Button */}
                 <Button
                   type="submit"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md h-11 text-sm rounded-xl transition-all"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-none h-11 text-sm rounded-xl transition-all"
                   disabled={isVerifyingId || !verificationValue.trim()}
                 >
                   {isVerifyingId ? (
@@ -568,7 +578,7 @@ export function SignUpForm({
 
             {/* CARD 3: Direct Password Setup after ID Verification */}
             {idStep === "password" && (
-              <form onSubmit={handleCompleteIdRegistration} className="space-y-4 p-4 rounded-2xl border border-emerald-500/40 bg-card shadow-sm animate-in fade-in slide-in-from-right-2 duration-300">
+              <form onSubmit={handleCompleteIdRegistration} className="space-y-4 p-4 rounded-2xl border border-emerald-500/40 bg-card shadow-none animate-in fade-in slide-in-from-right-2 duration-300">
                 {/* Verified Identity Badge */}
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 dark:text-emerald-200 text-xs space-y-1">
                   <div className="flex items-center justify-between">
@@ -690,7 +700,7 @@ export function SignUpForm({
                 {/* Submit / Finish Registration Button */}
                 <Button
                   type="submit"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md h-11 text-sm rounded-xl transition-all"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-none h-11 text-sm rounded-xl transition-all"
                   disabled={isLoading || !idPassword || !idConfirmPassword}
                 >
                   {isLoading ? (
@@ -719,7 +729,7 @@ export function SignUpForm({
               type="button"
               onClick={() => handleSocialSignUp("google")}
               disabled={isLoading}
-              className="w-full h-11 rounded-xl font-medium"
+              className="w-full h-11 rounded-xl font-medium shadow-none"
             >
               <GoogleIcon className="mr-2 h-4 w-4" />
               {t("continueWithGoogle") || "Continue with Google"}
@@ -793,7 +803,7 @@ export function SignUpForm({
 
             <Button
               type="submit"
-              className="w-full h-11 rounded-xl font-semibold shadow-sm"
+              className="w-full h-11 rounded-xl font-semibold shadow-none"
               disabled={isLoading}
             >
               {isLoading ? (

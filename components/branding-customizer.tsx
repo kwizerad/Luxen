@@ -70,7 +70,7 @@ export function BrandingCustomizer() {
     toast.success("Branding reset to default");
   };
 
-  const cardHoverClass = "hover:shadow-[0_0_var(--glow-intensity)_hsl(var(--primary)/0.3)] hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300";
+  const cardHoverClass = "hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300 shadow-none";
 
   return (
     <div className="space-y-4">

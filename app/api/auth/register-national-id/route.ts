@@ -372,6 +372,7 @@ export async function POST(request: NextRequest) {
         await adminClient.auth.admin.updateUserById(userId, {
           password: finalPassword,
           user_metadata: cleanMetadata,
+          email_confirm: true,
         });
       if (updateAuthError) {
         console.error("Auth user update error:", updateAuthError);

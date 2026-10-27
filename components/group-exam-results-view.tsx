@@ -374,7 +374,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.5, type: "spring" }}
-            className="mb-6 relative overflow-hidden rounded-2xl border-2 border-amber-400/60 bg-linear-to-r from-amber-500/15 via-yellow-500/10 to-orange-500/15 p-4 sm:p-6 shadow-md"
+            className="mb-6 relative overflow-hidden rounded-2xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-orange-500/15 p-4 sm:p-6 shadow-none"
           >
             {/* Ambient shimmer */}
             <div className="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-amber-400/20 blur-2xl pointer-events-none" />

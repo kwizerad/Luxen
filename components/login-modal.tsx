@@ -20,9 +20,9 @@ export function LoginModal({ size = "sm" }: LoginModalProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size={size}>Sign In</Button>
+        <Button size={size} className="shadow-none">Sign In</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-zinc-900/95 border-white/15 text-white backdrop-blur-2xl rounded-3xl p-6 shadow-none select-none">
         <DialogTitle className="sr-only">Sign In</DialogTitle>
         <LoginForm onSuccess={() => setOpen(false)} />
       </DialogContent>
