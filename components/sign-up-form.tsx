@@ -322,7 +322,7 @@ export function SignUpForm({
         </div>
 
         {/* Visible Method Switcher Tabs */}
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted/70 p-1.5 border text-sm font-medium shadow-inner">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted/50 p-1 text-xs sm:text-sm font-medium">
           <button
             type="button"
             onClick={() => {
@@ -330,10 +330,10 @@ export function SignUpForm({
               setIdError(null);
             }}
             className={cn(
-              "flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 transition-all duration-200",
+              "flex items-center justify-center gap-2 rounded-lg py-2 px-3 transition-all duration-200 cursor-pointer",
               method === "national_id"
-                ? "bg-background text-foreground shadow-none font-semibold border border-border/50 text-emerald-700 dark:text-emerald-400"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                ? "bg-background text-foreground shadow-2xs font-semibold text-emerald-600 dark:text-emerald-400"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             <CreditCard className="h-4 w-4" />
@@ -346,10 +346,10 @@ export function SignUpForm({
               setEmailError(null);
             }}
             className={cn(
-              "flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 transition-all duration-200",
+              "flex items-center justify-center gap-2 rounded-lg py-2 px-3 transition-all duration-200 cursor-pointer",
               method === "email"
-                ? "bg-background text-foreground shadow-none font-semibold border border-border/50 text-blue-700 dark:text-blue-400"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                ? "bg-background text-foreground shadow-2xs font-semibold text-blue-600 dark:text-blue-400"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             <Mail className="h-4 w-4" />
@@ -360,9 +360,9 @@ export function SignUpForm({
         {/* ================= METHOD 1: NATIONAL ID ================= */}
         {method === "national_id" && (
           <div className="space-y-4">
-            {/* CARD 1: National ID Entry */}
+            {/* National ID Entry */}
             {idStep === "id_entry" && (
-              <div className="space-y-4 p-4 rounded-2xl border bg-card shadow-none animate-in fade-in">
+              <div className="space-y-4 pt-1 animate-in fade-in">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="nid-input" className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
@@ -425,9 +425,9 @@ export function SignUpForm({
               </div>
             )}
 
-            {/* CARD 2: Verification Challenge (Name or DoB prompted randomly by the system) */}
+            {/* Verification Challenge */}
             {idStep === "verify" && (
-              <form onSubmit={handleVerifyIdentity} className="space-y-4 p-4 rounded-2xl border border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-none animate-in fade-in slide-in-from-right-2 duration-300">
+              <form onSubmit={handleVerifyIdentity} className="space-y-4 pt-1 animate-in fade-in slide-in-from-right-2 duration-300">
                 {/* ID Badge with change button */}
                 <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20">
                   <div className="flex items-center gap-1.5">
@@ -556,9 +556,9 @@ export function SignUpForm({
               </form>
             )}
 
-            {/* CARD 3: Direct Password Setup after ID Verification */}
+            {/* Password Setup after ID Verification */}
             {idStep === "password" && (
-              <form onSubmit={handleCompleteIdRegistration} className="space-y-4 p-4 rounded-2xl border border-emerald-500/40 bg-card shadow-none animate-in fade-in slide-in-from-right-2 duration-300">
+              <form onSubmit={handleCompleteIdRegistration} className="space-y-4 pt-1 animate-in fade-in slide-in-from-right-2 duration-300">
                 {/* Verified Identity Badge */}
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 dark:text-emerald-200 text-xs space-y-1">
                   <div className="flex items-center justify-between">

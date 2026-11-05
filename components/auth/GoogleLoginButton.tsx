@@ -1,307 +1,240 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { useTheme } from "next-themes";
+import { toast } from "sonner";
+import { useLanguage } from "@/lib/language-context";
 import {
   loadGoogleIdentityScript,
-  waitForGisInitialized,
   GOOGLE_CLIENT_ID,
 } from "@/lib/auth/google";
 
-type GoogleButtonTheme = "outline" | "filled_blue" | "filled_black";
-type GoogleButtonSize = "large" | "medium" | "small";
-type GoogleButtonText = "signin_with" | "signup_with" | "continue_with";
-type GoogleButtonShape = "rectangular" | "pill" | "circle" | "square";
-
 interface GoogleLoginButtonProps {
   /**
-   * Theme override of the rendered Google button.
-   * If omitted, automatically reacts to the current Navo OS theme (dark: "filled_black", light: "outline").
-   */
-  theme?: GoogleButtonTheme;
-  /**
-   * Size of the rendered Google button.
-   * @default "large"
-   */
-  size?: GoogleButtonSize;
-  /**
-   * Text shown inside the button.
+   * Text style variant.
    * @default "continue_with"
    */
-  text?: GoogleButtonText;
+  text?: "signin_with" | "signup_with" | "continue_with";
   /**
-   * Shape of the rendered button.
-   * @default "rectangular"
+   * Optional button size.
    */
-  shape?: GoogleButtonShape;
+  size?: "large" | "medium" | "small";
   /**
-   * Width of the button in CSS units or pixels.
-   * @default "100%"
+   * Optional button shape.
+   */
+  shape?: "rectangular" | "pill" | "circle" | "square";
+  /**
+   * Optional theme override.
+   */
+  theme?: "outline" | "filled_blue" | "filled_black";
+  /**
+   * Optional width string/number.
    */
   width?: string | number;
   /**
-   * Optional click handler for analytics or telemetry. GIS still handles authentication.
+   * Optional click handler for analytics/events.
    */
   onClick?: () => void;
   /**
-   * Optional locale override (e.g. "en", "fr").
-   */
-  locale?: string;
-  /**
-   * Additional CSS classes for the wrapping element.
+   * Additional CSS classes.
    */
   className?: string;
+  /**
+   * Custom label string override.
+   */
+  label?: string;
 }
 
 /**
- * Renders the official Google Sign-In button tailored for Navo OS.
+ * Official Google 'G' multicolored logo SVG.
+ */
+export function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Custom Google Sign-In button component for Navo OS.
  *
- * Enhancements:
- * 1. Automatically reacts to light/dark theme switches in real-time ("filled_black" for dark, "outline" for light).
- * 2. Stabilizes the button width so it stays full-width (300px+) even when an active Google account
- *    is detected ("Continue as [Name]") without shrinking or decreasing width.
- * 3. Navo OS glassmorphism wrapper with emerald accent hover borders and smooth rounded corners.
- * 4. In-tab authentication with direct Google ID token verification into Supabase.
+ * Guarantees:
+ * 1. Never displays "Continue as [Name]" or user email/avatar inside the form.
+ * 2. Renders as a single un-nested button (no cover inside cover).
+ * 3. Triggers Google Identity Services authentication seamlessly on click.
  */
 export function GoogleLoginButton({
-  theme: themeOverride,
-  size = "large",
   text = "continue_with",
-  shape = "rectangular",
-  width = "100%",
   onClick,
-  locale,
   className = "",
+  label: customLabel,
 }: GoogleLoginButtonProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [containerWidth, setContainerWidth] = useState<number>(300);
+  const { language } = useLanguage();
+  const [isLoading, setIsLoading] = useState(false);
+  const hiddenGisRef = useRef<HTMLDivElement>(null);
 
-  // Detect theme from next-themes and fallback to document element
-  const { theme: currentTheme, resolvedTheme } = useTheme();
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    if (typeof document !== "undefined") {
-      return document.documentElement.classList.contains("dark");
-    }
-    return resolvedTheme === "dark" || currentTheme === "dark";
-  });
+  const isRw = language === "rw" || language === "Kinyarwanda";
+  const isFr = language === "fr" || language === "French";
 
-  // Keep dark mode state in sync with DOM changes
+  let defaultText = "Continue with Google";
+  if (text === "signup_with") {
+    defaultText = isRw ? "Iyandikishe na Google" : isFr ? "S'inscrire avec Google" : "Sign up with Google";
+  } else if (text === "signin_with") {
+    defaultText = isRw ? "Injira na Google" : isFr ? "Se connecter avec Google" : "Sign in with Google";
+  } else {
+    defaultText = isRw ? "Komeza na Google" : isFr ? "Continuer avec Google" : "Continue with Google";
+  }
+
+  const buttonText = customLabel || defaultText;
+
+  // Mount hidden GIS button as offscreen trigger target
   useEffect(() => {
-    const updateDarkMode = () => {
-      const darkActive =
-        document.documentElement.classList.contains("dark") ||
-        resolvedTheme === "dark" ||
-        currentTheme === "dark";
-      setIsDark(darkActive);
-    };
-
-    updateDarkMode();
-
-    // Observe class attribute changes on <html>
-    const observer = new MutationObserver(() => {
-      updateDarkMode();
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-
-    return () => observer.disconnect();
-  }, [resolvedTheme, currentTheme]);
-
-  // Determine effective Google GIS button theme
-  const effectiveTheme: GoogleButtonTheme =
-    themeOverride ?? (isDark ? "filled_black" : "outline");
-
-  // Measure container width and clamp to Google's accepted range (200 - 400)
-  const measureWidth = useCallback(() => {
-    if (!wrapperRef.current) return 300;
-    const parent = wrapperRef.current.parentElement || wrapperRef.current;
-    const measured = parent.clientWidth || 300;
-    // GIS requires an integer between 200 and 400
-    const clamped = Math.min(400, Math.max(200, Math.floor(measured)));
-    setContainerWidth(clamped);
-    return clamped;
-  }, []);
-
-  useEffect(() => {
-    measureWidth();
-
-    if (typeof window !== "undefined" && window.ResizeObserver && wrapperRef.current) {
-      const resizeObserver = new ResizeObserver(() => {
-        measureWidth();
-      });
-      resizeObserver.observe(wrapperRef.current);
-      if (wrapperRef.current.parentElement) {
-        resizeObserver.observe(wrapperRef.current.parentElement);
-      }
-      return () => resizeObserver.disconnect();
-    }
-  }, [measureWidth]);
-
-  // Render Google Identity Services button
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) {
-      setError("Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID");
-      setIsLoading(false);
-      return;
-    }
+    if (!GOOGLE_CLIENT_ID || typeof window === "undefined") return;
 
     let cancelled = false;
 
-    const render = async () => {
+    const setupHiddenGis = async () => {
       try {
         await loadGoogleIdentityScript();
-        if (cancelled || !containerRef.current) return;
+        if (cancelled || !hiddenGisRef.current) return;
 
-        // Ensure GIS is initialized
-        let isInit = false;
-        const initPromise = waitForGisInitialized().then(() => {
-          isInit = true;
-        });
-        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 800));
-        await Promise.race([initPromise, timeoutPromise]);
+        const rawNonce = crypto.randomUUID();
+        const nonceBytes = new TextEncoder().encode(rawNonce);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", nonceBytes);
+        const hashedNonce = Array.from(new Uint8Array(hashBuffer))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
 
-        if (cancelled || !containerRef.current) return;
-
-        if (!isInit && window.google?.accounts?.id) {
-          const rawNonce = crypto.randomUUID();
-          const nonceBytes = new TextEncoder().encode(rawNonce);
-          const hashBuffer = await crypto.subtle.digest("SHA-256", nonceBytes);
-          const hashedNonce = Array.from(new Uint8Array(hashBuffer))
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("");
-
-          window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: (response: { credential?: string }) => {
-              if (response?.credential) {
-                import("@/lib/auth/supabaseGoogle").then(
-                  ({ signInWithGoogleToken, syncGoogleUserProfile }) => {
-                    signInWithGoogleToken(response.credential!, rawNonce).then(
-                      ({ user, error: signInError }) => {
-                        if (signInError) {
-                          console.error("[GoogleLoginButton] ID token exchange error:", signInError);
-                          return;
-                        }
-                        if (user) {
-                          syncGoogleUserProfile(user).then(({ redirectPath }) => {
-                            window.location.href = redirectPath;
-                          });
-                        }
-                      }
-                    );
-                  }
-                );
+        window.google?.accounts?.id?.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: async (response: { credential?: string }) => {
+            if (response?.credential) {
+              setIsLoading(true);
+              const { signInWithGoogleToken, syncGoogleUserProfile } = await import(
+                "@/lib/auth/supabaseGoogle"
+              );
+              const { user, error } = await signInWithGoogleToken(
+                response.credential,
+                rawNonce
+              );
+              if (error) {
+                toast.error(error.message || "Google Authentication failed");
+                setIsLoading(false);
+                return;
               }
-            },
-            auto_select: false,
-            cancel_on_tap_outside: false,
-            context: "signin",
-            ux_mode: "popup",
-            nonce: hashedNonce,
-            use_fedcm_for_prompt: false,
-            itp_support: true,
+              if (user) {
+                const { redirectPath } = await syncGoogleUserProfile(user);
+                window.location.href = redirectPath;
+              }
+            } else {
+              setIsLoading(false);
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true,
+          context: "signin",
+          ux_mode: "popup",
+          nonce: hashedNonce,
+          use_fedcm_for_prompt: false,
+          itp_support: true,
+        });
+
+        if (hiddenGisRef.current) {
+          hiddenGisRef.current.innerHTML = "";
+          window.google?.accounts?.id?.renderButton(hiddenGisRef.current, {
+            theme: "outline",
+            size: "large",
+            type: "standard",
+            text: text,
           });
         }
-
-        if (cancelled || !containerRef.current) return;
-
-        // Clear previous render to prevent duplicate buttons on theme switch
-        containerRef.current.innerHTML = "";
-
-        // Determine numerical width for Google GIS API
-        const targetNumericWidth =
-          typeof width === "number"
-            ? Math.min(400, Math.max(200, Math.floor(width)))
-            : containerWidth;
-
-        window.google!.accounts.id.renderButton(containerRef.current, {
-          theme: effectiveTheme,
-          size,
-          text,
-          shape,
-          width: targetNumericWidth,
-          locale,
-          click_listener: onClick,
-        });
-
-        setIsLoading(false);
-      } catch (err: unknown) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Failed to render Google button"
-          );
-          setIsLoading(false);
-        }
+      } catch {
+        // Ignore fallback init errors
       }
     };
 
-    render();
+    setupHiddenGis();
 
     return () => {
       cancelled = true;
     };
-  }, [
-    effectiveTheme,
-    size,
-    text,
-    shape,
-    width,
-    containerWidth,
-    locale,
-    onClick,
-  ]);
+  }, [text]);
 
-  if (error) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive text-center w-full"
-      >
-        {error}
-      </motion.div>
-    );
-  }
+  const handleClick = async () => {
+    onClick?.();
+    setIsLoading(true);
+
+    try {
+      // 1. Attempt to click GIS button rendered in offscreen target
+      if (hiddenGisRef.current) {
+        const gisIframeOrBtn = hiddenGisRef.current.querySelector(
+          'div[role="button"], iframe'
+        ) as HTMLElement | null;
+        if (gisIframeOrBtn) {
+          gisIframeOrBtn.click();
+          setTimeout(() => setIsLoading(false), 2000);
+          return;
+        }
+      }
+
+      // 2. Direct GIS prompt fallback
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.prompt((notification) => {
+          setIsLoading(false);
+          if (
+            notification.isNotDisplayed?.() ||
+            notification.isSkippedMoment?.()
+          ) {
+            toast.error("Please allow popups to sign in with Google.");
+          }
+        });
+      } else {
+        setIsLoading(false);
+      }
+    } catch {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div
-      ref={wrapperRef}
-      className={`navo-google-btn-wrapper relative w-full flex items-center justify-center transition-all duration-200 ${className}`}
-    >
-      {/* Outer Navo OS frame styling that adapts cleanly to light and dark theme */}
+    <>
+      {/* Off-screen hidden GIS target to capture official Google OAuth tokens */}
       <div
-        className={`relative w-full min-h-[40px] rounded-xl overflow-hidden flex items-center justify-center transition-all duration-200 border shadow-xs ${
-          isDark
-            ? "bg-[#131314] border-zinc-800/80 hover:border-emerald-500/40 hover:shadow-emerald-500/10"
-            : "bg-white border-slate-200/90 hover:border-emerald-500/40 hover:shadow-emerald-500/10"
-        }`}
-      >
-        {isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 flex items-center justify-center bg-card/60 backdrop-blur-xs z-10"
-          >
-            <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
-          </motion.div>
-        )}
+        ref={hiddenGisRef}
+        aria-hidden="true"
+        className="fixed -top-[9999px] -left-[9999px] opacity-0 pointer-events-none w-0 h-0 overflow-hidden"
+      />
 
-        {/* GIS rendered container with full-width enforcement */}
-        <div
-          ref={containerRef}
-          aria-label="Sign in with Google"
-          className="navo-google-btn-container w-full min-h-[40px] flex items-center justify-center [&_iframe]:!w-full [&_iframe]:!min-w-full [&_iframe]:!rounded-xl"
-        />
-      </div>
-    </div>
+      {/* Pristine, custom Navo OS Google Button (No user avatar, no "Continue as Kwizera", no cover-in-cover!) */}
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isLoading}
+        className={`w-full h-10 sm:h-11 rounded-xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-zinc-800/90 hover:bg-slate-50 dark:hover:bg-zinc-800 text-foreground dark:text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-2xs hover:border-emerald-500/40 active:scale-[0.99] ${className}`}
+      >
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+        ) : (
+          <GoogleIcon className="w-4 h-4 shrink-0" />
+        )}
+        <span>{buttonText}</span>
+      </button>
+    </>
   );
 }
