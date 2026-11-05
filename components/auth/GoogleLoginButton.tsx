@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import { createClient } from "@/lib/supabase/client";
+import { useGoogleAuth } from "@/hooks/useGoogleAuth";
+import { GOOGLE_CLIENT_ID, loadGoogleIdentityScript } from "@/lib/auth/google";
 
 interface GoogleLoginButtonProps {
   /**
@@ -71,10 +73,10 @@ export function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
 /**
  * Custom Google Sign-In button component for Navo OS.
  *
- * Features:
- * 1. Never displays "Continue as [Name]" or user email/avatar inside the form.
- * 2. Un-nested, clean button design without double borders or cover-inside-cover.
- * 3. Guaranteed reliable Google sign-in trigger on every click without spinning hangs.
+ * Direct Google Identity Services (GIS) authentication:
+ * 1. Authenticates directly on the Navo page tab using Google ID tokens (`signInWithIdToken`).
+ * 2. Eliminates redirects through third-party Supabase domains (`mdjvgffzfdxjjnfrrnor.supabase.co`).
+ * 3. Never displays "Continue as [Name]" inside the button or card covers.
  */
 export function GoogleLoginButton({
   text = "continue_with",
@@ -84,6 +86,9 @@ export function GoogleLoginButton({
 }: GoogleLoginButtonProps) {
   const { language } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
+  const { signInWithGoogle, isLoading: isAuthLoading } = useGoogleAuth();
+  const hiddenGisRef = useRef<HTMLDivElement | null>(null);
+  const rawNonceRef = useRef<string>("");
 
   const isRw = language === "rw" || language === "Kinyarwanda";
   const isFr = language === "fr" || language === "French";
@@ -99,10 +104,65 @@ export function GoogleLoginButton({
 
   const buttonText = customLabel || defaultText;
 
-  const handleClick = async () => {
-    onClick?.();
-    setIsLoading(true);
+  // Mount hidden GIS button if GOOGLE_CLIENT_ID exists
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || typeof window === "undefined") return;
 
+    let cancelled = false;
+
+    const setupGis = async () => {
+      try {
+        await loadGoogleIdentityScript();
+        if (cancelled || !window.google?.accounts?.id || !hiddenGisRef.current) return;
+
+        const rawNonce = crypto.randomUUID();
+        rawNonceRef.current = rawNonce;
+
+        const nonceBytes = new TextEncoder().encode(rawNonce);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", nonceBytes);
+        const hashedNonce = Array.from(new Uint8Array(hashBuffer))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: async (response: { credential?: string }) => {
+            if (response?.credential) {
+              setIsLoading(true);
+              await signInWithGoogle(response.credential, rawNonceRef.current);
+              setIsLoading(false);
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: false,
+          context: "signin",
+          ux_mode: "popup",
+          nonce: hashedNonce,
+          use_fedcm_for_prompt: false,
+          itp_support: true,
+        });
+
+        // Render hidden official GIS button into hidden ref for direct popup trigger
+        window.google.accounts.id.renderButton(hiddenGisRef.current, {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+          width: 250,
+        });
+      } catch {
+        // Ignore initialization errors
+      }
+    };
+
+    void setupGis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [signInWithGoogle]);
+
+  const fallbackToSupabaseOAuth = async () => {
     try {
       const supabase = createClient();
       const redirectTo = `${window.location.origin}/auth/callback`;
@@ -123,6 +183,58 @@ export function GoogleLoginButton({
         setIsLoading(false);
       }
     } catch (err) {
+      console.error("[GoogleLoginButton] OAuth exception:", err);
+      toast.error(err instanceof Error ? err.message : "Google sign in failed");
+      setIsLoading(false);
+    }
+  };
+
+  const handleClick = async () => {
+    onClick?.();
+    setIsLoading(true);
+
+    try {
+      // 1. Try Google Identity Services (GIS) direct popup / in-page prompt first (No redirect to supabase.co!)
+      if (GOOGLE_CLIENT_ID && typeof window !== "undefined" && window.google?.accounts?.id) {
+        // Clear Google's client suppression cookie so prompt always displays
+        try {
+          document.cookie = "g_state=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        } catch {}
+
+        // Try triggering GIS prompt directly
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isDisplayed?.()) {
+            setIsLoading(false);
+            return;
+          }
+
+          // If prompt was skipped or not displayed, try clicking the hidden rendered GIS iframe button
+          if (
+            (notification.isNotDisplayed?.() || notification.isSkippedMoment?.() || notification.isDismissedMoment?.()) &&
+            hiddenGisRef.current
+          ) {
+            const gisIframeButton = hiddenGisRef.current.querySelector<HTMLElement>("div[role='button'], iframe, button");
+            if (gisIframeButton) {
+              gisIframeButton.click();
+              setIsLoading(false);
+              return;
+            }
+          }
+
+          // Fallback to Supabase OAuth if GIS is completely blocked
+          void fallbackToSupabaseOAuth();
+        });
+
+        // Safety timeout to reset loading spinner if user dismisses without callback
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 4000);
+        return;
+      }
+
+      // 2. Fallback to Supabase OAuth if GIS is unavailable
+      await fallbackToSupabaseOAuth();
+    } catch (err) {
       console.error("[GoogleLoginButton] Login exception:", err);
       toast.error(err instanceof Error ? err.message : "Google sign in failed");
       setIsLoading(false);
@@ -130,18 +242,27 @@ export function GoogleLoginButton({
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={isLoading}
-      className={`w-full h-10 sm:h-11 rounded-xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-zinc-800/90 hover:bg-slate-50 dark:hover:bg-zinc-800 text-foreground dark:text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-2xs hover:border-emerald-500/40 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed ${className}`}
-    >
-      {isLoading ? (
-        <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
-      ) : (
-        <GoogleIcon className="w-4 h-4 shrink-0" />
-      )}
-      <span>{buttonText}</span>
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isLoading || isAuthLoading}
+        className={`w-full h-10 sm:h-11 rounded-xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-zinc-800/90 hover:bg-slate-50 dark:hover:bg-zinc-800 text-foreground dark:text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-2xs hover:border-emerald-500/40 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed ${className}`}
+      >
+        {isLoading || isAuthLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+        ) : (
+          <GoogleIcon className="w-4 h-4 shrink-0" />
+        )}
+        <span>{buttonText}</span>
+      </button>
+
+      {/* Hidden rendered Google GIS button for direct popup click without domain redirect */}
+      <div
+        ref={hiddenGisRef}
+        aria-hidden="true"
+        className="hidden pointer-events-none opacity-0 w-0 h-0 overflow-hidden absolute -top-[9999px] -left-[9999px]"
+      />
+    </>
   );
 }
