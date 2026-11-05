@@ -658,7 +658,7 @@ export function ThemeCustomizer() {
                       <div className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
                       <div className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
                     </div>
-                    <span className="truncate opacity-90 text-[9px] font-mono">Navo Platform — navo.rw</span>
+                    <span className="truncate opacity-90 text-[9px] font-mono">Navo Platform — Navo</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground leading-tight">
                     Controls macOS Safari tab headers, browser window tinting, and desktop app headers.

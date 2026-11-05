@@ -70,7 +70,7 @@ export async function generateMetadata(): Promise<Metadata> {
       "Pass your Rwanda driving theory exam. Study official traffic regulations (Amategeko y'Umuhanda), practice real mock exams, road signs, and audio lessons in Kinyarwanda, English, and French.",
     keywords: [
       "navo",
-      "navo.rw",
+      "Navo",
       "amategeko y'umuhanda",
       "ibizamini by'uruhushya rw'agateganyo",
       "ibizamini bya polisi",

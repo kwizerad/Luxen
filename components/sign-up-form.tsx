@@ -66,6 +66,7 @@ export function SignUpForm({
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [emailPassword, setEmailPassword] = useState("");
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
   const [gender, setGender] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
 
@@ -705,12 +706,10 @@ export function SignUpForm({
           <form onSubmit={handleEmailSignUp} className="space-y-4">
             <div className="w-full">
               <GoogleLoginButton
-                theme="outline"
                 size="large"
                 text="signup_with"
                 shape="rectangular"
-                width="100%"
-                className="w-full flex justify-center [&_iframe]:!rounded-xl"
+                className="w-full"
               />
             </div>
 
@@ -760,17 +759,28 @@ export function SignUpForm({
               <Label htmlFor="email-password-input" className="text-xs font-semibold">
                 {t("password") || "Password"}
               </Label>
-              <Input
-                id="email-password-input"
-                type="password"
-                placeholder="••••••••"
-                value={emailPassword}
-                onChange={(e) => setEmailPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                minLength={6}
-                className="h-10"
-              />
+              <div className="relative flex items-center">
+                <Input
+                  id="email-password-input"
+                  type={showEmailPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={emailPassword}
+                  onChange={(e) => setEmailPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  minLength={6}
+                  className="h-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEmailPassword(!showEmailPassword)}
+                  className="absolute right-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  tabIndex={-1}
+                  aria-label="Toggle password visibility"
+                >
+                  {showEmailPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             {emailError && (

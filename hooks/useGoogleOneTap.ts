@@ -235,6 +235,14 @@ export function useGoogleOneTap({
           window.google.accounts.id.prompt((notification) => {
             if (cancelled) return;
 
+            if (notification.isDisplayed?.()) {
+              setIsPrompting(true);
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("google-one-tap-displayed"));
+              }
+              return;
+            }
+
             if (notification.isDismissedMoment()) {
               const reason = notification.getDismissedReason?.();
               // Only record cooldown if the user explicitly closed the prompt,
@@ -243,6 +251,9 @@ export function useGoogleOneTap({
                 recordOneTapDismissed();
               }
               setIsPrompting(false);
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("google-one-tap-dismissed"));
+              }
               return;
             }
 
@@ -261,6 +272,9 @@ export function useGoogleOneTap({
             }
 
             setIsPrompting(false);
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("google-one-tap-dismissed"));
+            }
           });
 
           setIsPrompting(true);

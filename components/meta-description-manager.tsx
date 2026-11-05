@@ -29,7 +29,7 @@ const SEO_DATA: Record<string, SEOTranslation> = {
     description:
       "Prepare and pass the Rwanda police provisional driving license theory exam online with Navo. Access official traffic regulations, road signs practice tests, AI audio explanations, and full mock exams in Kinyarwanda, English, and French.",
     keywords:
-      "rwanda traffic rules, rwanda driving theory test, rwanda police driving exam, irembo driving license, provisional license rwanda, amategeko yumuhanda, navo.rw, rwanda road signs, online driving school rwanda, rwanda traffic exam preparation",
+      "rwanda traffic rules, rwanda driving theory test, rwanda police driving exam, irembo driving license, provisional license rwanda, amategeko yumuhanda, Navo, rwanda road signs, online driving school rwanda, rwanda traffic exam preparation",
     ogTitle: "Navo – Pass Your Rwanda Provisional Driving Theory Exam Online",
     ogDescription:
       "Comprehensive interactive learning platform for Rwanda driving theory tests, official road signs, and police provisional exam questions.",
@@ -40,7 +40,7 @@ const SEO_DATA: Record<string, SEOTranslation> = {
     description:
       "Préparez et réussissez votre examen théorique du permis de conduire provisoire au Rwanda avec Navo. Étudiez le code de la route officiel, les panneaux de signalisation, et passez des examens blancs en Kinyarwanda, Français et Anglais.",
     keywords:
-      "code de la route rwanda, examen permis provisoire rwanda, amategeko yumuhanda, police du rwanda permis, irembo permis de conduire, auto ecole rwanda, tests de signalisation routiere rwanda, navo.rw",
+      "code de la route rwanda, examen permis provisoire rwanda, amategeko yumuhanda, police du rwanda permis, irembo permis de conduire, auto ecole rwanda, tests de signalisation routiere rwanda, Navo",
     ogTitle: "Navo – Préparation à l'Examen du Permis de Conduire Provisoire au Rwanda",
     ogDescription:
       "Accédez aux règlements officiels de la circulation au Rwanda, aux tests pratiques de signalisation et aux explications interactives.",

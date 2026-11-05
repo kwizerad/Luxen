@@ -313,12 +313,10 @@ export function LoginForm({
           {/* 1. Google Button on Top (Direct GIS ID Token Sign-In with Navo Branding) */}
           <div className="w-full">
             <GoogleLoginButton
-              theme="outline"
               size="large"
               text="continue_with"
               shape="rectangular"
-              width="100%"
-              className="w-full flex justify-center [&_iframe]:!rounded-xl"
+              className="w-full"
             />
           </div>
 

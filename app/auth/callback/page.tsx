@@ -27,6 +27,25 @@ function AuthCallbackContent() {
       }
 
       try {
+        // If coming from Google Identity Services redirect callback
+        const isGoogleToken = searchParams.get("google_token");
+        if (isGoogleToken) {
+          const pendingToken = sessionStorage.getItem("navo_google_pending_token");
+          sessionStorage.removeItem("navo_google_pending_token");
+          if (pendingToken) {
+            const { signInWithGoogleToken, syncGoogleUserProfile } = await import("@/lib/auth/supabaseGoogle");
+            const { user: gUser, error: gError } = await signInWithGoogleToken(pendingToken, "");
+            if (gError || !gUser) {
+              console.error("Google token exchange failed:", gError);
+              router.push("/auth/error?error=" + encodeURIComponent(gError?.message || "Token verification failed"));
+              return;
+            }
+            const { redirectPath } = await syncGoogleUserProfile(gUser);
+            window.location.href = redirectPath;
+            return;
+          }
+        }
+
         // Wait for Supabase to process session from URL (implicit flow)
         await new Promise(resolve => setTimeout(resolve, 500));
         const { data: { session } } = await supabase.auth.getSession();
