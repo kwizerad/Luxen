@@ -223,6 +223,9 @@ export function ServicesView({ navigate }: ServicesViewProps) {
   ];
 
   const services = allServices.filter((svc) => {
+    if (svc.key === "driver-hub") {
+      return serviceToggles && serviceToggles["driver-hub"] === true;
+    }
     if (serviceToggles && serviceToggles[svc.key] === false) return false;
     return true;
   });
