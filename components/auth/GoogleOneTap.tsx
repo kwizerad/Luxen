@@ -94,57 +94,6 @@ export function GoogleOneTap({
 
   return (
     <>
-      {/* Subtle, non-intrusive Navo Brand Helper Banner when One Tap is open */}
-      <AnimatePresence>
-        {showExplanationBadge && (isPrompting || isPromptActive) && !isLoading && (
-          <motion.div
-            initial={{ opacity: 0, y: -16, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.95 }}
-            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed top-3 right-3 sm:right-6 z-[9999] max-w-sm pointer-events-none select-none hidden sm:flex items-center gap-3 p-3 rounded-2xl bg-white/95 dark:bg-zinc-900/95 border border-emerald-500/30 dark:border-emerald-500/25 shadow-xl backdrop-blur-xl"
-            role="status"
-            aria-live="polite"
-          >
-            <div className="relative flex items-center justify-center shrink-0">
-              {config.logoUrl ? (
-                <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-emerald-500/30 flex items-center justify-center bg-black/5 dark:bg-white/5">
-                  <Image
-                    src={config.logoUrl}
-                    alt="Navo"
-                    width={36}
-                    height={36}
-                    className="object-contain"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-              ) : (
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-bold text-sm flex items-center justify-center shadow-sm">
-                  {config.logoText || "N"}
-                </div>
-              )}
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-background">
-                <Check className="w-2.5 h-2.5 stroke-[3]" />
-              </span>
-            </div>
-
-            <div className="space-y-0.5 text-left pr-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-foreground dark:text-white">
-                  {explainerTitle}
-                </span>
-                <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  Navo
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">
-                {explainerDesc}
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Full-Screen Loading & Verification Overlay during ID Token Exchange */}
       <AnimatePresence>
         {isLoading && (

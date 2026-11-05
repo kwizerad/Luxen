@@ -29,7 +29,7 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [authStep, setAuthStep] = useState<"initial" | "login" | "register">("login");
+  const [authStep, setAuthStep] = useState<"initial" | "login" | "register">("initial");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -185,15 +185,33 @@ export default function Home() {
                   N
                 </div>
                 <div className="text-center space-y-0.5">
-                  <h2 className="text-lg sm:text-xl font-bold text-foreground dark:text-white">Student Account</h2>
-                  <p className="text-xs text-muted-foreground dark:text-zinc-300">Rwanda Driving Theory & Police Provisional Exam</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-foreground dark:text-white">
+                    {language === "Kinyarwanda" || language === "rw"
+                      ? "Konti y'Umunyeshuri"
+                      : language === "French" || language === "fr"
+                      ? "Compte Étudiant"
+                      : t("studentAccount") || "Student Account"}
+                  </h2>
+                  <p className="text-xs text-muted-foreground dark:text-zinc-300">
+                    {language === "Kinyarwanda" || language === "rw"
+                      ? "Amategeko y'Umuhanda n'Ibizami by'Agateganyo mu Rwanda"
+                      : language === "French" || language === "fr"
+                      ? "Permis Provisoire & Code de la Route au Rwanda"
+                      : t("rwandaDrivingExamSub") || "Rwanda Driving Theory & Police Provisional Exam"}
+                  </p>
                 </div>
 
                 <Button
                   onClick={() => setAuthStep("login")}
                   className="mt-3 px-7 py-3 rounded-2xl bg-card/80 hover:bg-card text-foreground dark:bg-white/15 dark:hover:bg-white/25 dark:text-white backdrop-blur-xl border border-border/70 dark:border-white/20 font-semibold text-xs sm:text-sm transition-all cursor-pointer gap-2 shadow-none focus:ring-0 active:scale-98"
                 >
-                  <span>Continue</span>
+                  <span>
+                    {language === "Kinyarwanda" || language === "rw"
+                      ? "Komeza"
+                      : language === "French" || language === "fr"
+                      ? "Continuer"
+                      : t("continueBtn") || "Continue"}
+                  </span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </motion.div>

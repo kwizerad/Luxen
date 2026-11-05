@@ -260,22 +260,22 @@ export function LoginForm({
 
   const labels: LoginLabels = {
     title: isRw ? "Injira" : isFr ? "Connexion" : "Sign In",
-    emailOrId: isRw ? "Email / Indandamuntu" : isFr ? "Email / Indandamuntu" : "Email or Indandamuntu",
-    emailPlaceholder: isRw ? "Email cyangwa Indandamuntu" : isFr ? "Email ou ID" : "Email or ID",
+    emailOrId: isRw ? "Imeri / Indangamuntu" : isFr ? "Email / ID" : "Email or National ID",
+    emailPlaceholder: isRw ? "Imeri cyangwa Indangamuntu" : isFr ? "Email ou ID" : "Email or ID",
     password: isRw ? "Ijambo ry'ibanga" : isFr ? "Mot de passe" : "Password",
-    forgot: isRw ? "Wibagiwe ijambobanga" : isFr ? "Oublié ?" : "Forgot?",
+    forgot: isRw ? "Wibagiwe ijambo ry'ibanga?" : isFr ? "Oublié ?" : "Forgot?",
     submit: isRw ? "Injira" : isFr ? "Connexion" : "Sign In",
     loading: isRw ? "Tegereza..." : isFr ? "Connexion..." : "Signing in...",
-    idTitle: isRw ? "Indandamuntu" : isFr ? "Carte d'identité" : "National ID",
+    idTitle: isRw ? "Indangamuntu" : isFr ? "Carte d'identité" : "National ID",
     idPlaceholder: "1 1998 8 0012345 6 78",
     continueBtn: isRw ? "Komeza" : isFr ? "Continuer" : "Continue",
-    officialName: isRw ? "Izina" : isFr ? "Nom officiel" : "Official Name",
+    officialName: isRw ? "Izina ry'irangamuntu" : isFr ? "Nom officiel" : "Official Name",
     dob: isRw ? "Itariki y'amavuko" : isFr ? "Date de naissance" : "Date of Birth",
     back: isRw ? "Subira inyuma" : isFr ? "Retour" : "Back",
-    noAccount: isRw ? "Nta konti?" : isFr ? "Pas de compte ?" : "No account?",
+    noAccount: isRw ? "Nta konti ufite?" : isFr ? "Pas de compte ?" : "No account?",
     signUp: isRw ? "Iyandikishe" : isFr ? "S'inscrire" : "Sign up",
     usePassword: isRw ? "Injira n'ijambo ry'ibanga" : isFr ? "Connexion par mot de passe" : "Sign in with password",
-    useIdOnly: isRw ? "Injira na Indandamuntu gusa" : isFr ? "Connexion par ID" : "Sign in with ID only",
+    useIdOnly: isRw ? "Injira n'Indangamuntu gusa" : isFr ? "Connexion par ID" : "Sign in with ID only",
     or: isRw ? "cyangwa" : isFr ? "ou" : "or",
   };
 
@@ -303,11 +303,11 @@ export function LoginForm({
           N
         </div>
         <h2 className="text-base font-bold tracking-tight text-foreground dark:text-white">
-          {loginMode === "id_verification" ? (isRw ? "Indandamuntu" : "National ID") : labels.title}
+          {loginMode === "id_verification" ? (isRw ? "Indangamuntu" : "National ID") : labels.title}
         </h2>
       </div>
 
-      {/* MODE 1: Standard Password Login (Google on top, then Indandamuntu, then Username/Password) */}
+      {/* MODE 1: Standard Password Login (Google on top, then Indangamuntu, then Username/Password) */}
       {loginMode === "password" && (
         <form onSubmit={handlePasswordLogin} className="w-full space-y-2 pt-0.5">
           {/* 1. Google Button on Top (Direct GIS ID Token Sign-In with Navo Branding) */}
@@ -320,7 +320,7 @@ export function LoginForm({
             />
           </div>
 
-          {/* 2. Indandamuntu Quick Action Button */}
+          {/* 2. Indangamuntu Quick Action Button */}
           <Button
             type="button"
             onClick={() => {
@@ -331,7 +331,7 @@ export function LoginForm({
             className="w-full h-9 rounded-xl border border-emerald-500/20 bg-emerald-50/30 dark:bg-emerald-950/15 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/25 font-semibold text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-center gap-2 shadow-none cursor-pointer"
           >
             <CreditCard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>{isRw ? "Indandamuntu" : "National ID"}</span>
+            <span>{isRw ? "Indangamuntu" : "National ID"}</span>
           </Button>
 
           {/* 3. Username / Email & Password */}

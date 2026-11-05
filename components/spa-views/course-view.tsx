@@ -44,6 +44,8 @@ import {
   Lightbulb,
   VolumeX,
   Keyboard,
+  HelpCircle,
+  Brain,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -1966,6 +1968,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     const totalLessons = currentModule.lessons.length;
     const completedLessonsCount = currentModule.lessons.filter((l) => isLessonCompleted(l.id)).length;
     const modulePct = totalLessons > 0 ? Math.round((completedLessonsCount / totalLessons) * 100) : 0;
+    const requiredForQuiz = Math.max(1, Math.ceil(totalLessons / 3));
+    const isQuizUnlocked = totalLessons === 0 || completedLessonsCount >= requiredForQuiz;
 
     return (
       <div
@@ -2014,18 +2018,19 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           </div>
         </div>
 
-        {/* Lessons List */}
+        {/* Desktop File Grid for Lessons */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground dark:text-zinc-400">
-              {t("lessons") || "Lessons"}
+            <span className="text-xs font-medium text-muted-foreground dark:text-zinc-400 flex items-center gap-2">
+              <FolderOpen className="h-3.5 w-3.5 text-primary" />
+              <span>{t("moduleFiles") || "Desktop File Explorer"}</span>
             </span>
             <span className="text-xs font-mono text-muted-foreground dark:text-zinc-400">
-              {currentModule.lessons.length} {t("lessons") || "lessons"}
+              {currentModule.lessons.length} {t("lessons") || "lessons"} {currentModule.examSettings ? "+ 1 Quiz" : ""}
             </span>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
             {currentModule.lessons.map((lesson, lessonIdx) => {
               const isUnlocked = isLessonUnlocked(currentModule.id, lessonIdx);
               const isComplete = isLessonCompleted(lesson.id);
@@ -2039,14 +2044,11 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               return (
                 <div
                   key={lesson.id}
-                  className={cn(
-                    "rounded-xl border p-3.5 sm:p-4 transition-colors space-y-2.5 shadow-xs",
-                    isUnlocked
-                      ? "border-border dark:border-zinc-800 bg-card hover:bg-muted/30 dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900/90 cursor-pointer"
-                      : "border-border/60 dark:border-zinc-800/50 bg-muted/40 dark:bg-zinc-950/40 opacity-60 cursor-not-allowed"
-                  )}
                   onClick={() => {
-                    if (!isUnlocked) return;
+                    if (!isUnlocked) {
+                      toast.error("Isomo rirafunze! Banza urangize isomo ribanziriza iri.");
+                      return;
+                    }
                     const idx = flatList.findIndex((item) => item.lessonId === lesson.id);
                     if (idx >= 0) {
                       setCurrentItemIndex(idx);
@@ -2054,94 +2056,118 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                       setViewMode("study");
                     }
                   }}
+                  className={cn(
+                    "group relative flex flex-col items-center text-center rounded-2xl border p-3 sm:p-4 transition-all duration-200 select-none",
+                    isUnlocked
+                      ? "border-slate-200/80 dark:border-white/10 bg-gradient-to-b from-white/90 to-slate-50/90 dark:from-zinc-900/90 dark:to-zinc-950/90 hover:border-emerald-500/50 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+                      : "border-slate-200/40 dark:border-zinc-800/40 bg-slate-100/40 dark:bg-zinc-950/40 opacity-60 cursor-not-allowed"
+                  )}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div
-                        className={cn(
-                          "flex items-center justify-center h-8 w-8 rounded-lg shrink-0 font-mono text-xs font-bold border",
-                          isComplete || isUnlocked
-                            ? "bg-primary/10 border-primary/20 text-primary"
-                            : "bg-muted dark:bg-zinc-800/60 border-border dark:border-zinc-700/40 text-muted-foreground dark:text-zinc-500"
-                        )}
-                      >
-                        {isUnlocked ? (
-                          <FileText className="h-4 w-4" />
-                        ) : (
-                          <Lock className="h-3.5 w-3.5" />
-                        )}
-                      </div>
+                  {/* Status indicator top corner */}
+                  <div className="absolute top-2 right-2">
+                    {isComplete ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    ) : !isUnlocked ? (
+                      <Lock className="h-3.5 w-3.5 text-zinc-400" />
+                    ) : isInProgress ? (
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                    ) : null}
+                  </div>
 
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-mono text-muted-foreground shrink-0">
-                            #{lessonIdx + 1}
-                          </span>
-                          <h3 className="font-bold text-sm text-foreground dark:text-zinc-100 truncate">
-                            {lesson.title}
-                          </h3>
-                        </div>
-                        <div className="flex items-center gap-2.5 text-xs text-muted-foreground dark:text-zinc-400 font-mono">
-                          {topics.length > 0 && (
-                            <>
-                              <span>{topics.length} {topics.length === 1 ? "topic" : "topics"}</span>
-                              <span>•</span>
-                            </>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatMinutes(calcLessonTime)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                  {/* Desktop File Icon Box */}
+                  <div
+                    className={cn(
+                      "w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 my-1.5 shadow-xs border",
+                      isComplete
+                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
+                        : isUnlocked
+                        ? "bg-emerald-500/5 border-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        : "bg-zinc-200/50 dark:bg-zinc-800/50 border-zinc-300/30 dark:border-zinc-700/30 text-zinc-400"
+                    )}
+                  >
+                    <FileText className="h-6 w-6 sm:h-7 sm:w-7" />
+                  </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      {isComplete && (
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase">
-                          {t("completed") || "completed"}
-                        </span>
-                      )}
-                      {isInProgress && (
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase">
-                          {t("inProgress") || "in-progress"}
-                        </span>
-                      )}
-                      {isUnlocked && (
-                        <ArrowRight className="h-4 w-4 text-muted-foreground dark:text-zinc-400" />
-                      )}
-                    </div>
+                  {/* Lesson Number & Title */}
+                  <span className="text-[10px] font-mono text-muted-foreground uppercase font-bold tracking-wider">
+                    Item #{lessonIdx + 1}
+                  </span>
+                  <h3 className="text-xs sm:text-sm font-bold text-foreground dark:text-zinc-100 line-clamp-2 mt-0.5 leading-snug">
+                    {lesson.title}
+                  </h3>
+
+                  {/* Duration & Details */}
+                  <div className="mt-2 pt-2 border-t border-border/40 w-full flex items-center justify-center gap-1 text-[10px] font-mono text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    <span>{formatMinutes(calcLessonTime)}</span>
                   </div>
                 </div>
               );
             })}
 
-            {/* Module Exam Card if available */}
+            {/* Quiz / Exam File Card (Gated by 1/3 Completion) */}
             {currentModule.examSettings && (
-              <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 flex items-center justify-between gap-4 shadow-none">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-primary/15 border border-primary/25 text-primary flex items-center justify-center shrink-0">
-                    <Trophy className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-mono text-primary lowercase tracking-wider block">
-                      {t("moduleExam") || "module exam"}
-                    </span>
-                    <h3 className="font-bold text-sm text-foreground dark:text-zinc-100">{currentModule.examSettings.title || "Module Test"}</h3>
-                    <p className="text-xs text-muted-foreground dark:text-zinc-400 font-mono">
-                      {currentModule.examSettings.question_count} {t("questions") || "questions"} · {currentModule.examSettings.duration_minutes} min
-                    </p>
-                  </div>
+              <div
+                onClick={() => {
+                  if (!isQuizUnlocked) {
+                    toast.error(
+                      `Utari wakora 1/3 cy'amasomo meza! Ugomba kwiga amategeko 1/3 (${completedLessonsCount}/${requiredForQuiz} amashuri) kugira ngo ufungure ikizamini.`
+                    );
+                    return;
+                  }
+                  startModuleExam(currentModule.id, currentModule.examSettings?.title || currentModule.title);
+                }}
+                className={cn(
+                  "group relative flex flex-col items-center text-center rounded-2xl border p-3 sm:p-4 transition-all duration-200 select-none",
+                  isQuizUnlocked
+                    ? "border-emerald-500/40 bg-gradient-to-b from-emerald-500/10 to-emerald-950/10 dark:from-emerald-950/20 dark:to-zinc-950/90 hover:border-emerald-500 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
+                    : "border-amber-500/30 bg-amber-500/5 dark:bg-zinc-950/60 opacity-80 cursor-not-allowed"
+                )}
+              >
+                {/* Status indicator */}
+                <div className="absolute top-2 right-2">
+                  {isQuizUnlocked ? (
+                    <Sparkles className="h-4 w-4 text-emerald-500 animate-pulse" />
+                  ) : (
+                    <Lock className="h-4 w-4 text-amber-500" />
+                  )}
                 </div>
 
-                <Button
-                  size="sm"
-                  onClick={() => startModuleExam(currentModule.id, currentModule.examSettings?.title || currentModule.title)}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-xs font-semibold gap-1.5 shadow-none shrink-0"
+                {/* Quiz Desktop Icon */}
+                <div
+                  className={cn(
+                    "w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 my-1.5 shadow-xs border",
+                    isQuizUnlocked
+                      ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-500"
+                      : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                  )}
                 >
-                  <Play className="h-3.5 w-3.5 fill-current" />
-                  <span>{t("takeExam") || "Take Exam"}</span>
-                </Button>
+                  <Brain className="h-6 w-6 sm:h-7 sm:w-7" />
+                </div>
+
+                {/* Quiz Badge */}
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-500 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                  Quiz File
+                </span>
+
+                <h3 className="text-xs sm:text-sm font-bold text-foreground dark:text-zinc-100 line-clamp-2 mt-1 leading-snug">
+                  {currentModule.examSettings.title || "Module Quiz"}
+                </h3>
+
+                {/* 1/3 Gated Requirement Notice */}
+                {!isQuizUnlocked ? (
+                  <div className="mt-2 pt-2 border-t border-amber-500/30 w-full text-[10px] font-mono text-amber-600 dark:text-amber-400 font-bold leading-tight">
+                    Locked (1/3 required)
+                    <span className="block font-normal text-[9px] text-muted-foreground mt-0.5">
+                      {completedLessonsCount}/{requiredForQuiz} lessons
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-2 pt-2 border-t border-emerald-500/20 w-full flex items-center justify-center gap-1 text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                    <Clock className="h-3 w-3" />
+                    <span>{currentModule.examSettings.duration_minutes} min ({currentModule.examSettings.question_count} Qs)</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2499,103 +2525,154 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               )}
             </div>
 
-            {isSidebarOpen && (
+            {isSidebarOpen && currentModule && (
               <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                {currentModule?.lessons.map((lesson, lIdx) => {
-                  const isUnlocked = isLessonUnlocked(currentModule.id, lIdx);
-                  const isComplete = isLessonCompleted(lesson.id);
-                  const isCurrent = currentItem?.lessonId === lesson.id;
-                  const isExpanded = expandedLessons.has(lesson.id);
-                  const topics = parseTopics(lesson.topics);
+                <div
+                  className={cn(
+                    "space-y-2",
+                    currentModule.lessons.length > 5 ? "max-h-[260px] overflow-y-auto pr-1" : ""
+                  )}
+                >
+                  {currentModule.lessons.map((lesson, lIdx) => {
+                    const isUnlocked = isLessonUnlocked(currentModule.id, lIdx);
+                    const isComplete = isLessonCompleted(lesson.id);
+                    const isCurrent = currentItem?.lessonId === lesson.id;
+                    const isExpanded = expandedLessons.has(lesson.id);
+                    const topics = parseTopics(lesson.topics);
+
+                    return (
+                      <div key={lesson.id} className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            toggleLessonExpand(lesson.id);
+                            if (isUnlocked && !isCurrent) {
+                              startLesson(currentModule.id, lesson.id);
+                            }
+                          }}
+                          disabled={!isUnlocked}
+                          className={cn(
+                            "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all text-left group",
+                            isCurrent
+                              ? "bg-primary/10 text-primary font-bold"
+                              : isUnlocked
+                              ? "hover:bg-muted text-foreground"
+                              : "opacity-40 cursor-not-allowed text-muted-foreground"
+                          )}
+                        >
+                          <span className="p-0.5 text-muted-foreground">
+                            {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                          </span>
+                          {topics.length > 0 ? (
+                            isExpanded ? (
+                              <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+                            ) : isUnlocked ? (
+                              <Folder className="h-3.5 w-3.5 text-primary/80 shrink-0" />
+                            ) : (
+                              <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            )
+                          ) : isUnlocked ? (
+                            <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                          ) : (
+                            <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          )}
+                          <span className="flex-1 truncate">{lesson.title}</span>
+                          {isComplete && (
+                            <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />
+                          )}
+                        </button>
+
+                        {isExpanded && topics.length > 0 && (
+                          <div
+                            className={cn(
+                              "ml-4 pl-2 border-l border-border/60 space-y-0.5",
+                              topics.length > 5 ? "max-h-[160px] overflow-y-auto pr-1" : ""
+                            )}
+                          >
+                            {topics.map((tp, tpIdx) => {
+                              const isTpCurrent = currentItem?.type === "topic" && currentItem.topicId === tp.id;
+                              const isTpDone = completedItems.has(`${lesson.id}:${tp.id}`);
+                              const targetIdx = flatList.findIndex((f) => f.lessonId === lesson.id && f.topicId === tp.id);
+                              const isTpUnlocked = targetIdx >= 0 && isItemUnlocked(targetIdx);
+
+                              return (
+                                <button
+                                  key={tp.id}
+                                  type="button"
+                                  onClick={() => isTpUnlocked && targetIdx >= 0 && setCurrentItemIndex(targetIdx)}
+                                  disabled={!isTpUnlocked}
+                                  className={cn(
+                                    "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left",
+                                    isTpCurrent
+                                      ? "bg-primary/15 text-foreground font-semibold border border-primary/40 shadow-xs"
+                                      : isTpDone
+                                      ? "text-primary hover:bg-muted"
+                                      : isTpUnlocked
+                                      ? "hover:bg-muted text-foreground/80"
+                                      : "opacity-40 cursor-not-allowed text-muted-foreground"
+                                  )}
+                                >
+                                  {isTpDone ? (
+                                    <CheckCircle2 className="h-3 w-3 shrink-0 text-primary" />
+                                  ) : isTpCurrent ? (
+                                    <FileText className="h-3 w-3 shrink-0 text-primary" />
+                                  ) : isTpUnlocked ? (
+                                    <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                  ) : (
+                                    <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                  )}
+                                  <span className="flex-1 truncate">{tp.title}</span>
+                                  {tp.audioUrl && (
+                                    <Volume2 className="h-3 w-3 shrink-0 text-primary" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Sidebar Quiz Item if examSettings exist */}
+                {currentModule.examSettings && (() => {
+                  const totalCount = currentModule.lessons.length;
+                  const completedCount = currentModule.lessons.filter((l) => isLessonCompleted(l.id)).length;
+                  const reqCount = Math.max(1, Math.ceil(totalCount / 3));
+                  const isQuizUnlocked = totalCount === 0 || completedCount >= reqCount;
 
                   return (
-                    <div key={lesson.id} className="space-y-1">
+                    <div className="pt-2 border-t border-border/40">
                       <button
                         type="button"
                         onClick={() => {
-                          toggleLessonExpand(lesson.id);
-                          if (isUnlocked && !isCurrent) {
-                            startLesson(currentModule.id, lesson.id);
+                          if (!isQuizUnlocked) {
+                            toast.error(`Utari wakora 1/3 cy'amasomo (${completedCount}/${reqCount}) kugira ngo ufungure ikizamini.`);
+                            return;
                           }
+                          startModuleExam(currentModule.id, currentModule.examSettings?.title || currentModule.title);
                         }}
-                        disabled={!isUnlocked}
                         className={cn(
-                          "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all text-left group",
-                          isCurrent
-                            ? "bg-primary/10 text-primary font-bold"
-                            : isUnlocked
-                            ? "hover:bg-muted text-foreground"
-                            : "opacity-40 cursor-not-allowed text-muted-foreground"
+                          "w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-semibold transition-all text-left border",
+                          isQuizUnlocked
+                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                            : "bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400 opacity-80"
                         )}
                       >
-                        <span className="p-0.5 text-muted-foreground">
-                          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                        <Brain className="h-4 w-4 shrink-0 text-emerald-500" />
+                        <span className="flex-1 truncate">
+                          {currentModule.examSettings.title || "Module Quiz"}
                         </span>
-                        {topics.length > 0 ? (
-                          isExpanded ? (
-                            <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0" />
-                          ) : isUnlocked ? (
-                            <Folder className="h-3.5 w-3.5 text-primary/80 shrink-0" />
-                          ) : (
-                            <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          )
-                        ) : isUnlocked ? (
-                          <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                        {!isQuizUnlocked ? (
+                          <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                         ) : (
-                          <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        )}
-                        <span className="flex-1 truncate">{lesson.title}</span>
-                        {isComplete && (
-                          <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />
+                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
                         )}
                       </button>
-
-                      {isExpanded && topics.length > 0 && (
-                        <div className="ml-4 pl-2 border-l border-border/60 space-y-0.5">
-                          {topics.map((tp, tpIdx) => {
-                            const isTpCurrent = currentItem?.type === "topic" && currentItem.topicId === tp.id;
-                            const isTpDone = completedItems.has(`${lesson.id}:${tp.id}`);
-                            const targetIdx = flatList.findIndex((f) => f.lessonId === lesson.id && f.topicId === tp.id);
-                            const isTpUnlocked = targetIdx >= 0 && isItemUnlocked(targetIdx);
-
-                            return (
-                              <button
-                                key={tp.id}
-                                type="button"
-                                onClick={() => isTpUnlocked && targetIdx >= 0 && setCurrentItemIndex(targetIdx)}
-                                disabled={!isTpUnlocked}
-                                className={cn(
-                                  "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left",
-                                  isTpCurrent
-                                    ? "bg-primary/15 text-foreground font-semibold border border-primary/40 shadow-xs"
-                                    : isTpDone
-                                    ? "text-primary hover:bg-muted"
-                                    : isTpUnlocked
-                                    ? "hover:bg-muted text-foreground/80"
-                                    : "opacity-40 cursor-not-allowed text-muted-foreground"
-                                )}
-                              >
-                                {isTpDone ? (
-                                  <CheckCircle2 className="h-3 w-3 shrink-0 text-primary" />
-                                ) : isTpCurrent ? (
-                                  <FileText className="h-3 w-3 shrink-0 text-primary" />
-                                ) : isTpUnlocked ? (
-                                  <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
-                                ) : (
-                                  <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />
-                                )}
-                                <span className="flex-1 truncate">{tp.title}</span>
-                                {tp.audioUrl && (
-                                  <Volume2 className="h-3 w-3 shrink-0 text-primary" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
                     </div>
                   );
-                })}
+                })()}
               </div>
             )}
           </aside>

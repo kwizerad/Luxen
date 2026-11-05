@@ -1,13 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
-import {
-  loadGoogleIdentityScript,
-  GOOGLE_CLIENT_ID,
-} from "@/lib/auth/google";
+import { createClient } from "@/lib/supabase/client";
 
 interface GoogleLoginButtonProps {
   /**
@@ -74,10 +71,10 @@ export function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
 /**
  * Custom Google Sign-In button component for Navo OS.
  *
- * Guarantees:
+ * Features:
  * 1. Never displays "Continue as [Name]" or user email/avatar inside the form.
- * 2. Renders as a single un-nested button (no cover inside cover).
- * 3. Triggers Google Identity Services authentication seamlessly on click.
+ * 2. Un-nested, clean button design without double borders or cover-inside-cover.
+ * 3. Guaranteed reliable Google sign-in trigger on every click without spinning hangs.
  */
 export function GoogleLoginButton({
   text = "continue_with",
@@ -87,7 +84,6 @@ export function GoogleLoginButton({
 }: GoogleLoginButtonProps) {
   const { language } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
-  const hiddenGisRef = useRef<HTMLDivElement>(null);
 
   const isRw = language === "rw" || language === "Kinyarwanda";
   const isFr = language === "fr" || language === "French";
@@ -103,138 +99,49 @@ export function GoogleLoginButton({
 
   const buttonText = customLabel || defaultText;
 
-  // Mount hidden GIS button as offscreen trigger target
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || typeof window === "undefined") return;
-
-    let cancelled = false;
-
-    const setupHiddenGis = async () => {
-      try {
-        await loadGoogleIdentityScript();
-        if (cancelled || !hiddenGisRef.current) return;
-
-        const rawNonce = crypto.randomUUID();
-        const nonceBytes = new TextEncoder().encode(rawNonce);
-        const hashBuffer = await crypto.subtle.digest("SHA-256", nonceBytes);
-        const hashedNonce = Array.from(new Uint8Array(hashBuffer))
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-
-        window.google?.accounts?.id?.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: async (response: { credential?: string }) => {
-            if (response?.credential) {
-              setIsLoading(true);
-              const { signInWithGoogleToken, syncGoogleUserProfile } = await import(
-                "@/lib/auth/supabaseGoogle"
-              );
-              const { user, error } = await signInWithGoogleToken(
-                response.credential,
-                rawNonce
-              );
-              if (error) {
-                toast.error(error.message || "Google Authentication failed");
-                setIsLoading(false);
-                return;
-              }
-              if (user) {
-                const { redirectPath } = await syncGoogleUserProfile(user);
-                window.location.href = redirectPath;
-              }
-            } else {
-              setIsLoading(false);
-            }
-          },
-          auto_select: false,
-          cancel_on_tap_outside: true,
-          context: "signin",
-          ux_mode: "popup",
-          nonce: hashedNonce,
-          use_fedcm_for_prompt: false,
-          itp_support: true,
-        });
-
-        if (hiddenGisRef.current) {
-          hiddenGisRef.current.innerHTML = "";
-          window.google?.accounts?.id?.renderButton(hiddenGisRef.current, {
-            theme: "outline",
-            size: "large",
-            type: "standard",
-            text: text,
-          });
-        }
-      } catch {
-        // Ignore fallback init errors
-      }
-    };
-
-    setupHiddenGis();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [text]);
-
   const handleClick = async () => {
     onClick?.();
     setIsLoading(true);
 
     try {
-      // 1. Attempt to click GIS button rendered in offscreen target
-      if (hiddenGisRef.current) {
-        const gisIframeOrBtn = hiddenGisRef.current.querySelector(
-          'div[role="button"], iframe'
-        ) as HTMLElement | null;
-        if (gisIframeOrBtn) {
-          gisIframeOrBtn.click();
-          setTimeout(() => setIsLoading(false), 2000);
-          return;
-        }
-      }
+      const supabase = createClient();
+      const redirectTo = `${window.location.origin}/auth/callback`;
 
-      // 2. Direct GIS prompt fallback
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.prompt((notification) => {
-          setIsLoading(false);
-          if (
-            notification.isNotDisplayed?.() ||
-            notification.isSkippedMoment?.()
-          ) {
-            toast.error("Please allow popups to sign in with Google.");
-          }
-        });
-      } else {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          queryParams: {
+            prompt: "select_account",
+          },
+        },
+      });
+
+      if (error) {
+        console.error("[GoogleLoginButton] OAuth error:", error);
+        toast.error(error.message || "Failed to sign in with Google");
         setIsLoading(false);
       }
-    } catch {
+    } catch (err) {
+      console.error("[GoogleLoginButton] Login exception:", err);
+      toast.error(err instanceof Error ? err.message : "Google sign in failed");
       setIsLoading(false);
     }
   };
 
   return (
-    <>
-      {/* Off-screen hidden GIS target to capture official Google OAuth tokens */}
-      <div
-        ref={hiddenGisRef}
-        aria-hidden="true"
-        className="fixed -top-[9999px] -left-[9999px] opacity-0 pointer-events-none w-0 h-0 overflow-hidden"
-      />
-
-      {/* Pristine, custom Navo OS Google Button (No user avatar, no "Continue as Kwizera", no cover-in-cover!) */}
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={isLoading}
-        className={`w-full h-10 sm:h-11 rounded-xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-zinc-800/90 hover:bg-slate-50 dark:hover:bg-zinc-800 text-foreground dark:text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-2xs hover:border-emerald-500/40 active:scale-[0.99] ${className}`}
-      >
-        {isLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
-        ) : (
-          <GoogleIcon className="w-4 h-4 shrink-0" />
-        )}
-        <span>{buttonText}</span>
-      </button>
-    </>
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isLoading}
+      className={`w-full h-10 sm:h-11 rounded-xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-zinc-800/90 hover:bg-slate-50 dark:hover:bg-zinc-800 text-foreground dark:text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-2xs hover:border-emerald-500/40 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed ${className}`}
+    >
+      {isLoading ? (
+        <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+      ) : (
+        <GoogleIcon className="w-4 h-4 shrink-0" />
+      )}
+      <span>{buttonText}</span>
+    </button>
   );
 }

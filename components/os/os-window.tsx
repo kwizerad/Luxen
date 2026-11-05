@@ -56,34 +56,34 @@ export function OSWindow({
         dir={isRTL ? "rtl" : "ltr"}
         className="h-11 px-4 border-b border-slate-200/60 dark:border-white/10 bg-slate-100/80 dark:bg-zinc-900/80 backdrop-blur-md flex items-center justify-between select-none shrink-0"
       >
-        {/* macOS Traffic Light Buttons */}
-        <div className="flex items-center gap-2 w-20">
+        {/* macOS Style Window Traffic Controls */}
+        <div className="flex items-center gap-2 min-w-16 sm:w-20">
           <button
             type="button"
             onClick={onClose}
             title="Close Window (Return to Desktop)"
-            className="w-3 h-3 rounded-full bg-rose-500 hover:bg-rose-600 transition-colors flex items-center justify-center group cursor-pointer shadow-none"
+            className="w-3.5 h-3.5 rounded-full bg-rose-500 hover:bg-rose-600 transition-colors flex items-center justify-center group cursor-pointer shadow-xs"
           >
-            <X className="w-2 h-2 text-rose-950 opacity-0 group-hover:opacity-100" />
+            <X className="w-2.5 h-2.5 text-white stroke-[2.5]" />
           </button>
           <button
             type="button"
             onClick={onMinimize || onClose}
             title="Minimize to Dock"
-            className="w-3 h-3 rounded-full bg-amber-500 hover:bg-amber-600 transition-colors flex items-center justify-center group cursor-pointer shadow-none"
+            className="w-3.5 h-3.5 rounded-full bg-amber-500 hover:bg-amber-600 transition-colors flex items-center justify-center group cursor-pointer shadow-xs"
           >
-            <Minus className="w-2 h-2 text-amber-950 opacity-0 group-hover:opacity-100" />
+            <Minus className="w-2.5 h-2.5 text-white stroke-[2.5]" />
           </button>
           <button
             type="button"
             onClick={toggleMaximize}
             title={isMaximized ? "Restore Size" : "Maximize Window"}
-            className="w-3 h-3 rounded-full bg-emerald-500 hover:bg-emerald-600 transition-colors flex items-center justify-center group cursor-pointer shadow-none"
+            className="hidden sm:flex w-3.5 h-3.5 rounded-full bg-emerald-500 hover:bg-emerald-600 transition-colors items-center justify-center group cursor-pointer shadow-xs"
           >
             {isMaximized ? (
-              <Minimize2 className="w-2 h-2 text-emerald-950 opacity-0 group-hover:opacity-100" />
+              <Minimize2 className="w-2.5 h-2.5 text-white stroke-[2.5]" />
             ) : (
-              <Maximize2 className="w-2 h-2 text-emerald-950 opacity-0 group-hover:opacity-100" />
+              <Maximize2 className="w-2.5 h-2.5 text-white stroke-[2.5]" />
             )}
           </button>
         </div>

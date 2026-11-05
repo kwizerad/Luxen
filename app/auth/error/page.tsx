@@ -1,18 +1,29 @@
 "use client";
 
+import { Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+function AuthErrorContent() {
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
+
+  return (
+    <CardContent>
+      {error ? (
+        <p className="text-sm text-muted-foreground">
+          Code error: {error}
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          An unspecified error occurred.
+        </p>
+      )}
+    </CardContent>
+  );
+}
 
 export default function Page() {
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    
-    const params = new URLSearchParams(window.location.search);
-    setError(params.get("error"));
-  }, []);
-
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm">
@@ -23,17 +34,9 @@ export default function Page() {
                 Sorry, something went wrong.
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {error ? (
-                <p className="text-sm text-muted-foreground">
-                  Code error: {error}
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  An unspecified error occurred.
-                </p>
-              )}
-            </CardContent>
+            <Suspense fallback={<CardContent><p className="text-sm text-muted-foreground">Loading error details...</p></CardContent>}>
+              <AuthErrorContent />
+            </Suspense>
           </Card>
         </div>
       </div>
