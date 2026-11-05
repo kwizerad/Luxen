@@ -45,10 +45,10 @@ export function OSWindow({
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.98, y: 6 }}
       transition={{ type: "spring", damping: 26, stiffness: 320 }}
-      className={`flex flex-col rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl shadow-2xl overflow-hidden transition-all duration-200 z-30 ${
+      className={`flex flex-col border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl shadow-2xl overflow-hidden transition-all duration-200 ${
         isMaximized
-          ? "fixed inset-x-0 top-9 bottom-16 sm:inset-x-2 sm:top-10 sm:bottom-18 rounded-none sm:rounded-2xl"
-          : "w-full max-w-7xl mx-auto min-h-[calc(100vh-8.5rem)] my-2"
+          ? "fixed inset-0 z-50 w-full h-full rounded-none m-0 p-0"
+          : "rounded-2xl w-full max-w-7xl mx-auto min-h-[calc(100vh-8.5rem)] my-2 z-30"
       } ${className}`}
     >
       {/* OS Window Header / Title Bar */}

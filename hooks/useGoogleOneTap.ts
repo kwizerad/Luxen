@@ -206,30 +206,8 @@ export function useGoogleOneTap({
         if (cancelled || user) return;
         if (!window.google?.accounts?.id) return;
 
-        // If running inside an iframe where 'identity-credentials-get' is disallowed by
-        // Permissions-Policy, Google's GIS prompt() will attempt FedCM and reject.
-        // In that case, rely on the rendered Google Sign-In button instead of One Tap popup.
-        const isIframe = (() => {
-          try {
-            return window.self !== window.top;
-          } catch {
-            return true;
-          }
-        })();
-        const policyAllowsFedCM =
-          typeof (document as any).featurePolicy?.allowsFeature === "function"
-            ? (document as any).featurePolicy.allowsFeature("identity-credentials-get")
-            : typeof (document as any).permissionsPolicy?.allowsFeature === "function"
-            ? (document as any).permissionsPolicy.allowsFeature("identity-credentials-get")
-            : !isIframe;
-
-        if (isIframe && !policyAllowsFedCM) {
-          return;
-        }
-
-        if (alwaysPrompt) {
-          clearGoogleSuppressionCookie();
-        }
+        // Clear Google's client suppression cookie so prompt appears immediately
+        clearGoogleSuppressionCookie();
 
         try {
           window.google.accounts.id.prompt((notification) => {

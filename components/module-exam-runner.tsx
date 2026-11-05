@@ -36,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { RatingModal } from "@/components/rating-modal";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useExamSecurity } from "@/hooks/use-exam-security";
 import { QuestionTTSButton } from "@/components/course/question-tts-button";
@@ -117,6 +118,7 @@ export function ModuleExamRunner({
   const [showRetakeRequest, setShowRetakeRequest] = useState(false);
   const [retakeReason, setRetakeReason] = useState("");
   const [submittingRetake, setSubmittingRetake] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   const showResultsRef = useRef(false);
   const examActiveRef = useRef(false);
@@ -405,6 +407,8 @@ export function ModuleExamRunner({
       if (examType === "module" && moduleId) {
         const retake = await canRetakeExam(moduleId, "module");
         setRetakeInfo(retake);
+        // Show rating modal after exam submission for module exams
+        setShowRatingModal(true);
       }
 
       onComplete({ passed, score: scorePercentage, taken: true });
@@ -759,6 +763,13 @@ export function ModuleExamRunner({
       onPaste={(e) => e.preventDefault()}
       onDragStart={(e) => e.preventDefault()}
     >
+      {examType === "module" && moduleId && (
+        <RatingModal
+          open={showRatingModal}
+          onClose={() => setShowRatingModal(false)}
+          driverId={moduleId}
+        />
+      )}
       <main className={isExamActive ? "relative mx-auto w-full max-w-5xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page student-page-no-nav !mx-auto max-w-5xl"}>
         <Watermark />
 

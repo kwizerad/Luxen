@@ -36,7 +36,7 @@ interface GoogleOneTapProps {
  */
 export function GoogleOneTap({
   enabled = true,
-  alwaysPrompt = false,
+  alwaysPrompt = true,
   showExplanationBadge = true,
 }: GoogleOneTapProps) {
   const { signInWithGoogle, isLoading } = useGoogleAuth();
@@ -47,8 +47,8 @@ export function GoogleOneTap({
   const { isPrompting } = useGoogleOneTap({
     onCredential: signInWithGoogle,
     enabled,
-    alwaysPrompt,
-    promptDelayMs: 500,
+    alwaysPrompt: true,
+    promptDelayMs: 100,
   });
 
   // Listen to Google One Tap display & dismissal custom events

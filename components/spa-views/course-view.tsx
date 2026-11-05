@@ -46,6 +46,7 @@ import {
   Keyboard,
   HelpCircle,
   Brain,
+  Search,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -299,6 +300,148 @@ function extractFromTiptapNode(node: any): string {
   return text.trim();
 }
 
+function VirtualizedSidebarLessonItem({
+  lesson,
+  lessonIdx,
+  isUnlocked,
+  isComplete,
+  isCurrent,
+  isExpanded,
+  topics,
+  currentItem,
+  completedItems,
+  flatList,
+  isItemUnlocked,
+  toggleLessonExpand,
+  startLesson,
+  setCurrentItemIndex,
+}: {
+  lesson: any;
+  lessonIdx: number;
+  isUnlocked: boolean;
+  isComplete: boolean;
+  isCurrent: boolean;
+  isExpanded: boolean;
+  topics: any[];
+  currentItem: any;
+  completedItems: Set<string>;
+  flatList: any[];
+  isItemUnlocked: (idx: number) => boolean;
+  toggleLessonExpand: (id: string) => void;
+  startLesson: (modId: string, lessonId: string) => void;
+  setCurrentItemIndex: (idx: number) => void;
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current || typeof IntersectionObserver === "undefined") {
+      setIsVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { root: null, rootMargin: "150px", threshold: 0 }
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className="space-y-1 min-h-[36px]">
+      {isVisible ? (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              toggleLessonExpand(lesson.id);
+              if (isUnlocked && !isCurrent) {
+                startLesson(lesson.moduleId || lesson.module_id, lesson.id);
+              }
+            }}
+            disabled={!isUnlocked}
+            className={cn(
+              "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all text-left group",
+              isCurrent
+                ? "bg-primary/10 text-primary font-bold"
+                : isUnlocked
+                ? "hover:bg-muted text-foreground"
+                : "opacity-40 cursor-not-allowed text-muted-foreground"
+            )}
+          >
+            <span className="p-0.5 text-muted-foreground">
+              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            </span>
+            {topics.length > 0 ? (
+              isExpanded ? (
+                <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+              ) : isUnlocked ? (
+                <Folder className="h-3.5 w-3.5 text-primary/80 shrink-0" />
+              ) : (
+                <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              )
+            ) : isUnlocked ? (
+              <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+            ) : (
+              <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            )}
+            <span className="flex-1 truncate">{lesson.title}</span>
+            {isComplete && <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />}
+          </button>
+
+          {isExpanded && topics.length > 0 && (
+            <div className="ml-4 pl-2 border-l border-border/60 space-y-0.5 max-h-[150px] overflow-y-auto navo-sidebar-scrollbar pr-1">
+              {topics.map((tp: any) => {
+                const isTpCurrent = currentItem?.type === "topic" && currentItem.topicId === tp.id;
+                const isTpDone = completedItems.has(`${lesson.id}:${tp.id}`);
+                const targetIdx = flatList.findIndex((f) => f.lessonId === lesson.id && f.topicId === tp.id);
+                const isTpUnlocked = targetIdx >= 0 && isItemUnlocked(targetIdx);
+
+                return (
+                  <button
+                    key={tp.id}
+                    type="button"
+                    onClick={() => isTpUnlocked && targetIdx >= 0 && setCurrentItemIndex(targetIdx)}
+                    disabled={!isTpUnlocked}
+                    className={cn(
+                      "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left",
+                      isTpCurrent
+                        ? "bg-primary/15 text-foreground font-semibold border border-primary/40 shadow-xs"
+                        : isTpDone
+                        ? "text-primary hover:bg-muted"
+                        : isTpUnlocked
+                        ? "hover:bg-muted text-foreground/80"
+                        : "opacity-40 cursor-not-allowed text-muted-foreground"
+                    )}
+                  >
+                    {isTpDone ? (
+                      <CheckCircle2 className="h-3 w-3 shrink-0 text-primary" />
+                    ) : isTpCurrent ? (
+                      <FileText className="h-3 w-3 shrink-0 text-primary" />
+                    ) : isTpUnlocked ? (
+                      <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    )}
+                    <span className="flex-1 truncate">{tp.title}</span>
+                    {tp.audioUrl && <Volume2 className="h-3 w-3 shrink-0 text-primary" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="w-full h-8 bg-muted/20 rounded-lg animate-pulse" />
+      )}
+    </div>
+  );
+}
+
 export function CourseView({ navigate, params }: CourseViewProps) {
   const { t, language: interfaceLanguage } = useLanguage();
   const { enabledLanguages } = useLearningLanguages();
@@ -331,6 +474,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [sidebarSearchQuery, setSidebarSearchQuery] = useState("");
 
   // Focus-aware Timer state: tracks continuous study time in current lesson & topic
   const [lessonElapsedSeconds, setLessonElapsedSeconds] = useState(0);
@@ -454,6 +598,17 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
     return course.modules[0] || null;
   }, [course, selectedModuleId, currentItem]);
+
+  const filteredLessons = useMemo(() => {
+    if (!currentModule) return [];
+    if (!sidebarSearchQuery.trim()) return currentModule.lessons;
+    const q = sidebarSearchQuery.toLowerCase();
+    return currentModule.lessons.filter((lesson) => {
+      if (lesson.title.toLowerCase().includes(q)) return true;
+      const topics = parseTopics(lesson.topics);
+      return topics.some((tp) => tp.title.toLowerCase().includes(q));
+    });
+  }, [currentModule, sidebarSearchQuery]);
 
   // Current lesson object
   const currentLesson = useMemo(() => {
@@ -2526,113 +2681,59 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             </div>
 
             {isSidebarOpen && currentModule && (
-              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              <div className="flex-1 overflow-y-auto p-3 space-y-3 navo-sidebar-scrollbar">
+                {/* Local Sidebar Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search lessons..."
+                    value={sidebarSearchQuery}
+                    onChange={(e) => setSidebarSearchQuery(e.target.value)}
+                    className="w-full h-8 pl-8 pr-3 rounded-lg border bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+                  />
+                </div>
+
                 <div
                   className={cn(
-                    "space-y-2",
-                    currentModule.lessons.length > 5 ? "max-h-[260px] overflow-y-auto pr-1" : ""
+                    "space-y-1.5",
+                    filteredLessons.length > 5
+                      ? "max-h-[200px] overflow-y-auto navo-sidebar-scrollbar pr-1"
+                      : ""
                   )}
                 >
-                  {currentModule.lessons.map((lesson, lIdx) => {
-                    const isUnlocked = isLessonUnlocked(currentModule.id, lIdx);
-                    const isComplete = isLessonCompleted(lesson.id);
-                    const isCurrent = currentItem?.lessonId === lesson.id;
-                    const isExpanded = expandedLessons.has(lesson.id);
-                    const topics = parseTopics(lesson.topics);
+                  {filteredLessons.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4 italic">No lessons found</p>
+                  ) : (
+                    filteredLessons.map((lesson) => {
+                      const lIdx = currentModule.lessons.findIndex((l) => l.id === lesson.id);
+                      const isUnlocked = isLessonUnlocked(currentModule.id, lIdx);
+                      const isComplete = isLessonCompleted(lesson.id);
+                      const isCurrent = currentItem?.lessonId === lesson.id;
+                      const isExpanded = expandedLessons.has(lesson.id);
+                      const topics = parseTopics(lesson.topics);
 
-                    return (
-                      <div key={lesson.id} className="space-y-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            toggleLessonExpand(lesson.id);
-                            if (isUnlocked && !isCurrent) {
-                              startLesson(currentModule.id, lesson.id);
-                            }
-                          }}
-                          disabled={!isUnlocked}
-                          className={cn(
-                            "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all text-left group",
-                            isCurrent
-                              ? "bg-primary/10 text-primary font-bold"
-                              : isUnlocked
-                              ? "hover:bg-muted text-foreground"
-                              : "opacity-40 cursor-not-allowed text-muted-foreground"
-                          )}
-                        >
-                          <span className="p-0.5 text-muted-foreground">
-                            {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                          </span>
-                          {topics.length > 0 ? (
-                            isExpanded ? (
-                              <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0" />
-                            ) : isUnlocked ? (
-                              <Folder className="h-3.5 w-3.5 text-primary/80 shrink-0" />
-                            ) : (
-                              <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            )
-                          ) : isUnlocked ? (
-                            <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
-                          ) : (
-                            <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          )}
-                          <span className="flex-1 truncate">{lesson.title}</span>
-                          {isComplete && (
-                            <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />
-                          )}
-                        </button>
-
-                        {isExpanded && topics.length > 0 && (
-                          <div
-                            className={cn(
-                              "ml-4 pl-2 border-l border-border/60 space-y-0.5",
-                              topics.length > 5 ? "max-h-[160px] overflow-y-auto pr-1" : ""
-                            )}
-                          >
-                            {topics.map((tp, tpIdx) => {
-                              const isTpCurrent = currentItem?.type === "topic" && currentItem.topicId === tp.id;
-                              const isTpDone = completedItems.has(`${lesson.id}:${tp.id}`);
-                              const targetIdx = flatList.findIndex((f) => f.lessonId === lesson.id && f.topicId === tp.id);
-                              const isTpUnlocked = targetIdx >= 0 && isItemUnlocked(targetIdx);
-
-                              return (
-                                <button
-                                  key={tp.id}
-                                  type="button"
-                                  onClick={() => isTpUnlocked && targetIdx >= 0 && setCurrentItemIndex(targetIdx)}
-                                  disabled={!isTpUnlocked}
-                                  className={cn(
-                                    "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left",
-                                    isTpCurrent
-                                      ? "bg-primary/15 text-foreground font-semibold border border-primary/40 shadow-xs"
-                                      : isTpDone
-                                      ? "text-primary hover:bg-muted"
-                                      : isTpUnlocked
-                                      ? "hover:bg-muted text-foreground/80"
-                                      : "opacity-40 cursor-not-allowed text-muted-foreground"
-                                  )}
-                                >
-                                  {isTpDone ? (
-                                    <CheckCircle2 className="h-3 w-3 shrink-0 text-primary" />
-                                  ) : isTpCurrent ? (
-                                    <FileText className="h-3 w-3 shrink-0 text-primary" />
-                                  ) : isTpUnlocked ? (
-                                    <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
-                                  ) : (
-                                    <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />
-                                  )}
-                                  <span className="flex-1 truncate">{tp.title}</span>
-                                  {tp.audioUrl && (
-                                    <Volume2 className="h-3 w-3 shrink-0 text-primary" />
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      return (
+                        <VirtualizedSidebarLessonItem
+                          key={lesson.id}
+                          lesson={lesson}
+                          lessonIdx={lIdx}
+                          isUnlocked={isUnlocked}
+                          isComplete={isComplete}
+                          isCurrent={isCurrent}
+                          isExpanded={isExpanded}
+                          topics={topics}
+                          currentItem={currentItem}
+                          completedItems={completedItems}
+                          flatList={flatList}
+                          isItemUnlocked={isItemUnlocked}
+                          toggleLessonExpand={toggleLessonExpand}
+                          startLesson={startLesson}
+                          setCurrentItemIndex={setCurrentItemIndex}
+                        />
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Sidebar Quiz Item if examSettings exist */}
