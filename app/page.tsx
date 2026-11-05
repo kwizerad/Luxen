@@ -19,12 +19,8 @@ import { LoginForm } from "@/components/login-form";
 import { SignUpForm } from "@/components/sign-up-form";
 import { AuthModalsContainer } from "@/components/auth-modals-container";
 import { useAuthModals } from "@/lib/auth-modals-context";
+import { GoogleOneTap } from "@/components/google-one-tap";
 
-const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" {...props}>
-    <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.909 3.154-1.908 4.154-1.229 1.229-3.146 2.568-6.932 2.568-5.94 0-10.638-4.806-10.638-10.746s4.698-10.746 10.638-10.746c3.23 0 5.58 1.278 7.23 2.82l2.322-2.322C18.91 1.293 15.93 0 12.48 0 5.61 0 0 5.61 0 12.48s5.61 12.48 12.48 12.48c3.75 0 6.58-1.23 8.81-3.56 2.31-2.31 3.03-5.55 3.03-8.23 0-.79-.06-1.54-.18-2.25H12.48z" />
-  </svg>
-);
 
 export default function Home() {
   const router = useRouter();
@@ -89,23 +85,6 @@ export default function Home() {
     }, 1200);
   };
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`,
-        },
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      setError(err?.message || "Google Authentication failed.");
-      setLoading(false);
-    }
-  };
-
   const handleNavigate = (view: string, params?: Record<string, string>) => {
     if (params) {
       const q = new URLSearchParams(params).toString();
@@ -166,6 +145,7 @@ export default function Home() {
     return (
       <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-between select-none overflow-x-hidden px-4 sm:px-6 py-8 sm:py-12 bg-slate-50 dark:bg-zinc-950 transition-colors">
         <AuthModalsContainer />
+        <GoogleOneTap alwaysPrompt />
 
         {/* Immersive Wallpaper Background (Adapts to Light / Dark Theme) */}
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.18),rgba(241,245,249,0.98))] dark:bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.2),rgba(9,9,11,0.97))] bg-cover bg-center" />

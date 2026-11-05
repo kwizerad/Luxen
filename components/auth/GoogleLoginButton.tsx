@@ -89,12 +89,55 @@ export function GoogleLoginButton({
         await loadGoogleIdentityScript();
         if (cancelled || !containerRef.current) return;
 
-        // Wait for useGoogleOneTap to call initialize() with the nonce +
-        // callback before rendering the button. renderButton() uses the
-        // configuration from the last initialize() call, so if we render
-        // before initialize() the button won't trigger the credential
-        // callback. This also ensures the nonce is properly set up.
-        await waitForGisInitialized();
+        // Wait for GIS initialization (from useGoogleOneTap or self-initialize).
+        // If One Tap has already called initialize(), waitForGisInitialized resolves immediately.
+        // Otherwise, if not initialized within 800ms, initialize directly with a fresh nonce.
+        let isInit = false;
+        const initPromise = waitForGisInitialized().then(() => { isInit = true; });
+        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 800));
+        await Promise.race([initPromise, timeoutPromise]);
+
+        if (cancelled || !containerRef.current) return;
+
+        if (!isInit && window.google?.accounts?.id) {
+          const rawNonce = crypto.randomUUID();
+          const nonceBytes = new TextEncoder().encode(rawNonce);
+          const hashBuffer = await crypto.subtle.digest("SHA-256", nonceBytes);
+          const hashedNonce = Array.from(new Uint8Array(hashBuffer))
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
+
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: (response: { credential?: string }) => {
+              if (response?.credential) {
+                // Forward credential and rawNonce to global signInWithGoogleToken
+                import("@/lib/auth/supabaseGoogle").then(({ signInWithGoogleToken, syncGoogleUserProfile }) => {
+                  signInWithGoogleToken(response.credential!, rawNonce)
+                    .then(({ user, error }) => {
+                      if (error) {
+                        console.error("[GoogleLoginButton] ID token exchange error:", error);
+                        return;
+                      }
+                      if (user) {
+                        syncGoogleUserProfile(user).then(({ redirectPath }) => {
+                          window.location.href = redirectPath;
+                        });
+                      }
+                    });
+                });
+              }
+            },
+            auto_select: false,
+            cancel_on_tap_outside: false,
+            context: "signin",
+            ux_mode: "popup",
+            nonce: hashedNonce,
+            use_fedcm_for_prompt: false,
+            itp_support: true,
+          });
+        }
+
         if (cancelled || !containerRef.current) return;
 
         window.google!.accounts.id.renderButton(containerRef.current, {

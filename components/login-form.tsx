@@ -28,11 +28,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" {...props}>
-    <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.909 3.154-1.908 4.154-1.229 1.229-3.146 2.568-6.932 2.568-5.94 0-10.638-4.806-10.638-10.746s4.698-10.746 10.638-10.746c3.23 0 5.58 1.278 7.23 2.82l2.322-2.322C18.91 1.293 15.93 0 12.48 0 5.61 0 0 5.61 0 12.48s5.61 12.48 12.48 12.48c3.75 0 6.58-1.23 8.81-3.56 2.31-2.31 3.03-5.55 3.03-8.23 0-.79-.06-1.54-.18-2.25H12.48z" />
-  </svg>
-);
+import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 
 interface LoginFormProps extends React.ComponentPropsWithoutRef<"div"> {
   onSuccess?: () => void;
@@ -102,22 +98,6 @@ export function LoginForm({
     }
   }, [loginMode, idStep]);
 
-  const handleGoogleSignIn = async () => {
-    const supabase = createClient();
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (error) throw error;
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : t("errorSomethingWentWrong"));
-      setIsLoading(false);
-    }
-  };
 
   const handleIdVerificationLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -330,17 +310,17 @@ export function LoginForm({
       {/* MODE 1: Standard Password Login (Google on top, then Indandamuntu, then Username/Password) */}
       {loginMode === "password" && (
         <form onSubmit={handlePasswordLogin} className="w-full space-y-2 pt-0.5">
-          {/* 1. Google Button on Top */}
-          <Button
-            variant="outline"
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-            className="w-full h-9 rounded-xl border border-slate-200/60 dark:border-white/10 bg-white/80 hover:bg-white dark:bg-zinc-800/60 dark:hover:bg-zinc-800 font-medium text-xs flex items-center justify-center gap-2 shadow-none cursor-pointer"
-          >
-            <GoogleIcon className="h-4 w-4" />
-            <span>Google</span>
-          </Button>
+          {/* 1. Google Button on Top (Direct GIS ID Token Sign-In with Navo Branding) */}
+          <div className="w-full">
+            <GoogleLoginButton
+              theme="outline"
+              size="large"
+              text="continue_with"
+              shape="rectangular"
+              width="100%"
+              className="w-full flex justify-center [&_iframe]:!rounded-xl"
+            />
+          </div>
 
           {/* 2. Indandamuntu Quick Action Button */}
           <Button
