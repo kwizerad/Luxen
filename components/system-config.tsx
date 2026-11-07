@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Settings2, Shield, ShieldCheck, ClipboardList, FileText, LayoutList, Globe, Users, Trophy, Database, Volume2 } from "lucide-react";
 import { getSystemConfig, updateSystemConfig, getServicesConfig } from "@/lib/supabase/queries";
+import { invalidateServicesConfigCache } from "@/lib/feature-flags";
 import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
 import { parseSecuritySettings, type SecuritySettings, SECURITY_CONFIG_KEYS, DEFAULT_SECURITY_SETTINGS } from "@/lib/security-config";
@@ -88,10 +89,34 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
 
   // Service definitions for the admin UI
   const serviceDefinitions = [
-    { key: "live-exam", labelKey: "liveExamResults", descKey: "liveExamResultsDesc" },
-    { key: "group-exam", labelKey: "groupExamService", descKey: "groupExamServiceDesc" },
-    { key: "traffic-assistant", labelKey: "trafficAssistantTitle", descKey: "trafficAssistantDesc" },
-    { key: "driver-hub", labelKey: "findDriver", descKey: "findDriverDesc" },
+    {
+      key: "live-exam",
+      labelKey: "liveExamResults",
+      descKey: "liveExamResultsDesc",
+      titleFallback: "Official Exams Results Review Service",
+      descFallback: "Used to review the marks from official exams (Rwanda Police provisional & driving exams)",
+    },
+    {
+      key: "group-exam",
+      labelKey: "groupExamService",
+      descKey: "groupExamServiceDesc",
+      titleFallback: "Multiplayer Group Exam Challenge",
+      descFallback: "Invite classmates to compete in real-time synchronized mock exams",
+    },
+    {
+      key: "traffic-assistant",
+      labelKey: "trafficAssistantTitle",
+      descKey: "trafficAssistantDesc",
+      titleFallback: "Traffic Rules & Gazette Assistant",
+      descFallback: "Search Rwanda road traffic regulations and official legal gazettes",
+    },
+    {
+      key: "driver-hub",
+      labelKey: "findDriver",
+      descKey: "findDriverDesc",
+      titleFallback: "Find Driving Instructors / Driver Hub",
+      descFallback: "Directory of certified driving instructors and professional drivers",
+    },
   ];
   const [liveExamIdVerificationRequired, setLiveExamIdVerificationRequired] = useState<boolean>(true);
 
@@ -159,6 +184,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
         setGroupExamEnabled(checked);
       }
       if (typeof window !== "undefined") {
+        invalidateServicesConfigCache();
         sessionStorage.removeItem("app_services_config");
         window.dispatchEvent(
           new CustomEvent("config-changed", {
@@ -182,6 +208,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
         t("servicesPageToggleDesc") || "Enable or disable the entire services page"
       );
       if (typeof window !== "undefined") {
+        invalidateServicesConfigCache();
         sessionStorage.removeItem("app_services_config");
         sessionStorage.removeItem("app_admin_nav_toggles");
         window.dispatchEvent(new CustomEvent("system-config-updated"));
@@ -956,24 +983,39 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
             <Label className="text-sm font-medium text-muted-foreground">
               {t("individualServices") || "Individual Services"}
             </Label>
-            {serviceDefinitions.map((svc) => (
-              <div key={svc.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
-                <div className="space-y-0.5 pr-3">
-                  <Label htmlFor={`service-${svc.key}-toggle`} className="text-sm font-medium">
-                    {t(svc.labelKey)}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    {t(svc.descKey)}
-                  </p>
+            {serviceDefinitions.map((svc) => {
+              const isEnabled = serviceToggles[svc.key] ?? (svc.key === "driver-hub" ? false : true);
+              return (
+                <div key={svc.key} className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-muted/30 hover:bg-muted/40 transition-colors">
+                  <div className="space-y-1 pr-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Label htmlFor={`service-${svc.key}-toggle`} className="text-sm font-semibold cursor-pointer">
+                        {t(svc.labelKey) || (svc as any).titleFallback}
+                      </Label>
+                      <Badge
+                        variant={isEnabled ? "default" : "secondary"}
+                        className={`text-[10px] px-2 py-0 font-medium ${
+                          isEnabled
+                            ? "bg-emerald-600/90 hover:bg-emerald-600 text-white"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {isEnabled ? (t("active") || "Active") : (t("hidden") || "Hidden from students")}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      {t(svc.descKey) || (svc as any).descFallback}
+                    </p>
+                  </div>
+                  <Switch
+                    id={`service-${svc.key}-toggle`}
+                    checked={isEnabled}
+                    onCheckedChange={(checked) => handleToggleService(svc.key, checked)}
+                    disabled={!servicesPageEnabled}
+                  />
                 </div>
-                <Switch
-                  id={`service-${svc.key}-toggle`}
-                  checked={serviceToggles[svc.key] ?? (svc.key === "driver-hub" ? false : true)}
-                  onCheckedChange={(checked) => handleToggleService(svc.key, checked)}
-                  disabled={!servicesPageEnabled}
-                />
-              </div>
-            ))}
+              );
+            })}
 
             {/* National ID Verification toggle for Driving Exam Results */}
             <div className="mt-4 pt-4 border-t border-border/60">

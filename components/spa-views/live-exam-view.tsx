@@ -9,6 +9,7 @@ import ResultModal from "@/components/live-exam/ResultModal";
 import { useLanguage } from "@/lib/language-context";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { getCachedServicesConfig } from "@/lib/feature-flags";
 import type { ExamResultDetails } from "@/lib/live-exam/types";
 
 export interface LiveExamViewProps {
@@ -27,38 +28,10 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
 
   const refreshConfig = useCallback(async () => {
     try {
-      let rows: Array<{ key: string; value: string }> | null = null;
-      try {
-        const res = await fetch("/api/system-config", { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json();
-          if (Array.isArray(json.configs)) {
-            rows = json.configs;
-          }
-        }
-      } catch {}
-
-      if (!rows) {
-        const supabase = createClient();
-        const { data } = await supabase
-          .from("system_config")
-          .select("key, value");
-        rows = data || [];
-      }
-
-      let pageEnabled = true;
-      let examServiceEnabled = true;
-
-      if (rows && rows.length > 0) {
-        for (const row of rows) {
-          if (row.key === "services_page_enabled") {
-            pageEnabled = String(row.value).toLowerCase() !== "false";
-          } else if (row.key === "service_live-exam_enabled") {
-            examServiceEnabled = String(row.value).toLowerCase() !== "false";
-          }
-        }
-      }
-      setIsServiceEnabled(pageEnabled && examServiceEnabled);
+      const cfg = await getCachedServicesConfig();
+      const pageOn = cfg.pageEnabled ?? true;
+      const serviceOn = cfg.services["live-exam"] !== false;
+      setIsServiceEnabled(pageOn && serviceOn);
     } catch {
       setIsServiceEnabled(true);
     }
@@ -72,26 +45,14 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
     };
 
     window.addEventListener("config-changed", handleConfigChange);
+    window.addEventListener("system-config-updated", handleConfigChange);
     return () => {
       window.removeEventListener("config-changed", handleConfigChange);
+      window.removeEventListener("system-config-updated", handleConfigChange);
     };
   }, [refreshConfig]);
 
-  const copyToClipboard = useCallback(
-    (text: string) => {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard
-          .writeText(text)
-          .then(() => toast.success(`${t("copy")}: ${text}`))
-          .catch(() => fallbackCopy(text));
-      } else {
-        fallbackCopy(text);
-      }
-    },
-    [t]
-  );
-
-  const fallbackCopy = (text: string) => {
+  const fallbackCopy = useCallback((text: string) => {
     const textarea = document.createElement("textarea");
     textarea.value = text;
     textarea.style.position = "fixed";
@@ -105,7 +66,21 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
       toast.error(t("liveExamCopyFailed"));
     }
     document.body.removeChild(textarea);
-  };
+  }, [t]);
+
+  const copyToClipboard = useCallback(
+    (text: string) => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard
+          .writeText(text)
+          .then(() => toast.success(`${t("copy")}: ${text}`))
+          .catch(() => fallbackCopy(text));
+      } else {
+        fallbackCopy(text);
+      }
+    },
+    [t, fallbackCopy]
+  );
 
   const viewCodeResult = useCallback(
     async (code: string) => {
@@ -181,7 +156,7 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
             <ShieldAlert className="h-7 w-7" />
           </div>
-          <h2 className="text-xl font-bold tracking-tight">{t("liveExamResults") || "Live Exam Results"}</h2>
+          <h2 className="text-xl font-bold tracking-tight">{t("liveExamResults") || "Official Exams Results Review Service"}</h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
             {t("serviceDisabledMessage") || "This service is currently disabled by administration."}
           </p>
@@ -212,10 +187,10 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
               </div>
               <div>
                 <h2 className="text-xl font-extrabold tracking-tight">
-                  {t("liveExamResults")}
+                  {t("liveExamResults") || "Official Exams Results Review Service"}
                 </h2>
                 <span className="text-sm font-medium text-muted-foreground">
-                  {t("liveExamResultsSubtitle")}
+                  {t("liveExamResultsSubtitle") || "Used to review the marks from official exams"}
                 </span>
               </div>
             </div>

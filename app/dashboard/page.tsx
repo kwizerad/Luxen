@@ -89,10 +89,10 @@ export default function DashboardPage() {
       case "services/live-exam":
         return (
           <OSWindow
-            title="Live Exam Simulator"
-            subtitle="Real-time Proctoring"
-            icon={FileText}
-            onClose={() => navigate("home")}
+            title="Official Exams Results Review"
+            subtitle="Used to Review Marks from Official Exams"
+            icon={Car}
+            onClose={() => navigate("services")}
           >
             <LiveExamView navigate={navigate} />
           </OSWindow>
@@ -104,7 +104,7 @@ export default function DashboardPage() {
             title="Group Exam Session"
             subtitle="Multiplayer Challenge"
             icon={Users}
-            onClose={() => navigate("home")}
+            onClose={() => navigate("services")}
           >
             <GroupExamView navigate={navigate} />
           </OSWindow>

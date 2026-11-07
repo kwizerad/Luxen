@@ -2012,6 +2012,7 @@ export async function getServicesConfig(): Promise<{
         services: {
           "live-exam": true,
           "group-exam": true,
+          "traffic-assistant": true,
           "driver-hub": false,
         },
         idVerificationRequired: true,
@@ -2025,6 +2026,7 @@ export async function getServicesConfig(): Promise<{
   const services: Record<string, boolean> = {
     "live-exam": true,
     "group-exam": true,
+    "traffic-assistant": true,
     "driver-hub": false,
   };
 

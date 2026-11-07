@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Compass,
@@ -33,6 +33,26 @@ interface DockItem {
 export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
   const { t } = useLanguage();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [isExamActive, setIsExamActive] = useState<boolean>(false);
+
+  const checkExamState = () => {
+    if (typeof window === "undefined") return;
+    setIsExamActive(sessionStorage.getItem("exam-active") === "true");
+  };
+
+  useEffect(() => {
+    checkExamState();
+    window.addEventListener("exam-state-change", checkExamState);
+    window.addEventListener("storage", checkExamState);
+    return () => {
+      window.removeEventListener("exam-state-change", checkExamState);
+      window.removeEventListener("storage", checkExamState);
+    };
+  }, []);
+
+  if (isExamActive) {
+    return null;
+  }
 
   const getLabel = (key: string, fallback: string) => {
     const val = t(key);
@@ -69,9 +89,9 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
       color: "from-indigo-600 via-purple-600 to-cyan-600",
     },
     {
-      id: "driver-hub",
-      view: "driver-hub",
-      title: getLabel("services", getLabel("driverHub", "Services")),
+      id: "services",
+      view: "services",
+      title: getLabel("services", "Services"),
       icon: Car,
       color: "from-purple-500 to-pink-600",
     },

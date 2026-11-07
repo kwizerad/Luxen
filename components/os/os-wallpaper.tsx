@@ -10,7 +10,7 @@ export function OSWallpaper({ className = "" }: OSWallpaperProps) {
   return (
     <div
       aria-hidden="true"
-      className={`absolute inset-0 pointer-events-none -z-10 overflow-hidden select-none transition-colors duration-500 ${className}`}
+      className={`fixed inset-0 pointer-events-none -z-10 overflow-hidden select-none transition-colors duration-500 ${className}`}
     >
       {/* 1. Base Studio Canvas */}
       <div className="absolute inset-0 bg-[#f8fafc] dark:bg-[#08090c] transition-colors duration-500" />

@@ -118,9 +118,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main OS Stage / Desktop */}
       <main
         className={`flex-1 w-full min-w-0 flex flex-col ${
-          isExamInProgress || isFullBleedView
+          isExamInProgress
             ? "pt-0 pb-0"
-            : "pt-9 pb-20 lg:pb-24 px-2 sm:px-4"
+            : isFullBleedView
+            ? "pt-10 pb-0 px-1 sm:px-2"
+            : "pt-10 pb-20 lg:pb-24 px-2 sm:px-4"
         }`}
       >
         {children}

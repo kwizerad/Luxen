@@ -17,11 +17,13 @@ import {
   Car,
   Home,
   Check,
-  RotateCcw
+  RotateCcw,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/lib/language-context";
+import { getCachedServicesConfig } from "@/lib/feature-flags";
 import { SupportedLanguage, AssistantAnswerResult } from "@/lib/search-similarity";
 
 interface TrafficAssistantViewProps {
@@ -60,6 +62,32 @@ export function TrafficAssistantView({ initialQuery = "" }: TrafficAssistantView
   const [result, setResult] = useState<AssistantAnswerResult | null>(null);
   const [revealedQuestions, setRevealedQuestions] = useState<Record<string, boolean>>({});
   const [expandedGazette, setExpandedGazette] = useState<boolean>(true);
+  const [isServiceEnabled, setIsServiceEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkService = () => {
+      getCachedServicesConfig()
+        .then((cfg) => {
+          if (!cfg.pageEnabled || cfg.services["traffic-assistant"] === false) {
+            setIsServiceEnabled(false);
+          } else {
+            setIsServiceEnabled(true);
+          }
+        })
+        .catch(() => {
+          setIsServiceEnabled(true);
+        });
+    };
+
+    checkService();
+
+    window.addEventListener("config-changed", checkService);
+    window.addEventListener("system-config-updated", checkService);
+    return () => {
+      window.removeEventListener("config-changed", checkService);
+      window.removeEventListener("system-config-updated", checkService);
+    };
+  }, []);
 
   // Active language determination
   const effectiveLang: SupportedLanguage =
@@ -104,6 +132,28 @@ export function TrafficAssistantView({ initialQuery = "" }: TrafficAssistantView
   const toggleQuestionReveal = (id: string) => {
     setRevealedQuestions((prev) => ({ ...prev, [id]: !prev[id] }));
   };
+
+  if (isServiceEnabled === false) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center space-y-4 rounded-3xl border border-border p-8 bg-card shadow-lg">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <ShieldAlert className="h-7 w-7" />
+          </div>
+          <h2 className="text-xl font-bold tracking-tight">Traffic Rules & Gazette Assistant</h2>
+          <p className="text-sm text-muted-foreground">
+            This service is currently disabled by administration.
+          </p>
+          <a
+            href="/dashboard#services"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Return to Services
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20">

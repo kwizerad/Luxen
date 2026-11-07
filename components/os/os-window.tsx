@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   X,
@@ -34,10 +34,38 @@ export function OSWindow({
 }: OSWindowProps) {
   const { isRTL } = useLanguage();
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isExamActive, setIsExamActive] = useState(false);
+
+  const checkExamState = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const active = sessionStorage.getItem("exam-active") === "true";
+    setIsExamActive(active);
+  }, []);
+
+  useEffect(() => {
+    checkExamState();
+    window.addEventListener("exam-state-change", checkExamState);
+    window.addEventListener("storage", checkExamState);
+    return () => {
+      window.removeEventListener("exam-state-change", checkExamState);
+      window.removeEventListener("storage", checkExamState);
+    };
+  }, [checkExamState]);
 
   const toggleMaximize = () => {
     setIsMaximized(!isMaximized);
   };
+
+  // If active full-screen proctored exam is running, lock controls and enforce full viewport
+  if (isExamActive) {
+    return (
+      <div className="fixed inset-0 z-50 w-full h-full bg-background overflow-hidden p-0 m-0 border-none select-none">
+        <div className="w-full h-full flex flex-col overflow-y-auto">
+          {children}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -47,68 +75,73 @@ export function OSWindow({
       transition={{ type: "spring", damping: 26, stiffness: 320 }}
       className={`flex flex-col border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl shadow-2xl overflow-hidden transition-all duration-200 ${
         isMaximized
-          ? "fixed inset-0 z-50 w-full h-full rounded-none m-0 p-0"
+          ? "fixed top-14 bottom-16 left-2 right-2 md:left-4 md:right-4 z-40 rounded-2xl m-0 p-0"
           : "rounded-2xl w-full max-w-7xl mx-auto min-h-[calc(100vh-8.5rem)] my-2 z-30"
       } ${className}`}
     >
       {/* OS Window Header / Title Bar */}
       <div
         dir={isRTL ? "rtl" : "ltr"}
-        className="h-11 px-4 border-b border-slate-200/60 dark:border-white/10 bg-slate-100/80 dark:bg-zinc-900/80 backdrop-blur-md flex items-center justify-between select-none shrink-0"
+        className="h-11 px-3 sm:px-4 border-b border-slate-200/60 dark:border-white/10 bg-slate-100/90 dark:bg-zinc-900/90 backdrop-blur-md flex items-center justify-between select-none shrink-0 relative z-20"
       >
-        {/* macOS Style Window Traffic Controls */}
-        <div className="flex items-center gap-2 min-w-16 sm:w-20">
-          <button
-            type="button"
-            onClick={onClose}
-            title="Close Window (Return to Desktop)"
-            className="w-3.5 h-3.5 rounded-full bg-rose-500 hover:bg-rose-600 transition-colors flex items-center justify-center group cursor-pointer shadow-xs"
-          >
-            <X className="w-2.5 h-2.5 text-white stroke-[2.5]" />
-          </button>
-          <button
-            type="button"
-            onClick={onMinimize || onClose}
-            title="Minimize to Dock"
-            className="w-3.5 h-3.5 rounded-full bg-amber-500 hover:bg-amber-600 transition-colors flex items-center justify-center group cursor-pointer shadow-xs"
-          >
-            <Minus className="w-2.5 h-2.5 text-white stroke-[2.5]" />
-          </button>
-          <button
-            type="button"
-            onClick={toggleMaximize}
-            title={isMaximized ? "Restore Size" : "Maximize Window"}
-            className="hidden sm:flex w-3.5 h-3.5 rounded-full bg-emerald-500 hover:bg-emerald-600 transition-colors items-center justify-center group cursor-pointer shadow-xs"
-          >
-            {isMaximized ? (
-              <Minimize2 className="w-2.5 h-2.5 text-white stroke-[2.5]" />
-            ) : (
-              <Maximize2 className="w-2.5 h-2.5 text-white stroke-[2.5]" />
-            )}
-          </button>
-        </div>
-
-        {/* Window Center Title & App Icon */}
-        <div className="flex items-center gap-2 truncate max-w-md text-center">
-          <div className="p-1 rounded-md bg-primary/10 text-primary">
+        {/* Left: Window App Icon & Title */}
+        <div className="flex items-center gap-2 truncate max-w-[60%] sm:max-w-md">
+          <div className="p-1 rounded-md bg-primary/10 text-primary shrink-0">
             <Icon className="w-3.5 h-3.5" />
           </div>
-          <span className="font-semibold text-xs text-foreground truncate">
+          <span className="font-bold text-xs sm:text-sm text-foreground truncate">
             {title}
           </span>
           {subtitle && (
             <>
-              <span className="text-muted-foreground/40 text-[10px]">/</span>
-              <span className="text-[11px] text-muted-foreground truncate hidden sm:inline">
+              <span className="text-muted-foreground/40 text-[10px] hidden sm:inline">/</span>
+              <span className="text-[11px] text-muted-foreground truncate hidden md:inline">
                 {subtitle}
               </span>
             </>
           )}
         </div>
 
-        {/* Right Toolbar Controls */}
-        <div className="flex items-center justify-end gap-2 min-w-20">
+        {/* Right: Toolbar Controls + Top-Right Window Controls */}
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0">
           {toolbarRight}
+
+          {/* Top-Right OS Control Buttons */}
+          <div className="flex items-center gap-1 sm:gap-1.5 ml-1 pl-1 border-l border-slate-200 dark:border-zinc-800">
+            {/* Minimize Button */}
+            <button
+              type="button"
+              onClick={onMinimize || onClose}
+              title="Minimize Window"
+              className="w-7 h-7 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Maximize / Restore Button */}
+            <button
+              type="button"
+              onClick={toggleMaximize}
+              title={isMaximized ? "Restore Window Size" : "Maximize Window"}
+              className="w-7 h-7 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+            >
+              {isMaximized ? (
+                <Minimize2 className="w-3.5 h-3.5" />
+              ) : (
+                <Maximize2 className="w-3.5 h-3.5" />
+              )}
+            </button>
+
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={onClose}
+              title="Close Window (Return to Desktop)"
+              className="w-7 h-7 rounded-lg hover:bg-rose-500/15 text-slate-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 

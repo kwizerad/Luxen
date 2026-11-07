@@ -69,7 +69,6 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     {
       id: "course",
       title: getTitle("courses", getTitle("courseStudioNav", "Courses")),
-      subtitle: "Modules & Curriculum",
       icon: BookOpen,
       action: () => navigate("course"),
       gradient: "from-emerald-500 to-teal-700",
@@ -78,7 +77,6 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     {
       id: "exams",
       title: getTitle("examCenter", "Exams"),
-      subtitle: "Official Practice Tests",
       icon: FileText,
       action: () => navigate("exams"),
       gradient: "from-amber-500 to-orange-700",
@@ -86,7 +84,6 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     {
       id: "agora",
       title: "Agora",
-      subtitle: "Community & Peer Forum",
       icon: AgoraIcon,
       action: () => navigate("classmates"),
       gradient: "from-indigo-600 via-purple-600 to-cyan-600",
@@ -94,23 +91,20 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     {
       id: "signs",
       title: getTitle("trafficSignsCatalog", "Road Signs"),
-      subtitle: "120+ Traffic Signs",
       icon: Compass,
       action: () => navigate("course", { module: "signs" }),
       gradient: "from-blue-500 to-indigo-700",
     },
     {
-      id: "driver-hub",
-      title: getTitle("services", getTitle("driverHub", "Services")),
-      subtitle: "Instructors & Schools",
+      id: "services",
+      title: getTitle("services", "Services"),
       icon: Car,
-      action: () => navigate("driver-hub"),
+      action: () => navigate("services"),
       gradient: "from-purple-500 to-pink-700",
     },
     {
       id: "results",
       title: getTitle("resultsAnalytics", "Performance"),
-      subtitle: "Exam Transcripts",
       icon: BarChart3,
       action: () => navigate("results"),
       gradient: "from-rose-500 to-red-700",
@@ -118,7 +112,6 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     {
       id: "settings",
       title: getTitle("systemPreferences", "Preferences"),
-      subtitle: "System Config",
       icon: Settings,
       action: () => navigate("settings"),
       gradient: "from-zinc-500 to-zinc-800",
@@ -150,37 +143,34 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
         >
         {/* Left: Desktop Applications Grid */}
         <div className="space-y-6">
-          {/* Desktop App Icons Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
+          {/* Desktop App Icons Grid (No card cover frames, no description subtitles) */}
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-5 sm:gap-7 p-1">
             {desktopIcons.map((app) => {
               const Icon = app.icon;
               return (
                 <motion.div
                   key={app.id}
-                  whileHover={{ scale: 1.04, y: -4 }}
-                  whileTap={{ scale: 0.96 }}
+                  whileHover={{ scale: 1.08, y: -4 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={app.action}
-                  className="group flex flex-col items-center text-center p-3 sm:p-4 rounded-2xl bg-white/80 hover:bg-white dark:bg-card/60 dark:hover:bg-card/95 border border-slate-200/80 hover:border-emerald-500/50 dark:border-border/40 dark:hover:border-primary/40 transition-all cursor-pointer backdrop-blur-xl shadow-none"
+                  className="group flex flex-col items-center text-center p-2 rounded-2xl bg-transparent transition-all cursor-pointer border-0 shadow-none"
                 >
-                  <div className="relative mb-3">
+                  <div className="relative mb-2">
                     <div
-                      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${app.gradient} text-white flex items-center justify-center transition-transform shadow-none`}
+                      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${app.gradient} text-white flex items-center justify-center transition-all shadow-md group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-emerald-500/25`}
                     >
                       <Icon className="w-7 h-7 sm:w-8 sm:h-8" />
                     </div>
 
                     {app.badge && (
-                      <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[9px] font-bold font-mono rounded-full bg-emerald-500 text-white shadow-none">
+                      <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[9px] font-bold font-mono rounded-full bg-emerald-500 text-white shadow-sm">
                         {app.badge}
                       </span>
                     )}
                   </div>
 
-                  <span className="font-semibold text-xs sm:text-sm text-foreground tracking-tight group-hover:text-primary transition-colors">
+                  <span className="font-semibold text-xs sm:text-sm text-foreground tracking-tight group-hover:text-primary transition-colors drop-shadow-xs">
                     {app.title}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
-                    {app.subtitle}
                   </span>
                 </motion.div>
               );

@@ -239,6 +239,7 @@ export async function getCachedServicesConfig(): Promise<{
           services: {
             "live-exam": true,
             "group-exam": true,
+            "traffic-assistant": true,
             "driver-hub": false,
           },
           idVerificationRequired: true,
@@ -251,6 +252,7 @@ export async function getCachedServicesConfig(): Promise<{
     const services: Record<string, boolean> = {
       "live-exam": true,
       "group-exam": true,
+      "traffic-assistant": true,
       "driver-hub": false,
     };
 
@@ -284,11 +286,38 @@ export async function getCachedServicesConfig(): Promise<{
         services: {
           "live-exam": true,
           "group-exam": true,
+          "traffic-assistant": true,
           "driver-hub": false,
         },
         idVerificationRequired: true,
       }
     );
   }
+}
+
+/**
+ * Invalidate in-memory and sessionStorage cached services config
+ */
+export function invalidateServicesConfigCache(): void {
+  cachedServicesConfig = null;
+  if (typeof window !== "undefined") {
+    try {
+      sessionStorage.removeItem("app_services_config");
+    } catch {}
+  }
+}
+
+// Invalidate in-memory caches on real-time configuration changes
+if (typeof window !== "undefined") {
+  window.addEventListener("config-changed", () => {
+    cachedServicesConfig = null;
+    cachedGroupExam = null;
+    cachedStandaloneExam = null;
+  });
+  window.addEventListener("system-config-updated", () => {
+    cachedServicesConfig = null;
+    cachedGroupExam = null;
+    cachedStandaloneExam = null;
+  });
 }
 

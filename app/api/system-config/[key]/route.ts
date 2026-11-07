@@ -29,6 +29,7 @@ export async function GET(
       "services_page_enabled",
       "service_live-exam_enabled",
       "service_group-exam_enabled",
+      "service_traffic-assistant_enabled",
       "service_driver-hub_enabled",
       "group_exam_enabled",
       "standalone_exam_enabled",

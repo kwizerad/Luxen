@@ -218,33 +218,17 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       key: "live-exam",
       view: "services/live-exam",
       icon: Car,
-      tag: "service · live exam check",
-      badge: "National Registry",
+      tag: "service · official marks review",
+      badge: "Official Exam Marks",
       titleKey: "liveExamResults",
       descKey: "liveExamResultsDesc",
-      titleFallback: "Provisoire Exam Results",
-      descFallback: "Verify live provisional driving theory & practical test status, check your pass credentials, and retrieve certified exam outcome badges.",
+      titleFallback: "Official Exams Results Review Service",
+      descFallback: "Used to review the marks from official exams. Check verified provisional and practical exam scores, test status, and candidate transcripts.",
       iconBox: "bg-primary/10 border border-primary/20 text-primary",
       badgeClass: "bg-primary/10 border border-primary/20 text-primary",
       btnClass: "bg-primary hover:bg-primary/90 text-primary-foreground",
       openLabelKey: "liveExamOpen",
-      openFallback: "Check Status",
-    },
-    {
-      key: "group-exam",
-      view: "services/group-exam",
-      icon: Trophy,
-      tag: "multiplayer · exam challenge",
-      badge: "Challenge Lobby",
-      titleKey: "groupExamService",
-      descKey: "groupExamServiceDesc",
-      titleFallback: "Multiplayer Group Exam",
-      descFallback: "Invite classmates or friends to live head-to-head traffic regulations mock exams and compare scores in real time.",
-      iconBox: "bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400",
-      badgeClass: "bg-amber-500/10 border border-amber-500/20 text-amber-500",
-      btnClass: "bg-amber-600 hover:bg-amber-500 text-white",
-      openLabelKey: "openGroupExam",
-      openFallback: "Start Challenge",
+      openFallback: "Review Marks",
     },
     {
       key: "traffic-assistant",
@@ -280,10 +264,17 @@ export function ServicesView({ navigate }: ServicesViewProps) {
     },
   ];
 
-  // Display only services toggled on by admin (serviceToggles[svc.key] === true)
+  // Display only services toggled on by admin. Hide services toggled off by admin.
   const services = allServices.filter((svc) => {
-    if (!serviceToggles) return false;
-    return serviceToggles[svc.key] === true;
+    if (serviceToggles && serviceToggles[svc.key] !== undefined) {
+      return serviceToggles[svc.key] === true;
+    }
+
+    // Default fallback if not yet configured in system_config:
+    if (svc.key === "live-exam") return true; // Restored official exams results review
+    if (svc.key === "traffic-assistant") return true;
+    if (svc.key === "driver-hub") return false;
+    return false;
   });
 
   return (
