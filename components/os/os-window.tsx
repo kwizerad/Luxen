@@ -75,7 +75,7 @@ export function OSWindow({
       transition={{ type: "spring", damping: 26, stiffness: 320 }}
       className={`flex flex-col border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl shadow-2xl overflow-hidden transition-all duration-200 ${
         isMaximized
-          ? "fixed top-14 bottom-16 left-2 right-2 md:left-4 md:right-4 z-40 rounded-2xl m-0 p-0"
+          ? "w-full max-w-none flex-1 min-h-[calc(100vh-7rem)] h-full my-0 rounded-2xl z-30"
           : "rounded-2xl w-full max-w-7xl mx-auto min-h-[calc(100vh-8.5rem)] my-2 z-30"
       } ${className}`}
     >
@@ -106,24 +106,24 @@ export function OSWindow({
         <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0">
           {toolbarRight}
 
-          {/* Top-Right OS Control Buttons */}
-          <div className="flex items-center gap-1 sm:gap-1.5 ml-1 pl-1 border-l border-slate-200 dark:border-zinc-800">
-            {/* Minimize Button */}
+          {/* Top-Right OS Control Buttons with Restored Color Badges */}
+          <div className="flex items-center gap-1.5 ml-1 pl-1.5 border-l border-slate-200/80 dark:border-zinc-800">
+            {/* Minimize Button (Amber) */}
             <button
               type="button"
               onClick={onMinimize || onClose}
               title="Minimize Window"
-              className="w-7 h-7 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-lg bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 hover:bg-amber-500 hover:text-white border border-amber-500/30 flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95"
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
 
-            {/* Maximize / Restore Button */}
+            {/* Maximize / Restore Button (Emerald) */}
             <button
               type="button"
               onClick={toggleMaximize}
               title={isMaximized ? "Restore Window Size" : "Maximize Window"}
-              className="w-7 h-7 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-lg bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95"
             >
               {isMaximized ? (
                 <Minimize2 className="w-3.5 h-3.5" />
@@ -132,12 +132,12 @@ export function OSWindow({
               )}
             </button>
 
-            {/* Close Button */}
+            {/* Close Button (Rose) */}
             <button
               type="button"
               onClick={onClose}
               title="Close Window (Return to Desktop)"
-              className="w-7 h-7 rounded-lg hover:bg-rose-500/15 text-slate-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-lg bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 hover:bg-rose-600 hover:text-white border border-rose-500/30 flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -146,7 +146,7 @@ export function OSWindow({
       </div>
 
       {/* Window Body Canvas */}
-      <div className="flex-1 overflow-y-auto min-h-0 relative">
+      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto relative">
         {children}
       </div>
     </motion.div>
