@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React from "react";
 import { ChevronLeft, ShieldAlert, Flag, Send } from "lucide-react";
 import { AdminAuditLogViewer } from "@/components/admin/admin-audit-log-viewer";

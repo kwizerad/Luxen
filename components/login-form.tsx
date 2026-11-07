@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
+import { useAuthModals } from "@/lib/auth-modals-context";
+import { WelcomingCardOverlay } from "@/components/auth/welcoming-card-overlay";
 
 interface LoginFormProps extends React.ComponentPropsWithoutRef<"div"> {
   onSuccess?: () => void;
@@ -99,6 +101,11 @@ export function LoginForm({
   }, [loginMode, idStep]);
 
 
+  const [showWelcomingOverlay, setShowWelcomingOverlay] = useState(false);
+  const [welcomingUser, setWelcomingUser] = useState<{ name: string; avatarUrl?: string }>({ name: "" });
+
+  const { switchToRecover } = useAuthModals();
+
   const handleIdVerificationLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIdError(null);
@@ -143,7 +150,8 @@ export function LoginForm({
       }
 
       const greetingName = data.full_name || cleanId;
-      toast.success(`Murakaza neza, ${greetingName}!`);
+      setWelcomingUser({ name: greetingName, avatarUrl: data.photo_url || data.avatar_url });
+      setShowWelcomingOverlay(true);
 
       // Sign in to Supabase
       const supabase = createClient();
@@ -157,16 +165,20 @@ export function LoginForm({
         console.error("ID login session error:", signInError);
         toast.error("Could not initialize session. Please try logging in with password.");
         setIsLoading(false);
+        setShowWelcomingOverlay(false);
         return;
       }
 
       setAdminSessionFlag(false);
-      if (onSuccess) onSuccess();
-      router.push("/dashboard");
+      setTimeout(() => {
+        if (onSuccess) onSuccess();
+        router.push("/dashboard");
+      }, 1600);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t("errorSomethingWentWrong");
       setIdError(msg);
       setIsLoading(false);
+      setShowWelcomingOverlay(false);
     }
   };
 
@@ -377,7 +389,7 @@ export function LoginForm({
             <div className="flex justify-end pt-0.5">
               <button
                 type="button"
-                onClick={() => router.push("/auth/forgot-password")}
+                onClick={() => switchToRecover()}
                 className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer font-medium"
               >
                 {labels.forgot}

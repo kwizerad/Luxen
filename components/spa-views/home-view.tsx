@@ -58,6 +58,8 @@ import { HomeViewSkeleton } from "@/components/skeletons";
 import { formatDistanceToNow } from "date-fns";
 import type { UserProfile } from "@/lib/database.types";
 import { VerifyIdModal } from "@/components/verify-id-modal";
+import { SetPasswordModal } from "@/components/set-password-modal";
+import { checkAndDispatchPasswordReminder } from "@/lib/password-reminder-service";
 
 interface HomeViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -144,6 +146,7 @@ export function HomeView({ navigate }: HomeViewProps) {
   });
   const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
   const [showVerifyIdModal, setShowVerifyIdModal] = useState(false);
+  const [showSetPasswordModal, setShowSetPasswordModal] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [localLastTopic, setLocalLastTopic] = useState<{
     moduleId?: string;
@@ -495,7 +498,20 @@ export function HomeView({ navigate }: HomeViewProps) {
         setServicesPageEnabled(servicesConfigResult.value.pageEnabled);
       }
       if (profileData.status === "fulfilled" && profileData.value) {
-        setUserProfile(profileData.value as unknown as UserProfile);
+        const prof = profileData.value as unknown as UserProfile;
+        setUserProfile(prof);
+
+        // Check if hash requests set password modal
+        const isHashTriggered = typeof window !== "undefined" && window.location.hash === "#set-password";
+        const sessionSkipped = typeof window !== "undefined" && sessionStorage.getItem(`luxen_pwd_skipped_${user.id}`);
+
+        if (prof?.national_id && !prof?.has_custom_password) {
+          if (isHashTriggered || !sessionSkipped) {
+            setShowSetPasswordModal(true);
+          }
+          // Dispatch 2x/week background reminder notification
+          void checkAndDispatchPasswordReminder(user, prof);
+        }
       }
       if (bookingData.status === "fulfilled") {
         setUpcomingBooking(bookingData.value);
@@ -1482,6 +1498,24 @@ export function HomeView({ navigate }: HomeViewProps) {
               birthdate: citizen.dateOfBirth || userProfile.birthdate,
               avatar_url: citizen.photoUrl || userProfile.avatar_url,
             });
+          }
+        }}
+      />
+
+      {/* Set Password Modal for National ID Accounts */}
+      <SetPasswordModal
+        open={showSetPasswordModal}
+        onOpenChange={setShowSetPasswordModal}
+        onSuccess={() => {
+          setShowSetPasswordModal(false);
+          if (userProfile) {
+            setUserProfile({ ...userProfile, has_custom_password: true });
+          }
+        }}
+        onSkip={() => {
+          setShowSetPasswordModal(false);
+          if (user?.id && typeof window !== "undefined") {
+            sessionStorage.setItem(`luxen_pwd_skipped_${user.id}`, "true");
           }
         }}
       />

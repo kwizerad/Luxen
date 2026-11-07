@@ -25,21 +25,6 @@ const nextConfig = {
     webpackBuildWorker: false,
     cpus: 1,
     workerThreads: false,
-    optimizePackageImports: [
-      'recharts',
-      'lucide-react',
-      '@radix-ui/react-dialog',
-      '@radix-ui/react-dropdown-menu',
-      '@radix-ui/react-select',
-      '@radix-ui/react-tabs',
-      '@radix-ui/react-alert-dialog',
-      '@radix-ui/react-avatar',
-      '@radix-ui/react-checkbox',
-      '@radix-ui/react-label',
-      '@radix-ui/react-progress',
-      '@radix-ui/react-switch',
-      'date-fns',
-    ],
   },
   async headers() {
     return [

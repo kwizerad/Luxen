@@ -1,16 +1,19 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, User, Palette, ImageIcon, Settings2, Shield, Globe, LayoutList, ClipboardList, ChevronRight, Monitor, Volume2 } from "lucide-react";
+import { Mail, User, Palette, ImageIcon, Settings2, Shield, Globe, LayoutList, ClipboardList, ChevronRight, Monitor, Volume2, Scale } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import UserSettings from "@/components/user-settings";
 import { ThemeCustomizer } from "@/components/theme-customizer";
 import { BrandingCustomizer } from "@/components/branding-customizer";
 import { SystemConfigSettings } from "@/components/system-config";
 import { TTSManagementCard } from "@/components/admin/tts-management-card";
+import { GazetteManager } from "@/components/admin/gazette-manager";
 import { Loader2 } from "lucide-react";
 import { ADMIN_CREDENTIALS } from "@/lib/admin-config";
 import Link from "next/link";
@@ -77,7 +80,7 @@ export default function AdminSettingsPage() {
       } else if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
         const tabParam = params.get("tab");
-        if (tabParam && ["account", "appearance", "exam", "languages", "tts", "services"].includes(tabParam)) {
+        if (tabParam && ["account", "appearance", "exam", "languages", "tts", "services", "gazette"].includes(tabParam)) {
           setActiveTab(tabParam);
         }
       }
@@ -98,6 +101,7 @@ export default function AdminSettingsPage() {
         { id: "exam", label: t("examSettings") || "Exam Settings", icon: <ClipboardList className="h-4 w-4" /> },
         { id: "languages", label: t("languages") || "Languages", icon: <Globe className="h-4 w-4" /> },
         { id: "tts", label: "Text-to-Speech (TTS)", icon: <Volume2 className="h-4 w-4" /> },
+        { id: "gazette", label: "Official Gazette", icon: <Scale className="h-4 w-4" /> },
         { id: "services", label: t("servicesSettings") || "Services", icon: <LayoutList className="h-4 w-4" /> },
       ]
     : [
@@ -292,6 +296,8 @@ export default function AdminSettingsPage() {
               {hasSettingsPerm && activeTab === "languages" && <SystemConfigSettings filter="languages" />}
 
               {hasSettingsPerm && activeTab === "tts" && <TTSManagementCard />}
+
+              {hasSettingsPerm && activeTab === "gazette" && <GazetteManager />}
 
               {hasSettingsPerm && activeTab === "services" && <SystemConfigSettings filter="services" />}
             </motion.div>

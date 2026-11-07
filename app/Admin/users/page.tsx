@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { UserWorkspace } from "./components/user-workspace";
 import type { UserWithStatus, UserStats, GrowthPoint } from "./components/types";
 

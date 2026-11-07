@@ -96,6 +96,8 @@ export interface UserProfile {
   provision_verified_at?: string;
   warned?: boolean;
   warned_at?: string;
+  has_custom_password?: boolean;
+  last_password_reminder_at?: string;
   created_at: string;
   updated_at?: string;
 }

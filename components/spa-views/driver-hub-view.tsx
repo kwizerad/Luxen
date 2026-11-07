@@ -30,15 +30,30 @@ export function DriverHubView({ navigate }: DriverHubViewProps) {
   const [isServiceEnabled, setIsServiceEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
-    getCachedServicesConfig().then((cfg) => {
-      if (!cfg.pageEnabled || cfg.services["driver-hub"] === false) {
+    const checkService = () => {
+      getCachedServicesConfig().then((cfg) => {
+        if (!cfg.pageEnabled || cfg.services["driver-hub"] !== true) {
+          setIsServiceEnabled(false);
+        } else {
+          setIsServiceEnabled(true);
+        }
+      }).catch(() => {
         setIsServiceEnabled(false);
-      } else {
-        setIsServiceEnabled(true);
-      }
-    }).catch(() => {
-      setIsServiceEnabled(true);
-    });
+      });
+    };
+
+    checkService();
+
+    const handleConfigChange = () => {
+      checkService();
+    };
+
+    window.addEventListener("config-changed", handleConfigChange);
+    window.addEventListener("system-config-updated", handleConfigChange);
+    return () => {
+      window.removeEventListener("config-changed", handleConfigChange);
+      window.removeEventListener("system-config-updated", handleConfigChange);
+    };
   }, []);
 
   useEffect(() => {

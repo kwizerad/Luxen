@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   FileText,
   BarChart3,
+  Scale,
 } from "lucide-react";
 import { NotificationsDropdown } from "./notifications-dropdown";
 import { FloatingUserSettings } from "./floating-user-settings";
@@ -271,6 +272,14 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
             activeAdminPath?.startsWith("/Admin/audit") ||
             activeAdminPath?.startsWith("/Admin/notifications")
         ),
+    },
+    {
+      id: "admin-gazette",
+      label: "Gazette",
+      icon: Scale,
+      href: "/Admin/gazette",
+      isActive:
+        adminSpaView === "gazette" || Boolean(activeAdminPath?.startsWith("/Admin/gazette")),
     },
   ];
 

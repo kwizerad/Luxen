@@ -236,7 +236,11 @@ export async function getCachedServicesConfig(): Promise<{
       return (
         (cachedServicesConfig as any) || {
           pageEnabled: true,
-          services: {},
+          services: {
+            "live-exam": true,
+            "group-exam": true,
+            "driver-hub": false,
+          },
           idVerificationRequired: true,
         }
       );
@@ -244,7 +248,11 @@ export async function getCachedServicesConfig(): Promise<{
 
     let pageEnabled = true;
     let idVerificationRequired = true;
-    const services: Record<string, boolean> = {};
+    const services: Record<string, boolean> = {
+      "live-exam": true,
+      "group-exam": true,
+      "driver-hub": false,
+    };
 
     for (const row of rows) {
       if (row.key === "services_page_enabled") {
@@ -273,7 +281,11 @@ export async function getCachedServicesConfig(): Promise<{
     return (
       (cachedServicesConfig as any) || {
         pageEnabled: true,
-        services: {},
+        services: {
+          "live-exam": true,
+          "group-exam": true,
+          "driver-hub": false,
+        },
         idVerificationRequired: true,
       }
     );

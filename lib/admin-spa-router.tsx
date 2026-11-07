@@ -15,6 +15,7 @@ export type AdminViewId =
   | "reports"
   | "notifications"
   | "audit"
+  | "gazette"
   | "settings";
 
 export interface AdminRouteState {
@@ -46,6 +47,7 @@ export function resolveAdminViewFromPath(pathname: string): AdminViewId {
   if (lower === "/admin/reports") return "reports";
   if (lower === "/admin/notifications") return "notifications";
   if (lower === "/admin/audit") return "audit";
+  if (lower === "/admin/gazette") return "gazette";
   if (lower === "/admin/settings") return "settings";
 
   return "dashboard";

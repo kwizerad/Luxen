@@ -12,6 +12,7 @@ import {
   ArrowRight,
   UserCheck,
   ShieldCheck,
+  Scale,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
@@ -158,6 +159,31 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       });
   }, [user]);
 
+  const fetchServicesConfig = () => {
+    getCachedServicesConfig()
+      .then((config) => {
+        setPageEnabled(config.pageEnabled ?? true);
+        setServiceToggles(config.services || {});
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleConfigChange = () => {
+      spaCache.delete("spa_services_view");
+      fetchServicesConfig();
+    };
+
+    window.addEventListener("config-changed", handleConfigChange);
+    window.addEventListener("system-config-updated", handleConfigChange);
+    return () => {
+      window.removeEventListener("config-changed", handleConfigChange);
+      window.removeEventListener("system-config-updated", handleConfigChange);
+    };
+  }, []);
+
   // During initial cold load without cache, display skeleton
   if (isLoading && !cachedData) {
     return <ServicesViewSkeleton />;
@@ -193,16 +219,48 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       view: "services/live-exam",
       icon: Car,
       tag: "service · live exam check",
-      badge: "Real-Time Registry",
+      badge: "National Registry",
       titleKey: "liveExamResults",
       descKey: "liveExamResultsDesc",
-      titleFallback: "Live Exam Check",
-      descFallback: "Verify live national driving test status, check your pass credentials, and retrieve certified exam outcome badges.",
+      titleFallback: "Provisoire Exam Results",
+      descFallback: "Verify live provisional driving theory & practical test status, check your pass credentials, and retrieve certified exam outcome badges.",
       iconBox: "bg-primary/10 border border-primary/20 text-primary",
       badgeClass: "bg-primary/10 border border-primary/20 text-primary",
       btnClass: "bg-primary hover:bg-primary/90 text-primary-foreground",
       openLabelKey: "liveExamOpen",
       openFallback: "Check Status",
+    },
+    {
+      key: "group-exam",
+      view: "services/group-exam",
+      icon: Trophy,
+      tag: "multiplayer · exam challenge",
+      badge: "Challenge Lobby",
+      titleKey: "groupExamService",
+      descKey: "groupExamServiceDesc",
+      titleFallback: "Multiplayer Group Exam",
+      descFallback: "Invite classmates or friends to live head-to-head traffic regulations mock exams and compare scores in real time.",
+      iconBox: "bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400",
+      badgeClass: "bg-amber-500/10 border border-amber-500/20 text-amber-500",
+      btnClass: "bg-amber-600 hover:bg-amber-500 text-white",
+      openLabelKey: "openGroupExam",
+      openFallback: "Start Challenge",
+    },
+    {
+      key: "traffic-assistant",
+      view: "external:/traffic-assistant",
+      icon: Scale,
+      tag: "service · legal search & ai assistant",
+      badge: "Official Gazette",
+      titleKey: "trafficAssistantTitle",
+      descKey: "trafficAssistantDesc",
+      titleFallback: "Traffic Rules & Gazette Assistant",
+      descFallback: "Search Rwanda road traffic regulations, legal decrees, and practice questions in Kinyarwanda, English, or French.",
+      iconBox: "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400",
+      badgeClass: "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600",
+      btnClass: "bg-emerald-600 hover:bg-emerald-500 text-white",
+      openLabelKey: "openTrafficAssistant",
+      openFallback: "Ask Assistant",
     },
     {
       key: "driver-hub",
@@ -222,12 +280,10 @@ export function ServicesView({ navigate }: ServicesViewProps) {
     },
   ];
 
+  // Display only services toggled on by admin (serviceToggles[svc.key] === true)
   const services = allServices.filter((svc) => {
-    if (svc.key === "driver-hub") {
-      return serviceToggles && serviceToggles["driver-hub"] === true;
-    }
-    if (serviceToggles && serviceToggles[svc.key] === false) return false;
-    return true;
+    if (!serviceToggles) return false;
+    return serviceToggles[svc.key] === true;
   });
 
   return (
@@ -312,14 +368,23 @@ export function ServicesView({ navigate }: ServicesViewProps) {
               const isLiveExam = service.view === "services/live-exam";
               const isVerified = Boolean(user?.user_metadata?.national_id);
 
+              const handleServiceClick = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                if (service.view.startsWith("external:")) {
+                  window.location.href = service.view.replace("external:", "");
+                } else {
+                  navigate(service.view);
+                }
+              };
+
               return (
                 <div
                   key={service.view}
-                  onClick={() => navigate(service.view)}
+                  onClick={handleServiceClick}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") navigate(service.view);
+                    if (e.key === "Enter" || e.key === " ") handleServiceClick(e as any);
                   }}
                   className="rounded-2xl border border-border/90 dark:border-zinc-800/90 bg-card hover:bg-muted/40 dark:bg-zinc-900/50 dark:hover:bg-zinc-800/60 hover:border-border dark:hover:border-zinc-700 p-4 sm:p-5 transition-all duration-150 cursor-pointer group flex flex-col justify-between select-none shadow-xs hover:shadow-md"
                 >
@@ -374,10 +439,7 @@ export function ServicesView({ navigate }: ServicesViewProps) {
                     </span>
                     <Button
                       size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(service.view);
-                      }}
+                      onClick={handleServiceClick}
                       className={`w-full sm:w-auto h-9 sm:h-8 px-3.5 rounded-lg text-xs font-semibold gap-1.5 shadow-xs justify-between sm:justify-center transition-colors ${service.btnClass || "bg-primary hover:bg-primary/90 text-primary-foreground"}`}
                     >
                       <span>{t(service.openLabelKey) || service.openFallback}</span>

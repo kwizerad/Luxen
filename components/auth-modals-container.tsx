@@ -3,10 +3,11 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { LoginForm } from "@/components/login-form";
 import { SignUpForm } from "@/components/sign-up-form";
+import { RecoverPasswordModal } from "@/components/recover-password-modal";
 import { useAuthModals } from "@/lib/auth-modals-context";
 
 export function AuthModalsContainer() {
-  const { isLoginOpen, isSignUpOpen, closeLogin, closeSignUp, switchToLogin, switchToSignUp } = useAuthModals();
+  const { isLoginOpen, isSignUpOpen, isRecoverOpen, closeLogin, closeSignUp, closeRecover, switchToLogin, switchToSignUp, switchToRecover } = useAuthModals();
 
   return (
     <>
@@ -25,6 +26,9 @@ export function AuthModalsContainer() {
           <SignUpForm onSuccess={closeSignUp} onSwitchToLogin={switchToLogin} />
         </DialogContent>
       </Dialog>
+
+      {/* Password Recovery Modal */}
+      <RecoverPasswordModal open={isRecoverOpen} onOpenChange={closeRecover} onSuccess={closeRecover} />
     </>
   );
 }

@@ -90,6 +90,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   const serviceDefinitions = [
     { key: "live-exam", labelKey: "liveExamResults", descKey: "liveExamResultsDesc" },
     { key: "group-exam", labelKey: "groupExamService", descKey: "groupExamServiceDesc" },
+    { key: "traffic-assistant", labelKey: "trafficAssistantTitle", descKey: "trafficAssistantDesc" },
     { key: "driver-hub", labelKey: "findDriver", descKey: "findDriverDesc" },
   ];
   const [liveExamIdVerificationRequired, setLiveExamIdVerificationRequired] = useState<boolean>(true);
@@ -156,6 +157,15 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           "Enable or disable group exam"
         );
         setGroupExamEnabled(checked);
+      }
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("app_services_config");
+        window.dispatchEvent(
+          new CustomEvent("config-changed", {
+            detail: { key: `service_${key}_enabled`, value: checked },
+          })
+        );
+        window.dispatchEvent(new CustomEvent("system-config-updated"));
       }
       toast.success(t("servicesSettingsSaved") || "Service setting updated");
     } catch (error: any) {
@@ -405,7 +415,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
         serviceDefinitions.map((svc) =>
           updateSystemConfig(
             `service_${svc.key}_enabled`,
-            (serviceToggles[svc.key] ?? true).toString(),
+            (serviceToggles[svc.key] ?? (svc.key === "driver-hub" ? false : true)).toString(),
             t(svc.descKey) || `Enable or disable the ${svc.key} service`
           )
         )
@@ -958,7 +968,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
                 </div>
                 <Switch
                   id={`service-${svc.key}-toggle`}
-                  checked={serviceToggles[svc.key] ?? true}
+                  checked={serviceToggles[svc.key] ?? (svc.key === "driver-hub" ? false : true)}
                   onCheckedChange={(checked) => handleToggleService(svc.key, checked)}
                   disabled={!servicesPageEnabled}
                 />

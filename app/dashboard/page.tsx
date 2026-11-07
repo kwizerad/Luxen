@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useHashRouter } from "@/hooks/use-hash-router";
 import { ViewTransition } from "@/components/spa-views/view-transition";
 import { OSDesktopView } from "@/components/os/os-desktop-view";

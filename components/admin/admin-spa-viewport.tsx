@@ -71,6 +71,10 @@ const AdminAuditView = dynamic(() => import("@/app/Admin/audit/page"), {
   loading: () => <AdminViewSkeleton label="Security Audit Trail" />,
 });
 
+const AdminGazetteView = dynamic(() => import("@/app/Admin/gazette/page"), {
+  loading: () => <AdminViewSkeleton label="Official Gazette Manager" />,
+});
+
 const AdminSettingsView = dynamic(() => import("@/app/Admin/settings/page"), {
   loading: () => <AdminViewSkeleton label="System Settings" />,
 });
@@ -109,6 +113,8 @@ export function AdminSpaViewport() {
         return <AdminNotificationsView />;
       case "audit":
         return <AdminAuditView />;
+      case "gazette":
+        return <AdminGazetteView />;
       case "settings":
         return <AdminSettingsView />;
       default:

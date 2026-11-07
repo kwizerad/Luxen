@@ -2007,14 +2007,26 @@ export async function getServicesConfig(): Promise<{
       .select("key, value");
 
     if (error) {
-      return { pageEnabled: true, services: {}, idVerificationRequired: true };
+      return {
+        pageEnabled: true,
+        services: {
+          "live-exam": true,
+          "group-exam": true,
+          "driver-hub": false,
+        },
+        idVerificationRequired: true,
+      };
     }
     rows = data || [];
   }
 
   let pageEnabled = true;
   let idVerificationRequired = true;
-  const services: Record<string, boolean> = {};
+  const services: Record<string, boolean> = {
+    "live-exam": true,
+    "group-exam": true,
+    "driver-hub": false,
+  };
 
   for (const row of rows) {
     if (row.key === "services_page_enabled") {
