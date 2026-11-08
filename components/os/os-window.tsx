@@ -106,40 +106,40 @@ export function OSWindow({
         <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0">
           {toolbarRight}
 
-          {/* Top-Right OS Control Buttons with Restored Color Badges */}
+          {/* Top-Right OS Control Buttons with Hard Colors (Yellow, Green, Red) */}
           <div className="flex items-center gap-1.5 ml-1 pl-1.5 border-l border-slate-200/80 dark:border-zinc-800">
-            {/* Minimize Button (Amber) */}
+            {/* Minimize Button (Hard Yellow) */}
             <button
               type="button"
               onClick={onMinimize || onClose}
               title="Minimize Window"
-              className="w-7 h-7 rounded-lg bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 hover:bg-amber-500 hover:text-white border border-amber-500/30 flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95"
+              className="w-7 h-7 rounded-lg bg-amber-400 hover:bg-amber-500 text-amber-950 flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95 border border-amber-500/50"
             >
-              <Minus className="w-3.5 h-3.5" />
+              <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
 
-            {/* Maximize / Restore Button (Emerald) */}
+            {/* Maximize / Restore Button (Hard Green) */}
             <button
               type="button"
               onClick={toggleMaximize}
               title={isMaximized ? "Restore Window Size" : "Maximize Window"}
-              className="w-7 h-7 rounded-lg bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95"
+              className="w-7 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95 border border-emerald-600/50"
             >
               {isMaximized ? (
-                <Minimize2 className="w-3.5 h-3.5" />
+                <Minimize2 className="w-3.5 h-3.5 stroke-[2.5]" />
               ) : (
-                <Maximize2 className="w-3.5 h-3.5" />
+                <Maximize2 className="w-3.5 h-3.5 stroke-[2.5]" />
               )}
             </button>
 
-            {/* Close Button (Rose) */}
+            {/* Close Button (Hard Red) */}
             <button
               type="button"
               onClick={onClose}
               title="Close Window (Return to Desktop)"
-              className="w-7 h-7 rounded-lg bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 hover:bg-rose-600 hover:text-white border border-rose-500/30 flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95"
+              className="w-7 h-7 rounded-lg bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95 border border-rose-600/50"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
           </div>
         </div>

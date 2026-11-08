@@ -98,7 +98,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div
-      className="relative min-h-[100dvh] w-full flex flex-col bg-slate-50/50 dark:bg-[#08090c] text-foreground overflow-x-hidden selection:bg-emerald-500/30"
+      className="relative min-h-screen w-full flex flex-col bg-cover bg-center bg-no-repeat text-foreground overflow-x-hidden selection:bg-emerald-500/30"
       dir={isRTL ? "rtl" : "ltr"}
     >
       {/* High-aesthetic OS Desktop Wallpaper */}
@@ -117,12 +117,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main OS Stage / Desktop */}
       <main
-        className={`flex-1 w-full min-w-0 flex flex-col ${
+        className={`flex-1 min-h-0 w-full min-w-0 flex flex-col overflow-y-auto ${
           isExamInProgress
             ? "pt-0 pb-0"
             : isFullBleedView
             ? "pt-10 pb-0 px-1 sm:px-2"
-            : "pt-10 pb-20 lg:pb-24 px-2 sm:px-4"
+            : "pt-10 pb-16 lg:pb-20 px-2 sm:px-4"
         }`}
       >
         {children}

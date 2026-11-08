@@ -1043,3 +1043,19 @@ export function ExamChoiceSkeleton() {
     </div>
   );
 }
+
+// ============================================================================
+// DASHBOARD VIEW FALLBACK SKELETON
+// ============================================================================
+
+export function DashboardViewSkeleton() {
+  return (
+    <div className="flex flex-col items-center justify-center p-8 min-h-[50vh] text-center space-y-3">
+      <div className="w-9 h-9 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+      <span className="text-xs font-mono text-muted-foreground animate-pulse">
+        Loading module...
+      </span>
+    </div>
+  );
+}
+

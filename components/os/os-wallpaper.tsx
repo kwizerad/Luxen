@@ -10,32 +10,25 @@ export function OSWallpaper({ className = "" }: OSWallpaperProps) {
   return (
     <div
       aria-hidden="true"
-      className={`fixed inset-0 pointer-events-none -z-10 overflow-hidden select-none transition-colors duration-500 ${className}`}
+      className={`fixed inset-0 min-h-screen w-full bg-cover bg-center bg-no-repeat pointer-events-none -z-10 overflow-hidden select-none transition-colors duration-500 ${className}`}
     >
       {/* 1. Base Studio Canvas */}
-      <div className="absolute inset-0 bg-[#f8fafc] dark:bg-[#08090c] transition-colors duration-500" />
+      <div className="absolute inset-0 w-full h-full min-h-screen bg-slate-100 dark:bg-[#080c14] transition-colors duration-500" />
 
-      {/* 2. Luminous Multi-Spectrum Aurora Mesh Gradients */}
-      {/* Light Theme: Radiant Pearl, Emerald Spring, Sky Cyan, Warm Sun, and Twilight Violet */}
-      <div className="absolute inset-0 block dark:hidden">
-        {/* Emerald Radiance - Upper Left / Center */}
-        <div className="absolute -top-[15%] left-[5%] w-[65vw] h-[65vw] max-w-[900px] max-h-[900px] rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.18)_0%,rgba(16,185,129,0.06)_45%,transparent_70%)] blur-3xl transform-gpu" />
-
-        {/* Crystalline Sky Blue - Upper Right */}
-        <div className="absolute -top-[10%] right-[2%] w-[55vw] h-[55vw] max-w-[800px] max-h-[800px] rounded-full bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.16)_0%,rgba(56,189,248,0.05)_45%,transparent_70%)] blur-3xl transform-gpu" />
-
-        {/* Warm Morning Sun Gold / Amber - Bottom Left / Center Horizon */}
-        <div className="absolute bottom-[2%] left-[20%] w-[50vw] h-[40vw] max-w-[700px] max-h-[550px] rounded-full bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.09)_0%,rgba(251,146,60,0.03)_50%,transparent_75%)] blur-3xl transform-gpu" />
-
-        {/* Twilight Lilac / Indigo - Bottom Right */}
-        <div className="absolute bottom-[0%] right-[5%] w-[45vw] h-[45vw] max-w-[650px] max-h-[650px] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.07)_0%,rgba(168,85,247,0.02)_45%,transparent_70%)] blur-3xl transform-gpu" />
+      {/* 2. Full-Page Luminous Multi-Spectrum Aurora Mesh (Light Theme) */}
+      <div className="absolute inset-0 w-full h-full min-h-screen block dark:hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-100/60 via-slate-100 to-sky-100/40" />
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.18)_0%,transparent_50%)] blur-2xl" />
+        <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_80%_30%,rgba(14,165,233,0.15)_0%,transparent_50%)] blur-2xl" />
+        <div className="absolute bottom-0 left-0 right-0 w-full h-full bg-[radial-gradient(circle_at_50%_80%,rgba(99,102,241,0.10)_0%,transparent_60%)] blur-3xl" />
       </div>
 
-      {/* Dark Theme: Deep Cosmic Obsidian with Emerald & Sapphire Nebulae */}
-      <div className="absolute inset-0 hidden dark:block">
-        <div className="absolute -top-[15%] left-[5%] w-[65vw] h-[65vw] max-w-[900px] max-h-[900px] rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.16)_0%,rgba(16,185,129,0.03)_50%,transparent_70%)] blur-3xl transform-gpu" />
-        <div className="absolute -top-[10%] right-[5%] w-[55vw] h-[55vw] max-w-[800px] max-h-[800px] rounded-full bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.13)_0%,rgba(6,182,212,0.02)_50%,transparent_70%)] blur-3xl transform-gpu" />
-        <div className="absolute bottom-[5%] right-[10%] w-[50vw] h-[50vw] max-w-[700px] max-h-[700px] rounded-full bg-[radial-gradient(circle_at_center,rgba(129,140,248,0.10)_0%,transparent_70%)] blur-3xl transform-gpu" />
+      {/* 3. Full-Page Cosmic Nebula Canvas (Dark Theme) */}
+      <div className="absolute inset-0 w-full h-full min-h-screen hidden dark:block">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f172a] via-[#090d16] to-[#040711]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(16,185,129,0.22)_0%,rgba(6,182,212,0.08)_40%,transparent_70%)] blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_35%,rgba(14,165,233,0.18)_0%,rgba(99,102,241,0.06)_45%,transparent_70%)] blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_40%_80%,rgba(139,92,246,0.14)_0%,rgba(16,185,129,0.08)_50%,transparent_75%)] blur-3xl" />
       </div>
 
       {/* 3. Designer Vector Glass Ribbon Topography (Mac/Windows 11 inspired flow) */}

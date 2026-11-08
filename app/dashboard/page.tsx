@@ -18,28 +18,31 @@ import {
   Trophy,
 } from "lucide-react";
 
-import { ExamView } from "@/components/spa-views/exam-view";
-import { CourseView } from "@/components/spa-views/course-view";
-import { ServicesView } from "@/components/spa-views/services-view";
-import { LiveExamView } from "@/components/spa-views/live-exam-view";
-import { SettingsView } from "@/components/spa-views/settings-view";
-import { DriversListView } from "@/components/spa-views/drivers-list-view";
-import { DriverDetailView } from "@/components/spa-views/driver-detail-view";
-import { RequestCodeView } from "@/components/spa-views/request-code-view";
-import { ExamHistoryView } from "@/components/spa-views/exam-history-view";
-import { DriverPanelView } from "@/components/spa-views/driver-panel-view";
-import { DriverPlansView } from "@/components/spa-views/driver-plans-view";
-import { DriverApplicationsView } from "@/components/spa-views/driver-applications-view";
-import { DriverBookingsView } from "@/components/spa-views/driver-bookings-view";
-import { TrainingLogView } from "@/components/spa-views/training-log-view";
-import { StudentTrainingView } from "@/components/spa-views/student-training-view";
-import { MyReportsView } from "@/components/spa-views/my-reports-view";
-import { DriverHubView } from "@/components/spa-views/driver-hub-view";
-import { ClassmatesView } from "@/components/spa-views/classmates-view";
-import { GroupExamView } from "@/components/spa-views/group-exam-view";
-import { GroupExamResultsView } from "@/components/group-exam-results-view";
-import { ChatListView } from "@/components/spa-views/chat-list-view";
-import { ChatConversationView } from "@/components/spa-views/chat-conversation-view";
+import nextDynamic from "next/dynamic";
+import { DashboardViewSkeleton } from "@/components/skeletons";
+
+const ExamView = nextDynamic(() => import("@/components/spa-views/exam-view").then(m => m.ExamView), { loading: () => <DashboardViewSkeleton /> });
+const CourseView = nextDynamic(() => import("@/components/spa-views/course-view").then(m => m.CourseView), { loading: () => <DashboardViewSkeleton /> });
+const ServicesView = nextDynamic(() => import("@/components/spa-views/services-view").then(m => m.ServicesView), { loading: () => <DashboardViewSkeleton /> });
+const LiveExamView = nextDynamic(() => import("@/components/spa-views/live-exam-view").then(m => m.LiveExamView), { loading: () => <DashboardViewSkeleton /> });
+const SettingsView = nextDynamic(() => import("@/components/spa-views/settings-view").then(m => m.SettingsView), { loading: () => <DashboardViewSkeleton /> });
+const DriversListView = nextDynamic(() => import("@/components/spa-views/drivers-list-view").then(m => m.DriversListView), { loading: () => <DashboardViewSkeleton /> });
+const DriverDetailView = nextDynamic(() => import("@/components/spa-views/driver-detail-view").then(m => m.DriverDetailView), { loading: () => <DashboardViewSkeleton /> });
+const RequestCodeView = nextDynamic(() => import("@/components/spa-views/request-code-view").then(m => m.RequestCodeView), { loading: () => <DashboardViewSkeleton /> });
+const ExamHistoryView = nextDynamic(() => import("@/components/spa-views/exam-history-view").then(m => m.ExamHistoryView), { loading: () => <DashboardViewSkeleton /> });
+const DriverPanelView = nextDynamic(() => import("@/components/spa-views/driver-panel-view").then(m => m.DriverPanelView), { loading: () => <DashboardViewSkeleton /> });
+const DriverPlansView = nextDynamic(() => import("@/components/spa-views/driver-plans-view").then(m => m.DriverPlansView), { loading: () => <DashboardViewSkeleton /> });
+const DriverApplicationsView = nextDynamic(() => import("@/components/spa-views/driver-applications-view").then(m => m.DriverApplicationsView), { loading: () => <DashboardViewSkeleton /> });
+const DriverBookingsView = nextDynamic(() => import("@/components/spa-views/driver-bookings-view").then(m => m.DriverBookingsView), { loading: () => <DashboardViewSkeleton /> });
+const TrainingLogView = nextDynamic(() => import("@/components/spa-views/training-log-view").then(m => m.TrainingLogView), { loading: () => <DashboardViewSkeleton /> });
+const StudentTrainingView = nextDynamic(() => import("@/components/spa-views/student-training-view").then(m => m.StudentTrainingView), { loading: () => <DashboardViewSkeleton /> });
+const MyReportsView = nextDynamic(() => import("@/components/spa-views/my-reports-view").then(m => m.MyReportsView), { loading: () => <DashboardViewSkeleton /> });
+const DriverHubView = nextDynamic(() => import("@/components/spa-views/driver-hub-view").then(m => m.DriverHubView), { loading: () => <DashboardViewSkeleton /> });
+const ClassmatesView = nextDynamic(() => import("@/components/spa-views/classmates-view").then(m => m.ClassmatesView), { loading: () => <DashboardViewSkeleton /> });
+const GroupExamView = nextDynamic(() => import("@/components/spa-views/group-exam-view").then(m => m.GroupExamView), { loading: () => <DashboardViewSkeleton /> });
+const GroupExamResultsView = nextDynamic(() => import("@/components/group-exam-results-view").then(m => m.GroupExamResultsView), { loading: () => <DashboardViewSkeleton /> });
+const ChatListView = nextDynamic(() => import("@/components/spa-views/chat-list-view").then(m => m.ChatListView), { loading: () => <DashboardViewSkeleton /> });
+const ChatConversationView = nextDynamic(() => import("@/components/spa-views/chat-conversation-view").then(m => m.ChatConversationView), { loading: () => <DashboardViewSkeleton /> });
 
 export default function DashboardPage() {
   const { view, params, navigate } = useHashRouter();
@@ -65,7 +68,7 @@ export default function DashboardPage() {
       case "course":
         return (
           <OSWindow
-            title="Course Studio"
+            title="Courses"
             subtitle="Rwanda Highway Code Curriculum"
             icon={BookOpen}
             onClose={() => navigate("home")}

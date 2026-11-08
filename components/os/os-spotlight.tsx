@@ -69,7 +69,7 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
     },
     {
       id: "app-course",
-      title: t("courseStudio") || "Course Studio & Lessons",
+      title: t("courses") || "Courses & Lessons",
       category: "Apps",
       icon: BookOpen,
       action: () => {

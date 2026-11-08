@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { AgoraIcon } from "@/components/ui/agora-icon";
+import { useServiceVisibilityManager } from "@/hooks/useServiceVisibilityManager";
 
 export interface OSDockProps {
   activeView: string;
@@ -32,6 +33,7 @@ interface DockItem {
 
 export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
   const { t } = useLanguage();
+  const { isServicesPageEnabled } = useServiceVisibilityManager();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [isExamActive, setIsExamActive] = useState<boolean>(false);
 
@@ -59,7 +61,7 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
     return val && val !== key ? val : fallback;
   };
 
-  const items: DockItem[] = [
+  const allItems: DockItem[] = [
     {
       id: "home",
       view: "home",
@@ -110,6 +112,11 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
       color: "from-zinc-500 to-zinc-700",
     },
   ];
+
+  const items = allItems.filter((item) => {
+    if (item.id === "services" && !isServicesPageEnabled) return false;
+    return true;
+  });
 
   return (
     <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[75] select-none pointer-events-auto">

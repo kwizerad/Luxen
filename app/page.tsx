@@ -21,14 +21,14 @@ import { LoginForm } from "@/components/login-form";
 import { SignUpForm } from "@/components/sign-up-form";
 import { AuthModalsContainer } from "@/components/auth-modals-container";
 import { useAuthModals } from "@/lib/auth-modals-context";
+import { useAuth } from "@/lib/auth-context";
 import { GoogleOneTap } from "@/components/google-one-tap";
-
 
 export default function Home() {
   const router = useRouter();
+  const { user: authUser, loading: authLoading } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { openLogin, openSignUp } = useAuthModals();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [authStep, setAuthStep] = useState<"initial" | "login" | "register">("initial");
@@ -54,37 +54,12 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [language]);
 
-  // Check if user is already logged in -> auto-play Windows 11 login spinner animation
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    async function checkUser() {
-      try {
-        const user = await getCurrentUser();
-        if (user) {
-          setUserData(user);
-          setIsLoggingIn(true);
-          timer = setTimeout(() => {
-            setIsAuthenticated(true);
-            setIsLoggingIn(false);
-          }, 1400);
-        } else {
-          setIsAuthenticated(false);
-        }
-      } catch {
-        setIsAuthenticated(false);
-      }
-    }
-    checkUser();
-    return () => clearTimeout(timer);
-  }, []);
-
   const triggerLoginSuccess = (userObj?: any) => {
     if (userObj) setUserData(userObj);
     setIsLoggingIn(true);
     setTimeout(() => {
-      setIsAuthenticated(true);
       setIsLoggingIn(false);
-    }, 1200);
+    }, 800);
   };
 
   const handleNavigate = (view: string, params?: Record<string, string>) => {
@@ -96,45 +71,68 @@ export default function Home() {
     }
   };
 
-  // Windows 11 Login Spinner Screen (When checking or logging in)
-  if (isAuthenticated === null || isLoggingIn) {
+  // Effective authenticated user (from AuthProvider or immediate login trigger)
+  const activeUser = authUser || userData;
+  const isAuthenticated = Boolean(activeUser);
+
+  // 1. Immediate Lightweight #050816 Dark Loading Screen while Auth Resolves
+  if (authLoading && !activeUser) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#050816] text-white select-none">
+        <div className="flex flex-col items-center space-y-5">
+          {/* Glowing App Badge */}
+          <div className="relative flex items-center justify-center">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-bold text-2xl text-emerald-400 shadow-lg shadow-emerald-500/10 animate-pulse">
+              N
+            </div>
+          </div>
+          {/* Animated Ring Spinner */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-6 h-6 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+            <span className="text-[11px] font-mono tracking-widest text-emerald-400/80 uppercase">
+              Navo OS
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Logging In Transition Screen
+  if (isLoggingIn) {
     const nameToDisplay =
-      userData?.user_metadata?.full_name ||
-      userData?.email?.split("@")[0] ||
+      activeUser?.user_metadata?.full_name ||
+      activeUser?.email?.split("@")[0] ||
       "Student Account";
 
     return (
-      <div className="relative min-h-[100dvh] w-full bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.16),rgba(241,245,249,0.98))] dark:bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.22),rgba(9,9,11,0.98))] flex flex-col items-center justify-center text-foreground dark:text-white select-none overflow-hidden px-4 transition-colors">
-        <div className="absolute inset-0 bg-slate-100/40 dark:bg-black/40 backdrop-blur-md -z-10" />
+      <div className="relative min-h-[100dvh] w-full bg-[#050816] flex flex-col items-center justify-center text-white select-none overflow-hidden px-4 transition-colors">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-md -z-10" />
 
         <motion.div
           initial={{ scale: 0.92, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           className="flex flex-col items-center space-y-6 text-center z-10"
         >
-          {/* Avatar frame */}
           <div className="relative flex items-center justify-center">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-emerald-400 via-teal-600 to-emerald-800 p-1 ring-4 ring-emerald-500/20 dark:ring-white/20 flex items-center justify-center text-white text-3xl sm:text-4xl font-bold shadow-none overflow-hidden">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-emerald-400 via-teal-600 to-emerald-800 p-1 ring-4 ring-emerald-500/20 flex items-center justify-center text-white text-3xl sm:text-4xl font-bold overflow-hidden">
               {nameToDisplay.charAt(0).toUpperCase()}
             </div>
           </div>
 
           <div className="space-y-1">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground dark:text-white">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
               {nameToDisplay}
             </h2>
-            <p className="text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 font-medium tracking-wide">
+            <p className="text-xs sm:text-sm text-emerald-400 font-medium tracking-wide">
               Welcome back / Murakaza neza
             </p>
           </div>
 
-          {/* Windows 11 Ring Spinner */}
           <div className="flex flex-col items-center gap-3 pt-2">
-            <div className="relative w-8 h-8 flex items-center justify-center">
-              <div className="w-7 h-7 rounded-full border-3 border-emerald-500/20 border-t-emerald-600 dark:border-t-emerald-400 animate-spin" />
-            </div>
-            <span className="text-xs text-muted-foreground dark:text-zinc-300 font-mono tracking-wider">
-              Signing in...
+            <div className="w-7 h-7 rounded-full border-3 border-emerald-500/20 border-t-emerald-400 animate-spin" />
+            <span className="text-xs text-zinc-300 font-mono tracking-wider">
+              Launching Workspace...
             </span>
           </div>
         </motion.div>
@@ -303,7 +301,7 @@ export default function Home() {
   // Authenticated: Render Navo OS Desktop
   return (
     <OSContextMenu navigate={handleNavigate} onOpenSpotlight={() => setIsSpotlightOpen(true)}>
-      <div className="min-h-[100dvh] w-full flex flex-col bg-zinc-100 dark:bg-[#0c0d10] text-foreground overflow-x-hidden selection:bg-emerald-500/30">
+      <div className="relative min-h-screen w-full flex flex-col bg-cover bg-center bg-no-repeat text-foreground overflow-x-hidden selection:bg-emerald-500/30">
         <AuthModalsContainer />
 
         {/* OS Top Global Menu Bar */}

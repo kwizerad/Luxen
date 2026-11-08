@@ -220,7 +220,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
               onClick={() => navigate("course")}
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
             >
-              <span>{t("courseStudio") || "Course Studio"}</span>
+              <span>{t("courses") || "Courses"}</span>
               <span className="font-mono text-[10px] text-muted-foreground">⌘2</span>
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -342,7 +342,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                   onClick={() => navigate("course")}
                   className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  Open Course Studio
+                  Open Courses
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => navigate("exams")}

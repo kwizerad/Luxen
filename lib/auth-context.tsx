@@ -68,15 +68,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Instant local session check from Supabase client cache (0ms frame)
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session: localSession } }) => {
+      if (localSession?.user) {
+        setUser((prev) => prev || ({
+          id: localSession.user.id,
+          email: localSession.user.email,
+          user_metadata: localSession.user.user_metadata,
+          avatar_url: localSession.user.user_metadata?.avatar_url || null,
+          role: localSession.user.user_metadata?.role || "Student",
+        } as User));
+        setSession({
+          access_token: localSession.access_token,
+          refresh_token: localSession.refresh_token,
+          expires_at: localSession.expires_at,
+        });
+      }
+    }).catch(() => {});
+
     refreshUser();
 
-    // Safety timeout: if auth hasn't resolved in 5s, stop blocking the UI
+    // Fast safety timeout: if auth hasn't resolved in 1.5s, unblock UI
     const timeout = setTimeout(() => {
       setLoading(false);
-    }, 5000);
+    }, 1500);
 
     // Listen for auth state changes
-    const supabase = createClient();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (
       event,
       session

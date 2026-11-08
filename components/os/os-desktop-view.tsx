@@ -7,23 +7,22 @@ import {
   BookOpen,
   FileText,
   Car,
-  Users,
   BarChart3,
   Settings,
-  Play,
-  Award,
   ShieldCheck,
-  ArrowRight,
   X,
+  Bell,
+  Megaphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { getDashboardData, type ContinueLearningData, type DashboardStats } from "@/app/dashboard/actions/course";
-import { useDesktopWidgets } from "@/lib/desktop-widgets";
 import { OSWallpaper } from "./os-wallpaper";
 import { AgoraIcon } from "@/components/ui/agora-icon";
 import { OSContextMenu } from "./os-context-menu";
+import { getNotifications, markNotificationAsRead, type Notification } from "@/lib/notifications";
+import { useServiceVisibilityManager } from "@/hooks/useServiceVisibilityManager";
 
 interface OSDesktopViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -33,10 +32,14 @@ interface OSDesktopViewProps {
 export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps) {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { isServicesPageEnabled } = useServiceVisibilityManager();
   const [loading, setLoading] = useState(true);
   const [continueData, setContinueData] = useState<ContinueLearningData | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const { isHidden, hide } = useDesktopWidgets();
+  
+  // Single Admin Notice Widget state
+  const [adminNotification, setAdminNotification] = useState<Notification | null>(null);
+  const [dismissedNotifId, setDismissedNotifId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -59,13 +62,43 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     };
   }, [user?.id]);
 
+  // Fetch admin broadcasts / announcements for student
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchAdminNotifs() {
+      try {
+        const { notifications } = await getNotifications(false, 15);
+        if (isMounted && notifications && notifications.length > 0) {
+          const activeNotice =
+            notifications.find(
+              (n) =>
+                n.target_role === "all" ||
+                n.target_role === "student" ||
+                n.type === "admin_broadcast" ||
+                n.type === "announcement" ||
+                n.priority === "urgent"
+            ) || notifications[0];
+          setAdminNotification(activeNotice || null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch admin notifications:", err);
+      }
+    }
+
+    fetchAdminNotifs();
+    window.addEventListener("notifications-updated", fetchAdminNotifs);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("notifications-updated", fetchAdminNotifs);
+    };
+  }, [user?.id]);
+
   const getTitle = (key: string, fallback: string) => {
     const val = t(key);
     return val && val !== key ? val : fallback;
   };
 
-  // Student Allowed Apps Only: Courses, Exams, Agora (Chat & Community), Services, Performance, Preferences
-  const desktopIcons = [
+  const allDesktopIcons = [
     {
       id: "course",
       title: getTitle("courses", getTitle("courseStudioNav", "Courses")),
@@ -118,298 +151,128 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     },
   ];
 
-  const passRate = stats?.progressPercent
-    ? Math.min(98, Math.max(70, stats.progressPercent + 15))
-    : 85;
-
-  const showSessionBanner = Boolean(continueData && !isHidden("resume-session"));
-  const showReadinessWidget = !isHidden("exam-readiness");
-  const showDailyRuleWidget = !isHidden("daily-rule");
-  const showQuickStatsWidget = !isHidden("quick-stats");
-
-  const hasAnyRightWidget =
-    showReadinessWidget || showDailyRuleWidget || showQuickStatsWidget;
+  // Hide features disabled/toggled off by Admin (e.g. Services)
+  const desktopIcons = allDesktopIcons.filter((app) => {
+    if (app.id === "services" && !isServicesPageEnabled) return false;
+    return true;
+  });
 
   return (
     <OSContextMenu navigate={navigate} onOpenSpotlight={onOpenSpotlight}>
-      <div className="relative min-h-[calc(100vh-3.5rem)] w-full p-4 sm:p-6 lg:p-8 flex flex-col justify-start select-none overflow-hidden">
-        {/* High-Aesthetic Luminous OS Wallpaper (dynamic light/dark adaptation) */}
+      <div className="relative w-full h-full flex-1 p-3 sm:p-5 lg:p-6 flex flex-col justify-start select-none overflow-hidden min-h-0">
+        {/* High-Aesthetic Luminous OS Wallpaper */}
         <OSWallpaper />
 
-        <div
-          className={`grid grid-cols-1 ${
-            hasAnyRightWidget ? "lg:grid-cols-[1fr_380px]" : "max-w-5xl"
-          } gap-8 max-w-7xl mx-auto w-full items-start transition-all duration-300 pt-2 sm:pt-4`}
-        >
-        {/* Left: Desktop Applications Grid */}
-        <div className="space-y-6">
-          {/* Desktop App Icons Grid (No card cover frames, no description subtitles) */}
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-5 sm:gap-7 p-1">
-            {desktopIcons.map((app) => {
-              const Icon = app.icon;
-              return (
-                <motion.div
-                  key={app.id}
-                  whileHover={{ scale: 1.08, y: -4 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={app.action}
-                  className="group flex flex-col items-center text-center p-2 rounded-2xl bg-transparent transition-all cursor-pointer border-0 shadow-none"
-                >
-                  <div className="relative mb-2">
-                    <div
-                      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${app.gradient} text-white flex items-center justify-center transition-all shadow-md group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-emerald-500/25`}
-                    >
-                      <Icon className="w-7 h-7 sm:w-8 sm:h-8" />
-                    </div>
-
-                    {app.badge && (
-                      <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[9px] font-bold font-mono rounded-full bg-emerald-500 text-white shadow-sm">
-                        {app.badge}
-                      </span>
-                    )}
-                  </div>
-
-                  <span className="font-semibold text-xs sm:text-sm text-foreground tracking-tight group-hover:text-primary transition-colors drop-shadow-xs">
-                    {app.title}
-                  </span>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {/* Dismissible Desktop Banner: Continue Last Session */}
-          <AnimatePresence>
-            {showSessionBanner && continueData && (
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96, height: 0, marginBottom: 0 }}
-                transition={{ duration: 0.2 }}
-                className="relative p-5 rounded-2xl border border-emerald-500/30 bg-white/80 dark:bg-primary/5 hover:bg-white/95 dark:hover:bg-primary/10 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-xl shadow-none group"
-              >
-                {/* Dismiss button 'x' */}
-                <button
-                  type="button"
-                  onClick={() => hide("resume-session")}
-                  title="Hide banner (can be restored from OS-Bar View menu)"
-                  className="absolute top-2.5 right-2.5 p-1 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-primary/20 transition-colors cursor-pointer shadow-none"
-                  aria-label="Hide banner"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-
-                <div className="space-y-1.5 min-w-0 pr-6">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/20 text-primary border border-primary/30">
-                      RESUME ACTIVE WINDOW
-                    </span>
-                    <span className="text-xs text-muted-foreground font-mono truncate">
-                      {continueData.moduleTitle}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-base text-foreground truncate">
-                    {continueData.lessonTitle}
-                  </h3>
-                  <p className="text-xs text-muted-foreground line-clamp-1">
-                    Pick up right where you left off with synchronized progress and audio reader.
-                  </p>
-                </div>
-
-                <Button
-                  onClick={() => navigate("course")}
-                  className="gap-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-xs shrink-0 cursor-pointer shadow-none"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Launch Studio</span>
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Right: Live Desktop Widgets Panel (Dismissible with 'x' icon) */}
-        {hasAnyRightWidget && (
-          <div className="space-y-4">
-            {/* Widget 1: Official Exam Readiness Ring */}
-            <AnimatePresence>
-              {showReadinessWidget && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="relative p-5 rounded-2xl border border-slate-200/80 dark:border-border/50 bg-white/85 dark:bg-card/70 backdrop-blur-xl shadow-none space-y-4 group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
-                        Official Exam Readiness
-                      </span>
-                    </div>
-
-                    {/* 'x' dismiss button */}
-                    <button
-                      type="button"
-                      onClick={() => hide("exam-readiness")}
-                      title="Hide card (restore anytime from OS-Bar Widgets menu)"
-                      className="p-1 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer shadow-none"
-                      aria-label="Hide readiness widget"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-5">
-                    <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
-                      <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                        <path
-                          className="text-muted/30"
-                          strokeWidth="3.5"
-                          stroke="currentColor"
-                          fill="none"
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        />
-                        <path
-                          className="text-emerald-500"
-                          strokeDasharray={`${passRate}, 100`}
-                          strokeWidth="3.5"
-                          strokeLinecap="round"
-                          stroke="currentColor"
-                          fill="none"
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        />
-                      </svg>
-                      <div className="absolute flex flex-col items-center">
-                        <span className="text-lg font-extrabold text-foreground font-mono">
-                          {passRate}%
-                        </span>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 max-w-7xl mx-auto w-full items-start transition-all duration-300 pt-2 sm:pt-4">
+          {/* Left: Desktop Applications Grid */}
+          <div className="space-y-6">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-5 sm:gap-7 p-1">
+              {desktopIcons.map((app) => {
+                const Icon = app.icon;
+                return (
+                  <motion.div
+                    key={app.id}
+                    whileHover={{ scale: 1.08, y: -4 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={app.action}
+                    className="group flex flex-col items-center text-center p-2 rounded-2xl bg-transparent transition-all cursor-pointer border-0 shadow-none"
+                  >
+                    <div className="relative mb-2">
+                      <div
+                        className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${app.gradient} text-white flex items-center justify-center transition-all shadow-md group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-emerald-500/25`}
+                      >
+                        <Icon className="w-7 h-7 sm:w-8 sm:h-8" />
                       </div>
+
+                      {app.badge && (
+                        <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[9px] font-bold font-mono rounded-full bg-emerald-500 text-white shadow-sm">
+                          {app.badge}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="space-y-1">
-                      <p className="font-bold text-sm text-foreground">
-                        High Probability
-                      </p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Based on recent curriculum tests and timed exam performances.
-                      </p>
-                    </div>
-                  </div>
+                    <span className="font-semibold text-xs sm:text-sm text-foreground tracking-tight group-hover:text-primary transition-colors drop-shadow-xs">
+                      {app.title}
+                    </span>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate("exams")}
-                    className="w-full rounded-xl text-xs font-semibold gap-1.5 cursor-pointer shadow-none"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Simulate Official 20Q Test</span>
-                  </Button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Widget 2: Traffic Rule of the Day */}
-            <AnimatePresence>
-              {showDailyRuleWidget && (
+          {/* Right Panel: Single Official Admin Broadcast / System Notice Widget */}
+          <div className="space-y-4">
+            <AnimatePresence mode="wait">
+              {adminNotification && dismissedNotifId !== adminNotification.id ? (
                 <motion.div
+                  key={adminNotification.id}
                   initial={{ opacity: 0, y: 10, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="relative p-5 rounded-2xl border border-slate-200/80 dark:border-border/50 bg-white/85 dark:bg-card/70 backdrop-blur-xl shadow-none space-y-3 group"
+                  exit={{ opacity: 0, scale: 0.95, height: 0 }}
+                  className="relative p-5 rounded-2xl border border-amber-500/40 dark:border-amber-500/30 bg-amber-500/10 dark:bg-amber-950/30 backdrop-blur-xl shadow-none space-y-3 group"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Award className="w-4 h-4 text-amber-500" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
-                        Daily Traffic Code Snippet
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                      </span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 font-mono flex items-center gap-1.5">
+                        <Megaphone className="w-3.5 h-3.5" />
+                        <span>{adminNotification.priority === "urgent" ? "Urgent Admin Notice" : "Admin Announcement"}</span>
                       </span>
                     </div>
 
-                    {/* 'x' dismiss button */}
                     <button
                       type="button"
-                      onClick={() => hide("daily-rule")}
-                      title="Hide card (restore anytime from OS-Bar Widgets menu)"
-                      className="p-1 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer shadow-none"
-                      aria-label="Hide rule widget"
+                      onClick={async () => {
+                        setDismissedNotifId(adminNotification.id);
+                        try {
+                          await markNotificationAsRead(adminNotification.id);
+                        } catch {}
+                      }}
+                      title="Dismiss notification"
+                      className="p-1 rounded-lg text-amber-700/60 dark:text-amber-300/60 hover:text-amber-900 dark:hover:text-amber-100 hover:bg-amber-500/20 transition-colors cursor-pointer shadow-none"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <h4 className="font-bold text-sm text-foreground">
-                    Roundabout & Priority Rules
-                  </h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Vehicles already engaged in a roundabout have absolute right-of-way over vehicles entering, unless indicated otherwise by priority signs or police officers.
-                  </p>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm text-foreground dark:text-white">
+                      {adminNotification.title}
+                    </h4>
+                    <p className="text-xs text-muted-foreground dark:text-zinc-300 leading-relaxed">
+                      {adminNotification.message}
+                    </p>
+                  </div>
 
-                  <div className="pt-1 flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400">
-                      Law No. 55/2013 (Rwanda)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => navigate("course", { module: "rules" })}
-                      className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer shadow-none"
-                    >
-                      <span>Read Full Rule</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
+                  <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between text-[11px] text-amber-700/80 dark:text-amber-300/80 font-mono">
+                    <span>From: {adminNotification.sender_name || "Administration"}</span>
+                    <span>{new Date(adminNotification.created_at).toLocaleDateString()}</span>
                   </div>
                 </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Widget 3: Quick System Stats */}
-            <AnimatePresence>
-              {showQuickStatsWidget && (
+              ) : (
                 <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="relative p-4 rounded-2xl border border-slate-200/80 dark:border-border/40 bg-white/85 dark:bg-card/40 backdrop-blur-xl shadow-none group"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-5 rounded-2xl border border-border/40 dark:border-white/10 bg-card/60 dark:bg-zinc-900/40 backdrop-blur-xl text-center space-y-2 shadow-none"
                 >
-                  {/* 'x' dismiss button */}
-                  <button
-                    type="button"
-                    onClick={() => hide("quick-stats")}
-                    title="Hide card (restore anytime from OS-Bar Widgets menu)"
-                    className="absolute top-2 right-2 p-1 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer shadow-none"
-                    aria-label="Hide stats widget"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-
-                  <div className="grid grid-cols-2 gap-3 text-center pt-2">
-                    <div className="p-2.5 rounded-xl bg-muted/40">
-                      <span className="text-[10px] font-mono uppercase text-muted-foreground block">
-                        Total Modules
-                      </span>
-                      <span className="text-lg font-bold text-foreground font-mono">
-                        {stats?.totalModules ?? 4}
-                      </span>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-muted/40">
-                      <span className="text-[10px] font-mono uppercase text-muted-foreground block">
-                        Passed Tests
-                      </span>
-                      <span className="text-lg font-bold text-emerald-500 font-mono">
-                        {stats?.modulesCompleted ?? 2}
-                      </span>
-                    </div>
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center">
+                    <ShieldCheck className="w-4 h-4" />
                   </div>
+                  <h4 className="font-semibold text-xs text-foreground dark:text-zinc-200">
+                    System Announcements
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    No active administrative notices. Broadcast messages sent by admins will appear here instantly.
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
-        )}
+        </div>
       </div>
-    </div>
-  </OSContextMenu>
+    </OSContextMenu>
   );
 }
