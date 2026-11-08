@@ -31,6 +31,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-utils";
 import { canRead, canWrite, type User as PermUser } from "@/lib/permissions";
+import { AdminAnnouncementWidget } from "@/components/admin-announcement-widget";
 
 interface StudentItem {
   id: string;
@@ -267,6 +268,9 @@ export default function AdminNotificationsPage() {
           </button>
         </div>
       </div>
+
+      {/* Admin Announcement Creator Widget */}
+      <AdminAnnouncementWidget isAdminMode={true} />
 
       {/* Broadcast Composer Card */}
       <div className="admin-card p-6 sm:p-8 border border-[var(--admin-border)]">

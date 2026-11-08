@@ -23,6 +23,7 @@ import { AgoraIcon } from "@/components/ui/agora-icon";
 import { OSContextMenu } from "./os-context-menu";
 import { getNotifications, markNotificationAsRead, type Notification } from "@/lib/notifications";
 import { useServiceVisibilityManager } from "@/hooks/useServiceVisibilityManager";
+import { AdminAnnouncementWidget } from "@/components/admin-announcement-widget";
 
 interface OSDesktopViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -62,34 +63,34 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     };
   }, [user?.id]);
 
-  // Fetch admin broadcasts / announcements for student
+  // Fetch written admin announcements for student
   useEffect(() => {
     let isMounted = true;
-    async function fetchAdminNotifs() {
+    async function fetchAdminAnnouncements() {
       try {
-        const { notifications } = await getNotifications(false, 15);
+        const { notifications } = await getNotifications(false, 20);
         if (isMounted && notifications && notifications.length > 0) {
-          const activeNotice =
-            notifications.find(
-              (n) =>
-                n.target_role === "all" ||
-                n.target_role === "student" ||
-                n.type === "admin_broadcast" ||
-                n.type === "announcement" ||
-                n.priority === "urgent"
-            ) || notifications[0];
-          setAdminNotification(activeNotice || null);
+          // Look specifically for written announcements published by admin
+          const activeAnnouncement = notifications.find(
+            (n) =>
+              n.type === "announcement" ||
+              n.type === "admin_broadcast" ||
+              n.related_entity_type === "announcement" ||
+              (n.title && n.title.toLowerCase().includes("announcement")) ||
+              (n.title && n.title.toLowerCase().includes("itangazo"))
+          );
+          setAdminNotification(activeAnnouncement || null);
         }
       } catch (err) {
-        console.error("Failed to fetch admin notifications:", err);
+        console.error("Failed to fetch admin announcements:", err);
       }
     }
 
-    fetchAdminNotifs();
-    window.addEventListener("notifications-updated", fetchAdminNotifs);
+    fetchAdminAnnouncements();
+    window.addEventListener("notifications-updated", fetchAdminAnnouncements);
     return () => {
       isMounted = false;
-      window.removeEventListener("notifications-updated", fetchAdminNotifs);
+      window.removeEventListener("notifications-updated", fetchAdminAnnouncements);
     };
   }, [user?.id]);
 
@@ -157,13 +158,21 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     return true;
   });
 
+  const hasActiveAnnouncement = Boolean(
+    adminNotification && dismissedNotifId !== adminNotification.id
+  );
+
   return (
     <OSContextMenu navigate={navigate} onOpenSpotlight={onOpenSpotlight}>
       <div className="relative w-full h-full flex-1 p-3 sm:p-5 lg:p-6 flex flex-col justify-start select-none overflow-hidden min-h-0">
         {/* High-Aesthetic Luminous OS Wallpaper */}
         <OSWallpaper />
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 max-w-7xl mx-auto w-full items-start transition-all duration-300 pt-2 sm:pt-4">
+        <div
+          className={`grid grid-cols-1 ${
+            hasActiveAnnouncement ? "lg:grid-cols-[1fr_360px]" : "max-w-5xl"
+          } gap-8 max-w-7xl mx-auto w-full items-start transition-all duration-300 pt-2 sm:pt-4`}
+        >
           {/* Left: Desktop Applications Grid */}
           <div className="space-y-6">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-5 sm:gap-7 p-1">
@@ -200,76 +209,9 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
             </div>
           </div>
 
-          {/* Right Panel: Single Official Admin Broadcast / System Notice Widget */}
+          {/* Right Panel: Render ONLY when an active Admin Announcement exists */}
           <div className="space-y-4">
-            <AnimatePresence mode="wait">
-              {adminNotification && dismissedNotifId !== adminNotification.id ? (
-                <motion.div
-                  key={adminNotification.id}
-                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95, height: 0 }}
-                  className="relative p-5 rounded-2xl border border-amber-500/40 dark:border-amber-500/30 bg-amber-500/10 dark:bg-amber-950/30 backdrop-blur-xl shadow-none space-y-3 group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-                      </span>
-                      <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 font-mono flex items-center gap-1.5">
-                        <Megaphone className="w-3.5 h-3.5" />
-                        <span>{adminNotification.priority === "urgent" ? "Urgent Admin Notice" : "Admin Announcement"}</span>
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        setDismissedNotifId(adminNotification.id);
-                        try {
-                          await markNotificationAsRead(adminNotification.id);
-                        } catch {}
-                      }}
-                      title="Dismiss notification"
-                      className="p-1 rounded-lg text-amber-700/60 dark:text-amber-300/60 hover:text-amber-900 dark:hover:text-amber-100 hover:bg-amber-500/20 transition-colors cursor-pointer shadow-none"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-sm text-foreground dark:text-white">
-                      {adminNotification.title}
-                    </h4>
-                    <p className="text-xs text-muted-foreground dark:text-zinc-300 leading-relaxed">
-                      {adminNotification.message}
-                    </p>
-                  </div>
-
-                  <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between text-[11px] text-amber-700/80 dark:text-amber-300/80 font-mono">
-                    <span>From: {adminNotification.sender_name || "Administration"}</span>
-                    <span>{new Date(adminNotification.created_at).toLocaleDateString()}</span>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="p-5 rounded-2xl border border-border/40 dark:border-white/10 bg-card/60 dark:bg-zinc-900/40 backdrop-blur-xl text-center space-y-2 shadow-none"
-                >
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <h4 className="font-semibold text-xs text-foreground dark:text-zinc-200">
-                    System Announcements
-                  </h4>
-                  <p className="text-[11px] text-muted-foreground leading-snug">
-                    No active administrative notices. Broadcast messages sent by admins will appear here instantly.
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <AdminAnnouncementWidget />
           </div>
         </div>
       </div>
