@@ -296,7 +296,11 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   const padLeft = Math.max(0, rightCount - leftCount);
   const padRight = Math.max(0, leftCount - rightCount);
 
-  if (isExamActive) {
+  const isExamSessionActive =
+    isExamActive ||
+    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true");
+
+  if (isExamSessionActive) {
     return null;
   }
 

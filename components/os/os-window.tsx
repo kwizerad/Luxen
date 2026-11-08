@@ -56,8 +56,12 @@ export function OSWindow({
     setIsMaximized(!isMaximized);
   };
 
+  const isExamSessionActive =
+    isExamActive ||
+    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true");
+
   // If active full-screen proctored exam is running, lock controls and enforce full viewport
-  if (isExamActive) {
+  if (isExamSessionActive) {
     return (
       <div className="fixed inset-0 z-50 w-full h-full bg-background overflow-hidden p-0 m-0 border-none select-none">
         <div className="w-full h-full flex flex-col overflow-y-auto">
@@ -82,7 +86,9 @@ export function OSWindow({
       {/* OS Window Header / Title Bar */}
       <div
         dir={isRTL ? "rtl" : "ltr"}
-        className="h-11 px-3 sm:px-4 border-b border-slate-200/60 dark:border-white/10 bg-slate-100/90 dark:bg-zinc-900/90 backdrop-blur-md flex items-center justify-between select-none shrink-0 relative z-20"
+        className={`h-11 px-3 sm:px-4 border-b border-slate-200/60 dark:border-white/10 bg-slate-100/90 dark:bg-zinc-900/90 backdrop-blur-md flex items-center justify-between select-none shrink-0 relative z-20 ${
+          isExamSessionActive ? "hidden pointer-events-none" : ""
+        }`}
       >
         {/* Left: Window App Icon & Title */}
         <div className="flex items-center gap-2 truncate max-w-[60%] sm:max-w-md">
@@ -103,17 +109,31 @@ export function OSWindow({
         </div>
 
         {/* Right: Toolbar Controls + Top-Right Window Controls */}
-        <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0">
-          {toolbarRight}
+        <div
+          className={`flex items-center justify-end gap-1.5 sm:gap-2 shrink-0 ${
+            isExamSessionActive ? "hidden pointer-events-none" : ""
+          }`}
+        >
+          {!isExamSessionActive && toolbarRight}
 
-          {/* Top-Right OS Control Buttons with Hard Colors (Yellow, Green, Red) */}
+          {/* Top-Right OS Control Buttons with Hard Colors (Yellow, Green, Red) - Disabled during exam */}
           <div className="flex items-center gap-1.5 ml-1 pl-1.5 border-l border-slate-200/80 dark:border-zinc-800">
             {/* Minimize Button (Hard Yellow) */}
             <button
               type="button"
-              onClick={onMinimize || onClose}
+              disabled={isExamSessionActive}
+              onClick={(e) => {
+                if (isExamSessionActive || (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true")) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  return;
+                }
+                (onMinimize || onClose)?.();
+              }}
               title="Minimize Window"
-              className="w-7 h-7 rounded-lg bg-amber-400 hover:bg-amber-500 text-amber-950 flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95 border border-amber-500/50"
+              className={`w-7 h-7 rounded-lg bg-amber-400 hover:bg-amber-500 text-amber-950 flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95 border border-amber-500/50 ${
+                isExamSessionActive ? "opacity-20 pointer-events-none cursor-not-allowed" : ""
+              }`}
             >
               <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
@@ -121,9 +141,19 @@ export function OSWindow({
             {/* Maximize / Restore Button (Hard Green) */}
             <button
               type="button"
-              onClick={toggleMaximize}
+              disabled={isExamSessionActive}
+              onClick={(e) => {
+                if (isExamSessionActive || (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true")) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  return;
+                }
+                toggleMaximize();
+              }}
               title={isMaximized ? "Restore Window Size" : "Maximize Window"}
-              className="w-7 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95 border border-emerald-600/50"
+              className={`w-7 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95 border border-emerald-600/50 ${
+                isExamSessionActive ? "opacity-20 pointer-events-none cursor-not-allowed" : ""
+              }`}
             >
               {isMaximized ? (
                 <Minimize2 className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -135,9 +165,19 @@ export function OSWindow({
             {/* Close Button (Hard Red) */}
             <button
               type="button"
-              onClick={onClose}
+              disabled={isExamSessionActive}
+              onClick={(e) => {
+                if (isExamSessionActive || (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true")) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  return;
+                }
+                onClose?.();
+              }}
               title="Close Window (Return to Desktop)"
-              className="w-7 h-7 rounded-lg bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95 border border-rose-600/50"
+              className={`w-7 h-7 rounded-lg bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center transition-all cursor-pointer font-bold shadow-xs active:scale-95 border border-rose-600/50 ${
+                isExamSessionActive ? "opacity-20 pointer-events-none cursor-not-allowed" : ""
+              }`}
             >
               <X className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>

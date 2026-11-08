@@ -1591,6 +1591,165 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     }
   };
 
+  const renderInstructionsDialog = () => (
+    <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
+      <DialogContent
+        className="max-w-2xl sm:max-w-3xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-lg sm:text-2xl">
+            <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+            {t("examInstructions")}
+          </DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            {t("readInstructionsCarefully")}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3 sm:space-y-4 py-2 sm:py-4">
+          {/* Exam Overview - Only Exam Time and Number of Questions */}
+          {(() => {
+            const selectedCat = categories.find((c) => c.id === categoryId) || (categories.length === 1 ? categories[0] : null);
+            const duration = selectedCat?.duration_minutes ?? exam?.settings.duration_minutes ?? 20;
+            const questionCount = selectedCat?.question_count ?? exam?.questions.length ?? 20;
+
+            return (
+              <div className="bg-primary/5 border border-primary/10 rounded-xl p-3.5 sm:p-4 space-y-2.5">
+                <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base text-primary">
+                  <HelpCircle className="h-4 w-4" />
+                  {t("examOverview") || "Exam Overview"}
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-background/90 border">
+                    <div className="p-2 rounded-md bg-primary/10 text-primary shrink-0">
+                      <Clock className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t("examDurationLabel") || "Exam Time"}</p>
+                      <p className="text-sm sm:text-base font-semibold">
+                        {duration} {t("minutes") || "minutes"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-background/90 border">
+                    <div className="p-2 rounded-md bg-primary/10 text-primary shrink-0">
+                      <Hash className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t("examQuestionsLabel") || "Number of Questions"}</p>
+                      <p className="text-sm sm:text-base font-semibold">
+                        {questionCount} {t("questions") || "questions"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Important Rules */}
+          <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900 rounded-xl p-3.5 sm:p-4 space-y-2">
+            <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base text-yellow-800 dark:text-yellow-400">
+              <AlertTriangle className="h-4 w-4" />
+              {t("examRules.title") || "Important Rules"}
+            </h3>
+            <div className="space-y-1.5 text-xs sm:text-sm text-yellow-800/90 dark:text-yellow-300">
+              <p>• {t("examRules.noRefresh") || "Do not refresh the page during the exam"}</p>
+              <p>• {t("examRules.noMultipleTabs") || "Do not open multiple tabs or windows"}</p>
+              <p>• {t("examRules.noTabSwitch") || "Do not switch tabs or leave the exam window"}</p>
+              <p>• {t("examRules.stayFullscreen") || "You must remain in fullscreen mode during the entire exam"}</p>
+              <p>• {t("examRules.oneSitting") || "Complete the exam in one sitting"}</p>
+              <p>• {t("examRules.stableInternet") || "Make sure you have a stable internet connection"}</p>
+            </div>
+          </div>
+
+          {/* Security Restrictions (Alone - No Technical Requirements) */}
+          <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-xl p-3.5 sm:p-4 space-y-2">
+            <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base text-red-700 dark:text-red-400">
+              <Shield className="h-4 w-4" />
+              {t("examSecurity.title") || "Security Restrictions"}
+            </h3>
+            <div className="space-y-1.5 text-xs sm:text-sm text-red-700 dark:text-red-300">
+              <p>• {t("examSecurity.copyPasteCutDisabled") || "Copy, paste, and cut are disabled during the exam"}</p>
+              <p>• {t("examSecurity.textSelectionLimited") || "Text selection is restricted during the exam"}</p>
+              <p>• {t("examSecurity.rightClickDisabled") || "Right-click context menu is disabled"}</p>
+              <p>• {t("examSecurity.noAISidebars") || "AI assistants, sidebars, and unauthorized tools are prohibited"}</p>
+              <p>• {t("examSecurity.shortcutsBlocked") || "Unauthorized navigation shortcuts and browser keys are blocked"}</p>
+              <p>• {t("examSecurity.leaveTriggersSubmit") || "Repeated violations or leaving the exam triggers automatic submission"}</p>
+            </div>
+          </div>
+
+          {/* Acceptance - High Contrast, Large Tap Area */}
+          <div
+            onClick={() => setInstructionsAccepted(!instructionsAccepted)}
+            className={cn(
+              "flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer select-none",
+              instructionsAccepted
+                ? "bg-primary/10 border-primary shadow-sm dark:bg-primary/20"
+                : "bg-muted/80 hover:bg-muted border-primary/50 dark:border-primary/60"
+            )}
+          >
+            <div className="flex items-center justify-center shrink-0">
+              <Checkbox
+                id="accept"
+                checked={instructionsAccepted}
+                onCheckedChange={(checked) => setInstructionsAccepted(checked as boolean)}
+                className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg border-2 border-primary bg-background dark:bg-card"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <label
+                htmlFor="accept"
+                className="text-xs sm:text-sm font-bold text-foreground leading-snug cursor-pointer block"
+              >
+                {t("acceptExamInstructions") || "I have read and agree to all exam instructions and security rules."}
+              </label>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+                {instructionsAccepted
+                  ? (language === "Kinyarwanda" || language === "rw" ? "Amategeko yemejwe. Ushobora gutangira ikizamini." : language === "French" || language === "fr" ? "Instructions acceptées. Vous pouvez commencer l'examen." : "Instructions accepted. You can now begin the exam.")
+                  : (language === "Kinyarwanda" || language === "rw" ? "Kanda hano kwemeza ko wasomye amategeko" : language === "French" || language === "fr" ? "Cliquez ici pour accepter les instructions" : "Tap here to confirm you have read the instructions")}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 flex-col-reverse sm:flex-row">
+          <Button variant="outline" onClick={() => setShowInstructions(false)} className="w-full sm:w-auto">
+            {t("cancel")}
+          </Button>
+          <Button
+            onClick={() => {
+              try {
+                const el = document.documentElement as FullscreenElement;
+                if (el.requestFullscreen) {
+                  void el.requestFullscreen();
+                } else if (el.webkitRequestFullscreen) {
+                  void el.webkitRequestFullscreen();
+                } else if (el.msRequestFullscreen) {
+                  void el.msRequestFullscreen();
+                }
+              } catch (e) {
+                console.warn("Fullscreen error on user gesture:", e);
+              }
+              const targetId = categoryId || categories[0]?.id;
+              if (targetId) {
+                void startExam(targetId);
+              } else {
+                setShowInstructions(false);
+              }
+            }}
+            disabled={!instructionsAccepted || loadingExam}
+            className="w-full sm:w-auto sm:min-w-[120px]"
+          >
+            {loadingExam ? t("starting") : categoryId ? t("beginExam") : t("proceedToExams")}
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   // Prevent layout shift / flashing while permissions and flags are being evaluated
   if (!accessChecked || authLoading) {
     if (challengeId || examMode === "individual") {
@@ -1668,17 +1827,6 @@ export function ExamView({ navigate, params }: ExamViewProps) {
               durationMinutes: 20,
               passMark: "60% (12/20)",
               btnLabel: "Commencer en Français",
-            },
-            {
-              key: "Kinyarwanda",
-              flag: "🇷🇼",
-              title: "Ikizamini cy'amategeko y'umuhanda",
-              categoryTitle: "Ikizamini mu Kinyarwanda",
-              description: "Ikizamini cyemewe cy'ibibazo 20 by'uruhushya rw'agateganyo rw'imodoka mu Kinyarwanda.",
-              questionCount: 20,
-              durationMinutes: 20,
-              passMark: "60% (12/20)",
-              btnLabel: "Tangira ikizamini mu Kinyarwanda",
             },
           ].map((examCat) => (
             <Card
@@ -1866,7 +2014,17 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                       <span className="font-mono text-foreground dark:text-zinc-200">{category.question_count ?? 20}</span>
                     </div>
 
-                    <Button className="w-full h-8 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-xs transition-colors" size="sm">
+                    <Button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCategoryId(category.id);
+                        setShowInstructions(true);
+                        setInstructionsAccepted(false);
+                      }}
+                      className="w-full h-8 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-xs transition-colors"
+                      size="sm"
+                    >
                       {t("select") || "Select"}
                     </Button>
                   </div>
@@ -1875,6 +2033,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
             </div>
           )}
         </div>
+        {renderInstructionsDialog()}
       </div>
     );
   }
@@ -2532,161 +2691,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       </main>
       
       {/* Exam Instructions Dialog */}
-      <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
-        <DialogContent
-          className="max-w-2xl sm:max-w-3xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto"
-          style={{ WebkitOverflowScrolling: "touch" }}
-        >
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg sm:text-2xl">
-              <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-              {t("examInstructions")}
-            </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
-              {t("readInstructionsCarefully")}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 sm:space-y-4 py-2 sm:py-4">
-            {/* Exam Overview - Only Exam Time and Number of Questions */}
-            {(() => {
-              const selectedCat = categories.find((c) => c.id === categoryId) || (categories.length === 1 ? categories[0] : null);
-              const duration = selectedCat?.duration_minutes ?? exam?.settings.duration_minutes ?? 20;
-              const questionCount = selectedCat?.question_count ?? exam?.questions.length ?? 20;
-
-              return (
-                <div className="bg-primary/5 border border-primary/10 rounded-xl p-3.5 sm:p-4 space-y-2.5">
-                  <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base text-primary">
-                    <HelpCircle className="h-4 w-4" />
-                    {t("examOverview") || "Exam Overview"}
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-background/90 border">
-                      <div className="p-2 rounded-md bg-primary/10 text-primary shrink-0">
-                        <Clock className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">{t("examDurationLabel") || "Exam Time"}</p>
-                        <p className="text-sm sm:text-base font-semibold">
-                          {duration} {t("minutes") || "minutes"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-background/90 border">
-                      <div className="p-2 rounded-md bg-primary/10 text-primary shrink-0">
-                        <Hash className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">{t("examQuestionsLabel") || "Number of Questions"}</p>
-                        <p className="text-sm sm:text-base font-semibold">
-                          {questionCount} {t("questions") || "questions"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Important Rules */}
-            <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900 rounded-xl p-3.5 sm:p-4 space-y-2">
-              <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base text-yellow-800 dark:text-yellow-400">
-                <AlertTriangle className="h-4 w-4" />
-                {t("examRules.title") || "Important Rules"}
-              </h3>
-              <div className="space-y-1.5 text-xs sm:text-sm text-yellow-800/90 dark:text-yellow-300">
-                <p>• {t("examRules.noRefresh") || "Do not refresh the page during the exam"}</p>
-                <p>• {t("examRules.noMultipleTabs") || "Do not open multiple tabs or windows"}</p>
-                <p>• {t("examRules.noTabSwitch") || "Do not switch tabs or leave the exam window"}</p>
-                <p>• {t("examRules.stayFullscreen") || "You must remain in fullscreen mode during the entire exam"}</p>
-                <p>• {t("examRules.oneSitting") || "Complete the exam in one sitting"}</p>
-                <p>• {t("examRules.stableInternet") || "Make sure you have a stable internet connection"}</p>
-              </div>
-            </div>
-
-            {/* Security Restrictions (Alone - No Technical Requirements) */}
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-xl p-3.5 sm:p-4 space-y-2">
-              <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base text-red-700 dark:text-red-400">
-                <Shield className="h-4 w-4" />
-                {t("examSecurity.title") || "Security Restrictions"}
-              </h3>
-              <div className="space-y-1.5 text-xs sm:text-sm text-red-700 dark:text-red-300">
-                <p>• {t("examSecurity.copyPasteCutDisabled") || "Copy, paste, and cut are disabled during the exam"}</p>
-                <p>• {t("examSecurity.textSelectionLimited") || "Text selection is restricted during the exam"}</p>
-                <p>• {t("examSecurity.rightClickDisabled") || "Right-click context menu is disabled"}</p>
-                <p>• {t("examSecurity.noAISidebars") || "AI assistants, sidebars, and unauthorized tools are prohibited"}</p>
-                <p>• {t("examSecurity.shortcutsBlocked") || "Unauthorized navigation shortcuts and browser keys are blocked"}</p>
-                <p>• {t("examSecurity.leaveTriggersSubmit") || "Repeated violations or leaving the exam triggers automatic submission"}</p>
-              </div>
-            </div>
-
-            {/* Acceptance - High Contrast, Large Tap Area */}
-            <div
-              onClick={() => setInstructionsAccepted(!instructionsAccepted)}
-              className={cn(
-                "flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer select-none",
-                instructionsAccepted
-                  ? "bg-primary/10 border-primary shadow-sm dark:bg-primary/20"
-                  : "bg-muted/80 hover:bg-muted border-primary/50 dark:border-primary/60"
-              )}
-            >
-              <div className="flex items-center justify-center shrink-0">
-                <Checkbox
-                  id="accept"
-                  checked={instructionsAccepted}
-                  onCheckedChange={(checked) => setInstructionsAccepted(checked as boolean)}
-                  className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg border-2 border-primary bg-background dark:bg-card"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <label
-                  htmlFor="accept"
-                  className="text-xs sm:text-sm font-bold text-foreground leading-snug cursor-pointer block"
-                >
-                  {t("acceptExamInstructions") || "I have read and agree to all exam instructions and security rules."}
-                </label>
-                <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-                  {instructionsAccepted
-                    ? (language === "Kinyarwanda" || language === "rw" ? "Amategeko yemejwe. Ushobora gutangira ikizamini." : language === "French" || language === "fr" ? "Instructions acceptées. Vous pouvez commencer l'examen." : "Instructions accepted. You can now begin the exam.")
-                    : (language === "Kinyarwanda" || language === "rw" ? "Kanda hano kwemeza ko wasomye amategeko" : language === "French" || language === "fr" ? "Cliquez ici pour accepter les instructions" : "Tap here to confirm you have read the instructions")}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 flex-col-reverse sm:flex-row">
-            <Button variant="outline" onClick={() => setShowInstructions(false)} className="w-full sm:w-auto">
-              {t("cancel")}
-            </Button>
-            <Button
-              onClick={() => {
-                try {
-                  const el = document.documentElement as FullscreenElement;
-                  if (el.requestFullscreen) {
-                    void el.requestFullscreen();
-                  } else if (el.webkitRequestFullscreen) {
-                    void el.webkitRequestFullscreen();
-                  } else if (el.msRequestFullscreen) {
-                    void el.msRequestFullscreen();
-                  }
-                } catch (e) {
-                  console.warn("Fullscreen error on user gesture:", e);
-                }
-                if (categoryId) {
-                  void startExam(categoryId);
-                } else {
-                  setShowInstructions(false);
-                }
-              }}
-              disabled={!instructionsAccepted}
-              className="w-full sm:w-auto sm:min-w-[120px]"
-            >
-              {loadingExam ? t("starting") : categoryId ? t("beginExam") : t("proceedToExams")}
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {renderInstructionsDialog()}
 
       {/* Fullscreen Warning Dialog - NON-CLOSABLE */}
       <Dialog open={showFullscreenWarning} onOpenChange={() => {

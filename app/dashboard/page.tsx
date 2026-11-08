@@ -59,7 +59,12 @@ export default function DashboardPage() {
             title="Exam Center"
             subtitle="Official Timed Practice & Quizzes"
             icon={FileText}
-            onClose={() => navigate("home")}
+            onClose={() => {
+              if (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true") {
+                return;
+              }
+              navigate("home");
+            }}
           >
             <ExamView navigate={navigate} params={params} />
           </OSWindow>

@@ -40,9 +40,18 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Close on Escape or click outside
+  // Close on Escape or click outside, and forbid opening during exam
   useEffect(() => {
+    const isExam = typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true";
+    if (isExam && isOpen) {
+      onClose();
+      return;
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true") {
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         if (isOpen) onClose();
@@ -209,6 +218,10 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
       filteredItems[selectedIndex].action();
     }
   };
+
+  if (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true") {
+    return null;
+  }
 
   return (
     <AnimatePresence>

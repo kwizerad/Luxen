@@ -86,6 +86,9 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
   }, [checkExamState]);
 
   const handleSignOut = async () => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true") {
+      return;
+    }
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
@@ -201,12 +204,18 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
   const isCourseView = activeView === "course" || activeView === "traffic-rules" || activeView === "terminal";
   const isDriverView = activeView === "driver-hub" || activeView === "services/drivers";
 
-  if (isExamActive) {
+  const isExamSessionActive =
+    isExamActive ||
+    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true");
+
+  if (isExamSessionActive) {
     return null;
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-9 z-[80] bg-card/90 dark:bg-black/85 backdrop-blur-xl border-b border-border/60 dark:border-white/10 text-foreground dark:text-zinc-200 select-none flex items-center justify-between px-3 text-xs font-sans transition-colors">
+    <header className={`fixed top-0 left-0 right-0 h-9 z-[80] bg-card/90 dark:bg-black/85 backdrop-blur-xl border-b border-border/60 dark:border-white/10 text-foreground dark:text-zinc-200 select-none flex items-center justify-between px-3 text-xs font-sans transition-colors ${
+      isExamSessionActive ? "hidden pointer-events-none opacity-0" : ""
+    }`}>
       {/* Left: Navo OS System Menu + App Name + Context-Aware Menus */}
       <div className="flex items-center gap-1 sm:gap-2">
         {/* Navo System Logo Dropdown */}

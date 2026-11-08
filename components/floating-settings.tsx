@@ -193,7 +193,13 @@ export function FloatingSettings() {
     }
   };
 
-  if (isExamActive || pathname === "/dashboard/exam" || pathname?.startsWith("/dashboard/exam")) {
+  const isExamSessionActive =
+    isExamActive ||
+    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true") ||
+    pathname === "/dashboard/exam" ||
+    pathname?.startsWith("/dashboard/exam");
+
+  if (isExamSessionActive) {
     return null;
   }
 

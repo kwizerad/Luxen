@@ -125,6 +125,14 @@ export function useHashRouter() {
 
   const navigate = useCallback(
     (view: string, params?: Record<string, string>, options?: NavigateOptions) => {
+      // Block all navigation away from exam while an active proctored exam is in progress
+      if (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true") {
+        if (view !== "exam" && view !== "exams") {
+          console.warn("Navigation blocked: An exam is actively in progress.");
+          return;
+        }
+      }
+
       if (view === "back" || view === "-1") {
         goBack(options?.fallback || "home");
         return;

@@ -52,7 +52,11 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
     };
   }, []);
 
-  if (isExamActive) {
+  const isExamSessionActive =
+    isExamActive ||
+    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true");
+
+  if (isExamSessionActive) {
     return null;
   }
 
@@ -159,17 +163,25 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
               {/* App Icon Button */}
               <motion.button
                 type="button"
-                onClick={() => {
+                disabled={isExamSessionActive}
+                onClick={(e) => {
+                  if (isExamSessionActive || (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true")) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                  }
                   if (isActive && item.view !== "home") {
                     navigate("home");
                   } else {
                     navigate(item.view);
                   }
                 }}
-                whileHover={{ scale: 1.18, y: -4 }}
-                whileTap={{ scale: 0.92 }}
+                whileHover={isExamSessionActive ? undefined : { scale: 1.18, y: -4 }}
+                whileTap={isExamSessionActive ? undefined : { scale: 0.92 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center cursor-pointer bg-gradient-to-br ${item.color} text-white shadow-none`}
+                className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center cursor-pointer bg-gradient-to-br ${item.color} text-white shadow-none ${
+                  isExamSessionActive ? "opacity-20 pointer-events-none cursor-not-allowed" : ""
+                }`}
               >
                 <div className="absolute inset-0 rounded-xl bg-white/10 opacity-0 hover:opacity-100 transition-opacity" />
                 <Icon className="w-5 h-5 drop-shadow-sm" />
@@ -217,10 +229,20 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
 
           <motion.button
             type="button"
-            onClick={onOpenSpotlight}
-            whileHover={{ scale: 1.18, y: -4 }}
-            whileTap={{ scale: 0.92 }}
-            className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center cursor-pointer bg-muted/70 hover:bg-muted dark:bg-white/10 dark:hover:bg-white/15 text-foreground dark:text-zinc-200 border border-border/60 dark:border-white/10 shadow-none"
+            disabled={isExamSessionActive}
+            onClick={(e) => {
+              if (isExamSessionActive || (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true")) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+              }
+              onOpenSpotlight();
+            }}
+            whileHover={isExamSessionActive ? undefined : { scale: 1.18, y: -4 }}
+            whileTap={isExamSessionActive ? undefined : { scale: 0.92 }}
+            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center cursor-pointer bg-muted/70 hover:bg-muted dark:bg-white/10 dark:hover:bg-white/15 text-foreground dark:text-zinc-200 border border-border/60 dark:border-white/10 shadow-none ${
+              isExamSessionActive ? "opacity-20 pointer-events-none cursor-not-allowed" : ""
+            }`}
           >
             <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400" />
           </motion.button>

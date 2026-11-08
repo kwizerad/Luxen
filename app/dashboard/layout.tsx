@@ -94,7 +94,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useLoginRecorder();
 
   // Allow guest and student preview access without redirecting to old landing page
-  const isExamInProgress = isExamActive;
+  const isExamInProgress =
+    isExamActive ||
+    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true");
 
   return (
     <div
@@ -137,12 +139,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
       )}
 
-      {/* Global Spotlight Search Overlay (⌘K) */}
-      <OSSpotlight
-        isOpen={isSpotlightOpen}
-        onClose={() => setIsSpotlightOpen(false)}
-        navigate={navigate}
-      />
+      {/* Global Spotlight Search Overlay (⌘K) - Completely unmounted during exam */}
+      {!isExamInProgress && (
+        <OSSpotlight
+          isOpen={isSpotlightOpen}
+          onClose={() => setIsSpotlightOpen(false)}
+          navigate={navigate}
+        />
+      )}
     </div>
   );
 }
