@@ -1023,7 +1023,7 @@ export function HomeView({ navigate }: HomeViewProps) {
                 )}
 
                 {userProfile?.national_id ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-readable bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full">
                     <UserCheck className="w-3.5 h-3.5" />
                     {userProfile.provision_category ? `Cat ${userProfile.provision_category}` : "ID Verified"}
                   </span>

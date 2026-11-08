@@ -182,19 +182,113 @@ export function ThemeCustomizer() {
 
   const cardHoverClass = "hover:-translate-y-1 hover:border-[var(--hover-border-color)] transition-all duration-300 shadow-none";
 
-  const colorPresets = ["#22C55E", "#3B82F6", "#EF4444", "#F59E0B", "#8B5CF6", "#EC4899", "#14B8A6", "#1F2937"];
+  const systemPresets = [
+    { name: "Emerald (Default System Color)", hex: "#22C55E", darkHex: "#22C55E", hoverHex: "#4ADE80", isDefault: true },
+    { name: "Sapphire Blue", hex: "#3B82F6", darkHex: "#3B82F6", hoverHex: "#60A5FA" },
+    { name: "Royal Violet", hex: "#8B5CF6", darkHex: "#8B5CF6", hoverHex: "#A78BFA" },
+    { name: "Sunburst Amber", hex: "#F59E0B", darkHex: "#F59E0B", hoverHex: "#FBBF24" },
+    { name: "Crimson Red", hex: "#EF4444", darkHex: "#EF4444", hoverHex: "#F87171" },
+    { name: "Teal Wave", hex: "#14B8A6", darkHex: "#14B8A6", hoverHex: "#2DD4BF" },
+    { name: "Rose Quartz", hex: "#EC4899", darkHex: "#EC4899", hoverHex: "#F472B6" },
+    { name: "Indigo Slate", hex: "#6366F1", darkHex: "#6366F1", hoverHex: "#818CF8" },
+  ];
+
+  const colorPresets = systemPresets.map((p) => p.hex);
+
+  const handleApplyPreset = (preset: typeof systemPresets[0]) => {
+    const newConfig = {
+      ...previewConfig,
+      light: {
+        primaryColor: preset.hex,
+        hoverBorderColor: preset.hoverHex,
+      },
+      dark: {
+        primaryColor: preset.darkHex,
+        hoverBorderColor: preset.hoverHex,
+      },
+    };
+    setPreviewConfig(newConfig);
+    setHasChanges(true);
+    applyThemePreview(newConfig);
+    toast.success(`Applied ${preset.name} theme`);
+  };
 
   return (
     <div className="space-y-4">
+      {/* Admin System Color Presets Card */}
+      <Card className={cardHoverClass}>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Palette className="h-4 w-4 text-primary" />
+                System Primary Color Presets (In Use Now)
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Select a primary color theme for the entire application, or restore the default system color.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleApplyPreset(systemPresets[0])}
+              className="text-xs font-semibold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+            >
+              <Check className="h-3.5 w-3.5 mr-1" />
+              Restore Default System Color (#22C55E)
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {systemPresets.map((preset) => {
+              const isActive =
+                previewConfig.light.primaryColor.toUpperCase() === preset.hex.toUpperCase() ||
+                previewConfig.dark.primaryColor.toUpperCase() === preset.darkHex.toUpperCase();
+
+              return (
+                <button
+                  key={preset.name}
+                  type="button"
+                  onClick={() => handleApplyPreset(preset)}
+                  className={`flex flex-col items-start p-2.5 rounded-xl border-2 text-left transition-all duration-200 cursor-pointer ${
+                    isActive
+                      ? "border-primary bg-primary/10 shadow-sm ring-2 ring-primary/20"
+                      : "border-border/70 hover:border-primary/50 bg-secondary/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full mb-2">
+                    <div
+                      className="w-6 h-6 rounded-full border border-black/20 shadow-xs flex items-center justify-center text-white text-[10px] font-bold"
+                      style={{ backgroundColor: preset.hex }}
+                    >
+                      {isActive && <Check className="h-3 w-3 stroke-[3]" />}
+                    </div>
+                    {preset.isDefault && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs font-bold text-foreground line-clamp-1">{preset.name}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground mt-0.5">{preset.hex}</span>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Light/Dark Theme Colors - Horizontal Layout */}
       <Card className={cardHoverClass}>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Palette className="h-3 w-3 text-primary" />
-            Theme Colors
+            <Wand2 className="h-3 w-3 text-primary" />
+            Fine-Tune Light & Dark Primary Colors
           </CardTitle>
           <CardDescription className="text-xs">
-            Customize colors for light and dark modes
+            Customize exact primary hex values for light and dark modes
           </CardDescription>
         </CardHeader>
         <CardContent>

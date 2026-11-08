@@ -216,7 +216,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
               type="button"
               className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer font-bold transition-colors outline-hidden shadow-none"
             >
-              <div className="w-4 h-4 rounded bg-emerald-500 text-black flex items-center justify-center font-black text-[10px] leading-none shadow-none">
+              <div className="w-4 h-4 rounded bg-primary text-primary-foreground flex items-center justify-center font-black text-[10px] leading-none shadow-none">
                 N
               </div>
               <span className="font-semibold tracking-tight hidden sm:inline text-foreground dark:text-white">Navo</span>

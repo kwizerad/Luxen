@@ -1775,7 +1775,17 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   }
 
   // Show category selection for individual exam
-  if (examMode === "individual" && !showInstructions && !instructionsAccepted && !exam) {
+  if (examMode === "individual" && !exam) {
+    if (loadingExam) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-md" />
+          <p className="text-sm font-bold text-foreground animate-pulse">
+            {t("starting") || "Preparing Exam Questions..."}
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="min-h-[calc(100vh-80px)] p-4 animate-in fade-in duration-200">
         <div className="w-full max-w-6xl mx-auto">
@@ -1996,7 +2006,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         <Watermark />
         
         {/* Exam Categories - Top Left */}
-        {!exam && examMode !== "individual" && (
+        {!exam && (
           <section className="student-section">
             <div className="hidden md:block mb-6">
               <button
@@ -2027,7 +2037,14 @@ export function ExamView({ navigate, params }: ExamViewProps) {
               </div>
             </div>
             <div>
-              {loadingCategories ? (
+              {loadingExam ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-md" />
+                  <p className="text-sm font-bold text-foreground animate-pulse">
+                    {t("starting") || "Preparing Exam Questions..."}
+                  </p>
+                </div>
+              ) : loadingCategories ? (
                 <div className="py-8">
                   <ExamCategorySkeleton />
                 </div>
