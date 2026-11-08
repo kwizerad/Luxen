@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Scale,
   Plus,
@@ -8,6 +8,7 @@ import {
   Trash2,
   Edit2,
   FileText,
+  FileUp,
   RotateCcw,
   Upload,
   Check,
@@ -15,7 +16,8 @@ import {
   Loader2,
   Filter,
   CheckCircle2,
-  BookOpen
+  BookOpen,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +54,13 @@ export function GazetteManager() {
     "Presidential Order No 85/01 / Iteka rya Perezida No 85/01"
   );
   const [importingBulk, setImportingBulk] = useState(false);
+
+  // PDF Upload Modal State
+  const [isPdfOpen, setIsPdfOpen] = useState(false);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [replaceExisting, setReplaceExisting] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const fetchArticles = async () => {
     try {
@@ -164,23 +173,70 @@ export function GazetteManager() {
     }
   };
 
-  const handleReset = async () => {
-    if (!confirm("Reset all articles to official default Rwanda Traffic Code articles?")) return;
+  const handleClearAll = async () => {
+    if (!confirm("Are you sure you want to clear all indexed Gazette articles? This will remove all currently stored articles.")) return;
 
     try {
       const res = await fetch("/api/admin/gazette", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reset" }),
+        body: JSON.stringify({ action: "clear_all" }),
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setArticles(data.articles || []);
-        toast.success("Reset to standard seed articles complete");
+        setArticles([]);
+        toast.success("All Gazette articles have been cleared.");
       }
     } catch {
-      toast.error("Failed to reset");
+      toast.error("Failed to clear articles");
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.name.toLowerCase().endsWith(".pdf")) {
+        toast.error("Please select a PDF document");
+        return;
+      }
+      setPdfFile(file);
+    }
+  };
+
+  const handlePdfUpload = async () => {
+    if (!pdfFile) {
+      toast.error("Please choose a PDF file to upload");
+      return;
+    }
+
+    setUploadingPdf(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", pdfFile);
+      formData.append("replace", replaceExisting ? "true" : "false");
+
+      const res = await fetch("/api/admin/gazette/upload-pdf", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setArticles(data.articles || []);
+        setIsPdfOpen(false);
+        setPdfFile(null);
+        toast.success(
+          `Successfully processed Official Gazette! Extracted ${data.extractedCount} legal articles.`
+        );
+      } else {
+        toast.error(data.error || "Failed to analyze Gazette PDF");
+      }
+    } catch (err: any) {
+      console.error("PDF upload error:", err);
+      toast.error(err?.message || "An error occurred while uploading PDF");
+    } finally {
+      setUploadingPdf(false);
     }
   };
 
@@ -194,9 +250,7 @@ export function GazetteManager() {
 
     try {
       // Split by "Article \d+" or "Ingingo ya \d+"
-      const regex = /(?:Ingingo\s+ya\s+(\d+)|Article\s+(\d+))\s*[:.-]?\s*([^\n]*)/gi;
       const parsedArticles: Array<Partial<GazetteArticle>> = [];
-
       const parts = bulkText.split(/(?=(?:Ingingo\s+ya\s+\d+|Article\s+\d+))/i);
 
       for (const chunk of parts) {
@@ -221,7 +275,6 @@ export function GazetteManager() {
       }
 
       if (parsedArticles.length === 0) {
-        // Fallback: save as a single document/decree article
         parsedArticles.push({
           articleNumber: bulkLang === "rw" ? "Iteka ryose" : "Full Decree",
           title: "Official Gazette Import",
@@ -275,16 +328,18 @@ export function GazetteManager() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReset}
-            className="text-xs gap-1.5"
-            title="Restore default standard traffic articles"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span>Reset Defaults</span>
-          </Button>
+          {articles.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearAll}
+              className="text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+              title="Clear all stored articles"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Clear Articles</span>
+            </Button>
+          )}
 
           <Button
             variant="outline"
@@ -296,9 +351,18 @@ export function GazetteManager() {
             <span>Paste Gazette Text</span>
           </Button>
 
-          <Button size="sm" onClick={handleOpenAdd} className="text-xs gap-1.5 shadow-xs">
+          <Button
+            size="sm"
+            onClick={() => setIsPdfOpen(true)}
+            className="text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs"
+          >
+            <FileUp className="h-3.5 w-3.5" />
+            <span>Upload Gazette PDF</span>
+          </Button>
+
+          <Button size="sm" variant="outline" onClick={handleOpenAdd} className="text-xs gap-1.5 shadow-xs">
             <Plus className="h-3.5 w-3.5" />
-            <span>Add Article</span>
+            <span>Add Single Article</span>
           </Button>
         </div>
       </div>
@@ -328,6 +392,21 @@ export function GazetteManager() {
           </div>
         </div>
       </div>
+
+      {/* Notice when 0 articles */}
+      {articles.length === 0 && !loading && (
+        <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 flex items-start gap-3">
+          <Scale className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div className="space-y-1 text-xs">
+            <p className="font-semibold text-foreground">
+              Official Multilingual Gazette Awaiting Upload
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              All sample dummy articles have been removed. Click <strong>Upload Gazette PDF</strong> above to upload the official Rwanda Traffic Regulations Gazette. While awaiting the PDF, student queries are answered using the official curriculum courses and exam question bank.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Search & Language Filters */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -384,12 +463,22 @@ export function GazetteManager() {
           <span>Loading Rwanda Gazette articles...</span>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl border border-dashed border-border bg-card/50 space-y-2">
-          <Scale className="h-8 w-8 text-muted-foreground/50 mx-auto" />
-          <p className="text-sm font-semibold text-foreground">No Gazette articles found</p>
-          <p className="text-xs text-muted-foreground">
-            Try adjusting your search query or upload new Gazette decrees.
-          </p>
+        <div className="p-12 text-center rounded-2xl border border-dashed border-border bg-card/50 space-y-3">
+          <Scale className="h-9 w-9 text-muted-foreground/40 mx-auto" />
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-foreground">No Gazette articles found</p>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              Upload your official multilingual PDF Gazette document or paste decree sections to index authentic traffic law articles.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setIsPdfOpen(true)}
+            className="text-xs gap-1.5 font-semibold bg-primary text-primary-foreground"
+          >
+            <FileUp className="h-3.5 w-3.5" />
+            <span>Upload Official Gazette PDF</span>
+          </Button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -407,7 +496,7 @@ export function GazetteManager() {
                   <span className="text-xs font-semibold text-foreground truncate">
                     {art.title}
                   </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border uppercase">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border uppercase font-semibold">
                     {art.language}
                   </span>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border lowercase">
@@ -448,6 +537,95 @@ export function GazetteManager() {
           ))}
         </div>
       )}
+
+      {/* PDF Upload Modal */}
+      <Dialog open={isPdfOpen} onOpenChange={setIsPdfOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileUp className="h-5 w-5 text-primary" />
+              <span>Upload Official Gazette PDF</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Upload the official multilingual Rwanda Traffic Gazette PDF document. The AI extractor reads Kinyarwanda, English, and French sections and parses individual numbered articles into the search index.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept=".pdf,application/pdf"
+              className="hidden"
+            />
+
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-border hover:border-primary/60 dark:hover:border-primary/60 rounded-xl p-8 text-center cursor-pointer bg-muted/20 hover:bg-muted/40 transition-all flex flex-col items-center justify-center gap-2"
+            >
+              <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                <FileText className="h-6 w-6" />
+              </div>
+              {pdfFile ? (
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-foreground">{pdfFile.name}</p>
+                  <p className="text-[11px] text-muted-foreground font-mono">
+                    {(pdfFile.size / (1024 * 1024)).toFixed(2)} MB · Ready to analyze
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-foreground">Click or drag Official Gazette PDF here</p>
+                  <p className="text-[11px] text-muted-foreground">Supports Official Gazette PDF documents</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="replaceExisting"
+                checked={replaceExisting}
+                onChange={(e) => setReplaceExisting(e.target.checked)}
+                className="rounded border-border"
+              />
+              <label htmlFor="replaceExisting" className="text-xs text-muted-foreground cursor-pointer select-none">
+                Replace existing articles (uncheck to merge with previously uploaded articles)
+              </label>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsPdfOpen(false);
+                setPdfFile(null);
+              }}
+              disabled={uploadingPdf}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handlePdfUpload}
+              disabled={uploadingPdf || !pdfFile}
+              className="bg-primary text-primary-foreground font-semibold min-w-[120px]"
+            >
+              {uploadingPdf ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  Analyzing PDF...
+                </>
+              ) : (
+                "Extract & Index Articles"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit / Add Article Modal */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>

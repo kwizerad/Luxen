@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
-import { getGazetteArticles, saveGazetteArticles, SEED_GAZETTE_ARTICLES, GazetteArticle } from "@/lib/gazette-data";
+import { getGazetteArticles, saveGazetteArticles, clearGazetteArticles, SEED_GAZETTE_ARTICLES, GazetteArticle } from "@/lib/gazette-data";
 
 export const dynamic = "force-dynamic";
 
@@ -55,9 +55,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const action = body.action || "save";
 
-    if (action === "reset") {
-      await saveGazetteArticles(SEED_GAZETTE_ARTICLES);
-      return NextResponse.json({ success: true, articles: SEED_GAZETTE_ARTICLES });
+    if (action === "reset" || action === "clear_all") {
+      await clearGazetteArticles();
+      return NextResponse.json({ success: true, articles: [] });
     }
 
     if (action === "bulk_import" && Array.isArray(body.articles)) {

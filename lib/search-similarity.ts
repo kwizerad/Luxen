@@ -143,7 +143,9 @@ export async function searchSimilarityFallback(
 
   scoredArticles.sort((a, b) => b.score - a.score);
   const topArticles = scoredArticles.filter((x) => x.score > 0.05).slice(0, 2);
-  const bestArticle = topArticles.length > 0 ? topArticles[0].art : (allArticles.find((a) => a.language === lang) || allArticles[0]);
+  const bestArticle = topArticles.length > 0
+    ? topArticles[0].art
+    : (allArticles.find((a) => a.language === lang) || allArticles[0] || null);
 
   // 2. Query matching Course Lessons
   let matchedLessons: AssistantAnswerResult["matchedLessons"] = [];
@@ -208,12 +210,37 @@ export async function searchSimilarityFallback(
 
   // 4. Construct direct answer in the appropriate language
   let directAnswer = "";
-  if (lang === "rw") {
-    directAnswer = `Hakurikijwe amategeko agenga umuhanda mu Rwanda (${bestArticle.articleNumber}): ${bestArticle.title}. ${bestArticle.keyTakeaways[0] || ""} ${bestArticle.keyTakeaways[1] || ""}`;
-  } else if (lang === "fr") {
-    directAnswer = `Conformément au Code de la route rwandais (${bestArticle.articleNumber}) : ${bestArticle.title}. ${bestArticle.keyTakeaways[0] || ""} ${bestArticle.keyTakeaways[1] || ""}`;
+  if (bestArticle) {
+    if (lang === "rw") {
+      directAnswer = `Hakurikijwe amategeko agenga umuhanda mu Rwanda (${bestArticle.articleNumber}): ${bestArticle.title}. ${bestArticle.keyTakeaways[0] || ""} ${bestArticle.keyTakeaways[1] || ""}`;
+    } else if (lang === "fr") {
+      directAnswer = `Conformément au Code de la route rwandais (${bestArticle.articleNumber}) : ${bestArticle.title}. ${bestArticle.keyTakeaways[0] || ""} ${bestArticle.keyTakeaways[1] || ""}`;
+    } else {
+      directAnswer = `According to official Rwanda Road Traffic Regulations (${bestArticle.articleNumber}): ${bestArticle.title}. ${bestArticle.keyTakeaways[0] || ""} ${bestArticle.keyTakeaways[1] || ""}`;
+    }
+  } else if (matchedLessons.length > 0 || sampleQuestions.length > 0) {
+    // Gazette awaiting upload: use curriculum courses and exam questions
+    if (lang === "rw") {
+      const lessonTitle = matchedLessons[0]?.title || "Amasomo y'umuhanda";
+      const qContext = sampleQuestions[0]?.question ? ` Urugero rw'ikibazo: "${sampleQuestions[0].question}"` : "";
+      directAnswer = `Hakurikijwe porogaramu y'amasomo y'amategeko y'umuhanda mu Rwanda (${lessonTitle}): ${matchedLessons[0]?.summary || "Amabwiriza y'umuhanda ateganya kubahiriza ibimenyetso n'uburenganzira bwo gutambuka."}${qContext}`;
+    } else if (lang === "fr") {
+      const lessonTitle = matchedLessons[0]?.title || "Programme du Code de la route";
+      const qContext = sampleQuestions[0]?.question ? ` Exemple de question d'examen : "${sampleQuestions[0].question}"` : "";
+      directAnswer = `Conformément au programme officiel du Code de la route rwandais (${lessonTitle}) : ${matchedLessons[0]?.summary || "Les règles de circulation imposent le respect de la signalisation et des priorités."}${qContext}`;
+    } else {
+      const lessonTitle = matchedLessons[0]?.title || "Official Highway Code Curriculum";
+      const qContext = sampleQuestions[0]?.question ? ` Exam question reference: "${sampleQuestions[0].question}"` : "";
+      directAnswer = `According to the official Rwanda Highway Code curriculum (${lessonTitle}): ${matchedLessons[0]?.summary || "Standard road regulations require drivers to observe posted signs and right-of-way rules."}${qContext}`;
+    }
   } else {
-    directAnswer = `According to official Rwanda Road Traffic Regulations (${bestArticle.articleNumber}): ${bestArticle.title}. ${bestArticle.keyTakeaways[0] || ""} ${bestArticle.keyTakeaways[1] || ""}`;
+    if (lang === "rw") {
+      directAnswer = "Amategeko y'umuhanda mu Rwanda asaba abashoferi bose kubahiriza amabwiriza n'ibyapa by'umuhanda no kwirinda impanuka.";
+    } else if (lang === "fr") {
+      directAnswer = "Le Code de la route rwandais exige que tous les conducteurs respectent la signalisation routière et conduisent avec prudence.";
+    } else {
+      directAnswer = "Rwanda road traffic regulations require all drivers to adhere to official traffic signs, speed limits, and priority rules.";
+    }
   }
 
   const gazetteResults = topArticles.length > 0
@@ -225,7 +252,8 @@ export async function searchSimilarityFallback(
         excerpt: t.art.content.slice(0, 300) + (t.art.content.length > 300 ? "..." : ""),
         keyTakeaways: t.art.keyTakeaways,
       }))
-    : [
+    : bestArticle
+    ? [
         {
           id: bestArticle.id,
           articleNumber: bestArticle.articleNumber,
@@ -234,7 +262,8 @@ export async function searchSimilarityFallback(
           excerpt: bestArticle.content.slice(0, 300) + (bestArticle.content.length > 300 ? "..." : ""),
           keyTakeaways: bestArticle.keyTakeaways,
         },
-      ];
+      ]
+    : [];
 
   return {
     language: lang,
