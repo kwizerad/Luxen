@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Compass,
   Search,
@@ -67,6 +67,23 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
   const { config } = useBrandingConfig();
   const { theme, setTheme } = useTheme();
   const { dismissed, hide, restore, restoreAll, isHidden, availableWidgets } = useDesktopWidgets();
+
+  const [isExamActive, setIsExamActive] = useState<boolean>(false);
+
+  const checkExamState = useCallback(() => {
+    if (typeof window === "undefined") return;
+    setIsExamActive(sessionStorage.getItem("exam-active") === "true");
+  }, []);
+
+  useEffect(() => {
+    checkExamState();
+    window.addEventListener("exam-state-change", checkExamState);
+    window.addEventListener("storage", checkExamState);
+    return () => {
+      window.removeEventListener("exam-state-change", checkExamState);
+      window.removeEventListener("storage", checkExamState);
+    };
+  }, [checkExamState]);
 
   const handleSignOut = async () => {
     try {
@@ -183,6 +200,10 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
   const isExamView = activeView === "exam" || activeView === "exams";
   const isCourseView = activeView === "course" || activeView === "traffic-rules" || activeView === "terminal";
   const isDriverView = activeView === "driver-hub" || activeView === "services/drivers";
+
+  if (isExamActive) {
+    return null;
+  }
 
   return (
     <header className="fixed top-0 left-0 right-0 h-9 z-[80] bg-card/90 dark:bg-black/85 backdrop-blur-xl border-b border-border/60 dark:border-white/10 text-foreground dark:text-zinc-200 select-none flex items-center justify-between px-3 text-xs font-sans transition-colors">

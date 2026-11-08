@@ -256,7 +256,7 @@ export function ModuleExamRunner({
       return;
     }
     setShowInstructions(false);
-    setShowExamInstructions(true);
+    setShowExamInstructions(false);
     setCurrentIndex(0);
     setSecondsLeft(durationMinutes * 60);
     setExamStartTime(Date.now());
@@ -1152,7 +1152,16 @@ export function ModuleExamRunner({
             <Button variant="outline" onClick={reset} className="w-full sm:w-auto">
               {t("cancel") || "Cancel"}
             </Button>
-            <Button onClick={startExam} disabled={!instructionsAccepted} className="w-full sm:w-auto sm:min-w-[120px]">
+            <Button
+              onClick={async () => {
+                if (fullscreenEnabled) {
+                  void security.requestFullscreen();
+                }
+                await startExam();
+              }}
+              disabled={!instructionsAccepted}
+              className="w-full sm:w-auto sm:min-w-[120px]"
+            >
               {t("beginExam") || "Begin Exam"}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>

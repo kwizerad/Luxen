@@ -296,6 +296,10 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   const padLeft = Math.max(0, rightCount - leftCount);
   const padRight = Math.max(0, leftCount - rightCount);
 
+  if (isExamActive) {
+    return null;
+  }
+
   return (
     <>
       {/* Top Header Bar:

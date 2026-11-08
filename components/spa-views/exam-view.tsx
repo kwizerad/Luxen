@@ -1170,7 +1170,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       setShowResults(false);
       showResultsRef.current = false;
       setExamResult(null);
-      setShowExamInstructions(true);
+      setShowExamInstructions(false);
       setCurrentIndex(0);
       setShowFullscreenWarning(false);
       setFullscreenRetryCount(0);
@@ -1185,16 +1185,17 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       if (securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled) {
         try {
           const el = document.documentElement as FullscreenElement;
-          if (el.requestFullscreen) {
-            await el.requestFullscreen();
-          } else if (el.webkitRequestFullscreen) {
-            await el.webkitRequestFullscreen();
-          } else if (el.msRequestFullscreen) {
-            await el.msRequestFullscreen();
+          if (!document.fullscreenElement) {
+            if (el.requestFullscreen) {
+              await el.requestFullscreen();
+            } else if (el.webkitRequestFullscreen) {
+              await el.webkitRequestFullscreen();
+            } else if (el.msRequestFullscreen) {
+              await el.msRequestFullscreen();
+            }
           }
         } catch (fsErr) {
-          console.warn("Fullscreen entry prevented or failed:", fsErr);
-          setShowFullscreenWarning(true);
+          console.warn("Fullscreen entry prevented or failed on initial load:", fsErr);
         }
       }
       
@@ -2642,8 +2643,20 @@ export function ExamView({ navigate, params }: ExamViewProps) {
             </Button>
             <Button
               onClick={() => {
+                try {
+                  const el = document.documentElement as FullscreenElement;
+                  if (el.requestFullscreen) {
+                    void el.requestFullscreen();
+                  } else if (el.webkitRequestFullscreen) {
+                    void el.webkitRequestFullscreen();
+                  } else if (el.msRequestFullscreen) {
+                    void el.msRequestFullscreen();
+                  }
+                } catch (e) {
+                  console.warn("Fullscreen error on user gesture:", e);
+                }
                 if (categoryId) {
-                  startExam(categoryId);
+                  void startExam(categoryId);
                 } else {
                   setShowInstructions(false);
                 }
