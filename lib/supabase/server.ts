@@ -1,5 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export function isSupabaseConfigured(): boolean {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -55,4 +57,26 @@ export async function createClient() {
       },
     },
   );
+}
+
+export async function getAuthUserFromRequest(request?: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) return user;
+  } catch {}
+
+  if (request) {
+    const authHeader = request.headers.get("authorization");
+    const bearerToken = authHeader?.replace(/^bearer\s+/i, "").trim();
+    if (bearerToken) {
+      try {
+        const adminSb = createAdminClient();
+        const { data: { user: bearerUser } } = await adminSb.auth.getUser(bearerToken);
+        if (bearerUser) return bearerUser;
+      } catch {}
+    }
+  }
+
+  return null;
 }

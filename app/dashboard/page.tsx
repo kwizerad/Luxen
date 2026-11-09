@@ -20,8 +20,7 @@ import {
 
 import nextDynamic from "next/dynamic";
 import { DashboardViewSkeleton } from "@/components/skeletons";
-
-const ExamView = nextDynamic(() => import("@/components/spa-views/exam-view").then(m => m.ExamView), { loading: () => <DashboardViewSkeleton /> });
+import { ExamView } from "@/components/spa-views/exam-view";
 const CourseView = nextDynamic(() => import("@/components/spa-views/course-view").then(m => m.CourseView), { loading: () => <DashboardViewSkeleton /> });
 const ServicesView = nextDynamic(() => import("@/components/spa-views/services-view").then(m => m.ServicesView), { loading: () => <DashboardViewSkeleton /> });
 const LiveExamView = nextDynamic(() => import("@/components/spa-views/live-exam-view").then(m => m.LiveExamView), { loading: () => <DashboardViewSkeleton /> });

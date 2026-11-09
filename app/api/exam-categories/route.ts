@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/permissions";
@@ -6,26 +6,37 @@ import { EXTERNAL_EXAM_CATEGORY_ID } from "@/lib/supabase/external";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    let { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const adminSb = createAdminClient();
+
+    if (!user && req) {
+      const authHeader = req.headers.get("authorization");
+      const bearerToken = authHeader?.replace(/^bearer\s+/i, "").trim();
+      if (bearerToken) {
+        try {
+          const { data: { user: bearerUser } } = await adminSb.auth.getUser(bearerToken);
+          if (bearerUser) user = bearerUser;
+        } catch {}
+      }
     }
 
-    let userIsAdmin = isAdmin(user);
-    if (!userIsAdmin) {
-      try {
-        const adminSupabase = createAdminClient();
-        const { data: profile } = await adminSupabase
-          .from("user_profiles")
-          .select("role")
-          .eq("id", user.id)
-          .maybeSingle();
-        if (profile?.role?.toLowerCase() === "admin") userIsAdmin = true;
-      } catch {}
+    let userIsAdmin = false;
+    if (user) {
+      userIsAdmin = isAdmin(user);
+      if (!userIsAdmin) {
+        try {
+          const { data: profile } = await adminSb
+            .from("user_profiles")
+            .select("role")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (profile?.role?.toLowerCase() === "admin") userIsAdmin = true;
+        } catch {}
+      }
     }
 
     let query = supabase

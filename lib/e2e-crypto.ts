@@ -171,14 +171,80 @@ export async function decryptPayload<T = any>(payload: unknown): Promise<T> {
   return JSON.parse(jsonStr) as T;
 }
 
+export function getClientAccessToken(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    const rawSession =
+      sessionStorage.getItem("navo-auth-token") ||
+      localStorage.getItem("navo-auth-token");
+    if (rawSession) {
+      try {
+        const decrypted = decryptSyncString(rawSession);
+        const parsed = JSON.parse(decrypted || rawSession);
+        const tok = parsed?.access_token || parsed?.currentSession?.access_token || "";
+        if (tok) return tok;
+      } catch {
+        if (rawSession.length > 20 && !rawSession.startsWith("{")) return rawSession;
+      }
+    }
+
+    const scanStorage = (storage: Storage): string => {
+      for (let i = 0; i < storage.length; i++) {
+        const key = storage.key(i);
+        if (key && (key.startsWith("sb-") || key.includes("auth-token") || key.includes("supabase"))) {
+          const val = storage.getItem(key);
+          if (val) {
+            try {
+              const decrypted = decryptSyncString(val);
+              const parsed = JSON.parse(decrypted || val);
+              if (parsed?.access_token) return parsed.access_token;
+              if (parsed?.currentSession?.access_token) return parsed.currentSession.access_token;
+            } catch {}
+          }
+        }
+      }
+      return "";
+    };
+
+    const found = scanStorage(sessionStorage) || scanStorage(localStorage);
+    if (found) return found;
+  } catch {}
+  return "";
+}
+
+export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
+  const headersObj: Record<string, string> = {
+    ...(init?.headers as Record<string, string>),
+  };
+  const token = getClientAccessToken();
+  if (token && !headersObj["Authorization"] && !headersObj["authorization"]) {
+    headersObj["Authorization"] = `Bearer ${token}`;
+  }
+  return fetch(url, { ...init, headers: headersObj });
+}
+
 export async function secureApiPost<T = any>(
   url: string,
   bodyObj: Record<string, any>
 ): Promise<{ ok: boolean; status: number; data: T }> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+
+  if (typeof window !== "undefined") {
+    try {
+      const token = getClientAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+        if (!bodyObj.accessToken) {
+          bodyObj.accessToken = token;
+        }
+      }
+    } catch {}
+  }
+
   const encryptedReq = await encryptPayload(bodyObj);
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(encryptedReq),
     cache: "no-store",
   });

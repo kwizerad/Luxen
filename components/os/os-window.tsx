@@ -60,28 +60,15 @@ export function OSWindow({
     isExamActive ||
     (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true");
 
-  // If active full-screen proctored exam is running, lock controls and enforce full viewport
-  if (isExamSessionActive) {
-    return (
-      <div className="fixed inset-0 z-50 w-full h-full bg-background overflow-hidden p-0 m-0 border-none select-none">
-        <div className="w-full h-full flex flex-col overflow-y-auto">
-          {children}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.97, y: 8 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98, y: 6 }}
-      transition={{ type: "spring", damping: 26, stiffness: 320 }}
-      className={`flex flex-col border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl shadow-2xl overflow-hidden transition-all duration-200 ${
-        isMaximized
-          ? "w-full max-w-none flex-1 min-h-[calc(100vh-7rem)] h-full my-0 rounded-2xl z-30"
-          : "rounded-2xl w-full max-w-7xl mx-auto min-h-[calc(100vh-8.5rem)] my-2 z-30"
-      } ${className}`}
+    <div
+      className={`flex flex-col select-none transition-all duration-200 ${
+        isExamSessionActive
+          ? "fixed inset-0 z-50 w-full h-full bg-background overflow-hidden p-0 m-0 border-none rounded-none"
+          : isMaximized
+          ? `border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl shadow-2xl overflow-hidden w-full max-w-none flex-1 min-h-[calc(100vh-7rem)] h-full my-0 rounded-2xl z-30 ${className}`
+          : `border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl shadow-2xl overflow-hidden rounded-2xl w-full max-w-7xl mx-auto min-h-[calc(100vh-8.5rem)] my-2 z-30 ${className}`
+      }`}
     >
       {/* OS Window Header / Title Bar */}
       <div
@@ -189,7 +176,7 @@ export function OSWindow({
       <div className="flex-1 min-h-0 flex flex-col overflow-y-auto relative">
         {children}
       </div>
-    </motion.div>
+    </div>
   );
 }
 

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { triggerOpportunisticExamCleanup } from "@/lib/exam-cleanup";
 
 export async function GET(request: NextRequest) {
   try {
     triggerOpportunisticExamCleanup();
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -200,8 +199,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -226,7 +224,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "At least one classmate or friend must be invited (cannot invite yourself)" }, { status: 400 });
     }
 
-    const { data: category } = await supabase
+    const adminClient = createAdminClient();
+
+    const { data: category } = await adminClient
       .from("exam_categories")
       .select("id")
       .eq("id", category_id)
@@ -236,15 +236,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid exam category" }, { status: 400 });
     }
 
-    const { data: myProfile } = await supabase
+    const { data: myProfile } = await adminClient
       .from("user_profiles")
       .select("full_name, username")
       .eq("id", user.id)
       .maybeSingle();
 
     const creatorName = myProfile?.full_name || myProfile?.username || "A friend";
-
-    const adminClient = createAdminClient();
 
     // Verify each invitee is an accepted friend of the creator
     const { data: acceptedRequests } = await adminClient

@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth-utils";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
 import { EXTERNAL_EXAM_CATEGORY_ID, isExternalExamCategoryId, isExternalModuleId, isExternalLessonId } from "@/lib/supabase/external";
 import { secureApiPost } from "@/lib/e2e-crypto";
+import { isUUID } from "@/lib/utils";
 import type { ExamCategory, ExamQuestion, ExamAnswer, ExamAttempt, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
 
 // Helper function to handle Supabase auth lock errors and enrich user profile role
@@ -579,13 +580,9 @@ const EXAM_ATTEMPT_COLUMNS =
 
 export async function getExamAttempts(userId?: string, attemptId?: string) {
   const supabase = createClient();
-  const user = await getAuthUser();
+  const user = await getAuthUser().catch(() => null);
 
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
-
-  const isUserAdmin = isAdmin(user);
+  const isUserAdmin = Boolean(user && isAdmin(user));
 
   // If requesting specific attempt
   if (attemptId) {
@@ -593,12 +590,17 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
       .from("exam_attempts")
       .select(EXAM_ATTEMPT_COLUMNS)
       .eq("id", attemptId)
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      console.warn("Error fetching exam attempt by id:", error.message);
+      return { attempt: null };
+    }
+
+    if (!attempt) return { attempt: null };
 
     // Users can only see their own attempts, admins can see all
-    if (attempt.user_id !== user.id && !isUserAdmin) {
+    if (user && attempt.user_id !== user.id && !isUserAdmin) {
       throw new Error("Unauthorized");
     }
 
@@ -606,32 +608,32 @@ export async function getExamAttempts(userId?: string, attemptId?: string) {
   }
 
   // If requesting user's attempts
-  if (userId) {
-    if (userId !== user.id && !isUserAdmin) {
+  const targetId = userId || user?.id;
+
+  if (targetId) {
+    if (userId && user && userId !== user.id && !isUserAdmin) {
       throw new Error("Unauthorized");
+    }
+
+    if (!isUUID(targetId)) {
+      return { attempts: [] };
     }
 
     const { data: attempts, error } = await supabase
       .from("exam_attempts")
       .select(EXAM_ATTEMPT_COLUMNS)
-      .eq("user_id", userId)
+      .eq("user_id", targetId)
       .order("started_at", { ascending: false })
       .limit(50);
 
-    if (error) throw error;
+    if (error) {
+      console.warn("Error fetching user attempts:", error.message);
+      return { attempts: [] };
+    }
     return { attempts: attempts || [] };
   }
 
-  // Return current user's attempts
-  const { data: attempts, error } = await supabase
-    .from("exam_attempts")
-    .select(EXAM_ATTEMPT_COLUMNS)
-    .eq("user_id", user.id)
-    .order("started_at", { ascending: false })
-    .limit(50);
-
-  if (error) throw error;
-  return { attempts: attempts || [] };
+  return { attempts: [] };
 }
 
 export async function deleteExamAttempt(attemptId: string) {
@@ -817,10 +819,23 @@ export async function createExamAttempt(attemptData: {
   challenge_id?: string;
 }) {
   const supabase = createClient();
-  const user = await getAuthUser();
+  let user = await getAuthUser().catch(() => null);
 
-  if (!user) {
-    throw new Error("Unauthorized");
+  if (!user && typeof window !== "undefined") {
+    try {
+      const { data: { user: clientUser } } = await supabase.auth.getUser();
+      if (clientUser) user = clientUser;
+    } catch {}
+  }
+
+  if (!user && typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem("navo_user") || sessionStorage.getItem("navo_user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.id) user = parsed;
+      }
+    } catch {}
   }
 
   const { category_id, category_name, total_questions, answers, duration_seconds, status = 'completed', is_group_challenge } = attemptData;
@@ -890,25 +905,28 @@ export async function createExamAttempt(attemptData: {
     });
   }
 
-  // If exam saving is disabled by Admin, return transient result without database insertion
-  if (!shouldSave) {
-    const transientAttempt: ExamAttempt = {
-      id: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      user_id: user.id,
-      category_id,
-      category_name,
-      started_at: new Date().toISOString(),
-      completed_at: new Date().toISOString(),
-      duration_seconds,
-      total_questions,
-      correct_answers: correctAnswers,
-      score_percentage: scorePercentage,
-      answers: answersToPersist,
-      status,
-      submission_reason: attemptData.submission_reason || 'manual',
-      violation_summary: attemptData.violation_summary || null,
-    };
+  const hasValidUser = Boolean(user?.id && isUUID(user.id));
+  const attemptUserId = hasValidUser ? user!.id : null;
 
+  const transientAttempt: ExamAttempt = {
+    id: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    user_id: attemptUserId || "guest",
+    category_id,
+    category_name,
+    started_at: new Date().toISOString(),
+    completed_at: new Date().toISOString(),
+    duration_seconds,
+    total_questions,
+    correct_answers: correctAnswers,
+    score_percentage: scorePercentage,
+    answers: answersToPersist,
+    status,
+    submission_reason: attemptData.submission_reason || 'manual',
+    violation_summary: attemptData.violation_summary || null,
+  };
+
+  // If exam saving is disabled by Admin or user is guest/transient, return transient result without database insertion
+  if (!shouldSave || !hasValidUser || !attemptUserId) {
     return {
       attempt: transientAttempt,
       questionDetails,
@@ -916,61 +934,83 @@ export async function createExamAttempt(attemptData: {
     };
   }
 
-  const { data, error } = await supabase
-    .from("exam_attempts")
-    .insert([{
-      user_id: user.id,
-      category_id,
-      category_name,
-      started_at: new Date().toISOString(),
-      completed_at: new Date().toISOString(),
-      duration_seconds,
-      total_questions,
-      correct_answers: correctAnswers,
-      score_percentage: scorePercentage,
-      answers: answersToPersist,
-      status,
-      submission_reason: attemptData.submission_reason || 'manual',
-      violation_summary: attemptData.violation_summary || null,
-    }])
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message || "Failed to submit exam attempt");
-
-  // If the student passed (score >= 50), auto-verify provision (category P)
-  if (scorePercentage >= 50) {
-    try {
-      await supabase
-        .from("user_profiles")
-        .update({
-          provision_verified: true,
-          provision_category: "P",
-          provision_verified_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-    } catch (provError) {
-      console.error("Failed to auto-verify provision:", provError);
-    }
-  }
-
-  // Notify the student that their exam result is available
   try {
-    await createNotification({
-      type: "exam_result",
-      title: "Exam Result Available",
-      message: `Your ${category_name} exam result is now available. Score: ${scorePercentage}%`,
-      priority: scorePercentage >= 50 ? "normal" : "urgent",
-      target_user_id: user.id,
-      related_entity_type: "exam_attempt",
-      related_entity_id: data.id,
-      action_url: "/dashboard",
-    });
-  } catch (notifyError) {
-    console.error("Failed to send exam result notification:", notifyError);
-  }
+    const { data, error } = await supabase
+      .from("exam_attempts")
+      .insert([{
+        user_id: attemptUserId,
+        category_id,
+        category_name,
+        started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+        duration_seconds,
+        total_questions,
+        correct_answers: correctAnswers,
+        score_percentage: scorePercentage,
+        answers: answersToPersist,
+        status,
+        submission_reason: attemptData.submission_reason || 'manual',
+        violation_summary: attemptData.violation_summary || null,
+      }])
+      .select()
+      .single();
 
-  return { attempt: data, questionDetails, is_saved: true };
+    if (error) {
+      console.warn("Could not persist attempt to db, returning transient:", error.message);
+      return {
+        attempt: transientAttempt,
+        questionDetails,
+        is_saved: false,
+      };
+    }
+
+    // If the student passed (score >= 50), auto-verify provision (category P)
+    if (scorePercentage >= 50 && attemptUserId) {
+      try {
+        await supabase
+          .from("user_profiles")
+          .update({
+            provision_verified: true,
+            provision_category: "P",
+            provision_verified_at: new Date().toISOString(),
+          })
+          .eq("id", attemptUserId);
+      } catch (provError) {
+        console.error("Failed to auto-verify provision:", provError);
+      }
+    }
+
+    // Notify the student that their exam result is available
+    if (attemptUserId) {
+      try {
+        await createNotification({
+          type: "exam_result",
+          title: "Exam Result Available",
+          message: `Your ${category_name} exam result is now available. Score: ${scorePercentage}%`,
+          priority: scorePercentage >= 50 ? "normal" : "urgent",
+          target_user_id: attemptUserId,
+          related_entity_type: "exam_attempt",
+          related_entity_id: data.id,
+          action_url: "/dashboard",
+        });
+      } catch (notifyError) {
+        console.warn("Failed to send exam result notification:", notifyError);
+      }
+    }
+
+    return {
+      attempt: data,
+      questionDetails,
+      is_saved: true,
+    };
+  } catch (err: any) {
+    console.warn("Error inserting exam attempt, returning transient result:", err);
+    return {
+      attempt: transientAttempt,
+      questionDetails,
+      is_saved: false,
+    };
+  }
 }
 
 // ============================================================================
@@ -1096,11 +1136,7 @@ export async function updateExamSettings(
 
 export async function getExamLimits(userId?: string) {
   const supabase = createClient();
-  const user = await getAuthUser();
-
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
+  const user = await getAuthUser().catch(() => null);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -1109,8 +1145,20 @@ export async function getExamLimits(userId?: string) {
 
   // If userId provided, check permissions
   if (userId) {
-    if (userId !== user.id && !isAdmin(user)) {
+    if (user && userId !== user.id && !isAdmin(user)) {
       throw new Error("Unauthorized");
+    }
+
+    if (!isUUID(userId)) {
+      return {
+        user_id: userId,
+        daily_limit: 5,
+        is_limited: false,
+        attempts_today: 0,
+        remaining_attempts: 999999,
+        limit_exists: false,
+        unlimited: true,
+      };
     }
 
     const { data: limit, error } = await supabase
@@ -1128,7 +1176,7 @@ export async function getExamLimits(userId?: string) {
       .gte("started_at", today.toISOString())
       .lt("started_at", tomorrow.toISOString());
 
-    if (countError) console.error("Error counting attempts:", countError);
+    if (countError) console.warn("Error counting attempts:", countError);
 
     const isLimited = limit?.is_limited ?? true;
     const dailyLimit = limit?.daily_limit ?? 5;
@@ -1146,13 +1194,26 @@ export async function getExamLimits(userId?: string) {
   }
 
   // If admin, return all limits
-  if (isAdmin(user)) {
+  if (user && isAdmin(user)) {
     const { data: limits, error } = await supabase
       .from("user_exam_limits")
       .select("*");
 
     if (error) throw error;
     return { limits: limits || [] };
+  }
+
+  // If no user or non-UUID user, return default limit
+  if (!user || !isUUID(user.id)) {
+    return {
+      user_id: user?.id || "guest",
+      daily_limit: 5,
+      is_limited: false,
+      attempts_today: 0,
+      remaining_attempts: 999999,
+      limit_exists: false,
+      unlimited: true,
+    };
   }
 
   // Return current user's limit
@@ -1171,7 +1232,7 @@ export async function getExamLimits(userId?: string) {
     .gte("started_at", today.toISOString())
     .lt("started_at", tomorrow.toISOString());
 
-  if (countError) console.error("Error counting attempts:", countError);
+  if (countError) console.warn("Error counting attempts:", countError);
 
   const isLimited = limit?.is_limited ?? true;
   const dailyLimit = limit?.daily_limit ?? 5;
@@ -1296,14 +1357,23 @@ function seededShuffle<T>(array: T[], seed: string): T[] {
 
 export async function getExamForTaking(categoryId: string, challengeId?: string, language?: string) {
   const supabase = createClient();
-  const user = await getAuthUser();
+  let user = await getAuthUser().catch(() => null);
 
-  if (!user) {
-    throw new Error("Unauthorized");
+  if (!user && typeof window !== "undefined") {
+    try {
+      const { data: { user: clientUser } } = await supabase.auth.getUser();
+      if (clientUser) user = clientUser;
+    } catch {}
   }
 
-  if (!categoryId) {
-    throw new Error("categoryId is required");
+  if (!user && typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem("navo_user") || sessionStorage.getItem("navo_user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.id) user = parsed;
+      }
+    } catch {}
   }
 
   const today = new Date();
@@ -1311,47 +1381,63 @@ export async function getExamForTaking(categoryId: string, challengeId?: string,
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
+  const hasValidUser = Boolean(user?.id && isUUID(user.id));
+
   // Get universal exam limit
-  const { data: universalLimit, error: universalError } = await supabase
-    .from("system_config")
-    .select("value")
-    .eq("key", "universal_exam_limit")
-    .single();
+  let universalExamLimit = 5;
+  try {
+    const { data: universalLimit } = await supabase
+      .from("system_config")
+      .select("value")
+      .eq("key", "universal_exam_limit")
+      .single();
 
-  const universalExamLimit = universalLimit ? parseInt(universalLimit.value, 10) : 5;
+    if (universalLimit?.value) {
+      universalExamLimit = parseInt(universalLimit.value, 10) || 5;
+    }
+  } catch {}
 
-  // Get user's daily limit and unlimited status (user limit can override universal)
-  const { data: userLimit, error: limitError } = await supabase
-    .from("user_exam_limits")
-    .select("daily_limit, is_limited")
-    .eq("user_id", user.id)
-    .single();
+  let isLimited = true;
+  let dailyLimit = universalExamLimit;
+  let attemptsCount = 0;
 
-  if (limitError && limitError.code !== "PGRST116") {
-    console.error("Error fetching user limit:", limitError);
+  if (hasValidUser && user?.id) {
+    try {
+      // Get user's daily limit and unlimited status (user limit can override universal)
+      const { data: userLimit, error: limitError } = await supabase
+        .from("user_exam_limits")
+        .select("daily_limit, is_limited")
+        .eq("user_id", user.id)
+        .single();
+
+      if (limitError && limitError.code !== "PGRST116") {
+        console.warn("Could not fetch user limit:", limitError.message);
+      }
+
+      isLimited = userLimit?.is_limited ?? true;
+      const userLimitValue = userLimit?.daily_limit ?? universalExamLimit;
+      dailyLimit = Math.min(userLimitValue, universalExamLimit);
+    } catch {}
+
+    try {
+      // Count today's attempts
+      const { count: attemptsToday, error: countError } = await supabase
+        .from("exam_attempts")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("started_at", today.toISOString())
+        .lt("started_at", tomorrow.toISOString());
+
+      if (countError) {
+        console.warn("Could not count attempts:", countError.message);
+      } else {
+        attemptsCount = attemptsToday || 0;
+      }
+    } catch {}
   }
-
-  const isLimited = userLimit?.is_limited ?? true;
-  // Use user limit if set and less than universal, otherwise use universal
-  const userLimitValue = userLimit?.daily_limit ?? universalExamLimit;
-  const dailyLimit = Math.min(userLimitValue, universalExamLimit);
-
-  // Count today's attempts
-  const { count: attemptsToday, error: countError } = await supabase
-    .from("exam_attempts")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .gte("started_at", today.toISOString())
-    .lt("started_at", tomorrow.toISOString());
-
-  if (countError) {
-    console.error("Error counting attempts:", countError);
-  }
-
-  const attemptsCount = attemptsToday || 0;
 
   // Only enforce limit if user is in limited mode
-  if (isLimited && attemptsCount >= dailyLimit) {
+  if (hasValidUser && isLimited && attemptsCount >= dailyLimit) {
     throw new Error(`Daily exam limit reached. You can take ${dailyLimit} exam(s) per day. Please try again tomorrow.`);
   }
 
@@ -1500,16 +1586,20 @@ export async function getExamForTaking(categoryId: string, challengeId?: string,
 
 export async function getNotifications(unreadOnly = false, limit = 50) {
   const supabase = createClient();
-  const user = await getAuthUser();
+  const user = await getAuthUser().catch(() => null);
 
   if (!user) {
-    throw new Error("Unauthorized");
+    return { notifications: [], unread_count: 0 };
   }
 
   const isUserAdmin = isAdmin(user);
+  const hasValidUser = Boolean(user.id && isUUID(user.id));
 
   // Build the OR conditions properly
-  let orConditions = [`target_user_id.eq.${user.id}`, `target_role.eq.all`];
+  let orConditions = [`target_role.eq.all`];
+  if (hasValidUser) {
+    orConditions.push(`target_user_id.eq.${user.id}`);
+  }
   
   if (isUserAdmin) {
     orConditions.push("target_role.eq.admin");
@@ -1534,22 +1624,27 @@ export async function getNotifications(unreadOnly = false, limit = 50) {
   const { data: notifications, error } = await query;
 
   if (error) {
-    console.error('Supabase query error:', error);
-    throw error;
+    console.warn('Notifications fetch error:', error.message);
+    return { notifications: [], unread_count: 0 };
   }
 
   // Get read status for each notification
-  const { data: readStatuses, error: readError } = await supabase
-    .from("notification_reads")
-    .select("notification_id")
-    .eq("user_id", user.id)
-    .in("notification_id", notifications?.map((n: { id: string }) => n.id) || []);
+  let readNotificationIds = new Set<string>();
+  if (hasValidUser && (notifications?.length || 0) > 0) {
+    try {
+      const { data: readStatuses, error: readError } = await supabase
+        .from("notification_reads")
+        .select("notification_id")
+        .eq("user_id", user.id)
+        .in("notification_id", notifications?.map((n: { id: string }) => n.id) || []);
 
-  if (readError) {
-    console.error("Error fetching read statuses:", readError);
+      if (readError) {
+        console.warn("Error fetching read statuses:", readError.message);
+      } else if (readStatuses) {
+        readNotificationIds = new Set(readStatuses.map((r: { notification_id: string }) => r.notification_id));
+      }
+    } catch {}
   }
-
-  const readNotificationIds = new Set(readStatuses?.map((r: { notification_id: string }) => r.notification_id) || []);
 
   const notificationsWithReadStatus = notifications?.map((n: { id: string } & Record<string, unknown>) => ({
     ...n,

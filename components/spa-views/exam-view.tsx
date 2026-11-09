@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings } from "@/lib/security-config";
+import { authFetch } from "@/lib/e2e-crypto";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ExamCategorySkeleton, ExamChoiceSkeleton } from "@/components/skeletons";
@@ -292,14 +293,17 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       }
     };
     loadSecuritySettings();
-
-    // Clean up exam-active flag when component unmounts
-    return () => {
-      sessionStorage.removeItem('exam-active');
-      window.dispatchEvent(new CustomEvent('exam-state-change'));
-      console.log('Exam component unmounted - exam-active removed');
-    };
   }, [accessChecked, t]);
+
+  // Clean up exam-active flag strictly on component unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("exam-active");
+        window.dispatchEvent(new CustomEvent("exam-state-change"));
+      }
+    };
+  }, []);
 
   // Synchronize exam-active flag with whether an exam is actively in progress
   useEffect(() => {
@@ -1075,8 +1079,25 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       setSelectedExamLanguage(examLang);
     }
 
+    if (!targetCategoryId || targetCategoryId === "fallback-id") {
+      if (categories.length > 0) {
+        targetCategoryId = categories[0].id;
+        setCategoryId(categories[0].id);
+      } else {
+        try {
+          const catRes = await getExamCategories();
+          const cats = catRes.categories || [];
+          if (cats.length > 0) {
+            setCategories(cats);
+            targetCategoryId = cats[0].id;
+            setCategoryId(cats[0].id);
+          }
+        } catch {}
+      }
+    }
+
     // If targetCategoryId is missing but we have a challengeId, look it up immediately
-    if (!targetCategoryId && challengeId) {
+    if ((!targetCategoryId || targetCategoryId === "fallback-id") && challengeId) {
       try {
         const supabase = createClient();
         const { data } = await supabase
@@ -1093,15 +1114,15 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       }
     }
 
-    if (!targetCategoryId && categories.length > 0) {
-      targetCategoryId = categories[0].id;
-      setCategoryId(categories[0].id);
+    if (!targetCategoryId || targetCategoryId === "fallback-id") {
+      targetCategoryId = "default-rwanda-pvs-category";
+      setCategoryId(targetCategoryId);
     }
 
-    if (!targetCategoryId) {
-      toast.error(t("pleaseAcceptExamInstructions") || "Please select an exam category to start");
-      return;
+    if (!challengeId) {
+      setExamMode("individual");
     }
+
     setShowInstructions(false);
     setInstructionsAccepted(true);
     setLoadingExam(true);
@@ -1111,7 +1132,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     if (pendingInviteeIds.length > 0 && !challengeId) {
       try {
         const categoryName = categories.find((c) => c.id === targetCategoryId)?.name || "Exam";
-        const res = await fetch("/api/exam-challenges", {
+        const res = await authFetch("/api/exam-challenges", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1142,7 +1163,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     // If challenge already exists (from lobby flow), ensure it is marked as active and participant is marked as in_progress
     if (challengeId) {
       try {
-        await fetch(`/api/exam-challenges/${challengeId}/start`, {
+        await authFetch(`/api/exam-challenges/${challengeId}/start`, {
           method: "POST",
         });
       } catch (error) {
@@ -1386,12 +1407,12 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       if (challengeId) {
         try {
           if (status === 'abandoned') {
-            await fetch(`/api/exam-challenges/${challengeId}/abandon`, {
+            await authFetch(`/api/exam-challenges/${challengeId}/abandon`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
             });
           } else {
-            const completeRes = await fetch(`/api/exam-challenges/${challengeId}/complete`, {
+            const completeRes = await authFetch(`/api/exam-challenges/${challengeId}/complete`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ exam_attempt_id: attempt.id }),
@@ -1410,7 +1431,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
       // Notify admins about the exam submission
       try {
-          await fetch("/api/notifications", {
+          await authFetch("/api/notifications", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1719,22 +1740,26 @@ export function ExamView({ navigate, params }: ExamViewProps) {
             {t("cancel")}
           </Button>
           <Button
-            onClick={() => {
-              try {
-                const el = document.documentElement as FullscreenElement;
-                if (el.requestFullscreen) {
-                  void el.requestFullscreen();
-                } else if (el.webkitRequestFullscreen) {
-                  void el.webkitRequestFullscreen();
-                } else if (el.msRequestFullscreen) {
-                  void el.msRequestFullscreen();
+            onClick={async () => {
+              if (securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled) {
+                try {
+                  const el = document.documentElement as FullscreenElement;
+                  if (!document.fullscreenElement) {
+                    if (el.requestFullscreen) {
+                      await el.requestFullscreen();
+                    } else if (el.webkitRequestFullscreen) {
+                      await el.webkitRequestFullscreen();
+                    } else if (el.msRequestFullscreen) {
+                      await el.msRequestFullscreen();
+                    }
+                  }
+                } catch (e) {
+                  console.warn("Fullscreen error on user gesture:", e);
                 }
-              } catch (e) {
-                console.warn("Fullscreen error on user gesture:", e);
               }
               const targetId = categoryId || categories[0]?.id;
               if (targetId) {
-                void startExam(targetId);
+                await startExam(targetId);
               } else {
                 setShowInstructions(false);
               }
@@ -1742,7 +1767,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
             disabled={!instructionsAccepted || loadingExam}
             className="w-full sm:w-auto sm:min-w-[120px]"
           >
-            {loadingExam ? t("starting") : categoryId ? t("beginExam") : t("proceedToExams")}
+            {loadingExam
+              ? (language === "Kinyarwanda" || language === "rw" ? "Tegereza..." : t("starting"))
+              : categoryId ? t("beginExam") : t("proceedToExams")}
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         </DialogFooter>
@@ -1929,7 +1956,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-md" />
           <p className="text-sm font-bold text-foreground animate-pulse">
-            {t("starting") || "Preparing Exam Questions..."}
+            {language === "Kinyarwanda" || language === "rw" || selectedExamLanguage === "Kinyarwanda"
+              ? "Tegereza gato..."
+              : t("starting") || "Preparing Exam Questions..."}
           </p>
         </div>
       );
@@ -2050,7 +2079,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           // Create the challenge immediately
           const categoryName = categories.find((c) => c.id === selectedCategoryId)?.name || "Exam";
           try {
-            const res = await fetch("/api/exam-challenges", {
+            const res = await authFetch("/api/exam-challenges", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -2200,7 +2229,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                   <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-md" />
                   <p className="text-sm font-bold text-foreground animate-pulse">
-                    {t("starting") || "Preparing Exam Questions..."}
+                    {language === "Kinyarwanda" || language === "rw" || selectedExamLanguage === "Kinyarwanda"
+                      ? "Tegereza gato..."
+                      : t("starting") || "Preparing Exam Questions..."}
                   </p>
                 </div>
               ) : loadingCategories ? (
@@ -2311,7 +2342,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                             {loadingExam && selectedExamLanguage === examCat.key ? (
                               <>
                                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent mr-2" />
-                                {t("starting") || "Starting..."}
+                                {examCat.key === "Kinyarwanda" || language === "Kinyarwanda" || language === "rw"
+                                  ? "Tegereza..."
+                                  : t("starting") || "Starting..."}
                               </>
                             ) : (
                               <>
@@ -3084,4 +3117,6 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     </div>
   );
 }
+
+export default ExamView;
 
