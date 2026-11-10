@@ -153,20 +153,75 @@ export function LoginForm({
       setWelcomingUser({ name: greetingName, avatarUrl: data.photo_url || data.avatar_url });
       setShowWelcomingOverlay(true);
 
-      // Sign in to Supabase
+      // Establish Supabase session using robust multi-layer strategy
       const supabase = createClient();
       const authPasswordToUse = data.auth_password || `!Nid_Sec_${cleanId}_rw!`;
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: authPasswordToUse,
-      });
+      let sessionEstablished = false;
 
-      if (signInError) {
-        console.error("ID login session error:", signInError);
-        toast.error("Could not initialize session. Please try logging in with password.");
-        setIsLoading(false);
-        setShowWelcomingOverlay(false);
-        return;
+      // Layer 1: If server created session cookies / token, hydrate client session
+      if (data.session?.access_token && data.session?.refresh_token) {
+        try {
+          const { error: setErr } = await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          });
+          if (!setErr) sessionEstablished = true;
+        } catch (setEx) {
+          console.warn("setSession exception:", setEx);
+        }
+      }
+
+      // Layer 2: Client signInWithPassword
+      if (!sessionEstablished) {
+        try {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: data.email,
+            password: authPasswordToUse,
+          });
+          if (!signInError) {
+            sessionEstablished = true;
+          } else {
+            console.warn("Client signInWithPassword notice:", signInError.message);
+          }
+        } catch (clientAuthEx) {
+          console.warn("Client auth fetch notice:", clientAuthEx);
+        }
+      }
+
+      // Layer 3: Verify existing active session / user
+      if (!sessionEstablished) {
+        try {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) {
+            sessionEstablished = true;
+          }
+        } catch {}
+      }
+
+      // Layer 4: Fallback to /api/auth/login route (server-side session set)
+      if (!sessionEstablished) {
+        try {
+          const loginRes = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              identifier: cleanId,
+              password: authPasswordToUse,
+            }),
+          });
+          const loginData = await loginRes.json();
+          if (loginRes.ok && loginData.status === "success") {
+            sessionEstablished = true;
+            if (loginData.session?.access_token && loginData.session?.refresh_token) {
+              await supabase.auth.setSession({
+                access_token: loginData.session.access_token,
+                refresh_token: loginData.session.refresh_token,
+              }).catch(() => {});
+            }
+          }
+        } catch (fallbackLoginEx) {
+          console.warn("Fallback /api/auth/login error:", fallbackLoginEx);
+        }
       }
 
       setAdminSessionFlag(false);

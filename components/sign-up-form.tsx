@@ -221,20 +221,61 @@ export function SignUpForm({
         `${t("welcome") || "Welcome"}, ${greetingName}! ${t("registrationSuccessful") || "Your account has been created successfully."}`
       );
 
-      // Log in automatically
+      // Establish Supabase session using robust multi-layer strategy
       const supabase = createClient();
       const authPasswordToUse = data.auth_password || idPassword;
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: authPasswordToUse,
-      });
+      let sessionEstablished = false;
 
-      if (signInError) {
-        console.warn("Auto-login error:", signInError);
-        toast.info("Registration complete! Please log in.");
-        if (onSwitchToLogin) onSwitchToLogin();
-        else router.push("/auth/login");
-        return;
+      if (data.session?.access_token && data.session?.refresh_token) {
+        try {
+          const { error: setErr } = await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          });
+          if (!setErr) sessionEstablished = true;
+        } catch {}
+      }
+
+      if (!sessionEstablished) {
+        try {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: data.email,
+            password: authPasswordToUse,
+          });
+          if (!signInError) sessionEstablished = true;
+        } catch (clientAuthEx) {
+          console.warn("Sign-up client auth fetch notice:", clientAuthEx);
+        }
+      }
+
+      if (!sessionEstablished) {
+        try {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) sessionEstablished = true;
+        } catch {}
+      }
+
+      if (!sessionEstablished) {
+        try {
+          const loginRes = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              identifier: cleanId,
+              password: authPasswordToUse,
+            }),
+          });
+          const loginData = await loginRes.json();
+          if (loginRes.ok && loginData.status === "success") {
+            sessionEstablished = true;
+            if (loginData.session?.access_token && loginData.session?.refresh_token) {
+              await supabase.auth.setSession({
+                access_token: loginData.session.access_token,
+                refresh_token: loginData.session.refresh_token,
+              }).catch(() => {});
+            }
+          }
+        } catch {}
       }
 
       setAdminSessionFlag(false);

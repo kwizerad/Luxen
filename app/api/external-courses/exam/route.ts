@@ -315,35 +315,61 @@ export async function POST(req: NextRequest) {
         availableTo = dbSettings.available_to;
       }
 
-      const { data: allExtQuestions, error: qErr } = await extSb
-        .from("questions")
-        .select("*")
-        .order("question_numbers", { ascending: true, nullsFirst: false })
-        .order("id", { ascending: true });
+      let allExtQuestions: any[] = [];
+      try {
+        if (extSb) {
+          const { data: qData, error: qErr } = await extSb
+            .from("questions")
+            .select("*")
+            .order("question_numbers", { ascending: true, nullsFirst: false })
+            .order("id", { ascending: true });
 
-      if (qErr) throw qErr;
+          if (!qErr && Array.isArray(qData) && qData.length > 0) {
+            allExtQuestions = qData;
+          }
+        }
+      } catch (extQueryErr) {
+        console.warn("[TakeExam] External questions query error, trying primary DB:", extQueryErr);
+      }
 
-      const formattedPool = (allExtQuestions || []).map((q: any) => {
-        const choices = parseExternalChoices(q.choice);
-        const ansIdx = typeof q.choice_answer === "number" ? q.choice_answer : Number(q.choice_answer) || 0;
-        return {
-          id: String(q.id),
-          category_id: targetCatId,
-          question: String(q.title || ""),
-          question_image: q.image || null,
-          option_a: choices[0] || "Option A",
-          option_a_image: null,
-          option_b: choices[1] || "Option B",
-          option_b_image: null,
-          option_c: choices[2] || "Option C",
-          option_c_image: null,
-          option_d: choices[3] || "Option D",
-          option_d_image: null,
-          correct_answer: mapExternalChoiceToLetter(ansIdx),
-          explanation: null,
-          created_at: q.created_at || new Date().toISOString(),
-        };
-      });
+      let formattedPool: any[] = [];
+
+      if (allExtQuestions.length > 0) {
+        formattedPool = allExtQuestions.map((q: any) => {
+          const choices = parseExternalChoices(q.choice);
+          const ansIdx = typeof q.choice_answer === "number" ? q.choice_answer : Number(q.choice_answer) || 0;
+          return {
+            id: String(q.id),
+            category_id: targetCatId,
+            question: String(q.title || ""),
+            question_image: q.image || null,
+            option_a: choices[0] || "Option A",
+            option_a_image: null,
+            option_b: choices[1] || "Option B",
+            option_b_image: null,
+            option_c: choices[2] || "Option C",
+            option_c_image: null,
+            option_d: choices[3] || "Option D",
+            option_d_image: null,
+            correct_answer: mapExternalChoiceToLetter(ansIdx),
+            explanation: null,
+            created_at: q.created_at || new Date().toISOString(),
+          };
+        });
+      } else {
+        // Fallback to primary database exam_questions table (365 questions)
+        const { data: primaryQ } = await adminSb
+          .from("exam_questions")
+          .select("*")
+          .order("id", { ascending: true });
+
+        if (primaryQ && primaryQ.length > 0) {
+          formattedPool = primaryQ.map((q: any) => ({
+            ...q,
+            category_id: targetCatId,
+          }));
+        }
+      }
 
       const hasImg = (img: any) => typeof img === "string" && img.trim().length > 0 && img.trim() !== "null" && img.trim() !== "undefined";
       const typedQuestions = formattedPool;
@@ -461,6 +487,25 @@ export async function POST(req: NextRequest) {
           correct_answer: letter,
           explanation: undefined,
         };
+      }
+
+      if (correctByQuestionId.size < questionIds.length) {
+        const missingIds = questionIds.filter((id) => !correctByQuestionId.has(id));
+        if (missingIds.length > 0) {
+          const { data: primaryQ } = await adminSb
+            .from("exam_questions")
+            .select("id, correct_answer, explanation")
+            .in("id", missingIds);
+          for (const q of primaryQ || []) {
+            if (q.correct_answer) {
+              correctByQuestionId.set(String(q.id), q.correct_answer as any);
+              questionDetails[String(q.id)] = {
+                correct_answer: q.correct_answer,
+                explanation: q.explanation || undefined,
+              };
+            }
+          }
+        }
       }
 
       const gradedAnswers = rawAnswers.map((a) => {

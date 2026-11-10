@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptPayload, encryptPayload, isEncryptedEnvelope } from "@/lib/e2e-crypto";
 
+import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from "@/lib/supabase/constants";
+
 export const dynamic = "force-dynamic";
 
 // Tables that regular authenticated students are allowed to query for their own records
@@ -60,9 +62,11 @@ export async function POST(req: NextRequest) {
     // 2. Encrypted PostgREST Proxy (intercepts Supabase REST requests so user_profiles, exam_questions, exam_attempts, etc. are E2E encrypted on the wire)
     if (action === "rest_proxy") {
       const { path, search, method = "GET", headers: clientHeaders = {}, bodyText } = payload || {};
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
       const supabaseAnonKey =
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+        DEFAULT_SUPABASE_ANON_KEY;
 
       if (!supabaseUrl || !supabaseAnonKey || !path) {
         return NextResponse.json(await encryptPayload({ error: "Missing target configuration" }), {

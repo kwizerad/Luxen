@@ -56,15 +56,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Check if exam is active (to hide dock nav and headers during active exam)
   useEffect(() => {
     const checkExamActive = () => {
+      if (typeof window === "undefined") return;
+      const rawHash = window.location.hash.replace(/^#/, "").split("?")[0];
+      if (rawHash && rawHash !== "exam" && rawHash !== "exams") {
+        if (sessionStorage.getItem("exam-active") === "true") {
+          sessionStorage.removeItem("exam-active");
+        }
+        setIsExamActive(false);
+        return;
+      }
       const isExam = sessionStorage.getItem("exam-active") === "true";
       setIsExamActive(isExam);
     };
     checkExamActive();
     const handleExamStateChange = () => checkExamActive();
     window.addEventListener("exam-state-change", handleExamStateChange);
+    window.addEventListener("hashchange", checkExamActive);
+    window.addEventListener("popstate", checkExamActive);
+    window.addEventListener("navo-hash-route-change", checkExamActive);
     window.addEventListener("storage", handleExamStateChange);
     return () => {
       window.removeEventListener("exam-state-change", handleExamStateChange);
+      window.removeEventListener("hashchange", checkExamActive);
+      window.removeEventListener("popstate", checkExamActive);
+      window.removeEventListener("navo-hash-route-change", checkExamActive);
       window.removeEventListener("storage", handleExamStateChange);
     };
   }, [pathname]);

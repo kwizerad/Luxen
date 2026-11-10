@@ -84,8 +84,10 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
 
   const viewCodeResult = useCallback(
     async (code: string) => {
+      console.log("[LiveExamView] viewCodeResult triggered for code:", code);
       const cached = resultCache[code];
       if (cached && cached.candidateName && cached.candidateName !== "N/A") {
+        console.log("[LiveExamView] Serving result from cache for code:", code, cached);
         setModalData(cached);
         setModalError(null);
         setModalLoading(false);
@@ -93,6 +95,7 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
         return;
       }
 
+      console.log("[LiveExamView] Cache miss. Initiating API fetch to /api/select-code for code:", code);
       setModalLoading(true);
       setModalError(null);
       setModalData(null);
@@ -107,16 +110,21 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
           }),
         });
         const data = await response.json();
+        console.log("[LiveExamView] /api/select-code response received:", { status: response.status, data });
 
         if (data.status === "error") {
+          console.warn("[LiveExamView] Error returned from /api/select-code:", data.message);
           setModalError(data.message || t("liveExamRetrieveError"));
         } else if (data.status === "success" && data.result) {
+          console.log("[LiveExamView] Updating result cache and modal data for code:", code, data.result);
           setResultCache((prev) => ({ ...prev, [code]: data.result }));
           setModalData(data.result);
         } else {
+          console.warn("[LiveExamView] Unexpected response payload:", data);
           setModalError(t("liveExamUnexpectedResponse"));
         }
-      } catch {
+      } catch (err) {
+        console.error("[LiveExamView] Connection or execution error in viewCodeResult:", err);
         setModalError(t("liveExamConnectionError"));
       } finally {
         setModalLoading(false);
@@ -126,6 +134,7 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
   );
 
   const handleTabChange = (tab: TabType) => {
+    console.log("[LiveExamView] Tab switched to:", tab);
     setActiveTab(tab);
     setModalOpen(false);
   };

@@ -8,16 +8,16 @@ import { createClient } from "@supabase/supabase-js";
  * The key (`SUPABASE_SERVICE_ROLE_KEY`) is intentionally not prefixed with
  * `NEXT_PUBLIC_` so Next.js never inlines it into client bundles.
  */
+import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_SERVICE_ROLE_KEY } from "@/lib/supabase/constants";
+
 export function isSupabaseAdminConfigured(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || DEFAULT_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return false;
   if (url.includes("placeholder") || key.includes("placeholder")) return false;
   if (!url.startsWith("http://") && !url.startsWith("https://")) return false;
   return true;
 }
-
-import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_SERVICE_ROLE_KEY } from "@/lib/supabase/constants";
 
 export function createAdminClient() {
   if (typeof window !== "undefined") {

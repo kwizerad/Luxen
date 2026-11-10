@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    let query = supabase
+    let query = adminSb
       .from("exam_categories")
       .select("*")
       .order("created_at", { ascending: false });
@@ -52,8 +52,8 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    // Fetch exam settings for all categories
-    const { data: settingsData, error: settingsError } = await supabase
+    // Fetch exam settings for all categories using adminSb
+    const { data: settingsData, error: settingsError } = await adminSb
       .from("exam_settings")
       .select("category_id,duration_minutes,question_count");
 

@@ -20,7 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings } from "@/lib/security-config";
 import { authFetch } from "@/lib/e2e-crypto";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, isUUID } from "@/lib/utils";
 import { ExamCategorySkeleton, ExamChoiceSkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
 import { CheckCircle, XCircle, Trophy, ArrowRight, Home, AlertCircle, AlertTriangle, BookOpen, Shield, ShieldAlert, HelpCircle, FileText, Play, LogOut, Monitor, Clock, Hash, ArrowLeft, History, ChevronLeft, ChevronRight, Check } from "lucide-react";
@@ -200,7 +200,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const [examResult, setExamResult] = useState<ExamAttempt | null>(null);
   const [isSoloGroupAttempt, setIsSoloGroupAttempt] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
-  const [instructionsAccepted, setInstructionsAccepted] = useState(false);
+  const [instructionsAccepted, setInstructionsAccepted] = useState(true);
   const [showExamInstructions, setShowExamInstructions] = useState(true);
   const [showFullscreenWarning, setShowFullscreenWarning] = useState(false);
   const [fullscreenRetryCount, setFullscreenRetryCount] = useState(0);
@@ -266,14 +266,21 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     const load = async () => {
       setLoadingCategories(true);
       try {
+        console.log("[ExamView] Loading exam categories via getExamCategories()...");
         const data = await getExamCategories();
         const cats = data.categories || [];
+        console.log("[ExamView] Exam categories successfully loaded:", {
+          count: cats.length,
+          categories: cats.map((c: ExamCategory) => ({ id: c.id, name: c.name, is_published: c.is_published })),
+        });
         setCategories(cats);
         if (cats.length === 0) {
+          console.warn("[ExamView] 0 exam categories returned from server.");
           toast.error(t("noExamsAvailable") || "No exams or module tests are currently available.");
           navigate("course");
         }
       } catch (error) {
+        console.error("[ExamView] Error loading exam categories:", error);
         const message = error instanceof Error ? error.message : String(error);
         toast.error(`${t("failedToLoadCategories")}: ${message}`);
         navigate("course");
@@ -1073,31 +1080,68 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const examT = (key: string) => examTranslations[selectedExamLanguage]?.[key] || t(key);
 
   const startExam = async (catId?: string, examLang?: string) => {
+    console.log("[ExamView] startExam initiated with arguments:", {
+      catId,
+      examLang,
+      stateCategoryId: categoryId,
+      selectedExamLanguage,
+      availableCategoriesCount: categories.length,
+      availableCategoryIds: categories.map((c) => ({ id: c.id, name: c.name })),
+    });
+
+    // Request fullscreen immediately inside user click gesture before any async calls
+    if (securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled) {
+      try {
+        const el = document.documentElement as FullscreenElement;
+        if (!document.fullscreenElement) {
+          if (el.requestFullscreen) {
+            await el.requestFullscreen();
+          } else if (el.webkitRequestFullscreen) {
+            await el.webkitRequestFullscreen();
+          } else if (el.msRequestFullscreen) {
+            await el.msRequestFullscreen();
+          }
+        }
+      } catch (fsErr) {
+        console.warn("[ExamView] Fullscreen entry prevented or failed on initial click gesture:", fsErr);
+      }
+    }
+
     let targetCategoryId = catId || categoryId;
     const activeExamLang = examLang || selectedExamLanguage || "Kinyarwanda";
     if (examLang) {
       setSelectedExamLanguage(examLang);
     }
 
-    if (!targetCategoryId || targetCategoryId === "fallback-id") {
+    const DB_DEFAULT_CATEGORY = "00000000-0000-4000-8000-000000000e01";
+
+    if (!targetCategoryId || targetCategoryId === "fallback-id" || !isUUID(targetCategoryId)) {
       if (categories.length > 0) {
-        targetCategoryId = categories[0].id;
-        setCategoryId(categories[0].id);
+        const matched = categories.find((c: ExamCategory) => isUUID(c.id));
+        targetCategoryId = matched ? matched.id : DB_DEFAULT_CATEGORY;
+        setCategoryId(targetCategoryId);
       } else {
         try {
           const catRes = await getExamCategories();
           const cats = catRes.categories || [];
           if (cats.length > 0) {
             setCategories(cats);
-            targetCategoryId = cats[0].id;
-            setCategoryId(cats[0].id);
+            const matched = cats.find((c: ExamCategory) => isUUID(c.id));
+            targetCategoryId = matched ? matched.id : DB_DEFAULT_CATEGORY;
+            setCategoryId(targetCategoryId);
+          } else {
+            targetCategoryId = DB_DEFAULT_CATEGORY;
+            setCategoryId(targetCategoryId);
           }
-        } catch {}
+        } catch {
+          targetCategoryId = DB_DEFAULT_CATEGORY;
+          setCategoryId(targetCategoryId);
+        }
       }
     }
 
     // If targetCategoryId is missing but we have a challengeId, look it up immediately
-    if ((!targetCategoryId || targetCategoryId === "fallback-id") && challengeId) {
+    if ((!targetCategoryId || targetCategoryId === "fallback-id" || !isUUID(targetCategoryId)) && challengeId) {
       try {
         const supabase = createClient();
         const { data } = await supabase
@@ -1105,19 +1149,26 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           .select("category_id")
           .eq("id", challengeId)
           .maybeSingle();
-        if (data?.category_id) {
+        if (data?.category_id && isUUID(data.category_id)) {
           targetCategoryId = data.category_id;
           setCategoryId(data.category_id);
         }
       } catch (e) {
-        console.error("Failed to fetch challenge category before starting exam:", e);
+        console.error("[ExamView] Failed to fetch challenge category before starting exam:", e);
       }
     }
 
-    if (!targetCategoryId || targetCategoryId === "fallback-id") {
-      targetCategoryId = "default-rwanda-pvs-category";
+    if (!targetCategoryId || targetCategoryId === "fallback-id" || !isUUID(targetCategoryId)) {
+      targetCategoryId = DB_DEFAULT_CATEGORY;
       setCategoryId(targetCategoryId);
     }
+
+    console.log("[ExamView] Resolved and validated targetCategoryId:", {
+      targetCategoryId,
+      activeExamLang,
+      challengeId: challengeId || undefined,
+      isTargetUUID: isUUID(targetCategoryId),
+    });
 
     if (!challengeId) {
       setExamMode("individual");
@@ -1153,7 +1204,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : (error as any)?.message || String(error);
-        console.error("Failed to create group exam challenge:", error);
+        console.error("[ExamView] Failed to create group exam challenge:", error);
         toast.error(`${t("failedToStartExam") || "Failed to create group exam"}: ${message}`);
         setLoadingExam(false);
         return;
@@ -1167,13 +1218,30 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           method: "POST",
         });
       } catch (error) {
-        console.error("Failed to mark challenge as active:", error);
+        console.error("[ExamView] Failed to mark challenge as active:", error);
       }
     }
 
     try {
+      console.log("[ExamView] Fetching exam questions via getExamForTaking with category ID:", targetCategoryId);
       const data = await getExamForTaking(targetCategoryId, challengeId || undefined, activeExamLang);
+
+      console.log("[ExamView] Successfully received exam response payload:", {
+        categoryId: data?.categoryId,
+        questionCount: data?.questions?.length,
+        settings: data?.settings,
+        firstQuestionSnippet: data?.questions?.[0]?.question?.slice(0, 60),
+      });
+
+      if (!data?.questions || data.questions.length === 0) {
+        console.warn("[ExamView] Received 0 questions from server for category:", targetCategoryId);
+        toast.error(t("noQuestionsInExam") || "No questions found for this exam category.");
+        return;
+      }
+
       setExam(data as TakeResponse);
+      console.log("[ExamView] State updated: setExam with", data.questions.length, "questions");
+
       setCurrentIndex(0);
       setSecondsLeft((data.settings?.duration_minutes ?? 20) * 60);
 
@@ -1202,7 +1270,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       isSubmittingOnExitRef.current = false;
       submittingExamRef.current = false;
       
-      // Enter full screen mode only if violation measures and fullscreen are enabled
+      // Ensure fullscreen mode remains active if required
       if (securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled) {
         try {
           const el = document.documentElement as FullscreenElement;
@@ -1216,7 +1284,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
             }
           }
         } catch (fsErr) {
-          console.warn("Fullscreen entry prevented or failed on initial load:", fsErr);
+          console.warn("[ExamView] Fullscreen check on exam load:", fsErr);
         }
       }
       
@@ -1232,7 +1300,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
       // Dispatch custom event to notify layout
       window.dispatchEvent(new CustomEvent('exam-state-change'));
-      console.log('Exam started - exam-active set');
+      console.log('[ExamView] Exam started - exam-active set in sessionStorage');
 
       // Push multiple history states to trap the back button / smartphone back gesture
       if (typeof window !== 'undefined') {
@@ -1241,6 +1309,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         }
       }
     } catch (error) {
+      console.error("[ExamView] Error caught in startExam while loading questions:", error);
       const message = error instanceof Error ? error.message : (error as any)?.message || String(error);
       toast.error(message || t("failedToStartExam"));
     } finally {
@@ -1757,7 +1826,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                   console.warn("Fullscreen error on user gesture:", e);
                 }
               }
-              const targetId = categoryId || categories[0]?.id;
+              const targetId = (isUUID(categoryId) ? categoryId : null) || categories.find((c: ExamCategory) => isUUID(c.id))?.id || "00000000-0000-4000-8000-000000000e01";
               if (targetId) {
                 await startExam(targetId);
               } else {
@@ -1796,8 +1865,22 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     return <ExamChoiceSkeleton />;
   }
 
-  // 1. Show 3 Exam Language Cards first
-  if (examMode === "lang-select") {
+  // 1. High priority: Show loading spinner when preparing exam
+  if (loadingExam) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-md" />
+        <p className="text-sm font-bold text-foreground animate-pulse">
+          {language === "Kinyarwanda" || language === "rw" || selectedExamLanguage === "Kinyarwanda"
+            ? "Tegereza gato..."
+            : t("starting") || "Preparing Exam Questions..."}
+        </p>
+      </div>
+    );
+  }
+
+  // 2. Show 3 Exam Language Cards first (only when not loading and no exam is active)
+  if (examMode === "lang-select" && !exam) {
     return (
       <div className="min-h-[calc(100vh-80px)] p-4 sm:p-6 max-w-6xl mx-auto space-y-5 animate-in fade-in duration-200">
         <div className="flex items-center justify-between">
@@ -1860,14 +1943,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
               key={examCat.key}
               className="group cursor-pointer h-full rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 hover:shadow-lg transition-all flex flex-col justify-between shadow-sm"
               onClick={() => {
-                setSelectedExamLanguage(examCat.key);
-                setCategoryId(categories[0]?.id || "fallback-id");
-                if (!groupExamEnabled) {
-                  setExamMode("individual");
-                  setShowInstructions(false);
-                } else {
-                  setExamMode("choice");
-                }
+                const targetId = (categories.find((c: ExamCategory) => isUUID(c.id))?.id) || (isUUID(categoryId) ? categoryId : "00000000-0000-4000-8000-000000000e01");
+                console.log("[ExamView] Language card clicked:", examCat.key, "targetId:", targetId);
+                void startExam(targetId, examCat.key);
               }}
             >
               <CardHeader className="p-4 sm:p-6 space-y-3">
@@ -1925,8 +2003,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     );
   }
 
-  // Show exam choice screen first (skip if group exam is disabled)
-  if (examMode === "choice") {
+  // Show exam choice screen first (skip if group exam is disabled and no exam is active)
+  if (examMode === "choice" && !exam) {
     if (!groupExamEnabled) {
       setExamMode("individual");
       setShowInstructions(false);
@@ -2002,9 +2080,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                   key={category.id}
                   className="cursor-pointer transition-colors rounded-xl border border-border/80 dark:border-zinc-800 bg-card hover:bg-muted/30 dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900/90 hover:border-primary/50 dark:hover:border-zinc-700 p-4 flex flex-col justify-between group shadow-xs"
                   onClick={() => {
-                    setCategoryId(category.id);
-                    setShowInstructions(true);
-                    setInstructionsAccepted(false);
+                    void startExam(category.id);
                   }}
                 >
                   <div className="space-y-2.5">
@@ -2047,9 +2123,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setCategoryId(category.id);
-                        setShowInstructions(true);
-                        setInstructionsAccepted(false);
+                        void startExam(category.id);
                       }}
                       className="w-full h-8 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-xs transition-colors"
                       size="sm"
@@ -2278,7 +2352,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                       btnLabel: "Commencer en Français",
                     },
                   ].map((examCat) => {
-                    const targetId = categories[0]?.id || categoryId;
+                    const targetId = (categories.find((c: ExamCategory) => isUUID(c.id))?.id) || (isUUID(categoryId) ? categoryId : "00000000-0000-4000-8000-000000000e01");
                     return (
                       <Card
                         key={examCat.key}

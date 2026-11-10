@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchCitizenFullDetails, type CitizenFullProfile } from "@/lib/live-exam/irembo";
 import { saveNationalIdRecord } from "@/lib/live-exam/save-record";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient as createServerSupabase } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -452,6 +453,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 8. Initialize server session cookie and get session token
+    let serverSession = null;
+    try {
+      const serverSupabase = await createServerSupabase();
+      const { data: authData, error: sessionErr } = await serverSupabase.auth.signInWithPassword({
+        email: syntheticEmail,
+        password: finalPassword,
+      });
+      if (authData?.session) {
+        serverSession = authData.session;
+      } else if (sessionErr) {
+        console.warn("Server session signin notice:", sessionErr.message);
+      }
+    } catch (sessionErr) {
+      console.warn("Server session initialization notice:", sessionErr);
+    }
+
     return NextResponse.json({
       status: "success",
       email: syntheticEmail,
@@ -461,6 +479,7 @@ export async function POST(request: NextRequest) {
       first_name: firstName,
       last_name: lastName,
       avatar_url: avatarUrl,
+      session: serverSession,
       is_existing: Boolean(existingAuthUser || existingProfile),
       message:
         mode === "login" || existingProfile
