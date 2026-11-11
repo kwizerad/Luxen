@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -61,6 +59,7 @@ export default function ExamManagementPage() {
   const [categories, setCategories] = useState<ExamCategory[]>(cachedExamCategories || []);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [filteredQuestions, setFilteredQuestions] = useState<ExamQuestion[]>([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [categoryQuestionCounts, setCategoryQuestionCounts] = useState<Record<string, number>>(cachedCategoryQuestionCounts || {});
   const [loading, setLoading] = useState(!cachedExamCategories);
   const [hasPermission, setHasPermission] = useState(Boolean(cachedExamCategories));
@@ -233,6 +232,7 @@ export default function ExamManagementPage() {
   };
 
   const loadQuestions = async (categoryId: string) => {
+    setLoadingQuestions(true);
     try {
       const data = await getExamQuestions(categoryId);
       if (data.questions) {
@@ -243,9 +243,16 @@ export default function ExamManagementPage() {
           ...prev,
           [categoryId]: data.questions.length
         }));
+      } else {
+        setQuestions([]);
+        setFilteredQuestions([]);
       }
     } catch (error: any) {
       toast.error(t("failedToLoadQuestions") + ": " + error.message);
+      setQuestions([]);
+      setFilteredQuestions([]);
+    } finally {
+      setLoadingQuestions(false);
     }
   };
 
@@ -1007,7 +1014,12 @@ export default function ExamManagementPage() {
               </div>
 
               {/* Questions Grid */}
-              {filteredQuestions.length === 0 ? (
+              {loadingQuestions ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <p className="text-xs">{t("loadingQuestions") || "Loading questions..."}</p>
+                </div>
+              ) : filteredQuestions.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   {searchQuery || filterByImage !== "all" ? t("noQuestionsMatchFilters") : t("noQuestionsInCategory")}
                 </div>

@@ -1236,6 +1236,11 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       if (!data?.questions || data.questions.length === 0) {
         console.warn("[ExamView] Received 0 questions from server for category:", targetCategoryId);
         toast.error(t("noQuestionsInExam") || "No questions found for this exam category.");
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("exam-active");
+          window.dispatchEvent(new CustomEvent("exam-state-change"));
+        }
+        setLoadingExam(false);
         return;
       }
 
@@ -1312,6 +1317,10 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       console.error("[ExamView] Error caught in startExam while loading questions:", error);
       const message = error instanceof Error ? error.message : (error as any)?.message || String(error);
       toast.error(message || t("failedToStartExam"));
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("exam-active");
+        window.dispatchEvent(new CustomEvent("exam-state-change"));
+      }
     } finally {
       setLoadingExam(false);
     }
@@ -2003,13 +2012,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     );
   }
 
-  // Show exam choice screen first (skip if group exam is disabled and no exam is active)
-  if (examMode === "choice" && !exam) {
-    if (!groupExamEnabled) {
-      setExamMode("individual");
-      setShowInstructions(false);
-      return null;
-    }
+  // Show exam choice screen first (only if group exam is enabled and no exam is active)
+  if (examMode === "choice" && !exam && groupExamEnabled) {
     return (
       <ExamChoiceScreen
         groupExamEnabled={groupExamEnabled}
