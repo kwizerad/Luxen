@@ -1,39 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
-import { getGazetteArticles, GazetteArticle } from "@/lib/gazette-data";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  detectQueryLanguage,
+  findTopMatchesForQuery,
   searchSimilarityFallback,
   SupportedLanguage,
   AssistantAnswerResult,
 } from "@/lib/search-similarity";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
-
-/**
- * Tokenize and normalize query text for keyword matching
- */
-function tokenize(text: string): Set<string> {
-  const words = text
-    .toLowerCase()
-    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'’]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2);
-  return new Set(words);
-}
-
-function scoreRelevance(queryTokens: Set<string>, targetText: string): number {
-  if (queryTokens.size === 0 || !targetText) return 0;
-  const targetLower = targetText.toLowerCase();
-  let score = 0;
-  for (const token of queryTokens) {
-    if (targetLower.includes(token)) {
-      score += 1;
-    }
-  }
-  return score;
-}
 
 export async function POST(req: NextRequest) {
   let query = "";
@@ -53,93 +29,61 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Query is required" }, { status: 400 });
   }
 
-  const lang: SupportedLanguage = requestedLang || detectQueryLanguage(query);
-  const queryTokens = tokenize(query);
-
-  // 1. Fetch official Gazette articles (uploaded from authentic PDF)
-  const allGazetteArticles = await getGazetteArticles();
-  const relevantGazette = allGazetteArticles
-    .filter((a) => a.language === lang || a.language === "all" || a.language === "en")
-    .map((art) => {
-      const score = scoreRelevance(
-        queryTokens,
-        `${art.articleNumber} ${art.title} ${art.content} ${(art.keyTakeaways || []).join(" ")}`
-      );
-      return { art, score };
-    })
-    .sort((a, b) => b.score - a.score)
-    .map((x) => x.art);
-
-  const adminSb = createAdminClient();
-  let sampleQuestions: AssistantAnswerResult["sampleQuestions"] = [];
-  let matchedLessons: AssistantAnswerResult["matchedLessons"] = [];
-
-  // 2. Query and score Course Lessons
+  // Check if requester is authenticated (public search works without auth,
+  // while raw exam question banks & full course lessons remain gated behind auth)
+  let isAuthenticated = false;
   try {
-    const { data: lData } = await adminSb
-      .from("course_lessons")
-      .select("id, title, content")
-      .limit(40);
-
-    if (lData && lData.length > 0) {
-      const scoredLessons = lData.map((l: any) => {
-        const score = scoreRelevance(queryTokens, `${l.title} ${l.content || ""}`);
-        return { l, score };
-      });
-      scoredLessons.sort((a, b) => b.score - a.score);
-
-      matchedLessons = scoredLessons.slice(0, 3).map((x) => ({
-        id: String(x.l.id),
-        title: x.l.title || "Lesson",
-        summary: x.l.content
-          ? x.l.content.slice(0, 160).replace(/<[^>]*>/g, "").trim() + "..."
-          : "Official road safety lesson material.",
-      }));
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      isAuthenticated = true;
+    } else {
+      const authHeader = req.headers.get("authorization");
+      const bearerToken = authHeader?.replace(/^bearer\s+/i, "").trim();
+      if (bearerToken) {
+        const adminSb = createAdminClient();
+        const {
+          data: { user: bearerUser },
+        } = await adminSb.auth.getUser(bearerToken);
+        if (bearerUser) isAuthenticated = true;
+      }
     }
-  } catch (err) {
-    console.warn("Could not fetch course lessons for traffic assistant:", err);
+  } catch {
+    isAuthenticated = false;
   }
 
-  // 3. Query and score Exam Questions
-  try {
-    const { data: qData } = await adminSb
-      .from("exam_questions")
-      .select("id, question, options, correct_answer, explanation")
-      .limit(60);
+  // Run full similarity search across Gazette + Primary & External Courses + DB Questions
+  const matches = await findTopMatchesForQuery(query, requestedLang);
+  const lang = matches.langInfo.uiLang;
 
-    if (qData && qData.length > 0) {
-      const scoredQuestions = qData.map((q: any) => {
-        const optsText = Array.isArray(q.options) ? q.options.join(" ") : "";
-        const score = scoreRelevance(queryTokens, `${q.question} ${optsText} ${q.explanation || ""}`);
-        return { q, score };
-      });
-      scoredQuestions.sort((a, b) => b.score - a.score);
+  const matchedLessons: AssistantAnswerResult["matchedLessons"] = matches.topLessons
+    .slice(0, 3)
+    .map(({ lesson, score }) => ({
+      id: lesson.id,
+      title: lesson.title,
+      moduleTitle: lesson.moduleTitle,
+      summary: lesson.summary,
+      similarityPercent: Math.min(99, Math.max(25, Math.round(score * 100))),
+    }));
 
-      sampleQuestions = scoredQuestions.slice(0, 3).map((x) => {
-        const opts = Array.isArray(x.q.options)
-          ? x.q.options
-          : typeof x.q.options === "string"
-          ? JSON.parse(x.q.options || "[]")
-          : [];
-        return {
-          id: String(x.q.id),
-          question: x.q.question,
-          options: opts,
-          correctAnswer: String(x.q.correct_answer || ""),
-          explanation: x.q.explanation || "",
-        };
-      });
-    }
-  } catch (err) {
-    console.warn("Could not fetch exam questions for traffic assistant:", err);
-  }
+  const sampleQuestions: AssistantAnswerResult["sampleQuestions"] = isAuthenticated
+    ? matches.topQuestions.slice(0, 3).map(({ question }) => ({
+        id: question.id,
+        question: question.question,
+        options: question.options,
+        correctAnswer: question.correctAnswer,
+        explanation: question.explanation || "",
+      }))
+    : [];
 
-  // 4. Verify Gemini API Key
   const apiKey = process.env.GEMINI_API_KEY;
-
   if (!apiKey) {
-    // Graceful fallback to similarity engine
-    const fallbackResult = await searchSimilarityFallback(query, lang);
+    const fallbackResult = await searchSimilarityFallback(query, requestedLang, {
+      isAuthenticated,
+      precomputed: matches,
+    });
     return NextResponse.json(fallbackResult);
   }
 
@@ -153,8 +97,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const hasGazette = relevantGazette.length > 0;
-    const topGazette = relevantGazette.slice(0, 5);
+    const topGazette = matches.topGazette.slice(0, 4).map((x) => x.art);
+    const hasGazette = topGazette.length > 0;
 
     const gazetteContext = hasGazette
       ? topGazette
@@ -163,65 +107,73 @@ export async function POST(req: NextRequest) {
               `[${g.articleNumber}: ${g.title}]\nDecree Reference: ${g.decreeRef}\nContent:\n${g.content}\nKey Takeaways: ${(g.keyTakeaways || []).join("; ")}`
           )
           .join("\n\n---\n\n")
-      : "No official Gazette articles uploaded in database yet.";
+      : "No uploaded Gazette articles matched; rely on matched Navo course lessons and verified DB Q&As below.";
 
-    const coursesContext = matchedLessons.length > 0
-      ? matchedLessons.map((l, i) => `Lesson ${i + 1}: ${l.title} - ${l.summary}`).join("\n")
-      : "Standard Rwanda traffic education curriculum.";
+    const coursesContext =
+      matches.topLessons.length > 0
+        ? matches.topLessons
+            .map(
+              (m, i) =>
+                `Course Match ${i + 1} (${Math.round(m.score * 100)}% similarity${m.lesson.moduleTitle ? ` · ${m.lesson.moduleTitle}` : ""}): ${m.lesson.rawText.slice(0, 500)}`
+            )
+            .join("\n")
+        : "No direct course lesson excerpt matched.";
 
-    const examsContext = sampleQuestions.length > 0
-      ? sampleQuestions
-          .map(
-            (q, i) =>
-              `Exam Question ${i + 1}: ${q.question} (Correct Answer: ${q.correctAnswer}${q.explanation ? ` - Explanation: ${q.explanation}` : ""})`
-          )
-          .join("\n")
-      : "Standard Rwanda Police driver provisional exam syllabus.";
+    const examsContext =
+      matches.topQuestions.length > 0
+        ? matches.topQuestions
+            .map(
+              (m, i) =>
+                `Database Q&A Match ${i + 1} (${Math.round(m.score * 100)}% similarity): Question: "${m.question.question}" | Verified Correct Answer: "${m.question.correctOptionText}"${m.question.explanation ? ` | Explanation: ${m.question.explanation}` : ""}`
+            )
+            .join("\n")
+        : "No direct exam Q&A matched.";
 
-    const languageInstructions = {
-      rw: "Subiza mu Kinyarwanda cyiza kandi gisobanutse cyane. Koresha amagambo y'amategeko y'umuhanda mu Rwanda (amasangano, uburenganzira bwo gutambuka, icyapa cy'integuza, umuvuduko ntarengwa). Sobanura neza hashingiwe ku masomo n'ibizamini, kandi niba hari ingingo y'igazeti ivuge mu buryo bweruye.",
-      fr: "Répondez impérativement en Français soigné, clair et pédagogique. Utilisez la terminologie officielle du Code de la route rwandais. Expliquez clairement en vous appuyant sur le cours et les questions d'examen, et citez précisément l'article du Journal Officiel.",
-      en: "Respond strictly in clear, authoritative, and educational English. Use official Rwandan Road Traffic Code terminology. Provide an easy-to-understand explanation grounded in the course syllabus and exam test questions, explicitly citing the matching Article from the Official Gazette of Rwanda.",
-    };
+    const languageDirective = requestedLang
+      ? requestedLang === "rw"
+        ? "Subiza mu Kinyarwanda cyiza kandi gisobanutse cyane."
+        : requestedLang === "fr"
+        ? "Répondez strictement en Français clair, précis et pédagogique."
+        : "Respond strictly in clear, accurate, educational English."
+      : `Detect the exact language used in the user's question ("${query}") — whether Kinyarwanda, English, French, Swahili, Spanish, or ANY other language — and write "directAnswer" strictly in THAT SAME LANGUAGE. If the language is ambiguous, default to Kinyarwanda.`;
 
-    const prompt = `You are Navo's Official Rwanda Traffic Regulations Expert & Search Assistant.
-The user is searching or asking: "${query}"
+    const prompt = `You are Navo's Rwanda Road Traffic Regulations Search Assistant.
+User's search query: "${query}"
 
-Target Language: ${lang.toUpperCase()}
-Language Instruction: ${languageInstructions[lang]}
+LANGUAGE RULE:
+${languageDirective}
 
-GROUNDING DATA AVAILABLE:
+DATABASE MATCHES FOUND BY SIMILARITY:
 ==================================================
 OFFICIAL GAZETTE ARTICLES:
 ${gazetteContext}
 
-COURSE CURRICULUM LESSONS:
+MATCHED COURSE LESSONS:
 ${coursesContext}
 
-RELEVANT EXAM QUESTIONS:
+VERIFIED DATABASE Q&A MATCHES:
 ${examsContext}
 ==================================================
 
 INSTRUCTIONS:
-1. Provide a comprehensive, clear, and direct answer (3-5 sentences) explaining the rule, who has priority / what action to take, and why. Use the course lessons and exam question insights to make the answer educational and prevent common mistakes.
-2. If Gazette articles are provided above: Identify the single most relevant article and cite its article number (e.g. "Ingingo ya 28" or "Article 28"), title, decree reference (e.g. "Iteka rya Perezida No 85/01 ryo kuwa 02/09/2002"), the exact excerpt, and 2-3 key takeaways.
-3. If no Gazette articles are provided yet: Provide the direct answer grounded in the Rwanda road traffic course lessons and exam questions, and leave "citedArticle" as null.
+1. Answer the user's question directly and clearly (2-5 concise sentences) in the required language based on the highest-similarity matches from the course lessons, verified Q&As, and Gazette articles above.
+2. Do NOT dump multiple-choice lists (A/B/C/D) or reveal test answer letters verbatim—give a natural, helpful explanation of the traffic rule/concept.
+3. If Gazette articles are provided above and relevant, populate "citedArticle"; otherwise set "citedArticle" to null.
 
-OUTPUT FORMAT:
-Return STRICT valid JSON with the schema:
+OUTPUT FORMAT (STRICT JSON):
 {
-  "directAnswer": "Direct, clear explanation in ${lang.toUpperCase()}...",
+  "directAnswer": "Clear explanation in the user's language...",
   "citedArticle": {
     "articleNumber": "Article number or Ingingo ya...",
     "title": "Article title",
     "decreeRef": "Official Presidential Order reference",
-    "excerpt": "Key legal excerpt from that article",
+    "excerpt": "Key legal excerpt",
     "keyTakeaways": ["Rule 1", "Rule 2"]
-  } // OR null if no gazette articles exist in context
+  }
 }`;
 
     const generatePromise = ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-4-hydrogen",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -229,12 +181,12 @@ Return STRICT valid JSON with the schema:
     });
 
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("AI generation timeout")), 8000)
+      setTimeout(() => reject(new Error("AI generation timeout")), 6500)
     );
 
     const response = await Promise.race([generatePromise, timeoutPromise]);
-
     const text = response.text || "";
+
     let parsed: any = null;
     try {
       parsed = JSON.parse(text);
@@ -249,21 +201,20 @@ Return STRICT valid JSON with the schema:
 
     if (parsed && parsed.directAnswer) {
       let gazetteList: AssistantAnswerResult["gazetteArticles"] = [];
-
       if (parsed.citedArticle && parsed.citedArticle.articleNumber) {
         gazetteList = [
           {
             id: "ai-cited-1",
-            articleNumber: parsed.citedArticle.articleNumber || "Article 28",
-            title: parsed.citedArticle.title || "Traffic Regulations",
-            decreeRef: parsed.citedArticle.decreeRef || "Presidential Order No 85/01",
+            articleNumber: parsed.citedArticle.articleNumber,
+            title: parsed.citedArticle.title || "Amategeko y'Umuhanda",
+            decreeRef: parsed.citedArticle.decreeRef || "Iteka rya Perezida No 85/01",
             excerpt: parsed.citedArticle.excerpt || "",
             keyTakeaways: Array.isArray(parsed.citedArticle.keyTakeaways)
               ? parsed.citedArticle.keyTakeaways
               : [],
           },
         ];
-      } else if (hasGazette && topGazette.length > 0) {
+      } else if (hasGazette) {
         gazetteList = topGazette.slice(0, 1).map((g) => ({
           id: g.id,
           articleNumber: g.articleNumber,
@@ -276,7 +227,10 @@ Return STRICT valid JSON with the schema:
 
       const result: AssistantAnswerResult = {
         language: lang,
-        directAnswer: parsed.directAnswer,
+        detectedLanguageName: matches.langInfo.languageName,
+        requiresAuthForFullAccess: !isAuthenticated,
+        similarityScore: matches.bestSimilarityPercent,
+        directAnswer: String(parsed.directAnswer).trim(),
         source: "ai_grounded",
         gazetteArticles: gazetteList,
         matchedLessons,
@@ -286,12 +240,17 @@ Return STRICT valid JSON with the schema:
       return NextResponse.json(result);
     }
 
-    // If parsing was unsuccessful, run similarity fallback
-    const fallback = await searchSimilarityFallback(query, lang);
+    const fallback = await searchSimilarityFallback(query, requestedLang, {
+      isAuthenticated,
+      precomputed: matches,
+    });
     return NextResponse.json(fallback);
   } catch (error: any) {
-    console.warn("Traffic assistant error or quota fallback:", error?.message || error);
-    const fallback = await searchSimilarityFallback(query, lang);
+    console.warn("Traffic assistant error or fallback:", error?.message || error);
+    const fallback = await searchSimilarityFallback(query, requestedLang, {
+      isAuthenticated,
+      precomputed: matches,
+    });
     return NextResponse.json(fallback);
   }
 }

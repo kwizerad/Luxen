@@ -5,37 +5,38 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Mail, ShieldCheck, UserPlus, LogIn, ChevronLeft } from "lucide-react";
+import { ArrowRight, FileCheck2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
-import { getCurrentUser } from "@/lib/auth-utils";
 import { OSSystemBar } from "@/components/os/os-system-bar";
 import { OSDesktopView } from "@/components/os/os-desktop-view";
 import { OSDock } from "@/components/os/os-dock";
 import { OSSpotlight } from "@/components/os/os-spotlight";
 import { OSContextMenu } from "@/components/os/os-context-menu";
-import { OSWallpaper } from "@/components/os/os-wallpaper";
 import { useLanguage } from "@/lib/language-context";
 import { formatLocalizedDate } from "@/lib/date-utils";
 import { LoginForm } from "@/components/login-form";
 import { SignUpForm } from "@/components/sign-up-form";
 import { AuthModalsContainer } from "@/components/auth-modals-container";
-import { useAuthModals } from "@/lib/auth-modals-context";
 import { useAuth } from "@/lib/auth-context";
 import { GoogleOneTap } from "@/components/google-one-tap";
+import { claimPendingGuestExamIfAny } from "@/lib/guest-exam-client";
+import { toast } from "sonner";
 
 export default function Home() {
   const router = useRouter();
   const { user: authUser, loading: authLoading } = useAuth();
   const { language, setLanguage, t } = useLanguage();
-  const { openLogin, openSignUp } = useAuthModals();
   const [userData, setUserData] = useState<any>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [authStep, setAuthStep] = useState<"initial" | "login" | "register">("initial");
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const authParam = new URLSearchParams(window.location.search).get("auth");
+    if (authParam === "login") setAuthStep("login");
+    else if (authParam === "register") setAuthStep("register");
+  }, []);
 
   // Live Clock & Date localized with authentic Kinyarwanda calendar terms
   const [timeStr, setTimeStr] = useState("12:00 PM");
@@ -57,6 +58,17 @@ export default function Home() {
   const triggerLoginSuccess = (userObj?: any) => {
     if (userObj) setUserData(userObj);
     setIsLoggingIn(true);
+    void claimPendingGuestExamIfAny().then((res) => {
+      if (res.claimed && res.is_saved) {
+        toast.success(
+          language === "Kinyarwanda" || language === "rw"
+            ? "Amateka n'amanota y'ikizamini cyawe yabitswe neza!"
+            : language === "French" || language === "fr"
+            ? "Votre historique d'examen a été enregistré !"
+            : "Your pending exam history has been saved to your account!"
+        );
+      }
+    });
     setTimeout(() => {
       setIsLoggingIn(false);
     }, 800);
@@ -201,19 +213,37 @@ export default function Home() {
                   </p>
                 </div>
 
-                <Button
-                  onClick={() => setAuthStep("login")}
-                  className="mt-3 px-7 py-3 rounded-2xl bg-card/80 hover:bg-card text-foreground dark:bg-white/15 dark:hover:bg-white/25 dark:text-white backdrop-blur-xl border border-border/70 dark:border-white/20 font-semibold text-xs sm:text-sm transition-all cursor-pointer gap-2 shadow-none focus:ring-0 active:scale-98"
-                >
-                  <span>
-                    {language === "Kinyarwanda" || language === "rw"
-                      ? "Komeza"
-                      : language === "French" || language === "fr"
-                      ? "Continuer"
-                      : t("continueBtn") || "Continue"}
-                  </span>
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
+                <div className="mt-3 flex flex-col items-center gap-2.5 w-full max-w-[230px]">
+                  <Button
+                    onClick={() => setAuthStep("login")}
+                    className="w-full px-7 py-3 rounded-2xl bg-card/85 hover:bg-card text-foreground dark:bg-white/15 dark:hover:bg-white/25 dark:text-white backdrop-blur-xl border border-border/70 dark:border-white/20 font-semibold text-xs sm:text-sm transition-all cursor-pointer gap-2 shadow-none focus:ring-0 active:scale-98 whitespace-nowrap"
+                  >
+                    <span>
+                      {language === "Kinyarwanda" || language === "rw"
+                        ? "Komeza"
+                        : language === "French" || language === "fr"
+                        ? "Continuer"
+                        : t("continueBtn") || "Continue"}
+                    </span>
+                    <ArrowRight className="w-4 h-4 shrink-0" />
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push("/exam")}
+                    className="w-full px-6 py-2.5 rounded-2xl bg-emerald-600/12 hover:bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 dark:bg-emerald-500/15 dark:hover:bg-emerald-500/25 border border-emerald-600/35 dark:border-emerald-400/30 font-semibold text-xs sm:text-sm transition-all cursor-pointer gap-2 shadow-none focus:ring-0 active:scale-98 whitespace-nowrap"
+                  >
+                    <FileCheck2 className="w-4 h-4 shrink-0" />
+                    <span>
+                      {language === "Kinyarwanda" || language === "rw"
+                        ? "Kora ikizamini"
+                        : language === "French" || language === "fr"
+                        ? "Passer l'examen"
+                        : "Take Exam"}
+                    </span>
+                  </Button>
+                </div>
               </motion.div>
             )}
 
@@ -253,44 +283,59 @@ export default function Home() {
           </AnimatePresence>
         </div>
 
-        {/* Footer: Direct Clickable Language Buttons (NO TEXT, NO DROPDOWN) */}
+        {/* Footer: Direct Clickable Language Buttons with real flag assets */}
         <div className="z-15 flex flex-wrap items-center justify-center gap-2 py-3 px-2">
           <button
             type="button"
             onClick={() => setLanguage("Kinyarwanda")}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 shadow-none ${
+            className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer flex items-center gap-2 shadow-none whitespace-nowrap shrink-0 ${
               language === "Kinyarwanda"
                 ? "bg-emerald-600 text-white border-emerald-500 font-semibold"
                 : "bg-card/70 hover:bg-card text-foreground dark:bg-white/10 dark:hover:bg-white/20 dark:text-zinc-300 border-border/70 dark:border-white/15"
             }`}
           >
-            <span>🇷🇼</span>
+            <img
+              src="/assets/aistudio/Flag_of_Rwanda_4b2b50d1.svg"
+              alt="Rwanda"
+              referrerPolicy="no-referrer"
+              className="w-4 h-3 rounded-[2px] object-cover shrink-0 border border-black/10 dark:border-white/15"
+            />
             <span>Ikinyarwanda</span>
           </button>
 
           <button
             type="button"
             onClick={() => setLanguage("English")}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 shadow-none ${
+            className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer flex items-center gap-2 shadow-none whitespace-nowrap shrink-0 ${
               language === "English"
                 ? "bg-emerald-600 text-white border-emerald-500 font-semibold"
                 : "bg-card/70 hover:bg-card text-foreground dark:bg-white/10 dark:hover:bg-white/20 dark:text-zinc-300 border-border/70 dark:border-white/15"
             }`}
           >
-            <span>🇬🇧</span>
+            <img
+              src="/assets/aistudio/Flag_of_the_United_Kingdom__3-5_.svg_d8e9d47e.webp"
+              alt="United Kingdom"
+              referrerPolicy="no-referrer"
+              className="w-4 h-3 rounded-[2px] object-cover shrink-0 border border-black/10 dark:border-white/15"
+            />
             <span>English</span>
           </button>
 
           <button
             type="button"
             onClick={() => setLanguage("French")}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 shadow-none ${
+            className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer flex items-center gap-2 shadow-none whitespace-nowrap shrink-0 ${
               language === "French"
                 ? "bg-emerald-600 text-white border-emerald-500 font-semibold"
                 : "bg-card/70 hover:bg-card text-foreground dark:bg-white/10 dark:hover:bg-white/20 dark:text-zinc-300 border-border/70 dark:border-white/15"
             }`}
           >
-            <span>🇫🇷</span>
+            <img
+              src="/assets/aistudio/Flag_of_France__1974_2020__241dac7d.svg"
+              alt="France"
+              referrerPolicy="no-referrer"
+              className="w-4 h-3 rounded-[2px] object-cover shrink-0 border border-black/10 dark:border-white/15"
+            />
             <span>Français</span>
           </button>
         </div>

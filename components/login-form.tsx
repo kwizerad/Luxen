@@ -63,6 +63,8 @@ export function LoginForm({
 
   const router = useRouter();
   const { t, language } = useLanguage();
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
   const verificationInputRef = useRef<HTMLInputElement>(null);
   const nidInputRef = useRef<HTMLInputElement>(null);
 
@@ -300,9 +302,6 @@ export function LoginForm({
       setIsLoading(false);
     }
   };
-
-  const isRw = language === "Kinyarwanda" || language === "rw";
-  const isFr = language === "French" || language === "fr";
 
   interface LoginLabels {
     title: string;

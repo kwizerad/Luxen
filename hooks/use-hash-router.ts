@@ -60,7 +60,7 @@ function parseHash(): HashRoute {
 const HASH_CHANGE_EVENT = "navo-hash-route-change";
 
 export function useHashRouter() {
-  const [route, setRoute] = useState<HashRoute>(() => parseHash());
+  const [route, setRoute] = useState<HashRoute>({ view: "home", params: new URLSearchParams() });
   const historyCountRef = useRef(0);
 
   const syncRoute = useCallback(() => {
@@ -74,6 +74,7 @@ export function useHashRouter() {
   }, []);
 
   useEffect(() => {
+    syncRoute();
     const onHashChange = () => {
       syncRoute();
     };

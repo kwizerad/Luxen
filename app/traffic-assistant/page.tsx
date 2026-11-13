@@ -4,37 +4,37 @@ import { TrafficAssistantView } from "@/components/traffic-assistant/traffic-ass
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://navo.rw";
 
 export const metadata: Metadata = {
-  title: "Rwanda Traffic Rules & Official Gazette AI Assistant | Navo",
+  title: "Ishakiro ry'Amategeko y'Umuhanda mu Rwanda | Navo",
   description:
-    "Ask any question about Rwanda road traffic regulations (Amategeko y'Umuhanda), right of way, road signs, and speed limits. Get verified direct answers citing the Official Gazette with practice exam questions.",
+    "Shakisha ibisubizo by'amategeko y'umuhanda mu Rwanda, ibyapa, n'amasomo ya Navo mu rurimi urwo ari rwo rwose wifashishije isesengura rishingiye ku masomo n'ibibazo biri mu bubiko bwacu.",
   keywords: [
+    "amategeko y'umuhanda mu rwanda",
+    "ibizamini by'agateganyo",
     "rwanda traffic rules",
-    "amategeko y'umuhanda",
     "code de la route rwandais",
     "official gazette of rwanda traffic",
     "iteka rya perezida no 85/01",
-    "roundabout right of way rwanda",
-    "provisional driving exam questions",
-    "irembo driving test",
-    "police traffic exam answers",
+    "amasangano azunguruka",
+    "ibyapa by'umuhanda",
+    "navo",
   ],
   alternates: {
     canonical: `${baseUrl}/traffic-assistant`,
   },
   openGraph: {
-    title: "Rwanda Traffic Rules & Official Gazette AI Assistant | Navo",
+    title: "Ishakiro ry'Amategeko y'Umuhanda mu Rwanda | Navo",
     description:
-      "Get instant answers to Rwanda traffic rules, right of way, and exam questions backed by the Official Gazette of Rwanda.",
+      "Baza ikibazo cy'amategeko y'umuhanda mu rurimi urwo ari rwo rwose ubone igisubizo gishingiye ku masomo ya Navo n'Igazeti ya Leta y'u Rwanda.",
     url: `${baseUrl}/traffic-assistant`,
     siteName: "Navo",
     type: "website",
-    locale: "en_US",
+    locale: "rw_RW",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Rwanda Traffic Rules & Official Gazette AI Assistant | Navo",
+    title: "Ishakiro ry'Amategeko y'Umuhanda mu Rwanda | Navo",
     description:
-      "Instant answers to Rwanda traffic rules, road signs, and driving theory exam questions with official legal citations.",
+      "Shakisha ibisubizo by'amategeko y'umuhanda mu rurimi urwo ari rwo rwose bishingiye ku masomo n'ububiko bwa Navo.",
   },
 };
 
@@ -50,12 +50,12 @@ export default async function TrafficAssistantPage({
     "@graph": [
       {
         "@type": "WebApplication",
-        name: "Navo Rwanda Traffic Rules & Legal Code Assistant",
+        name: "Ishakiro ry'Amategeko y'Umuhanda mu Rwanda - Navo",
         applicationCategory: "EducationalApplication",
         operatingSystem: "All",
         url: `${baseUrl}/traffic-assistant`,
         description:
-          "AI-powered search engine for Rwandan road traffic regulations, official gazette decrees, and driving license exam preparation.",
+          "Sisitemu rusange yo gushakisha ibisubizo ku mategeko y'umuhanda mu Rwanda mu rurimi urwo ari rwo rwose hashingiwe ku masomo n'ububiko bw'amakuru bwa Navo.",
         offers: {
           "@type": "Offer",
           price: "0",
@@ -67,26 +67,18 @@ export default async function TrafficAssistantPage({
         mainEntity: [
           {
             "@type": "Question",
-            name: "Who has the right of way at a roundabout in Rwanda?",
-            acceptedAnswer: {
-              "@type": "Answer",
-              text: "According to Article 28 of Presidential Order No 85/01, vehicles already circulating inside a roundabout have priority over vehicles approaching to enter the roundabout.",
-            },
-          },
-          {
-            "@type": "Question",
-            name: "What is the speed limit in urban areas in Rwanda?",
-            acceptedAnswer: {
-              "@type": "Answer",
-              text: "The standard legal speed limit inside built-up and urban areas in Rwanda is 40 km/h, with school and hospital zones restricted to 25 km/h to 30 km/h unless posted otherwise.",
-            },
-          },
-          {
-            "@type": "Question",
             name: "Ni nde ufite uburenganzira bwo gutambuka mbere mu masangano azunguruka mu Rwanda?",
             acceptedAnswer: {
               "@type": "Answer",
               text: "Hakurikijwe Ingingo ya 28 y'Iteka rya Perezida No 85/01, ibinyabiziga bimaze kwinjira no kugenda mu masangano azunguruka (rond-point) nibyo bifite uburenganzira bwo gutambuka mbere y'ibigiye kwinjiramo.",
+            },
+          },
+          {
+            "@type": "Question",
+            name: "Umuvuduko ntarengwa mu nsisiro mu Rwanda ni uwuhe?",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: "Umuvuduko ntarengwa rusange mu nsisiro cyangwa mu mijyi mu Rwanda ni 40 km/h keretse hari icyapa cyerekana ibindi bipimo.",
             },
           },
         ],

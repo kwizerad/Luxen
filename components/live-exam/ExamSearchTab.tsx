@@ -324,7 +324,9 @@ export default function ExamSearchTab({
             onChange={handleNationalIdChange}
             placeholder={t("liveExamIdPlaceholder")}
             required
-            className="w-full rounded-xl border bg-card px-3.5 py-2.5 text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/12 font-mono tracking-wider"
+            className={`w-full rounded-xl border bg-card px-3 sm:px-3.5 py-2.5 text-xs sm:text-sm transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/12 ${
+              nationalId.length > 0 ? "font-mono tracking-wider" : "font-sans tracking-normal"
+            }`}
           />
         </div>
         <button

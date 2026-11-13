@@ -14,14 +14,14 @@ interface SEOTranslation {
 
 const SEO_DATA: Record<string, SEOTranslation> = {
   rw: {
-    title: "Navo – Urubuga Rwa Mbere Rwo Kwiga Amategeko y'Umuhanda n'Ibizamini bya Polisi mu Rwanda",
+    title: "Navo – Amategeko y'Umuhanda n'Ibizamini mu Rwanda",
     description:
-      "Witegure kandi utsindire uruhushya rw'agateganyo rw'ubutwari mu Rwanda kuri Navo. Yiga amategeko y'umuhanda, ibimenyetso byo ku muhanda, ugere ku bizamini nyabyo bya Polisi n'Irembo hamwe n'amabwiriza mu Kinyarwanda, Igifaransa, n'Icyongereza.",
+      "Witegure utsinde ikizamini cy'uruhushya rw'agateganyo rwo gutwara ibinyabiziga kuri Navo. Iga amategeko y'umuhanda, ibimenyetso byo ku muhanda, ukore n'ibizamini by'imyitozo mu Kinyarwanda, Icyongereza n'Igifaransa.",
     keywords:
       "amategeko y'umuhanda, ibizamini bya polisi, uruhushya rw'agateganyo, irembo driving exam, amategeko y'umuhanda 2026, ibimenyetso byo ku muhanda, kwiga amategeko y'umuhanda internet, navo rwanda, permis de conduire rwanda, ibibazo n'ibisubizo amategeko y'umuhanda",
-    ogTitle: "Navo – Kwiga Amategeko y'Umuhanda Intambwe ku Ntambwe mu Rwanda",
+    ogTitle: "Navo – Kwiga Amategeko y'Umuhanda n'Ibizamini mu Rwanda",
     ogDescription:
-      "Urubuga rwizewe rwo kwitegura neza igizamini cy'uruhushya rw'agateganyo rw'ibinyabiziga mu Rwanda. Iga amategeko, ubibazo n'ibisubizo, n'ibimenyetso byo ku muhanda.",
+      "Urubuga rwizewe rwo kwitegura neza ikizamini cy'uruhushya rw'agateganyo rw'ibinyabiziga mu Rwanda. Iga amategeko, ibibazo n'ibisubizo, n'ibimenyetso byo ku muhanda.",
     locale: "rw_RW",
   },
   en: {
@@ -183,10 +183,10 @@ export function MetaDescriptionManager() {
           mainEntity: [
             {
               "@type": "Question",
-              name: "Nka kwiga ute amategeko y'umuhanda mu Rwanda kuri internet?",
+              name: "Nakwiga nte amategeko y'umuhanda mu Rwanda kuri internet?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Kuri Navo urashobora kwiga amategeko y'umuhanda, kwikoresha ibizamini bya Polisi no kureba amabwiriza arambuye mu Kinyarwanda, Igifaransa n'Icyongereza.",
+                text: "Kuri Navo urashobora kwiga amategeko y'umuhanda, kwitoza gukora ibizamini bya Polisi no kureba ibisobanuro birambuye mu Kinyarwanda, Igifaransa n'Icyongereza.",
               },
             },
             {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CourseViewSkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
+import { useAuth } from "@/lib/auth-context";
 import { useLearningLanguages } from "@/hooks/use-learning-languages";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -444,6 +445,7 @@ function VirtualizedSidebarLessonItem({
 
 export function CourseView({ navigate, params }: CourseViewProps) {
   const { t, language: interfaceLanguage } = useLanguage();
+  const { user: authUser, loading: authLoading } = useAuth();
   const { enabledLanguages } = useLearningLanguages();
   const [course, setCourse] = useState<CourseWithModules | null>(null);
   const [sequentialUnlockEnabled, setSequentialUnlockEnabled] = useState(true);
@@ -730,6 +732,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   }, [loadProgress, selectedModuleId]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!authUser) {
+      setLoading(false);
+      return;
+    }
+
     const loadLearningLanguage = async () => {
       const hasDeepLink = Boolean(
         params.get("lesson") ||
@@ -742,9 +750,15 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = user
-        ? await supabase.from("user_profiles").select("learning_language").eq("id", user.id).maybeSingle()
-        : { data: null };
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("learning_language")
+        .eq("id", user.id)
+        .maybeSingle();
       const savedLanguage = profile?.learning_language;
       const storedLocal = typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
       const effectiveLang = (isLearningLanguage(storedLocal || "") ? storedLocal : null) || (isLearningLanguage(savedLanguage || "") ? savedLanguage : null);
@@ -761,7 +775,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     };
 
     void loadLearningLanguage();
-  }, [loadCourse]);
+  }, [authLoading, authUser, loadCourse]);
 
   const handleChooseCourseLanguage = async (chosen: LearningLanguage) => {
     setShowLanguagePicker(false);
@@ -1691,8 +1705,46 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     return null;
   }, [course, flatList, learningLanguage, completedItems]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return <CourseViewSkeleton />;
+  }
+
+  if (!authUser) {
+    return (
+      <div className="min-h-[calc(100vh-140px)] flex items-center justify-center px-4 py-10">
+        <div className="max-w-md w-full rounded-2xl border border-border bg-card p-6 sm:p-8 text-center space-y-4">
+          <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+            <Lock className="w-6 h-6" />
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+              {t("signInRequired") !== "signInRequired" ? t("signInRequired") : "Bisaba Kwinjira muri Konti"}
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              {t("signInToAccessCourseAndExam") !== "signInToAccessCourseAndExam"
+                ? t("signInToAccessCourseAndExam")
+                : "Amasomo yose n'ibibazo by'ibizamini bibikiwe abanyeshuri binjiye muri konti zabo. Injira kugira ngo wige."}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+            <a
+              href="/?auth=login"
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-colors"
+            >
+              <span>{t("signInNow") !== "signInNow" ? t("signInNow") : "Injira Muri Konti"}</span>
+              <ArrowRight className="w-4 h-4" />
+            </a>
+            <a
+              href="/traffic-assistant"
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/40 hover:bg-muted text-foreground px-4 py-2.5 text-xs sm:text-sm font-medium transition-colors"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>{t("searchPublicRules") !== "searchPublicRules" ? t("searchPublicRules") : "Shakisha ku Rwego Rusange"}</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (showLanguagePicker || !learningLanguage) {

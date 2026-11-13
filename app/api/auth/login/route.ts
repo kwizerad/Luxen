@@ -25,30 +25,34 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanInput = identifier.trim();
-    let targetEmail = cleanInput.toLowerCase();
+    const inputLower = cleanInput.toLowerCase();
+    const digitsOnly = cleanInput.replace(/\D/g, "");
     let effectivePassword = password;
     const adminClient = createAdminClient();
 
     // 1. Admin shortcut handling ("admin", "navo", "navo@admin.jn")
     const isAdminShortcut =
-      targetEmail === "admin" ||
-      targetEmail === "navo" ||
-      targetEmail === "navo@admin.jn" ||
-      targetEmail === DEFAULT_ADMIN_EMAIL.toLowerCase();
+      inputLower === "admin" ||
+      inputLower === "navo" ||
+      inputLower === "navo@admin.jn" ||
+      inputLower === DEFAULT_ADMIN_EMAIL.toLowerCase();
+
+    const candidateEmails = new Set<string>();
 
     if (isAdminShortcut) {
-      targetEmail = DEFAULT_ADMIN_EMAIL.toLowerCase();
+      const adminEmail = DEFAULT_ADMIN_EMAIL.toLowerCase();
+      candidateEmails.add(adminEmail);
 
       // Ensure primary admin user exists in Supabase Auth
       const { data: listData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
       let adminAuthUser = listData?.users?.find(
-        (u) => u.email?.toLowerCase() === targetEmail
+        (u) => u.email?.toLowerCase() === adminEmail
       );
 
       if (!adminAuthUser) {
         // Auto-provision primary admin
         const { data: newAdmin, error: createError } = await adminClient.auth.admin.createUser({
-          email: targetEmail,
+          email: adminEmail,
           password: password || "admin",
           email_confirm: true,
           user_metadata: {
@@ -66,7 +70,7 @@ export async function POST(request: NextRequest) {
           await adminClient.from("user_profiles").upsert(
             {
               id: adminAuthUser.id,
-              email: targetEmail,
+              email: adminEmail,
               full_name: "Navo System Admin",
               first_name: "Navo",
               last_name: "Admin",
@@ -92,7 +96,7 @@ export async function POST(request: NextRequest) {
           await adminClient.from("user_profiles").upsert(
             {
               id: adminAuthUser.id,
-              email: targetEmail,
+              email: adminEmail,
               full_name: "Navo System Admin",
               role: "Admin",
               updated_at: new Date().toISOString(),
@@ -102,7 +106,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Check default admin passwords or update password if needed (Supabase requires min 6 chars)
+      // Check default admin passwords or update password if needed
       if (password.toLowerCase() === "admin") {
         effectivePassword = "admin123";
       } else if (password.toLowerCase() === "navo") {
@@ -116,64 +120,124 @@ export async function POST(request: NextRequest) {
           email_confirm: true,
         });
       }
-    } else if (!targetEmail.includes("@")) {
-      // 2. Non-email: 16-digit National ID or Username
-      const digitsOnly = cleanInput.replace(/\D/g, "");
-      if (digitsOnly.length === 16) {
-        const { data: profile } = await adminClient
-          .from("user_profiles")
-          .select("email, id")
-          .eq("national_id", digitsOnly)
-          .maybeSingle();
-
-        if (profile?.email) {
-          targetEmail = profile.email.toLowerCase();
-        } else {
-          targetEmail = `${digitsOnly}@nid.rw`;
-        }
-      } else {
-        const { data: profile } = await adminClient
-          .from("user_profiles")
-          .select("email, id")
-          .or(`username.eq.${cleanInput},email.eq.${cleanInput}`)
-          .maybeSingle();
-
-        if (profile?.email) {
-          targetEmail = profile.email.toLowerCase();
-        }
+    } else {
+      // 2. Candidate Resolution for Non-Admin Inputs (Email, Username, Email Prefix, 16-digit National ID)
+      if (inputLower.includes("@")) {
+        candidateEmails.add(inputLower);
       }
-    }
 
-    // 3. Authenticate with Supabase server client (sets HTTP cookies automatically)
-    const serverSupabase = await createServerSupabase();
-    let { data: authData, error: authError } = await serverSupabase.auth.signInWithPassword({
-      email: targetEmail,
-      password: effectivePassword,
-    });
+      // A. Database Search (without maybeSingle to avoid PGRST116 multiple-row crash)
+      try {
+        let query = adminClient.from("user_profiles").select("email, username, national_id");
+        if (digitsOnly.length === 16) {
+          query = query.or(`national_id.eq.${digitsOnly},username.ilike.${cleanInput},email.ilike.${cleanInput}`);
+        } else {
+          query = query.or(`username.ilike.${cleanInput},email.ilike.${cleanInput}`);
+        }
+        const { data: dbProfiles } = await query.limit(20);
+        if (dbProfiles && dbProfiles.length > 0) {
+          for (const p of dbProfiles) {
+            if (p.email) candidateEmails.add(p.email.toLowerCase());
+          }
+        }
+      } catch (dbErr) {
+        console.warn("DB user_profiles resolution notice:", dbErr);
+      }
 
-    // If email is not confirmed, confirm it via adminClient and retry
-    if (authError && authError.message.toLowerCase().includes("email not confirmed")) {
+      // B. Auth Users List Search (matches email, email prefix, username metadata, or national_id metadata)
       try {
         const { data: listData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
-        const existing = listData?.users?.find(
-          (u) => u.email?.toLowerCase() === targetEmail.toLowerCase()
-        );
-        if (existing?.id) {
-          await adminClient.auth.admin.updateUserById(existing.id, { email_confirm: true });
-          const retryRes = await serverSupabase.auth.signInWithPassword({
-            email: targetEmail,
-            password: effectivePassword,
-          });
-          authData = retryRes.data;
-          authError = retryRes.error;
+        const allUsers = listData?.users || [];
+        for (const u of allUsers) {
+          const e = (u.email || "").toLowerCase();
+          if (!e) continue;
+          const prefix = e.split("@")[0];
+          const username = (u.user_metadata?.username || "").toLowerCase();
+          const metaNid = String(u.user_metadata?.national_id || "");
+
+          if (
+            e === inputLower ||
+            prefix === inputLower ||
+            (username && username === inputLower) ||
+            (digitsOnly.length === 16 && (metaNid === digitsOnly || e.startsWith(digitsOnly)))
+          ) {
+            candidateEmails.add(e);
+          }
         }
-      } catch (confirmErr) {
-        console.error("Auto-confirm error:", confirmErr);
+      } catch (authListErr) {
+        console.warn("Auth list user resolution notice:", authListErr);
+      }
+
+      // C. Fallbacks for NID and Username
+      if (digitsOnly.length === 16) {
+        candidateEmails.add(`${digitsOnly}@nid.rw`);
+      }
+      if (candidateEmails.size === 0) {
+        candidateEmails.add(inputLower);
       }
     }
 
-    if (authError || !authData?.user) {
-      const errMsg = authError?.message || "Invalid login credentials.";
+    const serverSupabase = await createServerSupabase();
+    let successfulAuthData: any = null;
+    let successfulEmail: string | null = null;
+    let lastAuthError: any = null;
+
+    // 3. Attempt Authentication across candidate emails
+    for (const targetEmail of Array.from(candidateEmails)) {
+      // First attempt: standard password
+      let { data: authData, error: authError } = await serverSupabase.auth.signInWithPassword({
+        email: targetEmail,
+        password: effectivePassword,
+      });
+
+      // Auto-confirm email if unconfirmed and retry
+      if (authError) {
+        const msg = authError.message.toLowerCase();
+        if (msg.includes("email not confirmed") || msg.includes("invalid login credentials")) {
+          try {
+            const { data: listData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+            const existing = listData?.users?.find((u) => u.email?.toLowerCase() === targetEmail);
+            if (existing?.id && !existing.email_confirmed_at) {
+              await adminClient.auth.admin.updateUserById(existing.id, { email_confirm: true });
+              const retryRes = await serverSupabase.auth.signInWithPassword({
+                email: targetEmail,
+                password: effectivePassword,
+              });
+              authData = retryRes.data;
+              authError = retryRes.error;
+            }
+          } catch (confirmErr) {
+            console.error("Auto-confirm error:", confirmErr);
+          }
+        }
+      }
+
+      // NID deterministic password fallback attempt (if input was a 16-digit NID)
+      if ((authError || !authData?.user) && digitsOnly.length === 16) {
+        const fallbackNidPass = `!Nid_Sec_${digitsOnly}_rw!`;
+        if (effectivePassword !== fallbackNidPass) {
+          const retryNidRes = await serverSupabase.auth.signInWithPassword({
+            email: targetEmail,
+            password: fallbackNidPass,
+          });
+          if (retryNidRes.data?.user) {
+            authData = retryNidRes.data;
+            authError = null;
+          }
+        }
+      }
+
+      if (!authError && authData?.user && authData?.session) {
+        successfulAuthData = authData;
+        successfulEmail = targetEmail;
+        break;
+      } else {
+        lastAuthError = authError;
+      }
+    }
+
+    if (!successfulAuthData?.user || !successfulAuthData?.session) {
+      const errMsg = lastAuthError?.message || "Invalid login credentials.";
       let userFriendlyMsg = errMsg;
       if (errMsg.toLowerCase().includes("invalid login credentials")) {
         userFriendlyMsg = "Imeyili cyangwa ijambo ry'ibanga ntibihuye (Invalid email or password).";
@@ -189,17 +253,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Resolve effective user role
-    const resolvedEmail = authData.user.email || targetEmail;
+    const resolvedEmail = successfulAuthData.user.email || successfulEmail || cleanInput;
     const isStrictlyStudent = isStrictlyStudentEmail(resolvedEmail);
     const isPrimary = !isStrictlyStudent && isPrimaryAdmin({ email: resolvedEmail });
 
-    let role = isStrictlyStudent ? "Student" : authData.user.user_metadata?.role;
+    let role = isStrictlyStudent ? "Student" : successfulAuthData.user.user_metadata?.role;
     if (!isPrimary && !isStrictlyStudent) {
       try {
         const { data: dbProf } = await adminClient
           .from("user_profiles")
           .select("role")
-          .eq("id", authData.user.id)
+          .eq("id", successfulAuthData.user.id)
           .maybeSingle();
         if (dbProf?.role) {
           role = dbProf.role;
@@ -214,9 +278,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       status: "success",
-      email: targetEmail,
-      session: authData.session,
-      user: authData.user,
+      email: successfulEmail,
+      session: successfulAuthData.session,
+      user: successfulAuthData.user,
       isAdmin: isAdminUser,
       destination: isAdminUser ? "/Admin" : "/dashboard",
       message: "Murakaza neza!",

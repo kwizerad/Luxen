@@ -1,11 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Users, Check, Clock, Play, ArrowLeft, Loader2, X, Trophy, Zap, AlertCircle, Crown, UserCheck } from "lucide-react";
+import {
+  Users,
+  Check,
+  Clock,
+  Play,
+  ArrowLeft,
+  Loader2,
+  X,
+  Trophy,
+  AlertCircle,
+  Crown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { canViewUserAvatar } from "@/lib/avatar-helper";
@@ -15,7 +24,15 @@ import { cn } from "@/lib/utils";
 
 interface Participant {
   user_id: string;
-  status: "pending" | "joined" | "ready" | "in_progress" | "rejected" | "completed" | "abandoned" | string;
+  status:
+    | "pending"
+    | "joined"
+    | "ready"
+    | "in_progress"
+    | "rejected"
+    | "completed"
+    | "abandoned"
+    | string;
   profile?: {
     full_name?: string;
     username?: string;
@@ -55,7 +72,6 @@ export function GroupExamLobby({
 }: GroupExamLobbyProps) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
-  const isAdmin = user?.user_metadata?.role === "admin" || user?.user_metadata?.role === "super_admin";
   const canShowAvatar = (targetUserId: string, avatarUrl?: string | null) =>
     canViewUserAvatar(avatarUrl, targetUserId, user?.id, user?.user_metadata?.role);
 
@@ -78,7 +94,16 @@ export function GroupExamLobby({
   const challengeChannelRef = useRef<any>(null);
   const isFetchingRef = useRef(false);
 
-  // Fetch join window config from system config
+  // Hide dock on mobile while waiting in lobby
+  useEffect(() => {
+    sessionStorage.setItem("group-creation-active", "true");
+    window.dispatchEvent(new CustomEvent("group-creation-state-change"));
+    return () => {
+      sessionStorage.removeItem("group-creation-active");
+      window.dispatchEvent(new CustomEvent("group-creation-state-change"));
+    };
+  }, []);
+
   useEffect(() => {
     async function loadConfig() {
       try {
@@ -104,7 +129,6 @@ export function GroupExamLobby({
     if (!challengeId || isFetchingRef.current) return;
     isFetchingRef.current = true;
     try {
-      // 1. Fetch from comprehensive API route (bypasses any RLS constraints so all participants see everyone)
       const res = await fetch(`/api/exam-challenges/${challengeId}`);
       if (res.ok) {
         const data = await res.json();
@@ -113,13 +137,18 @@ export function GroupExamLobby({
           setChallenge(challengeData);
 
           const now = Date.now();
-          const durationMin = (challengeData.category_settings?.duration_minutes || durationMinutes || 20);
+          const durationMin =
+            challengeData.category_settings?.duration_minutes || durationMinutes || 20;
           const maxDurationMs = (durationMin + 5) * 60 * 1000;
-          const startedAtMs = challengeData.started_at ? new Date(challengeData.started_at).getTime() : null;
+          const startedAtMs = challengeData.started_at
+            ? new Date(challengeData.started_at).getTime()
+            : null;
           const isExamTimeExpired =
             challengeData.status === "completed" ||
             challengeData.status === "cancelled" ||
-            (challengeData.status === "active" && startedAtMs && (now - startedAtMs > maxDurationMs));
+            (challengeData.status === "active" &&
+              startedAtMs &&
+              now - startedAtMs > maxDurationMs);
 
           if (isExamTimeExpired) {
             setIsExpiredOrCompleted(true);
@@ -133,7 +162,10 @@ export function GroupExamLobby({
           const refTimeStr = challengeData.started_at || challengeData.created_at;
           if (refTimeStr) {
             const refTime = new Date(refTimeStr).getTime();
-            const diff = Math.max(0, joinWindowSeconds - Math.floor((Date.now() - refTime) / 1000));
+            const diff = Math.max(
+              0,
+              joinWindowSeconds - Math.floor((Date.now() - refTime) / 1000)
+            );
             setSecondsRemaining(diff);
           }
         }
@@ -149,7 +181,6 @@ export function GroupExamLobby({
         }
       }
 
-      // Fallback direct DB fetch if API is unavailable
       const { data: challengeData } = await supabase
         .from("exam_challenges")
         .select("*")
@@ -166,7 +197,7 @@ export function GroupExamLobby({
         .eq("challenge_id", challengeId);
 
       const userIds = (participantsData || []).map((p: any) => p.user_id);
-      let profileMap: Record<string, any> = {};
+      const profileMap: Record<string, any> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from("user_profiles")
@@ -192,7 +223,6 @@ export function GroupExamLobby({
     }
   }, [challengeId, durationMinutes, joinWindowSeconds, supabase]);
 
-  // Window countdown timer
   useEffect(() => {
     if (secondsRemaining === null || secondsRemaining <= 0) return;
     const timer = setInterval(() => {
@@ -207,11 +237,16 @@ export function GroupExamLobby({
     return () => clearInterval(timer);
   }, [secondsRemaining]);
 
-  // Handle waiting time expiration for unstarted / empty challenge
   useEffect(() => {
-    if (secondsRemaining === 0 && challenge && challenge.status === "pending" && !hasStartedRef.current) {
+    if (
+      secondsRemaining === 0 &&
+      challenge &&
+      challenge.status === "pending" &&
+      !hasStartedRef.current
+    ) {
       const activeTakers = participants.some(
-        (p) => p.status === "in_progress" || p.status === "completed" || p.status === "ready"
+        (p) =>
+          p.status === "in_progress" || p.status === "completed" || p.status === "ready"
       );
       if (!activeTakers) {
         fetch(`/api/exam-challenges/${challengeId}/expire`, { method: "POST" })
@@ -231,7 +266,6 @@ export function GroupExamLobby({
     }
   }, [secondsRemaining, challenge, participants, challengeId, onCancel, t]);
 
-  // Synchronized countdown runner
   useEffect(() => {
     if (countdown === null) return;
     if (countdown <= 0) {
@@ -248,7 +282,6 @@ export function GroupExamLobby({
     return () => clearTimeout(timer);
   }, [countdown]);
 
-  // Real-time channel for challenge state updates & countdown sync
   useEffect(() => {
     if (!challengeId) return;
 
@@ -262,12 +295,22 @@ export function GroupExamLobby({
     channel
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "exam_challenge_participants", filter: `challenge_id=eq.${challengeId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "exam_challenge_participants",
+          filter: `challenge_id=eq.${challengeId}`,
+        },
         () => fetchChallengeDetails()
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "exam_challenges", filter: `id=eq.${challengeId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "exam_challenges",
+          filter: `id=eq.${challengeId}`,
+        },
         (payload: any) => {
           if (payload.new?.status === "active") {
             if (!hasStartedRef.current) {
@@ -301,13 +344,11 @@ export function GroupExamLobby({
     };
   }, [challengeId, supabase, fetchChallengeDetails]);
 
-  // Start exam flow with synchronized 3s countdown
   const handleStartExam = async () => {
     if (starting || hasStartedRef.current) return;
     setStarting(true);
 
     try {
-      // 1. Trigger synchronized countdown across all clients
       if (challengeChannelRef.current) {
         challengeChannelRef.current.send({
           type: "broadcast",
@@ -317,12 +358,10 @@ export function GroupExamLobby({
       }
       setCountdown(3);
 
-      // 2. Mark challenge active on backend
       await fetch(`/api/exam-challenges/${challengeId}/start`, {
         method: "POST",
       });
 
-      // 3. Fallback broadcast start
       setTimeout(() => {
         if (challengeChannelRef.current) {
           challengeChannelRef.current.send({
@@ -340,7 +379,6 @@ export function GroupExamLobby({
     }
   };
 
-  // Leave / Cancel Room
   const handleLeaveOrCancel = async () => {
     if (actionLoading) return;
     setActionLoading(true);
@@ -383,86 +421,96 @@ export function GroupExamLobby({
   const isRw = language === "Kinyarwanda" || language === "rw";
   const isFr = language === "French" || language === "fr";
 
-  // Status info translation & badge styler based on action done
-  const getStatusDisplay = (status: string) => {
+  const getStatusMeta = (status: string, isHost: boolean) => {
+    if (isHost && (status === "joined" || status === "ready")) {
+      return {
+        label: t("host") || "Host",
+        tone: "text-amber-600 dark:text-amber-400",
+        icon: <Crown className="h-3.5 w-3.5 shrink-0" />,
+      };
+    }
     switch (status) {
       case "in_progress":
         return {
-          label: isRw ? "Aracyakora ikizamini" : isFr ? "Toujours en examen" : "Still in exam",
-          badgeClass: "bg-blue-600 text-white border-blue-500/30",
-          icon: <Play className="h-3 w-3 mr-1 animate-pulse fill-current" />,
+          label: isRw ? "Aracyakora" : isFr ? "En cours" : "In exam",
+          tone: "text-blue-600 dark:text-blue-400",
+          icon: <Play className="h-3.5 w-3.5 shrink-0 fill-current" />,
         };
       case "joined":
       case "ready":
         return {
-          label: isRw ? "Yinjiye" : isFr ? "A rejoint" : "Joined",
-          badgeClass: "bg-emerald-600 text-white border-emerald-500/30",
-          icon: <Check className="h-3 w-3 mr-1" />,
+          label: isRw ? "Yinjiye" : isFr ? "Prêt" : "Joined",
+          tone: "text-emerald-600 dark:text-emerald-400",
+          icon: <Check className="h-3.5 w-3.5 shrink-0" />,
         };
       case "pending":
         return {
-          label: isRw ? "Ntarinjira" : isFr ? "Pas encore rejoint" : "Not yet joined",
-          badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
-          icon: <Clock className="h-3 w-3 mr-1 animate-pulse" />,
-        };
-      case "rejected":
-        return {
-          label: isRw ? "Yanze" : isFr ? "Rejeté" : "Rejected",
-          badgeClass: "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
-          icon: <X className="h-3 w-3 mr-1" />,
+          label: isRw ? "Ategerejwe" : isFr ? "En attente" : "Pending",
+          tone: "text-amber-600 dark:text-amber-400",
+          icon: <Clock className="h-3.5 w-3.5 shrink-0" />,
         };
       case "completed":
         return {
           label: isRw ? "Yararangiye" : isFr ? "Terminé" : "Finished",
-          badgeClass: "bg-emerald-600 text-white border-emerald-500/30 shadow-xs",
-          icon: <Trophy className="h-3 w-3 mr-1" />,
+          tone: "text-emerald-600 dark:text-emerald-400",
+          icon: <Trophy className="h-3.5 w-3.5 shrink-0" />,
         };
-      case "abandoned":
+      case "rejected":
         return {
-          label: isRw ? "Yavuyemo" : isFr ? "A quitté" : "Left",
-          badgeClass: "bg-muted text-muted-foreground border-border/50",
-          icon: <AlertCircle className="h-3 w-3 mr-1" />,
+          label: isRw ? "Yanze" : isFr ? "Refusé" : "Declined",
+          tone: "text-rose-600 dark:text-rose-400",
+          icon: <X className="h-3.5 w-3.5 shrink-0" />,
         };
       default:
         return {
-          label: status,
-          badgeClass: "bg-muted text-muted-foreground border-border/50",
-          icon: null,
+          label: isRw ? "Yavuyemo" : isFr ? "Parti" : "Left",
+          tone: "text-muted-foreground",
+          icon: <AlertCircle className="h-3.5 w-3.5 shrink-0" />,
         };
     }
   };
 
-  const joinedParticipants = participants.filter((p) => p.status === "joined" || p.status === "ready");
-  const inProgressParticipants = participants.filter((p) => p.status === "in_progress");
-  const finishedParticipants = participants.filter((p) => p.status === "completed");
-  const pendingParticipants = participants.filter((p) => p.status === "pending");
-  const abandonedParticipants = participants.filter((p) => p.status === "abandoned");
-  const rejectedParticipants = participants.filter((p) => p.status === "rejected");
+  const orderedParticipants = [...participants].sort((a, b) => {
+    const rank = (s: string) =>
+      s === "joined" || s === "ready"
+        ? 0
+        : s === "in_progress"
+        ? 1
+        : s === "completed"
+        ? 2
+        : s === "pending"
+        ? 3
+        : 4;
+    return rank(a.status) - rank(b.status);
+  });
 
-  const canStart = (joinedParticipants.length + inProgressParticipants.length + finishedParticipants.length) > 0;
+  const canStart = participants.some(
+    (p) => p.status === "joined" || p.status === "ready" || p.status === "in_progress" || p.status === "completed"
+  );
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
-        <Loader2 className="h-9 w-9 animate-spin text-primary mb-3" />
-        <p className="text-sm font-semibold text-muted-foreground">{t("loadingGroupExam") || "Loading group exam..."}</p>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[320px] text-center">
+        <Loader2 className="h-7 w-7 animate-spin text-primary mb-3" />
+        <p className="text-xs sm:text-sm text-muted-foreground">
+          {t("loadingGroupExam") || "Loading group exam..."}
+        </p>
       </div>
     );
   }
 
-  // Active Synchronized Countdown Overlay
   if (countdown !== null && countdown > 0) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-xl animate-in fade-in duration-300">
-        <div className="text-center space-y-4">
-          <Badge className="bg-primary/20 text-primary border-primary/30 text-sm font-bold px-3 py-1 animate-pulse">
-            {t("groupExamStarting") || "Exam Starting..."}
-          </Badge>
-          <div className="text-8xl sm:text-9xl font-black text-primary tracking-tighter animate-bounce">
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-xl">
+        <div className="text-center space-y-3 px-6">
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-widest text-primary">
+            {t("groupExamStarting") || "Starting"}
+          </p>
+          <div className="text-8xl sm:text-9xl font-black text-primary tracking-tighter tabular-nums">
             {countdown}
           </div>
-          <p className="text-base font-medium text-muted-foreground">
-            {t("getReadyExamStartsNow") || "Get ready! The exam starts in a few seconds."}
+          <p className="text-sm text-muted-foreground">
+            {t("getReadyExamStartsNow") || "Get ready!"}
           </p>
         </div>
       </div>
@@ -471,368 +519,187 @@ export function GroupExamLobby({
 
   if (isExpiredOrCompleted) {
     return (
-      <div className="relative min-h-[calc(100vh-80px)] p-4 sm:p-6 flex flex-col items-center justify-center pb-24">
-        <div className="w-full max-w-md mx-auto">
-          <Card className="border-2 border-primary/20 bg-background/95 backdrop-blur-xl shadow-xl rounded-2xl sm:rounded-3xl p-6 text-center space-y-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 mx-auto">
-              <Trophy className="h-7 w-7" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-foreground">
-                {t("groupExamCompletedTitle") || "Group Exam Completed"}
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                {t("groupExamCompletedDesc") || "This group challenge has ended. You can view the final rankings and scores."}
-              </p>
-            </div>
-            <div className="pt-2 flex flex-col gap-2">
-              <Button
-                onClick={() => {
-                  window.location.hash = `#classmates/group-results?id=${encodeURIComponent(challengeId)}`;
-                  window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
-                }}
-                className="w-full h-11 rounded-xl text-xs font-bold bg-primary text-primary-foreground gap-2"
-              >
-                <Trophy className="h-4 w-4" />
-                <span>{t("viewRankings") || "View Rankings"}</span>
-              </Button>
-              <Button
-                variant="outline"
-                onClick={onCancel}
-                className="w-full h-11 rounded-xl text-xs font-semibold gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span>{t("backToDashboard") || "Back to Dashboard"}</span>
-              </Button>
-            </div>
-          </Card>
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto w-full space-y-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+          <Trophy className="h-6 w-6" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-lg font-semibold text-foreground">
+            {t("groupExamCompletedTitle") || "Group Exam Completed"}
+          </h3>
+          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            {t("groupExamCompletedDesc") ||
+              "This group challenge has ended. View the final rankings and scores."}
+          </p>
+        </div>
+        <div className="w-full flex flex-col gap-2 pt-2">
+          <Button
+            onClick={() => {
+              window.location.hash = `#classmates/group-results?id=${encodeURIComponent(challengeId)}`;
+              window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
+            }}
+            className="w-full min-h-[40px] h-auto py-2 px-4 rounded-xl text-xs font-semibold whitespace-normal"
+          >
+            <Trophy className="h-4 w-4 shrink-0" />
+            <span>{t("viewRankings") || "View Rankings"}</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            className="w-full min-h-[40px] h-auto py-2 px-4 rounded-xl text-xs font-medium whitespace-normal"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" />
+            <span>{t("backToDashboard") || "Back"}</span>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-80px)] p-4 sm:p-6 flex flex-col items-center justify-start pb-36 sm:pb-32">
-      <div className="w-full max-w-6xl mx-auto space-y-4">
-        {/* Top Bar: Back/Cancel and Join Window */}
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLeaveOrCancel}
-            disabled={starting || actionLoading}
-            className="text-xs font-medium text-muted-foreground hover:text-destructive gap-1.5"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>{isCreator ? t("cancelExam") : t("leaveExam")}</span>
-          </Button>
+    <div className="flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto">
+      <div className="flex-1 overflow-y-auto px-3.5 sm:px-6 pt-4 sm:pt-6 pb-6 space-y-5">
+        {/* Top Navigation & Timer */}
+        <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-4">
+          <div className="min-w-0 space-y-1">
+            <button
+              type="button"
+              onClick={handleLeaveOrCancel}
+              disabled={starting || actionLoading}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>{isCreator ? t("cancelExam") || "Cancel" : t("leaveExam") || "Leave"}</span>
+            </button>
+            <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground truncate">
+              {categoryName}
+            </h1>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
+              <span>{t("groupExam") || "Group Exam"}</span>
+              <span aria-hidden="true">·</span>
+              <span>{durationMinutes}m</span>
+              <span aria-hidden="true">·</span>
+              <span>{questionCount} Q</span>
+            </div>
+          </div>
 
           {secondsRemaining !== null && secondsRemaining > 0 && (
-            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-xs py-1 px-2.5">
-              <Clock className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-              {t("joinWindow") || "Join window"}: {formatTimeMMSS(secondsRemaining)}
-            </Badge>
+            <div className="text-right shrink-0">
+              <span className="block text-[11px] text-muted-foreground">
+                {t("joinWindow") || "Join window"}
+              </span>
+              <span className="font-mono text-sm sm:text-base font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+                {formatTimeMMSS(secondsRemaining)}
+              </span>
+            </div>
           )}
         </div>
 
-        {/* Main Group Exam Card */}
-        <Card className="border-2 border-primary/20 bg-background/95 backdrop-blur-xl shadow-xl rounded-2xl sm:rounded-3xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b pb-5 pt-6 px-5 sm:px-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md">
-                <Trophy className="h-6 w-6" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-primary/20 text-primary border-primary/30 text-[11px] font-bold px-2 py-0.5">
-                    {t("groupExam") || "Group Exam"}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground font-medium">• {durationMinutes}m • {questionCount} Qs</span>
-                </div>
-                <CardTitle className="text-lg sm:text-xl font-bold truncate mt-1 text-foreground">
-                  {categoryName}
-                </CardTitle>
-              </div>
-            </div>
-          </CardHeader>
+        {/* Single Unified Participants Roster (No nested cards per status) */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
+            <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+              <Users className="h-3.5 w-3.5 text-primary" />
+              {t("participants") || "Participants"}
+            </span>
+            <span>{orderedParticipants.length}</span>
+          </div>
 
-          <CardContent className="p-5 sm:p-6 space-y-6">
-            {/* Section 1: Joined Players / Active */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                <span className="flex items-center gap-1.5">
-                  <UserCheck className="h-4 w-4" />
-                  {t("joinedPlayers") || "Joined / In Room"} ({joinedParticipants.length})
-                </span>
-                <span className="text-[11px] font-semibold text-muted-foreground">
-                  {joinedParticipants.length} {joinedParticipants.length === 1 ? "participant" : "participants"}
-                </span>
-              </div>
+          <div className="border border-border/60 rounded-xl divide-y divide-border/50 overflow-hidden bg-card/40 dark:bg-zinc-900/30">
+            {orderedParticipants.map((p) => {
+              const isMe = p.user_id === user?.id;
+              const isHost = p.user_id === challenge?.creator_id;
+              const name = p.profile?.full_name || p.profile?.username || "Player";
+              const statusMeta = getStatusMeta(p.status, isHost);
 
-              <div className="space-y-2">
-                {joinedParticipants.map((p) => {
-                  const isMe = p.user_id === user?.id;
-                  const isHost = p.user_id === challenge?.creator_id;
-                  const name = p.profile?.full_name || p.profile?.username || "Player";
-                  const statusInfo = getStatusDisplay(p.status);
-
-                  return (
-                    <div
-                      key={p.user_id}
-                      className={cn(
-                        "flex items-center justify-between p-3 rounded-xl border transition-all",
-                        isHost ? "border-amber-500/30 bg-amber-500/5 shadow-xs" : "border-emerald-500/30 bg-emerald-500/5 shadow-xs"
+              return (
+                <div
+                  key={p.user_id}
+                  className="flex items-center justify-between gap-3 px-3.5 py-2.5 sm:px-4 sm:py-3"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="h-8 w-8 sm:h-9 sm:w-9 ring-1 ring-border/50 shrink-0">
+                      {canShowAvatar(p.user_id, p.profile?.avatar_url) &&
+                      p.profile?.avatar_url ? (
+                        <AvatarImage src={p.profile.avatar_url} alt={name} />
+                      ) : (
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
+                          {getInitials(name)}
+                        </AvatarFallback>
                       )}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="relative">
-                          <Avatar className={cn("h-10 w-10 ring-2", isHost ? "ring-amber-500/40" : "ring-emerald-500/40")}>
-                            {canShowAvatar(p.user_id, p.profile?.avatar_url) && p.profile?.avatar_url ? (
-                              <AvatarImage src={p.profile.avatar_url} alt={name} />
-                            ) : (
-                              <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
-                                {getInitials(name)}
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          {isHost && (
-                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white shadow-xs">
-                              <Crown className="h-2.5 w-2.5 fill-current" />
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-bold text-foreground truncate">
-                              {name}
-                            </p>
-                            {isMe && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-primary text-primary-foreground leading-none">
-                                {t("youBadge") || "YOU"}
-                              </span>
-                            )}
-                            {isHost && (
-                              <Badge variant="outline" className="text-[9px] h-4 px-1 py-0 font-bold border-amber-500/40 text-amber-600 dark:text-amber-400">
-                                {t("host") || "HOST"}
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate">@{p.profile?.username || "student"}</p>
-                        </div>
-                      </div>
-
-                      <div className="shrink-0">
-                        <Badge className={cn("text-xs font-semibold px-2.5 py-1 border shadow-xs", statusInfo.badgeClass)}>
-                          {statusInfo.icon}
-                          {isHost ? (t("host") || "Host") : statusInfo.label}
-                        </Badge>
-                      </div>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {name}
+                        {isMe && (
+                          <span className="ml-1.5 text-xs text-primary font-semibold">
+                            ({t("you") || "You"})
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        @{p.profile?.username || "student"}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  </div>
 
-            {/* Section 2: Active / Still in exam & Finished */}
-            {(inProgressParticipants.length > 0 || finishedParticipants.length > 0) && (
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                  <span className="flex items-center gap-1.5">
-                    <Trophy className="h-4 w-4" />
-                    {t("activeExams") || "In Exam / Finished"} ({inProgressParticipants.length + finishedParticipants.length})
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 text-xs font-medium shrink-0 whitespace-nowrap",
+                      statusMeta.tone
+                    )}
+                  >
+                    {statusMeta.icon}
+                    <span>{statusMeta.label}</span>
                   </span>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
-                <div className="space-y-2">
-                  {inProgressParticipants.map((p) => {
-                    const isMe = p.user_id === user?.id;
-                    const name = p.profile?.full_name || p.profile?.username || "Player";
-                    const statusInfo = getStatusDisplay("in_progress");
-                    return (
-                      <div key={p.user_id} className="flex items-center justify-between p-3 rounded-xl border border-blue-500/30 bg-blue-500/5">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Avatar className="h-9 w-9 ring-2 ring-blue-500/30">
-                            {canShowAvatar(p.user_id, p.profile?.avatar_url) && p.profile?.avatar_url && <AvatarImage src={p.profile.avatar_url} />}
-                            <AvatarFallback className="text-xs">{getInitials(name)}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold truncate">{name} {isMe && <span className="text-xs text-primary font-medium">({t("youBadge") || "You"})</span>}</p>
-                            <p className="text-xs text-muted-foreground">@{p.profile?.username || "student"}</p>
-                          </div>
-                        </div>
-                        <Badge className={cn("text-xs font-semibold px-2.5 py-1 border shadow-xs", statusInfo.badgeClass)}>
-                          {statusInfo.icon}
-                          {statusInfo.label}
-                        </Badge>
-                      </div>
-                    );
-                  })}
+      {/* Clean Docked Bottom Actions */}
+      <div className="sticky bottom-0 z-20 border-t border-border/60 bg-background/95 dark:bg-zinc-950/95 backdrop-blur-xl px-3.5 sm:px-6 py-3 space-y-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleLeaveOrCancel}
+            disabled={starting || actionLoading}
+            className="min-h-[42px] h-auto py-2.5 px-4 flex-1 rounded-xl text-xs sm:text-sm font-medium border-destructive/30 text-destructive hover:bg-destructive/10 whitespace-normal text-center"
+          >
+            <X className="h-4 w-4 shrink-0" />
+            <span>{isCreator ? t("cancelExam") || "Cancel Exam" : t("leaveRoom") || "Leave Room"}</span>
+          </Button>
 
-                  {finishedParticipants.map((p) => {
-                    const isMe = p.user_id === user?.id;
-                    const name = p.profile?.full_name || p.profile?.username || "Player";
-                    const statusInfo = getStatusDisplay("completed");
-                    return (
-                      <div key={p.user_id} className="flex items-center justify-between p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Avatar className="h-9 w-9 ring-2 ring-emerald-500/30">
-                            {canShowAvatar(p.user_id, p.profile?.avatar_url) && p.profile?.avatar_url && <AvatarImage src={p.profile.avatar_url} />}
-                            <AvatarFallback className="text-xs">{getInitials(name)}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold truncate">{name} {isMe && <span className="text-xs text-primary font-medium">({t("youBadge") || "You"})</span>}</p>
-                            <p className="text-xs text-muted-foreground">@{p.profile?.username || "student"}</p>
-                          </div>
-                        </div>
-                        <Badge className={cn("text-xs font-semibold px-2.5 py-1 border shadow-xs", statusInfo.badgeClass)}>
-                          {statusInfo.icon}
-                          {statusInfo.label}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+          <Button
+            type="button"
+            onClick={handleStartExam}
+            disabled={starting || !canStart}
+            className="min-h-[42px] h-auto py-2.5 px-4 flex-1 rounded-xl text-xs sm:text-sm font-semibold whitespace-normal text-center"
+          >
+            {starting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                <span>{t("startingExam") || "Starting Exam..."}</span>
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4 fill-current shrink-0" />
+                <span>{t("startExamNow") || "Start Exam"}</span>
+              </>
             )}
+          </Button>
+        </div>
 
-            {/* Section 3: Not Yet Joined (Pending Invites) */}
-            {pendingParticipants.length > 0 && (
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="h-4 w-4" />
-                    {t("waitingForJoin") || "Not Yet Joined"} ({pendingParticipants.length})
-                  </span>
-                  {secondsRemaining !== null && (
-                    <span className="text-[11px] font-semibold">
-                      {secondsRemaining > 0 ? `${formatTimeMMSS(secondsRemaining)} left` : t("timeExpired") || "Expired"}
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  {pendingParticipants.map((p) => {
-                    const name = p.profile?.full_name || p.profile?.username || "Friend";
-                    const statusInfo = getStatusDisplay("pending");
-                    return (
-                      <div key={p.user_id} className="flex items-center justify-between p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 opacity-90">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Avatar className="h-8 w-8 ring-1 ring-amber-500/30">
-                            {canShowAvatar(p.user_id, p.profile?.avatar_url) && p.profile?.avatar_url && <AvatarImage src={p.profile.avatar_url} />}
-                            <AvatarFallback className="text-xs">{getInitials(name)}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold truncate">{name}</p>
-                            <p className="text-[10px] text-muted-foreground">@{p.profile?.username || "friend"}</p>
-                          </div>
-                        </div>
-                        <Badge variant="outline" className={cn("text-xs px-2.5 py-0.5 border", statusInfo.badgeClass)}>
-                          {statusInfo.icon}
-                          {statusInfo.label}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Section 4: Left / Abandoned / Rejected */}
-            {(abandonedParticipants.length > 0 || rejectedParticipants.length > 0) && (
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <AlertCircle className="h-4 w-4" />
-                    {t("leftOrDeclined") || "Left / Rejected"} ({abandonedParticipants.length + rejectedParticipants.length})
-                  </span>
-                </div>
-
-                <div className="space-y-1.5">
-                  {abandonedParticipants.map((p) => {
-                    const name = p.profile?.full_name || p.profile?.username || "Friend";
-                    const statusInfo = getStatusDisplay("abandoned");
-                    return (
-                      <div key={p.user_id} className="flex items-center justify-between p-2 rounded-xl border border-border/40 bg-muted/10 opacity-70">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Avatar className="h-7 w-7 grayscale opacity-60">
-                            {canShowAvatar(p.user_id, p.profile?.avatar_url) && p.profile?.avatar_url && <AvatarImage src={p.profile.avatar_url} />}
-                            <AvatarFallback className="text-[10px]">{getInitials(name)}</AvatarFallback>
-                          </Avatar>
-                          <p className="text-xs font-medium truncate">{name}</p>
-                        </div>
-                        <Badge variant="outline" className={cn("text-[10px]", statusInfo.badgeClass)}>
-                          {statusInfo.icon}
-                          {statusInfo.label}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                  {rejectedParticipants.map((p) => {
-                    const name = p.profile?.full_name || p.profile?.username || "Friend";
-                    const statusInfo = getStatusDisplay("rejected");
-                    return (
-                      <div key={p.user_id} className="flex items-center justify-between p-2 rounded-xl border border-border/40 bg-muted/10 opacity-70">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Avatar className="h-7 w-7 grayscale opacity-60">
-                            {canShowAvatar(p.user_id, p.profile?.avatar_url) && p.profile?.avatar_url && <AvatarImage src={p.profile.avatar_url} />}
-                            <AvatarFallback className="text-[10px]">{getInitials(name)}</AvatarFallback>
-                          </Avatar>
-                          <p className="text-xs font-medium truncate">{name}</p>
-                        </div>
-                        <Badge variant="outline" className={cn("text-[10px]", statusInfo.badgeClass)}>
-                          {statusInfo.icon}
-                          {statusInfo.label}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Action Buttons: Only Start and Cancel */}
-            <div className="pt-2 space-y-2.5">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleLeaveOrCancel}
-                  disabled={starting || actionLoading}
-                  className="h-12 flex-1 rounded-xl text-sm font-semibold border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive transition-all"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  {isCreator ? (t("cancelExam") || "Cancel Exam") : (t("leaveRoom") || "Leave Room")}
-                </Button>
-
-                <Button
-                  type="button"
-                  onClick={handleStartExam}
-                  disabled={starting || !canStart}
-                  className="h-12 flex-1 rounded-xl text-sm font-bold bg-primary text-primary-foreground shadow-lg hover:opacity-95 transition-all"
-                >
-                  {starting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      {t("startingExam") || "Starting Exam..."}
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2 fill-current" />
-                      {t("startExamNow") || "Start Exam"}
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              <p className="text-center text-[11px] text-muted-foreground">
-                {isCreator
-                  ? t("creatorCanStartImmediately") || "As host, clicking Start Exam launches a 3-second synchronized countdown for everyone in the room."
-                  : t("anyPlayerCanStart") || "Click Start Exam to launch a 3-second synchronized countdown for everyone in the room."}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <p className="text-center text-[11px] text-muted-foreground leading-snug">
+          {isCreator
+            ? t("creatorCanStartImmediately") ||
+              "Starting launches a 3-second synchronized countdown for everyone."
+            : t("anyPlayerCanStart") ||
+              "Starting launches a 3-second synchronized countdown for everyone."}
+        </p>
       </div>
     </div>
   );

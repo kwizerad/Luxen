@@ -2898,6 +2898,23 @@ const fr: Record<string, string> = {
   "yourRecentActions": "Vos actions et réalisations récentes",
   "yourScore": "Votre score",
   "navoOsTrafficCodeKernel": "NAVO OS · CODE DE LA ROUTE RWANDAIS",
+  "examCenter": "Centre d'Examen",
+  "instantStart": "Démarre immédiatement",
+  "groupChallenge": "Défi en Groupe",
+  "resultsAnalytics": "Performance",
+  "systemPreferences": "Préférences",
+  "trafficSignsCatalog": "Panneaux",
+  "examsPausedByAdmin": "Examens Temporairement Indisponibles",
+  "examsPausedDesc": "Les examens pratiques sont actuellement désactivés par l'administrateur. Vous pouvez continuer vos cours ou consulter vos résultats.",
+  "chooseLanguage": "Choisissez la langue de l'examen",
+  "trafficAssistantTitle": "Recherche Publique du Code",
+  "trafficAssistantDesc": "Recherchez le code de la route et obtenez des réponses basées sur nos cours dans n'importe quelle langue. Les cours et examens complets nécessitent une connexion.",
+  "openTrafficAssistant": "Rechercher le Code",
+  "signInRequired": "Connexion Requise",
+  "signInToAccessCourseAndExam": "Les cours complets et les questions d'examen sont réservés aux étudiants connectés. Connectez-vous pour accéder aux modules et examens.",
+  "signInNow": "Se Connecter",
+  "searchPublicRules": "Recherche Publique",
+  "takeExamBtn": "Passer l'examen"
 };
 
 export default fr;

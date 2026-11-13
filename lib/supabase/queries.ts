@@ -378,6 +378,20 @@ export async function getExamQuestions(categoryId?: string) {
     throw new Error("Unauthorized");
   }
 
+  if (!categoryId || isExternalExamCategoryId(categoryId) || categoryId === EXTERNAL_EXAM_CATEGORY_ID) {
+    try {
+      const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+        action: "get_external_questions",
+        categoryId: categoryId || EXTERNAL_EXAM_CATEGORY_ID,
+      });
+      if (ok && json && Array.isArray(json.questions) && json.questions.length > 0) {
+        return { questions: json.questions };
+      }
+    } catch (e) {
+      console.warn("[getExamQuestions] External questions fetch notice:", e);
+    }
+  }
+
   let query = supabase.from("exam_questions").select("*");
 
   if (categoryId) {
@@ -387,6 +401,17 @@ export async function getExamQuestions(categoryId?: string) {
   const { data: questions, error } = await query.order("created_at", { ascending: false });
 
   if (error) throw error;
+
+  if ((!questions || questions.length === 0) && categoryId) {
+    const { data: fallbackQuestions } = await supabase
+      .from("exam_questions")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (fallbackQuestions && fallbackQuestions.length > 0) {
+      return { questions: fallbackQuestions };
+    }
+  }
+
   return { questions: questions || [] };
 }
 

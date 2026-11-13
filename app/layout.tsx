@@ -65,11 +65,14 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(defaultUrl),
     title: {
-      default: configuredSystemName,
+      default:
+        configuredSystemName === "Navo"
+          ? "Navo – Amategeko y'Umuhanda n'Ibizamini mu Rwanda"
+          : configuredSystemName,
       template: `%s | ${configuredSystemName}`,
     },
     description:
-      "Pass your Rwanda driving theory exam. Study official traffic regulations (Amategeko y'Umuhanda), practice real mock exams, road signs, and audio lessons in Kinyarwanda, English, and French.",
+      "Witegure utsinde ikizamini cy'uruhushya rw'agateganyo kuri Navo. Iga amategeko y'umuhanda, ibyapa, ukore n'ibizamini mu Kinyarwanda, Icyongereza n'Igifaransa.",
     keywords: [
       "navo",
       "Navo",
@@ -99,22 +102,29 @@ export async function generateMetadata(): Promise<Metadata> {
       alternateLocale: ["en_US", "fr_FR"],
       url: "https://navo.rw",
       siteName: configuredSystemName,
-      title: configuredSystemName,
+      title:
+        configuredSystemName === "Navo"
+          ? "Navo – Amategeko y'Umuhanda n'Ibizamini mu Rwanda"
+          : configuredSystemName,
       description:
-        "Pass your Rwanda driving theory exam with official practice tests, traffic regulations, AI explanations, and multilingual study guides in Kinyarwanda, English, and French.",
+        "Urubuga rwa Navo rugufasha kwiga amategeko y'umuhanda, ibimenyetso byo ku muhanda, no gukora ibizamini by'imyitozo by'uruhushya rw'agateganyo mu Rwanda.",
       images: [
         {
           url: ogImage,
           width: 512,
           height: 512,
-          alt: "Navo - Rwanda Driving Platform",
+          alt: "Navo - Urubuga rwo Kwiga Amategeko y'Umuhanda mu Rwanda",
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: configuredSystemName,
-      description: "Official Rwanda traffic regulations, mock exams, road signs, and voice explanations.",
+      title:
+        configuredSystemName === "Navo"
+          ? "Navo – Amategeko y'Umuhanda n'Ibizamini mu Rwanda"
+          : configuredSystemName,
+      description:
+        "Iga amategeko y'umuhanda mu Rwanda, ibyapa, n'ibizamini by'imyitozo kuri Navo mu Kinyarwanda, Icyongereza n'Igifaransa.",
       images: [ogImage],
     },
     manifest: "/manifest.json",
@@ -179,7 +189,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={inter.variable}>
+    <html lang="rw" suppressHydrationWarning className={inter.variable}>
       <head>
         <script src="https://accounts.google.com/gsi/client" async defer></script>
       </head>
@@ -195,12 +205,12 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "EducationalApplication",
               name: "Navo",
-              alternateName: ["Navo Rwanda", "Navo Driving Theory", "Amategeko y'Umuhanda Navo"],
+              alternateName: ["Navo Rwanda", "Amategeko y'Umuhanda Navo", "Navo Driving Theory"],
               url: "https://navo.rw",
               applicationCategory: "EducationalApplication",
               operatingSystem: "Web, iOS, Android",
               description:
-                "Rwanda's leading driving theory and police provisional exam preparation platform with official traffic regulations, real mock exams, and trilingual study guides.",
+                "Urubuga rwa mbere mu Rwanda rwo kwiga amategeko y'umuhanda, ibyapa, no kwitegura ikizamini cy'uruhushya rw'agateganyo mu Kinyarwanda, Icyongereza n'Igifaransa.",
               offers: {
                 "@type": "Offer",
                 price: "0",

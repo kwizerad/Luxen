@@ -65,9 +65,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
     const isExamCapableView =
       activeView === "exam" ||
       activeView === "exams" ||
-      activeView === "course" ||
-      pathname === "/dashboard/exam" ||
-      Boolean(pathname?.startsWith("/dashboard/exam"));
+      activeView === "course";
 
     if (
       pathname === "/dashboard" &&

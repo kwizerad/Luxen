@@ -2898,6 +2898,23 @@ const en: Record<string, string> = {
   "yourRecentActions": "Your recent actions and achievements",
   "yourScore": "Your Score",
   "navoOsTrafficCodeKernel": "NAVO OS · RWANDA TRAFFIC CODE KERNEL",
+  "examCenter": "Exam Center",
+  "instantStart": "Starts Immediately",
+  "groupChallenge": "Group Challenge",
+  "resultsAnalytics": "Performance",
+  "systemPreferences": "Preferences",
+  "trafficSignsCatalog": "Road Signs",
+  "examsPausedByAdmin": "Exams Temporarily Unavailable",
+  "examsPausedDesc": "Practice exams are currently turned off by the administrator. You can continue studying courses or review past results.",
+  "chooseLanguage": "Select exam language",
+  "trafficAssistantTitle": "Public Traffic Rules Search",
+  "trafficAssistantDesc": "Search road traffic rules and course-backed answers in any language using similarity matching. Full courses and exams require sign-in.",
+  "openTrafficAssistant": "Search Rules",
+  "signInRequired": "Authentication Required",
+  "signInToAccessCourseAndExam": "Full courses and official practice exam questions are protected for authenticated students. Sign in to unlock all modules and mock exams.",
+  "signInNow": "Sign In to Continue",
+  "searchPublicRules": "Public Traffic Search",
+  "takeExamBtn": "Take Exam"
 };
 
 export default en;

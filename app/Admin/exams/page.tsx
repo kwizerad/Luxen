@@ -60,6 +60,7 @@ export default function ExamManagementPage() {
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [filteredQuestions, setFilteredQuestions] = useState<ExamQuestion[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [questionsError, setQuestionsError] = useState<string | null>(null);
   const [categoryQuestionCounts, setCategoryQuestionCounts] = useState<Record<string, number>>(cachedCategoryQuestionCounts || {});
   const [loading, setLoading] = useState(!cachedExamCategories);
   const [hasPermission, setHasPermission] = useState(Boolean(cachedExamCategories));
@@ -233,6 +234,7 @@ export default function ExamManagementPage() {
 
   const loadQuestions = async (categoryId: string) => {
     setLoadingQuestions(true);
+    setQuestionsError(null);
     try {
       const data = await getExamQuestions(categoryId);
       if (data.questions) {
@@ -248,7 +250,9 @@ export default function ExamManagementPage() {
         setFilteredQuestions([]);
       }
     } catch (error: any) {
-      toast.error(t("failedToLoadQuestions") + ": " + error.message);
+      const msg = error?.message || "Failed to load questions from database";
+      setQuestionsError(msg);
+      toast.error(t("failedToLoadQuestions") + ": " + msg);
       setQuestions([]);
       setFilteredQuestions([]);
     } finally {
@@ -1018,6 +1022,24 @@ export default function ExamManagementPage() {
                 <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   <p className="text-xs">{t("loadingQuestions") || "Loading questions..."}</p>
+                </div>
+              ) : questionsError ? (
+                <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-6 text-center space-y-3">
+                  <p className="text-sm font-semibold text-destructive">
+                    {t("failedToLoadQuestions") || "Failed to load questions"}
+                  </p>
+                  <p className="text-xs text-muted-foreground break-words">
+                    {questionsError}
+                  </p>
+                  {activeCategory && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => loadQuestions(activeCategory)}
+                    >
+                      {t("retry") || "Retry"}
+                    </Button>
+                  )}
                 </div>
               ) : filteredQuestions.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">

@@ -195,9 +195,7 @@ export function FloatingSettings() {
 
   const isExamSessionActive =
     isExamActive ||
-    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true") ||
-    pathname === "/dashboard/exam" ||
-    pathname?.startsWith("/dashboard/exam");
+    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true");
 
   if (isExamSessionActive) {
     return null;

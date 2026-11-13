@@ -184,6 +184,11 @@ export function ServicesView({ navigate }: ServicesViewProps) {
     };
   }, []);
 
+  const tr = (key: string, fallback: string) => {
+    const val = t(key);
+    return val && val !== key ? val : fallback;
+  };
+
   // During initial cold load without cache, display skeleton
   if (isLoading && !cachedData) {
     return <ServicesViewSkeleton />;
@@ -199,14 +204,16 @@ export function ServicesView({ navigate }: ServicesViewProps) {
             className="mb-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 dark:bg-zinc-900/60 dark:hover:bg-zinc-800/80 border border-border dark:border-zinc-800 transition-colors shadow-xs"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>{t("back") || t("backToHome") || "Back"}</span>
+            <span>{tr("back", tr("backToHome", "Subira inyuma"))}</span>
           </button>
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500">
             <ShieldAlert className="h-6 w-6" />
           </div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground dark:text-zinc-100">{t("services") || "Services"}</h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground dark:text-zinc-100">
+            {tr("services", "Serivisi")}
+          </h2>
           <p className="mt-2 text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 max-w-md mx-auto">
-            {t("servicesDisabledMessage") || "Services are currently disabled by administration."}
+            {tr("servicesDisabledMessage", "Serivisi zahagaritswe by'agateganyo n'ubuyobozi.")}
           </p>
         </div>
       </div>
@@ -218,49 +225,42 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       key: "live-exam",
       view: "services/live-exam",
       icon: Car,
-      tag: "service · official marks review",
-      badge: "Official Exam Marks",
       titleKey: "liveExamResults",
       descKey: "liveExamResultsDesc",
-      titleFallback: "Official Exams Results Review Service",
-      descFallback: "Used to review the marks from official exams. Check verified provisional and practical exam scores, test status, and candidate transcripts.",
+      titleFallback: "Serivisi yo Gusuzuma Amanota y'Ikizamini Cyemewe",
+      descFallback: "Gusuzuma amanota n'ibyavuye mu kizamini cyemewe cy'uruhushya rw'agateganyo na burundu.",
       iconBox: "bg-primary/10 border border-primary/20 text-primary",
-      badgeClass: "bg-primary/10 border border-primary/20 text-primary",
       btnClass: "bg-primary hover:bg-primary/90 text-primary-foreground",
       openLabelKey: "liveExamOpen",
-      openFallback: "Review Marks",
+      openFallback: "Reba Amanota",
     },
     {
       key: "traffic-assistant",
       view: "external:/traffic-assistant",
       icon: Scale,
-      tag: "service · legal search & ai assistant",
-      badge: "Official Gazette",
       titleKey: "trafficAssistantTitle",
       descKey: "trafficAssistantDesc",
-      titleFallback: "Traffic Rules & Gazette Assistant",
-      descFallback: "Search Rwanda road traffic regulations, legal decrees, and practice questions in Kinyarwanda, English, or French.",
-      iconBox: "bg-primary/10 border border-primary/20 text-primary-readable",
-      badgeClass: "bg-primary/10 border border-primary/20 text-primary-readable",
-      btnClass: "bg-primary hover:bg-primary/90 text-primary-foreground font-bold",
+      titleFallback: "Ishakiro ry'Amategeko y'Umuhanda",
+      descFallback:
+        "Shakisha ibisubizo by'amategeko y'umuhanda mu Rwanda mu rurimi ushaka wifashishije amasomo ya Navo.",
+      iconBox: "bg-primary/10 border border-primary/20 text-primary",
+      btnClass: "bg-primary hover:bg-primary/90 text-primary-foreground",
       openLabelKey: "openTrafficAssistant",
-      openFallback: "Ask Assistant",
+      openFallback: "Baza Ikibazo",
     },
     {
       key: "driver-hub",
       view: "driver-hub",
       icon: Users,
-      tag: "network · professional drivers",
-      badge: "Driver Directory",
       titleKey: "findDriver",
       descKey: "findDriverDesc",
-      titleFallback: "Find Driving Instructors",
-      descFallback: "Connect with certified driving instructors and experienced drivers for personalized on-road training.",
+      titleFallback: "Shaka Abarimu b'Imyitozo",
+      descFallback:
+        "Huza n'abarimu babigize umwuga bagufasha kwitoza gutwara ibinyabiziga mu muhanda.",
       iconBox: "bg-primary/10 border border-primary/20 text-primary",
-      badgeClass: "bg-primary/10 border border-primary/20 text-primary",
       btnClass: "bg-primary hover:bg-primary/90 text-primary-foreground",
       openLabelKey: "openDrivers",
-      openFallback: "Browse Drivers",
+      openFallback: "Reba Abarimu",
     },
   ];
 
@@ -271,41 +271,36 @@ export function ServicesView({ navigate }: ServicesViewProps) {
     }
 
     // Default fallback if not yet configured in system_config:
-    if (svc.key === "live-exam") return true; // Restored official exams results review
+    if (svc.key === "live-exam") return true;
     if (svc.key === "traffic-assistant") return true;
     if (svc.key === "driver-hub") return false;
     return false;
   });
 
   return (
-    <div className="min-h-[calc(100vh-80px)] pb-32 px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-      <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-6 animate-in fade-in duration-200">
-        
+    <div className="min-h-[calc(100vh-80px)] pb-28 px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <div className="w-full max-w-5xl mx-auto space-y-5 animate-in fade-in duration-200">
         {/* Navigation & Header */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
             <button
               onClick={() => navigate("back", { fallback: "home" })}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 dark:bg-zinc-900/60 dark:hover:bg-zinc-800/80 border border-border dark:border-zinc-800 transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 dark:bg-zinc-900/60 dark:hover:bg-zinc-800/80 border border-border dark:border-zinc-800 transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              <span>{t("back") || t("backToHome") || "Back"}</span>
+              <span>{tr("back", tr("backToHome", "Subira inyuma"))}</span>
             </button>
-
-            <span className="text-[11px] font-mono tracking-wider text-muted-foreground dark:text-zinc-400 lowercase hidden sm:inline-block">
-              services · ecosystem &amp; tools
-            </span>
           </div>
 
           <div className="space-y-1">
-            <div className="text-[11px] font-mono tracking-wider text-muted-foreground dark:text-zinc-400 lowercase">
-              transport &amp; exam services
-            </div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground dark:text-zinc-100">
-              {t("services")}
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground dark:text-zinc-100">
+              {tr("services", "Serivisi")}
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 max-w-3xl leading-snug">
-              {t("servicesDesc") || "Explore comprehensive traffic, mock driving exam, and verified driver solutions."}
+            <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 max-w-2xl leading-snug">
+              {tr(
+                "servicesDesc",
+                "Hitamo serivisi ushaka: ishakiro ry'amategeko y'umuhanda cyangwa gusuzuma amanota y'ikizamini."
+              )}
             </p>
           </div>
         </div>
@@ -314,46 +309,49 @@ export function ServicesView({ navigate }: ServicesViewProps) {
         {ongoingCount > 0 && (
           <div
             onClick={() => navigate("classmates", { tab: "invitations" })}
-            className="rounded-xl border border-amber-500/30 bg-amber-950/20 hover:bg-amber-950/30 p-3.5 sm:p-4 transition-colors cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-none"
+            className="rounded-xl border border-amber-500/30 bg-amber-950/20 hover:bg-amber-950/30 p-3.5 sm:p-4 transition-colors cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-                <Clock className="h-4.5 w-4.5 sm:h-5 sm:w-5 animate-pulse" />
+              <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <Clock className="h-4.5 w-4.5 animate-pulse" />
               </div>
               <div className="min-w-0 space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-zinc-100 truncate">
-                    {t("ongoingExams") || "Ongoing Exams & Invitations"}
+                  <span className="text-sm font-bold text-foreground dark:text-zinc-100 truncate">
+                    {tr("ongoingExams", "Ibizamini biri kuba")}
                   </span>
-                  <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded">
-                    {ongoingCount} {t("active") || "Active"}
+                  <span className="text-[11px] font-mono font-semibold text-amber-600 dark:text-amber-300">
+                    {ongoingCount} {tr("active", "Biri gukora")}
                   </span>
                 </div>
-                <p className="text-xs text-zinc-400 truncate">
-                  {ongoingExam?.category_name ? `${ongoingExam.category_name} • ` : ""}{t("viewOngoingOrJoin") || "Click to view active challenges and join your session."}
+                <p className="text-xs text-muted-foreground dark:text-zinc-400 truncate">
+                  {ongoingExam?.category_name ? `${ongoingExam.category_name} · ` : ""}
+                  {tr("viewOngoingOrJoin", "Kanda winjire mu kizamini cy'itsinda.")}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-amber-400 shrink-0">
-              <span>Join Session</span>
+            <div className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400 shrink-0">
+              <span>{tr("join", "Injira")}</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </div>
           </div>
         )}
 
-        {/* Services Grid List */}
+        {/* Services List */}
         {services.length === 0 ? (
-          <div className="rounded-2xl border border-border dark:border-zinc-800 bg-card/60 dark:bg-zinc-900/30 p-12 text-center shadow-xs">
+          <div className="rounded-2xl border border-border dark:border-zinc-800 bg-card/60 dark:bg-zinc-900/30 p-10 text-center">
             <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-muted dark:bg-zinc-800 text-muted-foreground dark:text-zinc-400">
               <LayoutGrid className="h-5 w-5" />
             </div>
-            <h3 className="font-semibold text-sm text-foreground dark:text-zinc-200">{t("noServicesAvailable") || "No services currently available"}</h3>
+            <h3 className="font-semibold text-sm text-foreground dark:text-zinc-200">
+              {tr("noServicesAvailable", "Nta serivisi ziriho ubu")}
+            </h3>
             <p className="mt-1 text-xs text-muted-foreground dark:text-zinc-400">
-              {t("noServicesDesc") || "Please check back later or explore other sections."}
+              {tr("noServicesDesc", "Ongera ugerageze nyuma cyangwa ukomeze kwiga.")}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
             {services.map((service) => {
               const Icon = service.icon;
               const isLiveExam = service.view === "services/live-exam";
@@ -377,63 +375,54 @@ export function ServicesView({ navigate }: ServicesViewProps) {
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") handleServiceClick(e as any);
                   }}
-                  className="rounded-2xl border border-border/90 dark:border-zinc-800/90 bg-card hover:bg-muted/40 dark:bg-zinc-900/50 dark:hover:bg-zinc-800/60 hover:border-border dark:hover:border-zinc-700 p-4 sm:p-5 transition-all duration-150 cursor-pointer group flex flex-col justify-between select-none shadow-xs hover:shadow-md"
+                  className="rounded-2xl border border-border/90 dark:border-zinc-800/90 bg-card hover:bg-muted/40 dark:bg-zinc-900/50 dark:hover:bg-zinc-800/60 hover:border-border dark:hover:border-zinc-700 p-4 sm:p-5 transition-colors cursor-pointer group flex flex-col justify-between gap-4 select-none"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${service.iconBox}`}>
-                        <Icon className="h-5 w-5" />
+                  <div className="flex items-start gap-3.5">
+                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${service.iconBox}`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <h2 className="text-sm sm:text-base font-bold text-foreground dark:text-zinc-100 group-hover:text-primary transition-colors leading-snug">
+                          {tr(service.titleKey, service.titleFallback)}
+                        </h2>
+                        {isLiveExam && (
+                          <span
+                            className={`text-[11px] font-medium shrink-0 inline-flex items-center gap-1 ${
+                              isVerified
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-amber-600 dark:text-amber-400"
+                            }`}
+                          >
+                            {isVerified ? (
+                              <>
+                                <UserCheck className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">{tr("verified", "Byemejwe")}</span>
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">{tr("idRequired", "Indangamuntu")}</span>
+                              </>
+                            )}
+                          </span>
+                        )}
                       </div>
-                      
-                      {isLiveExam ? (
-                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md border shrink-0 ${
-                          isVerified
-                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
-                            : "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400"
-                        }`}>
-                          {isVerified ? (
-                            <span className="flex items-center gap-1">
-                              <UserCheck className="h-3 w-3" />
-                              {t("verified") || "Verified"}
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1">
-                              <ShieldCheck className="h-3 w-3" />
-                              {t("idRequired") || "ID Check"}
-                            </span>
-                          )}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-muted dark:bg-zinc-800/80 text-muted-foreground dark:text-zinc-400 border border-border/80 dark:border-zinc-700/60 shrink-0 lowercase">
-                          {service.badge}
-                        </span>
-                      )}
-                    </div>
 
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-mono tracking-wide text-muted-foreground dark:text-zinc-400 lowercase block truncate">
-                        {service.tag}
-                      </span>
-                      <h2 className="text-sm sm:text-base font-bold text-foreground dark:text-zinc-100 group-hover:text-primary transition-colors leading-snug">
-                        {t(service.titleKey) || service.titleFallback}
-                      </h2>
+                      <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 leading-relaxed line-clamp-2">
+                        {tr(service.descKey, service.descFallback)}
+                      </p>
                     </div>
-
-                    <p className="text-xs text-muted-foreground dark:text-zinc-400 leading-relaxed line-clamp-3">
-                      {t(service.descKey) || service.descFallback}
-                    </p>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-border/80 dark:border-zinc-800/80 flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase hidden sm:inline-block">
-                      {service.key}
-                    </span>
+                  <div className="flex items-center justify-end">
                     <Button
                       size="sm"
                       onClick={handleServiceClick}
-                      className={`w-full sm:w-auto h-9 sm:h-8 px-3.5 rounded-lg text-xs font-semibold gap-1.5 shadow-xs justify-between sm:justify-center transition-colors ${service.btnClass || "bg-primary hover:bg-primary/90 text-primary-foreground"}`}
+                      className={`w-full sm:w-auto h-9 px-4 rounded-xl text-xs font-semibold gap-1.5 justify-center whitespace-nowrap transition-colors ${service.btnClass || "bg-primary hover:bg-primary/90 text-primary-foreground"}`}
                     >
-                      <span>{t(service.openLabelKey) || service.openFallback}</span>
+                      <span>{tr(service.openLabelKey, service.openFallback)}</span>
                       <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform shrink-0" />
                     </Button>
                   </div>

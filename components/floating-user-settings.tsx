@@ -367,9 +367,7 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
 
   if (
     isExamActive ||
-    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true") ||
-    pathname === "/dashboard/exam" ||
-    pathname?.startsWith("/dashboard/exam")
+    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true")
   ) {
     return null;
   }

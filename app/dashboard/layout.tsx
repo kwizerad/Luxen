@@ -27,6 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { view: activeView, navigate } = useHashRouter();
 
   const [isExamActive, setIsExamActive] = useState(false);
+  const [isGroupCreationActive, setIsGroupCreationActive] = useState(false);
   const [isChatActive, setIsChatActive] = useState(false);
   const [isFullBleedView, setIsFullBleedView] = useState(false);
   const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
@@ -62,21 +63,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (sessionStorage.getItem("exam-active") === "true") {
           sessionStorage.removeItem("exam-active");
         }
+        if (sessionStorage.getItem("group-creation-active") === "true") {
+          sessionStorage.removeItem("group-creation-active");
+        }
         setIsExamActive(false);
+        setIsGroupCreationActive(false);
         return;
       }
-      const isExam = sessionStorage.getItem("exam-active") === "true";
-      setIsExamActive(isExam);
+      setIsExamActive(sessionStorage.getItem("exam-active") === "true");
+      setIsGroupCreationActive(sessionStorage.getItem("group-creation-active") === "true");
     };
     checkExamActive();
     const handleExamStateChange = () => checkExamActive();
     window.addEventListener("exam-state-change", handleExamStateChange);
+    window.addEventListener("group-creation-state-change", handleExamStateChange);
     window.addEventListener("hashchange", checkExamActive);
     window.addEventListener("popstate", checkExamActive);
     window.addEventListener("navo-hash-route-change", checkExamActive);
     window.addEventListener("storage", handleExamStateChange);
     return () => {
       window.removeEventListener("exam-state-change", handleExamStateChange);
+      window.removeEventListener("group-creation-state-change", handleExamStateChange);
       window.removeEventListener("hashchange", checkExamActive);
       window.removeEventListener("popstate", checkExamActive);
       window.removeEventListener("navo-hash-route-change", checkExamActive);
@@ -109,9 +116,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useLoginRecorder();
 
   // Allow guest and student preview access without redirecting to old landing page
-  const isExamInProgress =
-    isExamActive ||
-    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true");
+  const isExamInProgress = isExamActive;
 
   return (
     <div
@@ -124,29 +129,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <GlobalGroupExamInvite />
 
       {/* OS Top Global Menu Bar */}
-      {!isExamInProgress && (
-        <OSSystemBar
-          activeView={activeView}
-          navigate={navigate}
-          onOpenSpotlight={() => setIsSpotlightOpen(true)}
-        />
-      )}
+      <OSSystemBar
+        activeView={activeView}
+        navigate={navigate}
+        onOpenSpotlight={() => {
+          if (!isExamInProgress) setIsSpotlightOpen(true);
+        }}
+      />
 
       {/* Main OS Stage / Desktop */}
       <main
         className={`flex-1 min-h-0 w-full min-w-0 flex flex-col overflow-y-auto ${
           isExamInProgress
-            ? "pt-0 pb-0"
+            ? "p-0"
             : isFullBleedView
             ? "pt-10 pb-0 px-1 sm:px-2"
-            : "pt-10 pb-16 lg:pb-20 px-2 sm:px-4"
+            : "pt-10 pb-14 sm:pb-16 lg:pb-20 px-1.5 sm:px-4"
         }`}
       >
         {children}
       </main>
 
       {/* Bottom Floating OS Dock */}
-      {!isExamInProgress && !isChatActive && (
+      {!isExamInProgress && !isGroupCreationActive && !isChatActive && (
         <OSDock
           activeView={activeView}
           navigate={navigate}

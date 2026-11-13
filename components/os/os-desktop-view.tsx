@@ -174,23 +174,23 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
           } gap-8 max-w-7xl mx-auto w-full items-start transition-all duration-300 pt-2 sm:pt-4`}
         >
           {/* Left: Desktop Applications Grid */}
-          <div className="space-y-6">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-5 sm:gap-7 p-1">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-3 sm:gap-6 p-0.5 sm:p-1">
               {desktopIcons.map((app) => {
                 const Icon = app.icon;
                 return (
                   <motion.div
                     key={app.id}
-                    whileHover={{ scale: 1.08, y: -4 }}
+                    whileHover={{ scale: 1.06, y: -3 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={app.action}
-                    className="group flex flex-col items-center text-center p-2 rounded-2xl bg-transparent transition-all cursor-pointer border-0 shadow-none"
+                    className="group flex flex-col items-center text-center p-1.5 sm:p-2 rounded-xl sm:rounded-2xl bg-transparent transition-all cursor-pointer border-0 shadow-none"
                   >
-                    <div className="relative mb-2">
+                    <div className="relative mb-1.5 sm:mb-2">
                       <div
-                        className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${app.gradient} text-white flex items-center justify-center transition-all shadow-md group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-emerald-500/25`}
+                        className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br ${app.gradient} text-white flex items-center justify-center transition-all shadow-md group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-emerald-500/25`}
                       >
-                        <Icon className="w-7 h-7 sm:w-8 sm:h-8" />
+                        <Icon className="w-6 h-6 sm:w-7 sm:h-7" />
                       </div>
 
                       {app.badge && (
@@ -200,7 +200,7 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
                       )}
                     </div>
 
-                    <span className="font-semibold text-xs sm:text-sm text-foreground tracking-tight group-hover:text-primary transition-colors drop-shadow-xs">
+                    <span className="font-semibold text-[11px] sm:text-sm text-foreground tracking-tight group-hover:text-primary transition-colors drop-shadow-xs leading-tight">
                       {app.title}
                     </span>
                   </motion.div>

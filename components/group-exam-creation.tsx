@@ -1,10 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Users, UserPlus, ArrowLeft, Check, X, FileText, Clock, Hash, CheckSquare, Square } from "lucide-react";
+import {
+  Search,
+  Users,
+  UserPlus,
+  ArrowLeft,
+  Check,
+  X,
+  CheckSquare,
+  Square,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,6 +20,7 @@ import { useAuth } from "@/lib/auth-context";
 import { canViewUserAvatar } from "@/lib/avatar-helper";
 import { getExamCategories } from "@/lib/supabase/queries";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface ClassmateProfile {
   id: string;
@@ -33,7 +41,15 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
   const { user } = useAuth();
 
   const [allUsers, setAllUsers] = useState<ClassmateProfile[]>([]);
-  const [categories, setCategories] = useState<{ id: string; name: string; description?: string; duration_minutes?: number; question_count?: number }[]>([]);
+  const [categories, setCategories] = useState<
+    {
+      id: string;
+      name: string;
+      description?: string;
+      duration_minutes?: number;
+      question_count?: number;
+    }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,7 +61,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
     fetchData();
   }, [user]);
 
-  // Hide dock nav while in group exam creation flow on small devices
+  // Hide dock nav while in group exam creation flow
   useEffect(() => {
     sessionStorage.setItem("group-creation-active", "true");
     window.dispatchEvent(new CustomEvent("group-creation-state-change"));
@@ -55,9 +71,9 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
     };
   }, []);
 
-  // Auto-select category when there's only one
+  // Auto-select category when available
   useEffect(() => {
-    if (!loading && categories.length === 1 && !selectedCategory) {
+    if (!loading && categories.length >= 1 && !selectedCategory) {
       setSelectedCategory(categories[0].id);
     }
   }, [loading, categories, selectedCategory]);
@@ -67,7 +83,9 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
     setLoading(true);
     try {
       const [requestsRes, categoriesData] = await Promise.all([
-        fetch("/api/classmate-requests").then((r) => r.json()).catch(() => ({ requests: [] })),
+        fetch("/api/classmate-requests")
+          .then((r) => r.json())
+          .catch(() => ({ requests: [] })),
         getExamCategories(),
       ]);
 
@@ -83,7 +101,6 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
       const allRequests: any[] = requestsData.requests || [];
       const combinedMap = new Map<string, ClassmateProfile>();
 
-      // Only add accepted friends
       for (const r of allRequests) {
         if (r.status === "accepted" && r.other_user && r.other_user.id !== user.id) {
           const u = r.other_user;
@@ -114,9 +131,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
     }
   };
 
-  const displayedList = allUsers;
-
-  const filteredInvitees = displayedList.filter((f) => {
+  const filteredInvitees = allUsers.filter((f) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return f.full_name?.toLowerCase().includes(q) || f.username?.toLowerCase().includes(q);
@@ -146,10 +161,8 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
     setSelectedInvitees((prev) => {
       const next = new Set(prev);
       if (allSelected) {
-        // Deselect all filtered
         filteredInvitees.forEach((f) => next.delete(f.id));
       } else {
-        // Select all filtered
         filteredInvitees.forEach((f) => next.add(f.id));
       }
       return next;
@@ -161,7 +174,12 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
 
   const getInitials = (name?: string) => {
     if (!name) return "?";
-    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const handleStartExam = async () => {
@@ -186,302 +204,248 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">{t("loading") || "Loading..."}</p>
-        </div>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[320px]">
+        <div className="animate-spin rounded-full h-7 w-7 border-2 border-primary border-t-transparent mb-3" />
+        <p className="text-xs sm:text-sm text-muted-foreground">{t("loading") || "Loading..."}</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[calc(100vh-80px)] p-4 sm:p-6 pb-36 sm:pb-40">
-      <div className="w-full max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="space-y-2">
-          <button
-            onClick={onBack}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted border border-border/40 transition-all active:scale-95 mb-2"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>{t("back") || "Back"}</span>
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-primary/10 text-primary">
-              <Users className="h-5 w-5" />
-            </span>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground">
-                {t("createGroupExam") || "Create Group Exam"}
-              </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                {t("createGroupExamDescription") || "Invite friends or classmates to compete together in a real-time exam"}
-              </p>
-            </div>
+    <div className="flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto">
+      {/* Scrollable Main Canvas */}
+      <div className="flex-1 overflow-y-auto px-3.5 sm:px-6 pt-4 sm:pt-6 pb-6 space-y-5">
+        {/* Unified Top Header (No nested boxes) */}
+        <div className="flex items-start justify-between gap-3 border-b border-border/50 pb-4">
+          <div className="space-y-1 min-w-0">
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mb-1 cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>{t("back") || "Back"}</span>
+            </button>
+            <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">
+              {t("createGroupExam") || "Create Group Exam"}
+            </h1>
           </div>
         </div>
 
-        <div className="space-y-5">
-          {/* 1. Category Selection */}
-          <Card className="border-2 border-border/70 rounded-2xl shadow-sm overflow-hidden">
-            <CardHeader className="p-4 sm:p-5 pb-3 bg-muted/20 border-b">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" />
-                  <span>{t("selectCategory") || "Select Category"}</span>
-                </CardTitle>
-                {selectedCategoryObj && (
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs font-semibold">
-                    {selectedCategoryObj.name}
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-5">
-              {categories.length === 1 ? (
-                <div className="p-3.5 rounded-xl border-2 border-primary bg-primary/5 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-sm text-foreground">{categories[0].name}</p>
-                    {categories[0].description && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{categories[0].description}</p>
-                    )}
-                  </div>
-                  <Check className="h-5 w-5 text-primary shrink-0" />
+        {/* Quiet Inline Exam Category Selector (Only expands when > 1 category exists) */}
+        {categories.length === 1 ? (
+          <div className="flex items-center justify-between gap-2 text-xs sm:text-sm text-muted-foreground">
+            <span className="truncate font-medium text-foreground">
+              {categories[0].name}
+            </span>
+            <span className="tabular-nums shrink-0">
+              {categories[0].question_count ?? 20} Q · {categories[0].duration_minutes ?? 20}m
+            </span>
+          </div>
+        ) : categories.length > 1 ? (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-muted-foreground">
+                {t("selectCategory") || "Category"}
+              </span>
+              {categories.length > 5 && (
+                <div className="relative w-44">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder={t("searchCategories") || "Filter..."}
+                    value={categorySearchQuery}
+                    onChange={(e) => setCategorySearchQuery(e.target.value)}
+                    className="pl-8 pr-6 h-8 text-xs rounded-lg"
+                  />
+                  {categorySearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setCategorySearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <>
-                  <div className="relative mb-3">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder={t("searchCategories") || "Search categories..."}
-                      value={categorySearchQuery}
-                      onChange={(e) => setCategorySearchQuery(e.target.value)}
-                      className="pl-9 pr-8 h-10 rounded-xl"
-                    />
-                    {categorySearchQuery && (
-                      <button
-                        onClick={() => setCategorySearchQuery("")}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1">
-                    {filteredCategories.length === 0 ? (
-                      <div className="col-span-full text-center py-6 text-xs text-muted-foreground">
-                        {categorySearchQuery ? t("noResults") || "No categories found" : t("noCategoriesAvailable") || "No categories available"}
-                      </div>
-                    ) : (
-                      filteredCategories.map((category) => {
-                        const isSelected = selectedCategory === category.id;
-                        return (
-                          <div
-                            key={category.id}
-                            onClick={() => setSelectedCategory(category.id)}
-                            className={`p-3 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
-                              isSelected
-                                ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/30"
-                                : "border-border/60 hover:bg-muted/40 hover:border-border"
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="font-bold text-xs sm:text-sm line-clamp-2 text-foreground">{category.name}</p>
-                              <div className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 border ${
-                                isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30"
-                              }`}>
-                                {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-muted-foreground">
-                              <span className="flex items-center gap-1 font-medium">
-                                <Clock className="h-3 w-3 text-primary" />
-                                {category.duration_minutes ? `${category.duration_minutes}m` : "20m"}
-                              </span>
-                              <span className="flex items-center gap-1 font-medium">
-                                <Hash className="h-3 w-3 text-primary" />
-                                {category.question_count ?? 20}Q
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </>
               )}
-            </CardContent>
-          </Card>
-
-          {/* 2. Invitees Bulk Selection (Friends & All Classmates) */}
-          <Card className="border-2 border-border/70 rounded-2xl shadow-sm overflow-hidden">
-            <CardHeader className="p-4 sm:p-5 pb-3 bg-muted/20 border-b">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary" />
-                  <span>{t("selectInvitees") || "Select Invitees"}</span>
-                </CardTitle>
-
-                {/* Bulk Action Toggle */}
-                {filteredInvitees.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSelectAll}
-                    className="h-8 px-2.5 text-xs font-semibold rounded-lg gap-1.5 border-border hover:bg-muted"
-                  >
-                    {areAllFilteredSelected ? (
-                      <>
-                        <CheckSquare className="h-3.5 w-3.5 text-primary" />
-                        <span>{t("deselectAll") || "Deselect All"}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Square className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>{t("selectAll") || "Select All"}</span>
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-4 sm:p-5 space-y-3">
-              {/* Search Friends */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={t("searchFriends") || "Search friends by name or username..."}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-8 h-10 rounded-xl"
-                />
-                {searchQuery && (
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {filteredCategories.map((category) => {
+                const isSelected = selectedCategory === category.id;
+                return (
                   <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    key={category.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(category.id)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer",
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-transparent text-muted-foreground border-border/60 hover:text-foreground hover:bg-muted/40"
+                    )}
                   >
-                    <X className="h-4 w-4" />
+                    {isSelected && <Check className="h-3 w-3 shrink-0" />}
+                    <span className="truncate max-w-[200px]">{category.name}</span>
                   </button>
-                )}
-              </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
-              {/* Status bar */}
-              <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-                <span>
-                  {filteredInvitees.length} {filteredInvitees.length === 1 ? t("friend") || "friend" : t("friends") || "friends"}
-                </span>
-                <span className="font-semibold text-foreground">
-                  {selectedInvitees.size} {selectedInvitees.size === 1 ? t("personSelected") || "selected" : t("peopleSelected") || "selected"}
-                </span>
-              </div>
-
-              {/* List of Friends */}
-              <div className="space-y-1.5 max-h-72 sm:max-h-80 overflow-y-auto pr-1">
-                {filteredInvitees.length === 0 ? (
-                  <div className="text-center py-8 text-xs text-muted-foreground space-y-1">
-                    <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
-                    <p className="font-medium">
-                      {searchQuery ? t("noResults") || "No matching friends found" : t("noFriendsToInvite") || "No friends to invite yet"}
-                    </p>
-                  </div>
-                ) : (
-                  filteredInvitees.map((invitee) => {
-                    const isSelected = selectedInvitees.has(invitee.id);
-                    return (
-                      <div
-                        key={invitee.id}
-                        onClick={() => toggleInvitee(invitee.id)}
-                        className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer select-none active:scale-[0.99] ${
-                          isSelected
-                            ? "border-primary/60 bg-primary/5 shadow-xs"
-                            : "border-border/50 hover:bg-muted/40 hover:border-border"
-                        }`}
-                      >
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleInvitee(invitee.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                        />
-                        <Avatar className="h-9 w-9 sm:h-10 sm:w-10 ring-1 ring-border/50 shrink-0">
-                          {canViewUserAvatar(invitee.avatar_url, invitee.id, user?.id, user?.user_metadata?.role) && invitee.avatar_url ? (
-                            <AvatarImage src={invitee.avatar_url} />
-                          ) : (
-                            <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
-                              {getInitials(invitee.full_name || invitee.username)}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-bold break-words text-foreground">
-                              {invitee.full_name || invitee.username}
-                            </p>
-                            <Badge variant="secondary" className="text-[9px] font-semibold bg-primary/10 text-primary px-1.5 py-0 shrink-0">
-                              {t("friend") || "Friend"}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate">@{invitee.username || "student"}</p>
-                        </div>
-                        {isSelected && (
-                          <Badge variant="secondary" className="bg-primary/15 text-primary text-[10px] font-bold shrink-0">
-                            {t("invited") || "Invited"}
-                          </Badge>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Floating / Sticky Action Footer - Elevated and safe above dock nav */}
-        <div className="sticky bottom-4 z-40 bg-background/95 dark:bg-card/95 backdrop-blur-xl border-2 border-border/80 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-2xl space-y-2.5">
-          <div className="flex items-center justify-between text-xs px-1">
-            <div className="flex items-center gap-1.5 truncate">
-              <span className="text-muted-foreground">{t("selected") || "Selected"}:</span>
-              <span className="font-bold text-foreground truncate">
-                {selectedCategoryObj?.name || (t("noCategorySelected") || "No category")}
+        {/* Primary Focal Area: Invite Classmates List (Single Clean Container) */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs sm:text-sm text-muted-foreground tabular-nums">
+              <span className="font-semibold text-foreground">
+                {t("selectInvitees") || "Invite Classmates"}
+              </span>
+              <span className="mx-1.5" aria-hidden="true">·</span>
+              <span>
+                {selectedInvitees.size}/{filteredInvitees.length}
               </span>
             </div>
-            <Badge
-              variant={selectedInvitees.size > 0 ? "default" : "outline"}
-              className="text-[11px] font-bold px-2 py-0.5 shrink-0"
-            >
-              {selectedInvitees.size} {t("selected") || "selected"}
-            </Badge>
+
+            {filteredInvitees.length > 0 && (
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-border/60 hover:bg-muted/50 text-foreground transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                {areAllFilteredSelected ? (
+                  <>
+                    <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                    <span>{t("deselectAll") || "Deselect All"}</span>
+                  </>
+                ) : (
+                  <>
+                    <Square className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>{t("selectAll") || "Select All"}</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
-          <Button
-            onClick={handleStartExam}
-            disabled={!selectedCategory || selectedInvitees.size === 0 || submitting}
-            className="w-full h-12 rounded-xl text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-all active:scale-[0.99] gap-2"
-            size="lg"
-          >
-            {submitting ? (
-              <>
-                <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                <span>{t("creatingExam") || "Creating Group Exam..."}</span>
-              </>
-            ) : (
-              <>
-                <UserPlus className="h-4 w-4" />
-                <span>
-                  {selectedInvitees.size > 0
-                    ? `${t("createAndSendInvitations") || "Create and Send Invitations"} (${selectedInvitees.size})`
-                    : t("selectInviteesToContinue") || "Select classmates to continue"}
-                </span>
-              </>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={t("searchFriends") || "Search friends..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-8 h-9 sm:h-10 rounded-xl text-sm"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
             )}
-          </Button>
+          </div>
+
+          {/* Unified Hairline-Divided Roster (No nested cards) */}
+          <div className="border border-border/60 rounded-xl divide-y divide-border/50 overflow-hidden bg-card/40 dark:bg-zinc-900/30">
+            {filteredInvitees.length === 0 ? (
+              <div className="text-center py-10 px-4 text-xs sm:text-sm text-muted-foreground space-y-2">
+                <Users className="h-7 w-7 mx-auto text-muted-foreground/40" />
+                <p>
+                  {searchQuery
+                    ? t("noResults") || "No matching friends found"
+                    : t("noFriendsToInvite") || "No friends to invite yet"}
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[45vh] overflow-y-auto divide-y divide-border/50">
+                {filteredInvitees.map((invitee) => {
+                  const isSelected = selectedInvitees.has(invitee.id);
+                  return (
+                    <div
+                      key={invitee.id}
+                      onClick={() => toggleInvitee(invitee.id)}
+                      className={cn(
+                        "flex items-center gap-3 px-3.5 py-2.5 sm:px-4 sm:py-3 transition-colors cursor-pointer select-none",
+                        isSelected
+                          ? "bg-primary/[0.08] dark:bg-primary/15"
+                          : "hover:bg-muted/40"
+                      )}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleInvitee(invitee.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0"
+                      />
+                      <Avatar className="h-8 w-8 sm:h-9 sm:w-9 ring-1 ring-border/50 shrink-0">
+                        {canViewUserAvatar(
+                          invitee.avatar_url,
+                          invitee.id,
+                          user?.id,
+                          user?.user_metadata?.role
+                        ) && invitee.avatar_url ? (
+                          <AvatarImage src={invitee.avatar_url} />
+                        ) : (
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
+                            {getInitials(invitee.full_name || invitee.username)}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {invitee.full_name || invitee.username}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          @{invitee.username || "student"}
+                        </p>
+                      </div>
+                      {isSelected && (
+                        <Check className="h-4 w-4 text-primary shrink-0" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* Clean Docked Action Bar (Zero floating card clutter, safe wrapping on narrow mobile) */}
+      <div className="sticky bottom-0 z-20 border-t border-border/60 bg-background/95 dark:bg-zinc-950/95 backdrop-blur-xl px-3.5 sm:px-6 py-3 space-y-2">
+        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground tabular-nums">
+          <span className="truncate min-w-0">
+            {selectedCategoryObj?.name || t("noCategorySelected") || "Select category"}
+          </span>
+          <span className="shrink-0 font-medium text-foreground">
+            {selectedInvitees.size} {t("selected") || "selected"}
+          </span>
+        </div>
+
+        <Button
+          type="button"
+          onClick={handleStartExam}
+          disabled={!selectedCategory || selectedInvitees.size === 0 || submitting}
+          className="w-full min-h-[42px] h-auto py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold whitespace-normal text-center leading-snug"
+        >
+          {submitting ? (
+            <>
+              <div className="h-4 w-4 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin shrink-0" />
+              <span>{t("creatingExam") || "Creating Group Exam..."}</span>
+            </>
+          ) : (
+            <>
+              <UserPlus className="h-4 w-4 shrink-0" />
+              <span>
+                {selectedInvitees.size > 0
+                  ? `${t("createAndSendInvitations") || "Send Invitations"} (${selectedInvitees.size})`
+                  : t("selectInvitees") || "Select classmates to invite"}
+              </span>
+            </>
+          )}
+        </Button>
       </div>
     </div>
   );
 }
-

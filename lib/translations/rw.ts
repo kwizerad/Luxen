@@ -1373,7 +1373,7 @@ const rw: Record<string, string> = {
   "liveExamFullName": "Amazina Yuzuye",
   "liveExamGrade": "Urwego",
   "liveExamHasCategories": "Ibyiciro by'uruhushya rwo gutwara ufite",
-  "liveExamIdPlaceholder": "Shyiramo 16-digit National ID",
+  "liveExamIdPlaceholder": "Imibare 16 y'indangamuntu",
   "liveExamIdVerificationRequired": "Gusaba kwemeza Indangamuntu mbere yo kureba amanota",
   "liveExamIdVerificationRequiredDesc": "Iyo byemejwe, abanyeshuri bagomba kubanza kwemeza Indangamuntu y'imibare 16 n'amazina n'italiki y'amavuko mbere yo kubona amanota y'ibizamini byo gutwara.",
   "liveExamInvalidId": "Nyamuneka andika a valid 16-digit National ID.",
@@ -2898,6 +2898,23 @@ const rw: Record<string, string> = {
   "yourRecentActions": "Amasomo n'ibizamini uheruka gukora",
   "yourScore": "Amanota Yawe",
   "navoOsTrafficCodeKernel": "NAVO OS · AMATEGEKO Y'UMUHANDA MU RWANDA",
+  "examCenter": "Ibizamini",
+  "instantStart": "Bitangira ako kanya",
+  "groupChallenge": "Ikizamini cy'Itsinda",
+  "resultsAnalytics": "Imitsindire",
+  "systemPreferences": "Igenamiterere",
+  "trafficSignsCatalog": "Ibyapa by'Umuhanda",
+  "examsPausedByAdmin": "Ibizamini Bihagaritswe By'agateganyo",
+  "examsPausedDesc": "Ibizamini by'imyitozo byafunzwe n'ubuyobozi by'agateganyo. Ushobora gukomeza kwiga amasomo cyangwa kureba amateka y'ibizamini.",
+  "chooseLanguage": "Hitamo ururimi rw'ikizamini",
+  "trafficAssistantTitle": "Gushakisha Amategeko y'Umuhanda",
+  "trafficAssistantDesc": "Shakisha amategeko y'umuhanda, ibisobanuro by'amasomo n'ibisubizo mu rurimi urwo ari rwo rwose uhereye ku isano riri mu bubiko bwacu.",
+  "openTrafficAssistant": "Shakisha Amategeko",
+  "signInRequired": "Bisaba Kwinjira muri Konti",
+  "signInToAccessCourseAndExam": "Amasomo yose n'ibibazo by'ibizamini bibikiwe abanyeshuri binjiye muri konti zabo. Injira cyangwa ufungure konti kugira ngo ubyige kandi ukore ibizamini.",
+  "signInNow": "Injira Muri Konti",
+  "searchPublicRules": "Shakisha ku Rwego Rusange",
+  "takeExamBtn": "Kora ikizamini"
 };
 
 export default rw;

@@ -318,6 +318,11 @@ export function NotificationsDropdown() {
         window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
         return;
       }
+      if (url.startsWith("/dashboard/exam")) {
+        const qIdx = url.indexOf("?");
+        window.location.href = qIdx !== -1 ? `/dashboard#exam${url.slice(qIdx)}` : "/dashboard#exam";
+        return;
+      }
       window.location.href = url;
     }
   };

@@ -181,39 +181,39 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
   const options: ("A" | "B" | "C" | "D")[] = ["A", "B", "C", "D"];
 
   return (
-    <main className="student-page student-page-no-nav relative !mx-auto max-w-6xl">
+    <main className="relative mx-auto w-full max-w-5xl p-3 sm:p-6 space-y-4 sm:space-y-5 overflow-x-hidden">
       <Watermark />
 
       {/* Header with Pass/Fail Banner */}
-      <div className="flex items-start justify-between gap-2 sm:gap-4 mb-4 sm:mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-3xl font-bold brand-protected">{t("examResults")}</h1>
-          <p className="text-muted-foreground mt-1 text-xs sm:text-sm">{t("yourPerformanceSummary")}</p>
+          <h1 className="text-lg sm:text-2xl font-bold brand-protected">{t("examResults")}</h1>
+          <p className="text-muted-foreground mt-0.5 text-xs sm:text-sm">{t("yourPerformanceSummary")}</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="default"
             size="sm"
             onClick={() => setShowSummaryPopout(true)}
-            className="gap-1.5 shadow-xs"
+            className="gap-1.5 h-8 px-3 text-xs rounded-xl shadow-xs"
           >
-            <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <BarChart3 className="h-3.5 w-3.5" />
             <span>{t("examDetails.examSummary") || "Exam Summary"}</span>
           </Button>
           {!effectiveChallengeId && (
-            <Button variant="outline" size="sm" onClick={onRetake}>
-              <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-              <span className="hidden sm:inline">{t("retakeExam")}</span>
+            <Button variant="outline" size="sm" onClick={onRetake} className="h-8 px-3 text-xs rounded-xl">
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              <span>{t("retakeExam")}</span>
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={onReset}>
-            <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-            <span className="hidden sm:inline">{t("backToExams")}</span>
+          <Button variant="outline" size="sm" onClick={onReset} className="h-8 px-3 text-xs rounded-xl">
+            <Home className="h-3.5 w-3.5 mr-1.5" />
+            <span>{t("backToExams")}</span>
           </Button>
         </div>
       </div>
 
-      {/* Pass/Fail Celebration Banner */}
+      {/* Pass/Fail Score Strip */}
       {!isAbandoned && !isCheating && (
         <ExamCelebration
           passed={isPassed}
@@ -222,111 +222,39 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
           subtitle={isPassed ? t("passedModuleExam") : t("keepTrying")}
           badges={
             <>
-              <Badge variant="secondary" className="text-[10px] sm:text-xs">
-                <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                {examResult.category_name}
-              </Badge>
-              <Badge variant="secondary" className="text-[10px] sm:text-xs">
-                <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                {formatTime(examResult.duration_seconds)}
-              </Badge>
-              <Badge variant="secondary" className="text-[10px] sm:text-xs">
+              <span>{examResult.category_name}</span>
+              <span aria-hidden="true">·</span>
+              <span className="tabular-nums">{formatTime(examResult.duration_seconds)}</span>
+              <span aria-hidden="true">·</span>
+              <span className="tabular-nums">
                 {t("examDetails.questionsCount").replace("{count}", String(examResult.total_questions))}
-              </Badge>
+              </span>
             </>
           }
         />
       )}
 
-      {/* No Questions Answered Banner */}
-      {hasNoAnswers && !isCheating && (
-        <div className="mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 border-amber-500/30 bg-amber-500/5 flex items-center justify-between gap-4 sm:gap-6 flex-wrap sm:flex-nowrap">
-          <div className="flex items-center gap-4 sm:gap-6 min-w-0 flex-1">
-            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
-              <UserX className="h-6 w-6 sm:h-7 sm:w-7 text-amber-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-base sm:text-xl font-bold text-amber-600 dark:text-amber-400">
-                {t("noQuestionsAnsweredTitle")}
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                {t("noQuestionsAnsweredExplanation")}
-              </p>
-              <div className="mt-2 flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="text-[10px] sm:text-xs">
-                  <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                  {examResult.category_name}
-                </Badge>
-                {isAutoSubmitted && (
-                  <Badge variant="secondary" className="text-[10px] sm:text-xs text-muted-foreground italic">
-                    {examResult.submission_reason === "page_closed" ? t("autoSubmittedPageClosed") : t("autoSubmittedTimeExpired")}
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSummaryPopout(true)}
-            className="gap-1.5 shrink-0 border-amber-500/40 hover:bg-amber-500/10"
-          >
-            <Eye className="h-3.5 w-3.5" />
-            <span>{t("examDetails.examSummary") || "View Summary"}</span>
-          </Button>
-        </div>
-      )}
-
-      {/* Cheating / Forced Violation Banner */}
-      {isCheating && (
-        <div className="mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 border-orange-500/30 bg-orange-500/5 flex items-center justify-between gap-4 sm:gap-6 flex-wrap sm:flex-nowrap">
-          <div className="flex items-center gap-4 sm:gap-6 min-w-0 flex-1">
-            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full bg-orange-500/10">
-              <ShieldAlert className="h-6 w-6 sm:h-7 sm:w-7 text-orange-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-base sm:text-xl font-bold text-orange-600 dark:text-orange-400">
+      {/* Single Violation Notice when answers exist (if 0 answers, unified section below renders) */}
+      {isCheating && !hasNoAnswers && (
+        <div className="border-b border-orange-500/30 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <ShieldAlert className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0 space-y-1">
+              <h2 className="text-sm sm:text-base font-semibold text-orange-600 dark:text-orange-400 break-words">
                 {t("examSubmittedDueToCheating")}
               </h2>
-              {(() => {
-                const sum = (examResult.violation_summary || "").toLowerCase();
-                let specificReason = "";
-                if (sum.includes("tab_switch") || sum.includes("blur") || sum.includes("tab")) {
-                  specificReason = t("forcedTabSwitch") || "Forced submission: Tab switching detected";
-                } else if (sum.includes("fullscreen")) {
-                  specificReason = t("forcedFullscreen") || "Forced submission: Fullscreen exited";
-                } else if (sum.includes("dev_tools") || sum.includes("inspect")) {
-                  specificReason = t("forcedDevTools") || "Forced submission: Developer tools detected";
-                } else if (sum.includes("copy") || sum.includes("paste")) {
-                  specificReason = t("forcedCopyPaste") || "Forced submission: Copy/paste detected";
-                } else {
-                  specificReason = t("forcedSecurityViolation") || "Forced submission: Security rule violation";
-                }
-                return (
-                  <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 mt-1 font-semibold flex items-center gap-1.5">
-                    <span>{specificReason}</span>
-                  </p>
-                );
-              })()}
-              <div className="mt-2 flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="text-[10px] sm:text-xs">
-                  <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                  {examResult.category_name}
-                </Badge>
-                <Badge variant="secondary" className="text-[10px] sm:text-xs">
-                  <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                  {formatTime(examResult.duration_seconds)}
-                </Badge>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                {examResult.category_name} · {formatTime(examResult.duration_seconds)}
+              </p>
             </div>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowSummaryPopout(true)}
-            className="gap-1.5 shrink-0 border-orange-500/40 hover:bg-orange-500/10"
+            className="gap-1.5 w-full sm:w-auto shrink-0 border-orange-500/40 hover:bg-orange-500/10 rounded-xl whitespace-normal h-auto py-2"
           >
-            <Eye className="h-3.5 w-3.5" />
+            <Eye className="h-3.5 w-3.5 shrink-0" />
             <span>{t("examDetails.examSummary") || "View Summary"}</span>
           </Button>
         </div>
@@ -786,14 +714,14 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
       ) : (
         <>
           {/* Filter Tabs */}
-          <div className="flex items-center gap-2 mb-3 sm:mb-4 overflow-x-auto pb-1">
-            <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pb-1">
+            <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0 hidden sm:inline" />
             {filterTabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setFilter(tab.key)}
                 className={cn(
-                  "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium transition-all shrink-0 flex items-center gap-1.5",
+                  "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-medium transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
                   filter === tab.key
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -802,7 +730,7 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
                 {t(tab.labelKey)}
                 <span
                   className={cn(
-                    "px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px]",
+                    "px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] tabular-nums",
                     filter === tab.key ? "bg-primary-foreground/20" : "bg-background/50"
                   )}
                 >
@@ -813,46 +741,46 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
           </div>
 
           {/* Question Review */}
-          <div className="space-y-2 sm:space-y-3">
+          <div className="space-y-3">
             <h3 className="font-semibold text-sm sm:text-base">{t("answerBreakdown")}</h3>
             {filteredAnswers.length === 0 ? (
-              <div className="text-center py-8 text-sm text-muted-foreground border border-dashed rounded-[14px] sm:rounded-[24px]">
+              <div className="text-center py-8 text-sm text-muted-foreground border border-dashed rounded-xl">
                 {t("examDetails.noQuestionsInFilter")}
               </div>
             ) : (
-              filteredAnswers.map(({ answer, idx }: { answer: ExamAnswer; idx: number }) => {
+              <div className="border border-border/60 rounded-xl divide-y divide-border/50 overflow-hidden bg-card/40 dark:bg-zinc-900/30">
+              {filteredAnswers.map(({ answer, idx }: { answer: ExamAnswer; idx: number }) => {
                 const question = questions.find((q) => q.id === answer.question_id);
                 if (!question) return null;
 
                 return (
                   <div
                     key={answer.question_id}
-                    className={cn(
-                      "p-2.5 sm:p-4 border rounded-[10px] sm:rounded-lg transition-all",
-                      answer.is_correct
-                        ? "border-green-500/20 bg-green-500/5"
-                        : answer.selected_answer
-                        ? "border-red-500/20 bg-red-500/5"
-                        : "border-orange-500/20 bg-orange-500/5"
-                    )}
+                    className="p-3.5 sm:p-5"
                   >
                     {/* Question Header */}
-                    <div className="flex items-center gap-2 mb-2 sm:mb-3 flex-wrap">
-                      <Badge
-                        variant={answer.is_correct ? "default" : "destructive"}
-                        className="text-[10px] sm:text-xs"
+                    <div className="flex items-center gap-2 mb-2.5 flex-wrap text-xs">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 font-semibold",
+                          answer.is_correct
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : !answer.selected_answer
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-rose-600 dark:text-rose-400"
+                        )}
                       >
                         {answer.is_correct ? (
-                          <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                          <CheckCircle className="h-3.5 w-3.5" />
                         ) : (
-                          <XCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                          <XCircle className="h-3.5 w-3.5" />
                         )}
                         {answer.is_correct
                           ? t("correct")
                           : !answer.selected_answer
                           ? t("examDetails.notAnswered")
                           : t("incorrect")}
-                      </Badge>
+                      </span>
                       <span className="text-[11px] sm:text-sm text-muted-foreground">
                         {t("question")} {idx + 1}
                       </span>
@@ -1017,14 +945,15 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
 
                     {/* Explanation */}
                     {question.explanation && (
-                      <div className="mt-2 sm:mt-3 p-2 sm:p-2.5 bg-secondary rounded-md text-xs sm:text-sm">
+                      <div className="mt-2.5 sm:mt-3 p-2.5 bg-muted/40 rounded-lg text-xs sm:text-sm">
                         <span className="font-medium">{t("explanationColon")} </span>
                         {question.explanation}
                       </div>
                     )}
                   </div>
                 );
-              })
+              })}
+              </div>
             )}
           </div>
         </>
@@ -1033,14 +962,14 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
       {/* Bottom Actions */}
       <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-2 sm:gap-3">
         {!effectiveChallengeId && (
-          <Button onClick={onRetake} className="flex-1 gap-2">
-            <RotateCcw className="h-4 w-4" />
-            {t("retakeExam")}
+          <Button onClick={onRetake} className="flex-1 gap-2 min-h-[40px] h-auto py-2.5 px-4 whitespace-normal text-center">
+            <RotateCcw className="h-4 w-4 shrink-0" />
+            <span>{t("retakeExam")}</span>
           </Button>
         )}
-        <Button variant={effectiveChallengeId ? "default" : "outline"} onClick={onReset} className="flex-1 gap-2">
-          <Home className="h-4 w-4" />
-          {t("backToExams")}
+        <Button variant={effectiveChallengeId ? "default" : "outline"} onClick={onReset} className="flex-1 gap-2 min-h-[40px] h-auto py-2.5 px-4 whitespace-normal text-center">
+          <Home className="h-4 w-4 shrink-0" />
+          <span>{t("backToExams")}</span>
         </Button>
       </div>
     </main>

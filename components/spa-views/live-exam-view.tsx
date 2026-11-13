@@ -176,32 +176,30 @@ export function LiveExamView({ navigate }: LiveExamViewProps) {
 
   return (
     <div className="min-h-[calc(100vh-80px)] pb-24">
-      <div className="container mx-auto max-w-2xl px-4 py-8">
+      <div className="container mx-auto max-w-2xl px-2.5 sm:px-4 py-4 sm:py-6">
         {/* Back link */}
         <button
           onClick={() => navigate("back", { fallback: "services" })}
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="mb-4 inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
-          <ArrowLeft className="h-4 w-4" />
-          {t("back") || t("services") || "Back"}
+          <ArrowLeft className="h-4 w-4 shrink-0" />
+          <span>{t("back") || t("services") || "Subira inyuma"}</span>
         </button>
 
-        {/* Main card */}
-        <div className="w-full rounded-3xl border bg-card/95 p-7 shadow-lg backdrop-blur-md transition-all hover:shadow-xl sm:p-8">
+        {/* Main surface */}
+        <div className="w-full rounded-2xl border border-border/80 bg-card/70 p-4 sm:p-6">
           {/* Header */}
-          <div className="mb-5 flex items-center justify-between border-b pb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Car className="text-xl" />
-              </div>
-              <div>
-                <h2 className="text-xl font-extrabold tracking-tight">
-                  {t("liveExamResults") || "Official Exams Results Review Service"}
-                </h2>
-                <span className="text-sm font-medium text-muted-foreground">
-                  {t("liveExamResultsSubtitle") || "Used to review the marks from official exams"}
-                </span>
-              </div>
+          <div className="mb-4 sm:mb-5 flex items-start gap-3 border-b border-border/60 pb-4">
+            <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Car className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <h2 className="text-base sm:text-xl font-bold tracking-tight text-foreground leading-snug">
+                {t("liveExamResults") || "Serivisi yo Gusuzuma Amanota y'Ikizamini Cyemewe"}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-snug">
+                {t("liveExamResultsSubtitle") || "Gusuzuma amanota n'ibyavuye mu kizamini cyemewe cy'uruhushya rw'agateganyo na burundu"}
+              </p>
             </div>
           </div>
 

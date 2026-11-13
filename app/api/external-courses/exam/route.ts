@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getExternalAdminClient, EXTERNAL_EXAM_CATEGORY_ID, isExternalModuleId } from "@/lib/supabase/external";
+import { isAdmin, isPrimaryAdmin } from "@/lib/permissions";
+import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 
 function isExternalExamCategoryId(categoryId?: string | null): boolean {
   if (!categoryId) return false;
@@ -215,7 +217,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user) {
-      user = null;
+      return secureJsonResponse(
+        { error: "Authentication required to access exam questions." },
+        401
+      );
     }
 
     const adminSb = createAdminClient();
@@ -276,6 +281,80 @@ export async function POST(req: NextRequest) {
           };
         }
       } catch {}
+    }
+
+    // ------------------------------------------------------------------------
+    // 0. GET ALL EXTERNAL QUESTIONS FOR ADMIN / MANAGEMENT
+    // ------------------------------------------------------------------------
+    if (action === "get_external_questions") {
+      const email = (user.email || "").toLowerCase();
+      let isAdminUser =
+        email === DEFAULT_ADMIN_EMAIL.toLowerCase() ||
+        isPrimaryAdmin(user as any) ||
+        isAdmin(user as any);
+      if (!isAdminUser) {
+        const { data: profile } = await adminSb
+          .from("user_profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profile?.role && String(profile.role).toLowerCase() === "admin") {
+          isAdminUser = true;
+        }
+      }
+      if (!isAdminUser) {
+        return secureJsonResponse({ error: "Admin authorization required" }, 403);
+      }
+
+      let allExtQuestions: any[] = [];
+      try {
+        if (extSb) {
+          const { data: qData } = await extSb
+            .from("questions")
+            .select("*")
+            .order("question_numbers", { ascending: true, nullsFirst: false })
+            .order("id", { ascending: true });
+
+          if (Array.isArray(qData) && qData.length > 0) {
+            allExtQuestions = qData;
+          }
+        }
+      } catch (extQueryErr) {
+        console.warn("[GetExternalQuestions] External questions query error:", extQueryErr);
+      }
+
+      let formattedPool: any[] = [];
+      if (allExtQuestions.length > 0) {
+        formattedPool = allExtQuestions.map((q: any) => {
+          const choices = parseExternalChoices(q.choice);
+          const ansIdx = typeof q.choice_answer === "number" ? q.choice_answer : Number(q.choice_answer) || 0;
+          return {
+            id: String(q.id),
+            category_id: body.categoryId || EXTERNAL_EXAM_CATEGORY_ID,
+            question: String(q.title || ""),
+            question_image: q.image || null,
+            option_a: choices[0] || "Option A",
+            option_a_image: null,
+            option_b: choices[1] || "Option B",
+            option_b_image: null,
+            option_c: choices[2] || "Option C",
+            option_c_image: null,
+            option_d: choices[3] || "Option D",
+            option_d_image: null,
+            correct_answer: mapExternalChoiceToLetter(ansIdx),
+            explanation: null,
+            created_at: q.created_at || new Date().toISOString(),
+          };
+        });
+      } else {
+        const { data: primaryQ } = await adminSb
+          .from("exam_questions")
+          .select("*")
+          .order("id", { ascending: true });
+        formattedPool = primaryQ || [];
+      }
+
+      return secureJsonResponse({ questions: formattedPool });
     }
 
     // ------------------------------------------------------------------------

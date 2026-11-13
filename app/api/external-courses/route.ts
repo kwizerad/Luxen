@@ -10,12 +10,30 @@ import crypto from "crypto";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-async function checkIsAdminUser(): Promise<boolean> {
+async function getAuthenticatedUser(req?: NextRequest) {
   try {
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    if (user) return user;
+
+    const authHeader = req?.headers.get("authorization");
+    const bearerToken = authHeader?.replace(/^bearer\s+/i, "").trim();
+    if (bearerToken) {
+      const adminSb = createAdminClient();
+      const {
+        data: { user: bearerUser },
+      } = await adminSb.auth.getUser(bearerToken);
+      if (bearerUser) return bearerUser;
+    }
+  } catch {}
+  return null;
+}
+
+async function checkIsAdminUser(): Promise<boolean> {
+  try {
+    const user = await getAuthenticatedUser();
     if (!user) return false;
 
     const email = (user.email || "").toLowerCase();
@@ -39,8 +57,24 @@ async function checkIsAdminUser(): Promise<boolean> {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const authUser = await getAuthenticatedUser(req);
+    if (!authUser) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const isAdminUser = await checkIsAdminUser();
+    if (!isAdminUser) {
+      return NextResponse.json(
+        { error: "Admin authorization required" },
+        { status: 403 }
+      );
+    }
+
     const extSb = await getExternalAdminClient();
     if (!extSb) {
       return NextResponse.json(
@@ -49,7 +83,7 @@ export async function GET() {
       );
     }
 
-    const [chaptersRes, sectionsRes, lessonsRes, questionsRes, setsRes, isAdminUser] = await Promise.all([
+    const [chaptersRes, sectionsRes, lessonsRes, questionsRes, setsRes] = await Promise.all([
       extSb
         .from("chapters")
         .select("*")
@@ -75,7 +109,6 @@ export async function GET() {
         .select("*")
         .order("set_number", { ascending: true })
         .order("id", { ascending: true }),
-      checkIsAdminUser(),
     ]);
 
     if (chaptersRes.error) throw chaptersRes.error;
@@ -421,6 +454,10 @@ export async function POST(req: NextRequest) {
 
     // Action: Translate external course / lesson / quiz items into English, French, or Kinyarwanda
     if (action === "translate") {
+      const authUser = await getAuthenticatedUser(req);
+      if (!authUser) {
+        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      }
       const {
         items = [],
         sourceLang = "Kinyarwanda",

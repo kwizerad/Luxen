@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Navo",
   "short_name": "Navo",
-  "description": "Navo - Your lightweight modern learning platform. Access courses, exams, and learning materials offline.",
+  "description": "Navo - Urubuga rugezweho rwo kwiga amategeko y'umuhanda no gukora ibizamini by'imyitozo mu Rwanda.",
   "start_url": "/",
   "display": "fullscreen",
   "display_override": ["fullscreen", "standalone"],
@@ -10,7 +10,7 @@
   "theme_color": "#22c55e",
   "orientation": "portrait-primary",
   "scope": "/",
-  "lang": "en",
+  "lang": "rw",
   "dir": "ltr",
   "categories": ["education", "productivity"],
   "icons": [

@@ -198,32 +198,35 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
   }, [activeView, t]);
 
   const langCode = language === "French" ? "FR" : language === "Kinyarwanda" ? "RW" : "EN";
-  const langFlag = language === "French" ? "🇫🇷" : language === "Kinyarwanda" ? "🇷🇼" : "🇬🇧";
+  const langFlagSrc =
+    language === "French"
+      ? "/assets/aistudio/Flag_of_France__1974_2020__241dac7d.svg"
+      : language === "Kinyarwanda"
+      ? "/assets/aistudio/Flag_of_Rwanda_4b2b50d1.svg"
+      : "/assets/aistudio/Flag_of_the_United_Kingdom__3-5_.svg_d8e9d47e.webp";
 
   const isExamView = activeView === "exam" || activeView === "exams";
   const isCourseView = activeView === "course" || activeView === "traffic-rules" || activeView === "terminal";
   const isDriverView = activeView === "driver-hub" || activeView === "services/drivers";
 
-  const isExamSessionActive =
-    isExamActive ||
-    (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true");
+  const isExamSessionActive = isExamActive;
 
   if (isExamSessionActive) {
     return null;
   }
 
   return (
-    <header className={`fixed top-0 left-0 right-0 h-9 z-[80] bg-card/90 dark:bg-black/85 backdrop-blur-xl border-b border-border/60 dark:border-white/10 text-foreground dark:text-zinc-200 select-none flex items-center justify-between px-3 text-xs font-sans transition-colors ${
+    <header className={`fixed top-0 left-0 right-0 h-9 z-[80] bg-card/90 dark:bg-black/85 backdrop-blur-xl border-b border-border/60 dark:border-white/10 text-foreground dark:text-zinc-200 select-none flex items-center justify-between px-1.5 sm:px-3 text-xs font-sans transition-colors ${
       isExamSessionActive ? "hidden pointer-events-none opacity-0" : ""
     }`}>
       {/* Left: Navo OS System Menu + App Name + Context-Aware Menus */}
-      <div className="flex items-center gap-1 sm:gap-2">
+      <div className="flex items-center gap-0.5 sm:gap-2 min-w-0">
         {/* Navo System Logo Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer font-bold transition-colors outline-hidden shadow-none"
+              className="flex items-center gap-1.5 px-1.5 sm:px-2 py-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer font-bold transition-colors outline-hidden shadow-none shrink-0"
             >
               <div className="w-4 h-4 rounded bg-primary text-primary-foreground flex items-center justify-center font-black text-[10px] leading-none shadow-none">
                 N
@@ -294,7 +297,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
         </DropdownMenu>
 
         {/* Active Application Name in bold */}
-        <span className="font-bold text-foreground dark:text-white px-2 py-0.5 rounded tracking-tight">
+        <span className="font-bold text-foreground dark:text-white px-1 sm:px-2 py-0.5 rounded tracking-tight truncate max-w-[80px] min-[380px]:max-w-[110px] sm:max-w-none">
           {appDisplayName}
         </span>
 
@@ -532,7 +535,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
       </div>
 
       {/* Right: Realistic OS System Tray (Weather, Connectivity, Battery, Control Center, Clock, User) */}
-      <div className="flex items-center gap-1 sm:gap-2">
+      <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
         {/* Kigali Live Weather Widget */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -576,7 +579,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             <button
               type="button"
               title={isWifiConnected ? "Network: Connected (Online)" : "Network: Disconnected (Offline)"}
-              className="p-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 text-muted-foreground dark:text-zinc-300 hover:text-foreground dark:hover:text-white transition-colors cursor-pointer shadow-none"
+              className="hidden min-[380px]:inline-flex p-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 text-muted-foreground dark:text-zinc-300 hover:text-foreground dark:hover:text-white transition-colors cursor-pointer shadow-none"
             >
               <Wifi className={`w-3.5 h-3.5 ${isWifiConnected ? "text-emerald-500" : "text-rose-500"}`} />
             </button>
@@ -625,7 +628,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
           type="button"
           onClick={onOpenSpotlight}
           title="Spotlight Search (⌘K)"
-          className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 text-muted-foreground dark:text-zinc-300 hover:text-foreground dark:hover:text-white transition-colors cursor-pointer shadow-none"
+          className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 text-muted-foreground dark:text-zinc-300 hover:text-foreground dark:hover:text-white transition-colors cursor-pointer shadow-none"
         >
           <Search className="w-3.5 h-3.5" />
           <span className="font-mono text-[10px] hidden md:inline text-muted-foreground">⌘K</span>
@@ -636,11 +639,15 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 text-foreground dark:text-zinc-200 transition-colors cursor-pointer font-mono text-[11px] shadow-none"
+              className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 text-foreground dark:text-zinc-200 transition-colors cursor-pointer font-mono text-[11px] shadow-none shrink-0"
             >
-              <span>{langFlag}</span>
+              <img
+                src={langFlagSrc}
+                alt={langCode}
+                className="w-4 h-3 rounded-[2px] object-cover shrink-0 border border-border/30"
+              />
               <span className="font-semibold">{langCode}</span>
-              <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              <ChevronDown className="w-3 h-3 text-muted-foreground hidden min-[380px]:inline" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -655,7 +662,11 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
             >
               <div className="flex items-center gap-2">
-                <span>🇷🇼</span>
+                <img
+                  src="/assets/aistudio/Flag_of_Rwanda_4b2b50d1.svg"
+                  alt="RW"
+                  className="w-4 h-3 rounded-[2px] object-cover shrink-0 border border-border/30"
+                />
                 <span>Ikinyarwanda</span>
               </div>
               {language === "Kinyarwanda" && <Check className="w-3.5 h-3.5 text-emerald-500" />}
@@ -665,7 +676,11 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
             >
               <div className="flex items-center gap-2">
-                <span>🇬🇧</span>
+                <img
+                  src="/assets/aistudio/Flag_of_the_United_Kingdom__3-5_.svg_d8e9d47e.webp"
+                  alt="EN"
+                  className="w-4 h-3 rounded-[2px] object-cover shrink-0 border border-border/30"
+                />
                 <span>English</span>
               </div>
               {language === "English" && <Check className="w-3.5 h-3.5 text-emerald-500" />}
@@ -675,7 +690,11 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
             >
               <div className="flex items-center gap-2">
-                <span>🇫🇷</span>
+                <img
+                  src="/assets/aistudio/Flag_of_France__1974_2020__241dac7d.svg"
+                  alt="FR"
+                  className="w-4 h-3 rounded-[2px] object-cover shrink-0 border border-border/30"
+                />
                 <span>Français</span>
               </div>
               {language === "French" && <Check className="w-3.5 h-3.5 text-emerald-500" />}
@@ -813,12 +832,12 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
               type="button"
               suppressHydrationWarning
               title="Kigali, Rwanda Local Time (GMT+2)"
-              className="flex items-center gap-1.5 px-2 py-0.5 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer font-mono text-[11px] text-foreground dark:text-zinc-200 shadow-none transition-colors"
+              className="flex items-center gap-1.5 px-1 sm:px-2 py-0.5 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer font-mono text-[10px] sm:text-[11px] text-foreground dark:text-zinc-200 shadow-none transition-colors whitespace-nowrap shrink-0"
             >
               <span suppressHydrationWarning className="hidden lg:inline text-muted-foreground dark:text-zinc-400">
                 {mounted ? dateStr : ""}
               </span>
-              <span suppressHydrationWarning className="font-semibold text-foreground dark:text-white">
+              <span suppressHydrationWarning className="font-semibold text-foreground dark:text-white whitespace-nowrap tabular-nums">
                 {mounted ? timeStr : "12:00 PM"}
               </span>
             </button>

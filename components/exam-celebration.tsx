@@ -28,7 +28,7 @@ function AnimatedScoreCircle({ percentage, passed }: { percentage: number; passe
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="relative w-28 h-28 sm:w-36 sm:h-36 flex items-center justify-center shrink-0">
+    <div className="relative w-20 h-20 sm:w-28 sm:h-28 flex items-center justify-center shrink-0">
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 120 120">
         <circle
           cx="60"
@@ -131,113 +131,34 @@ export function ExamCelebration({
     }
   }, [passed]);
 
-  if (passed) {
-    return (
-      <div className="relative mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 border-green-500/30 bg-gradient-to-br from-green-500/10 via-emerald-500/5 to-transparent overflow-hidden">
-        <div className="flex items-center gap-4 sm:gap-6 relative z-10">
-          <AnimatedScoreCircle percentage={scorePercentage} passed={passed} />
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <motion.div
-                initial={{ scale: 0, rotate: -30 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
-                className="relative"
-              >
-                <motion.div
-                  animate={{
-                    scale: [1, 1.15, 1],
-                    filter: [
-                      "drop-shadow(0 0 8px rgba(250, 204, 21, 0.5))",
-                      "drop-shadow(0 0 16px rgba(250, 204, 21, 0.8))",
-                      "drop-shadow(0 0 8px rgba(250, 204, 21, 0.5))",
-                    ],
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Trophy className="h-5 w-5 sm:h-7 sm:w-7 text-yellow-500" />
-                </motion.div>
-              </motion.div>
-              <motion.h2
-                className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
-              >
-                {title || t("congratulations")}
-              </motion.h2>
-            </div>
-            <motion.p
-              className="text-xs sm:text-sm text-muted-foreground"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-            >
-              {subtitle || t("passedModuleExam")}
-            </motion.p>
-            {badges && (
-              <motion.div
-                className="mt-2 flex items-center gap-2 flex-wrap"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8 }}
-              >
-                {badges}
-              </motion.div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative mb-4 sm:mb-6 rounded-[14px] sm:rounded-[24px] p-4 sm:p-6 border-2 border-red-500/30 bg-gradient-to-br from-red-500/10 via-rose-500/5 to-transparent overflow-hidden">
-      <div className="flex items-center gap-4 sm:gap-6 relative z-10">
+    <div className="relative py-3 sm:py-4 border-b border-border/50">
+      <div className="flex items-center gap-3.5 sm:gap-5 relative z-10">
         <AnimatedScoreCircle percentage={scorePercentage} passed={passed} />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            {/* Sad emoji */}
-            <motion.div
-              initial={{ y: -100, opacity: 0, rotate: 0 }}
-              animate={{ y: 0, opacity: 1, rotate: [0, -10, 10, -5, 0] }}
-              transition={{
-                y: { type: "spring", stiffness: 200, delay: 0.2 },
-                opacity: { delay: 0.2 },
-                rotate: { delay: 0.8, duration: 0.8 },
-              }}
-              className="text-3xl sm:text-4xl"
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-2">
+            {passed && (
+              <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 shrink-0" />
+            )}
+            <h2
+              className={cn(
+                "text-base sm:text-xl font-semibold tracking-tight",
+                passed
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400"
+              )}
             >
-              😢
-            </motion.div>
-            <motion.h2
-              className="text-lg sm:text-2xl font-bold text-red-600"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              {title || t("examNotPassed")}
-            </motion.h2>
+              {title || (passed ? t("congratulations") : t("examNotPassed"))}
+            </h2>
           </div>
-          <motion.p
-            className="text-xs sm:text-sm text-muted-foreground"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            {subtitle || t("keepTrying")}
-          </motion.p>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            {subtitle || (passed ? t("passedModuleExam") : t("keepTrying"))}
+          </p>
           {badges && (
-            <motion.div
-              className="mt-2 flex items-center gap-2 flex-wrap"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.9 }}
-            >
+            <div className="pt-1 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
               {badges}
-            </motion.div>
+            </div>
           )}
         </div>
       </div>

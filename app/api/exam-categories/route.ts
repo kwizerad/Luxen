@@ -124,6 +124,18 @@ export async function GET(req: NextRequest) {
       console.warn("Could not check external exam publish status:", extErr);
     }
 
+    if (categoriesWithSettings.length === 0) {
+      categoriesWithSettings.push({
+        id: EXTERNAL_EXAM_CATEGORY_ID,
+        name: "Rwanda PVS Exam",
+        description: "Official Traffic Rules & Road Signs Mock Exam from External Question Bank",
+        is_published: true,
+        duration_minutes: 20,
+        question_count: 20,
+        created_at: new Date().toISOString(),
+      });
+    }
+
     return NextResponse.json({ categories: categoriesWithSettings });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch exam categories.";

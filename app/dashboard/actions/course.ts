@@ -388,6 +388,11 @@ async function loadPublishedExternalCourse(language: string): Promise<CourseWith
 export async function loadCourseByLanguage(
   language: string
 ): Promise<LoadCourseResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   let sequentialUnlockEnabled = true;
   try {
     const adminSb = createAdminClient();
@@ -401,14 +406,16 @@ export async function loadCourseByLanguage(
     }
   } catch {}
 
+  if (!user) {
+    return { course: null, sequentialUnlockEnabled };
+  }
+
   // Check if External Course is published — when enabled, serve it as the single course
   // with External Courses mapped to Modules and External Lessons mapped to Lessons
   const extCourse = await loadPublishedExternalCourse(language);
   if (extCourse) {
     return { course: extCourse, sequentialUnlockEnabled };
   }
-
-  const supabase = await createClient();
 
   let { data: courseData, error: courseError } = await supabase
     .from("course_languages")

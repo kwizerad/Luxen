@@ -6,6 +6,8 @@ import { getCurrentUser } from "@/lib/auth-utils";
 import { isAdmin, isPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 import { clearOneTapDismissal } from "@/lib/auth/google";
 import { secureApiPost } from "@/lib/e2e-crypto";
+import { claimPendingGuestExamIfAny } from "@/lib/guest-exam-client";
+import { toast } from "sonner";
 
 interface User {
   id: string;
@@ -216,6 +218,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAdminSessionFlag(true);
       } else if (sessionUser) {
         setAdminSessionFlag(false);
+        void claimPendingGuestExamIfAny().then((res) => {
+          if (res.claimed && res.is_saved) {
+            toast.success("Amateka n'amanota y'ikizamini wakoze yabitswe muri konti yawe.");
+          }
+        });
       }
     });
 
