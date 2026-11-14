@@ -4,6 +4,8 @@ import { saveNationalIdRecord } from "@/lib/live-exam/save-record";
 import { createClient } from "@/lib/supabase/server";
 import type { DLInfoAPIResponse } from "@/lib/live-exam/types";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   let body: { national_id?: string };
   try {
@@ -58,16 +60,48 @@ export async function POST(request: NextRequest) {
       ? document
       : { ...document, photo: "", signature: "" };
 
-    // Save to database
-    await saveNationalIdRecord(nationalId, userId);
-
-    return NextResponse.json<DLInfoAPIResponse>({
-      status: "success",
-      license,
-      document: sanitizedDocument,
-      categoriesAllowed: categoriesAllowed || [],
-      categoryCount: categoriesAllowed?.length || 0,
+    // Save canonical record with belonging citizen info
+    await saveNationalIdRecord(nationalId, userId, {
+      userEmail: user?.email || undefined,
+      citizen: {
+        nationalId,
+        firstName: document?.firstName || license?.firstName || "",
+        lastName: document?.lastName || license?.lastName || "",
+        fullName: [document?.firstName || license?.firstName, document?.lastName || license?.lastName].filter(Boolean).join(" ") || document?.names || "",
+        dateOfBirth: document?.dateOfBirth || license?.dob || "",
+        gender: document?.sex || "",
+        nationality: document?.nationality === "RW" ? "Rwandan" : document?.nationality || "",
+        photoUrl: document?.photo ? `data:image/jpeg;base64,${document.photo}` : "",
+        signatureUrl: document?.signature ? `data:image/jpeg;base64,${document.signature}` : "",
+        civilStatus: document?.civilStatus,
+        spouse: document?.spouse,
+        fatherNames: document?.fatherNames,
+        motherNames: document?.motherNames,
+        placeOfBirth: document?.placeOfBirth || license?.placeOfBirth,
+        placeOfIssue: document?.placeOfIssue || license?.placeOfIssue,
+        province: document?.province,
+        district: document?.district,
+        sector: document?.sector,
+        cell: document?.cell,
+        village: document?.village,
+        licenseNumber: license?.licenseNumber,
+        vehicleClass: license?.vehicleClass,
+        licenseStatus: license?.status,
+        dateOfIssue: license?.dateOfIssue,
+        dateOfExpiry: license?.expiryDate,
+      },
     });
+
+    return NextResponse.json<DLInfoAPIResponse>(
+      {
+        status: "success",
+        license,
+        document: sanitizedDocument,
+        categoriesAllowed: categoriesAllowed || [],
+        categoryCount: categoriesAllowed?.length || 0,
+      },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to fetch DL info.";

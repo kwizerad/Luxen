@@ -382,18 +382,28 @@ export interface NationalIdRecord {
   id: number;
   national_id: string;
   user_id?: string | null;
+  verified_user_id?: string | null;
+  verified?: boolean;
+  is_verified?: boolean;
+  verified_accounts?: any[] | null;
+  checked_accounts?: any[] | null;
+  citizen_info?: Record<string, any> | null;
   created_at: string;
   updated_at: string;
 }
 
 export async function getUserNationalIdRecords(userId: string): Promise<NationalIdRecord[]> {
-  await requireAdmin();
+  try {
+    await requirePrimaryAdmin();
+  } catch {
+    return [];
+  }
   const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("national_id_records")
-    .select("id, national_id, user_id, created_at, updated_at")
-    .eq("user_id", userId)
+    .select("*")
+    .or(`user_id.eq.${userId},verified_user_id.eq.${userId}`)
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -405,17 +415,38 @@ export async function getUserNationalIdRecords(userId: string): Promise<National
   return data || [];
 }
 
-export async function getAllNationalIdRecords(limit = 300): Promise<{
+export async function getAllNationalIdRecords(limit = 500): Promise<{
   id?: number | string;
   national_id: string;
   created_at: string;
   updated_at?: string;
   first_checked_at?: string;
   last_checked_at?: string;
+  last_verified_at?: string;
   check_count?: number;
+  verification_count?: number;
   user_id: string | null;
   verified_user_id?: string | null;
+  verified?: boolean;
+  is_verified?: boolean;
+  user_name?: string | null;
+  user_email?: string | null;
+  full_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  date_of_birth?: string | null;
+  gender?: string | null;
+  nationality?: string | null;
+  photo_url?: string | null;
+  province?: string | null;
+  district?: string | null;
+  sector?: string | null;
+  license_number?: string | null;
+  vehicle_class?: string | null;
+  license_status?: string | null;
+  citizen_info?: Record<string, any> | null;
   checked_accounts?: any[] | null;
+  verified_accounts?: any[] | null;
   user_profiles: {
     id?: string;
     full_name: string | null;
@@ -425,6 +456,7 @@ export async function getAllNationalIdRecords(limit = 300): Promise<{
     avatar_url: string | null;
     username: string | null;
     national_id?: string | null;
+    phone_number?: string | null;
   } | null;
 }[]> {
   try {
@@ -436,7 +468,8 @@ export async function getAllNationalIdRecords(limit = 300): Promise<{
 
   const { data, error } = await supabase
     .from("national_id_records")
-    .select("id, national_id, created_at, updated_at, first_checked_at, last_checked_at, check_count, user_id, verified_user_id, checked_accounts")
+    .select("*")
+    .order("last_verified_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(limit);
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin, requirePrimaryAdmin } from "@/app/Admin/actions/_shared";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +87,20 @@ export interface UserFullReportResponse {
 
 export async function GET(request: NextRequest) {
   try {
+    try {
+      await requireAdmin();
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    let isPrimary = false;
+    try {
+      await requirePrimaryAdmin();
+      isPrimary = true;
+    } catch {
+      isPrimary = false;
+    }
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId") || searchParams.get("user_id");
     const nationalId = searchParams.get("nationalId") || searchParams.get("national_id");
@@ -145,8 +160,8 @@ export async function GET(request: NextRequest) {
       chatMessagesRes,
       classmatesRes,
     ] = await Promise.allSettled([
-      // National ID records
-      resolvedUserId || resolvedNationalId
+      // National ID records (Primary Admin only)
+      isPrimary && (resolvedUserId || resolvedNationalId)
         ? supabase
             .from("national_id_records")
             .select("*")
@@ -514,8 +529,8 @@ export async function GET(request: NextRequest) {
         gender: userProfile?.gender || null,
         birthdate: userProfile?.birthdate || null,
         nationality: userProfile?.nationality || "Rwandan",
-        phone: userProfile?.phone || null,
-        national_id: resolvedNationalId,
+        phone: userProfile?.phone_number || userProfile?.phone || null,
+        national_id: isPrimary ? resolvedNationalId : null,
         avatar_url: userProfile?.avatar_url || null,
         role: userProfile?.role || "Student",
         banned: userProfile?.banned || false,

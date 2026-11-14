@@ -91,6 +91,11 @@ export interface UserProfile {
   banned?: boolean;
   is_public?: boolean;
   national_id?: string;
+  id_verified?: boolean;
+  phone_number?: string;
+  phone_verified?: boolean;
+  permissions?: Record<string, any>;
+  learning_language?: string;
   provision_verified?: boolean;
   provision_category?: string;
   provision_verified_at?: string;

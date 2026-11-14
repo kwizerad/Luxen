@@ -19,15 +19,20 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const userIdParam = searchParams.get("user_id");
+    const verifiedOnly = searchParams.get("verified") === "true";
 
     let query = supabase
       .from("national_id_records")
-      .select("id, national_id, created_at, updated_at, first_checked_at, last_checked_at, check_count, user_id, verified_user_id, checked_accounts")
+      .select("*")
+      .order("last_verified_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
-      .limit(300);
+      .limit(500);
 
     if (userIdParam) {
       query = query.or(`user_id.eq.${userIdParam},verified_user_id.eq.${userIdParam}`);
+    }
+    if (verifiedOnly) {
+      query = query.or("is_verified.eq.true,verified.eq.true,verified_user_id.not.is.null");
     }
 
     const { data: records, error } = await query;
@@ -37,7 +42,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ records: [] });
     }
 
-    return NextResponse.json({ records: records || [] });
+    return NextResponse.json(
+      { records: records || [] },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Internal server error.";

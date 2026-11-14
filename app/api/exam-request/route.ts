@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchDLInfoByNationalId, fetchTheoryExamDLInfo } from "@/lib/live-exam/irembo";
+import {
+  fetchDLInfoByNationalId,
+  fetchTheoryExamDLInfo,
+  fetchCitizenFullDetails,
+} from "@/lib/live-exam/irembo";
+import { saveNationalIdRecord } from "@/lib/live-exam/save-record";
 import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+};
 
 export async function POST(request: NextRequest) {
   let body: { national_id?: string; exam_type?: "theory" | "practical" };
@@ -9,24 +20,24 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json(
       { status: "error", message: "Invalid request body." },
-      { status: 400 }
+      { status: 400, headers: NO_STORE_HEADERS }
     );
   }
 
-  const nationalId = body.national_id;
+  const nationalId = (body.national_id || "").replace(/\D/g, "").slice(0, 16);
   const examType = body.exam_type;
 
   if (!nationalId || nationalId.length !== 16) {
     return NextResponse.json(
       { status: "error", message: "Invalid National ID. Please enter a valid 16-digit ID." },
-      { status: 400 }
+      { status: 400, headers: NO_STORE_HEADERS }
     );
   }
 
   if (!examType || !["theory", "practical"].includes(examType)) {
     return NextResponse.json(
       { status: "error", message: "Invalid exam type. Must be 'theory' or 'practical'." },
-      { status: 400 }
+      { status: 400, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -37,13 +48,16 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { status: "error", message: "Unauthorized" },
-        { status: 401 }
+        { status: 401, headers: NO_STORE_HEADERS }
       );
     }
 
     let hasExam = false;
     let iremboResponse: Record<string, unknown> = {};
     let allowedCategories: { category: string; description: string }[] = [];
+
+    // Fetch live citizen info concurrently so registration always reflects live API state
+    const citizenPromise = fetchCitizenFullDetails(nationalId).catch(() => null);
 
     if (examType === "theory") {
       const response = await fetchTheoryExamDLInfo(nationalId);
@@ -54,7 +68,6 @@ export async function POST(request: NextRequest) {
         hasExam = categories.length > 0;
       }
 
-      // Also check if the user has already passed a theory exam
       if (!hasExam) {
         const { count: passedTheoryCount } = await supabase
           .from("exam_attempts")
@@ -68,8 +81,6 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Also check if the user already has a practical exam record via DL info.
-      // Having a practical exam means they already passed theory and have provision.
       if (!hasExam) {
         try {
           const dlResponse = await fetchDLInfoByNationalId(nationalId);
@@ -102,19 +113,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const citizenProfile = await citizenPromise;
+    await saveNationalIdRecord(nationalId, user.id, {
+      isVerified: Boolean(citizenProfile && (citizenProfile.firstName || citizenProfile.lastName || citizenProfile.fullName)),
+      citizen: citizenProfile,
+      userEmail: user.email,
+      userName: user.user_metadata?.full_name || user.user_metadata?.username,
+    }).catch(() => {});
+
     if (hasExam) {
       const message = examType === "theory"
         ? "You have already successfully completed the theory exam. Your provisional driving license (Category P) has been granted. You can now proceed to request a practical exam."
         : "You already have a practical exam record. Please select a category below to continue.";
 
-      return NextResponse.json({
-        status: "success",
-        has_exam: true,
-        message,
-        ...(examType === "practical" && allowedCategories.length > 0
-          ? { allowed_categories: allowedCategories }
-          : {}),
-      });
+      return NextResponse.json(
+        {
+          status: "success",
+          has_exam: true,
+          message,
+          ...(examType === "practical" && allowedCategories.length > 0
+            ? { allowed_categories: allowedCategories }
+            : {}),
+        },
+        { headers: NO_STORE_HEADERS }
+      );
     }
 
     const { data: feeConfig } = await supabase
@@ -139,18 +161,21 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    return NextResponse.json({
-      status: "success",
-      has_exam: false,
-      message: `You do not have a ${examType} exam record. You can request one.`,
-      amount,
-      payment_id: payment?.id,
-    });
+    return NextResponse.json(
+      {
+        status: "success",
+        has_exam: false,
+        message: `You do not have a ${examType} exam record. You can request one.`,
+        amount,
+        payment_id: payment?.id,
+      },
+      { headers: NO_STORE_HEADERS }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to process exam request.";
     return NextResponse.json(
       { status: "error", message },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }

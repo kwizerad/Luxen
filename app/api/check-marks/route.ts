@@ -10,6 +10,8 @@ import { saveNationalIdRecord } from "@/lib/live-exam/save-record";
 import { createClient } from "@/lib/supabase/server";
 import type { CheckMarksResponse } from "@/lib/live-exam/types";
 
+export const dynamic = "force-dynamic";
+
 function normalizeText(text?: string | null): string {
   if (!text) return "";
   return text
@@ -224,13 +226,38 @@ export async function POST(request: NextRequest) {
       if (doc) {
         if (doc.firstName) citizenProfile.firstName = doc.firstName;
         if (doc.lastName) citizenProfile.lastName = doc.lastName;
+        if (doc.names && !citizenProfile.firstName && !citizenProfile.lastName) {
+          const parts = doc.names.trim().split(/\s+/);
+          citizenProfile.firstName = parts[0] || "";
+          citizenProfile.lastName = parts.slice(1).join(" ") || "";
+        }
         if (doc.dateOfBirth) citizenProfile.dateOfBirth = doc.dateOfBirth;
+        if (doc.sex) citizenProfile.gender = doc.sex === "male" ? "Male" : doc.sex === "female" ? "Female" : doc.sex;
+        if (doc.civilStatus) citizenProfile.civilStatus = doc.civilStatus;
+        if (doc.spouse) citizenProfile.spouse = doc.spouse;
+        if (doc.nationality) citizenProfile.nationality = doc.nationality === "RW" ? "Rwandan" : doc.nationality;
+        if (doc.fatherNames) citizenProfile.fatherNames = doc.fatherNames;
+        if (doc.motherNames) citizenProfile.motherNames = doc.motherNames;
+        if (doc.placeOfBirth) citizenProfile.placeOfBirth = doc.placeOfBirth;
+        if (doc.placeOfIssue) citizenProfile.placeOfIssue = doc.placeOfIssue;
+        if (doc.province) citizenProfile.province = doc.province;
+        if (doc.district) citizenProfile.district = doc.district;
+        if (doc.sector) citizenProfile.sector = doc.sector;
+        if (doc.cell) citizenProfile.cell = doc.cell;
+        if (doc.village) citizenProfile.village = doc.village;
+        if (doc.photo) citizenProfile.photoUrl = `data:image/jpeg;base64,${doc.photo}`;
+        if (doc.signature) citizenProfile.signatureUrl = `data:image/jpeg;base64,${doc.signature}`;
         citizenProfile.hasOfficialRecord = true;
       }
       if (lic) {
         if (!citizenProfile.firstName && lic.firstName) citizenProfile.firstName = lic.firstName;
         if (!citizenProfile.lastName && lic.lastName) citizenProfile.lastName = lic.lastName;
         if (!citizenProfile.dateOfBirth && lic.dob) citizenProfile.dateOfBirth = lic.dob;
+        if (lic.licenseNumber) citizenProfile.licenseNumber = lic.licenseNumber;
+        if (lic.vehicleClass) citizenProfile.vehicleClass = lic.vehicleClass;
+        if (lic.status) citizenProfile.licenseStatus = lic.status;
+        if (lic.dateOfIssue) citizenProfile.dateOfIssue = lic.dateOfIssue;
+        if (lic.expiryDate) citizenProfile.dateOfExpiry = lic.expiryDate;
         citizenProfile.hasOfficialRecord = true;
       }
     }
@@ -240,6 +267,23 @@ export async function POST(request: NextRequest) {
       if (!citizenProfile.firstName && doc.firstName) citizenProfile.firstName = doc.firstName;
       if (!citizenProfile.lastName && doc.lastName) citizenProfile.lastName = doc.lastName;
       if (!citizenProfile.dateOfBirth && doc.dateOfBirth) citizenProfile.dateOfBirth = doc.dateOfBirth;
+      if (doc.sex && (!citizenProfile.gender || citizenProfile.gender === "Other")) {
+        citizenProfile.gender = doc.sex === "male" ? "Male" : doc.sex === "female" ? "Female" : doc.sex;
+      }
+      if (!citizenProfile.civilStatus && doc.civilStatus) citizenProfile.civilStatus = doc.civilStatus;
+      if (!citizenProfile.spouse && doc.spouse) citizenProfile.spouse = doc.spouse;
+      if (!citizenProfile.nationality && doc.nationality) citizenProfile.nationality = doc.nationality === "RW" ? "Rwandan" : doc.nationality;
+      if (!citizenProfile.fatherNames && doc.fatherNames) citizenProfile.fatherNames = doc.fatherNames;
+      if (!citizenProfile.motherNames && doc.motherNames) citizenProfile.motherNames = doc.motherNames;
+      if (!citizenProfile.placeOfBirth && doc.placeOfBirth) citizenProfile.placeOfBirth = doc.placeOfBirth;
+      if (!citizenProfile.placeOfIssue && doc.placeOfIssue) citizenProfile.placeOfIssue = doc.placeOfIssue;
+      if (!citizenProfile.province && doc.province) citizenProfile.province = doc.province;
+      if (!citizenProfile.district && doc.district) citizenProfile.district = doc.district;
+      if (!citizenProfile.sector && doc.sector) citizenProfile.sector = doc.sector;
+      if (!citizenProfile.cell && doc.cell) citizenProfile.cell = doc.cell;
+      if (!citizenProfile.village && doc.village) citizenProfile.village = doc.village;
+      if (!citizenProfile.photoUrl && doc.photo) citizenProfile.photoUrl = `data:image/jpeg;base64,${doc.photo}`;
+      if (!citizenProfile.signatureUrl && doc.signature) citizenProfile.signatureUrl = `data:image/jpeg;base64,${doc.signature}`;
       citizenProfile.hasOfficialRecord = true;
     }
 
@@ -361,17 +405,26 @@ export async function POST(request: NextRequest) {
       results[detail.registrationCode] = detail;
     }
 
-    // Save to database
-    await saveNationalIdRecord(nationalId, userId);
-
-    return NextResponse.json<CheckMarksResponse>({
-      status: "success",
-      candidateName,
-      nationalId: resultNationalId,
-      practical_codes: practicalCodes,
-      theory_codes: theoryCodes,
-      results,
+    // Save canonical verified/checked National ID record with belonging citizen info
+    const isVerifiedCheck = verificationType === "name" || verificationType === "dob";
+    await saveNationalIdRecord(nationalId, userId, {
+      isVerified: isVerifiedCheck,
+      userName: candidateName !== "N/A" ? candidateName : citizenProfile.fullName || undefined,
+      userEmail: user?.email || undefined,
+      citizen: citizenProfile,
     });
+
+    return NextResponse.json<CheckMarksResponse>(
+      {
+        status: "success",
+        candidateName,
+        nationalId: resultNationalId,
+        practical_codes: practicalCodes,
+        theory_codes: theoryCodes,
+        results,
+      },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (error) {
     if (error instanceof Error && error.name === "TimeoutError") {
       return NextResponse.json<CheckMarksResponse>({

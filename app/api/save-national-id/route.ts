@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     const { error } = await supabase
       .from("user_profiles")
-      .update({ national_id: nationalId })
+      .update({ national_id: nationalId, id_verified: true })
       .eq("id", user.id);
 
     if (error) {
@@ -82,9 +82,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save and link in national_id_records as verified without duplication
+    // Fetch latest citizen info from API & save canonically as verified without duplication
+    const { fetchCitizenFullDetails } = await import("@/lib/live-exam/irembo");
     const { saveNationalIdRecord } = await import("@/lib/live-exam/save-record");
-    await saveNationalIdRecord(nationalId, user.id, { isVerified: true });
+    const citizen = await fetchCitizenFullDetails(nationalId).catch(() => null);
+    await saveNationalIdRecord(nationalId, user.id, {
+      isVerified: true,
+      userEmail: user.email || undefined,
+      citizen,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -45,6 +45,8 @@ import {
   Layers,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
+import { useAuth } from "@/lib/auth-context";
+import { isPrimaryAdmin } from "@/lib/permissions";
 import { toast } from "sonner";
 import type { UserWithStatus } from "./types";
 import { UserInfoDetailDialog } from "./user-info-detail-dialog";
@@ -56,9 +58,14 @@ export interface CheckedAccountItem {
   full_name?: string | null;
   avatar_url?: string | null;
   username?: string | null;
+  phone_number?: string | null;
   checked_at: string;
+  verified_at?: string | null;
+  last_verified_at?: string | null;
+  verification_count?: number;
   ip_address?: string | null;
   is_verified?: boolean;
+  is_admin_check?: boolean;
 }
 
 export interface GroupedIdRecord {
@@ -67,9 +74,27 @@ export interface GroupedIdRecord {
   updated_at?: string;
   first_checked_at?: string;
   last_checked_at?: string;
+  last_verified_at?: string;
   check_count: number;
+  verification_count: number;
   is_verified: boolean;
   primary_user?: UserWithStatus | null;
+  citizen_summary?: {
+    full_name?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    date_of_birth?: string | null;
+    gender?: string | null;
+    nationality?: string | null;
+    photo_url?: string | null;
+    province?: string | null;
+    district?: string | null;
+    sector?: string | null;
+    license_number?: string | null;
+    vehicle_class?: string | null;
+    license_status?: string | null;
+  };
+  verified_accounts: CheckedAccountItem[];
   checked_accounts: CheckedAccountItem[];
 }
 
@@ -83,6 +108,8 @@ interface UsersWithIdTabProps {
 
 export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
   const { t } = useLanguage();
+  const { user: currentAuthUser } = useAuth();
+  const allowedPrimaryAdmin = isPrimaryAdmin(currentAuthUser as any);
   const [sortBy, setSortBy] = useState<SortKey>("last_checked_at");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [selectedUserForDetail, setSelectedUserForDetail] = useState<UserWithStatus | null>(null);
@@ -140,10 +167,11 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
       if (cleanNid) userByNidMap.set(cleanNid, u);
     }
 
-    // 1. Users from props
+    // 1. Verified Users from props (only include verified users or build verified map)
     for (const u of users) {
       const cleanId = (u.national_id || "").trim();
       if (!cleanId || cleanId.length !== 16) continue;
+      const isUserVerified = Boolean(u.id_verified || u.provision_verified);
 
       const fullName =
         u.full_name ||
@@ -158,32 +186,49 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
         full_name: fullName,
         avatar_url: u.avatar_url || null,
         username: u.username || null,
+        phone_number: u.phone_number || null,
         checked_at: u.created_at || new Date().toISOString(),
-        is_verified: true,
+        verified_at: isUserVerified ? (u.provision_verified_at || u.updated_at || u.created_at || new Date().toISOString()) : null,
+        is_verified: isUserVerified,
       };
 
       map.set(cleanId, {
         national_id: cleanId,
         created_at: u.created_at || new Date().toISOString(),
-        updated_at: u.created_at || new Date().toISOString(),
+        updated_at: u.updated_at || u.created_at || new Date().toISOString(),
         first_checked_at: u.created_at || new Date().toISOString(),
-        last_checked_at: u.created_at || new Date().toISOString(),
+        last_checked_at: u.updated_at || u.created_at || new Date().toISOString(),
         check_count: 1,
-        is_verified: true,
+        verification_count: isUserVerified ? 1 : 0,
+        is_verified: isUserVerified,
         primary_user: u,
+        citizen_summary: {
+          full_name: fullName,
+          first_name: u.first_name || null,
+          last_name: u.last_name || null,
+          date_of_birth: u.birthdate || null,
+          gender: u.gender || null,
+          nationality: u.nationality || null,
+          photo_url: u.avatar_url || null,
+        },
+        verified_accounts: isUserVerified ? [userAccountItem] : [],
         checked_accounts: [userAccountItem],
       });
     }
 
-    // 2. Saved database records
+    // 2. Saved canonical database records from national_id_records (never duplicate IDs)
     for (const r of savedRecords) {
       const cleanId = (r.national_id || "").trim();
       if (!cleanId || cleanId.length !== 16) continue;
 
       const profile = r.user_profiles;
+      const citizenInfo = (r.citizen_info && typeof r.citizen_info === "object" ? r.citizen_info : {}) as Record<string, any>;
       const profileName =
+        r.full_name ||
+        citizenInfo.full_name ||
+        r.user_name ||
         profile?.full_name ||
-        [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+        [r.first_name || profile?.first_name, r.last_name || profile?.last_name].filter(Boolean).join(" ") ||
         profile?.username ||
         profile?.email ||
         null;
@@ -191,48 +236,93 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
       const rawCheckedList: CheckedAccountItem[] = Array.isArray(r.checked_accounts)
         ? r.checked_accounts
         : [];
+      const rawVerifiedList: CheckedAccountItem[] = Array.isArray(r.verified_accounts)
+        ? r.verified_accounts
+        : rawCheckedList.filter((a) => Boolean(a?.is_verified));
 
-      // O(1) indexed lookup instead of O(N) array scan
       const foundUser =
         userByNidMap.get(cleanId) ||
-        (r.user_id ? userByIdMap.get(r.user_id) : undefined) ||
         (r.verified_user_id ? userByIdMap.get(r.verified_user_id) : undefined) ||
+        (r.user_id ? userByIdMap.get(r.user_id) : undefined) ||
         null;
+
+      const recordIsVerified = Boolean(
+        r.verified ||
+        r.is_verified ||
+        r.verified_user_id ||
+        rawVerifiedList.length > 0 ||
+        foundUser?.id_verified ||
+        foundUser?.provision_verified
+      );
+
+      const citizenSummary = {
+        full_name: r.full_name || citizenInfo.full_name || r.user_name || foundUser?.full_name || null,
+        first_name: r.first_name || citizenInfo.first_name || foundUser?.first_name || null,
+        last_name: r.last_name || citizenInfo.last_name || foundUser?.last_name || null,
+        date_of_birth: r.date_of_birth || citizenInfo.date_of_birth || foundUser?.birthdate || null,
+        gender: r.gender || citizenInfo.gender || foundUser?.gender || null,
+        nationality: r.nationality || citizenInfo.nationality || foundUser?.nationality || null,
+        photo_url: r.photo_url || citizenInfo.photo_url || foundUser?.avatar_url || null,
+        province: r.province || citizenInfo.province || null,
+        district: r.district || citizenInfo.district || null,
+        sector: r.sector || citizenInfo.sector || null,
+        license_number: r.license_number || citizenInfo.license_number || null,
+        vehicle_class: r.vehicle_class || citizenInfo.vehicle_class || null,
+        license_status: r.license_status || citizenInfo.license_status || null,
+      };
 
       if (!map.has(cleanId)) {
         const matchingUser: UserWithStatus | null = foundUser
           ? { ...foundUser, national_id: cleanId }
-          : profile
+          : (profile || citizenSummary.full_name)
           ? ({
-              id: r.user_id || `user-${cleanId}`,
+              id: r.verified_user_id || r.user_id || `national-id-${cleanId}`,
               national_id: cleanId,
               full_name: profileName || "—",
-              first_name: profile?.first_name || undefined,
-              last_name: profile?.last_name || undefined,
-              email: profile?.email || undefined,
-              avatar_url: profile?.avatar_url || undefined,
+              first_name: r.first_name || profile?.first_name || undefined,
+              last_name: r.last_name || profile?.last_name || undefined,
+              email: r.user_email || profile?.email || undefined,
+              avatar_url: citizenSummary.photo_url || profile?.avatar_url || undefined,
               username: profile?.username || undefined,
+              birthdate: citizenSummary.date_of_birth || undefined,
+              gender: citizenSummary.gender || undefined,
+              nationality: citizenSummary.nationality || undefined,
+              id_verified: recordIsVerified,
               created_at: r.created_at,
               is_online: false,
             } as UserWithStatus)
           : null;
 
-        const initialAccounts: CheckedAccountItem[] = [...rawCheckedList];
-        if (matchingUser && !initialAccounts.some((a) => a.user_id === matchingUser.id)) {
-          initialAccounts.unshift({
-            user_id: matchingUser.id,
-            email: matchingUser.email || null,
-            full_name:
-              matchingUser.full_name ||
-              [matchingUser.first_name, matchingUser.last_name].filter(Boolean).join(" ") ||
-              matchingUser.username ||
-              matchingUser.email ||
-              null,
-            avatar_url: matchingUser.avatar_url || null,
-            username: matchingUser.username || null,
-            checked_at: r.last_checked_at || r.created_at || new Date().toISOString(),
-            is_verified: true,
-          });
+        const initialChecked: CheckedAccountItem[] = [...rawCheckedList];
+        const initialVerified: CheckedAccountItem[] = [...rawVerifiedList];
+
+        if (matchingUser && !String(matchingUser.id).startsWith("national-id-")) {
+          if (!initialChecked.some((a) => a.user_id === matchingUser.id)) {
+            initialChecked.unshift({
+              user_id: matchingUser.id,
+              email: matchingUser.email || null,
+              full_name: profileName,
+              avatar_url: matchingUser.avatar_url || null,
+              username: matchingUser.username || null,
+              phone_number: matchingUser.phone_number || null,
+              checked_at: r.last_checked_at || r.created_at || new Date().toISOString(),
+              verified_at: recordIsVerified ? (r.last_verified_at || r.created_at || new Date().toISOString()) : null,
+              is_verified: recordIsVerified,
+            });
+          }
+          if (recordIsVerified && !initialVerified.some((a) => a.user_id === matchingUser.id)) {
+            initialVerified.unshift({
+              user_id: matchingUser.id,
+              email: matchingUser.email || null,
+              full_name: profileName,
+              avatar_url: matchingUser.avatar_url || null,
+              username: matchingUser.username || null,
+              phone_number: matchingUser.phone_number || null,
+              checked_at: r.last_checked_at || r.created_at || new Date().toISOString(),
+              verified_at: r.last_verified_at || r.created_at || new Date().toISOString(),
+              is_verified: true,
+            });
+          }
         }
 
         map.set(cleanId, {
@@ -241,18 +331,28 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
           updated_at: r.updated_at || r.created_at || new Date().toISOString(),
           first_checked_at: r.first_checked_at || r.created_at || new Date().toISOString(),
           last_checked_at: r.last_checked_at || r.updated_at || r.created_at || new Date().toISOString(),
-          check_count: Math.max(r.check_count || 1, initialAccounts.length || 1),
-          is_verified: Boolean(r.verified_user_id || (matchingUser && matchingUser.national_id === cleanId)),
+          last_verified_at: r.last_verified_at || undefined,
+          check_count: Math.max(r.check_count || 1, initialChecked.length || 1),
+          verification_count: Math.max(r.verification_count || 0, initialVerified.length),
+          is_verified: recordIsVerified,
           primary_user: matchingUser,
-          checked_accounts: initialAccounts,
+          citizen_summary: citizenSummary,
+          verified_accounts: initialVerified,
+          checked_accounts: initialChecked,
         });
       } else {
         const existing = map.get(cleanId)!;
-        const mergedAccounts = [...existing.checked_accounts];
+        const mergedChecked = [...existing.checked_accounts];
+        const mergedVerified = [...existing.verified_accounts];
 
         for (const acct of rawCheckedList) {
-          if (!mergedAccounts.some((a) => a.user_id === acct.user_id)) {
-            mergedAccounts.push(acct);
+          if (!mergedChecked.some((a) => a.user_id === acct.user_id)) {
+            mergedChecked.push(acct);
+          }
+        }
+        for (const vAcct of rawVerifiedList) {
+          if (!mergedVerified.some((a) => a.user_id === vAcct.user_id)) {
+            mergedVerified.push({ ...vAcct, is_verified: true });
           }
         }
 
@@ -269,10 +369,28 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
         map.set(cleanId, {
           ...existing,
           primary_user: primaryUser,
+          citizen_summary: {
+            full_name: citizenSummary.full_name || existing.citizen_summary?.full_name || null,
+            first_name: citizenSummary.first_name || existing.citizen_summary?.first_name || null,
+            last_name: citizenSummary.last_name || existing.citizen_summary?.last_name || null,
+            date_of_birth: citizenSummary.date_of_birth || existing.citizen_summary?.date_of_birth || null,
+            gender: citizenSummary.gender || existing.citizen_summary?.gender || null,
+            nationality: citizenSummary.nationality || existing.citizen_summary?.nationality || null,
+            photo_url: citizenSummary.photo_url || existing.citizen_summary?.photo_url || null,
+            province: citizenSummary.province || existing.citizen_summary?.province || null,
+            district: citizenSummary.district || existing.citizen_summary?.district || null,
+            sector: citizenSummary.sector || existing.citizen_summary?.sector || null,
+            license_number: citizenSummary.license_number || existing.citizen_summary?.license_number || null,
+            vehicle_class: citizenSummary.vehicle_class || existing.citizen_summary?.vehicle_class || null,
+            license_status: citizenSummary.license_status || existing.citizen_summary?.license_status || null,
+          },
           last_checked_at: effectiveLastChecked,
-          check_count: Math.max(existing.check_count, r.check_count || 1, mergedAccounts.length),
-          is_verified: existing.is_verified || Boolean(r.verified_user_id),
-          checked_accounts: mergedAccounts,
+          last_verified_at: r.last_verified_at || existing.last_verified_at,
+          check_count: Math.max(existing.check_count, r.check_count || 1, mergedChecked.length),
+          verification_count: Math.max(existing.verification_count, r.verification_count || 0, mergedVerified.length),
+          is_verified: existing.is_verified || recordIsVerified,
+          verified_accounts: mergedVerified,
+          checked_accounts: mergedChecked,
         });
       }
     }
@@ -416,8 +534,12 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
   // Summary Metrics
   const totalUnique = groupedIdRecords.length;
   const totalVerified = groupedIdRecords.filter((r) => r.is_verified).length;
-  const totalMulti = groupedIdRecords.filter((r) => r.checked_accounts.length > 1 || r.check_count > 1).length;
+  const totalMulti = groupedIdRecords.filter(
+    (r) => r.verified_accounts.length > 1 || r.checked_accounts.length > 1 || r.check_count > 1
+  ).length;
   const totalLinked = groupedIdRecords.filter((r) => r.primary_user !== null).length;
+
+  if (!allowedPrimaryAdmin) return null;
 
   return (
     <div className="space-y-4">
@@ -601,11 +723,18 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
                 sortedRecords.map((record) => {
                   const primaryUser = record.primary_user;
                   const checkedCount = record.checked_accounts.length;
+                  const verifiedAccountsCount = record.verified_accounts.length;
                   const displayName =
+                    record.citizen_summary?.full_name ||
                     primaryUser?.full_name ||
                     [primaryUser?.first_name, primaryUser?.last_name].filter(Boolean).join(" ") ||
                     primaryUser?.username ||
                     primaryUser?.email;
+                  const displayPhoto =
+                    record.citizen_summary?.photo_url || primaryUser?.avatar_url || undefined;
+                  const locationText = [record.citizen_summary?.district, record.citizen_summary?.province]
+                    .filter(Boolean)
+                    .join(", ");
 
                   const isCurrentlySyncing = syncingId === record.national_id;
 
@@ -613,7 +742,7 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
                     <TableRow key={record.national_id} className="transition-colors hover:bg-muted/40">
                       {/* National ID with Copy & Status */}
                       <TableCell>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <button
                             type="button"
                             onClick={() => copyToClipboard(record.national_id)}
@@ -632,7 +761,7 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
                             <Badge
                               variant="outline"
                               className="text-[10px] px-1.5 py-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-medium"
-                              title={t("verifiedNationalId") || "Verified & linked"}
+                              title={t("verifiedNationalId") || "Verified & saved"}
                             >
                               <ShieldCheck className="h-3 w-3 mr-0.5 inline" />
                               {t("verified") || "Verified"}
@@ -641,12 +770,12 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
                         </div>
                       </TableCell>
 
-                      {/* Primary / Linked User Account */}
+                      {/* Belonging Citizen Info & Primary Linked Account */}
                       <TableCell>
-                        {primaryUser && displayName ? (
+                        {displayName ? (
                           <div className="flex items-center gap-2.5">
                             <Avatar className="h-8 w-8 shrink-0">
-                              <AvatarImage src={primaryUser.avatar_url} alt={displayName} />
+                              <AvatarImage src={displayPhoto} alt={displayName} />
                               <AvatarFallback className="text-xs font-semibold">
                                 {displayName.slice(0, 2).toUpperCase()}
                               </AvatarFallback>
@@ -655,11 +784,18 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
                               <div className="font-semibold text-xs truncate">
                                 {displayName}
                               </div>
-                              {primaryUser.email && (
-                                <div className="text-[11px] text-muted-foreground truncate">
-                                  {primaryUser.email}
-                                </div>
-                              )}
+                              <div className="text-[11px] text-muted-foreground truncate">
+                                {[
+                                  primaryUser?.email,
+                                  record.citizen_summary?.date_of_birth,
+                                  locationText,
+                                  record.citizen_summary?.vehicle_class
+                                    ? `Cat: ${record.citizen_summary.vehicle_class}`
+                                    : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ") || "Saved citizen record"}
+                              </div>
                             </div>
                           </div>
                         ) : checkedCount > 0 ? (
@@ -674,7 +810,7 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
                         )}
                       </TableCell>
 
-                      {/* Accounts Checked Badge / Modal trigger */}
+                      {/* Verified & Checked Accounts Badge / Modal trigger */}
                       <TableCell className="text-center">
                         <Button
                           variant="outline"
@@ -683,14 +819,22 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
                           className="h-7 text-xs px-2.5 font-medium hover:border-primary/50 rounded-lg"
                         >
                           <Users className="h-3.5 w-3.5 mr-1.5 text-primary" />
-                          <span className="font-bold">{checkedCount}</span>
+                          <span className="font-bold">
+                            {verifiedAccountsCount > 0 ? verifiedAccountsCount : checkedCount}
+                          </span>
                           <span className="ml-1 text-muted-foreground">
-                            {checkedCount === 1 ? t("account") || "Account" : t("accounts") || "Accounts"}
+                            {verifiedAccountsCount > 0
+                              ? verifiedAccountsCount === 1
+                                ? "Verified"
+                                : "Verified"
+                              : checkedCount === 1
+                              ? t("account") || "Account"
+                              : t("accounts") || "Accounts"}
                           </span>
                         </Button>
                       </TableCell>
 
-                      {/* Last Checked / Activity */}
+                      {/* Last Checked / Verified Activity */}
                       <TableCell>
                         <div className="text-xs text-muted-foreground">
                           <div>
@@ -734,8 +878,13 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
                                 id: record.primary_user?.id || `national-id-${record.national_id}`,
                                 national_id: record.national_id || record.primary_user?.national_id || "",
                                 full_name:
+                                  record.citizen_summary?.full_name ||
                                   record.primary_user?.full_name ||
                                   `National ID: ${record.national_id}`,
+                                first_name: record.citizen_summary?.first_name || record.primary_user?.first_name,
+                                last_name: record.citizen_summary?.last_name || record.primary_user?.last_name,
+                                birthdate: record.citizen_summary?.date_of_birth || record.primary_user?.birthdate,
+                                avatar_url: record.citizen_summary?.photo_url || record.primary_user?.avatar_url,
                                 created_at: record.primary_user?.created_at || record.created_at,
                                 is_online: Boolean(record.primary_user?.is_online),
                               };
@@ -756,7 +905,7 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
           </Table>
       </Card>
 
-      {/* Checked Accounts Dialog (Shows which accounts checked this ID without duplication) */}
+      {/* Accounts History Dialog (Shows saved belonging info + all accounts that verified/checked this ID without duplication) */}
       <Dialog
         open={Boolean(selectedGroupForAccounts)}
         onOpenChange={(open) => !open && setSelectedGroupForAccounts(null)}
@@ -765,50 +914,143 @@ export function UsersWithIdTab({ users }: UsersWithIdTabProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <IdCard className="h-5 w-5 text-primary" />
-              <span>{t("accountsCheckedThisId") || "Accounts that Checked this ID"}</span>
+              <span>{t("accountsCheckedThisId") || "Accounts Linked & Verified for this National ID"}</span>
             </DialogTitle>
             <DialogDescription className="font-mono text-xs text-foreground">
               National ID: {selectedGroupForAccounts?.national_id}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2">
-            {selectedGroupForAccounts?.checked_accounts.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                {t("noCheckedAccountsRecorded") || "No account details recorded for this check."}
+          {selectedGroupForAccounts?.citizen_summary?.full_name && (
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3.5 flex items-center gap-3">
+              <Avatar className="h-12 w-12 shrink-0">
+                <AvatarImage src={selectedGroupForAccounts.citizen_summary.photo_url || undefined} />
+                <AvatarFallback className="text-xs font-bold">
+                  {selectedGroupForAccounts.citizen_summary.full_name.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1 text-xs space-y-0.5">
+                <div className="font-bold text-sm text-foreground flex items-center gap-2">
+                  <span>{selectedGroupForAccounts.citizen_summary.full_name}</span>
+                  {selectedGroupForAccounts.is_verified && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-600 border-emerald-500/30">
+                      Verified ID
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                  {selectedGroupForAccounts.citizen_summary.date_of_birth && (
+                    <span>DOB: {selectedGroupForAccounts.citizen_summary.date_of_birth}</span>
+                  )}
+                  {selectedGroupForAccounts.citizen_summary.gender && (
+                    <span>Gender: {selectedGroupForAccounts.citizen_summary.gender}</span>
+                  )}
+                  {(selectedGroupForAccounts.citizen_summary.district || selectedGroupForAccounts.citizen_summary.province) && (
+                    <span>
+                      {[selectedGroupForAccounts.citizen_summary.sector, selectedGroupForAccounts.citizen_summary.district, selectedGroupForAccounts.citizen_summary.province]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </span>
+                  )}
+                  {selectedGroupForAccounts.citizen_summary.license_number && (
+                    <span>License: {selectedGroupForAccounts.citizen_summary.license_number}</span>
+                  )}
+                </div>
               </div>
-            ) : (
-              selectedGroupForAccounts?.checked_accounts.map((acct, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-3 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={acct.avatar_url || undefined} />
-                      <AvatarFallback className="text-xs font-semibold">
-                        {(acct.full_name || acct.email || "U").slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="text-sm font-semibold flex items-center gap-1.5">
-                        <span>{acct.full_name || acct.username || "Anonymous User"}</span>
-                        {acct.is_verified && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+            </div>
+          )}
+
+          <div className="space-y-4 py-2">
+            {selectedGroupForAccounts && selectedGroupForAccounts.verified_accounts.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  Accounts That Verified This ID ({selectedGroupForAccounts.verified_accounts.length})
+                </h4>
+                {selectedGroupForAccounts.verified_accounts.map((acct, idx) => (
+                  <div
+                    key={`ver-${acct.user_id || idx}`}
+                    className="flex items-center justify-between p-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="h-9 w-9 shrink-0">
+                        <AvatarImage src={acct.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs font-semibold">
+                          {(acct.full_name || acct.email || "U").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold flex items-center gap-1.5 flex-wrap">
+                          <span className="truncate">{acct.full_name || acct.username || "Verified Account"}</span>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-600 border-emerald-500/30">
                             Verified
                           </Badge>
-                        )}
+                          {(acct.verification_count || 0) > 1 && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              {acct.verification_count}x
+                            </Badge>
+                          )}
+                        </div>
+                        {acct.email && <div className="text-xs text-muted-foreground truncate">{acct.email}</div>}
+                        {acct.phone_number && <div className="text-[11px] text-muted-foreground">{acct.phone_number}</div>}
                       </div>
-                      {acct.email && <div className="text-xs text-muted-foreground">{acct.email}</div>}
+                    </div>
+                    <div className="text-right text-xs text-muted-foreground shrink-0 ml-2">
+                      <div>{new Date(acct.last_verified_at || acct.verified_at || acct.checked_at).toLocaleDateString()}</div>
+                      <div className="text-[10px] text-muted-foreground/70">
+                        {new Date(acct.last_verified_at || acct.verified_at || acct.checked_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right text-xs text-muted-foreground">
-                    <div>{new Date(acct.checked_at).toLocaleDateString()}</div>
-                    <div className="text-[10px] text-muted-foreground/70">{new Date(acct.checked_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
+
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                All Accounts That Checked This ID ({selectedGroupForAccounts?.checked_accounts.length || 0})
+              </h4>
+              {selectedGroupForAccounts?.checked_accounts.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  {t("noCheckedAccountsRecorded") || "No account details recorded for this check."}
+                </div>
+              ) : (
+                selectedGroupForAccounts?.checked_accounts.map((acct, idx) => (
+                  <div
+                    key={`chk-${acct.user_id || idx}`}
+                    className="flex items-center justify-between p-3 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="h-9 w-9 shrink-0">
+                        <AvatarImage src={acct.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs font-semibold">
+                          {(acct.full_name || acct.email || "U").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold flex items-center gap-1.5 flex-wrap">
+                          <span className="truncate">{acct.full_name || acct.username || "User"}</span>
+                          {acct.is_verified && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                              Verified
+                            </Badge>
+                          )}
+                          {acct.is_admin_check && (
+                            <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                              Primary Admin Check
+                            </Badge>
+                          )}
+                        </div>
+                        {acct.email && <div className="text-xs text-muted-foreground truncate">{acct.email}</div>}
+                      </div>
+                    </div>
+                    <div className="text-right text-xs text-muted-foreground shrink-0 ml-2">
+                      <div>{new Date(acct.checked_at).toLocaleDateString()}</div>
+                      <div className="text-[10px] text-muted-foreground/70">{new Date(acct.checked_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

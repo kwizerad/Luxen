@@ -2939,7 +2939,15 @@ const rw: Record<string, string> = {
   "studentAccount": "Konti y'Umunyeshuri",
   "rwandaDrivingExamSub": "Amategeko y'Umuhanda n'Ibizamini by'Agateganyo mu Rwanda",
   "continueBtn": "Komeza",
-  "copyPasteBlocked": "Gukoporora no komeka ntibyemewe mu gihe cy'ikizamini."
+  "copyPasteBlocked": "Gukoporora no komeka ntibyemewe mu gihe cy'ikizamini.",
+  "guestFreeExamsQuota": "Ibizamini by'Ubuntu (Abatarinjira) n'Igihe Bisubiriraho",
+  "guestFreeExamsQuotaDesc": "Gena umubare w'ibizamini by'ubuntu abashyitsi bakora n'igihe amahirwe yabo asubirirwaho (mu Masaha cyangwa mu Minsi).",
+  "guestFreeExamsCount": "Umubare w'Ibizamini by'Ubuntu Byemewe",
+  "guestFreeExamsHint": "Shyiramo 0 niba usaba ko umuntu abanza kwinjira muri konti mbere yo gukora ikizamini.",
+  "guestResetInterval": "Igihe Bisubiriraho (Amasaha cyangwa Iminsi)",
+  "examSingular": "ikizamini cy'ubuntu",
+  "examsPlural": "ibizamini by'ubuntu",
+  "saveGuestQuota": "Bika Amabwiriza y'Ibizamini by'Ubuntu"
 };
 
 export default rw;

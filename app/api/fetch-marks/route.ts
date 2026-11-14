@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchMarksByCode } from "@/lib/live-exam/irembo";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   let body: { registration_code?: string };
   try {
@@ -29,7 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
     const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     console.error("Error calling Irembo API:", error);
     return NextResponse.json(

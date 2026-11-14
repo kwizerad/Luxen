@@ -4,6 +4,8 @@ import { saveNationalIdRecord } from "@/lib/live-exam/save-record";
 import { createClient } from "@/lib/supabase/server";
 import type { TheoryExamDLInfoAPIResponse } from "@/lib/live-exam/types";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   let body: { national_id?: string };
   try {
@@ -58,15 +60,44 @@ export async function POST(request: NextRequest) {
       ? document
       : { ...document, photo: "", signature: "" };
 
-    // Save to database
-    await saveNationalIdRecord(nationalId, userId);
-
-    return NextResponse.json<TheoryExamDLInfoAPIResponse>({
-      status: "success",
-      document: sanitizedDocument,
-      categoriesAllowed: categoriesAllowed || [],
-      hasCategories: (categoriesAllowed?.length || 0) > 0,
+    // Save canonical record with belonging citizen info
+    await saveNationalIdRecord(nationalId, userId, {
+      userEmail: user?.email || undefined,
+      citizen: document
+        ? {
+            nationalId,
+            firstName: document.firstName || "",
+            lastName: document.lastName || "",
+            fullName: [document.firstName, document.lastName].filter(Boolean).join(" ") || "",
+            dateOfBirth: document.dateOfBirth || "",
+            gender: document.sex || "",
+            nationality: document.nationality === "RW" ? "Rwandan" : document.nationality || "",
+            photoUrl: document.photo ? `data:image/jpeg;base64,${document.photo}` : "",
+            signatureUrl: document.signature ? `data:image/jpeg;base64,${document.signature}` : "",
+            civilStatus: document.civilStatus || undefined,
+            spouse: document.spouse || undefined,
+            fatherNames: document.fatherNames || undefined,
+            motherNames: document.motherNames || undefined,
+            placeOfBirth: document.placeOfBirth || undefined,
+            placeOfIssue: document.placeOfIssue || undefined,
+            province: document.province || undefined,
+            district: document.district || undefined,
+            sector: document.sector || undefined,
+            cell: document.cell || undefined,
+            village: document.village || undefined,
+          }
+        : undefined,
     });
+
+    return NextResponse.json<TheoryExamDLInfoAPIResponse>(
+      {
+        status: "success",
+        document: sanitizedDocument,
+        categoriesAllowed: categoriesAllowed || [],
+        hasCategories: (categoriesAllowed?.length || 0) > 0,
+      },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to fetch theory exam DL info.";

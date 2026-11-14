@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Settings2, Shield, ShieldCheck, ClipboardList, FileText, LayoutList, Globe, Users, Trophy, Database, Volume2 } from "lucide-react";
+import { Loader2, Settings2, Shield, ShieldCheck, ClipboardList, FileText, LayoutList, Globe, Users, Trophy, Database, Volume2, Clock } from "lucide-react";
 import { getSystemConfig, updateSystemConfig, getServicesConfig } from "@/lib/supabase/queries";
 import { invalidateServicesConfigCache } from "@/lib/feature-flags";
 import { useLanguage } from "@/lib/language-context";
@@ -51,6 +51,10 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   
   // Individual settings
   const [examLimit, setExamLimit] = useState<number>(5);
+  const [guestFreeExamLimit, setGuestFreeExamLimit] = useState<number>(3);
+  const [guestResetValue, setGuestResetValue] = useState<number>(1);
+  const [guestResetUnit, setGuestResetUnit] = useState<"hours" | "days">("days");
+  const [savingGuestQuota, setSavingGuestQuota] = useState<boolean>(false);
   const [universalPassingPercentage, setUniversalPassingPercentage] = useState<number>(60);
   const [standaloneExamEnabled, setStandaloneExamEnabled] = useState<boolean>(false);
   const [groupExamEnabled, setGroupExamEnabled] = useState<boolean>(true);
@@ -229,6 +233,22 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           if (configMap["universal_exam_limit"]) {
             setExamLimit(parseInt(configMap["universal_exam_limit"].value, 10) || 5);
           }
+          if (configMap["guest_free_exam_limit"]) {
+            const parsedGuestLimit = parseInt(configMap["guest_free_exam_limit"].value, 10);
+            if (!Number.isNaN(parsedGuestLimit) && parsedGuestLimit >= 0) {
+              setGuestFreeExamLimit(Math.min(100, parsedGuestLimit));
+            }
+          }
+          if (configMap["guest_exam_reset_value"]) {
+            const parsedResetVal = parseInt(configMap["guest_exam_reset_value"].value, 10);
+            if (!Number.isNaN(parsedResetVal) && parsedResetVal >= 1) {
+              setGuestResetValue(Math.min(365, parsedResetVal));
+            }
+          }
+          if (configMap["guest_exam_reset_unit"]) {
+            const unit = String(configMap["guest_exam_reset_unit"].value).toLowerCase();
+            setGuestResetUnit(unit === "hours" ? "hours" : "days");
+          }
           if (configMap["universal_passing_percentage"]) {
             setUniversalPassingPercentage(parseInt(configMap["universal_passing_percentage"].value, 10) || 60);
           }
@@ -304,6 +324,44 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
       toast.error(t("failedToUpdateExamLimit") + error.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveGuestQuota = async () => {
+    const safeLimit = Math.min(100, Math.max(0, Math.floor(Number(guestFreeExamLimit) || 0)));
+    const safeResetVal = Math.min(365, Math.max(1, Math.floor(Number(guestResetValue) || 1)));
+    const safeUnit: "hours" | "days" = guestResetUnit === "hours" ? "hours" : "days";
+    setGuestFreeExamLimit(safeLimit);
+    setGuestResetValue(safeResetVal);
+    setGuestResetUnit(safeUnit);
+
+    try {
+      setSavingGuestQuota(true);
+      await Promise.all([
+        updateSystemConfig(
+          "guest_free_exam_limit",
+          safeLimit.toString(),
+          "Number of free practice exams allowed for unauthenticated visitors per reset window"
+        ),
+        updateSystemConfig(
+          "guest_exam_reset_value",
+          safeResetVal.toString(),
+          "Duration value after which free guest exams reset"
+        ),
+        updateSystemConfig(
+          "guest_exam_reset_unit",
+          safeUnit,
+          "Duration unit (hours or days) for free guest exam quota reset"
+        ),
+      ]);
+      toast.success(
+        t("guestQuotaSaved") ||
+          `Guest quota updated: ${safeLimit} free exam(s) every ${safeResetVal} ${safeUnit}.`
+      );
+    } catch (error: any) {
+      toast.error((t("failedToUpdateGuestQuota") || "Failed to update guest exam quota: ") + error.message);
+    } finally {
+      setSavingGuestQuota(false);
     }
   };
 
@@ -553,6 +611,146 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
               </>
             ) : (
               t("saveExamLimit")
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Guest / Unauthenticated Free Exams Limit & Reset Time */}
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            {t("guestFreeExamsQuota") || "Guest Free Exams & Reset Window"}
+          </CardTitle>
+          <CardDescription>
+            {t("guestFreeExamsQuotaDesc") ||
+              "Control how many free practice exams unauthenticated visitors can take and how often their quota resets (in Hours or Days)."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="guest-free-exam-limit">
+                {t("guestFreeExamsCount") || "Number of Free Exams Allowed"}
+              </Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="guest-free-exam-limit"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={guestFreeExamLimit}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    setGuestFreeExamLimit(Number.isNaN(val) ? 0 : Math.min(100, Math.max(0, val)));
+                  }}
+                  className="w-28"
+                />
+                <span className="text-sm text-muted-foreground">
+                  {guestFreeExamLimit === 1
+                    ? t("examSingular") || "free exam"
+                    : t("examsPlural") || "free exams"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t("guestFreeExamsHint") ||
+                  "Set to 0 to require sign-in before starting any practice exam."}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="guest-reset-value">
+                {t("guestResetInterval") || "Reset Time (Hours or Days)"}
+              </Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  id="guest-reset-value"
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={guestResetValue}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    setGuestResetValue(Number.isNaN(val) ? 1 : Math.min(365, Math.max(1, val)));
+                  }}
+                  className="w-24"
+                />
+                <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setGuestResetUnit("hours")}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      guestResetUnit === "hours"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t("hours") || "Hours"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGuestResetUnit("days")}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      guestResetUnit === "days"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t("days") || "Days"}
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                {[
+                  { label: "6 Hours", value: 6, unit: "hours" as const },
+                  { label: "12 Hours", value: 12, unit: "hours" as const },
+                  { label: "1 Day", value: 1, unit: "days" as const },
+                  { label: "3 Days", value: 3, unit: "days" as const },
+                  { label: "7 Days", value: 7, unit: "days" as const },
+                ].map((preset) => {
+                  const active =
+                    guestResetValue === preset.value && guestResetUnit === preset.unit;
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setGuestResetValue(preset.value);
+                        setGuestResetUnit(preset.unit);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
+                        active
+                          ? "bg-primary/15 text-primary border-primary/40 font-semibold"
+                          : "bg-muted/30 text-muted-foreground border-border hover:text-foreground"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border/70 bg-muted/25 px-3.5 py-2.5 text-xs text-muted-foreground">
+            {guestFreeExamLimit === 0
+              ? "Active policy preview: Unauthenticated visitors must sign up or log in before taking any exam."
+              : `Active policy preview: Visitors can take ${guestFreeExamLimit} free exam${guestFreeExamLimit === 1 ? "" : "s"} every ${guestResetValue} ${guestResetUnit === "hours" ? (guestResetValue === 1 ? "hour" : "hours") : guestResetValue === 1 ? "day" : "days"}.`}
+          </div>
+
+          <Button
+            onClick={handleSaveGuestQuota}
+            disabled={savingGuestQuota}
+            className="w-full sm:w-auto"
+          >
+            {savingGuestQuota ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {t("saving")}
+              </>
+            ) : (
+              t("saveGuestQuota") || "Save Guest Exam Quota"
             )}
           </Button>
         </CardContent>

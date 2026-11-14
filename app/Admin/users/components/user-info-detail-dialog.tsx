@@ -54,6 +54,8 @@ import type {
 } from "@/lib/live-exam/types";
 import type { CitizenFullProfile } from "@/lib/live-exam/irembo";
 import { UserFullActionReport } from "@/components/admin/user-full-action-report";
+import { useAuth } from "@/lib/auth-context";
+import { isPrimaryAdmin } from "@/lib/permissions";
 
 interface UserInfoDetailDialogProps {
   user: UserWithStatus | null;
@@ -67,6 +69,8 @@ export function UserInfoDetailDialog({
   onUpdated,
 }: UserInfoDetailDialogProps) {
   const { t } = useLanguage();
+  const { user: currentAuthUser } = useAuth();
+  const allowedPrimaryAdmin = isPrimaryAdmin(currentAuthUser as any);
   const [loading, setLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
@@ -390,7 +394,7 @@ export function UserInfoDetailDialog({
     }
   };
 
-  if (!user) return null;
+  if (!user || !allowedPrimaryAdmin) return null;
 
   // Combine and extract detailed data from all endpoints
   const totalExams = examCodes.practical.length + examCodes.theory.length;

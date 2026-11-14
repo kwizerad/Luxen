@@ -414,6 +414,7 @@ export async function POST(request: NextRequest) {
 
     const profileUpdates: Record<string, any> = {
       national_id: cleanId,
+      id_verified: true,
       updated_at: new Date().toISOString(),
     };
 
@@ -463,28 +464,32 @@ export async function POST(request: NextRequest) {
       console.warn("Failed to update auth metadata:", metaErr);
     }
 
-    // Save record to national_id_records as verified
+    // Save record to national_id_records as verified with full citizen belonging info
     await saveNationalIdRecord(cleanId, user.id, {
       isVerified: true,
       userName: resolvedFullName,
       userEmail: user.email,
+      citizen,
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "National ID verified and linked successfully!",
-      citizen: {
-        nationalId: cleanId,
-        firstName: resolvedFirstName,
-        lastName: resolvedLastName,
-        fullName: resolvedFullName,
-        dateOfBirth: citizen.dateOfBirth || resolvedBirthdate,
-        photoUrl: citizen.photoUrl,
-        gender: citizen.gender,
-        province: citizen.province,
-        district: citizen.district,
+    return NextResponse.json(
+      {
+        success: true,
+        message: "National ID verified and linked successfully!",
+        citizen: {
+          nationalId: cleanId,
+          firstName: resolvedFirstName,
+          lastName: resolvedLastName,
+          fullName: resolvedFullName,
+          dateOfBirth: citizen.dateOfBirth || resolvedBirthdate,
+          photoUrl: citizen.photoUrl,
+          gender: citizen.gender,
+          province: citizen.province,
+          district: citizen.district,
+        },
       },
-    });
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (err: any) {
     console.error("ID verification error:", err);
     return NextResponse.json(

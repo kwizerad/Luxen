@@ -129,17 +129,13 @@ function createDefaultDetails(code: string): ExamResultDetails {
 }
 
 export async function fetchCodeDetails(code: string): Promise<ExamResultDetails> {
-  if (hasCachedResult(code)) {
-    return getCachedResult(code)!;
-  }
-
   const headers: Record<string, string> = {
     ...IREMBO_HEADERS,
     Registrationcode: code,
   };
 
   const details = createDefaultDetails(code);
-  let shouldCache = false;
+  let gotFreshRecord = false;
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -154,7 +150,7 @@ export async function fetchCodeDetails(code: string): Promise<ExamResultDetails>
         if (detailData.status && detailData.data) {
           const reg = detailData.data.dlExamRegistration;
           if (reg) {
-            shouldCache = true;
+            gotFreshRecord = true;
             const schedule = reg.dlExamSchedule || {};
             const exam = reg.dlExamination || {};
             const candidate = reg.dlExamCandidate || {};
@@ -202,8 +198,14 @@ export async function fetchCodeDetails(code: string): Promise<ExamResultDetails>
     }
   }
 
-  if (shouldCache) {
+  if (gotFreshRecord) {
     setCachedResult(code, details);
+    return details;
+  }
+
+  // Only fall back to last known response if upstream API temporarily failed
+  if (hasCachedResult(code)) {
+    return getCachedResult(code)!;
   }
   return details;
 }
@@ -218,6 +220,7 @@ export async function fetchRegistrationCodes(
 
   return fetch(APPLICANT_CODE_URL, {
     headers,
+    cache: "no-store",
     signal: AbortSignal.timeout(10000),
   });
 }
@@ -232,6 +235,7 @@ export async function fetchMarksByCode(
 
   return fetch(REGISTRATION_CODE_URL, {
     headers,
+    cache: "no-store",
     signal: AbortSignal.timeout(10000),
   });
 }
@@ -254,6 +258,7 @@ export async function fetchDLInfoByNationalId(
 
   const response = await fetch(DL_INFO_URL, {
     headers,
+    cache: "no-store",
     signal: AbortSignal.timeout(15000),
   });
 
@@ -275,6 +280,7 @@ export async function fetchTheoryExamDLInfo(
 
   const response = await fetch(THEORY_EXAM_DL_INFO_URL, {
     headers,
+    cache: "no-store",
     signal: AbortSignal.timeout(15000),
   });
 

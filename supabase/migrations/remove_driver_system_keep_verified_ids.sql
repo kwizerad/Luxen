@@ -135,4 +135,14 @@ CREATE INDEX IF NOT EXISTS idx_anonymous_exam_attempts_last_attempt_at
 
 ALTER TABLE public.anonymous_exam_attempts ENABLE ROW LEVEL SECURITY;
 
+-- ============================================================================
+-- 4. DEFAULT GUEST FREE EXAMS QUOTA & RESET WINDOW SETTINGS (HOURS / DAYS)
+-- ============================================================================
+INSERT INTO public.system_config (key, value, description, updated_at)
+VALUES
+  ('guest_free_exam_limit', '3', 'Number of free practice exams allowed for unauthenticated visitors per reset window', NOW()),
+  ('guest_exam_reset_value', '1', 'Duration value after which free guest exams reset', NOW()),
+  ('guest_exam_reset_unit', 'days', 'Duration unit (hours or days) for free guest exam quota reset', NOW())
+ON CONFLICT (key) DO NOTHING;
+
 COMMIT;

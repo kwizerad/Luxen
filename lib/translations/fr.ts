@@ -2939,7 +2939,15 @@ const fr: Record<string, string> = {
   "studentAccount": "Compte Étudiant",
   "rwandaDrivingExamSub": "Code de la route et préparation au permis provisoire au Rwanda",
   "continueBtn": "Continuer",
-  "copyPasteBlocked": "Le copier-coller est bloqué pendant l'examen."
+  "copyPasteBlocked": "Le copier-coller est bloqué pendant l'examen.",
+  "guestFreeExamsQuota": "Examens gratuits (Visiteurs) & Délai de réinitialisation",
+  "guestFreeExamsQuotaDesc": "Définissez combien d'examens gratuits les visiteurs peuvent passer et la durée avant réinitialisation (en heures ou en jours).",
+  "guestFreeExamsCount": "Nombre d'examens gratuits autorisés",
+  "guestFreeExamsHint": "Mettez 0 pour exiger une connexion avant tout examen.",
+  "guestResetInterval": "Délai de réinitialisation (Heures ou Jours)",
+  "examSingular": "examen gratuit",
+  "examsPlural": "examens gratuits",
+  "saveGuestQuota": "Enregistrer le quota visiteur"
 };
 
 export default fr;

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchDLInfoByNationalId } from "@/lib/live-exam/irembo";
+import { saveNationalIdRecord } from "@/lib/live-exam/save-record";
 import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   let body: { national_id?: string };
@@ -88,14 +91,52 @@ export async function POST(request: NextRequest) {
         provision_category: provisionCategory,
         provision_verified_at: new Date().toISOString(),
         national_id: nationalId,
+        id_verified: true,
       })
       .eq("id", user.id);
 
-    return NextResponse.json({
-      status: "success",
-      has_provision: hasProvision,
-      categories: categoriesAllowed.map((c) => ({ category: c.category, description: c.description })),
+    const doc = response.data.document;
+    const lic = response.data.license;
+    await saveNationalIdRecord(nationalId, user.id, {
+      isVerified: true,
+      userEmail: user.email || undefined,
+      citizen: {
+        nationalId,
+        firstName: doc?.firstName || lic?.firstName || "",
+        lastName: doc?.lastName || lic?.lastName || "",
+        fullName: [doc?.firstName || lic?.firstName, doc?.lastName || lic?.lastName].filter(Boolean).join(" ") || doc?.names || "",
+        dateOfBirth: doc?.dateOfBirth || lic?.dob || "",
+        gender: doc?.sex || "",
+        nationality: doc?.nationality === "RW" ? "Rwandan" : doc?.nationality || "",
+        photoUrl: doc?.photo ? `data:image/jpeg;base64,${doc.photo}` : "",
+        signatureUrl: doc?.signature ? `data:image/jpeg;base64,${doc.signature}` : "",
+        civilStatus: doc?.civilStatus,
+        spouse: doc?.spouse,
+        fatherNames: doc?.fatherNames,
+        motherNames: doc?.motherNames,
+        placeOfBirth: doc?.placeOfBirth || lic?.placeOfBirth,
+        placeOfIssue: doc?.placeOfIssue || lic?.placeOfIssue,
+        province: doc?.province,
+        district: doc?.district,
+        sector: doc?.sector,
+        cell: doc?.cell,
+        village: doc?.village,
+        licenseNumber: lic?.licenseNumber,
+        vehicleClass: lic?.vehicleClass,
+        licenseStatus: lic?.status,
+        dateOfIssue: lic?.dateOfIssue,
+        dateOfExpiry: lic?.expiryDate,
+      },
     });
+
+    return NextResponse.json(
+      {
+        status: "success",
+        has_provision: hasProvision,
+        categories: categoriesAllowed.map((c) => ({ category: c.category, description: c.description })),
+      },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to verify provision.";
     return NextResponse.json(

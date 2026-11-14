@@ -411,6 +411,7 @@ export async function POST(request: NextRequest) {
           id: userId,
           email: syntheticEmail,
           national_id: cleanId,
+          id_verified: true,
           full_name: fullName,
           first_name: firstName,
           last_name: lastName,
@@ -427,11 +428,12 @@ export async function POST(request: NextRequest) {
       console.warn("user_profiles upsert warning:", profileError);
     }
 
-    // 6. Save canonical National ID record
+    // 6. Save canonical National ID record with belonging citizen info
     await saveNationalIdRecord(cleanId, userId, {
       isVerified: true,
       userName: fullName,
       userEmail: syntheticEmail,
+      citizen: citizenDoc,
     });
 
     // 7. Send notification if new registration

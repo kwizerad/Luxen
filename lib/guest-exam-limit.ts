@@ -2,10 +2,37 @@ import crypto from "crypto";
 import type { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export const MAX_GUEST_EXAMS_PER_DAY = 3;
-export const MAX_GUEST_EXAMS = MAX_GUEST_EXAMS_PER_DAY;
+export const DEFAULT_GUEST_FREE_EXAM_LIMIT = 3;
+export const DEFAULT_GUEST_RESET_VALUE = 1;
+export const DEFAULT_GUEST_RESET_UNIT: GuestResetUnit = "days";
+
+export const MAX_GUEST_EXAMS_PER_DAY = DEFAULT_GUEST_FREE_EXAM_LIMIT;
+export const MAX_GUEST_EXAMS = DEFAULT_GUEST_FREE_EXAM_LIMIT;
 export const GUEST_QUOTA_COOKIE_NAME = "navo_gq_seal";
 const QUOTA_TIMEZONE = "Africa/Kigali";
+
+export type GuestResetUnit = "hours" | "days";
+
+export interface GuestQuotaPolicy {
+  maxAllowed: number;
+  resetValue: number;
+  resetUnit: GuestResetUnit;
+  windowMs: number;
+}
+
+export interface GuestQuotaStatus {
+  usedCount: number;
+  remainingCount: number;
+  maxAllowed: number;
+  exhausted: boolean;
+  resetValue: number;
+  resetUnit: GuestResetUnit;
+  windowStart: string;
+  ipHash: string;
+  dayKey: string;
+  resetAt: string;
+  resetInSeconds: number;
+}
 
 function getQuotaSecret(): string {
   return (
@@ -21,7 +48,7 @@ function sha256Hex(input: string): string {
 }
 
 /**
- * Returns YYYY-MM-DD for a Date in Africa/Kigali timezone so daily quotas reset consistently at midnight Kigali time.
+ * Returns YYYY-MM-DD for a Date in Africa/Kigali timezone.
  */
 export function getKigaliDayKey(date: Date = new Date()): string {
   try {
@@ -40,25 +67,6 @@ export function getKigaliDayKey(date: Date = new Date()): string {
   }
 }
 
-/**
- * Returns the next midnight timestamp (ISO UTC) and remaining seconds in Africa/Kigali (UTC+2).
- */
-export function getNextKigaliMidnight(now: Date = new Date()): {
-  resetAt: string;
-  resetInSeconds: number;
-} {
-  const dayKey = getKigaliDayKey(now);
-  // Africa/Kigali is permanently UTC+02:00 (no DST)
-  const todayMidnightMs = new Date(`${dayKey}T00:00:00+02:00`).getTime();
-  const nextMidnightMs = Number.isFinite(todayMidnightMs)
-    ? todayMidnightMs + 86_400_000
-    : now.getTime() + 86_400_000;
-  return {
-    resetAt: new Date(nextMidnightMs).toISOString(),
-    resetInSeconds: Math.max(0, Math.ceil((nextMidnightMs - now.getTime()) / 1000)),
-  };
-}
-
 export function extractNormalizedClientIp(req: NextRequest): string {
   const forwardedFor = req.headers.get("x-forwarded-for");
   const candidates = [
@@ -75,7 +83,6 @@ export function extractNormalizedClientIp(req: NextRequest): string {
     if (!cleaned || cleaned.toLowerCase() === "unknown") continue;
     if (cleaned.startsWith("::ffff:")) cleaned = cleaned.slice(7);
     if (cleaned === "::1" || cleaned === "0:0:0:0:0:0:0:1") cleaned = "127.0.0.1";
-    // Strip port if IPv4:port
     if (/^\d{1,3}(\.\d{1,3}){3}:\d+$/.test(cleaned)) {
       cleaned = cleaned.split(":")[0];
     }
@@ -95,10 +102,10 @@ export function sanitizeDeviceId(rawDeviceId?: string | null): string | null {
 export function signQuotaCookieValue(
   count: number,
   ipHash: string,
-  dayKey: string = getKigaliDayKey()
+  windowStartMs: number
 ): string {
-  const compactDay = dayKey.replace(/-/g, "");
-  const payload = `${count}:${compactDay}:${ipHash.slice(0, 16)}`;
+  const windowStartSec = Math.floor(windowStartMs / 1000);
+  const payload = `v2:${count}:${windowStartSec}:${ipHash.slice(0, 16)}`;
   const sig = crypto
     .createHmac("sha256", getQuotaSecret())
     .update(payload)
@@ -109,68 +116,125 @@ export function signQuotaCookieValue(
 
 export function verifyQuotaCookieValue(
   cookieVal: string | undefined,
-  expectedDayKey: string = getKigaliDayKey()
-): number {
-  if (!cookieVal) return 0;
+  windowMs: number,
+  expectedDayKey: string = getKigaliDayKey(),
+  nowMs: number = Date.now()
+): { count: number; windowStartMs: number | null } {
+  if (!cookieVal) return { count: 0, windowStartMs: null };
   const parts = cookieVal.split(":");
-  if (parts.length !== 4) return 0;
-  const count = Number(parts[0]);
-  const compactDay = parts[1];
-  const ipPrefix = parts[2];
-  const sig = parts[3];
-  const expectedCompactDay = expectedDayKey.replace(/-/g, "");
-  if (
-    !Number.isFinite(count) ||
-    count < 0 ||
-    compactDay !== expectedCompactDay ||
-    !ipPrefix ||
-    !sig
-  ) {
-    return 0;
-  }
-  const expectedSig = crypto
-    .createHmac("sha256", getQuotaSecret())
-    .update(`${count}:${compactDay}:${ipPrefix}`)
-    .digest("hex")
-    .slice(0, 24);
-  if (sig !== expectedSig) return 0;
-  return count;
-}
 
-export interface GuestQuotaStatus {
-  usedCount: number;
-  remainingCount: number;
-  maxAllowed: number;
-  exhausted: boolean;
-  ipHash: string;
-  dayKey: string;
-  resetAt: string;
-  resetInSeconds: number;
-}
-
-async function readCountFromSystemConfig(
-  adminSb: ReturnType<typeof createAdminClient>,
-  keys: string[]
-): Promise<number> {
-  if (keys.length === 0) return 0;
-  const { data } = await adminSb
-    .from("system_config")
-    .select("key, value")
-    .in("key", keys);
-
-  let maxCount = 0;
-  for (const row of data || []) {
-    if (!row?.value) continue;
-    try {
-      const parsed = JSON.parse(String(row.value));
-      const c = Number(parsed?.count ?? 0);
-      if (Number.isFinite(c) && c > maxCount) maxCount = c;
-    } catch {
-      const n = Number(row.value);
-      if (Number.isFinite(n) && n > maxCount) maxCount = n;
+  // New v2 cookie: v2:count:windowStartSec:ipPrefix:sig
+  if (parts.length === 5 && parts[0] === "v2") {
+    const count = Number(parts[1]);
+    const windowStartSec = Number(parts[2]);
+    const ipPrefix = parts[3];
+    const sig = parts[4];
+    if (
+      !Number.isFinite(count) ||
+      count < 0 ||
+      !Number.isFinite(windowStartSec) ||
+      windowStartSec <= 0 ||
+      !ipPrefix ||
+      !sig
+    ) {
+      return { count: 0, windowStartMs: null };
     }
+    const payload = `v2:${count}:${windowStartSec}:${ipPrefix}`;
+    const expectedSig = crypto
+      .createHmac("sha256", getQuotaSecret())
+      .update(payload)
+      .digest("hex")
+      .slice(0, 24);
+    if (sig !== expectedSig) return { count: 0, windowStartMs: null };
+
+    const startMs = windowStartSec * 1000;
+    if (nowMs - startMs >= windowMs) {
+      return { count: 0, windowStartMs: null };
+    }
+    return { count, windowStartMs: startMs };
   }
-  return maxCount;
+
+  // Legacy v1 cookie compatibility: count:compactDay:ipPrefix:sig
+  if (parts.length === 4) {
+    const count = Number(parts[0]);
+    const compactDay = parts[1];
+    const ipPrefix = parts[2];
+    const sig = parts[3];
+    const expectedCompactDay = expectedDayKey.replace(/-/g, "");
+    if (
+      !Number.isFinite(count) ||
+      count < 0 ||
+      compactDay !== expectedCompactDay ||
+      !ipPrefix ||
+      !sig
+    ) {
+      return { count: 0, windowStartMs: null };
+    }
+    const expectedSig = crypto
+      .createHmac("sha256", getQuotaSecret())
+      .update(`${count}:${compactDay}:${ipPrefix}`)
+      .digest("hex")
+      .slice(0, 24);
+    if (sig !== expectedSig) return { count: 0, windowStartMs: null };
+    const dayStartMs = new Date(`${expectedDayKey}T00:00:00+02:00`).getTime();
+    if (Number.isFinite(dayStartMs) && nowMs - dayStartMs >= windowMs) {
+      return { count: 0, windowStartMs: null };
+    }
+    return { count, windowStartMs: Number.isFinite(dayStartMs) ? dayStartMs : nowMs };
+  }
+
+  return { count: 0, windowStartMs: null };
+}
+
+function parsePolicy(configMap: Map<string, string>): GuestQuotaPolicy {
+  const rawLimit = Number(configMap.get("guest_free_exam_limit"));
+  const maxAllowed =
+    Number.isFinite(rawLimit) && rawLimit >= 0 && rawLimit <= 100
+      ? Math.floor(rawLimit)
+      : DEFAULT_GUEST_FREE_EXAM_LIMIT;
+
+  const rawResetVal = Number(configMap.get("guest_exam_reset_value"));
+  const resetValue =
+    Number.isFinite(rawResetVal) && rawResetVal >= 1 && rawResetVal <= 365
+      ? Math.floor(rawResetVal)
+      : DEFAULT_GUEST_RESET_VALUE;
+
+  const rawUnit = String(configMap.get("guest_exam_reset_unit") || "")
+    .trim()
+    .toLowerCase();
+  const resetUnit: GuestResetUnit = rawUnit === "hours" ? "hours" : "days";
+
+  const windowMs =
+    resetUnit === "days"
+      ? resetValue * 86_400_000
+      : resetValue * 3_600_000;
+
+  return { maxAllowed, resetValue, resetUnit, windowMs };
+}
+
+export async function getGuestQuotaPolicy(
+  adminSb: ReturnType<typeof createAdminClient> = createAdminClient()
+): Promise<GuestQuotaPolicy> {
+  try {
+    const { data } = await adminSb
+      .from("system_config")
+      .select("key, value")
+      .in("key", [
+        "guest_free_exam_limit",
+        "guest_exam_reset_value",
+        "guest_exam_reset_unit",
+      ]);
+
+    const map = new Map<string, string>();
+    for (const row of data || []) {
+      if (row?.key && row?.value !== undefined && row?.value !== null) {
+        map.set(String(row.key), String(row.value));
+      }
+    }
+    return parsePolicy(map);
+  } catch {
+    return parsePolicy(new Map());
+  }
 }
 
 export async function getGuestExamQuota(
@@ -178,31 +242,100 @@ export async function getGuestExamQuota(
   rawDeviceId?: string | null
 ): Promise<GuestQuotaStatus> {
   const adminSb = createAdminClient();
-  const dayKey = getKigaliDayKey();
+  const nowMs = Date.now();
+  const nowDate = new Date(nowMs);
+  const dayKey = getKigaliDayKey(nowDate);
   const compactDay = dayKey.replace(/-/g, "");
   const ip = extractNormalizedClientIp(req);
   const ipHash = sha256Hex(`ip:${ip}`);
   const deviceId = sanitizeDeviceId(rawDeviceId);
   const devHash = deviceId ? sha256Hex(`dev:${deviceId}`) : null;
 
-  const keysToCheck = [`guest_quota_d_${compactDay}_ip_${ipHash}`];
-  if (devHash) {
-    keysToCheck.push(`guest_quota_d_${compactDay}_dev_${devHash}`);
-  }
+  const v2IpKey = `guest_quota_v2_ip_${ipHash}`;
+  const v2DevKey = devHash ? `guest_quota_v2_dev_${devHash}` : null;
+  const legacyIpKey = `guest_quota_d_${compactDay}_ip_${ipHash}`;
+  const legacyDevKey = devHash ? `guest_quota_d_${compactDay}_dev_${devHash}` : null;
 
-  let dbCount = 0;
+  const keysToFetch = [
+    "guest_free_exam_limit",
+    "guest_exam_reset_value",
+    "guest_exam_reset_unit",
+    v2IpKey,
+    legacyIpKey,
+    ...(v2DevKey ? [v2DevKey] : []),
+    ...(legacyDevKey ? [legacyDevKey] : []),
+  ];
+
+  const configMap = new Map<string, string>();
   try {
-    dbCount = await readCountFromSystemConfig(adminSb, keysToCheck);
+    const { data } = await adminSb
+      .from("system_config")
+      .select("key, value")
+      .in("key", keysToFetch);
+
+    for (const row of data || []) {
+      if (row?.key && row?.value !== undefined && row?.value !== null) {
+        configMap.set(String(row.key), String(row.value));
+      }
+    }
   } catch (err) {
-    console.warn("[GuestQuota] Failed reading system_config daily quota:", err);
+    console.warn("[GuestQuota] Failed reading system_config quota:", err);
   }
 
-  // Also inspect anonymous_exam_attempts only if last_attempt_at occurred today (Kigali dayKey)
+  const policy = parsePolicy(configMap);
+
+  let bestCount = 0;
+  let earliestActiveWindowStartMs: number | null = null;
+
+  const considerUsage = (count: number, windowStartMs: number | null) => {
+    if (!Number.isFinite(count) || count <= 0) return;
+    const effectiveStart = windowStartMs ?? nowMs;
+    if (nowMs - effectiveStart >= policy.windowMs) return;
+    if (count > bestCount) bestCount = count;
+    if (
+      earliestActiveWindowStartMs === null ||
+      effectiveStart < earliestActiveWindowStartMs
+    ) {
+      earliestActiveWindowStartMs = effectiveStart;
+    }
+  };
+
+  // Evaluate v2 persistent tracking keys
+  for (const k of [v2IpKey, v2DevKey].filter(Boolean) as string[]) {
+    const rawVal = configMap.get(k);
+    if (!rawVal) continue;
+    try {
+      const parsed = JSON.parse(rawVal);
+      const count = Number(parsed?.count ?? 0);
+      const startMs = parsed?.windowStart ? Date.parse(String(parsed.windowStart)) : NaN;
+      if (Number.isFinite(startMs)) {
+        considerUsage(count, startMs);
+      }
+    } catch {
+      // ignore malformed
+    }
+  }
+
+  // Fallback compatibility with today's legacy v1 daily keys
+  for (const k of [legacyIpKey, legacyDevKey].filter(Boolean) as string[]) {
+    const rawVal = configMap.get(k);
+    if (!rawVal) continue;
+    try {
+      const parsed = JSON.parse(rawVal);
+      const count = Number(parsed?.count ?? 0);
+      const updatedMs = parsed?.updatedAt ? Date.parse(String(parsed.updatedAt)) : nowMs;
+      considerUsage(count, Number.isFinite(updatedMs) ? updatedMs : nowMs);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Also inspect anonymous_exam_attempts within current rolling window
   try {
     if (deviceId || ip !== "unknown-ip") {
       const { data: anonRows } = await adminSb
         .from("anonymous_exam_attempts")
-        .select("attempt_count, last_attempt_at")
+        .select("attempt_count, first_attempt_at, last_attempt_at")
         .or(
           [
             deviceId ? `fingerprint.eq.${deviceId}` : null,
@@ -211,39 +344,49 @@ export async function getGuestExamQuota(
             .filter(Boolean)
             .join(",")
         );
+
       for (const r of anonRows || []) {
-        if (!r?.last_attempt_at) continue;
-        const rowDay = getKigaliDayKey(new Date(r.last_attempt_at));
-        if (rowDay === dayKey) {
-          const c = Number(r?.attempt_count ?? 0);
-          if (Number.isFinite(c) && c > dbCount) dbCount = c;
-        }
+        const refTs = r?.first_attempt_at || r?.last_attempt_at;
+        if (!refTs) continue;
+        const startMs = Date.parse(String(refTs));
+        if (!Number.isFinite(startMs)) continue;
+        considerUsage(Number(r?.attempt_count ?? 0), startMs);
       }
     }
   } catch {
-    // Optional table; system_config tracking already enforces daily quota
+    // Optional table
   }
 
-  const cookieCount = verifyQuotaCookieValue(
+  // Check HMAC cookie
+  const cookieInfo = verifyQuotaCookieValue(
     req.cookies.get(GUEST_QUOTA_COOKIE_NAME)?.value,
-    dayKey
+    policy.windowMs,
+    dayKey,
+    nowMs
   );
+  considerUsage(cookieInfo.count, cookieInfo.windowStartMs);
 
-  const usedCount = Math.min(
-    MAX_GUEST_EXAMS_PER_DAY,
-    Math.max(dbCount, cookieCount)
-  );
-  const remainingCount = Math.max(0, MAX_GUEST_EXAMS_PER_DAY - usedCount);
-  const { resetAt, resetInSeconds } = getNextKigaliMidnight();
+  const usedCount = Math.min(policy.maxAllowed, bestCount);
+  const remainingCount = Math.max(0, policy.maxAllowed - usedCount);
+  const activeStartMs =
+    usedCount > 0 && earliestActiveWindowStartMs !== null
+      ? earliestActiveWindowStartMs
+      : nowMs;
+  const resetAtMs = activeStartMs + policy.windowMs;
+  const resetInSeconds =
+    usedCount > 0 ? Math.max(0, Math.ceil((resetAtMs - nowMs) / 1000)) : 0;
 
   return {
     usedCount,
     remainingCount,
-    maxAllowed: MAX_GUEST_EXAMS_PER_DAY,
-    exhausted: usedCount >= MAX_GUEST_EXAMS_PER_DAY,
+    maxAllowed: policy.maxAllowed,
+    exhausted: usedCount >= policy.maxAllowed,
+    resetValue: policy.resetValue,
+    resetUnit: policy.resetUnit,
+    windowStart: new Date(activeStartMs).toISOString(),
     ipHash,
     dayKey,
-    resetAt,
+    resetAt: new Date(resetAtMs).toISOString(),
     resetInSeconds,
   };
 }
@@ -253,15 +396,26 @@ export async function incrementGuestExamQuota(
   rawDeviceId?: string | null
 ): Promise<GuestQuotaStatus> {
   const current = await getGuestExamQuota(req, rawDeviceId);
-  const nextCount = Math.min(MAX_GUEST_EXAMS_PER_DAY, current.usedCount + 1);
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+
+  const windowStartIso =
+    current.usedCount > 0 && current.windowStart ? current.windowStart : nowIso;
+  const windowStartMs = Date.parse(windowStartIso) || nowMs;
+  const nextCount = Math.min(current.maxAllowed, current.usedCount + 1);
+
   const adminSb = createAdminClient();
   const ip = extractNormalizedClientIp(req);
   const ipHash = current.ipHash;
-  const dayKey = current.dayKey;
-  const compactDay = dayKey.replace(/-/g, "");
   const deviceId = sanitizeDeviceId(rawDeviceId);
   const devHash = deviceId ? sha256Hex(`dev:${deviceId}`) : null;
-  const nowIso = new Date().toISOString();
+
+  const windowMs =
+    current.resetUnit === "days"
+      ? current.resetValue * 86_400_000
+      : current.resetValue * 3_600_000;
+  const resetAtMs = windowStartMs + windowMs;
+  const resetInSeconds = Math.max(0, Math.ceil((resetAtMs - nowMs) / 1000));
 
   const upserts: Array<{
     key: string;
@@ -270,23 +424,27 @@ export async function incrementGuestExamQuota(
     updated_at: string;
   }> = [
     {
-      key: `guest_quota_d_${compactDay}_ip_${ipHash}`,
-      value: JSON.stringify({ count: nextCount, dayKey, updatedAt: nowIso }),
-      description: "Daily server-enforced guest exam quota",
+      key: `guest_quota_v2_ip_${ipHash}`,
+      value: JSON.stringify({
+        count: nextCount,
+        windowStart: windowStartIso,
+        updatedAt: nowIso,
+      }),
+      description: "Server-enforced guest exam quota window",
       updated_at: nowIso,
     },
   ];
 
   if (devHash) {
     upserts.push({
-      key: `guest_quota_d_${compactDay}_dev_${devHash}`,
+      key: `guest_quota_v2_dev_${devHash}`,
       value: JSON.stringify({
         count: nextCount,
-        dayKey,
+        windowStart: windowStartIso,
         ipHash,
         updatedAt: nowIso,
       }),
-      description: "Daily server-enforced guest exam quota",
+      description: "Server-enforced guest exam quota window",
       updated_at: nowIso,
     });
   }
@@ -294,10 +452,9 @@ export async function incrementGuestExamQuota(
   try {
     await adminSb.from("system_config").upsert(upserts, { onConflict: "key" });
   } catch (err) {
-    console.warn("[GuestQuota] Failed persisting daily quota to system_config:", err);
+    console.warn("[GuestQuota] Failed persisting quota to system_config:", err);
   }
 
-  // Best-effort sync to anonymous_exam_attempts if table exists
   if (deviceId) {
     try {
       await adminSb.from("anonymous_exam_attempts").upsert(
@@ -305,6 +462,7 @@ export async function incrementGuestExamQuota(
           fingerprint: deviceId,
           ip_address: ip,
           attempt_count: nextCount,
+          first_attempt_at: windowStartIso,
           last_attempt_at: nowIso,
           updated_at: nowIso,
         },
@@ -315,16 +473,17 @@ export async function incrementGuestExamQuota(
     }
   }
 
-  const { resetAt, resetInSeconds } = getNextKigaliMidnight();
-
   return {
     usedCount: nextCount,
-    remainingCount: Math.max(0, MAX_GUEST_EXAMS_PER_DAY - nextCount),
-    maxAllowed: MAX_GUEST_EXAMS_PER_DAY,
-    exhausted: nextCount >= MAX_GUEST_EXAMS_PER_DAY,
+    remainingCount: Math.max(0, current.maxAllowed - nextCount),
+    maxAllowed: current.maxAllowed,
+    exhausted: nextCount >= current.maxAllowed,
+    resetValue: current.resetValue,
+    resetUnit: current.resetUnit,
+    windowStart: windowStartIso,
     ipHash,
-    dayKey,
-    resetAt,
+    dayKey: current.dayKey,
+    resetAt: new Date(resetAtMs).toISOString(),
     resetInSeconds,
   };
 }
@@ -333,15 +492,20 @@ export function attachGuestQuotaCookie(
   res: NextResponse,
   quota: GuestQuotaStatus
 ): NextResponse {
+  const windowStartMs = Date.parse(quota.windowStart) || Date.now();
+  const windowSec =
+    quota.resetUnit === "days"
+      ? quota.resetValue * 86_400
+      : quota.resetValue * 3_600;
   res.cookies.set(
     GUEST_QUOTA_COOKIE_NAME,
-    signQuotaCookieValue(quota.usedCount, quota.ipHash, quota.dayKey),
+    signQuotaCookieValue(quota.usedCount, quota.ipHash, windowStartMs),
     {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 60 * 60 * 48,
+      maxAge: Math.max(3600, windowSec + 3600),
     }
   );
   return res;

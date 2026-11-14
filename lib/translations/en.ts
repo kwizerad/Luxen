@@ -2939,7 +2939,15 @@ const en: Record<string, string> = {
   "studentAccount": "Student Account",
   "rwandaDrivingExamSub": "Rwanda Driving Theory & Provisional Exam Prep",
   "continueBtn": "Continue",
-  "copyPasteBlocked": "Copy and paste actions are blocked during the exam."
+  "copyPasteBlocked": "Copy and paste actions are blocked during the exam.",
+  "guestFreeExamsQuota": "Guest Free Exams & Reset Window",
+  "guestFreeExamsQuotaDesc": "Control how many free practice exams unauthenticated visitors can take and how often their quota resets (in Hours or Days).",
+  "guestFreeExamsCount": "Number of Free Exams Allowed",
+  "guestFreeExamsHint": "Set to 0 to require sign-in before starting any practice exam.",
+  "guestResetInterval": "Reset Time (Hours or Days)",
+  "examSingular": "free exam",
+  "examsPlural": "free exams",
+  "saveGuestQuota": "Save Guest Exam Quota"
 };
 
 export default en;

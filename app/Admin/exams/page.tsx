@@ -728,14 +728,25 @@ export default function ExamManagementPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {(isPrimaryAdmin || canManageSettings) && (
-              <Button
-                variant="outline"
-                onClick={openSavingModal}
-                className="rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
-              >
-                <Database className="h-4 w-4 mr-2" />
-                {t("examSavingControls") || "Exam Saving Controls"}
-              </Button>
+              <>
+                <Link href="/Admin/settings?tab=exam">
+                  <Button
+                    variant="outline"
+                    className="rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    {t("guestFreeExamsQuota") || "Guest Quota & Exam Settings"}
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  onClick={openSavingModal}
+                  className="rounded-xl bg-[var(--admin-input-bg)] border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover-bg)]"
+                >
+                  <Database className="h-4 w-4 mr-2" />
+                  {t("examSavingControls") || "Exam Saving Controls"}
+                </Button>
+              </>
             )}
             <Button
               onClick={() => setShowCategoryForm(!showCategoryForm)}

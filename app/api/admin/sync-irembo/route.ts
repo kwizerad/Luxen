@@ -8,12 +8,21 @@ import {
 } from "@/lib/live-exam/irembo";
 import { saveNationalIdRecord } from "@/lib/live-exam/save-record";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requirePrimaryAdmin } from "@/app/Admin/actions/_shared";
 import type { DLInfoAPIResponse, ExamResultDetails, TheoryExamDLInfoAPIResponse } from "@/lib/live-exam/types";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    try {
+      await requirePrimaryAdmin();
+    } catch {
+      return NextResponse.json(
+        { status: "error", message: "Forbidden: Primary Administrator access required." },
+        { status: 403 }
+      );
+    }
     const body = await request.json();
     const rawId = body.national_id || body.nationalId;
     const userId = body.user_id || body.userId;
@@ -272,6 +281,7 @@ export async function POST(request: NextRequest) {
       await saveNationalIdRecord(cleanId, userId, {
         isVerified: true,
         userName: citizenProfile?.fullName || undefined,
+        citizen: citizenProfile,
       });
 
       const supabase = createAdminClient();

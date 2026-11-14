@@ -45,6 +45,9 @@ export interface ExamReviewProps {
   passingPercentage?: number;
   canRetake?: boolean;
   quotaExhausted?: boolean;
+  quotaMaxAllowed?: number;
+  quotaResetValue?: number;
+  quotaResetUnit?: "hours" | "days";
   quotaResetAt?: string;
   quotaResetInSeconds?: number;
   onSignUp?: () => void;
@@ -62,12 +65,14 @@ function formatTime(totalSeconds: number | null | undefined): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function formatResetDuration(totalSeconds: number): string {
+function formatResetDuration(totalSeconds: number, isFr = false): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
-  const h = Math.floor(safe / 3600);
+  const d = Math.floor(safe / 86400);
+  const h = Math.floor((safe % 86400) / 3600);
   const m = Math.floor((safe % 3600) / 60);
   const s = safe % 60;
-  return `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+  const hms = `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+  return d > 0 ? `${d}${isFr ? "j" : "d"} ${hms}` : hms;
 }
 
 export function ExamReview({
@@ -79,6 +84,9 @@ export function ExamReview({
   passingPercentage = 60,
   canRetake = true,
   quotaExhausted = false,
+  quotaMaxAllowed = 3,
+  quotaResetValue = 1,
+  quotaResetUnit = "days",
   quotaResetAt,
   quotaResetInSeconds,
   onSignUp,
@@ -310,7 +318,7 @@ export function ExamReview({
         </div>
       </div>
 
-      {/* Guest 3-Exam Restriction Banner (Prominently displayed after 3rd free exam) */}
+      {/* Guest Free Exam Restriction Banner */}
       {quotaExhausted && (
         <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/[0.08] dark:bg-emerald-500/12 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
@@ -320,27 +328,27 @@ export function ExamReview({
             <div className="space-y-1 min-w-0">
               <h2 className="text-sm sm:text-base font-bold text-foreground">
                 {isRw
-                  ? "Wasoje ibizamini 3 by'uyu munsi! Iyandikishe ku buntu ukomeze"
+                  ? `Wasoje ibizamini ${quotaMaxAllowed} by'ubuntu! Iyandikishe ku buntu ukomeze`
                   : isFr
-                  ? "Vos 3 examens gratuits du jour sont terminés !"
-                  : "You've completed today's 3 free practice exams!"}
+                  ? `Vos ${quotaMaxAllowed} examen(s) gratuit(s) sont terminés !`
+                  : `You've completed your ${quotaMaxAllowed} free practice exam${quotaMaxAllowed === 1 ? "" : "s"}!`}
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                 {isRw
-                  ? "Wakoze neza kwimenyereza uyu munsi! Utarinjira muri konti wemerewe ibizamini 3 ku munsi. Iyandikishe ku buntu kugira ngo ubike aya manota kandi ukomeze kwimenyereza igihe cyose."
+                  ? `Wakoze neza kwimenyereza! Utarinjira muri konti wemerewe ibizamini ${quotaMaxAllowed} ${quotaResetUnit === "hours" ? `mu masaha ${quotaResetValue}` : quotaResetValue === 1 ? "ku munsi" : `mu minsi ${quotaResetValue}`}. Iyandikishe ku buntu kugira ngo ubike aya manota kandi ukomeze kwimenyereza igihe cyose.`
                   : isFr
-                  ? "Beau travail aujourd'hui ! Sans compte, vous disposez de 3 examens gratuits par jour. Inscrivez-vous gratuitement pour sauvegarder vos résultats et continuer à pratiquer librement."
-                  : "Great job practicing today! Visitors can take up to 3 free exams per day. Sign up for free to save your results and keep practicing anytime."}
+                  ? `Beau travail ! Sans compte, vous disposez de ${quotaMaxAllowed} examen(s) gratuit(s) par ${quotaResetValue} ${quotaResetUnit === "hours" ? (quotaResetValue === 1 ? "heure" : "heures") : (quotaResetValue === 1 ? "jour" : "jours")}. Inscrivez-vous gratuitement pour sauvegarder vos résultats et continuer à pratiquer librement.`
+                  : `Great job practicing! Visitors can take ${quotaMaxAllowed} free exam${quotaMaxAllowed === 1 ? "" : "s"} every ${quotaResetValue} ${quotaResetUnit === "hours" ? (quotaResetValue === 1 ? "hour" : "hours") : (quotaResetValue === 1 ? "day" : "days")}. Sign up for free to save your results and keep practicing anytime.`}
               </p>
-              {resetSecondsLeft !== null && (
+              {resetSecondsLeft !== null && resetSecondsLeft > 0 && quotaMaxAllowed > 0 && (
                 <div className="inline-flex items-center gap-1.5 pt-1 text-xs font-mono font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums">
                   <Clock className="w-3.5 h-3.5 shrink-0" />
                   <span>
                     {isRw
-                      ? `Amahirwe mashya azafunguka mu gihe cya: ${formatResetDuration(resetSecondsLeft)}`
+                      ? `Amahirwe mashya azafunguka mu gihe cya: ${formatResetDuration(resetSecondsLeft, false)}`
                       : isFr
-                      ? `Nouveaux examens gratuits dans : ${formatResetDuration(resetSecondsLeft)}`
-                      : `Free daily exams reset in: ${formatResetDuration(resetSecondsLeft)}`}
+                      ? `Nouveaux examens gratuits dans : ${formatResetDuration(resetSecondsLeft, true)}`
+                      : `Free exams reset in: ${formatResetDuration(resetSecondsLeft, false)}`}
                   </span>
                 </div>
               )}

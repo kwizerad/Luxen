@@ -337,7 +337,9 @@ export async function GET(req: NextRequest) {
         remainingCount: quota.remainingCount,
         maxAllowed: quota.maxAllowed,
         exhausted: quota.exhausted,
-        resetsDaily: true,
+        resetValue: quota.resetValue,
+        resetUnit: quota.resetUnit,
+        resetsDaily: quota.resetUnit === "days" && quota.resetValue === 1,
         resetAt: quota.resetAt,
         resetInSeconds: quota.resetInSeconds,
       },
@@ -417,12 +419,35 @@ export async function POST(req: NextRequest) {
 
       const currentQuota = await getGuestExamQuota(req, deviceId);
       if (currentQuota.exhausted) {
+        const unitEn =
+          currentQuota.resetUnit === "hours"
+            ? currentQuota.resetValue === 1
+              ? "hour"
+              : "hours"
+            : currentQuota.resetValue === 1
+            ? "day"
+            : "days";
+        const unitFr =
+          currentQuota.resetUnit === "hours"
+            ? currentQuota.resetValue === 1
+              ? "heure"
+              : "heures"
+            : currentQuota.resetValue === 1
+            ? "jour"
+            : "jours";
+        const rwWindow =
+          currentQuota.resetUnit === "hours"
+            ? `mu masaha ${currentQuota.resetValue}`
+            : currentQuota.resetValue === 1
+            ? "ku munsi"
+            : `mu minsi ${currentQuota.resetValue}`;
+
         const limitMsg =
           targetLang === "French"
-            ? "Vous avez terminé vos 3 examens gratuits d'aujourd'hui. Inscrivez-vous gratuitement pour enregistrer vos progrès et continuer sans limite."
+            ? `Vous avez utilisé vos ${currentQuota.maxAllowed} examen(s) gratuit(s) autorisé(s) par ${currentQuota.resetValue} ${unitFr}. Inscrivez-vous gratuitement pour enregistrer vos progrès et continuer sans limite.`
             : targetLang === "Kinyarwanda"
-            ? "Wasoje ibizamini 3 by'uyu munsi! Wiyandikishe ku buntu kugira ngo ubike amateka yawe kandi ukomeze kwimenyereza igihe cyose."
-            : "You've completed today's 3 free practice exams! Sign up for free to save your results and continue practicing anytime.";
+            ? `Wasoje ibizamini by'ubuntu ${currentQuota.maxAllowed} wemerewe ${rwWindow}. Wiyandikishe ku buntu kugira ngo ubike amateka yawe kandi ukomeze kwimenyereza igihe cyose.`
+            : `You have completed your ${currentQuota.maxAllowed} free practice exam${currentQuota.maxAllowed === 1 ? "" : "s"} per ${currentQuota.resetValue} ${unitEn}. Sign up for free to save your results and continue practicing anytime.`;
         const res = await secureJsonResponse(
           {
             error: "LIMIT_REACHED",
@@ -432,7 +457,11 @@ export async function POST(req: NextRequest) {
               remainingCount: 0,
               maxAllowed: currentQuota.maxAllowed,
               exhausted: true,
-              resetsDaily: true,
+              resetValue: currentQuota.resetValue,
+              resetUnit: currentQuota.resetUnit,
+              resetsDaily:
+                currentQuota.resetUnit === "days" &&
+                currentQuota.resetValue === 1,
               resetAt: currentQuota.resetAt,
               resetInSeconds: currentQuota.resetInSeconds,
             },
@@ -606,7 +635,10 @@ export async function POST(req: NextRequest) {
           remainingCount: updatedQuota.remainingCount,
           maxAllowed: updatedQuota.maxAllowed,
           exhausted: updatedQuota.exhausted,
-          resetsDaily: true,
+          resetValue: updatedQuota.resetValue,
+          resetUnit: updatedQuota.resetUnit,
+          resetsDaily:
+            updatedQuota.resetUnit === "days" && updatedQuota.resetValue === 1,
           resetAt: updatedQuota.resetAt,
           resetInSeconds: updatedQuota.resetInSeconds,
         },
@@ -693,7 +725,9 @@ export async function POST(req: NextRequest) {
           remainingCount: quota.remainingCount,
           maxAllowed: quota.maxAllowed,
           exhausted: quota.exhausted,
-          resetsDaily: true,
+          resetValue: quota.resetValue,
+          resetUnit: quota.resetUnit,
+          resetsDaily: quota.resetUnit === "days" && quota.resetValue === 1,
           resetAt: quota.resetAt,
           resetInSeconds: quota.resetInSeconds,
         },

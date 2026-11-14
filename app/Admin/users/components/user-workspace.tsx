@@ -638,11 +638,13 @@ export function UserWorkspace({
           onDelete={(u: UserWithStatus) => setConfirm({ action: "delete", user: u })}
           onPerformance={(u: UserWithStatus) => setPerformanceUser(u)}
           onExamLimit={(u: UserWithStatus) => setExamLimitDialog({ open: true, user: u })}
-          onViewIdDetail={(u: UserWithStatus) => setSelectedUserForIdDetail(u)}
+          onViewIdDetail={
+            userIsPrimaryAdmin ? (u: UserWithStatus) => setSelectedUserForIdDetail(u) : undefined
+          }
         />
       )}
 
-      {selectedUserForIdDetail && (
+      {userIsPrimaryAdmin && selectedUserForIdDetail && (
         <UserInfoDetailDialog
           user={selectedUserForIdDetail}
           onClose={() => setSelectedUserForIdDetail(null)}

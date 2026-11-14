@@ -55,16 +55,23 @@ interface GuestQuotaState {
   remainingCount: number;
   maxAllowed: number;
   exhausted: boolean;
+  resetValue?: number;
+  resetUnit?: "hours" | "days";
   resetAt?: string;
   resetInSeconds?: number;
 }
 
-function formatResetCountdown(totalSeconds: number): string {
+function formatResetCountdown(totalSeconds: number, isFr = false): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
-  const h = Math.floor(safe / 3600);
+  const d = Math.floor(safe / 86400);
+  const h = Math.floor((safe % 86400) / 3600);
   const m = Math.floor((safe % 3600) / 60);
   const s = safe % 60;
-  return `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+  const hms = `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+  if (d > 0) {
+    return `${d}${isFr ? "j" : "d"} ${hms}`;
+  }
+  return hms;
 }
 
 export function GuestExamClient() {
@@ -292,6 +299,10 @@ export function GuestExamClient() {
 
   // Quota reset countdown ticker
   useEffect(() => {
+    if (quota.usedCount <= 0) {
+      setResetCountdownSec(null);
+      return;
+    }
     const computeSeconds = () => {
       if (quota.resetAt) {
         return Math.max(0, Math.ceil((new Date(quota.resetAt).getTime() - Date.now()) / 1000));
@@ -312,7 +323,7 @@ export function GuestExamClient() {
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [quota.resetAt, quota.resetInSeconds]);
+  }, [quota.usedCount, quota.resetAt, quota.resetInSeconds]);
 
   // Countdown timer
   useEffect(() => {
@@ -357,19 +368,22 @@ export function GuestExamClient() {
       if (status === 429 || data?.error === "LIMIT_REACHED") {
         if (data?.quota) setQuota(data.quota);
         else
-          setQuota({
-            usedCount: 3,
+          setQuota((prev) => ({
+            usedCount: prev.maxAllowed,
             remainingCount: 0,
-            maxAllowed: 3,
+            maxAllowed: prev.maxAllowed,
             exhausted: true,
-          });
+            resetValue: prev.resetValue,
+            resetUnit: prev.resetUnit,
+          }));
         setExam(null);
         toast.error(
-          isRw
-            ? "Wasoje ibizamini 3 by'uyu munsi! Iyandikishe ku buntu kugira ngo ubike amateka yawe kandi ukomeze kwimenyereza."
-            : isFr
-            ? "Vous avez terminé vos 3 examens gratuits d'aujourd'hui ! Inscrivez-vous gratuitement pour continuer."
-            : "You've completed today's 3 free practice exams! Sign up for free to save your results and continue."
+          data?.message ||
+            (isRw
+              ? "Wasoje ibizamini by'ubuntu wemerewe! Iyandikishe ku buntu kugira ngo ubike amateka yawe kandi ukomeze kwimenyereza."
+              : isFr
+              ? "Vous avez utilisé vos examens gratuits autorisés ! Inscrivez-vous gratuitement pour continuer."
+              : "You have used your allowed free practice exams! Sign up for free to save your results and continue.")
         );
         return;
       }
@@ -591,20 +605,41 @@ export function GuestExamClient() {
     void startGuestExam(prevCat, selectedExamLanguage);
   };
 
+  const resetVal = quota.resetValue ?? 1;
+  const resetUnit = quota.resetUnit ?? "days";
+  const windowLabelEn =
+    resetUnit === "hours"
+      ? `${resetVal} hour${resetVal === 1 ? "" : "s"}`
+      : resetVal === 1
+      ? "today"
+      : `${resetVal} days`;
+  const windowLabelFr =
+    resetUnit === "hours"
+      ? `${resetVal} heure${resetVal === 1 ? "" : "s"}`
+      : resetVal === 1
+      ? "aujourd'hui"
+      : `${resetVal} jours`;
+  const windowLabelRw =
+    resetUnit === "hours"
+      ? `mu masaha ${resetVal}`
+      : resetVal === 1
+      ? "uyu munsi"
+      : `mu minsi ${resetVal}`;
+
   const resetTimerLabel =
-    resetCountdownSec !== null
+    resetCountdownSec !== null && resetCountdownSec > 0 && quota.maxAllowed > 0
       ? isRw
-        ? `Amahirwe mashya azafunguka nyuma ya ${formatResetCountdown(resetCountdownSec)}`
+        ? `Amahirwe mashya azafunguka nyuma ya ${formatResetCountdown(resetCountdownSec, false)}`
         : isFr
-        ? `Réinitialisation dans ${formatResetCountdown(resetCountdownSec)}`
-        : `Resets in ${formatResetCountdown(resetCountdownSec)}`
+        ? `Réinitialisation dans ${formatResetCountdown(resetCountdownSec, true)}`
+        : `Resets in ${formatResetCountdown(resetCountdownSec, false)}`
       : null;
 
   const footerQuotaText = isRw
-    ? `Ibizamini bisigaye uyu munsi: ${quota.remainingCount} / ${quota.maxAllowed}${resetTimerLabel ? ` · ${resetTimerLabel}` : ""}`
+    ? `Ibizamini bisigaye ${windowLabelRw}: ${quota.remainingCount} / ${quota.maxAllowed}${resetTimerLabel ? ` · ${resetTimerLabel}` : ""}`
     : isFr
-    ? `Examens gratuits restants aujourd'hui : ${quota.remainingCount} / ${quota.maxAllowed}${resetTimerLabel ? ` · ${resetTimerLabel}` : ""}`
-    : `Free exams remaining today: ${quota.remainingCount} / ${quota.maxAllowed}${resetTimerLabel ? ` · ${resetTimerLabel}` : ""}`;
+    ? `Examens gratuits restants (${windowLabelFr}) : ${quota.remainingCount} / ${quota.maxAllowed}${resetTimerLabel ? ` · ${resetTimerLabel}` : ""}`
+    : `Free exams remaining (${windowLabelEn}): ${quota.remainingCount} / ${quota.maxAllowed}${resetTimerLabel ? ` · ${resetTimerLabel}` : ""}`;
 
   const toolbarRight = (
     <div className="flex items-center gap-2 shrink-0">
@@ -721,6 +756,9 @@ export function GuestExamClient() {
               passingPercentage={exam?.settings?.passing_percentage}
               canRetake={!quota.exhausted}
               quotaExhausted={quota.exhausted}
+              quotaMaxAllowed={quota.maxAllowed}
+              quotaResetValue={quota.resetValue}
+              quotaResetUnit={quota.resetUnit}
               quotaResetAt={quota.resetAt}
               quotaResetInSeconds={quota.resetInSeconds}
               onSignUp={() => handleSaveAndRedirect("register")}
@@ -825,29 +863,41 @@ export function GuestExamClient() {
 
               <div className="space-y-2">
                 <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
-                  {isRw
-                    ? "Wasoje ibizamini 3 by'uyu munsi"
+                  {quota.maxAllowed === 0
+                    ? isRw
+                      ? "Injira cyangwa wiyandikishe gukora ikizamini"
+                      : isFr
+                      ? "Connectez-vous pour passer l'examen"
+                      : "Sign Up or Log In to Take the Exam"
+                    : isRw
+                    ? `Wasoje ibizamini ${quota.maxAllowed} wemerewe ${windowLabelRw}`
                     : isFr
-                    ? "Vos 3 examens du jour sont terminés"
-                    : "You've Completed Today's 3 Free Exams"}
+                    ? `Vos ${quota.maxAllowed} examen(s) gratuit(s) sont terminés`
+                    : `You've Used Your ${quota.maxAllowed} Free Exam${quota.maxAllowed === 1 ? "" : "s"}`}
                 </h2>
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                  {isRw
-                    ? "Byiza cyane! Wasoje amahirwe 3 yo kwimenyereza mu bizamini utari winjira muri konti uyu munsi. Ushobora kugaruka ejo ukongera gukora ibindi 3, cyangwa ukiyandikisha ku buntu kugira ngo ubike amateka yawe kandi ukomeze kwiga nta nkomyi."
+                  {quota.maxAllowed === 0
+                    ? isRw
+                      ? "Ubu usabwa kwinjira cyangwa kwiyandikisha ku buntu kugira ngo ukore ikizamini kandi ubike amateka yawe."
+                      : isFr
+                      ? "Veuillez créer un compte gratuit ou vous connecter pour accéder aux examens d'entraînement et enregistrer vos progrès."
+                      : "Please create a free account or sign in to take practice exams and save your scores."
+                    : isRw
+                    ? `Byiza cyane! Wasoje amahirwe ${quota.maxAllowed} yo kwimenyereza mu bizamini utari winjira muri konti (${windowLabelRw}). Ushobora gutegereza igihe gishya cyangwa ukiyandikisha ku buntu kugira ngo ubike amateka yawe kandi ukomeze kwiga nta nkomyi.`
                     : isFr
-                    ? "Bravo pour votre entraînement du jour ! Les visiteurs ont droit à 3 examens gratuits par jour. Revenez demain pour une nouvelle série, ou créez un compte gratuit dès maintenant pour enregistrer vos résultats et continuer librement."
-                    : "Great job practicing today! Visitors enjoy up to 3 free practice exams per day. Come back tomorrow for a fresh set, or create a free account now to save your results and keep practicing without limits."}
+                    ? `Bravo pour votre entraînement ! Sans compte, vous disposez de ${quota.maxAllowed} examen(s) gratuit(s) par ${windowLabelFr}. Revenez après la réinitialisation ou créez un compte gratuit pour enregistrer vos résultats et continuer librement.`
+                    : `Great job practicing! Visitors enjoy ${quota.maxAllowed} free practice exam${quota.maxAllowed === 1 ? "" : "s"} every ${resetUnit === "days" && resetVal === 1 ? "day" : windowLabelEn}. Wait for the reset timer below or create a free account now to save your results and keep practicing without limits.`}
                 </p>
 
-                {resetCountdownSec !== null && (
+                {resetCountdownSec !== null && resetCountdownSec > 0 && quota.maxAllowed > 0 && (
                   <div className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm font-mono font-semibold tabular-nums mx-auto">
                     <Clock className="w-4 h-4 shrink-0" />
                     <span>
                       {isRw
-                        ? `Ibizamini by'ubuntu bizagaruka mu gihe cya: ${formatResetCountdown(resetCountdownSec)}`
+                        ? `Ibizamini by'ubuntu bizagaruka mu gihe cya: ${formatResetCountdown(resetCountdownSec, false)}`
                         : isFr
-                        ? `Nouveaux examens gratuits dans : ${formatResetCountdown(resetCountdownSec)}`
-                        : `Next free exams unlock in: ${formatResetCountdown(resetCountdownSec)}`}
+                        ? `Nouveaux examens gratuits dans : ${formatResetCountdown(resetCountdownSec, true)}`
+                        : `Next free exams unlock in: ${formatResetCountdown(resetCountdownSec, false)}`}
                     </span>
                   </div>
                 )}
