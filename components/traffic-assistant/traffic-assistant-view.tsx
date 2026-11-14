@@ -291,7 +291,13 @@ export function TrafficAssistantView({ initialQuery = "" }: TrafficAssistantView
         <div className="text-center space-y-2.5 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground tracking-wide lowercase">
             <Scale className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span>igazeti ya leta · isesengura ry&apos;amasomo ya navo</span>
+            <span>
+              {effectiveLang === "fr"
+                ? "journal officiel · explorateur du code de la route"
+                : effectiveLang === "en"
+                ? "official gazette · navo road rules explorer"
+                : "igazeti ya leta · isesengura ry'amasomo ya navo"}
+            </span>
           </div>
 
           <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight text-balance">
@@ -645,9 +651,13 @@ export function TrafficAssistantView({ initialQuery = "" }: TrafficAssistantView
                               {isRevealed
                                 ? effectiveLang === "rw"
                                   ? "Hisha igisubizo"
+                                  : effectiveLang === "fr"
+                                  ? "Masquer la réponse"
                                   : "Hide Answer"
                                 : effectiveLang === "rw"
                                 ? "Reba igisubizo nyakuri"
+                                : effectiveLang === "fr"
+                                ? "Voir la bonne réponse"
                                 : "Reveal Answer"}
                             </span>
                             {isRevealed ? (
@@ -659,7 +669,12 @@ export function TrafficAssistantView({ initialQuery = "" }: TrafficAssistantView
 
                           {isRevealed && (
                             <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-                              {effectiveLang === "rw" ? "Nyakuri" : "Correct"}: {sq.correctAnswer}
+                              {effectiveLang === "rw"
+                                ? "Nyakuri"
+                                : effectiveLang === "fr"
+                                ? "Bonne réponse"
+                                : "Correct"}
+                              : {sq.correctAnswer}
                             </span>
                           )}
                         </div>

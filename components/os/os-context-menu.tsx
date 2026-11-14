@@ -9,7 +9,6 @@ import {
   Search,
   BookOpen,
   FileText,
-  Car,
   BarChart3,
   Settings,
   Maximize,
@@ -30,7 +29,10 @@ interface OSContextMenuProps {
 }
 
 export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContextMenuProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
+  const loc = (rw: string, fr: string, en: string) => (isRw ? rw : isFr ? fr : en);
   const { restoreAll, dismissed } = useDesktopWidgets();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -100,7 +102,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
   const handleRefreshPage = () => {
     setIsRefreshing(true);
     setIsOpen(false);
-    toast.info("Refreshing workspace...", { duration: 1500 });
+    toast.info(loc("Birimo kuvugururwa...", "Actualisation de l'espace...", "Refreshing workspace..."), { duration: 1500 });
     setTimeout(() => {
       window.location.reload();
     }, 300);
@@ -109,7 +111,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
   const handleGoHome = () => {
     navigate("home");
     setIsOpen(false);
-    toast.success("Returned to Desktop Workspace");
+    toast.success(loc("Wasubiye ahabanza", "Retour au bureau", "Returned to Desktop Workspace"));
   };
 
   const handleCopyUrl = async () => {
@@ -117,11 +119,11 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
       if (typeof window !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(window.location.href);
         setCopied(true);
-        toast.success("Current URL copied to clipboard!");
+        toast.success(t("copied") || loc("Byakoporowe!", "Lien copié !", "Current URL copied to clipboard!"));
         setTimeout(() => setCopied(false), 2000);
       }
     } catch {
-      toast.error("Failed to copy URL");
+      toast.error(loc("Gukoporora ntibyakunze", "Échec de la copie", "Failed to copy URL"));
     } finally {
       setIsOpen(false);
     }
@@ -170,7 +172,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
             {/* Context Menu Header */}
             <div className="px-2.5 py-1.5 flex items-center justify-between border-b border-border/60 dark:border-white/10 text-[11px] font-mono text-muted-foreground">
               <span className="font-semibold text-foreground dark:text-white">Navo OS</span>
-              <span>Dashboard Actions</span>
+              <span>{loc("Ibikorwa", "Actions", "Dashboard Actions")}</span>
             </div>
 
             {/* Core Navigation Actions */}
@@ -182,7 +184,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
               >
                 <div className="flex items-center gap-2">
                   <RotateCcw className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="font-medium">Refresh Page</span>
+                  <span className="font-medium">{loc("Vugurura Paji", "Actualiser la page", "Refresh Page")}</span>
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground">F5</span>
               </button>
@@ -194,7 +196,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
               >
                 <div className="flex items-center gap-2">
                   <Home className="w-3.5 h-3.5 text-blue-500" />
-                  <span className="font-medium">Go Home</span>
+                  <span className="font-medium">{loc("Subira Ahabanza", "Accueil Bureau", "Go Home")}</span>
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground">⌘1</span>
               </button>
@@ -210,7 +212,11 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
                   ) : (
                     <Copy className="w-3.5 h-3.5 text-cyan-500" />
                   )}
-                  <span className="font-medium">{copied ? "Copied!" : "Copy Current URL"}</span>
+                  <span className="font-medium">
+                    {copied
+                      ? t("copied") || loc("Byakoporowe!", "Copié !", "Copied!")
+                      : loc("Koporora Umurongo (URL)", "Copier le lien actuel", "Copy Current URL")}
+                  </span>
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground">⌘C</span>
               </button>
@@ -225,7 +231,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
               >
                 <div className="flex items-center gap-2">
                   <Search className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="font-medium">Spotlight Search</span>
+                  <span className="font-medium">{t("spotlightSearch") || loc("Gushakisha Vuba", "Recherche Spotlight", "Spotlight Search")}</span>
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground">⌘K</span>
               </button>
@@ -241,7 +247,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
                 >
                   <div className="flex items-center gap-2">
                     <Eye className="w-3.5 h-3.5" />
-                    <span>Restore Hidden Cards</span>
+                    <span>{loc("Garura Amakarita Yahishwe", "Restaurer les cartes masquées", "Restore Hidden Cards")}</span>
                   </div>
                   <span className="font-mono text-[10px] font-bold">{dismissed.length}</span>
                 </button>
@@ -253,7 +259,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
             {/* Quick Student App Jump Section */}
             <div className="space-y-0.5">
               <div className="px-2.5 py-0.5 text-[10px] font-mono uppercase text-muted-foreground">
-                Student Features
+                {loc("Ibice by'Umunyeshuri", "Espace Étudiant", "Student Features")}
               </div>
 
               <button
@@ -265,7 +271,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer text-left"
               >
                 <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Courses</span>
+                <span>{t("courses") || loc("Amasomo", "Cours", "Courses")}</span>
               </button>
 
               <button
@@ -277,7 +283,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer text-left"
               >
                 <FileText className="w-3.5 h-3.5 text-amber-500" />
-                <span>Exams Center</span>
+                <span>{t("examCenter") || loc("Ikigo cy'Ibizamini", "Centre d'Examen", "Exams Center")}</span>
               </button>
 
               <button
@@ -289,19 +295,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer text-left font-semibold text-indigo-500 dark:text-indigo-400"
               >
                 <AgoraIcon className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Agora (Community & Chat)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  navigate("driver-hub");
-                  setIsOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer text-left"
-              >
-                <Car className="w-3.5 h-3.5 text-purple-500" />
-                <span>Services & Instructors</span>
+                <span>{loc("Agora (Inshuti & Ibiganiro)", "Agora (Communauté & Chat)", "Agora (Community & Chat)")}</span>
               </button>
 
               <button
@@ -313,7 +307,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer text-left"
               >
                 <BarChart3 className="w-3.5 h-3.5 text-rose-500" />
-                <span>Performance Transcripts</span>
+                <span>{t("resultsAnalytics") || loc("Imitsindire n'Amateka", "Analyses & Relevés", "Performance Transcripts")}</span>
               </button>
             </div>
 
@@ -332,7 +326,11 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
                   ) : (
                     <Maximize className="w-3.5 h-3.5 text-cyan-500" />
                   )}
-                  <span>{isFullscreen ? "Exit Fullscreen" : "Toggle Fullscreen"}</span>
+                  <span>
+                    {isFullscreen
+                      ? loc("Va muri Ecran Yose", "Quitter le plein écran", "Exit Fullscreen")
+                      : loc("Ecran Yose", "Plein écran", "Toggle Fullscreen")}
+                  </span>
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground">F11</span>
               </button>
@@ -346,7 +344,7 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white transition-colors cursor-pointer text-left"
               >
                 <Settings className="w-3.5 h-3.5 text-zinc-400" />
-                <span>System Preferences</span>
+                <span>{t("systemPreferences") || loc("Igenamiterere rya Sisitemu", "Préférences Système", "System Preferences")}</span>
               </button>
             </div>
           </motion.div>

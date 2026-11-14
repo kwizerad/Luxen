@@ -221,14 +221,14 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
                 exit={{ opacity: 0, y: 4, scale: 0.9 }}
                 className="hidden sm:block absolute -top-7 px-2.5 py-1 rounded-md bg-popover dark:bg-zinc-950/95 text-popover-foreground dark:text-white font-sans text-[11px] font-medium shadow-none border border-border/60 dark:border-white/10 whitespace-nowrap pointer-events-none"
               >
-                Spotlight Search (⌘K)
+                {t("spotlightSearch") || "Spotlight Search"} (⌘K)
               </motion.div>
             )}
           </AnimatePresence>
 
           <motion.button
             type="button"
-            aria-label="Spotlight Search"
+            aria-label={t("spotlightSearch") || "Spotlight Search"}
             disabled={isExamSessionActive}
             onClick={(e) => {
               if (isExamSessionActive || (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true")) {

@@ -11,7 +11,6 @@ export type AdminViewId =
   | "questions"
   | "retake-requests"
   | "users"
-  | "drivers"
   | "reports"
   | "notifications"
   | "audit"
@@ -43,7 +42,6 @@ export function resolveAdminViewFromPath(pathname: string): AdminViewId {
   if (lower === "/admin/questions") return "questions";
   if (lower === "/admin/retake-requests") return "retake-requests";
   if (lower === "/admin/users") return "users";
-  if (lower === "/admin/drivers") return "drivers";
   if (lower === "/admin/reports") return "reports";
   if (lower === "/admin/notifications") return "notifications";
   if (lower === "/admin/audit") return "audit";
@@ -89,7 +87,6 @@ export function resolvePathFromAdminInput(input: string): { pathname: string; se
     questions: "/Admin/questions",
     "retake-requests": "/Admin/retake-requests",
     users: "/Admin/users",
-    drivers: "/Admin/drivers",
     reports: "/Admin/reports",
     notifications: "/Admin/notifications",
     audit: "/Admin/audit",

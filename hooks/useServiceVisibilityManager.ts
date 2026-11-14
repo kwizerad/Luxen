@@ -15,15 +15,13 @@ const DEFAULT_SERVICES_CONFIG: ServicesConfigState = {
     "live-exam": true,
     "group-exam": true,
     "traffic-assistant": true,
-    "driver-hub": false,
-    "drivers": false,
   },
   idVerificationRequired: true,
 };
 
 /**
  * ServiceVisibilityManager: Centralized hook that manages dynamic feature & service visibility
- * configured by administrators (e.g. Drivers Service, Services Page, Live Exam, Traffic Assistant).
+ * configured by administrators (e.g. Services Page, Live Exam, Group Exam, Traffic Assistant).
  * Ensures disabled services are cleanly filtered out across Navo OS Desktop, Dock, System Bar, and Viewports.
  */
 export function useServiceVisibilityManager() {
@@ -87,12 +85,6 @@ export function useServiceVisibilityManager() {
       const normalizedKey = serviceKey.toLowerCase().trim();
       const services = config.services || {};
 
-      if (normalizedKey === "drivers" || normalizedKey === "driver-hub" || normalizedKey === "driver_service") {
-        if (services["driver-hub"] !== undefined) return Boolean(services["driver-hub"]);
-        if (services["drivers"] !== undefined) return Boolean(services["drivers"]);
-        return false;
-      }
-
       if (services[normalizedKey] !== undefined) {
         return Boolean(services[normalizedKey]);
       }
@@ -102,16 +94,11 @@ export function useServiceVisibilityManager() {
     [config]
   );
 
-  const isDriverServiceEnabled = useMemo(() => {
-    return isServiceEnabled("driver-hub");
-  }, [isServiceEnabled]);
-
   return {
     loading,
     servicesConfig: config,
     isServicesPageEnabled,
     isServiceEnabled,
-    isDriverServiceEnabled,
     refreshConfig,
   };
 }

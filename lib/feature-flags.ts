@@ -240,7 +240,6 @@ export async function getCachedServicesConfig(): Promise<{
             "live-exam": true,
             "group-exam": true,
             "traffic-assistant": true,
-            "driver-hub": false,
           },
           idVerificationRequired: true,
         }
@@ -253,7 +252,6 @@ export async function getCachedServicesConfig(): Promise<{
       "live-exam": true,
       "group-exam": true,
       "traffic-assistant": true,
-      "driver-hub": false,
     };
 
     for (const row of rows) {
@@ -287,7 +285,6 @@ export async function getCachedServicesConfig(): Promise<{
           "live-exam": true,
           "group-exam": true,
           "traffic-assistant": true,
-          "driver-hub": false,
         },
         idVerificationRequired: true,
       }

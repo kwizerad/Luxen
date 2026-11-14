@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       const { data: profile } = await adminSb
         .from("user_profiles")
         .select(
-          "id, email, avatar_url, full_name, first_name, last_name, username, role, permissions, national_id, phone_number, phone_verified, id_verified, provision_verified, provision_category, driver_Verification, birthdate, gender, nationality, learning_language, banned"
+          "id, email, avatar_url, full_name, first_name, last_name, username, role, permissions, national_id, phone_number, phone_verified, id_verified, provision_verified, provision_category, birthdate, gender, nationality, learning_language, banned"
         )
         .eq("id", user.id)
         .maybeSingle();

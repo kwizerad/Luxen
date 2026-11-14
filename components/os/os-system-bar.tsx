@@ -64,6 +64,9 @@ interface OSSystemBarProps {
 export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemBarProps) {
   const { user } = useAuth();
   const { t, language, setLanguage } = useLanguage();
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
+  const loc = (rw: string, fr: string, en: string) => (isRw ? rw : isFr ? fr : en);
   const { config } = useBrandingConfig();
   const { theme, setTheme } = useTheme();
   const { dismissed, hide, restore, restoreAll, isHidden, availableWidgets } = useDesktopWidgets();
@@ -181,8 +184,6 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
       case "exam":
       case "exams":
         return t("examCenter") || "Exams";
-      case "driver-hub":
-      case "services/drivers":
       case "services":
         return t("services") || "Services";
       case "classmates":
@@ -207,7 +208,6 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
 
   const isExamView = activeView === "exam" || activeView === "exams";
   const isCourseView = activeView === "course" || activeView === "traffic-rules" || activeView === "terminal";
-  const isDriverView = activeView === "driver-hub" || activeView === "services/drivers";
 
   const isExamSessionActive = isExamActive;
 
@@ -239,35 +239,35 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             className="w-56 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-1 z-[150]"
           >
             <DropdownMenuLabel className="text-[11px] font-mono text-muted-foreground dark:text-zinc-400 px-2 py-1">
-              Navo OS v2.4 (Rwanda Traffic Code)
+              {loc("Navo OS v2.4 (Amategeko y'Umuhanda)", "Navo OS v2.4 (Code de la Route)", "Navo OS v2.4 (Rwanda Traffic Code)")}
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-border/60 dark:bg-white/10" />
             <DropdownMenuItem
               onClick={() => navigate("home")}
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
             >
-              <span>{t("desktop") || "Desktop Workspace"}</span>
+              <span>{t("desktop") || loc("Ahabanza", "Bureau", "Desktop Workspace")}</span>
               <span className="font-mono text-[10px] text-muted-foreground">⌘1</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => navigate("course")}
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
             >
-              <span>{t("courses") || "Courses"}</span>
+              <span>{t("courses") || loc("Amasomo", "Cours", "Courses")}</span>
               <span className="font-mono text-[10px] text-muted-foreground">⌘2</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => navigate("exams")}
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
             >
-              <span>{t("examCenter") || "Exam Center"}</span>
+              <span>{t("examCenter") || loc("Ikigo cy'Ibizamini", "Centre d'Examen", "Exam Center")}</span>
               <span className="font-mono text-[10px] text-muted-foreground">⌘3</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => navigate("settings")}
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
             >
-              <span>{t("systemPreferences") || "System Preferences..."}</span>
+              <span>{t("systemPreferences") || loc("Igenamiterere...", "Préférences Système...", "System Preferences...")}</span>
               <span className="font-mono text-[10px] text-muted-foreground">⌘,</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-border/60 dark:bg-white/10" />
@@ -275,14 +275,18 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
               onClick={toggleFullscreen}
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
             >
-              <span>{isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}</span>
+              <span>
+                {isFullscreen
+                  ? loc("Va muri Ecran Yose", "Quitter le plein écran", "Exit Fullscreen")
+                  : loc("Injira muri Ecran Yose", "Passer en plein écran", "Enter Fullscreen")}
+              </span>
               <span className="font-mono text-[10px] text-muted-foreground">F11</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onOpenSpotlight()}
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
             >
-              <span>{t("spotlightSearch") || "Spotlight Search"}</span>
+              <span>{t("spotlightSearch") || loc("Gushakisha Vuba", "Recherche Spotlight", "Spotlight Search")}</span>
               <span className="font-mono text-[10px] text-muted-foreground">⌘K</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-border/60 dark:bg-white/10" />
@@ -290,7 +294,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
               onClick={handleSignOut}
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-rose-500 dark:text-rose-400 cursor-pointer hover:bg-rose-500/15"
             >
-              <span>{t("logOut") || "Sign Out"}</span>
+              <span>{t("logOut") || loc("Sohoka", "Déconnexion", "Sign Out")}</span>
               <LogOut className="w-3.5 h-3.5" />
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -308,7 +312,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="px-2 py-0.5 rounded hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer outline-hidden shadow-none font-semibold text-foreground dark:text-white">
-                  Exam
+                  {loc("Ikizamini", "Examen", "Exam")}
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-52 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-1 z-[150]">
@@ -316,20 +320,20 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                   onClick={() => navigate("exams")}
                   className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  Official 20-Question Simulation
+                  {loc("Imyitozo y'Ibibazo 20", "Simulation officielle 20 questions", "Official 20-Question Simulation")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => navigate("results")}
                   className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  View Performance Transcripts
+                  {loc("Reba Amateka y'Amanota", "Consulter les relevés", "View Performance Transcripts")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-border/60 dark:bg-white/10" />
                 <DropdownMenuItem
                   onClick={() => navigate("home")}
                   className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  Exit Exam & Return to Desktop
+                  {loc("Sohoka usubire Ahabanza", "Quitter vers le Bureau", "Exit Exam & Return to Desktop")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -338,7 +342,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="px-2 py-0.5 rounded hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer outline-hidden shadow-none font-semibold text-foreground dark:text-white">
-                  Curriculum
+                  {loc("Amasomo", "Programme", "Curriculum")}
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-1 z-[150]">
@@ -346,19 +350,19 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                   onClick={() => navigate("course")}
                   className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  Full Traffic Modules List
+                  {loc("Urutonde rw'Amasomo Yose", "Liste complète des modules", "Full Traffic Modules List")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => navigate("course", { module: "signs" })}
                   className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  Traffic Signs Visual Catalog
+                  {loc("Ibyapa by'Umuhanda", "Catalogue des panneaux", "Traffic Signs Visual Catalog")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => navigate("course", { module: "rules" })}
                   className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  Rwanda Traffic Code (Law 55/2013)
+                  {loc("Amategeko y'Umuhanda mu Rwanda", "Code de la route du Rwanda", "Rwanda Traffic Code (Law 55/2013)")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -367,7 +371,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="px-2 py-0.5 rounded hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer outline-hidden shadow-none">
-                  File
+                  {loc("Dosiye", "Fichier", "File")}
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-48 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-1 z-[150]">
@@ -375,19 +379,19 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                   onClick={() => navigate("course")}
                   className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  Open Courses
+                  {loc("Fungura Amasomo", "Ouvrir les cours", "Open Courses")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => navigate("exams")}
                   className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  Take Practice Exam
+                  {loc("Kora Ikizamini cy'Imyitozo", "Passer un examen pratique", "Take Practice Exam")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => navigate("results")}
                   className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  Study Transcripts
+                  {loc("Amateka y'Imyigire", "Relevés d'étude", "Study Transcripts")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -397,7 +401,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="px-2 py-0.5 rounded hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer outline-hidden shadow-none">
-                View
+                {loc("Imigaragarire", "Affichage", "View")}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-52 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-1 z-[150]">
@@ -405,13 +409,15 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                 onClick={() => navigate("home")}
                 className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
               >
-                Desktop Workspace
+                {loc("Ahabanza (Desktop)", "Bureau principal", "Desktop Workspace")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={toggleFullscreen}
                 className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
               >
-                {isFullscreen ? "Exit Fullscreen" : "Toggle Fullscreen"}
+                {isFullscreen
+                  ? loc("Va muri Ecran Yose", "Quitter le plein écran", "Exit Fullscreen")
+                  : loc("Ecran Yose", "Plein écran", "Toggle Fullscreen")}
               </DropdownMenuItem>
               {dismissed.length > 0 && (
                 <>
@@ -423,7 +429,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                     }}
                     className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 cursor-pointer"
                   >
-                    <span>Restore All Hidden Cards</span>
+                    <span>{loc("Garura Amakarita Yahishwe", "Tout restaurer", "Restore All Hidden Cards")}</span>
                     <span className="font-mono text-[10px]">{dismissed.length}</span>
                   </DropdownMenuItem>
                 </>
@@ -438,10 +444,10 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                 type="button"
                 className="flex items-center gap-1.5 px-2 py-0.5 rounded hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer outline-hidden transition-colors shadow-none text-muted-foreground dark:text-zinc-300 hover:text-foreground dark:hover:text-white"
               >
-                <span>Widgets</span>
+                <span>{loc("Utudirishya", "Widgets", "Widgets")}</span>
                 {dismissed.length > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-[9px] font-mono leading-none">
-                    {dismissed.length} hidden
+                    {dismissed.length} {t("hidden") || "hidden"}
                   </span>
                 )}
               </button>
@@ -449,7 +455,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             <DropdownMenuContent className="w-64 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-1.5 z-[150]">
               <div className="flex items-center justify-between px-2 py-1">
                 <DropdownMenuLabel className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400 p-0">
-                  Desktop Widgets
+                  {loc("Utudirishya tw'Ahabanza", "Widgets du bureau", "Desktop Widgets")}
                 </DropdownMenuLabel>
                 {dismissed.length > 0 && (
                   <button
@@ -458,7 +464,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                     className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1 shadow-none"
                   >
                     <RotateCcw className="w-2.5 h-2.5" />
-                    <span>Restore All</span>
+                    <span>{loc("Garura Byose", "Tout restaurer", "Restore All")}</span>
                   </button>
                 )}
               </div>
@@ -496,7 +502,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                           : "text-muted-foreground"
                       }`}
                     >
-                      {hidden ? "Restore" : "Visible"}
+                      {hidden ? loc("Garura", "Afficher", "Restore") : loc("Biragaragara", "Visible", "Visible")}
                     </span>
                   </DropdownMenuItem>
                 );
@@ -504,7 +510,11 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
 
               <DropdownMenuSeparator className="bg-border/60 dark:bg-white/10 my-1" />
               <div className="px-2 py-1 text-[10px] text-muted-foreground dark:text-zinc-400 leading-tight">
-                Cards removed with &apos;x&apos; are never restored automatically unless you decide here.
+                {loc(
+                  "Amakarita wasibye ukanda 'x' ntagaruka ako kanya keretse uyagaruye hano.",
+                  "Les cartes fermées avec 'x' ne reviennent que si vous les restaurez ici.",
+                  "Cards removed with 'x' are never restored automatically unless you decide here."
+                )}
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -513,7 +523,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="px-2 py-0.5 rounded hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer outline-hidden shadow-none">
-                Help
+                {loc("Ubufasha", "Aide", "Help")}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-1 z-[150]">
@@ -521,13 +531,13 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                 onClick={() => onOpenSpotlight()}
                 className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
               >
-                Spotlight Search (⌘K)
+                {t("spotlightSearch") || "Spotlight Search"} (⌘K)
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate("course", { module: "rules" })}
                 className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
               >
-                Rwanda Traffic Regulations Code
+                {loc("Amategeko y'Umuhanda mu Rwanda", "Code de la route du Rwanda", "Rwanda Traffic Regulations Code")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -541,7 +551,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              title="Kigali, Rwanda Weather"
+              title={loc("Ikirere i Kigali, Rwanda", "Météo Kigali, Rwanda", "Kigali, Rwanda Weather")}
               className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 text-muted-foreground dark:text-zinc-300 hover:text-foreground dark:hover:text-white transition-colors cursor-pointer text-[11px] shadow-none"
             >
               <CloudSun className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
@@ -555,19 +565,19 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
           >
             <div className="flex items-center justify-between pb-2 border-b border-border/60 dark:border-white/10">
               <span className="font-semibold text-xs text-foreground dark:text-white">Kigali, Rwanda</span>
-              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">Live</span>
+              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">{loc("Ako kanya", "En direct", "Live")}</span>
             </div>
             <div className="flex items-center justify-between pt-2">
               <div className="flex items-center gap-2">
                 <CloudSun className="w-6 h-6 text-amber-500" />
                 <div>
                   <div className="text-base font-bold text-foreground dark:text-white">24°C</div>
-                  <div className="text-[10px] text-muted-foreground">Sunny Intervals</div>
+                  <div className="text-[10px] text-muted-foreground">{loc("Izuba riringaniye", "Éclaircies", "Sunny Intervals")}</div>
                 </div>
               </div>
               <div className="text-right text-[10px] text-muted-foreground space-y-0.5">
-                <div>Humidity: 62%</div>
-                <div>Wind: 8 km/h</div>
+                <div>{loc("Ubuhehere: 62%", "Humidité : 62%", "Humidity: 62%")}</div>
+                <div>{loc("Umuyaga: 8 km/h", "Vent : 8 km/h", "Wind: 8 km/h")}</div>
               </div>
             </div>
           </DropdownMenuContent>
@@ -578,7 +588,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              title={isWifiConnected ? "Network: Connected (Online)" : "Network: Disconnected (Offline)"}
+              title={isWifiConnected ? loc("Interineti: Iriho", "Réseau : Connecté", "Network: Connected (Online)") : loc("Interineti: Yavuyeho", "Réseau : Hors ligne", "Network: Disconnected (Offline)")}
               className="hidden min-[380px]:inline-flex p-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 text-muted-foreground dark:text-zinc-300 hover:text-foreground dark:hover:text-white transition-colors cursor-pointer shadow-none"
             >
               <Wifi className={`w-3.5 h-3.5 ${isWifiConnected ? "text-emerald-500" : "text-rose-500"}`} />
@@ -589,22 +599,22 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             className="w-56 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-2 z-[150]"
           >
             <div className="flex items-center justify-between px-2 py-1">
-              <span className="text-xs font-semibold text-foreground dark:text-white">Network Connection</span>
+              <span className="text-xs font-semibold text-foreground dark:text-white">{loc("Ihuza rya Interineti", "Connexion Réseau", "Network Connection")}</span>
               <span className={`text-[10px] font-mono ${isWifiConnected ? "text-emerald-500" : "text-rose-500"}`}>
-                {isWifiConnected ? "Online" : "Offline"}
+                {isWifiConnected ? loc("Kuri murandasi", "En ligne", "Online") : loc("Ntayihari", "Hors ligne", "Offline")}
               </span>
             </div>
             <DropdownMenuSeparator className="bg-border/60 dark:bg-white/10 my-1" />
             <div className="px-2 py-1 text-xs space-y-1">
               <div className="flex justify-between text-muted-foreground">
-                <span>Status:</span>
+                <span>{loc("Imiterere:", "État :", "Status:")}</span>
                 <span className={isWifiConnected ? "text-emerald-600 dark:text-emerald-400 font-mono" : "text-rose-500 font-mono"}>
-                  {isWifiConnected ? "Connected" : "Disconnected"}
+                  {isWifiConnected ? loc("Byahujwe", "Connecté", "Connected") : loc("Byatandukanye", "Déconnecté", "Disconnected")}
                 </span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Type:</span>
-                <span className="font-semibold text-foreground dark:text-white font-mono">Browser Network</span>
+                <span>{loc("Ubwoko:", "Type :", "Type:")}</span>
+                <span className="font-semibold text-foreground dark:text-white font-mono">{loc("Mushakisha", "Réseau navigateur", "Browser Network")}</span>
               </div>
             </div>
           </DropdownMenuContent>
@@ -612,7 +622,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
 
         {/* Battery Status Indicator */}
         <div
-          title={`Battery: ${batteryLevel}% ${isCharging ? "(Charging)" : ""}`}
+          title={`${loc("Batiri", "Batterie", "Battery")}: ${batteryLevel}% ${isCharging ? loc("(Iri gusharijwa)", "(En charge)", "(Charging)") : ""}`}
           className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-mono text-muted-foreground dark:text-zinc-300"
         >
           {isCharging ? (
@@ -627,7 +637,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
         <button
           type="button"
           onClick={onOpenSpotlight}
-          title="Spotlight Search (⌘K)"
+          title={`${t("spotlightSearch") || "Spotlight Search"} (⌘K)`}
           className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 text-muted-foreground dark:text-zinc-300 hover:text-foreground dark:hover:text-white transition-colors cursor-pointer shadow-none"
         >
           <Search className="w-3.5 h-3.5" />
@@ -655,7 +665,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             className="w-48 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-1 z-[150]"
           >
             <DropdownMenuLabel className="text-[10px] font-mono uppercase text-muted-foreground dark:text-zinc-400 px-2 py-1">
-              Select Language
+              {loc("Hitamo Ururimi", "Choisir la langue", "Select Language")}
             </DropdownMenuLabel>
             <DropdownMenuItem
               onClick={() => setLanguage("Kinyarwanda")}
@@ -707,7 +717,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              title="Navo OS Control Center"
+              title={loc("Ikigo cy'Igenzura", "Centre de contrôle", "Navo OS Control Center")}
               className="p-1 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 text-muted-foreground dark:text-zinc-300 hover:text-foreground dark:hover:text-white transition-colors cursor-pointer shadow-none"
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -718,13 +728,13 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             className="w-72 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-2xl shadow-none p-3 z-[150] space-y-3"
           >
             <div className="flex items-center justify-between pb-1 border-b border-border/60 dark:border-white/10">
-              <span className="font-bold text-xs text-foreground dark:text-white">Control Center</span>
-              <span className="text-[10px] font-mono text-muted-foreground">Kigali Workspace</span>
+              <span className="font-bold text-xs text-foreground dark:text-white">{loc("Ikigo cy'Igenzura", "Centre de contrôle", "Control Center")}</span>
+              <span className="text-[10px] font-mono text-muted-foreground">Navo OS</span>
             </div>
 
             {/* Quick Toggle 1: Theme Switcher Buttons */}
             <div className="space-y-1.5">
-              <span className="text-[10px] font-mono uppercase text-muted-foreground">Appearance</span>
+              <span className="text-[10px] font-mono uppercase text-muted-foreground">{loc("Imigaragarire", "Apparence", "Appearance")}</span>
               <div className="grid grid-cols-3 gap-1.5 bg-muted/50 p-1 rounded-xl">
                 <button
                   type="button"
@@ -736,7 +746,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                   }`}
                 >
                   <Sun className="w-3 h-3 text-amber-500" />
-                  <span>Light</span>
+                  <span>{loc("Urumuri", "Clair", "Light")}</span>
                 </button>
                 <button
                   type="button"
@@ -748,7 +758,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                   }`}
                 >
                   <Moon className="w-3 h-3 text-indigo-400" />
-                  <span>Dark</span>
+                  <span>{loc("Umwijima", "Sombre", "Dark")}</span>
                 </button>
                 <button
                   type="button"
@@ -760,7 +770,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                   }`}
                 >
                   <Laptop className="w-3 h-3 text-emerald-500" />
-                  <span>Auto</span>
+                  <span>{loc("Ubwikora", "Auto", "Auto")}</span>
                 </button>
               </div>
             </div>
@@ -768,9 +778,9 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             {/* Quick Toggle 2: Audio Volume Control */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[10px] font-mono uppercase text-muted-foreground">Sound & Voice</span>
+                <span className="text-[10px] font-mono uppercase text-muted-foreground">{loc("Ijwi n'Amajwi", "Son & Voix", "Sound & Voice")}</span>
                 <span className="text-[10px] font-mono text-muted-foreground">
-                  {isAudioMuted ? "Muted" : `${audioVolume}%`}
+                  {isAudioMuted ? loc("Cecekesha", "Muet", "Muted") : `${audioVolume}%`}
                 </span>
               </div>
               <div className="flex items-center gap-2 bg-muted/40 p-2 rounded-xl">
@@ -804,8 +814,8 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             {/* Quick Toggle 3: Focus Study Mode */}
             <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40">
               <div className="space-y-0.5">
-                <span className="text-xs font-semibold block text-foreground dark:text-white">Exam Focus Mode</span>
-                <span className="text-[10px] text-muted-foreground block">Mute popups & study distraction-free</span>
+                <span className="text-xs font-semibold block text-foreground dark:text-white">{loc("Kwiga nta Rirogoya", "Mode Concentration", "Exam Focus Mode")}</span>
+                <span className="text-[10px] text-muted-foreground block">{loc("Funga ubutumwa bwihuse wige neza", "Masquer les alertes pour étudier", "Mute popups & study distraction-free")}</span>
               </div>
               <button
                 type="button"
@@ -831,7 +841,7 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             <button
               type="button"
               suppressHydrationWarning
-              title="Kigali, Rwanda Local Time (GMT+2)"
+              title={loc("Isaha y'i Kigali (GMT+2)", "Heure locale à Kigali (GMT+2)", "Kigali, Rwanda Local Time (GMT+2)")}
               className="flex items-center gap-1.5 px-1 sm:px-2 py-0.5 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer font-mono text-[10px] sm:text-[11px] text-foreground dark:text-zinc-200 shadow-none transition-colors whitespace-nowrap shrink-0"
             >
               <span suppressHydrationWarning className="hidden lg:inline text-muted-foreground dark:text-zinc-400">
@@ -858,7 +868,11 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
               <p className="text-[10px] text-muted-foreground font-mono">Central Africa Time (CAT)</p>
             </div>
             <div className="text-[11px] text-muted-foreground leading-relaxed pt-1">
-              Official study sessions, mock exam timers, and instructor bookings follow Kigali local time.
+              {loc(
+                "Amasaha y'amasomo n'ibizamini by'imyitozo akurikiza isaha y'i Kigali.",
+                "Les sessions d'étude et les examens suivent l'heure locale de Kigali.",
+                "Official study sessions and mock exam timers follow Kigali local time."
+              )}
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -881,9 +895,9 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
           >
             <div className="px-2 py-1.5">
               <p className="text-xs font-semibold text-foreground dark:text-white truncate">
-                {user?.user_metadata?.full_name || user?.email || "Student Account"}
+                {user?.user_metadata?.full_name || user?.email || t("studentAccount") || "Student Account"}
               </p>
-              <p className="text-[10px] text-muted-foreground truncate">{user?.email || "Signed In"}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{user?.email || loc("Urinjiye", "Connecté", "Signed In")}</p>
             </div>
 
             <DropdownMenuSeparator className="bg-border/60 dark:bg-white/10" />
@@ -891,14 +905,18 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             {/* Target Driving License Category Selector */}
             <div className="px-2 py-1">
               <span className="text-[10px] font-mono uppercase text-muted-foreground block mb-1">
-                Target License Goal
+                {loc("Icyiciro cy'Uruhushya Wifuza", "Catégorie de Permis Visée", "Target License Goal")}
               </span>
               <div className="flex items-center gap-1">
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-bold font-mono bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   {selectedCategory}
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  {selectedCategory === "Category B" ? "Light Vehicles" : selectedCategory === "Category A" ? "Motorcycles" : "Heavy Vehicles"}
+                  {selectedCategory === "Category B"
+                    ? loc("Ibinyabiziga Bito", "Véhicules légers", "Light Vehicles")
+                    : selectedCategory === "Category A"
+                    ? loc("Moto", "Motos", "Motorcycles")
+                    : loc("Ibinyabiziga Binini", "Poids lourds", "Heavy Vehicles")}
                 </span>
               </div>
             </div>

@@ -110,13 +110,6 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
       titleFallback: "Traffic Rules & Gazette Assistant",
       descFallback: "Search Rwanda road traffic regulations and official legal gazettes",
     },
-    {
-      key: "driver-hub",
-      labelKey: "findDriver",
-      descKey: "findDriverDesc",
-      titleFallback: "Find Driving Instructors / Driver Hub",
-      descFallback: "Directory of certified driving instructors and professional drivers",
-    },
   ];
   const [liveExamIdVerificationRequired, setLiveExamIdVerificationRequired] = useState<boolean>(true);
 
@@ -442,7 +435,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
         serviceDefinitions.map((svc) =>
           updateSystemConfig(
             `service_${svc.key}_enabled`,
-            (serviceToggles[svc.key] ?? (svc.key === "driver-hub" ? false : true)).toString(),
+            (serviceToggles[svc.key] ?? true).toString(),
             t(svc.descKey) || `Enable or disable the ${svc.key} service`
           )
         )
@@ -984,7 +977,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
               {t("individualServices") || "Individual Services"}
             </Label>
             {serviceDefinitions.map((svc) => {
-              const isEnabled = serviceToggles[svc.key] ?? (svc.key === "driver-hub" ? false : true);
+              const isEnabled = serviceToggles[svc.key] ?? true;
               return (
                 <div key={svc.key} className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-muted/30 hover:bg-muted/40 transition-colors">
                   <div className="space-y-1 pr-3">

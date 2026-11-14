@@ -6,7 +6,6 @@ import {
   Search,
   BookOpen,
   FileText,
-  Car,
   Users,
   Settings,
   Trophy,
@@ -37,6 +36,10 @@ interface OSSpotlightProps {
 
 export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
   const { t, language, setLanguage } = useLanguage();
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
+  const loc = (rw: string, fr: string, en: string) => (isRw ? rw : isFr ? fr : en);
+
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -64,11 +67,15 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  const appsLabel = loc("Porogaramu", "Applications", "Apps");
+  const coursesCatLabel = loc("Amasomo", "Cours", "Courses");
+  const systemLabel = loc("Sisitemu", "Système", "System");
+
   const items: SpotlightItem[] = useMemo(() => [
     {
       id: "app-home",
-      title: t("desktop") || "Navo Desktop Workspace",
-      category: "Apps",
+      title: t("desktop") || loc("Ahabanza ya Navo", "Bureau Navo OS", "Navo Desktop Workspace"),
+      category: appsLabel as SpotlightItem["category"],
       icon: Compass,
       action: () => {
         navigate("home");
@@ -78,54 +85,43 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
     },
     {
       id: "app-course",
-      title: t("courses") || "Courses & Lessons",
-      category: "Apps",
+      title: t("courses") || loc("Amasomo", "Cours & Leçons", "Courses & Lessons"),
+      category: appsLabel as SpotlightItem["category"],
       icon: BookOpen,
       action: () => {
         navigate("course");
         onClose();
       },
       shortcut: "⌘2",
-      badge: "Curriculum",
+      badge: loc("Amasomo", "Programme", "Curriculum"),
     },
     {
       id: "app-exams",
-      title: t("examCenter") || "Exam Center & Mock Tests",
-      category: "Apps",
+      title: t("examCenter") || loc("Ikigo cy'Ibizamini", "Centre d'Examen", "Exam Center & Mock Tests"),
+      category: appsLabel as SpotlightItem["category"],
       icon: FileText,
       action: () => {
         navigate("exams");
         onClose();
       },
       shortcut: "⌘3",
-      badge: "Timed",
+      badge: loc("Gifite Igihe", "Chronométré", "Timed"),
     },
     {
       id: "app-signs",
-      title: t("trafficSignsCatalog") || "Road Signs & Traffic Regulations",
-      category: "Courses",
+      title: t("trafficSignsCatalog") || loc("Ibyapa by'Umuhanda", "Panneaux & Code", "Road Signs & Traffic Regulations"),
+      category: coursesCatLabel as SpotlightItem["category"],
       icon: Compass,
       action: () => {
         navigate("course", { module: "signs" });
         onClose();
       },
-      badge: "Visual Code",
-    },
-    {
-      id: "app-drivers",
-      title: t("driverHub") || "Driving Schools & Instructors Hub",
-      category: "Apps",
-      icon: Car,
-      action: () => {
-        navigate("driver-hub");
-        onClose();
-      },
-      shortcut: "⌘4",
+      badge: loc("Ibyapa", "Signalisation", "Visual Code"),
     },
     {
       id: "app-classmates",
-      title: t("classmates") || "Classmates & Collaborative Study",
-      category: "Apps",
+      title: t("classmates") || loc("Abo Mwigana n'Inshuti", "Camarades d'étude", "Classmates & Collaborative Study"),
+      category: appsLabel as SpotlightItem["category"],
       icon: Users,
       action: () => {
         navigate("classmates");
@@ -135,8 +131,8 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
     },
     {
       id: "app-results",
-      title: t("resultsAnalytics") || "Performance Analytics & History",
-      category: "System",
+      title: t("resultsAnalytics") || loc("Imitsindire n'Amateka", "Analyses & Historique", "Performance Analytics & History"),
+      category: systemLabel as SpotlightItem["category"],
       icon: Trophy,
       action: () => {
         navigate("results");
@@ -145,8 +141,8 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
     },
     {
       id: "app-settings",
-      title: t("systemPreferences") || "System Preferences",
-      category: "System",
+      title: t("systemPreferences") || loc("Igenamiterere rya Sisitemu", "Préférences Système", "System Preferences"),
+      category: systemLabel as SpotlightItem["category"],
       icon: Settings,
       action: () => {
         navigate("settings");
@@ -156,8 +152,8 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
     },
     {
       id: "lang-rw",
-      title: "Switch Language: Ikinyarwanda (Rwanda)",
-      category: "System",
+      title: loc("Hindura Ururimi: Ikinyarwanda", "Changer de langue : Ikinyarwanda", "Switch Language: Ikinyarwanda (Rwanda)"),
+      category: systemLabel as SpotlightItem["category"],
       icon: Languages,
       action: () => {
         setLanguage("Kinyarwanda");
@@ -167,8 +163,8 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
     },
     {
       id: "lang-en",
-      title: "Switch Language: English",
-      category: "System",
+      title: loc("Hindura Ururimi: English", "Changer de langue : English", "Switch Language: English"),
+      category: systemLabel as SpotlightItem["category"],
       icon: Languages,
       action: () => {
         setLanguage("English");
@@ -178,8 +174,8 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
     },
     {
       id: "lang-fr",
-      title: "Switch Language: Français",
-      category: "System",
+      title: loc("Hindura Ururimi: Français", "Changer de langue : Français", "Switch Language: Français"),
+      category: systemLabel as SpotlightItem["category"],
       icon: Languages,
       action: () => {
         setLanguage("French");
@@ -187,7 +183,7 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
       },
       badge: "🇫🇷 FR",
     },
-  ], [t, navigate, onClose, setLanguage]);
+  ], [t, navigate, onClose, setLanguage, isRw, isFr]);
 
   const filteredItems = useMemo(() => {
     if (!query.trim()) return items;
@@ -251,7 +247,11 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Spotlight Search: Launch apps, search modules, rules..."
+                placeholder={loc(
+                  "Shakisha vuba: Fungura porogaramu, amasomo, amategeko...",
+                  "Recherche Spotlight : Ouvrir applis, cours, règles...",
+                  "Spotlight Search: Launch apps, search modules, rules..."
+                )}
                 className="w-full bg-transparent border-none outline-hidden text-base text-foreground dark:text-zinc-100 placeholder:text-muted-foreground font-sans"
               />
               {query && (
@@ -272,7 +272,11 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
             <div className="max-h-[380px] overflow-y-auto p-2 space-y-1">
               {filteredItems.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground text-sm">
-                  No matching apps or files found.
+                  {loc(
+                    "Nta porogaramu cyangwa dosiye ihuye byabonetse.",
+                    "Aucune application ni fichier trouvé.",
+                    "No matching apps or files found."
+                  )}
                 </div>
               ) : (
                 filteredItems.map((item, idx) => {
@@ -342,10 +346,10 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
             {/* Spotlight Footer */}
             <div className="flex items-center justify-between px-4 py-2 border-t border-border/60 dark:border-white/10 bg-muted/40 dark:bg-black/20 text-[11px] text-muted-foreground font-mono">
               <div className="flex items-center gap-3">
-                <span>↑↓ Navigate</span>
-                <span>↵ Open</span>
+                <span>↑↓ {loc("Hitamo", "Naviguer", "Navigate")}</span>
+                <span>↵ {loc("Fungura", "Ouvrir", "Open")}</span>
               </div>
-              <span>Navo OS Spotlight</span>
+              <span>{t("spotlightSearch") || "Navo OS Spotlight"}</span>
             </div>
           </motion.div>
         </div>

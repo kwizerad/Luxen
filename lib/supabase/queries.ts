@@ -2584,7 +2584,6 @@ export async function getServicesConfig(): Promise<{
           "live-exam": true,
           "group-exam": true,
           "traffic-assistant": true,
-          "driver-hub": false,
         },
         idVerificationRequired: true,
       };
@@ -2598,7 +2597,6 @@ export async function getServicesConfig(): Promise<{
     "live-exam": true,
     "group-exam": true,
     "traffic-assistant": true,
-    "driver-hub": false,
   };
 
   for (const row of rows) {

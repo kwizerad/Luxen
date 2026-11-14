@@ -12,7 +12,7 @@ import {
   Send, UserPlus, RefreshCw, Shield, Sparkles, Download, Search,
   Radio, BarChart3, Globe, ChevronRight, Check, X, BellRing, Smartphone,
   Monitor, Tablet, Compass, Eye, Filter, ArrowDownRight, UserCheck,
-  Car, Flag, AlertTriangle, PlayCircle, Cpu, Wifi, CheckCircle2,
+  Flag, AlertTriangle, PlayCircle, Cpu, Wifi, CheckCircle2,
   HardDrive, Info, Mail, ShieldAlert, Command, MessageSquare, Ban,
   RotateCcw, ExternalLink, FileSpreadsheet, HelpCircle, Sliders,
   Megaphone, ClipboardCheck, FileCheck
@@ -60,7 +60,6 @@ export type DashboardTab =
   | "exams"
   | "courses"
   | "students"
-  | "drivers"
   | "reports"
   | "audit"
   | "devices"
@@ -71,7 +70,7 @@ type TimeRange = "7d" | "30d" | "all";
 interface RealtimeEventItem {
   id: string;
   timestamp: string;
-  source: "exam_attempts" | "user_profiles" | "visitor_device_logs" | "notifications" | "driver_reports";
+  source: "exam_attempts" | "user_profiles" | "visitor_device_logs" | "notifications";
   type: "INSERT" | "UPDATE" | "DELETE" | "SIMULATION";
   title: string;
   details: string;
@@ -110,7 +109,7 @@ export default function AdminDashboard() {
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const [broadcastTitle, setBroadcastTitle] = useState("");
   const [broadcastMsg, setBroadcastMsg] = useState("");
-  const [broadcastRole, setBroadcastRole] = useState<"all" | "student" | "driver" | "admin">("all");
+  const [broadcastRole, setBroadcastRole] = useState<"all" | "student" | "admin">("all");
   const [broadcastPriority, setBroadcastPriority] = useState<"urgent" | "normal" | "low">("normal");
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
@@ -137,7 +136,7 @@ export default function AdminDashboard() {
 
   // Filter States for Exams & Students Tabs
   const [attemptStatusFilter, setAttemptStatusFilter] = useState<"all" | "completed" | "in_progress" | "passed" | "failed">("all");
-  const [userRoleFilter, setUserRoleFilter] = useState<"all" | "Student" | "Driver" | "Admin">("all");
+  const [userRoleFilter, setUserRoleFilter] = useState<"all" | "Student" | "Admin">("all");
   const [userStatusFilter, setUserStatusFilter] = useState<"all" | "online" | "verified" | "unverified" | "suspended">("all");
   const [retakeFilter, setRetakeFilter] = useState<"all" | "pending" | "approved" | "denied">("pending");
   const [processingActionId, setProcessingActionId] = useState<string | null>(null);
@@ -356,7 +355,6 @@ export default function AdminDashboard() {
   const totalUsers = stats?.totalUsers ?? 0;
   const totalStudents = stats?.totalStudents ?? 0;
   const totalAdmins = stats?.totalAdmins ?? 0;
-  const totalDrivers = stats?.totalDrivers ?? 0;
   const onlineUsers = stats?.onlineUsers ?? 0;
   const totalCategories = stats?.totalCategories ?? 0;
   const totalQuestions = stats?.totalQuestions ?? 0;
@@ -701,13 +699,12 @@ export default function AdminDashboard() {
   const distributionData = useMemo(() => {
     return [
       { name: "Students", value: totalStudents, color: "#22C55E" },
-      { name: "Drivers", value: totalDrivers, color: "#38BDF8" },
       { name: "Categories", value: totalCategories, color: "#6366F1" },
       { name: "Questions", value: totalQuestions, color: "#3B82F6" },
       { name: "Attempts", value: totalAttempts, color: "#F59E0B" },
       { name: "Admins", value: totalAdmins, color: "#EC4899" },
     ].filter((d) => d.value > 0);
-  }, [totalStudents, totalDrivers, totalCategories, totalQuestions, totalAttempts, totalAdmins]);
+  }, [totalStudents, totalCategories, totalQuestions, totalAttempts, totalAdmins]);
 
   const passRateRadialData = [{ name: "Pass Rate", value: passRate, fill: "#22C55E" }];
 
@@ -1034,32 +1031,6 @@ export default function AdminDashboard() {
           </div>
         </motion.div>
 
-        {/* Card 7: Fleet & Drivers */}
-        <motion.div
-          custom={6}
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          className="admin-card p-4 sm:p-5 relative overflow-hidden group hover:border-teal-500/40 transition-colors cursor-pointer"
-          onClick={() => handleTabChange("drivers")}
-        >
-          <div className="flex items-center justify-between mb-2 sm:mb-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-teal-500/10 text-teal-400">
-              <Car className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-400">
-              Active Fleet
-            </span>
-          </div>
-          <div className="text-2xl sm:text-3xl font-bold text-[var(--admin-text)] tracking-tight">
-            <AnimatedCounter value={totalDrivers} />
-          </div>
-          <div className="text-xs text-[var(--admin-muted)] mt-1 font-medium flex items-center justify-between">
-            <span>Registered Drivers</span>
-            <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-teal-400" />
-          </div>
-        </motion.div>
-
         {/* Card 8: Total Accounts */}
         <motion.div
           custom={7}
@@ -1096,7 +1067,6 @@ export default function AdminDashboard() {
             { id: "exams", label: "Exam Telemetry", icon: Activity, badge: inProgressAttempts },
             { id: "courses", label: "Curriculum & Courses", icon: BookOpen, badge: 0 },
             { id: "students", label: "Students & Users", icon: GraduationCap, badge: unverifiedUsers },
-            { id: "drivers", label: "Fleet & Drivers", icon: Car, badge: pendingReports },
             { id: "reports", label: "Weekly Reports", icon: Mail, badge: 0 },
             { id: "audit", label: "Admin Audit", icon: ShieldAlert, badge: 0 },
             { id: "devices", label: "Device & Geo Map", icon: Tablet, badge: 0 },
@@ -1249,13 +1219,6 @@ export default function AdminDashboard() {
                     accent: "text-sky-400 bg-sky-500/10",
                   },
                   {
-                    title: "Drivers & Fleet",
-                    meta: `${totalDrivers} drivers`,
-                    href: "/Admin/drivers",
-                    icon: Car,
-                    accent: "text-teal-400 bg-teal-500/10",
-                  },
-                  {
                     title: "Incident Reports",
                     meta: `${pendingReports} open`,
                     href: "/Admin/reports",
@@ -1338,7 +1301,6 @@ export default function AdminDashboard() {
               initialExamAttemptsCount={totalAttempts}
               initialUserProfilesCount={totalUsers}
               initialStudentsCount={totalStudents}
-              initialDriversCount={totalDrivers}
               initialAdminsCount={totalAdmins}
               realtimeEventCount={realtimeEventCount}
             />
@@ -1619,12 +1581,12 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* 2. Open Incident & Driver Reports Queue */}
+              {/* 2. Open Incident & Safety Reports Queue */}
               <div className="admin-card p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-bold text-[var(--admin-text)]">Incident & Conduct Reports</h3>
-                    <p className="text-xs text-[var(--admin-muted)]">Triage user and driver reports directly or inspect full threads</p>
+                    <p className="text-xs text-[var(--admin-muted)]">Triage user safety reports directly or inspect full threads</p>
                   </div>
                   <Link
                     href="/Admin/reports"
@@ -1638,7 +1600,7 @@ export default function AdminDashboard() {
                 <div className="divide-y divide-[var(--admin-border)] max-h-[380px] overflow-y-auto">
                   {(statsData?.pendingReportsList || []).length === 0 ? (
                     <div className="py-10 text-center text-xs text-[var(--admin-muted)]">
-                      No user or driver reports filed. Clean operational state.
+                      No incident reports filed. Clean operational state.
                     </div>
                   ) : (
                     (statsData?.pendingReportsList || []).map((rep) => (
@@ -2110,7 +2072,6 @@ export default function AdminDashboard() {
                     [
                       { id: "all", label: "All Roles" },
                       { id: "Student", label: "Students" },
-                      { id: "Driver", label: "Drivers" },
                       { id: "Admin", label: "Admins" },
                     ] as const
                   ).map((r) => (
@@ -2213,7 +2174,7 @@ export default function AdminDashboard() {
                             </td>
                             <td className="py-3">
                               <span className={`px-2 py-0.5 rounded-full font-semibold text-[10px] ${
-                                u.role === "Admin" ? "bg-pink-500/10 text-pink-400" : u.role === "Driver" ? "bg-teal-500/10 text-teal-400" : "bg-sky-500/10 text-sky-400"
+                                u.role === "Admin" ? "bg-pink-500/10 text-pink-400" : "bg-sky-500/10 text-sky-400"
                               }`}>
                                 {u.role}
                               </span>
@@ -2316,71 +2277,6 @@ export default function AdminDashboard() {
                     )}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* TAB 4: FLEET & DRIVERS */}
-        {activeTab === "drivers" && (
-          <motion.div
-            key="drivers"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25 }}
-            className="space-y-6"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[var(--admin-card-bg)] border border-[var(--admin-border)]">
-              <div>
-                <h3 className="text-lg font-bold text-[var(--admin-text)]">Fleet & Driver Intelligence</h3>
-                <p className="text-xs text-[var(--admin-muted)]">Driver verification, vehicle records, and incident reports</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setActiveTab("triage")}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/20"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Triage Queue ({pendingReports})</span>
-                </button>
-                <Link
-                  href="/Admin/drivers"
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm"
-                >
-                  <Car className="w-3.5 h-3.5" />
-                  <span>Manage Drivers</span>
-                </Link>
-                <Link
-                  href="/Admin/reports"
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[var(--admin-input-bg)] border border-[var(--admin-border)] text-[var(--admin-text)]"
-                >
-                  <Flag className="w-3.5 h-3.5" />
-                  <span>Safety Reports ({pendingReports})</span>
-                </Link>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div className="admin-card p-5 space-y-2">
-                <div className="text-xs text-[var(--admin-muted)] font-medium">Total Registered Drivers</div>
-                <div className="text-2xl font-bold text-[var(--admin-text)] tabular-nums">{totalDrivers}</div>
-                <div className="text-[11px] text-teal-400 font-semibold">Active Fleet Roster</div>
-              </div>
-              <div className="admin-card p-5 space-y-2">
-                <div className="text-xs text-[var(--admin-muted)] font-medium">Driver Verification Rate</div>
-                <div className="text-2xl font-bold text-emerald-400 tabular-nums">100%</div>
-                <div className="text-[11px] text-[var(--admin-muted)]">All driver accounts verified</div>
-              </div>
-              <div className="admin-card p-5 space-y-2">
-                <div className="text-xs text-[var(--admin-muted)] font-medium">Unverified Platform Users</div>
-                <div className="text-2xl font-bold text-amber-400 tabular-nums">{unverifiedUsers}</div>
-                <div className="text-[11px] text-[var(--admin-muted)]">Awaiting profile verification</div>
-              </div>
-              <div className="admin-card p-5 space-y-2">
-                <div className="text-xs text-[var(--admin-muted)] font-medium">Open Safety Reports</div>
-                <div className="text-2xl font-bold text-rose-400 tabular-nums">{pendingReports}</div>
-                <div className="text-[11px] text-[var(--admin-muted)]">{suspendedUsers} suspended accounts</div>
               </div>
             </div>
           </motion.div>
@@ -2636,18 +2532,17 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-[var(--admin-text)]">Real-time Broadcast Center</h3>
-                  <p className="text-xs text-[var(--admin-muted)]">Dispatch instant push notifications to all users, students, drivers, or admins</p>
+                  <p className="text-xs text-[var(--admin-muted)]">Dispatch instant push notifications to all users, students, or admins</p>
                 </div>
               </div>
 
               <form onSubmit={handleSendBroadcast} className="space-y-4">
                 <div>
                   <label className="text-xs font-semibold text-[var(--admin-muted)] block mb-1.5">Target Audience Role</label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {[
                       { id: "all", label: "All Users" },
                       { id: "student", label: "Students" },
-                      { id: "driver", label: "Drivers" },
                       { id: "admin", label: "Admins" },
                     ].map((role) => (
                       <button
@@ -3200,7 +3095,6 @@ export default function AdminDashboard() {
                       { label: "Exam Categories", href: "/Admin/Categories", icon: Layers },
                       { label: "Question Bank", href: "/Admin/Questions", icon: HelpCircle },
                       { label: "Users & Roles", href: "/Admin/users", icon: Users },
-                      { label: "Driver Fleet", href: "/Admin/drivers", icon: Car },
                       { label: "Retake Requests", href: "/Admin/retake-requests", icon: FileCheck },
                       { label: "Safety Reports", href: "/Admin/reports", icon: ShieldAlert },
                       { label: "Platform Settings", href: "/Admin/settings", icon: Settings },

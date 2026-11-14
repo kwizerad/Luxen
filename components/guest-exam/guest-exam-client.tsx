@@ -11,6 +11,7 @@ import {
   Home,
   ArrowRight,
   X,
+  Clock,
 } from "lucide-react";
 import { preloadImages } from "@/components/smart-image";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,16 @@ interface GuestQuotaState {
   remainingCount: number;
   maxAllowed: number;
   exhausted: boolean;
+  resetAt?: string;
+  resetInSeconds?: number;
+}
+
+function formatResetCountdown(totalSeconds: number): string {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(safe / 3600);
+  const m = Math.floor((safe % 3600) / 60);
+  const s = safe % 60;
+  return `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
 }
 
 export function GuestExamClient() {
@@ -72,11 +83,20 @@ export function GuestExamClient() {
     maxAllowed: 3,
     exhausted: false,
   });
+  const [resetCountdownSec, setResetCountdownSec] = useState<number | null>(null);
   const [categories, setCategories] = useState<ExamCategory[]>([
     {
       id: EXTERNAL_EXAM_CATEGORY_ID,
-      name: "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda",
-      description: "Official Traffic Rules & Road Signs Mock Exam",
+      name: isFr
+        ? "Examen Blanc Officiel du Code de la Route"
+        : isRw
+        ? "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda"
+        : "Rwanda Traffic Rules Mock Exam",
+      description: isFr
+        ? "Examen officiel d'entraînement aux règles de circulation et panneaux"
+        : isRw
+        ? "Ikizamini cy'imyitozo cy'amategeko y'umuhanda n'ibyapa"
+        : "Official Traffic Rules & Road Signs Mock Exam",
       created_by: "system",
       is_published: true,
       duration_minutes: 20,
@@ -154,9 +174,12 @@ export function GuestExamClient() {
       try {
         const deviceId = getGuestDeviceId();
         const [statusRes, secSettings] = await Promise.all([
-          fetch(`/api/guest-exam?deviceId=${encodeURIComponent(deviceId)}`, {
-            cache: "no-store",
-          }).then((r) => (r.ok ? r.json() : null)),
+          fetch(
+            `/api/guest-exam?deviceId=${encodeURIComponent(deviceId)}&language=${encodeURIComponent(language)}`,
+            {
+              cache: "no-store",
+            }
+          ).then((r) => (r.ok ? r.json() : null)),
           getSecuritySettings().catch(() => DEFAULT_SECURITY_SETTINGS),
         ]);
 
@@ -191,7 +214,7 @@ export function GuestExamClient() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [language]);
 
   const anticheat = useExamAnticheat({
     isActive: Boolean(exam && !showResults),
@@ -267,6 +290,30 @@ export function GuestExamClient() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [exam, showResults, activeQuestion, handleSelectAnswer]);
 
+  // Quota reset countdown ticker
+  useEffect(() => {
+    const computeSeconds = () => {
+      if (quota.resetAt) {
+        return Math.max(0, Math.ceil((new Date(quota.resetAt).getTime() - Date.now()) / 1000));
+      }
+      if (typeof quota.resetInSeconds === "number") {
+        return Math.max(0, quota.resetInSeconds);
+      }
+      return null;
+    };
+
+    setResetCountdownSec(computeSeconds());
+    const id = setInterval(() => {
+      if (quota.resetAt) {
+        const next = Math.max(0, Math.ceil((new Date(quota.resetAt).getTime() - Date.now()) / 1000));
+        setResetCountdownSec(next);
+      } else {
+        setResetCountdownSec((prev) => (prev === null ? null : Math.max(0, prev - 1)));
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [quota.resetAt, quota.resetInSeconds]);
+
   // Countdown timer
   useEffect(() => {
     if (secondsLeft === null || showResults) return;
@@ -319,10 +366,10 @@ export function GuestExamClient() {
         setExam(null);
         toast.error(
           isRw
-            ? "Wamaze gukoresha ibizamini 3 by'ubuntu. Iyandikishe ku buntu ukomeze!"
+            ? "Wasoje ibizamini 3 by'uyu munsi! Iyandikishe ku buntu kugira ngo ubike amateka yawe kandi ukomeze kwimenyereza."
             : isFr
-            ? "Limite de 3 examens gratuits atteinte. Inscrivez-vous gratuitement !"
-            : "You have used all 3 free exams. Sign up for free to continue!"
+            ? "Vous avez terminé vos 3 examens gratuits d'aujourd'hui ! Inscrivez-vous gratuitement pour continuer."
+            : "You've completed today's 3 free practice exams! Sign up for free to save your results and continue."
         );
         return;
       }
@@ -414,7 +461,11 @@ export function GuestExamClient() {
 
       const categoryName =
         categories.find((c) => c.id === exam.categoryId)?.name ||
-        "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda";
+        (isRw
+          ? "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda"
+          : isFr
+          ? "Examen Blanc Officiel du Code de la Route"
+          : "Official Traffic Rules & Road Signs Mock Exam");
       const status: "completed" | "abandoned" =
         answeredCount > 0 ? "completed" : "abandoned";
       const violationSummary =
@@ -436,6 +487,7 @@ export function GuestExamClient() {
 
       const { ok, data } = await secureApiPost("/api/guest-exam", {
         action: "submit",
+        language: selectedExamLanguage || language,
         deviceId,
         attemptData: attemptPayload,
       });
@@ -539,11 +591,20 @@ export function GuestExamClient() {
     void startGuestExam(prevCat, selectedExamLanguage);
   };
 
+  const resetTimerLabel =
+    resetCountdownSec !== null
+      ? isRw
+        ? `Amahirwe mashya azafunguka nyuma ya ${formatResetCountdown(resetCountdownSec)}`
+        : isFr
+        ? `Réinitialisation dans ${formatResetCountdown(resetCountdownSec)}`
+        : `Resets in ${formatResetCountdown(resetCountdownSec)}`
+      : null;
+
   const footerQuotaText = isRw
-    ? `Ibizamini by'ubuntu bisigaye: ${quota.remainingCount} / ${quota.maxAllowed}`
+    ? `Ibizamini bisigaye uyu munsi: ${quota.remainingCount} / ${quota.maxAllowed}${resetTimerLabel ? ` · ${resetTimerLabel}` : ""}`
     : isFr
-    ? `Examens gratuits restants : ${quota.remainingCount} / ${quota.maxAllowed}`
-    : `Free exams remaining: ${quota.remainingCount} / ${quota.maxAllowed}`;
+    ? `Examens gratuits restants aujourd'hui : ${quota.remainingCount} / ${quota.maxAllowed}${resetTimerLabel ? ` · ${resetTimerLabel}` : ""}`
+    : `Free exams remaining today: ${quota.remainingCount} / ${quota.maxAllowed}${resetTimerLabel ? ` · ${resetTimerLabel}` : ""}`;
 
   const toolbarRight = (
     <div className="flex items-center gap-2 shrink-0">
@@ -580,9 +641,9 @@ export function GuestExamClient() {
           </div>
         ) : showResults && examResult ? (
           <div className="flex-1 flex flex-col">
-            {/* Post-Exam Save History Prompt Banner (Guest mode does not save automatically) */}
-            {!savePromptDismissed && (
-              <div className="mx-auto w-full max-w-5xl px-3 sm:px-6 pt-4">
+            {/* Post-Exam Save History Prompt Banner (Guest mode does not save automatically, only shown while quota is not exhausted) */}
+            {!savePromptDismissed && !quota.exhausted && (
+              <div className="mx-auto w-full max-w-4xl px-3.5 sm:px-6 pt-4">
                 <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/[0.07] dark:bg-emerald-500/10 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
@@ -590,26 +651,14 @@ export function GuestExamClient() {
                     </div>
                     <div className="space-y-1 min-w-0">
                       <h3 className="text-sm sm:text-base font-semibold text-foreground">
-                        {quota.exhausted
-                          ? isRw
-                            ? "Warangije ibizamini 3 by'ubuntu! Iyandikishe ubike aya manota"
-                            : isFr
-                            ? "3 examens gratuits utilisés ! Inscrivez-vous pour sauvegarder"
-                            : "You completed your 3 free exams! Sign up to save your score"
-                          : isRw
+                        {isRw
                           ? "Urashaka kubika amateka n'amanota y'iki kizamini?"
                           : isFr
                           ? "Voulez-vous enregistrer l'historique de cet examen ?"
                           : "Do you want to save your exam history?"}
                       </h3>
                       <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                        {quota.exhausted
-                          ? isRw
-                            ? "Iki gikoresho na IP byagejeje ku bizamini 3 bitagira konti. Injira cyangwa wiyandikishe ku buntu ubike aya manota kandi ukomeze gukora ibindi bizamini."
-                            : isFr
-                            ? "Vous avez atteint la limite de 3 examens sans compte. Inscrivez-vous gratuitement pour enregistrer vos résultats et obtenir plus d'examens."
-                            : "This device and IP have reached the 3-exam guest limit. Sign up for free or log in to save this score and unlock more exams."
-                          : isRw
+                        {isRw
                           ? "Kuko utarinjira muri konti, aya manota ntabwo yabitswe. Niba ushaka kuyabika, injira cyangwa wiyandikishe."
                           : isFr
                           ? "Cet examen n'est pas encore enregistré car vous n'êtes pas connecté. Connectez-vous ou inscrivez-vous pour le sauvegarder."
@@ -670,13 +719,23 @@ export function GuestExamClient() {
               onReset={reset}
               onRetake={handleRetake}
               passingPercentage={exam?.settings?.passing_percentage}
+              canRetake={!quota.exhausted}
+              quotaExhausted={quota.exhausted}
+              quotaResetAt={quota.resetAt}
+              quotaResetInSeconds={quota.resetInSeconds}
+              onSignUp={() => handleSaveAndRedirect("register")}
+              onSignIn={() => handleSaveAndRedirect("login")}
             />
           </div>
         ) : loadingExam ? (
           <div className="flex-1 flex flex-col items-center justify-center min-h-[360px] gap-3 p-6">
             <div className="h-9 w-9 animate-spin rounded-full border-3 border-primary border-t-transparent" />
             <p className="text-sm font-medium text-foreground">
-              {isRw ? "Tegereza gato..." : t("starting") || "Loading exam..."}
+              {isRw
+                ? "Tegereza gato..."
+                : isFr
+                ? "Préparation de l'examen..."
+                : t("starting") || "Loading exam..."}
             </p>
           </div>
         ) : exam ? (
@@ -684,7 +743,11 @@ export function GuestExamClient() {
             exam={exam}
             categoryTitle={
               categories.find((c) => c.id === exam.categoryId)?.name ||
-              "Ikizamini cy'Imyitozo"
+              (isRw
+                ? "Ikizamini cy'Imyitozo"
+                : isFr
+                ? "Examen Blanc"
+                : "Mock Practice Exam")
             }
             examLanguage={selectedExamLanguage}
             currentIndex={currentIndex}
@@ -763,18 +826,31 @@ export function GuestExamClient() {
               <div className="space-y-2">
                 <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
                   {isRw
-                    ? "Ibizamini 3 by'ubuntu byarangiye"
+                    ? "Wasoje ibizamini 3 by'uyu munsi"
                     : isFr
-                    ? "Limite de 3 examens gratuits atteinte"
-                    : "You Reached the 3 Free Exam Limit"}
+                    ? "Vos 3 examens du jour sont terminés"
+                    : "You've Completed Today's 3 Free Exams"}
                 </h2>
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                   {isRw
-                    ? "Umaze gukora ibizamini 3 ku gikoresho kimwe na aderesi ya IP imwe utarinjira muri konti. Iyandikishe ku buntu kugira ngo ubone ibindi bizamini byinshi kandi ubike amateka yawe."
+                    ? "Byiza cyane! Wasoje amahirwe 3 yo kwimenyereza mu bizamini utari winjira muri konti uyu munsi. Ushobora kugaruka ejo ukongera gukora ibindi 3, cyangwa ukiyandikisha ku buntu kugira ngo ubike amateka yawe kandi ukomeze kwiga nta nkomyi."
                     : isFr
-                    ? "Vous avez déjà passé 3 examens sur cet appareil et cette adresse IP sans compte. Inscrivez-vous gratuitement pour accéder à plus d'examens."
-                    : "You have already taken 3 exams from this IP address and device without an account. Sign up for free to unlock unlimited exams and track your progress."}
+                    ? "Bravo pour votre entraînement du jour ! Les visiteurs ont droit à 3 examens gratuits par jour. Revenez demain pour une nouvelle série, ou créez un compte gratuit dès maintenant pour enregistrer vos résultats et continuer librement."
+                    : "Great job practicing today! Visitors enjoy up to 3 free practice exams per day. Come back tomorrow for a fresh set, or create a free account now to save your results and keep practicing without limits."}
                 </p>
+
+                {resetCountdownSec !== null && (
+                  <div className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm font-mono font-semibold tabular-nums mx-auto">
+                    <Clock className="w-4 h-4 shrink-0" />
+                    <span>
+                      {isRw
+                        ? `Ibizamini by'ubuntu bizagaruka mu gihe cya: ${formatResetCountdown(resetCountdownSec)}`
+                        : isFr
+                        ? `Nouveaux examens gratuits dans : ${formatResetCountdown(resetCountdownSec)}`
+                        : `Next free exams unlock in: ${formatResetCountdown(resetCountdownSec)}`}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2.5 pt-2">

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (studentErr) throw studentErr;
 
     const all = [
-      ...(asDriver || []).map((c: any) => ({ ...c, other_party: c.student, role: "driver" })),
+      ...(asDriver || []).map((c: any) => ({ ...c, other_party: c.student, role: "peer" })),
       ...(asStudent || []).map((c: any) => ({ ...c, other_party: c.driver, role: "student" })),
     ].sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
 
@@ -77,81 +77,40 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { driver_id, peer_id } = body;
+    const { peer_id } = body;
 
     const adminClient = createAdminClient();
 
-    if (peer_id) {
-      if (peer_id === user.id) {
-        return NextResponse.json(
-          { error: "You cannot start a conversation with yourself" },
-          { status: 400 }
-        );
-      }
-
-      const { data: friendship } = await supabase
-        .from("classmate_requests")
-        .select("id")
-        .eq("status", "accepted")
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${peer_id}),and(sender_id.eq.${peer_id},receiver_id.eq.${user.id})`)
-        .maybeSingle();
-
-      if (!friendship) {
-        return NextResponse.json(
-          { error: "You can only chat with friends" },
-          { status: 403 }
-        );
-      }
-
-      const { data: existingForward } = await adminClient
-        .from("chat_conversations")
-        .select("*")
-        .eq("driver_id", user.id)
-        .eq("student_id", peer_id)
-        .maybeSingle();
-
-      if (existingForward) {
-        return NextResponse.json({ conversation: existingForward, status: "success" });
-      }
-
-      const { data: existingReverse } = await adminClient
-        .from("chat_conversations")
-        .select("*")
-        .eq("driver_id", peer_id)
-        .eq("student_id", user.id)
-        .maybeSingle();
-
-      if (existingReverse) {
-        return NextResponse.json({ conversation: existingReverse, status: "success" });
-      }
-
-      const { data: created, error } = await adminClient
-        .from("chat_conversations")
-        .insert([{ driver_id: user.id, student_id: peer_id }])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return NextResponse.json({ conversation: created, status: "success" });
+    if (!peer_id) {
+      return NextResponse.json({ error: "Peer ID is required" }, { status: 400 });
     }
 
-    if (!driver_id) {
-      return NextResponse.json({ error: "Driver ID is required" }, { status: 400 });
-    }
-
-    if (driver_id === user.id) {
+    if (peer_id === user.id) {
       return NextResponse.json(
         { error: "You cannot start a conversation with yourself" },
         { status: 400 }
       );
     }
 
+    const { data: friendship } = await supabase
+      .from("classmate_requests")
+      .select("id")
+      .eq("status", "accepted")
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${peer_id}),and(sender_id.eq.${peer_id},receiver_id.eq.${user.id})`)
+      .maybeSingle();
+
+    if (!friendship) {
+      return NextResponse.json(
+        { error: "You can only chat with friends" },
+        { status: 403 }
+      );
+    }
+
     const { data: existingForward } = await adminClient
       .from("chat_conversations")
       .select("*")
-      .eq("driver_id", driver_id)
-      .eq("student_id", user.id)
+      .eq("driver_id", user.id)
+      .eq("student_id", peer_id)
       .maybeSingle();
 
     if (existingForward) {
@@ -161,8 +120,8 @@ export async function POST(request: NextRequest) {
     const { data: existingReverse } = await adminClient
       .from("chat_conversations")
       .select("*")
-      .eq("driver_id", user.id)
-      .eq("student_id", driver_id)
+      .eq("driver_id", peer_id)
+      .eq("student_id", user.id)
       .maybeSingle();
 
     if (existingReverse) {
@@ -171,7 +130,7 @@ export async function POST(request: NextRequest) {
 
     const { data: created, error } = await adminClient
       .from("chat_conversations")
-      .insert([{ driver_id, student_id: user.id }])
+      .insert([{ driver_id: user.id, student_id: peer_id }])
       .select()
       .single();
 

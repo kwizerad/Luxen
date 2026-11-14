@@ -27,7 +27,6 @@ export type AdminNavId =
   | "admin-course"
   | "admin-exams"
   | "admin-users"
-  | "admin-drivers"
   | "admin-reports"
   | "admin-settings";
 
@@ -349,8 +348,6 @@ export function useNavigationVisibility(adminMode = false) {
             return canRead(permUser, "exams");
           case "admin-users":
             return canRead(permUser, "students");
-          case "admin-drivers":
-            return canRead(permUser, "drivers");
           case "admin-reports":
             return canRead(permUser, "notifications");
           case "admin-settings":

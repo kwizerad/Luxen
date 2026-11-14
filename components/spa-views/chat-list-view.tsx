@@ -50,10 +50,10 @@ export function ChatListView({ navigate, embedded = false }: ChatListViewProps) 
             <MessageSquare className="mx-auto mb-3 h-12 w-12 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">{t("noConversations")}</p>
             <button
-              onClick={() => navigate("services/drivers")}
+              onClick={() => navigate("classmates")}
               className="mt-3 text-sm font-medium text-primary hover:underline"
             >
-              {t("browseDrivers")}
+              {t("classmates") || "Classmates"}
             </button>
           </div>
         ) : (

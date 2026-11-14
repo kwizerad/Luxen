@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   Car,
   ArrowLeft,
-  Users,
   Trophy,
   ShieldAlert,
   LayoutGrid,
@@ -248,20 +247,6 @@ export function ServicesView({ navigate }: ServicesViewProps) {
       openLabelKey: "openTrafficAssistant",
       openFallback: "Baza Ikibazo",
     },
-    {
-      key: "driver-hub",
-      view: "driver-hub",
-      icon: Users,
-      titleKey: "findDriver",
-      descKey: "findDriverDesc",
-      titleFallback: "Shaka Abarimu b'Imyitozo",
-      descFallback:
-        "Huza n'abarimu babigize umwuga bagufasha kwitoza gutwara ibinyabiziga mu muhanda.",
-      iconBox: "bg-primary/10 border border-primary/20 text-primary",
-      btnClass: "bg-primary hover:bg-primary/90 text-primary-foreground",
-      openLabelKey: "openDrivers",
-      openFallback: "Reba Abarimu",
-    },
   ];
 
   // Display only services toggled on by admin. Hide services toggled off by admin.
@@ -273,7 +258,6 @@ export function ServicesView({ navigate }: ServicesViewProps) {
     // Default fallback if not yet configured in system_config:
     if (svc.key === "live-exam") return true;
     if (svc.key === "traffic-assistant") return true;
-    if (svc.key === "driver-hub") return false;
     return false;
   });
 

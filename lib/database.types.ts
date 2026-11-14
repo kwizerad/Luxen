@@ -78,7 +78,7 @@ export interface ExamAnswer {
 export interface UserProfile {
   id: string;
   email?: string;
-  role?: 'Student' | 'Admin' | 'Driver';
+  role?: 'Student' | 'Admin';
   username?: string;
   full_name?: string;
   first_name?: string;
@@ -423,107 +423,11 @@ export interface ExamRetakeRequest {
   updated_at?: string;
 }
 
-// ============================================================================
-// DRIVER & PRACTICAL TRAINING TYPES
-// ============================================================================
-
-export type SchedulingMode = 'scheduled' | 'queue';
-export type DurationType = 'day' | 'week' | 'month';
-export type ApplicationStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
-export type BookingStatus = 'booked' | 'completed' | 'cancelled' | 'no_show';
 export type PaymentStatus = 'pending' | 'paid' | 'failed';
 export type ExamRequestType = 'theory' | 'practical';
 export type ReportType = 'harassment' | 'fraud' | 'unsafe_behavior' | 'other';
 export type ReportStatus = 'pending' | 'reviewing' | 'resolved' | 'dismissed';
 export type ReportAction = 'none' | 'warning' | 'suspension';
-
-export interface Driver {
-  id: string;
-  full_name?: string;
-  phone?: string;
-  email?: string;
-  training_location?: string;
-  training_address?: string;
-  bio?: string;
-  avatar_url?: string;
-  vehicle_type?: string;
-  license_number?: string;
-  years_experience?: number;
-  certifications?: string;
-  languages_spoken?: string[];
-  specialties?: string[];
-  training_approach?: string;
-  scheduling_mode: SchedulingMode;
-  cancel_enabled: boolean;
-  cancel_window_minutes: number;
-  price_per_day?: number;
-  price_per_week?: number;
-  price_per_month?: number;
-  is_active: boolean;
-  is_approved: boolean;
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface DriverPlan {
-  id: string;
-  driver_id: string;
-  title: string;
-  description?: string;
-  duration_type: DurationType;
-  price: number;
-  features?: Record<string, unknown> | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface DriverApplication {
-  id: string;
-  driver_id: string;
-  student_id: string;
-  plan_id?: string | null;
-  duration_type: DurationType;
-  duration_count: number;
-  total_price?: number;
-  status: ApplicationStatus;
-  student_note?: string;
-  driver_note?: string;
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface DriverBooking {
-  id: string;
-  driver_id: string;
-  student_id: string;
-  application_id?: string | null;
-  booking_date: string;
-  start_time?: string | null;
-  end_time?: string | null;
-  queue_position?: number | null;
-  status: BookingStatus;
-  cancelled_at?: string | null;
-  cancelled_by?: string | null;
-  created_at: string;
-}
-
-export interface TrainingLog {
-  id: string;
-  driver_id: string;
-  student_id: string;
-  booking_id?: string | null;
-  session_date: string;
-  start_time?: string | null;
-  end_time?: string | null;
-  duration_minutes?: number;
-  skills_practiced?: string;
-  location?: string;
-  notes?: string;
-  rating?: number;
-  created_at: string;
-  updated_at?: string;
-}
 
 export interface ExamRequestPayment {
   id: string;
@@ -535,16 +439,6 @@ export interface ExamRequestPayment {
   irembo_verified: boolean;
   irembo_response?: Record<string, unknown> | null;
   created_at: string;
-}
-
-export interface DriverRating {
-  id: string;
-  driver_id: string;
-  student_id: string;
-  rating: number;
-  review?: string;
-  created_at: string;
-  updated_at?: string;
 }
 
 export interface UserReport {

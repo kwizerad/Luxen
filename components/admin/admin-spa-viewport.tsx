@@ -55,10 +55,6 @@ const AdminUsersView = dynamic(() => import("@/app/Admin/users/page"), {
   loading: () => <AdminViewSkeleton label="User Management" />,
 });
 
-const AdminDriversView = dynamic(() => import("@/app/Admin/drivers/page"), {
-  loading: () => <AdminViewSkeleton label="Drivers & Fleet" />,
-});
-
 const AdminReportsView = dynamic(() => import("@/app/Admin/reports/page"), {
   loading: () => <AdminViewSkeleton label="Safety & Incident Reports" />,
 });
@@ -105,8 +101,6 @@ export function AdminSpaViewport() {
         return <AdminRetakeRequestsView />;
       case "users":
         return <AdminUsersView />;
-      case "drivers":
-        return <AdminDriversView />;
       case "reports":
         return <AdminReportsView />;
       case "notifications":

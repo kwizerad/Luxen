@@ -53,12 +53,22 @@ export interface ExamViewProps {
   params?: URLSearchParams;
 }
 
-function buildFallbackCategory(): ExamCategory {
+function buildFallbackCategory(language: string): ExamCategory {
   const now = new Date().toISOString();
+  const isFr = language === "French" || language === "fr";
+  const isEn = language === "English" || language === "en";
   return {
     id: EXTERNAL_EXAM_CATEGORY_ID,
-    name: "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda",
-    description: "Official Traffic Rules & Road Signs Mock Exam",
+    name: isFr
+      ? "Examen Blanc Officiel du Code de la Route"
+      : isEn
+      ? "Official Traffic Rules & Road Signs Mock Exam"
+      : "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda",
+    description: isFr
+      ? "Examen blanc officiel sur le code de la route et la signalisation au Rwanda"
+      : isEn
+      ? "Official Traffic Rules & Road Signs Mock Exam"
+      : "Ikizamini cy'imyitozo cy'amategeko y'umuhanda n'ibyapa mu Rwanda",
     created_by: "system",
     is_published: true,
     duration_minutes: 20,
@@ -227,13 +237,13 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         const data = await getExamCategories();
         const cats = data.categories || [];
         if (cats.length === 0) {
-          setCategories([buildFallbackCategory()]);
+          setCategories([buildFallbackCategory(language)]);
         } else {
           setCategories(cats);
         }
       } catch (error) {
         console.error("[ExamView] Error loading exam categories:", error);
-        setCategories([buildFallbackCategory()]);
+        setCategories([buildFallbackCategory(language)]);
       } finally {
         setLoadingCategories(false);
       }
@@ -250,7 +260,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
     void loadInitialData();
     void loadSecurity();
-  }, [accessChecked]);
+  }, [accessChecked, language]);
 
   // Auto-select first category if none selected yet
   useEffect(() => {
@@ -963,8 +973,12 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           {language === "Kinyarwanda" ||
           language === "rw" ||
           selectedExamLanguage === "Kinyarwanda"
-            ? "Tegereza gato..."
-            : t("starting") || "Loading exam questions..."}
+            ? "Tegereza gato, ibibazo birimo gutegurwa..."
+            : language === "French" ||
+              language === "fr" ||
+              selectedExamLanguage === "French"
+            ? "Chargement des questions de l'examen..."
+            : t("loadingQuestions") || "Loading exam questions..."}
         </p>
       </div>
     );

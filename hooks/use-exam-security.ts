@@ -219,16 +219,20 @@ export function useExamSecurity({
         ? t(`${base}Warning2` as any)
         : t(`${base}WarningFinal` as any);
 
+    const VIOLATION_COOLDOWN_MS = 5000;
+
     const recordViolation = (type: ViolationType, message: string, toastMessage?: string) => {
       if (!settings.violationMeasuresEnabled || !examActive() || autoSubmitTriggeredRef.current) return;
 
       const now = Date.now();
-      if (now - lastViolationAtRef.current < 800) return;
+      if (now - lastViolationAtRef.current < VIOLATION_COOLDOWN_MS) return;
       lastViolationAtRef.current = now;
 
       const newCount = cheatingAttemptsRef.current + 1;
       cheatingAttemptsRef.current = newCount;
       setCheatingAttempts(newCount);
+      setFullscreenRetryCount(newCount);
+      fullscreenRetryCountRef.current = newCount;
 
       triggerViolation(type, message, newCount);
 
@@ -253,18 +257,15 @@ export function useExamSecurity({
       }
       if (!settings.violationMeasuresEnabled || !settings.fullscreenEnabled || !examActive() || resultsShown()) return;
       if (!document.fullscreenElement) {
-        const newCount = fullscreenRetryCountRef.current + 1;
-        fullscreenRetryCountRef.current = newCount;
-        setFullscreenRetryCount(newCount);
-
-        triggerViolation(
+        const nextCount = cheatingAttemptsRef.current + 1;
+        recordViolation(
           "fullscreen",
-          newCount === 1
+          nextCount === 1
             ? t("fullscreenViolation1")
-            : newCount < settings.maxViolations
+            : nextCount < settings.maxViolations
             ? t("fullscreenViolation2")
             : t("fullscreenViolationFinal"),
-          newCount
+          t("fullscreenWarning1")
         );
       }
     };

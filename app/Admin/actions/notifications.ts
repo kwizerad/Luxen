@@ -10,7 +10,7 @@ interface SendNotificationInput {
   type?: string;
   priority?: "urgent" | "normal" | "low";
   target_user_id?: string;
-  target_role?: "all" | "student" | "driver" | "admin";
+  target_role?: "all" | "student" | "admin";
   action_url?: string;
   related_entity_type?: string;
   related_entity_id?: string;
@@ -48,7 +48,7 @@ export async function sendNotificationToUser(
 }
 
 export async function sendNotificationToRole(
-  targetRole: "all" | "student" | "driver" | "admin",
+  targetRole: "all" | "student" | "admin",
   input: Omit<SendNotificationInput, "target_role" | "target_user_id">
 ) {
   const adminUser = await requireAdmin();
@@ -102,7 +102,7 @@ export async function sendNotificationToRole(
   if (error) throw error;
 
   // Count recipients for feedback
-  const roleValue = targetRole === "student" ? "Student" : targetRole === "driver" ? "Driver" : "Admin";
+  const roleValue = targetRole === "student" ? "Student" : "Admin";
   const { count } = await adminSupabase
     .from("user_profiles")
     .select("*", { count: "exact", head: true })

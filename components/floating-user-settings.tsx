@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { User, Settings, Download, LogOut, Menu, Home, Plus, Moon, Sun, Monitor, Globe, Check, Smartphone, Shield, BookOpen, FileText, Users, Car, Bell } from "lucide-react";
+import { User, Settings, Download, LogOut, Menu, Home, Plus, Moon, Sun, Monitor, Globe, Check, Smartphone, Shield, BookOpen, FileText, Users, Bell } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
 import { isAdmin } from "@/lib/permissions";
@@ -104,15 +104,11 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
 
   const getRoleLabel = () => {
     if (isAdmin(user)) return t("admin") || "Admin";
-    const role = (user?.role || user?.user_metadata?.role || "")?.toLowerCase();
-    if (role === "driver") return t("driver") || "Driver";
     return t("student") || "Student";
   };
 
   const getRoleIcon = () => {
     if (isAdmin(user)) return <Shield className="h-3 w-3" />;
-    const role = (user?.role || user?.user_metadata?.role || "")?.toLowerCase();
-    if (role === "driver") return <Car className="h-3 w-3" />;
     return <User className="h-3 w-3" />;
   };
 

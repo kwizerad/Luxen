@@ -61,7 +61,9 @@ type SortOption = "date_desc" | "date_asc" | "score_desc" | "score_asc" | "durat
 type GroupByOption = "none" | "date" | "category" | "outcome" | "type";
 
 export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
   const { user } = useAuth();
 
   const cached = user
@@ -528,11 +530,13 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   }
 
   const groupedAttempts = useMemo((): AttemptGroup[] => {
+    const loc = (rw: string, fr: string, en: string) => (isRw ? rw : isFr ? fr : en);
+
     if (groupBy === "none") {
       return [
         {
           id: "all",
-          label: "All Exam Dossiers",
+          label: loc("Ibizamini Byose", "Tous les examens", "All Exam Dossiers"),
           icon: FolderArchive,
           items: filteredAndSortedAttempts,
           avgScore: 0,
@@ -545,7 +549,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
     filteredAndSortedAttempts.forEach((attempt) => {
       let key = "other";
-      let label = "Other";
+      let label = loc("Ibindi", "Autres", "Other");
       let icon = FolderArchive;
 
       if (groupBy === "date") {
@@ -555,23 +559,23 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
         if (diffDays === 0) {
           key = "today";
-          label = "Today";
+          label = loc("Uyu Munsi", "Aujourd'hui", "Today");
           icon = Clock;
         } else if (diffDays <= 7) {
           key = "week";
-          label = "This Week";
+          label = loc("Muri Iki Cyumweru", "Cette semaine", "This Week");
           icon = Calendar;
         } else if (diffDays <= 30) {
           key = "month";
-          label = "This Month";
+          label = loc("Muri Uku Kwezi", "Ce mois-ci", "This Month");
           icon = Calendar;
         } else {
           key = "older";
-          label = "Older Archives";
+          label = loc("Ibya Kera", "Archives plus anciennes", "Older Archives");
           icon = FolderArchive;
         }
       } else if (groupBy === "category") {
-        key = attempt.category_name || "General Driving Exam";
+        key = attempt.category_name || loc("Ikizamini Rusange", "Examen général", "General Driving Exam");
         label = key;
         icon = attempt.is_module ? BookOpen : FolderCheck;
       } else if (groupBy === "outcome") {
@@ -582,33 +586,33 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
         if (isCheating) {
           key = "cheating";
-          label = "Security Violations";
+          label = loc("Amakosa y'Umutekano", "Violations de sécurité", "Security Violations");
           icon = ShieldAlert;
         } else if (isAbandoned) {
           key = "void";
-          label = "Void / Incomplete";
+          label = loc("Ibitarangiye", "Incomplets / Vides", "Void / Incomplete");
           icon = FileWarning;
         } else if (isPassed) {
           key = "passed";
-          label = "Passed Dossiers (≥50%)";
+          label = loc("Ibyo Watsinze (≥50%)", "Réussis (≥50%)", "Passed Dossiers (≥50%)");
           icon = FolderCheck;
         } else {
           key = "failed";
-          label = "Needs Review (<50%)";
+          label = loc("Ibyo Watsinzwe (<50%)", "Échoués (<50%)", "Needs Review (<50%)");
           icon = FolderX;
         }
       } else if (groupBy === "type") {
         if (attempt.challenge_id) {
           key = "group";
-          label = "Group Battles";
+          label = loc("Ibizamini by'Itsinda", "Défis en groupe", "Group Battles");
           icon = Users;
         } else if (attempt.is_module) {
           key = "module";
-          label = "Module Curriculum Exams";
+          label = loc("Ibizamini by'Amasomo", "Examens de modules", "Module Curriculum Exams");
           icon = BookOpen;
         } else {
           key = "solo";
-          label = "Solo Mock Exams";
+          label = loc("Ibizamini bya Wenyine", "Examens individuels", "Solo Mock Exams");
           icon = User;
         }
       }
@@ -638,7 +642,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
         passedRate: rate,
       };
     });
-  }, [groupBy, filteredAndSortedAttempts]);
+  }, [groupBy, filteredAndSortedAttempts, isRw, isFr]);
 
   const toggleGroupCollapse = (groupId: string) => {
     setCollapsedGroups((prev) => ({
@@ -705,7 +709,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             <span>{t("back") || t("backToHome") || "Back"}</span>
           </button>
           <span className="text-[11px] font-mono tracking-wider text-muted-foreground dark:text-zinc-400 lowercase hidden sm:inline-block">
-            telemetry · exam archive
+            {isRw ? "isesengura · ububiko bw'ibizamini" : isFr ? "archives · relevés d'examens" : "telemetry · exam archive"}
           </span>
         </div>
 
@@ -713,7 +717,13 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           <div>
             <div className="text-[11px] font-mono tracking-wider text-muted-foreground dark:text-zinc-400 lowercase flex items-center gap-1.5">
               <FolderArchive className="h-3.5 w-3.5 text-primary" />
-              <span>performance ledger · exam dossier vault</span>
+              <span>
+                {isRw
+                  ? "imitsindire · ububiko bw'amateka y'ibizamini"
+                  : isFr
+                  ? "suivi des résultats · coffre des examens"
+                  : "performance ledger · exam dossier vault"}
+              </span>
             </div>
             <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-foreground dark:text-foreground dark:text-zinc-100 mt-0.5">
               {t("examHistory") || "Exam History Archive"}
@@ -752,17 +762,29 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                 )}
               >
                 <Layers className="h-3.5 w-3.5 shrink-0" />
-                <span className="hidden sm:inline text-[11px] text-muted-foreground dark:text-zinc-400">group:</span>
+                <span className="hidden sm:inline text-[11px] text-muted-foreground dark:text-zinc-400">
+                  {isRw ? "itsinda:" : isFr ? "groupe :" : "group:"}
+                </span>
                 <select
                   value={groupBy}
                   onChange={(e) => setGroupBy(e.target.value as GroupByOption)}
                   className="bg-transparent border-0 text-xs font-mono text-inherit focus:outline-hidden cursor-pointer pr-1"
                 >
-                  <option value="none" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-300">none (flat)</option>
-                  <option value="date" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-300">by date</option>
-                  <option value="outcome" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-300">by outcome</option>
-                  <option value="category" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-300">by subject</option>
-                  <option value="type" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-300">by exam type</option>
+                  <option value="none" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-300">
+                    {isRw ? "ntaryo (birambuye)" : isFr ? "aucun (à plat)" : "none (flat)"}
+                  </option>
+                  <option value="date" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-300">
+                    {isRw ? "ku itariki" : isFr ? "par date" : "by date"}
+                  </option>
+                  <option value="outcome" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-300">
+                    {isRw ? "ku mitsindire" : isFr ? "par résultat" : "by outcome"}
+                  </option>
+                  <option value="category" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-300">
+                    {isRw ? "ku cyiciro" : isFr ? "par matière" : "by subject"}
+                  </option>
+                  <option value="type" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-300">
+                    {isRw ? "ku bwoko" : isFr ? "par type" : "by exam type"}
+                  </option>
                 </select>
               </div>
             </div>
@@ -778,7 +800,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
               )}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              <span>filter</span>
+              <span>{isRw ? "yungurura" : isFr ? "filtrer" : "filter"}</span>
               {activeFilterCount > 0 && (
                 <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                   {activeFilterCount}
@@ -790,7 +812,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             <div className="flex items-center p-0.5 bg-muted/60 dark:bg-zinc-900/80 rounded-lg border border-border dark:border-zinc-800 shrink-0">
               <button
                 onClick={() => setViewMode("grid")}
-                title="Grid View (Compact 4-6)"
+                title={isRw ? "Imbonerahamwe" : isFr ? "Vue grille" : "Grid View"}
                 className={cn(
                   "p-1.5 rounded-md text-xs transition-colors",
                   viewMode === "grid"
@@ -802,7 +824,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                title="List View"
+                title={isRw ? "Urutonde" : isFr ? "Vue liste" : "List View"}
                 className={cn(
                   "p-1.5 rounded-md text-xs transition-colors",
                   viewMode === "list"
@@ -828,7 +850,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             </div>
             <div className="min-w-0">
               <div className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase tracking-wide truncate">
-                total attempts
+                {isRw ? "inshuro zose" : isFr ? "total essais" : "total attempts"}
               </div>
               <div className="text-base sm:text-lg font-mono font-bold text-foreground dark:text-zinc-100 leading-tight">
                 {attempts.length}
@@ -843,7 +865,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             </div>
             <div className="min-w-0">
               <div className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase tracking-wide truncate">
-                passed files
+                {isRw ? "ibyo watsinze" : isFr ? "examens réussis" : "passed files"}
               </div>
               <div className="flex items-baseline gap-1.5 leading-tight">
                 <span className="text-base sm:text-lg font-mono font-bold text-foreground dark:text-zinc-100">
@@ -866,7 +888,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-1">
                 <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase tracking-wide truncate">
-                  avg score
+                  {isRw ? "impuzandengo" : isFr ? "moyenne" : "avg score"}
                 </span>
                 <span className="text-xs font-mono font-bold text-primary">
                   {avgScore}%
@@ -888,7 +910,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             </div>
             <div className="min-w-0">
               <div className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase tracking-wide truncate">
-                group battles
+                {isRw ? "ibizamini by'itsinda" : isFr ? "défis en groupe" : "group battles"}
               </div>
               <div className="text-base sm:text-lg font-mono font-bold text-foreground dark:text-zinc-100 leading-tight">
                 {groupCount}
@@ -911,7 +933,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           )}
         >
           <Layers className="h-3.5 w-3.5 shrink-0" />
-          <span>all files</span>
+          <span>{isRw ? "byose" : isFr ? "tout" : "all files"}</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted-foreground/15 dark:bg-zinc-700/60 text-foreground/80 dark:text-zinc-300">
             {attempts.length}
           </span>
@@ -928,7 +950,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             )}
           >
             <Clock className="h-3.5 w-3.5 shrink-0 animate-pulse text-primary" />
-            <span>ongoing</span>
+            <span>{isRw ? "birikuba" : isFr ? "en cours" : "ongoing"}</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary/20 text-primary font-bold">
               {ongoingChallenges.length}
             </span>
@@ -945,7 +967,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           )}
         >
           <User className="h-3.5 w-3.5 shrink-0" />
-          <span>solo</span>
+          <span>{isRw ? "wenyine" : isFr ? "solo" : "solo"}</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted-foreground/15 dark:bg-zinc-700/60 text-foreground/80 dark:text-zinc-300">
             {individualCount}
           </span>
@@ -961,7 +983,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           )}
         >
           <Users className="h-3.5 w-3.5 shrink-0" />
-          <span>group</span>
+          <span>{isRw ? "itsinda" : isFr ? "groupe" : "group"}</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted-foreground/15 dark:bg-zinc-700/60 text-foreground/80 dark:text-zinc-300">
             {groupCount}
           </span>
@@ -977,7 +999,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           )}
         >
           <BookOpen className="h-3.5 w-3.5 shrink-0" />
-          <span>modules</span>
+          <span>{isRw ? "amasomo" : isFr ? "modules" : "modules"}</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted-foreground/15 dark:bg-zinc-700/60 text-foreground/80 dark:text-zinc-300">
             {moduleCount}
           </span>
@@ -991,7 +1013,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             <div className="flex items-center gap-2">
               <Filter className="h-3.5 w-3.5 text-primary" />
               <span className="text-xs font-bold font-mono uppercase tracking-wider text-foreground dark:text-zinc-200">
-                Ledger Filters & Grouping
+                {isRw ? "Amayungurura n'Amatsinda" : isFr ? "Filtres et Groupement" : "Ledger Filters & Grouping"}
               </span>
             </div>
             {activeFilterCount > 0 && (
@@ -1000,7 +1022,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                 className="inline-flex items-center gap-1 text-[11px] font-mono text-primary hover:underline"
               >
                 <RotateCcw className="h-3 w-3" />
-                <span>Reset All Filters</span>
+                <span>{isRw ? "Siba Amayungurura Yose" : isFr ? "Réinitialiser les filtres" : "Reset All Filters"}</span>
               </button>
             )}
           </div>
@@ -1008,45 +1030,51 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Outcome Filter */}
             <div className="space-y-1">
-              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400">Outcome</label>
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400">
+                {isRw ? "Ibyavuyemo" : isFr ? "Résultats" : "Outcome"}
+              </label>
               <select
                 value={outcomeFilter}
                 onChange={(e) => setOutcomeFilter(e.target.value as OutcomeFilter)}
                 className="w-full px-2.5 py-1.5 rounded-lg bg-card dark:bg-zinc-900 border border-border dark:border-zinc-800 text-xs font-mono text-foreground dark:text-zinc-200 focus:outline-hidden focus:border-primary/50"
               >
-                <option value="all">All Outcomes</option>
-                <option value="passed">Passed (≥50%)</option>
-                <option value="failed">Failed (&lt;50%)</option>
-                <option value="void">Void / Incomplete</option>
-                <option value="cheating">Security Violations</option>
+                <option value="all">{isRw ? "Ibyavuyemo Byose" : isFr ? "Tous les résultats" : "All Outcomes"}</option>
+                <option value="passed">{isRw ? "Watsinze (≥50%)" : isFr ? "Réussi (≥50%)" : "Passed (≥50%)"}</option>
+                <option value="failed">{isRw ? "Watsinzwe (<50%)" : isFr ? "Échoué (<50%)" : "Failed (<50%)"}</option>
+                <option value="void">{isRw ? "Ibitarangiye" : isFr ? "Incomplet" : "Void / Incomplete"}</option>
+                <option value="cheating">{isRw ? "Amakosa y'Umutekano" : isFr ? "Violations de sécurité" : "Security Violations"}</option>
               </select>
             </div>
 
             {/* Time Filter */}
             <div className="space-y-1">
-              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400">Date Period</label>
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400">
+                {isRw ? "Igihe / Itariki" : isFr ? "Période" : "Date Period"}
+              </label>
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value as DateFilter)}
                 className="w-full px-2.5 py-1.5 rounded-lg bg-card dark:bg-zinc-900 border border-border dark:border-zinc-800 text-xs font-mono text-foreground dark:text-zinc-200 focus:outline-hidden focus:border-primary/50"
               >
-                <option value="all">All Time</option>
-                <option value="today">Today (24h)</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="older">Older Archive</option>
+                <option value="all">{isRw ? "Igihe Cyose" : isFr ? "Toutes les dates" : "All Time"}</option>
+                <option value="today">{isRw ? "Uyu munsi (24h)" : isFr ? "Aujourd'hui (24h)" : "Today (24h)"}</option>
+                <option value="week">{isRw ? "Iki Cyumweru" : isFr ? "Cette semaine" : "This Week"}</option>
+                <option value="month">{isRw ? "Uku Kwezi" : isFr ? "Ce mois-ci" : "This Month"}</option>
+                <option value="older">{isRw ? "Ibyashize" : isFr ? "Archives antérieures" : "Older Archive"}</option>
               </select>
             </div>
 
             {/* Category Filter */}
             <div className="space-y-1">
-              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400">Subject / Category</label>
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400">
+                {isRw ? "Icyiciro cy'Ikizamini" : isFr ? "Matière / Catégorie" : "Subject / Category"}
+              </label>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="w-full px-2.5 py-1.5 rounded-lg bg-card dark:bg-zinc-900 border border-border dark:border-zinc-800 text-xs font-mono text-foreground dark:text-zinc-200 focus:outline-hidden focus:border-primary/50 truncate"
               >
-                <option value="all">All Categories</option>
+                <option value="all">{isRw ? "Ibyiciro Byose" : isFr ? "Toutes les catégories" : "All Categories"}</option>
                 {uniqueCategories.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -1057,24 +1085,28 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
             {/* Sort Order */}
             <div className="space-y-1">
-              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400">Sort By</label>
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400">
+                {isRw ? "Tondeka" : isFr ? "Trier par" : "Sort By"}
+              </label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
                 className="w-full px-2.5 py-1.5 rounded-lg bg-card dark:bg-zinc-900 border border-border dark:border-zinc-800 text-xs font-mono text-foreground dark:text-zinc-200 focus:outline-hidden focus:border-primary/50"
               >
-                <option value="date_desc">Newest First</option>
-                <option value="date_asc">Oldest First</option>
-                <option value="score_desc">Highest Score</option>
-                <option value="score_asc">Lowest Score</option>
-                <option value="duration_desc">Longest Time</option>
-                <option value="duration_asc">Fastest Time</option>
+                <option value="date_desc">{isRw ? "Bishya Mbere" : isFr ? "Plus récents" : "Newest First"}</option>
+                <option value="date_asc">{isRw ? "Bishaje Mbere" : isFr ? "Plus anciens" : "Oldest First"}</option>
+                <option value="score_desc">{isRw ? "Amanota Menshi" : isFr ? "Meilleur score" : "Highest Score"}</option>
+                <option value="score_asc">{isRw ? "Amanota Make" : isFr ? "Score le plus bas" : "Lowest Score"}</option>
+                <option value="duration_desc">{isRw ? "Igihe Kirekire" : isFr ? "Plus longue durée" : "Longest Time"}</option>
+                <option value="duration_asc">{isRw ? "Igihe Gito" : isFr ? "Plus rapide" : "Fastest Time"}</option>
               </select>
             </div>
 
             {/* Sleek Grouping Selector */}
             <div className="space-y-1">
-              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400">Group Dossiers</label>
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400">
+                {isRw ? "Shyira mu Matsinda" : isFr ? "Grouper les dossiers" : "Group Dossiers"}
+              </label>
               <select
                 value={groupBy}
                 onChange={(e) => setGroupBy(e.target.value as GroupByOption)}
@@ -1085,11 +1117,11 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                     : "border-border dark:border-zinc-800 text-foreground dark:text-zinc-200 focus:border-primary/50"
                 )}
               >
-                <option value="none">No Grouping (Flat)</option>
-                <option value="date">Group by Date</option>
-                <option value="outcome">Group by Outcome</option>
-                <option value="category">Group by Subject</option>
-                <option value="type">Group by Exam Type</option>
+                <option value="none">{isRw ? "Nta tsinda (Birambuye)" : isFr ? "Aucun groupement" : "No Grouping (Flat)"}</option>
+                <option value="date">{isRw ? "Ukurikije Itariki" : isFr ? "Grouper par date" : "Group by Date"}</option>
+                <option value="outcome">{isRw ? "Ukurikije Imitsindire" : isFr ? "Grouper par résultat" : "Group by Outcome"}</option>
+                <option value="category">{isRw ? "Ukurikije Icyiciro" : isFr ? "Grouper par matière" : "Group by Subject"}</option>
+                <option value="type">{isRw ? "Ukurikije Ubwoko" : isFr ? "Grouper par type" : "Group by Exam Type"}</option>
               </select>
             </div>
           </div>
@@ -1099,10 +1131,12 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
       {/* Active Filter Chips Row (when filters are active & panel is closed or open) */}
       {activeFilterCount > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-mono">
-          <span className="text-muted-foreground dark:text-zinc-400">active:</span>
+          <span className="text-muted-foreground dark:text-zinc-400">
+            {isRw ? "birikora:" : isFr ? "actifs :" : "active:"}
+          </span>
           {outcomeFilter !== "all" && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted dark:bg-zinc-800 border border-border dark:border-zinc-700 text-foreground dark:text-zinc-200">
-              <span>outcome: {outcomeFilter}</span>
+              <span>{isRw ? "ibyavuyemo" : isFr ? "résultat" : "outcome"}: {outcomeFilter}</span>
               <button onClick={() => setOutcomeFilter("all")} className="hover:text-primary">
                 <X className="h-3 w-3" />
               </button>
@@ -1110,7 +1144,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           )}
           {dateFilter !== "all" && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted dark:bg-zinc-800 border border-border dark:border-zinc-700 text-foreground dark:text-zinc-200">
-              <span>date: {dateFilter}</span>
+              <span>{isRw ? "itariki" : isFr ? "date" : "date"}: {dateFilter}</span>
               <button onClick={() => setDateFilter("all")} className="hover:text-primary">
                 <X className="h-3 w-3" />
               </button>
@@ -1126,7 +1160,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           )}
           {groupBy !== "none" && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/30 text-primary">
-              <span>grouped by {groupBy}</span>
+              <span>{isRw ? `itsinda: ${groupBy}` : isFr ? `groupé par ${groupBy}` : `grouped by ${groupBy}`}</span>
               <button onClick={() => setGroupBy("none")} className="hover:text-primary">
                 <X className="h-3 w-3" />
               </button>
@@ -1134,7 +1168,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           )}
           {sortBy !== "date_desc" && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted dark:bg-zinc-800 border border-border dark:border-zinc-700 text-foreground dark:text-zinc-200">
-              <span>sorted: {sortBy.replace("_", " ")}</span>
+              <span>{isRw ? "tondeka:" : isFr ? "tri :" : "sorted:"} {sortBy.replace("_", " ")}</span>
               <button onClick={() => setSortBy("date_desc")} className="hover:text-primary">
                 <X className="h-3 w-3" />
               </button>
@@ -1144,7 +1178,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             onClick={resetAllFilters}
             className="text-[10px] text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:text-zinc-200 underline ml-1"
           >
-            clear all
+            {isRw ? "siba byose" : isFr ? "tout effacer" : "clear all"}
           </button>
         </div>
       )}
@@ -1181,22 +1215,29 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                       </span>
                       {isCreator && (
                         <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 border border-border dark:border-zinc-700 text-foreground/80 dark:text-zinc-300 lowercase">
-                          creator
+                          {isRw ? "uwabiteguye" : isFr ? "créateur" : "creator"}
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground dark:text-zinc-400 font-mono flex-wrap">
                       <span>
                         {isCreator
-                          ? "created by you"
-                          : `host: ${
+                          ? isRw
+                            ? "byateguwe nawe"
+                            : isFr
+                            ? "créé par vous"
+                            : "created by you"
+                          : `${isRw ? "uwakiriye:" : isFr ? "hôte :" : "host:"} ${
                               challenge.creator_profile?.full_name ||
                               challenge.creator_profile?.username ||
-                              "Student"
+                              (isRw ? "Umunyeshuri" : isFr ? "Étudiant" : "Student")
                             }`}
                       </span>
                       <span>•</span>
-                      <span>{challenge.participants?.length || 0} participants</span>
+                      <span>
+                        {challenge.participants?.length || 0}{" "}
+                        {isRw ? "ababitabiriye" : isFr ? "participants" : "participants"}
+                      </span>
                       <span>•</span>
                       <span>{formatDate(challenge.created_at)}</span>
                     </div>
@@ -1230,20 +1271,36 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           <FolderArchive className="mx-auto mb-2.5 h-10 w-10 text-zinc-600" />
           <p className="text-sm font-semibold text-foreground dark:text-zinc-200">
             {searchQuery || activeFilterCount > 0
-              ? "No dossiers match current filters"
+              ? isRw
+                ? "Nta kizamini gihuye n'ibyo washatse"
+                : isFr
+                ? "Aucun dossier ne correspond aux filtres"
+                : "No dossiers match current filters"
               : activeTab === "group"
               ? t("noGroupExamHistory") || "No group exams completed yet"
               : activeTab === "module"
-              ? "No module assessments completed yet"
+              ? isRw
+                ? "Nta kizamini cy'isomo kirakorwa"
+                : isFr
+                ? "Aucun examen de module terminé"
+                : "No module assessments completed yet"
               : t("noExamHistory") || "No exam attempts found"}
           </p>
           <p className="mt-1 text-xs text-muted-foreground dark:text-zinc-400 font-mono max-w-sm mx-auto">
             {searchQuery || activeFilterCount > 0
-              ? "Try adjusting or resetting your filter criteria to inspect other archives."
+              ? isRw
+                ? "Gerageza guhindura cyangwa gukuraho amayungurura kugira ngo urebe ibindi bizamini."
+                : isFr
+                ? "Essayez de modifier ou de réinitialiser vos filtres pour voir d'autres archives."
+                : "Try adjusting or resetting your filter criteria to inspect other archives."
               : activeTab === "group"
               ? t("noGroupExamHint") || "Challenge your classmates to a group exam to see results here."
               : activeTab === "module"
-              ? "Complete curriculum module exams in the course section to record dossiers."
+              ? isRw
+                ? "Rangiza ibizamini by'imitwe y'amasomo mu gice cy'amasomo kugira ngo bibikwe hano."
+                : isFr
+                ? "Terminez les examens de modules dans la section cours pour les enregistrer ici."
+                : "Complete curriculum module exams in the course section to record dossiers."
               : t("noExamHistoryHint") || "Take an exam from the exams page to start recording your progress."}
           </p>
           {(searchQuery || activeFilterCount > 0) && (
@@ -1252,7 +1309,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
               className="mt-3 px-3 py-1.2 rounded-lg text-xs font-mono bg-muted hover:bg-muted/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-border dark:border-zinc-700 text-foreground dark:text-zinc-200 transition-colors inline-flex items-center gap-1.5"
             >
               <RotateCcw className="h-3 w-3" />
-              <span>Reset Filters</span>
+              <span>{isRw ? "Siba Amayungurura" : isFr ? "Réinitialiser les filtres" : "Reset Filters"}</span>
             </button>
           )}
         </div>
@@ -1275,14 +1332,25 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                         <GroupIcon className="h-3.5 w-3.5 text-primary shrink-0" />
                         <span className="text-xs font-bold text-foreground dark:text-zinc-200 truncate">{group.label}</span>
                         <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 text-muted-foreground dark:text-zinc-400 border border-border dark:border-zinc-700/60 shrink-0">
-                          {group.items.length} {group.items.length === 1 ? "file" : "files"}
+                          {group.items.length}{" "}
+                          {isRw
+                            ? group.items.length === 1
+                              ? "dosiye"
+                              : "amadosiye"
+                            : isFr
+                            ? group.items.length === 1
+                              ? "dossier"
+                              : "dossiers"
+                            : group.items.length === 1
+                            ? "file"
+                            : "files"}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-3 shrink-0">
                         {group.avgScore > 0 && (
                           <span className="text-[10px] font-mono text-primary font-bold hidden sm:inline-block">
-                            avg {group.avgScore}%
+                            {isRw ? "impuz." : isFr ? "moy." : "avg"} {group.avgScore}%
                           </span>
                         )}
                         {isCollapsed ? (
@@ -1315,15 +1383,21 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                               const getZeroAnswerCause = () => {
                                 if (isCheating) {
                                   const sum = (attempt.violation_summary || "").toLowerCase();
-                                  if (sum.includes("tab")) return "Submitted by violation: Tab switch";
-                                  if (sum.includes("fullscreen")) return "Submitted by violation: Fullscreen exited";
-                                  if (sum.includes("dev_tools") || sum.includes("inspect")) return "Submitted by violation: DevTools detected";
-                                  if (sum.includes("copy") || sum.includes("paste")) return "Submitted by violation: Copy/Paste";
-                                  return "Submitted by exam security violation";
+                                  if (sum.includes("tab"))
+                                    return isRw ? "Cyoherejwe: Guhindura paji" : isFr ? "Soumis : Changement d'onglet" : "Submitted by violation: Tab switch";
+                                  if (sum.includes("fullscreen"))
+                                    return isRw ? "Cyoherejwe: Kuvamo ecran yose" : isFr ? "Soumis : Sortie du plein écran" : "Submitted by violation: Fullscreen exited";
+                                  if (sum.includes("dev_tools") || sum.includes("inspect"))
+                                    return isRw ? "Cyoherejwe: Ibikoresho by'ikoranabuhanga" : isFr ? "Soumis : Outils développeur" : "Submitted by violation: DevTools detected";
+                                  if (sum.includes("copy") || sum.includes("paste"))
+                                    return isRw ? "Cyoherejwe: Gukoporora" : isFr ? "Soumis : Copier/Coller" : "Submitted by violation: Copy/Paste";
+                                  return isRw ? "Cyoherejwe kubera ikosa ry'umutekano" : isFr ? "Soumis pour violation de sécurité" : "Submitted by exam security violation";
                                 }
-                                if (attempt.submission_reason === "page_closed") return "0 answered: Exam window/tab closed";
-                                if (attempt.submission_reason === "time_expired") return "0 answered: Exam timer expired";
-                                return "0 answered: Incomplete / exited early";
+                                if (attempt.submission_reason === "page_closed")
+                                  return isRw ? "0 byasubijwe: Idirishya ryafunzwe" : isFr ? "0 réponse : Fenêtre fermée" : "0 answered: Exam window/tab closed";
+                                if (attempt.submission_reason === "time_expired")
+                                  return isRw ? "0 byasubijwe: Igihe cyarangiye" : isFr ? "0 réponse : Temps écoulé" : "0 answered: Exam timer expired";
+                                return isRw ? "0 byasubijwe: Cyahagaritswe hakiri kare" : isFr ? "0 réponse : Quitté prématurément" : "0 answered: Incomplete / exited early";
                               };
 
                               return (
@@ -1378,9 +1452,9 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                         )}
                                       >
                                         {isCheating && answeredCount === 0
-                                          ? "VIOLATION"
+                                          ? (isRw ? "IKOSA" : isFr ? "INFRACTION" : "VIOLATION")
                                           : isAbandoned
-                                          ? "0 ANSWERED"
+                                          ? (isRw ? "0 BYASUBIJWE" : isFr ? "0 RÉPONSE" : "0 ANSWERED")
                                           : `${attempt.score_percentage}%`}
                                       </span>
                                     </div>
@@ -1390,19 +1464,19 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                   <div className="space-y-1.5 flex-1 flex flex-col justify-between">
                                     <div>
                                       <h3 className="text-xs font-bold text-foreground dark:text-zinc-200 group-hover:text-foreground dark:text-zinc-100 transition-colors line-clamp-2 leading-snug">
-                                        {attempt.category_name || "Official Driving Exam"}
+                                        {attempt.category_name || (isRw ? "Ikizamini cy'Amategeko" : isFr ? "Examen de conduite" : "Official Driving Exam")}
                                       </h3>
                                       <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-muted-foreground dark:text-zinc-400">
-                                        <span>{isGroup ? "group" : isModule ? "module" : "solo"}</span>
+                                        <span>{isGroup ? (isRw ? "itsinda" : isFr ? "groupe" : "group") : isModule ? (isRw ? "modire" : "module") : (isRw ? "wenyine" : isFr ? "solo" : "solo")}</span>
                                         <span>•</span>
                                         <span>
                                           {isCheating
-                                            ? "violation"
+                                            ? (isRw ? "umutekano" : isFr ? "sécurité" : "violation")
                                             : isAbandoned
-                                            ? "incomplete"
+                                            ? (isRw ? "nticyarangiye" : isFr ? "incomplet" : "incomplete")
                                             : isPassed
-                                            ? "passed"
-                                            : "reviewed"}
+                                            ? (isRw ? "watsinze" : isFr ? "réussi" : "passed")
+                                            : (isRw ? "watsinzwe" : isFr ? "échoué" : "failed")}
                                         </span>
                                       </div>
                                       {answeredCount === 0 && (
@@ -1475,15 +1549,21 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                             const getZeroAnswerListCause = () => {
                               if (isCheating) {
                                 const sum = (attempt.violation_summary || "").toLowerCase();
-                                if (sum.includes("tab")) return "Submitted by exam violation: Tab switching detected";
-                                if (sum.includes("fullscreen")) return "Submitted by exam violation: Fullscreen exited";
-                                if (sum.includes("dev_tools") || sum.includes("inspect")) return "Submitted by exam violation: Developer tools detected";
-                                if (sum.includes("copy") || sum.includes("paste")) return "Submitted by exam violation: Copy/paste detected";
-                                return "Submitted by exam security violation";
+                                if (sum.includes("tab"))
+                                  return isRw ? "Cyoherejwe: Guhindura paji byatahuwe" : isFr ? "Soumis : Changement d'onglet détecté" : "Submitted by exam violation: Tab switching detected";
+                                if (sum.includes("fullscreen"))
+                                  return isRw ? "Cyoherejwe: Kuvamo ecran yose" : isFr ? "Soumis : Sortie du plein écran" : "Submitted by exam violation: Fullscreen exited";
+                                if (sum.includes("dev_tools") || sum.includes("inspect"))
+                                  return isRw ? "Cyoherejwe: Ibikoresho by'ikoranabuhanga" : isFr ? "Soumis : Outils développeur détectés" : "Submitted by exam violation: Developer tools detected";
+                                if (sum.includes("copy") || sum.includes("paste"))
+                                  return isRw ? "Cyoherejwe: Gukoporora byatahuwe" : isFr ? "Soumis : Copier/coller détecté" : "Submitted by exam violation: Copy/paste detected";
+                                return isRw ? "Cyoherejwe kubera ikosa ry'umutekano" : isFr ? "Soumis pour violation de sécurité" : "Submitted by exam security violation";
                               }
-                              if (attempt.submission_reason === "page_closed") return "0 answered questions: Exam page was closed or left early";
-                              if (attempt.submission_reason === "time_expired") return "0 answered questions: Exam timer expired without answers";
-                              return "0 answered questions: Exam exited before answering";
+                              if (attempt.submission_reason === "page_closed")
+                                return isRw ? "0 byasubijwe: Urupapuro rwafunzwe hakiri kare" : isFr ? "0 réponse : Page fermée prématurément" : "0 answered questions: Exam page was closed or left early";
+                              if (attempt.submission_reason === "time_expired")
+                                return isRw ? "0 byasubijwe: Igihe cyarangiye nta kibazo gisubijwe" : isFr ? "0 réponse : Temps écoulé sans réponse" : "0 answered questions: Exam timer expired without answers";
+                              return isRw ? "0 byasubijwe: Wasohotse mbere yo gusubiza" : isFr ? "0 réponse : Quitté avant de répondre" : "0 answered questions: Exam exited before answering";
                             };
 
                             return (
@@ -1529,12 +1609,12 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                     </p>
                                     {isGroup && (
                                       <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 border border-border dark:border-zinc-700 text-muted-foreground dark:text-zinc-300">
-                                        group
+                                        {isRw ? "itsinda" : isFr ? "groupe" : "group"}
                                       </span>
                                     )}
                                     {isModule && (
                                       <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 border border-border dark:border-zinc-700 text-muted-foreground dark:text-zinc-300">
-                                        module
+                                        {isRw ? "modire" : "module"}
                                       </span>
                                     )}
                                   </div>

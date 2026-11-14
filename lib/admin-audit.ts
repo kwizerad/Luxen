@@ -7,7 +7,6 @@ export type AuditCategory =
   | "USER_MANAGEMENT"
   | "EXAMS_QUESTIONS"
   | "COURSE_STUDIO"
-  | "FLEET_DRIVERS"
   | "REPORTS_SUPPORT"
   | "SETTINGS_SECURITY"
   | "SYSTEM_CRON"
@@ -44,12 +43,6 @@ export type AuditActionType =
   | "MODULE_UPDATED"
   | "LESSON_CREATED"
   | "LESSON_UPDATED"
-  // Fleet & Drivers
-  | "DRIVER_APPROVED"
-  | "DRIVER_REJECTED"
-  | "DRIVER_UPDATED"
-  | "DRIVER_DELETED"
-  | "BOOKING_STATUS_CHANGED"
   // Reports & Support
   | "REPORT_STATUS_UPDATED"
   | "REPORT_COMMENT_ADDED"

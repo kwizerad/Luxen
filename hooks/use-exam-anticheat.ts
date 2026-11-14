@@ -193,6 +193,9 @@ export function useExamAnticheat({
         ? t(`${base}Warning2` as any)
         : t(`${base}WarningFinal` as any);
 
+    // Minimum cooldown in milliseconds between distinct cheating violations
+    const VIOLATION_COOLDOWN_MS = 5000;
+
     const recordViolation = (
       message: string,
       type: ViolationType = "other",
@@ -203,12 +206,17 @@ export function useExamAnticheat({
       }
 
       const now = Date.now();
-      if (now - lastViolationAtRef.current < 800) return;
+      // Strict 5-second cooldown to prevent auto-submission from simultaneous browser events
+      if (now - lastViolationAtRef.current < VIOLATION_COOLDOWN_MS) {
+        return;
+      }
       lastViolationAtRef.current = now;
 
       const newCount = cheatingAttemptsRef.current + 1;
       cheatingAttemptsRef.current = newCount;
       setCheatingAttempts(newCount);
+      setFullscreenRetryCount(newCount);
+      fullscreenRetryCountRef.current = newCount;
       setViolationType(type);
       violationTypeRef.current = type;
       setCheatingWarningMessage(message);
@@ -244,23 +252,17 @@ export function useExamAnticheat({
         securitySettings.violationMeasuresEnabled &&
         securitySettings.fullscreenEnabled
       ) {
-        const newCount = fullscreenRetryCountRef.current + 1;
-        fullscreenRetryCountRef.current = newCount;
-        setFullscreenRetryCount(newCount);
-        setViolationType("fullscreen");
-        violationTypeRef.current = "fullscreen";
-        setCheatingWarningMessage(
-          newCount === 1
+        const nextCount = cheatingAttemptsRef.current + 1;
+        const msg =
+          nextCount === 1
             ? t("fullscreenViolation1")
-            : newCount < securitySettings.maxViolations
+            : nextCount < securitySettings.maxViolations
             ? t("fullscreenViolation2")
-            : t("fullscreenViolationFinal")
-        );
-        setShowCheatingWarning(true);
+            : t("fullscreenViolationFinal");
 
-        if (newCount >= securitySettings.maxViolations) {
-          startMaxViolationCountdown();
-        } else {
+        // Route through unified recordViolation with 5-second cooldown so simultaneous blur/resize do not double count
+        recordViolation(msg, "fullscreen", t("fullscreenWarning1"));
+        if (nextCount < securitySettings.maxViolations) {
           setShowFullscreenWarning(true);
         }
       }
@@ -575,7 +577,8 @@ export function useExamAnticheat({
     };
   }, [showCheatingWarning, violationType]);
 
-  const totalViolations = cheatingAttempts + fullscreenRetryCount;
+  // Unified violation counter (starts cleanly at 1 up to n = maxViolations)
+  const totalViolations = cheatingAttempts;
 
   return {
     cheatingAttempts,

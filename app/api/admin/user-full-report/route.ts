@@ -40,7 +40,6 @@ export interface UserFullReportSummary {
   modulesCompleted: number;
   challengesJoined: number;
   challengesWon: number;
-  bookingsCount: number;
   reportsSubmitted: number;
   totalLogins: number;
   knownDevicesCount: number;
@@ -74,7 +73,6 @@ export interface UserFullReportResponse {
     exams: UserActionItem[];
     lessons: UserActionItem[];
     challenges: UserActionItem[];
-    bookings: UserActionItem[];
     reports: UserActionItem[];
     logins: UserActionItem[];
     security: UserActionItem[];
@@ -139,10 +137,6 @@ export async function GET(request: NextRequest) {
       lessonProgressRes,
       moduleProgressRes,
       challengesRes,
-      bookingsRes,
-      applicationsRes,
-      ratingsRes,
-      trainingLogsRes,
       reportsRes,
       retakeRequestsRes,
       loginsRes,
@@ -215,43 +209,6 @@ export async function GET(request: NextRequest) {
             .eq("user_id", resolvedUserId)
             .order("created_at", { ascending: false })
             .limit(50)
-        : Promise.resolve({ data: [] }),
-
-      // Driver bookings
-      resolvedUserId
-        ? supabase
-            .from("driver_bookings")
-            .select("*, drivers(full_name, phone_number, vehicle_type)")
-            .eq("user_id", resolvedUserId)
-            .order("created_at", { ascending: false })
-            .limit(50)
-        : Promise.resolve({ data: [] }),
-
-      // Driver applications
-      resolvedUserId
-        ? supabase
-            .from("driver_applications")
-            .select("*")
-            .eq("user_id", resolvedUserId)
-            .order("created_at", { ascending: false })
-        : Promise.resolve({ data: [] }),
-
-      // Driver ratings given
-      resolvedUserId
-        ? supabase
-            .from("driver_ratings")
-            .select("*, drivers(full_name)")
-            .eq("user_id", resolvedUserId)
-            .order("created_at", { ascending: false })
-        : Promise.resolve({ data: [] }),
-
-      // Training logs
-      resolvedUserId
-        ? supabase
-            .from("training_logs")
-            .select("*")
-            .eq("user_id", resolvedUserId)
-            .order("created_at", { ascending: false })
         : Promise.resolve({ data: [] }),
 
       // User reports submitted
@@ -328,10 +285,6 @@ export async function GET(request: NextRequest) {
     const lessonProgress = lessonProgressRes.status === "fulfilled" ? lessonProgressRes.value.data || [] : [];
     const moduleProgress = moduleProgressRes.status === "fulfilled" ? moduleProgressRes.value.data || [] : [];
     const challenges = challengesRes.status === "fulfilled" ? challengesRes.value.data || [] : [];
-    const bookings = bookingsRes.status === "fulfilled" ? bookingsRes.value.data || [] : [];
-    const applications = applicationsRes.status === "fulfilled" ? applicationsRes.value.data || [] : [];
-    const ratings = ratingsRes.status === "fulfilled" ? ratingsRes.value.data || [] : [];
-    const trainingLogs = trainingLogsRes.status === "fulfilled" ? trainingLogsRes.value.data || [] : [];
     const reports = reportsRes.status === "fulfilled" ? reportsRes.value.data || [] : [];
     const retakeRequests = retakeRequestsRes.status === "fulfilled" ? retakeRequestsRes.value.data || [] : [];
     const loginHistory = loginsRes.status === "fulfilled" ? loginsRes.value.data || [] : [];
@@ -425,66 +378,6 @@ export async function GET(request: NextRequest) {
           isWinner,
         },
         timestamp: c.completed_at || c.created_at,
-      });
-    }
-
-    // Driving Bookings
-    for (const b of bookings) {
-      const driverObj = b.drivers as any;
-      actions.push({
-        id: `booking-${b.id}`,
-        category: "booking",
-        title: `Driving Instructor Booking with ${driverObj?.full_name || "Certified Instructor"}`,
-        subtitle: `Date: ${b.session_date || "Scheduled"} • Time: ${b.start_time || "N/A"} (${b.duration_hours || 1}h) • Loc: ${b.pickup_location || "Kigali"}`,
-        status: (b.status || "PENDING").toUpperCase(),
-        metadata: {
-          driverName: driverObj?.full_name,
-          vehicleType: driverObj?.vehicle_type,
-          sessionDate: b.session_date,
-          pickupLocation: b.pickup_location,
-          totalPrice: b.total_price,
-        },
-        timestamp: b.created_at,
-      });
-    }
-
-    // Driver Applications
-    for (const app of applications) {
-      actions.push({
-        id: `driver-app-${app.id}`,
-        category: "application",
-        title: `Submitted Driving Instructor Application`,
-        subtitle: `License: ${app.license_number || "Verified"} • Experience: ${app.years_experience || 0} yrs • Vehicle: ${app.vehicle_type || "Car"}`,
-        status: (app.status || "PENDING").toUpperCase(),
-        metadata: app,
-        timestamp: app.created_at,
-      });
-    }
-
-    // Driver Ratings
-    for (const r of ratings) {
-      actions.push({
-        id: `rating-${r.id}`,
-        category: "booking",
-        title: `Submitted Instructor Review: ${r.rating || 5} Stars`,
-        subtitle: r.comment || r.review || "Session feedback provided",
-        status: "REVIEWED",
-        score: r.rating,
-        metadata: r,
-        timestamp: r.created_at,
-      });
-    }
-
-    // Training Logs
-    for (const tl of trainingLogs) {
-      actions.push({
-        id: `training-log-${tl.id}`,
-        category: "training",
-        title: `Logged Practical Training Session`,
-        subtitle: `Topics: ${tl.topics_covered || tl.notes || "In-car road training session"}`,
-        status: (tl.status || "COMPLETED").toUpperCase(),
-        metadata: tl,
-        timestamp: tl.created_at || tl.date,
       });
     }
 
@@ -603,7 +496,6 @@ export async function GET(request: NextRequest) {
       modulesCompleted: modulesCompletedCount,
       challengesJoined: challenges.length,
       challengesWon: challengesWonCount,
-      bookingsCount: bookings.length,
       reportsSubmitted: reports.length,
       totalLogins: loginHistory.length,
       knownDevicesCount: devices.length,
@@ -637,7 +529,6 @@ export async function GET(request: NextRequest) {
         exams: actions.filter((a) => a.category === "exam"),
         lessons: actions.filter((a) => a.category === "lesson" || a.category === "module"),
         challenges: actions.filter((a) => a.category === "challenge"),
-        bookings: actions.filter((a) => a.category === "booking"),
         reports: actions.filter((a) => a.category === "report"),
         logins: actions.filter((a) => a.category === "login"),
         security: actions.filter((a) => a.category === "security"),

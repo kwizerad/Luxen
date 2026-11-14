@@ -21,7 +21,6 @@ export interface DashboardWidgetProps {
   initialExamAttemptsCount?: number;
   initialUserProfilesCount?: number;
   initialStudentsCount?: number;
-  initialDriversCount?: number;
   initialAdminsCount?: number;
   realtimeEventCount?: number;
   className?: string;
@@ -42,7 +41,6 @@ export function DashboardWidget({
   initialExamAttemptsCount = 0,
   initialUserProfilesCount = 0,
   initialStudentsCount = 0,
-  initialDriversCount = 0,
   initialAdminsCount = 0,
   realtimeEventCount = 0,
   className = "",
@@ -52,7 +50,6 @@ export function DashboardWidget({
   const [examAttempts, setExamAttempts] = useState(initialExamAttemptsCount);
   const [userProfiles, setUserProfiles] = useState(initialUserProfilesCount);
   const [students, setStudents] = useState(initialStudentsCount);
-  const [drivers, setDrivers] = useState(initialDriversCount);
   const [admins, setAdmins] = useState(initialAdminsCount);
 
   // Delta trackers for live session row mutations
@@ -74,10 +71,6 @@ export function DashboardWidget({
   useEffect(() => {
     if (initialStudentsCount > 0) setStudents(initialStudentsCount);
   }, [initialStudentsCount]);
-
-  useEffect(() => {
-    if (initialDriversCount > 0) setDrivers(initialDriversCount);
-  }, [initialDriversCount]);
 
   useEffect(() => {
     if (initialAdminsCount > 0) setAdmins(initialAdminsCount);
@@ -117,13 +110,11 @@ export function DashboardWidget({
             setUserProfiles((prev) => prev + 1);
             setUserProfilesDelta((prev) => prev + 1);
             if (newRow?.role === "Student") setStudents((prev) => prev + 1);
-            else if (newRow?.role === "Driver") setDrivers((prev) => prev + 1);
             else if (newRow?.role === "Admin") setAdmins((prev) => prev + 1);
           } else if (payload.eventType === "DELETE") {
             setUserProfiles((prev) => Math.max(0, prev - 1));
             setUserProfilesDelta((prev) => prev - 1);
             if (oldRow?.role === "Student") setStudents((prev) => Math.max(0, prev - 1));
-            else if (oldRow?.role === "Driver") setDrivers((prev) => Math.max(0, prev - 1));
             else if (oldRow?.role === "Admin") setAdmins((prev) => Math.max(0, prev - 1));
           }
           if (onRealtimeRowChange) {
@@ -156,20 +147,11 @@ export function DashboardWidget({
         {
           name: "Students",
           table: "user_profiles (Student)",
-          count: students || Math.max(0, userProfiles - drivers - admins),
+          count: students || Math.max(0, userProfiles - admins),
           liveDelta: userProfilesDelta,
           fill: "#6366F1", // Indigo
           category: "users",
           description: "Registered student accounts",
-        },
-        {
-          name: "Drivers",
-          table: "user_profiles (Driver)",
-          count: drivers,
-          liveDelta: 0,
-          fill: "#14B8A6", // Teal
-          category: "users",
-          description: "Verified drivers roster",
         },
         {
           name: "Admins",
@@ -204,7 +186,7 @@ export function DashboardWidget({
         description: "Total registered accounts",
       },
     ];
-  }, [viewMode, examAttempts, userProfiles, students, drivers, admins, examAttemptsDelta, userProfilesDelta]);
+  }, [viewMode, examAttempts, userProfiles, students, admins, examAttemptsDelta, userProfilesDelta]);
 
   const totalTrackedRows = examAttempts + userProfiles;
 

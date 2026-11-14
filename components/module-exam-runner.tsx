@@ -36,7 +36,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RatingModal } from "@/components/rating-modal";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useExamSecurity } from "@/hooks/use-exam-security";
 import { QuestionTTSButton } from "@/components/course/question-tts-button";
@@ -118,7 +117,6 @@ export function ModuleExamRunner({
   const [showRetakeRequest, setShowRetakeRequest] = useState(false);
   const [retakeReason, setRetakeReason] = useState("");
   const [submittingRetake, setSubmittingRetake] = useState(false);
-  const [showRatingModal, setShowRatingModal] = useState(false);
 
   const showResultsRef = useRef(false);
   const examActiveRef = useRef(false);
@@ -407,8 +405,6 @@ export function ModuleExamRunner({
       if (examType === "module" && moduleId) {
         const retake = await canRetakeExam(moduleId, "module");
         setRetakeInfo(retake);
-        // Show rating modal after exam submission for module exams
-        setShowRatingModal(true);
       }
 
       onComplete({ passed, score: scorePercentage, taken: true });
@@ -763,13 +759,6 @@ export function ModuleExamRunner({
       onPaste={(e) => e.preventDefault()}
       onDragStart={(e) => e.preventDefault()}
     >
-      {examType === "module" && moduleId && (
-        <RatingModal
-          open={showRatingModal}
-          onClose={() => setShowRatingModal(false)}
-          driverId={moduleId}
-        />
-      )}
       <main className={isExamActive ? "relative mx-auto w-full max-w-5xl space-y-5 px-4 py-5 sm:px-5 md:px-6 md:py-6" : "student-page student-page-no-nav !mx-auto max-w-5xl"}>
         <Watermark />
 
@@ -922,7 +911,7 @@ export function ModuleExamRunner({
                 {activeQuestion ? (
                   <>
                     {activeQuestion.question_image && (
-                      <SmartImage src={activeQuestion.question_image} alt={t("question") || "Question"} className="w-full max-h-[240px] sm:max-h-[320px] object-contain rounded-[10px] sm:rounded-lg border" />
+                      <SmartImage src={activeQuestion.question_image} alt={t("question") || "Question"} className="w-full h-[260px] sm:h-[380px] lg:h-[440px] object-contain rounded-[10px] sm:rounded-lg border bg-muted/15" />
                     )}
                     {activeQuestion.question && (
                       <div className="flex items-start justify-between gap-3">
@@ -962,7 +951,7 @@ export function ModuleExamRunner({
                                     {opt}
                                   </div>
                                   {img && (
-                                    <SmartImage src={img} alt={`${t("option") || "Option"} ${opt}`} className="w-full h-24 sm:h-32 object-cover rounded-md border mb-2 cursor-zoom-in" />
+                                    <SmartImage src={img} alt={`${t("option") || "Option"} ${opt}`} className="w-full h-40 sm:h-52 object-contain rounded-md border mb-2 bg-muted/15 cursor-zoom-in" />
                                   )}
                                   {text && <div className="text-xs sm:text-sm text-center">{text}</div>}
                                 </div>
@@ -991,7 +980,7 @@ export function ModuleExamRunner({
                                     {opt}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    {img && <SmartImage src={img} alt={`${t("option") || "Option"} ${opt}`} className="w-full max-h-[180px] sm:max-h-[240px] object-contain rounded-md border mb-2" />}
+                                    {img && <SmartImage src={img} alt={`${t("option") || "Option"} ${opt}`} className="w-full h-36 sm:h-48 object-contain rounded-md border mb-2 bg-muted/15" />}
                                     {text && <div className="text-xs sm:text-sm">{text}</div>}
                                   </div>
                                 </div>

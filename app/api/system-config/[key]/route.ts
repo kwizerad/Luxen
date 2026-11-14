@@ -30,7 +30,6 @@ export async function GET(
       "service_live-exam_enabled",
       "service_group-exam_enabled",
       "service_traffic-assistant_enabled",
-      "service_driver-hub_enabled",
       "group_exam_enabled",
       "standalone_exam_enabled",
       "save_individual_exams_enabled",

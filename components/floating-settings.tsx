@@ -19,7 +19,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, LogOut, User, LogIn, Moon, Sun, Globe, Check, Download, Home, Shield, BookOpen, FileText, Users, Car } from "lucide-react";
+import { Settings, LogOut, User, LogIn, Moon, Sun, Globe, Check, Download, Home, Shield, BookOpen, FileText, Users } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { isAdmin } from "@/lib/permissions";
@@ -126,14 +126,12 @@ export function FloatingSettings() {
   const getRoleLabel = () => {
     const role = user?.user_metadata?.role?.toLowerCase();
     if (role === "admin") return t("admin");
-    if (role === "driver") return t("driver");
     return t("student");
   };
 
   const getRoleIcon = () => {
     const role = user?.user_metadata?.role?.toLowerCase();
     if (role === "admin") return <Shield className="h-3 w-3" />;
-    if (role === "driver") return <Car className="h-3 w-3" />;
     return <User className="h-3 w-3" />;
   };
 

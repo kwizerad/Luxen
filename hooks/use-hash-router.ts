@@ -126,9 +126,12 @@ export function useHashRouter() {
 
   const navigate = useCallback(
     (view: string, params?: Record<string, string>, options?: NavigateOptions) => {
-      // Block all navigation away from exam while an active proctored exam is in progress
+      // If user explicitly chooses to return home, allow it and clear exam-active
       if (typeof window !== "undefined" && sessionStorage.getItem("exam-active") === "true") {
-        if (view !== "exam" && view !== "exams") {
+        if (view === "home") {
+          sessionStorage.removeItem("exam-active");
+          window.dispatchEvent(new CustomEvent("exam-state-change"));
+        } else if (view !== "exam" && view !== "exams") {
           console.warn("Navigation blocked: An exam is actively in progress.");
           return;
         }

@@ -292,6 +292,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const deviceId = searchParams.get("deviceId");
+    const targetLang = resolveTargetLang(searchParams.get("language"));
     const quota = await getGuestExamQuota(req, deviceId);
 
     const adminSb = createAdminClient();
@@ -316,6 +317,19 @@ export async function GET(req: NextRequest) {
       String(configMap.get("standalone_exam_enabled") ?? "true").toLowerCase() !==
       "false";
 
+    const rawTitle = configMap.get("external_exam_title") || "";
+    const isDefaultTitle =
+      !rawTitle ||
+      rawTitle === "Rwanda PVS Exam" ||
+      rawTitle.startsWith("Navo's Mock Exam") ||
+      rawTitle === "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda";
+    const localizedDefaultTitle =
+      targetLang === "French"
+        ? "Examen Blanc Officiel du Code de la Route"
+        : targetLang === "English"
+        ? "Official Traffic Rules & Road Signs Mock Exam"
+        : "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda";
+
     const res = NextResponse.json({
       standaloneEnabled,
       quota: {
@@ -323,12 +337,13 @@ export async function GET(req: NextRequest) {
         remainingCount: quota.remainingCount,
         maxAllowed: quota.maxAllowed,
         exhausted: quota.exhausted,
+        resetsDaily: true,
+        resetAt: quota.resetAt,
+        resetInSeconds: quota.resetInSeconds,
       },
       examMeta: {
         categoryId: EXTERNAL_EXAM_CATEGORY_ID,
-        title:
-          configMap.get("external_exam_title") ||
-          "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda",
+        title: isDefaultTitle ? localizedDefaultTitle : rawTitle,
         durationMinutes:
           Number(configMap.get("external_exam_duration_minutes")) || 20,
         questionCount:
@@ -379,15 +394,22 @@ export async function POST(req: NextRequest) {
       "false";
 
     // ------------------------------------------------------------------------
-    // 1. START GUEST EXAM (Strict 3-exam limit per IP & Device; no auth needed)
+    // 1. START GUEST EXAM (Daily 3-exam limit for guests; no auth needed)
     // ------------------------------------------------------------------------
     if (action === "start") {
+      const targetLang = resolveTargetLang(language);
+
       if (!standaloneEnabled) {
+        const pausedMsg =
+          targetLang === "French"
+            ? "Les examens blancs sont temporairement suspendus par l'administration."
+            : targetLang === "Kinyarwanda"
+            ? "Ibizamini by'imyitozo byahagaritswe by'agateganyo n'ubuyobozi."
+            : "Practice exams are temporarily paused by the administrator.";
         return secureJsonResponse(
           {
             error: "EXAMS_PAUSED",
-            message:
-              "Practice exams are temporarily paused by the administrator.",
+            message: pausedMsg,
           },
           403
         );
@@ -395,16 +417,24 @@ export async function POST(req: NextRequest) {
 
       const currentQuota = await getGuestExamQuota(req, deviceId);
       if (currentQuota.exhausted) {
+        const limitMsg =
+          targetLang === "French"
+            ? "Vous avez terminé vos 3 examens gratuits d'aujourd'hui. Inscrivez-vous gratuitement pour enregistrer vos progrès et continuer sans limite."
+            : targetLang === "Kinyarwanda"
+            ? "Wasoje ibizamini 3 by'uyu munsi! Wiyandikishe ku buntu kugira ngo ubike amateka yawe kandi ukomeze kwimenyereza igihe cyose."
+            : "You've completed today's 3 free practice exams! Sign up for free to save your results and continue practicing anytime.";
         const res = await secureJsonResponse(
           {
             error: "LIMIT_REACHED",
-            message:
-              "Free guest exam limit reached (3/3). Please sign up for free to continue taking exams.",
+            message: limitMsg,
             quota: {
               usedCount: currentQuota.usedCount,
               remainingCount: 0,
               maxAllowed: currentQuota.maxAllowed,
               exhausted: true,
+              resetsDaily: true,
+              resetAt: currentQuota.resetAt,
+              resetInSeconds: currentQuota.resetInSeconds,
             },
           },
           429
@@ -576,6 +606,9 @@ export async function POST(req: NextRequest) {
           remainingCount: updatedQuota.remainingCount,
           maxAllowed: updatedQuota.maxAllowed,
           exhausted: updatedQuota.exhausted,
+          resetsDaily: true,
+          resetAt: updatedQuota.resetAt,
+          resetInSeconds: updatedQuota.resetInSeconds,
         },
         serverTime: new Date().toISOString(),
       });
@@ -609,11 +642,26 @@ export async function POST(req: NextRequest) {
           : 0;
       const durationSeconds = Number(attemptData?.duration_seconds) || 0;
 
+      const targetLang = resolveTargetLang(language);
+      const localizedDefaultCat =
+        targetLang === "French"
+          ? "Examen Blanc Officiel du Code de la Route"
+          : targetLang === "English"
+          ? "Official Traffic Rules & Road Signs Mock Exam"
+          : "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda";
       const catId = attemptData?.category_id || EXTERNAL_EXAM_CATEGORY_ID;
+      const configuredTitle = configMap.get("external_exam_title") || "";
+      const effectiveConfiguredTitle =
+        !configuredTitle ||
+        configuredTitle === "Rwanda PVS Exam" ||
+        configuredTitle.startsWith("Navo's Mock Exam") ||
+        configuredTitle === "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda"
+          ? localizedDefaultCat
+          : configuredTitle;
       const catName =
-        attemptData?.category_name ||
-        configMap.get("external_exam_title") ||
-        "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda";
+        attemptData?.category_name && attemptData.category_name !== "Rwanda PVS Exam"
+          ? attemptData.category_name
+          : effectiveConfiguredTitle;
 
       const now = new Date().toISOString();
       const transientAttempt = {
@@ -645,6 +693,9 @@ export async function POST(req: NextRequest) {
           remainingCount: quota.remainingCount,
           maxAllowed: quota.maxAllowed,
           exhausted: quota.exhausted,
+          resetsDaily: true,
+          resetAt: quota.resetAt,
+          resetInSeconds: quota.resetInSeconds,
         },
       });
       return attachGuestQuotaCookie(res, quota);

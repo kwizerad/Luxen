@@ -17,7 +17,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Trophy,
   BookOpen,
-  Car,
   Clock,
   Calendar,
   ShieldCheck,
@@ -125,8 +124,6 @@ export function UserFullActionReport({
         actions = actions.filter((a) => a.category === "lesson" || a.category === "module");
       } else if (categoryFilter === "challenges") {
         actions = actions.filter((a) => a.category === "challenge");
-      } else if (categoryFilter === "bookings") {
-        actions = actions.filter((a) => a.category === "booking" || a.category === "application" || a.category === "training");
       } else if (categoryFilter === "reports") {
         actions = actions.filter((a) => a.category === "report");
       } else if (categoryFilter === "security") {
@@ -268,10 +265,6 @@ export function UserFullActionReport({
         return <BookOpen className="h-4 w-4 text-blue-500" />;
       case "challenge":
         return <Swords className="h-4 w-4 text-purple-500" />;
-      case "booking":
-      case "training":
-      case "application":
-        return <Car className="h-4 w-4 text-emerald-500" />;
       case "report":
         return <AlertCircle className="h-4 w-4 text-rose-500" />;
       case "login":
@@ -324,7 +317,7 @@ export function UserFullActionReport({
       <div className="py-20 flex flex-col items-center justify-center text-muted-foreground space-y-3">
         <Loader2 className="h-9 w-9 animate-spin text-primary" />
         <p className="text-sm font-semibold text-foreground">{t("generatingUserReport") || "Generating comprehensive action dossier..."}</p>
-        <p className="text-xs text-muted-foreground">{t("queryingAuditLedger") || "Aggregating all quizzes, lessons, challenges, bookings, and logins"}</p>
+        <p className="text-xs text-muted-foreground">{t("queryingAuditLedger") || "Aggregating all quizzes, lessons, challenges, and logins"}</p>
       </div>
     );
   }
@@ -341,7 +334,6 @@ export function UserFullActionReport({
     modulesCompleted: 0,
     challengesJoined: 0,
     challengesWon: 0,
-    bookingsCount: 0,
     reportsSubmitted: 0,
     totalLogins: 0,
     knownDevicesCount: 0,
@@ -549,18 +541,6 @@ export function UserFullActionReport({
             </p>
           </div>
 
-          {/* Driving Bookings */}
-          <div className="p-3.5 rounded-2xl border bg-card/60 space-y-1 shadow-xs">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[10px] font-bold uppercase tracking-wider">{t("drivingSessions") || "Driving"}</span>
-              <Car className="h-3.5 w-3.5 text-emerald-500" />
-            </div>
-            <p className="text-xl font-black tabular-nums text-foreground">{s.bookingsCount}</p>
-            <p className="text-[10px] text-muted-foreground">
-              instructor bookings made
-            </p>
-          </div>
-
           {/* Reports & Tickets */}
           <div className="p-3.5 rounded-2xl border bg-card/60 space-y-1 shadow-xs">
             <div className="flex items-center justify-between text-muted-foreground">
@@ -586,7 +566,7 @@ export function UserFullActionReport({
                 </Badge>
               </CardTitle>
               <CardDescription className="text-xs">
-                {t("actionAuditTrailDesc") || "Every single action performed by this candidate across exams, courses, bookings, and sessions."}
+                {t("actionAuditTrailDesc") || "Every single action performed by this candidate across exams, courses, and sessions."}
               </CardDescription>
             </div>
 
@@ -622,7 +602,6 @@ export function UserFullActionReport({
               { id: "exams", label: "Exams & Quizzes", count: reportData?.actionsByCategory?.exams?.length || 0 },
               { id: "lessons", label: "Lessons & Study", count: reportData?.actionsByCategory?.lessons?.length || 0 },
               { id: "challenges", label: "Live Battles", count: reportData?.actionsByCategory?.challenges?.length || 0 },
-              { id: "bookings", label: "Driving Hub", count: reportData?.actionsByCategory?.bookings?.length || 0 },
               { id: "reports", label: "Reports", count: reportData?.actionsByCategory?.reports?.length || 0 },
               { id: "security", label: "Logins & Security", count: reportData?.actionsByCategory?.security?.length || 0 },
             ].map((cat) => (

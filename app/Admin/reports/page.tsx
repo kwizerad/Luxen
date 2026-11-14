@@ -38,11 +38,11 @@ export default function AdminReportsPage() {
   useEffect(() => {
     const checkPermAndFetch = async () => {
       const user = await getCurrentUser();
-      if (!user || !canAccess(user as PermUser, "drivers")) {
+      if (!user || !canAccess(user as PermUser, "students")) {
         navigateAdmin("/Admin", { replace: true });
         return;
       }
-      setReadOnly(!canWrite(user as PermUser, "drivers"));
+      setReadOnly(!canWrite(user as PermUser, "students"));
       fetchReports();
     };
     checkPermAndFetch();
@@ -129,7 +129,7 @@ export default function AdminReportsPage() {
               </span>
             </div>
             <p className="text-xs sm:text-sm text-[var(--admin-muted)] mt-0.5">
-              Investigate user & driver safety reports, update resolution statuses, and collaborate on incident threads.
+              Investigate student & community safety reports, update resolution statuses, and collaborate on incident threads.
             </p>
           </div>
         </div>

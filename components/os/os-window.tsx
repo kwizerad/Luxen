@@ -100,38 +100,55 @@ export function OSWindow({
               {/* Minimize Button (macOS Amber) */}
               <button
                 type="button"
-                onClick={() => (onMinimize || onClose)?.()}
-                title="Minimize Window"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (isMaximized) setIsMaximized(false);
+                  (onMinimize || onClose)?.();
+                }}
+                title="Minimize Window (Return to Desktop)"
                 aria-label="Minimize Window"
-                className="relative w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-[#FEBC2E] hover:bg-[#F5B01C] text-amber-950/90 flex items-center justify-center transition-transform cursor-pointer border border-[#E0A11B]/70 shadow-xs active:scale-90 after:content-[''] after:absolute after:-inset-1.5"
+                className="w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-[#FEBC2E] hover:bg-[#F5B01C] text-amber-950/90 flex items-center justify-center transition-transform cursor-pointer border border-[#E0A11B]/80 shadow-xs active:scale-90"
               >
-                <Minus className="w-2 h-2 sm:w-2.5 sm:h-2.5 stroke-[3] opacity-70 group-hover/controls:opacity-100 transition-opacity" />
+                <Minus className="w-2.5 h-2.5 stroke-[3] opacity-70 group-hover/controls:opacity-100 transition-opacity" />
               </button>
 
               {/* Maximize / Restore Button (macOS Emerald) */}
               <button
                 type="button"
-                onClick={toggleMaximize}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleMaximize();
+                }}
                 title={isMaximized ? "Restore Window Size" : "Maximize Window"}
                 aria-label={isMaximized ? "Restore Window Size" : "Maximize Window"}
-                className="relative w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-[#28C840] hover:bg-[#1FB835] text-emerald-950/90 flex items-center justify-center transition-transform cursor-pointer border border-[#1FA834]/70 shadow-xs active:scale-90 after:content-[''] after:absolute after:-inset-1.5"
+                className="w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-[#28C840] hover:bg-[#1FB835] text-emerald-950/90 flex items-center justify-center transition-transform cursor-pointer border border-[#1FA834]/80 shadow-xs active:scale-90"
               >
                 {isMaximized ? (
-                  <Minimize2 className="w-2 h-2 sm:w-2.5 sm:h-2.5 stroke-[2.75] opacity-70 group-hover/controls:opacity-100 transition-opacity" />
+                  <Minimize2 className="w-2.5 h-2.5 stroke-[2.75] opacity-70 group-hover/controls:opacity-100 transition-opacity" />
                 ) : (
-                  <Maximize2 className="w-2 h-2 sm:w-2.5 sm:h-2.5 stroke-[2.75] opacity-70 group-hover/controls:opacity-100 transition-opacity" />
+                  <Maximize2 className="w-2.5 h-2.5 stroke-[2.75] opacity-70 group-hover/controls:opacity-100 transition-opacity" />
                 )}
               </button>
 
               {/* Close Button (macOS Coral Red) */}
               <button
                 type="button"
-                onClick={() => onClose?.()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (isMaximized) setIsMaximized(false);
+                  onClose?.();
+                }}
                 title="Close Window (Return to Desktop)"
                 aria-label="Close Window"
-                className="relative w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-[#FF5F57] hover:bg-[#F04D45] text-rose-950/90 flex items-center justify-center transition-transform cursor-pointer border border-[#E0443E]/70 shadow-xs active:scale-90 after:content-[''] after:absolute after:-inset-1.5"
+                className="w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-[#FF5F57] hover:bg-[#F04D45] text-rose-950/90 flex items-center justify-center transition-transform cursor-pointer border border-[#E0443E]/80 shadow-xs active:scale-90"
               >
-                <X className="w-2 h-2 sm:w-2.5 sm:h-2.5 stroke-[3] opacity-70 group-hover/controls:opacity-100 transition-opacity" />
+                <X className="w-2.5 h-2.5 stroke-[3] opacity-70 group-hover/controls:opacity-100 transition-opacity" />
               </button>
             </div>
           </div>

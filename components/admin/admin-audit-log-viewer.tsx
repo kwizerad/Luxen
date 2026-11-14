@@ -239,7 +239,6 @@ export function AdminAuditLogViewer() {
     { id: "ALL", label: "All Categories" },
     { id: "USER_MANAGEMENT", label: "User Management" },
     { id: "EXAMS_QUESTIONS", label: "Exams & Questions" },
-    { id: "FLEET_DRIVERS", label: "Fleet & Drivers" },
     { id: "COURSE_STUDIO", label: "Course Studio" },
     { id: "REPORTS_SUPPORT", label: "Reports & Retakes" },
     { id: "SETTINGS_SECURITY", label: "Settings & Security" },
@@ -250,7 +249,6 @@ export function AdminAuditLogViewer() {
     { label: "Delete / Remove", query: "delete" },
     { label: "User Accounts", query: "user" },
     { label: "Exam Updates", query: "exam" },
-    { label: "Drivers & Fleet", query: "driver" },
     { label: "Permissions", query: "role" },
   ];
 

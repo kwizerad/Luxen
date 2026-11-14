@@ -188,12 +188,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       isActive:
         pathname === "/dashboard" &&
         (currentView === "services" ||
-          currentView === "services/drivers" ||
-          currentView === "services/driver-detail" ||
-          currentView === "services/request-code" ||
-          currentView === "driver-hub" ||
-          currentView.startsWith("driver-panel") ||
-          currentView === "my-training"),
+          currentView === "services/request-code"),
     },
     {
       id: "results",
@@ -247,14 +242,6 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       icon: LayoutDashboard,
       href: "/Admin",
       isActive: adminSpaView === "dashboard" && activeAdminPath === "/Admin",
-    },
-    {
-      id: "admin-drivers",
-      label: t("drivers") || "Drivers",
-      icon: Car,
-      href: "/Admin/drivers",
-      isActive:
-        adminSpaView === "drivers" || Boolean(activeAdminPath?.startsWith("/Admin/drivers")),
     },
     {
       id: "admin-reports",

@@ -1,37 +1,30 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Watermark } from "@/components/watermark";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { canViewUserAvatar } from "@/lib/avatar-helper";
 import { ExamCelebration } from "@/components/exam-celebration";
 import {
-  CheckCircle,
+  CheckCircle2,
   XCircle,
   Home,
   Clock,
   Target,
-  TrendingUp,
-  TrendingDown,
-  AlertCircle,
   RotateCcw,
-  Filter,
-  FileText,
-  Image as ImageIcon,
   ShieldAlert,
-  UserX,
-  Trophy,
   Users,
   Award,
   Crown,
-  Loader2,
   BarChart3,
-  Eye,
+  UserPlus,
+  LogIn,
+  AlertTriangle,
+  Info,
+  HelpCircle,
+  BookOpen,
 } from "lucide-react";
 import {
   Dialog,
@@ -43,44 +36,101 @@ import {
 import type { ExamAttempt, ExamAnswer, ExamQuestion } from "@/lib/database.types";
 import { cn } from "@/lib/utils";
 
-interface ExamReviewProps {
+export interface ExamReviewProps {
   examResult: ExamAttempt;
   questions: ExamQuestion[];
   onReset: () => void;
   onRetake: () => void;
   challengeId?: string;
   passingPercentage?: number;
+  canRetake?: boolean;
+  quotaExhausted?: boolean;
+  quotaResetAt?: string;
+  quotaResetInSeconds?: number;
+  onSignUp?: () => void;
+  onSignIn?: () => void;
 }
 
 type FilterType = "all" | "correct" | "incorrect" | "unanswered";
 
-function formatTime(totalSeconds: number) {
-  if (!totalSeconds && totalSeconds !== 0) return "00:00";
+function formatTime(totalSeconds: number | null | undefined): string {
+  if (totalSeconds === null || totalSeconds === undefined || isNaN(totalSeconds)) {
+    return "00:00";
+  }
   const m = Math.floor(Math.max(0, totalSeconds) / 60);
   const s = Math.floor(Math.max(0, totalSeconds) % 60);
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function getScoreColor(percentage: number): string {
-  if (percentage >= 80) return "text-green-500";
-  if (percentage >= 60) return "text-amber-500";
-  return "text-red-500";
+function formatResetDuration(totalSeconds: number): string {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(safe / 3600);
+  const m = Math.floor((safe % 3600) / 60);
+  const s = safe % 60;
+  return `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
 }
 
-export function ExamReview({ examResult, questions, onReset, onRetake, challengeId, passingPercentage = 60 }: ExamReviewProps) {
+export function ExamReview({
+  examResult,
+  questions,
+  onReset,
+  onRetake,
+  challengeId,
+  passingPercentage = 60,
+  canRetake = true,
+  quotaExhausted = false,
+  quotaResetAt,
+  quotaResetInSeconds,
+  onSignUp,
+  onSignIn,
+}: ExamReviewProps) {
+  const router = useRouter();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
+
   const [filter, setFilter] = useState<FilterType>("all");
-  const [groupData, setGroupData] = useState<{ challenge: any; leaderboard: any[]; is_solo_attempt?: boolean } | null>(null);
-  const [loadingGroup, setLoadingGroup] = useState(false);
+  const [groupData, setGroupData] = useState<{
+    challenge: any;
+    leaderboard: any[];
+    is_solo_attempt?: boolean;
+  } | null>(null);
   const [showSummaryPopout, setShowSummaryPopout] = useState(false);
+  const [resetSecondsLeft, setResetSecondsLeft] = useState<number | null>(() => {
+    if (quotaResetAt) {
+      return Math.max(0, Math.ceil((new Date(quotaResetAt).getTime() - Date.now()) / 1000));
+    }
+    return typeof quotaResetInSeconds === "number" ? Math.max(0, quotaResetInSeconds) : null;
+  });
+
+  useEffect(() => {
+    if (!quotaExhausted) return;
+    const compute = () => {
+      if (quotaResetAt) {
+        return Math.max(0, Math.ceil((new Date(quotaResetAt).getTime() - Date.now()) / 1000));
+      }
+      return typeof quotaResetInSeconds === "number" ? Math.max(0, quotaResetInSeconds) : null;
+    };
+    setResetSecondsLeft(compute());
+    const id = setInterval(() => {
+      setResetSecondsLeft((prev) => {
+        if (quotaResetAt) return compute();
+        return prev === null ? null : Math.max(0, prev - 1);
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [quotaExhausted, quotaResetAt, quotaResetInSeconds]);
 
   const effectiveChallengeId =
     challengeId ||
     examResult.challenge_id ||
-    (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("challenge_id") || undefined : undefined);
+    (typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("challenge_id") || undefined
+      : undefined);
 
-  // Guarantee exam-active flag is removed and event dispatched when reviewing results
+  // Guarantee exam-active flag is removed and event dispatched when viewing report
   useEffect(() => {
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("exam-active");
@@ -92,7 +142,6 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
     if (!effectiveChallengeId) return;
     let isMounted = true;
     const fetchGroupResults = async () => {
-      setLoadingGroup(true);
       try {
         const res = await fetch(`/api/exam-challenges/${effectiveChallengeId}/results`);
         if (res.ok) {
@@ -101,8 +150,6 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
         }
       } catch (err) {
         console.error("Failed to fetch group exam results:", err);
-      } finally {
-        if (isMounted) setLoadingGroup(false);
       }
     };
     fetchGroupResults();
@@ -111,34 +158,34 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
     };
   }, [effectiveChallengeId]);
 
+  const totalQuestions = examResult.total_questions || questions.length || 20;
   const answeredCount = (examResult.answers || []).filter(
     (a: ExamAnswer) => Boolean(a.selected_answer)
   ).length;
-  const unansweredCount = Math.max(0, (examResult.total_questions || 20) - answeredCount);
+  const unansweredCount = Math.max(0, totalQuestions - answeredCount);
   const accuracy =
     answeredCount > 0
       ? Math.round((examResult.correct_answers / answeredCount) * 100)
       : 0;
   const avgTimePerQuestion =
-    examResult.total_questions > 0
-      ? Math.round(examResult.duration_seconds / examResult.total_questions)
+    totalQuestions > 0
+      ? Math.round((examResult.duration_seconds || 0) / totalQuestions)
       : 0;
 
-  const isPassed = examResult.score_percentage >= passingPercentage;
+  const isPassed = (examResult.score_percentage ?? 0) >= passingPercentage;
   const isAbandoned = examResult.status === "abandoned" || answeredCount === 0;
   const isCheating = examResult.submission_reason === "cheating_violation";
-  const isAutoSubmitted = examResult.submission_reason === "page_closed" || examResult.submission_reason === "time_expired";
   const hasNoAnswers = answeredCount === 0;
 
   const filteredAnswers = useMemo(() => {
-    return examResult.answers
+    return (examResult.answers || [])
       .map((answer: ExamAnswer, idx: number) => ({ answer, idx }))
       .filter(({ answer }: { answer: ExamAnswer; idx: number }) => {
         switch (filter) {
           case "correct":
             return answer.is_correct;
           case "incorrect":
-            return !answer.is_correct && answer.selected_answer;
+            return !answer.is_correct && Boolean(answer.selected_answer);
           case "unanswered":
             return !answer.selected_answer;
           default:
@@ -147,831 +194,719 @@ export function ExamReview({ examResult, questions, onReset, onRetake, challenge
       });
   }, [examResult.answers, filter]);
 
-  const filterTabs: { key: FilterType; labelKey: string; count: number }[] = [
-    { key: "all", labelKey: "examDetails.allQuestions", count: examResult.total_questions },
-    { key: "correct", labelKey: "examDetails.correctOnly", count: examResult.correct_answers },
+  const filterTabs: { key: FilterType; label: string; count: number }[] = [
+    {
+      key: "all",
+      label: isRw ? "Byose" : isFr ? "Tous" : "All",
+      count: totalQuestions,
+    },
+    {
+      key: "correct",
+      label: isRw ? "Iby'ukuri (Watsinze)" : isFr ? "Corrects (Réussi)" : "Correct",
+      count: examResult.correct_answers || 0,
+    },
     {
       key: "incorrect",
-      labelKey: "examDetails.incorrectOnly",
-      count: examResult.total_questions - examResult.correct_answers - unansweredCount,
+      label: isRw ? "Ibyo watsinzwe" : isFr ? "Incorrects (Échoué)" : "Incorrect",
+      count: Math.max(0, totalQuestions - (examResult.correct_answers || 0) - unansweredCount),
     },
-    { key: "unanswered", labelKey: "examDetails.unansweredOnly", count: unansweredCount },
+    {
+      key: "unanswered",
+      label: isRw ? "Ibitasubijwe" : isFr ? "Sans réponse" : "Unanswered",
+      count: unansweredCount,
+    },
   ];
 
   const getOptionText = (question: ExamQuestion | undefined, option: "A" | "B" | "C" | "D") => {
     if (!question) return "";
     switch (option) {
-      case "A": return question.option_a || "";
-      case "B": return question.option_b || "";
-      case "C": return question.option_c || "";
-      case "D": return question.option_d || "";
+      case "A":
+        return question.option_a || "";
+      case "B":
+        return question.option_b || "";
+      case "C":
+        return question.option_c || "";
+      case "D":
+        return question.option_d || "";
     }
   };
 
   const getOptionImage = (question: ExamQuestion | undefined, option: "A" | "B" | "C" | "D") => {
     if (!question) return undefined;
     switch (option) {
-      case "A": return question.option_a_image;
-      case "B": return question.option_b_image;
-      case "C": return question.option_c_image;
-      case "D": return question.option_d_image;
+      case "A":
+        return question.option_a_image;
+      case "B":
+        return question.option_b_image;
+      case "C":
+        return question.option_c_image;
+      case "D":
+        return question.option_d_image;
     }
   };
 
   const options: ("A" | "B" | "C" | "D")[] = ["A", "B", "C", "D"];
 
-  return (
-    <main className="relative mx-auto w-full max-w-5xl p-3 sm:p-6 space-y-4 sm:space-y-5 overflow-x-hidden">
-      <Watermark />
+  const handleGoToRegister = () => {
+    if (onSignUp) onSignUp();
+    else router.push("/?auth=register");
+  };
 
-      {/* Header with Pass/Fail Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg sm:text-2xl font-bold brand-protected">{t("examResults")}</h1>
-          <p className="text-muted-foreground mt-0.5 text-xs sm:text-sm">{t("yourPerformanceSummary")}</p>
+  const handleGoToLogin = () => {
+    if (onSignIn) onSignIn();
+    else router.push("/?auth=login");
+  };
+
+  return (
+    <div className="flex-1 w-full max-w-4xl mx-auto px-3.5 sm:px-6 py-4 sm:py-6 space-y-5 pb-20 select-none">
+      {/* OS Sleek Header & Action Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/50 pb-4">
+        <div className="min-w-0 space-y-0.5">
+          <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground uppercase tracking-wide">
+            <span>Navo OS</span>
+            <span aria-hidden="true">·</span>
+            <span>
+              {isRw
+                ? "Icyegeranyo cy'Ikizamini"
+                : isFr
+                ? "Relevé d'examen"
+                : "Exam Transcript"}
+            </span>
+          </div>
+          <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground truncate">
+            {examResult.category_name || t("examResults") || "Exam Results"}
+          </h1>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="default"
-            size="sm"
+
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <button
+            type="button"
             onClick={() => setShowSummaryPopout(true)}
-            className="gap-1.5 h-8 px-3 text-xs rounded-xl shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border/70 hover:bg-muted/60 text-foreground transition-colors cursor-pointer"
           >
-            <BarChart3 className="h-3.5 w-3.5" />
-            <span>{t("examDetails.examSummary") || "Exam Summary"}</span>
-          </Button>
-          {!effectiveChallengeId && (
-            <Button variant="outline" size="sm" onClick={onRetake} className="h-8 px-3 text-xs rounded-xl">
-              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-              <span>{t("retakeExam")}</span>
-            </Button>
+            <BarChart3 className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span>{isRw ? "Incamake" : isFr ? "Résumé" : "Summary"}</span>
+          </button>
+
+          {!effectiveChallengeId && canRetake && !quotaExhausted && (
+            <button
+              type="button"
+              onClick={onRetake}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer shadow-xs"
+            >
+              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+              <span>{isRw ? "Subiramo" : isFr ? "Repasser" : "Retake"}</span>
+            </button>
           )}
-          <Button variant="outline" size="sm" onClick={onReset} className="h-8 px-3 text-xs rounded-xl">
-            <Home className="h-3.5 w-3.5 mr-1.5" />
-            <span>{t("backToExams")}</span>
-          </Button>
+
+          <button
+            type="button"
+            onClick={onReset}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border/70 hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            <Home className="w-3.5 h-3.5 shrink-0" />
+            <span>{isRw ? "Subira ku Bizamini" : isFr ? "Retour" : "Back to Exams"}</span>
+          </button>
         </div>
       </div>
 
-      {/* Pass/Fail Score Strip */}
+      {/* Guest 3-Exam Restriction Banner (Prominently displayed after 3rd free exam) */}
+      {quotaExhausted && (
+        <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/[0.08] dark:bg-emerald-500/12 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0 mt-0.5">
+              <Award className="w-5 h-5" />
+            </div>
+            <div className="space-y-1 min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-foreground">
+                {isRw
+                  ? "Wasoje ibizamini 3 by'uyu munsi! Iyandikishe ku buntu ukomeze"
+                  : isFr
+                  ? "Vos 3 examens gratuits du jour sont terminés !"
+                  : "You've completed today's 3 free practice exams!"}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                {isRw
+                  ? "Wakoze neza kwimenyereza uyu munsi! Utarinjira muri konti wemerewe ibizamini 3 ku munsi. Iyandikishe ku buntu kugira ngo ubike aya manota kandi ukomeze kwimenyereza igihe cyose."
+                  : isFr
+                  ? "Beau travail aujourd'hui ! Sans compte, vous disposez de 3 examens gratuits par jour. Inscrivez-vous gratuitement pour sauvegarder vos résultats et continuer à pratiquer librement."
+                  : "Great job practicing today! Visitors can take up to 3 free exams per day. Sign up for free to save your results and keep practicing anytime."}
+              </p>
+              {resetSecondsLeft !== null && (
+                <div className="inline-flex items-center gap-1.5 pt-1 text-xs font-mono font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {isRw
+                      ? `Amahirwe mashya azafunguka mu gihe cya: ${formatResetDuration(resetSecondsLeft)}`
+                      : isFr
+                      ? `Nouveaux examens gratuits dans : ${formatResetDuration(resetSecondsLeft)}`
+                      : `Free daily exams reset in: ${formatResetDuration(resetSecondsLeft)}`}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleGoToRegister}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>{isRw ? "Iyandikishe ku buntu" : isFr ? "S'inscrire gratuitement" : "Sign Up for Free"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleGoToLogin}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium border border-border/80 hover:bg-muted text-foreground transition-colors cursor-pointer whitespace-nowrap"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>{isRw ? "Injira" : isFr ? "Connexion" : "Log In"}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Performance Telemetry Strip (Flat, unboxed hairline layout matching Navo OS) */}
       {!isAbandoned && !isCheating && (
         <ExamCelebration
           passed={isPassed}
-          scorePercentage={examResult.score_percentage}
-          title={isPassed ? t("congratulations") : t("examNotPassed")}
-          subtitle={isPassed ? t("passedModuleExam") : t("keepTrying")}
+          scorePercentage={examResult.score_percentage || 0}
+          title={
+            isPassed
+              ? isRw
+                ? "Watsinze Ikizamini!"
+                : isFr
+                ? "Examen Réussi !"
+                : t("congratulations") || "Exam Passed!"
+              : isRw
+              ? "Watsinzwe Ikizamini"
+              : isFr
+              ? "Examen Non Réussi"
+              : t("examNotPassed") || "Exam Not Passed"
+          }
+          subtitle={
+            isPassed
+              ? isRw
+                ? `Watsinze: wabonye ${examResult.correct_answers} kuri ${totalQuestions} (${examResult.score_percentage}%). Umurongo wo gutsinda ni ${passingPercentage}%.`
+                : isFr
+                ? `Vous avez réussi : score ${examResult.correct_answers} sur ${totalQuestions} (${examResult.score_percentage}%). Le seuil de réussite est ${passingPercentage}%.`
+                : `You scored ${examResult.correct_answers} of ${totalQuestions} (${examResult.score_percentage}%). Passing mark is ${passingPercentage}%.`
+              : isRw
+              ? `Watsinzwe: wabonye ${examResult.correct_answers} kuri ${totalQuestions} (${examResult.score_percentage}%). Ukeneye nibura ${passingPercentage}% kugira ngo utsinde.`
+              : isFr
+              ? `Échoué : score ${examResult.correct_answers} sur ${totalQuestions} (${examResult.score_percentage}%). Vous avez besoin d'au moins ${passingPercentage}% pour réussir.`
+              : `You scored ${examResult.correct_answers} of ${totalQuestions} (${examResult.score_percentage}%). Required pass mark is ${passingPercentage}%.`
+          }
           badges={
             <>
-              <span>{examResult.category_name}</span>
+              <span className="font-mono text-xs">{examResult.category_name}</span>
               <span aria-hidden="true">·</span>
-              <span className="tabular-nums">{formatTime(examResult.duration_seconds)}</span>
+              <span className="font-mono text-xs">{formatTime(examResult.duration_seconds)}</span>
               <span aria-hidden="true">·</span>
-              <span className="tabular-nums">
-                {t("examDetails.questionsCount").replace("{count}", String(examResult.total_questions))}
-              </span>
+              <span className="font-mono text-xs">{totalQuestions} {isRw ? "Ibibazo" : isFr ? "Questions" : "Questions"}</span>
             </>
           }
         />
       )}
 
-      {/* Single Violation Notice when answers exist (if 0 answers, unified section below renders) */}
-      {isCheating && !hasNoAnswers && (
-        <div className="border-b border-orange-500/30 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0 flex-1">
-            <ShieldAlert className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0 space-y-1">
-              <h2 className="text-sm sm:text-base font-semibold text-orange-600 dark:text-orange-400 break-words">
-                {t("examSubmittedDueToCheating")}
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {examResult.category_name} · {formatTime(examResult.duration_seconds)}
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSummaryPopout(true)}
-            className="gap-1.5 w-full sm:w-auto shrink-0 border-orange-500/40 hover:bg-orange-500/10 rounded-xl whitespace-normal h-auto py-2"
-          >
-            <Eye className="h-3.5 w-3.5 shrink-0" />
-            <span>{t("examDetails.examSummary") || "View Summary"}</span>
-          </Button>
-        </div>
-      )}
-
-      {/* Popout Card Modal for Exam Stats & Summary */}
-      <Dialog open={showSummaryPopout} onOpenChange={setShowSummaryPopout}>
-        <DialogContent className="max-w-3xl w-[95vw] sm:w-full max-h-[88vh] overflow-y-auto p-0 rounded-[18px] sm:rounded-[24px] border-primary/20 shadow-2xl">
-          <DialogHeader className="p-4 sm:p-6 bg-muted/20 border-b">
-            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-bold">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              {t("examDetails.examSummary")}
-            </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
-              {t("examDetails.reviewMode")}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="p-4 sm:p-6 space-y-5">
-            {/* Compact Stats Grid inside Popout */}
-            <div className="grid grid-cols-4 gap-2 sm:gap-3">
-              <div className="text-center py-2.5 px-1.5 sm:py-3 sm:px-3 bg-card border rounded-xl shadow-2xs">
-                <CheckCircle className="h-4 w-4 text-emerald-500 mx-auto mb-1" />
-                <div className="text-base sm:text-xl font-bold text-emerald-600 dark:text-emerald-400 leading-tight">
-                  {examResult.correct_answers}
-                </div>
-                <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
-                  {t("correct") || "Correct"}
-                </div>
-              </div>
-              <div className="text-center py-2.5 px-1.5 sm:py-3 sm:px-3 bg-card border rounded-xl shadow-2xs">
-                <XCircle className="h-4 w-4 text-rose-500 mx-auto mb-1" />
-                <div className="text-base sm:text-xl font-bold text-rose-600 dark:text-rose-400 leading-tight">
-                  {examResult.total_questions - examResult.correct_answers - unansweredCount}
-                </div>
-                <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
-                  {t("incorrect") || "Incorrect"}
-                </div>
-              </div>
-              <div className="text-center py-2.5 px-1.5 sm:py-3 sm:px-3 bg-card border rounded-xl shadow-2xs">
-                <AlertCircle className="h-4 w-4 text-amber-500 mx-auto mb-1" />
-                <div className="text-base sm:text-xl font-bold text-amber-500 leading-tight">
-                  {unansweredCount}
-                </div>
-                <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
-                  {t("examDetails.unanswered") || "Unanswered"}
-                </div>
-              </div>
-              <div className="text-center py-2.5 px-1.5 sm:py-3 sm:px-3 bg-card border rounded-xl shadow-2xs">
-                <Target className="h-4 w-4 text-primary mx-auto mb-1" />
-                <div className="text-base sm:text-xl font-bold text-primary leading-tight">
-                  {accuracy}%
-                </div>
-                <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
-                  {t("examDetails.accuracy") || "Accuracy"}
-                </div>
-              </div>
-            </div>
-
-            {/* Main Key Exam Metrics */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
-                <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.category")}</span>
-                <p className="font-semibold text-foreground truncate mt-0.5">{examResult.category_name}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
-                <span className="text-muted-foreground block text-[11px] font-medium">{t("completedOn")}</span>
-                <p className="font-semibold text-foreground mt-0.5">
-                  {examResult.completed_at ? new Date(examResult.completed_at).toLocaleDateString() : "—"}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
-                <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.duration")}</span>
-                <p className="font-semibold text-foreground mt-0.5">{formatTime(examResult.duration_seconds)}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
-                <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.avgTimePerQuestion")}</span>
-                <p className="font-semibold text-foreground mt-0.5">{formatTime(avgTimePerQuestion)}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
-                <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.status")}</span>
-                <p className="font-semibold text-foreground mt-0.5">
-                  {isAbandoned ? t("examDetails.abandoned") : t("examDetails.completed")}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
-                <span className="text-muted-foreground block text-[11px] font-medium">{t("score")}</span>
-                <p className={cn("font-bold mt-0.5", getScoreColor(examResult.score_percentage))}>
-                  {examResult.score_percentage}% ({examResult.correct_answers}/{examResult.total_questions} {t("marks") || "marks"})
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
-                <span className="text-muted-foreground block text-[11px] font-medium">{t("questions")}</span>
-                <p className="font-semibold text-foreground mt-0.5">{examResult.total_questions}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
-                <span className="text-muted-foreground block text-[11px] font-medium">{t("examDetails.accuracy")}</span>
-                <p className="font-semibold text-foreground mt-0.5">{accuracy}%</p>
-              </div>
-            </div>
-
-            {/* All Participants Summary (Group Exam Specific - only shown if more than 1 participant attempted) */}
-            {groupData?.leaderboard && groupData.leaderboard.length > 0 && !groupData.is_solo_attempt && (
-              <div className="pt-4 border-t space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                      <Users className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
-                        <span>{t("allParticipantsSummary") || "All Participants' Exam Summary"}</span>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-semibold bg-primary/5 text-primary border-primary/20">
-                          {groupData.leaderboard.length} {t("participants") || "Participants"}
-                        </Badge>
-                      </h4>
-                      <p className="text-[11px] text-muted-foreground">
-                        {t("allParticipantsSummaryDesc") || "Comprehensive marks, rankings, scores, and completion metrics for everyone in this group exam"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Participants Comparison Table / List */}
-                <div className="overflow-x-auto rounded-xl border border-border/80 bg-background/50">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b bg-muted/40 text-muted-foreground font-semibold">
-                        <th className="py-2.5 px-3 w-12 text-center">#</th>
-                        <th className="py-2.5 px-3">{t("participantName") || "Participant"}</th>
-                        <th className="py-2.5 px-3 text-center">{t("marksAndRankings") || "Marks & Score"}</th>
-                        <th className="py-2.5 px-3 text-center">{t("timeTaken") || "Time Taken"}</th>
-                        <th className="py-2.5 px-3 text-center">{t("examDetails.status") || "Status"}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                      {groupData.leaderboard.map((entry, idx) => {
-                        const isCurrentUser = entry.user_id === examResult.user_id;
-                        const scorePct =
-                          entry.score_percentage !== undefined && entry.score_percentage !== null
-                            ? entry.score_percentage
-                            : entry.score !== null && entry.total_questions
-                            ? Math.round((entry.score / entry.total_questions) * 100)
-                            : 0;
-                        const passed = scorePct >= passingPercentage;
-                        const isWinner = idx === 0;
-
-                        return (
-                          <tr
-                            key={entry.user_id || idx}
-                            className={cn(
-                              "transition-colors",
-                              isCurrentUser
-                                ? "bg-primary/10 font-medium"
-                                : isWinner
-                                ? "bg-amber-500/5"
-                                : "hover:bg-muted/30"
-                            )}
-                          >
-                            {/* Rank */}
-                            <td className="py-2.5 px-3 text-center font-bold">
-                              {idx === 0 ? (
-                                <span className="text-base" title="1st Place Winner">🥇</span>
-                              ) : idx === 1 ? (
-                                <span className="text-base" title="2nd Place">🥈</span>
-                              ) : idx === 2 ? (
-                                <span className="text-base" title="3rd Place">🥉</span>
-                              ) : (
-                                <span className="text-muted-foreground">#{idx + 1}</span>
-                              )}
-                            </td>
-
-                            {/* Participant Name & Avatar */}
-                            <td className="py-2.5 px-3">
-                              <div className="flex items-center gap-2.5">
-                                <Avatar className="h-7 w-7 shrink-0 border">
-                                  {canViewUserAvatar(entry.avatar_url, entry.user_id, user?.id || examResult.user_id, user?.user_metadata?.role) && entry.avatar_url && (
-                                    <AvatarImage src={entry.avatar_url} />
-                                  )}
-                                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px]">
-                                    {(entry.full_name || entry.username || "?")[0].toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="font-semibold text-foreground truncate max-w-[140px] sm:max-w-[220px]">
-                                      {entry.full_name || entry.username || "Participant"}
-                                    </span>
-                                    {isCurrentUser && (
-                                      <Badge className="text-[9px] py-0 px-1 bg-primary text-primary-foreground font-bold shrink-0">
-                                        {t("you") || "You"}
-                                      </Badge>
-                                    )}
-                                    {isWinner && (
-                                      <Badge className="text-[9px] py-0 px-1 bg-amber-500 text-white font-bold shrink-0 flex items-center gap-0.5">
-                                        <Crown className="h-2 w-2" />
-                                        <span>{t("winner") || "Winner"}</span>
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {entry.username && (
-                                    <span className="text-[10px] text-muted-foreground block truncate">@{entry.username}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* Marks & Score */}
-                            <td className="py-2.5 px-3 text-center">
-                              {entry.completed || entry.score !== null ? (
-                                <div className="inline-flex flex-col items-center">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-bold text-foreground text-xs sm:text-sm">
-                                      {entry.score ?? 0}/{entry.total_questions ?? examResult.total_questions} {t("marks") || "marks"}
-                                    </span>
-                                    {entry.total_attempts !== undefined && entry.total_attempts > 1 && entry.trend && (
-                                      <span
-                                        className={cn(
-                                          "inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full border shadow-2xs",
-                                          entry.trend === "up"
-                                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                                            : entry.trend === "down"
-                                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                                            : "bg-muted text-muted-foreground border-border"
-                                        )}
-                                      >
-                                        {entry.trend === "up" ? (
-                                          <TrendingUp className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />
-                                        ) : entry.trend === "down" ? (
-                                          <TrendingDown className="h-2.5 w-2.5 text-rose-600 dark:text-rose-400" />
-                                        ) : null}
-                                        <span>
-                                          {entry.trend === "up" ? `+${entry.trend_diff}%` : entry.trend === "down" ? `${entry.trend_diff}%` : "="}
-                                        </span>
-                                      </span>
-                                    )}
-                                  </div>
-                                  <Badge
-                                    variant="outline"
-                                    className={cn(
-                                      "text-[10px] px-1.5 py-0 font-bold mt-0.5",
-                                      passed
-                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                                        : "bg-destructive/10 text-destructive border-destructive/30"
-                                    )}
-                                  >
-                                    {scorePct}% • {passed ? (t("passed") || "Passed") : (t("failed") || "Failed")}
-                                  </Badge>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground text-xs">—</span>
-                              )}
-                            </td>
-
-                            {/* Time Taken */}
-                            <td className="py-2.5 px-3 text-center">
-                              <span className="font-medium text-foreground text-xs flex items-center justify-center gap-1">
-                                <Clock className="h-3 w-3 text-muted-foreground" />
-                                {formatTime(entry.duration_seconds)}
-                              </span>
-                            </td>
-
-                            {/* Status */}
-                            <td className="py-2.5 px-3 text-center">
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "text-[10px] px-2 py-0.5 font-medium",
-                                  entry.completed
-                                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
-                                    : entry.status === "in_progress"
-                                    ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
-                                    : "bg-muted text-muted-foreground"
-                                )}
-                              >
-                                {entry.completed ? (t("examDetails.completed") || "Completed") :
-                                 entry.status === "in_progress" ? (t("inProgress") || "In Progress") :
-                                 (t(entry.status) || entry.status)}
-                              </Badge>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Filter Tabs & Question Review OR 0 Answered Questions Diagnostic Card */}
-      {hasNoAnswers ? (
-        <Card
-          className={cn(
-            "rounded-[14px] sm:rounded-[24px] overflow-hidden border-2 shadow-sm",
-            isCheating
-              ? "border-orange-500/40 bg-orange-500/5"
-              : "border-amber-500/35 bg-amber-500/5"
-          )}
-        >
-          <CardHeader className="p-4 sm:p-6 border-b border-border/50 bg-background/40">
-            <div className="flex items-start gap-3.5 sm:gap-4">
-              <div
-                className={cn(
-                  "flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl border",
-                  isCheating
-                    ? "bg-orange-500/15 border-orange-500/30 text-orange-600 dark:text-orange-400"
-                    : "bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400"
-                )}
-              >
-                {isCheating ? (
-                  <ShieldAlert className="h-6 w-6" />
-                ) : (
-                  <AlertCircle className="h-6 w-6" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 font-bold",
-                      isCheating
-                        ? "border-orange-500/40 bg-orange-500/15 text-orange-700 dark:text-orange-300"
-                        : "border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                    )}
-                  >
-                    0 / {examResult.total_questions || 20} {t("questions") || "Questions Answered"}
-                  </Badge>
-                  <Badge variant="secondary" className="text-[10px] font-mono">
-                    {isCheating
-                      ? (t("securityViolation") || "Exam Violation")
-                      : examResult.submission_reason === "page_closed"
-                      ? (t("autoSubmittedPageClosed") || "Page Closed / Left Exam")
-                      : examResult.submission_reason === "time_expired"
-                      ? (t("autoSubmittedTimeExpired") || "Time Expired")
-                      : (t("examDetails.abandoned") || "Incomplete Session")}
-                  </Badge>
-                </div>
-                <CardTitle
-                  className={cn(
-                    "text-base sm:text-lg font-bold",
-                    isCheating
-                      ? "text-orange-700 dark:text-orange-300"
-                      : "text-amber-700 dark:text-amber-300"
-                  )}
-                >
-                  {isCheating
-                    ? (t("examSubmittedDueToCheating") || "Exam Submitted Due to Exam Security Violations")
-                    : (t("noQuestionsAnsweredTitle") || "Incomplete Exam — 0 Questions Answered")}
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm text-foreground/80">
-                  {isCheating
-                    ? (t("violationZeroQuestionsDesc") ||
-                        "This exam was automatically terminated and submitted by the proctoring system before any question was answered due to exam rule violations.")
-                    : examResult.submission_reason === "page_closed"
-                    ? (t("pageClosedZeroQuestionsDesc") ||
-                        "This exam session ended with 0 answered questions because the exam window or tab was closed, refreshed, or navigated away from before any answers were selected.")
-                    : examResult.submission_reason === "time_expired"
-                    ? (t("timeExpiredZeroQuestionsDesc") ||
-                        "This exam session ended with 0 answered questions because the allocated exam timer expired before any answer was submitted.")
-                    : (t("noQuestionsAnsweredExplanation") ||
-                        "No questions were answered during this exam session. Question-by-question history details are not stored for incomplete attempts with 0 answers.")}
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="p-4 sm:p-6 space-y-4">
-            {/* Cause & Detailed Description Box */}
-            <div className="rounded-xl border border-border/70 bg-card/90 p-3.5 sm:p-4 space-y-2.5">
-              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5 text-primary" />
-                <span>{t("causeOfZeroAnswers") || "Cause of 0 Answered Questions & Submission Details"}</span>
-              </div>
-
-              {isCheating ? (
-                <div className="space-y-2">
-                  {(() => {
-                    const rawSummary = examResult.violation_summary || "";
-                    const sum = rawSummary.toLowerCase();
-                    const reasons: string[] = [];
-                    if (sum.includes("tab_switch") || sum.includes("blur") || sum.includes("tab")) {
-                      reasons.push(
-                        t("forcedTabSwitch") ||
-                          "Tab or window switching detected: Leaving the active exam tab or switching applications is prohibited during a live exam."
-                      );
-                    }
-                    if (sum.includes("fullscreen")) {
-                      reasons.push(
-                        t("forcedFullscreen") ||
-                          "Fullscreen mode exited: Exiting mandatory fullscreen mode triggered an automatic security violation."
-                      );
-                    }
-                    if (sum.includes("dev_tools") || sum.includes("inspect")) {
-                      reasons.push(
-                        t("forcedDevTools") ||
-                          "Developer tools / inspection detected: Opening browser inspection tools is restricted during an exam."
-                      );
-                    }
-                    if (sum.includes("copy") || sum.includes("paste") || sum.includes("context")) {
-                      reasons.push(
-                        t("forcedCopyPaste") ||
-                          "Copy, paste, or context menu action detected: Attempting to copy or use unauthorized shortcuts violated exam rules."
-                      );
-                    }
-                    if (reasons.length === 0) {
-                      reasons.push(
-                        t("forcedSecurityViolation") ||
-                          "Exam security violation: The proctoring system detected unauthorized activity that exceeded the allowed warning threshold."
-                      );
-                    }
-
-                    return (
-                      <>
-                        <ul className="space-y-1.5 text-xs sm:text-sm text-foreground">
-                          {reasons.map((r, i) => (
-                            <li key={i} className="flex items-start gap-2">
-                              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-orange-500 shrink-0" />
-                              <span>{r}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        {rawSummary && (
-                          <div className="mt-2 rounded-lg bg-orange-500/10 border border-orange-500/20 px-3 py-2 text-xs font-mono text-orange-800 dark:text-orange-200">
-                            <span className="font-semibold">Recorded Violation Log: </span>
-                            <span>{rawSummary}</span>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              ) : (
-                <p className="text-xs sm:text-sm text-foreground leading-relaxed">
-                  {examResult.submission_reason === "page_closed"
-                    ? "The exam was interrupted when the browser tab was closed, reloaded, or navigated away from while 0 questions had been answered."
-                    : examResult.submission_reason === "time_expired"
-                    ? "The exam countdown timer reached 00:00 without any option being selected."
-                    : "The exam was exited or abandoned before any question was answered."}
-                </p>
+      {/* Navo OS Key Metrics Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="p-3 rounded-xl border border-border/60 bg-card/40 dark:bg-zinc-900/40">
+          <span className="text-[10px] font-mono uppercase text-muted-foreground block">
+            {isRw ? "Amanota" : isFr ? "Points & Score" : "Marks & Score"}
+          </span>
+          <div className="flex items-baseline gap-1 mt-1">
+            <span
+              className={cn(
+                "text-lg sm:text-xl font-bold font-mono tabular-nums",
+                isPassed ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
               )}
-            </div>
+            >
+              {examResult.correct_answers}/{totalQuestions}
+            </span>
+            <span className="text-xs text-muted-foreground font-mono">
+              ({examResult.score_percentage ?? 0}%)
+            </span>
+          </div>
+        </div>
 
-            {/* Guidance Notice */}
-            <div className="rounded-xl bg-muted/40 border border-border/50 p-3 sm:p-3.5 flex items-start gap-2.5 text-xs text-muted-foreground">
-              <AlertCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-              <p className="leading-relaxed">
-                {t("incompleteExamHistoryNotice") ||
-                  "Because 0 questions were answered, individual question review details are not retained for this attempt. When you are ready, click Retake Exam below and remain in the exam window until you complete and submit your answers."}
+        <div className="p-3 rounded-xl border border-border/60 bg-card/40 dark:bg-zinc-900/40">
+          <span className="text-[10px] font-mono uppercase text-muted-foreground block">
+            {isRw ? "Imiterere" : isFr ? "Statut" : "Status"}
+          </span>
+          <span
+            className={cn(
+              "text-xs sm:text-sm font-semibold block mt-1.5 truncate",
+              isCheating
+                ? "text-orange-600 dark:text-orange-400"
+                : isPassed
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400"
+            )}
+          >
+            {isCheating
+              ? isRw
+                ? "Cyahagaritswe (Security)"
+                : isFr
+                ? "Interrompu (Sécurité)"
+                : "Terminated (Security)"
+              : isPassed
+              ? isRw
+                ? "Watsinze"
+                : isFr
+                ? "Réussi"
+                : "Passed"
+              : isRw
+              ? "Watsinzwe"
+              : isFr
+              ? "Échoué"
+              : "Failed"}
+          </span>
+        </div>
+
+        <div className="p-3 rounded-xl border border-border/60 bg-card/40 dark:bg-zinc-900/40">
+          <span className="text-[10px] font-mono uppercase text-muted-foreground block">
+            {isRw ? "Igihe Cyakoreshejwe" : isFr ? "Temps écoulé" : "Time Spent"}
+          </span>
+          <span className="text-xs sm:text-sm font-mono font-semibold text-foreground block mt-1.5 tabular-nums">
+            {formatTime(examResult.duration_seconds)}
+          </span>
+        </div>
+
+        <div className="p-3 rounded-xl border border-border/60 bg-card/40 dark:bg-zinc-900/40">
+          <span className="text-[10px] font-mono uppercase text-muted-foreground block">
+            {isRw ? "Ibyasubijwe" : isFr ? "Répondu" : "Answered"}
+          </span>
+          <span className="text-xs sm:text-sm font-mono font-semibold text-foreground block mt-1.5 tabular-nums">
+            {answeredCount}/{totalQuestions} ({accuracy}%)
+          </span>
+        </div>
+      </div>
+
+      {/* Zero Questions Answered or Security Termination Diagnostic Panel */}
+      {hasNoAnswers ? (
+        <div className="rounded-2xl border border-orange-500/35 bg-orange-500/[0.04] dark:bg-orange-500/10 p-4 sm:p-6 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 mt-0.5">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div className="space-y-1 min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-foreground">
+                {isCheating
+                  ? isRw
+                    ? "Ikizamini cyahagaritswe kubera amakosa y'umutekano"
+                    : isFr
+                    ? "Examen interrompu pour violations de sécurité"
+                    : "Exam Terminated Due to Security Violations"
+                  : isRw
+                  ? `Ikizamini cyarangiye nta kibazo gisubijwe (0 / ${totalQuestions})`
+                  : isFr
+                  ? `Examen incomplet — 0 / ${totalQuestions} questions répondues`
+                  : "Exam Incomplete — 0 Questions Answered"}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                {isCheating
+                  ? isRw
+                    ? "Iki kizamini cyoherejwe ako kanya na sisitemu yo kurinda amakosa kubera kurenga ku mabwiriza y'umutekano mbere y'uko hagira ikibazo gisubizwa."
+                    : isFr
+                    ? "Cet examen a été automatiquement soumis par le système de surveillance en raison d'un dépassement des limites de sécurité."
+                    : "This exam was terminated by the proctoring engine because security thresholds were exceeded before questions were answered."
+                  : isRw
+                  ? "Urupapuro rw'ikizamini rwafunzwe cyangwa igihe cyagenwe cyarangiye mbere y'uko uhitamo igisubizo na kimwe."
+                  : isFr
+                  ? "La fenêtre d'examen a été fermée ou le temps imparti s'est écoulé avant qu'aucune réponse ne soit sélectionnée."
+                  : "The exam window was closed or the time expired before any answers were selected."}
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* Clean diagnostic list of reasons */}
+          <div className="pt-2 border-t border-orange-500/20 space-y-2">
+            <span className="text-[11px] font-mono uppercase text-muted-foreground tracking-wide block">
+              {isRw
+                ? "Impamvu yatumye ikizamini gihagarara:"
+                : isFr
+                ? "Détails du diagnostic :"
+                : "Diagnostic details:"}
+            </span>
+            <ul className="space-y-1.5 text-xs text-foreground/90">
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5 shrink-0" />
+                <span>
+                  {isRw
+                    ? "Guta urupapuro rw'ikizamini cyangwa guhindura urupapuro mu buryo butemewe"
+                    : isFr
+                    ? "Changement d'onglet ou sortie de la fenêtre d'examen active"
+                    : "Switching tabs or leaving the active exam window"}
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5 shrink-0" />
+                <span>
+                  {isRw
+                    ? "Gusohoka mu buryo bw'idirishya ryuzuye (Full-screen) mbere yo gusoza ikizamini"
+                    : isFr
+                    ? "Sortie du mode plein écran obligatoire pendant l'examen"
+                    : "Exiting mandatory full-screen mode during the exam"}
+                </span>
+              </li>
+            </ul>
+
+            <div className="mt-3 p-3 rounded-xl bg-background/50 border border-border/50 text-xs text-muted-foreground flex items-center gap-2">
+              <Info className="w-4 h-4 text-primary shrink-0" />
+              <span>
+                {isRw
+                  ? "Kugira ngo ukore ikizamini neza, kanda 'Subiramo Ikizamini' hasi kandi ugume ku rupapuro rw'ikizamini kugeza urangije."
+                  : isFr
+                  ? "Pour réussir votre examen, cliquez sur « Repasser l'examen » ci-dessous et restez en plein écran jusqu'à la soumission."
+                  : "To complete the exam successfully, stay on the exam screen in full-screen until you submit."}
+              </span>
+            </div>
+          </div>
+        </div>
       ) : (
         <>
-          {/* Filter Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pb-1">
-            <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0 hidden sm:inline" />
-            {filterTabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setFilter(tab.key)}
-                className={cn(
-                  "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-medium transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
-                  filter === tab.key
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                )}
-              >
-                {t(tab.labelKey)}
-                <span
+          {/* Segmented Filter Control */}
+          <div className="flex items-center justify-between gap-2 flex-wrap pt-2">
+            <div className="flex items-center gap-1.5 bg-muted/50 dark:bg-zinc-900/70 p-1 rounded-xl border border-border/50">
+              {filterTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setFilter(tab.key)}
                   className={cn(
-                    "px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] tabular-nums",
-                    filter === tab.key ? "bg-primary-foreground/20" : "bg-background/50"
+                    "px-2.5 sm:px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer",
+                    filter === tab.key
+                      ? "bg-background text-foreground font-semibold shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {tab.count}
-                </span>
-              </button>
-            ))}
+                  <span>{tab.label}</span>
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.2 rounded-md text-[10px] font-mono tabular-nums",
+                      filter === tab.key ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <span className="text-xs text-muted-foreground font-mono">
+              {filteredAnswers.length} / {totalQuestions}
+            </span>
           </div>
 
-          {/* Question Review */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-sm sm:text-base">{t("answerBreakdown")}</h3>
+          {/* Minimalist Question Review List */}
+          <div className="border border-border/60 rounded-2xl overflow-hidden bg-card/40 dark:bg-zinc-900/30 divide-y divide-border/50">
             {filteredAnswers.length === 0 ? (
-              <div className="text-center py-8 text-sm text-muted-foreground border border-dashed rounded-xl">
-                {t("examDetails.noQuestionsInFilter")}
+              <div className="p-8 text-center text-xs text-muted-foreground font-medium">
+                {isRw
+                  ? "Nta bibazo bibonetse muri iki cyiciro."
+                  : isFr
+                  ? "Aucune question dans ce filtre."
+                  : "No questions in this filter."}
               </div>
             ) : (
-              <div className="border border-border/60 rounded-xl divide-y divide-border/50 overflow-hidden bg-card/40 dark:bg-zinc-900/30">
-              {filteredAnswers.map(({ answer, idx }: { answer: ExamAnswer; idx: number }) => {
+              filteredAnswers.map(({ answer, idx }) => {
                 const question = questions.find((q) => q.id === answer.question_id);
                 if (!question) return null;
 
+                const isCorrect = answer.is_correct;
+                const isUnanswered = !answer.selected_answer;
+
                 return (
-                  <div
-                    key={answer.question_id}
-                    className="p-3.5 sm:p-5"
-                  >
-                    {/* Question Header */}
-                    <div className="flex items-center gap-2 mb-2.5 flex-wrap text-xs">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 font-semibold",
-                          answer.is_correct
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : !answer.selected_answer
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-rose-600 dark:text-rose-400"
-                        )}
-                      >
-                        {answer.is_correct ? (
-                          <CheckCircle className="h-3.5 w-3.5" />
-                        ) : (
-                          <XCircle className="h-3.5 w-3.5" />
-                        )}
-                        {answer.is_correct
-                          ? t("correct")
-                          : !answer.selected_answer
-                          ? t("examDetails.notAnswered")
-                          : t("incorrect")}
-                      </span>
-                      <span className="text-[11px] sm:text-sm text-muted-foreground">
-                        {t("question")} {idx + 1}
-                      </span>
+                  <div key={answer.question_id || idx} className="p-4 sm:p-5 space-y-3.5">
+                    {/* Question Header Strip */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "w-5 h-5 rounded-md flex items-center justify-center shrink-0 text-xs font-bold",
+                            isCorrect
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              : isUnanswered
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                              : "text-rose-600 bg-rose-500/15 dark:text-rose-400"
+                          )}
+                        >
+                          {isCorrect ? (
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          ) : isUnanswered ? (
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                          ) : (
+                            <XCircle className="w-3.5 h-3.5" />
+                          )}
+                        </span>
+                        <span className="text-xs font-mono font-semibold text-foreground">
+                          {isRw ? "Ikibazo" : isFr ? "Question" : "Question"} {idx + 1}
+                        </span>
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <span
+                          className={cn(
+                            "text-xs font-medium",
+                            isCorrect
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : isUnanswered
+                              ? "text-amber-600 dark:text-amber-400"
+                              : "text-rose-600 dark:text-rose-400"
+                          )}
+                        >
+                          {isCorrect
+                            ? isRw
+                              ? "Watsinze"
+                              : isFr
+                              ? "Réussi"
+                              : "Correct"
+                            : isUnanswered
+                            ? isRw
+                              ? "Ntiwasubije"
+                              : isFr
+                              ? "Sans réponse"
+                              : "Not answered"
+                            : isRw
+                            ? "Watsinzwe"
+                            : isFr
+                            ? "Échoué"
+                            : "Incorrect"}
+                        </span>
+                      </div>
+
                       {answer.time_spent_seconds != null && answer.time_spent_seconds > 0 && (
-                        <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 ml-auto">
-                          <Clock className="h-2.5 w-2.5" />
-                          {formatTime(answer.time_spent_seconds)}
+                        <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1 tabular-nums">
+                          <Clock className="w-3 h-3" />
+                          <span>{formatTime(answer.time_spent_seconds)}</span>
                         </span>
                       )}
                     </div>
 
-                    {/* Question Text */}
-                    {question.question && (
-                      <p className="text-xs sm:text-sm mb-2 sm:mb-3 font-medium">{question.question}</p>
-                    )}
+                    {/* Question Prompt */}
+                    <p className="text-sm font-semibold text-foreground leading-snug">
+                      {question.question}
+                    </p>
 
-                    {/* Question Image */}
+                    {/* Question Diagram Image */}
                     {question.question_image && (
-                      <div className="mb-2 sm:mb-3 rounded-lg overflow-hidden border">
+                      <div className="rounded-xl border border-border/50 bg-muted/20 p-2 sm:p-3 w-full max-w-2xl">
                         <img
                           src={question.question_image}
-                          alt={t("examDetails.questionImage")}
-                          className="w-full max-h-64 object-contain bg-muted/20"
+                          alt="Question diagram"
+                          className="w-full min-h-[200px] sm:min-h-[260px] max-h-[340px] sm:max-h-[440px] object-contain rounded-lg mx-auto"
                         />
                       </div>
                     )}
 
-                    {/* Options A/B/C/D */}
-                    {(() => {
-                      const hasImageOptions = options.some((opt) => !!getOptionImage(question, opt));
-                      return (
-                        <div className={hasImageOptions ? "grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3" : "space-y-2 sm:space-y-2.5"}>
-                          {options.map((opt) => {
-                            const optText = getOptionText(question, opt);
-                            const optImage = getOptionImage(question, opt);
-                            const isCorrectOption = question.correct_answer === opt;
-                            const isUserSelection = answer.selected_answer === opt;
+                    {/* Options Grid */}
+                    <div className="space-y-2 pt-1">
+                      {options.map((opt) => {
+                        const optText = getOptionText(question, opt);
+                        const optImg = getOptionImage(question, opt);
+                        if (!optText && !optImg) return null;
 
-                            if (!optText && !optImage) return null;
+                        const isCorrectOption = question.correct_answer === opt;
+                        const isStudentAnswer = answer.selected_answer === opt;
 
-                            return (
-                              <div
-                                key={opt}
-                                className={cn(
-                                  "flex flex-col gap-2 p-2.5 sm:p-3.5 rounded-lg border text-xs sm:text-sm transition-all",
-                                  isCorrectOption && "border-emerald-500/60 bg-emerald-500/15 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100 ring-1 ring-emerald-500/30 shadow-xs",
-                                  !isCorrectOption && isUserSelection && "border-red-500/60 bg-red-500/15 dark:bg-red-950/40 shadow-xs",
-                                  !isCorrectOption && !isUserSelection && "border-border bg-card/60"
-                                )}
-                              >
-                                <div className="flex items-center justify-between w-full">
-                                  {/* Option Label */}
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className={cn(
-                                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                                        isCorrectOption
-                                          ? "bg-emerald-600 dark:bg-emerald-500 text-white"
-                                          : isUserSelection
-                                          ? "bg-red-600 dark:bg-red-500 text-white"
-                                          : "bg-muted text-muted-foreground"
-                                      )}
-                                    >
-                                      {opt}
-                                    </div>
-                                  </div>
+                        return (
+                          <div
+                            key={opt}
+                            className={cn(
+                              "flex items-start gap-2.5 p-3 rounded-xl border text-xs sm:text-sm transition-all",
+                              isCorrectOption
+                                ? "border-emerald-500/60 bg-emerald-500/10 dark:bg-emerald-500/15 text-foreground font-medium"
+                                : isStudentAnswer && !isCorrectOption
+                                ? "border-rose-500/60 bg-rose-500/10 dark:bg-rose-500/15 text-foreground"
+                                : "border-border/60 bg-transparent text-muted-foreground"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "w-6 h-6 rounded-md font-mono text-xs font-bold flex items-center justify-center shrink-0 border mt-0.5",
+                                isCorrectOption
+                                  ? "bg-emerald-600 text-white border-emerald-600"
+                                  : isStudentAnswer
+                                  ? "bg-rose-600 text-white border-rose-600"
+                                  : "bg-muted text-muted-foreground border-border/70"
+                              )}
+                            >
+                              {opt}
+                            </span>
 
-                                  {/* Status Icons */}
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    {isCorrectOption && (
-                                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/20 dark:bg-emerald-500/25 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                                        <CheckCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                                        <span>{t("examDetails.correctOption") || t("correct") || "Correct"}</span>
-                                      </span>
-                                    )}
-                                    {isUserSelection && !isCorrectOption && (
-                                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-red-700 dark:text-red-300 bg-red-500/20 dark:bg-red-500/25 px-2 py-0.5 rounded-full border border-red-500/30">
-                                        <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                                        <span>{t("examDetails.yourSelection") || "Your Choice"}</span>
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
+                            <div className="flex-1 min-w-0">
+                              {optImg && (
+                                <img
+                                  src={optImg}
+                                  alt={`Option ${opt}`}
+                                  className="max-h-40 sm:max-h-48 w-auto max-w-full object-contain rounded-md mb-1.5"
+                                />
+                              )}
+                              {optText && <span className="leading-snug block">{optText}</span>}
+                            </div>
 
-                                {/* Option Content */}
-                                <div className="w-full text-left mt-0.5">
-                                  {optImage && (
-                                    <div className="mb-2 rounded overflow-hidden border">
-                                      <img
-                                        src={optImage}
-                                        alt={`${t("examDetails.option")} ${opt}`}
-                                        className="w-full max-h-40 object-contain bg-muted/20"
-                                      />
-                                    </div>
-                                  )}
-                                  {optText && (
-                                    <p className="text-xs sm:text-sm font-medium text-foreground break-words leading-relaxed text-left">
-                                      {optText}
-                                    </p>
-                                  )}
-                                </div>
+                            {isCorrectOption && (
+                              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shrink-0 pt-0.5">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">
+                                  {isRw ? "Igisubizo cy'ukuri" : isFr ? "Bonne réponse" : "Correct answer"}
+                                </span>
+                              </span>
+                            )}
+                            {isStudentAnswer && !isCorrectOption && (
+                              <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1 shrink-0 pt-0.5">
+                                <XCircle className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">
+                                  {isRw ? "Icyo wahisemo (Watsinzwe)" : isFr ? "Votre choix (Échoué)" : "Your choice (Incorrect)"}
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
 
-                                {/* Floating Usernames & Profile Pictures for Group Exam */}
-                                {(() => {
-                                  const choosers = (groupData?.leaderboard || []).filter((p) => {
-                                    if (!p.answers) return false;
-                                    const ans = (p.answers as any[]).find((a) => a.question_id === question.id);
-                                    return ans?.selected_answer === opt;
-                                  });
-
-                                  if (choosers.length === 0) return null;
-
-                                  return (
-                                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2 border-t border-border/50">
-                                      <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 mr-1">
-                                        <Users className="h-3 w-3" />
-                                        <span>{choosers.length} {choosers.length === 1 ? (t("chosenBy") || "chose this") : (t("chosenByPlural") || "chose this")}:</span>
-                                      </span>
-
-                                      {choosers.map((c) => {
-                                        const isCurrentUserChooser = c.user_id === examResult.user_id;
-                                        const firstName =
-                                          c.first_name ||
-                                          (c.full_name ? c.full_name.trim().split(/\s+/)[0] : c.username || "User");
-                                        return (
-                                          <div
-                                            key={c.user_id}
-                                            className={cn(
-                                              "inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-full text-xs font-medium border shadow-2xs transition-all",
-                                              isCorrectOption
-                                                ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border-emerald-500/40"
-                                                : "bg-rose-500/15 text-rose-800 dark:text-rose-200 border-rose-500/40",
-                                              isCurrentUserChooser && "ring-2 ring-primary ring-offset-1 font-bold"
-                                            )}
-                                          >
-                                            <Avatar className="h-4 w-4 shrink-0">
-                                              {canViewUserAvatar(c.avatar_url, c.user_id, user?.id || examResult.user_id, user?.user_metadata?.role) && c.avatar_url && (
-                                                <AvatarImage src={c.avatar_url} />
-                                              )}
-                                              <AvatarFallback className="text-[9px] bg-primary/20 text-primary font-bold">
-                                                {(firstName || "?")[0]?.toUpperCase()}
-                                              </AvatarFallback>
-                                            </Avatar>
-                                            <span className="truncate max-w-[120px]">
-                                              {firstName}
-                                            </span>
-                                            {isCurrentUserChooser && (
-                                              <span className="text-[10px] opacity-85 font-bold">({t("you") || "You"})</span>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Explanation */}
+                    {/* Explanation if provided */}
                     {question.explanation && (
-                      <div className="mt-2.5 sm:mt-3 p-2.5 bg-muted/40 rounded-lg text-xs sm:text-sm">
-                        <span className="font-medium">{t("explanationColon")} </span>
-                        {question.explanation}
+                      <div className="p-3 rounded-xl bg-muted/40 border border-border/50 text-xs text-foreground/90 space-y-1">
+                        <div className="flex items-center gap-1.5 font-semibold text-primary">
+                          <BookOpen className="w-3.5 h-3.5" />
+                          <span>
+                            {isRw
+                              ? "Ibisobanuro:"
+                              : isFr
+                              ? "Explication :"
+                              : "Explanation:"}
+                          </span>
+                        </div>
+                        <p className="leading-relaxed pl-5">{question.explanation}</p>
                       </div>
                     )}
                   </div>
                 );
-              })}
-              </div>
+              })
             )}
           </div>
         </>
       )}
 
-      {/* Bottom Actions */}
-      <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-2 sm:gap-3">
-        {!effectiveChallengeId && (
-          <Button onClick={onRetake} className="flex-1 gap-2 min-h-[40px] h-auto py-2.5 px-4 whitespace-normal text-center">
-            <RotateCcw className="h-4 w-4 shrink-0" />
-            <span>{t("retakeExam")}</span>
-          </Button>
+      {/* Bottom Single Navo OS Action Bar */}
+      <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+        {quotaExhausted ? (
+          <>
+            <button
+              type="button"
+              onClick={handleGoToRegister}
+              className="flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>
+                {isRw
+                  ? "Iyandikishe ku buntu ukomeze"
+                  : isFr
+                  ? "S'inscrire gratuitement pour continuer"
+                  : "Sign Up for Free to Continue"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={onReset}
+              className="py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium border border-border/70 hover:bg-muted text-foreground flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Home className="w-4 h-4" />
+              <span>
+                {isRw
+                  ? "Subira ahabanza"
+                  : isFr
+                  ? "Retour à l'accueil"
+                  : "Back to Home"}
+              </span>
+            </button>
+          </>
+        ) : (
+          <>
+            {!effectiveChallengeId && canRetake && (
+              <button
+                type="button"
+                onClick={onRetake}
+                className="flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>{isRw ? "Subiramo Ikizamini" : isFr ? "Repasser l'examen" : "Retake Exam"}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onReset}
+              className="flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium border border-border/70 hover:bg-muted text-foreground flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Home className="w-4 h-4" />
+              <span>{isRw ? "Subira ku Bizamini" : isFr ? "Retour aux examens" : "Back to Exams"}</span>
+            </button>
+          </>
         )}
-        <Button variant={effectiveChallengeId ? "default" : "outline"} onClick={onReset} className="flex-1 gap-2 min-h-[40px] h-auto py-2.5 px-4 whitespace-normal text-center">
-          <Home className="h-4 w-4 shrink-0" />
-          <span>{t("backToExams")}</span>
-        </Button>
       </div>
-    </main>
+
+      {/* Popout Dialog for Detailed Stats */}
+      <Dialog open={showSummaryPopout} onOpenChange={setShowSummaryPopout}>
+        <DialogContent className="max-w-md p-5 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              <span>
+                {isRw
+                  ? "Incamake y'Ikizamini"
+                  : isFr
+                  ? "Détails du résumé de l'examen"
+                  : "Exam Summary Details"}
+              </span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {examResult.category_name}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-2 text-xs">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[10px] uppercase font-mono">
+                  {isRw ? "Amanota" : isFr ? "Score" : "Score"}
+                </span>
+                <span className="text-sm font-bold font-mono text-foreground">
+                  {examResult.correct_answers}/{totalQuestions} ({examResult.score_percentage ?? 0}%)
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[10px] uppercase font-mono">
+                  {isRw ? "Igihe" : isFr ? "Durée" : "Duration"}
+                </span>
+                <span className="text-sm font-bold font-mono text-foreground">
+                  {formatTime(examResult.duration_seconds)}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[10px] uppercase font-mono">
+                  {isRw ? "Icyo ku kibazo" : isFr ? "Moy. par question" : "Avg Per Question"}
+                </span>
+                <span className="text-sm font-bold font-mono text-foreground">
+                  {formatTime(avgTimePerQuestion)}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50">
+                <span className="text-muted-foreground block text-[10px] uppercase font-mono">
+                  {isRw ? "Gutsinda" : isFr ? "Seuil de réussite" : "Pass Requirement"}
+                </span>
+                <span className="text-sm font-bold font-mono text-foreground">
+                  {passingPercentage}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
+
+export default ExamReview;

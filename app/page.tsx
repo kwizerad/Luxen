@@ -115,7 +115,11 @@ export default function Home() {
     const nameToDisplay =
       activeUser?.user_metadata?.full_name ||
       activeUser?.email?.split("@")[0] ||
-      "Student Account";
+      (language === "Kinyarwanda" || language === "rw"
+        ? "Konti y'Umunyeshuri"
+        : language === "French" || language === "fr"
+        ? "Compte Étudiant"
+        : "Student Account");
 
     return (
       <div className="relative min-h-[100dvh] w-full bg-[#050816] flex flex-col items-center justify-center text-white select-none overflow-hidden px-4 transition-colors">
@@ -137,14 +141,22 @@ export default function Home() {
               {nameToDisplay}
             </h2>
             <p className="text-xs sm:text-sm text-emerald-400 font-medium tracking-wide">
-              Welcome back / Murakaza neza
+              {language === "Kinyarwanda" || language === "rw"
+                ? "Murakaza neza!"
+                : language === "French" || language === "fr"
+                ? "Bon retour !"
+                : "Welcome back!"}
             </p>
           </div>
 
           <div className="flex flex-col items-center gap-3 pt-2">
             <div className="w-7 h-7 rounded-full border-3 border-emerald-500/20 border-t-emerald-400 animate-spin" />
             <span className="text-xs text-zinc-300 font-mono tracking-wider">
-              Launching Workspace...
+              {language === "Kinyarwanda" || language === "rw"
+                ? "Ibiro birimo gufunguka..."
+                : language === "French" || language === "fr"
+                ? "Ouverture de l'espace..."
+                : "Launching Workspace..."}
             </span>
           </div>
         </motion.div>

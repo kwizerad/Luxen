@@ -283,9 +283,9 @@ export function OSExamWorkspace({
       <div className="flex-1 overflow-y-auto">
         <div
           className={cn(
-            "max-w-5xl w-full mx-auto px-4 sm:px-6 py-5 sm:py-8",
+            "max-w-6xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-7",
             activeQuestion?.question_image
-              ? "grid grid-cols-1 lg:grid-cols-[0.88fr_1.12fr] gap-5 sm:gap-10 items-start"
+              ? "grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-5 sm:gap-8 items-start"
               : "max-w-2xl"
           )}
         >
@@ -293,13 +293,11 @@ export function OSExamWorkspace({
             <>
               {/* Optional Visual Diagram / Road Sign Stage */}
               {activeQuestion.question_image && (
-                <div className="rounded-xl border border-border/50 bg-muted/20 dark:bg-zinc-900/50 p-3 sm:p-5 flex items-center justify-center lg:sticky lg:top-20">
+                <div className="w-full rounded-xl border border-border/50 bg-muted/20 dark:bg-zinc-900/50 p-2 sm:p-3 flex items-center justify-center lg:sticky lg:top-20">
                   <SmartImage
                     src={activeQuestion.question_image}
                     alt={t("question") || "Question diagram"}
-                    width={800}
-                    height={600}
-                    className="w-full max-h-[175px] sm:max-h-[270px] object-contain rounded-lg"
+                    className="w-full h-[270px] sm:h-[380px] lg:h-[460px] object-contain rounded-lg"
                   />
                 </div>
               )}
@@ -364,9 +362,7 @@ export function OSExamWorkspace({
                                 <SmartImage
                                   src={img}
                                   alt={`${t("option") || "Option"} ${opt}`}
-                                  width={800}
-                                  height={600}
-                                  className="w-full h-28 sm:h-32 object-contain rounded-lg bg-muted/20"
+                                  className="w-full h-44 sm:h-56 object-contain rounded-lg bg-muted/20"
                                 />
                               )}
                               {text && (
@@ -551,13 +547,22 @@ export function OSExamWorkspace({
           hideCloseButton
         >
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" />
-              {violationType === "ai_detection"
-                ? t("aiDetectionDetected") || "AI Tool Detected"
-                : t("cheatingViolationDetected") || "Exam Security Warning"}
-            </DialogTitle>
-            <DialogDescription className="text-sm text-foreground whitespace-pre-line">
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle className="flex items-center gap-2 text-red-600 text-base font-semibold">
+                <AlertTriangle className="h-5 w-5 shrink-0" />
+                <span>
+                  {violationType === "ai_detection"
+                    ? t("aiDetectionDetected") || "AI Tool Detected"
+                    : t("cheatingViolationDetected") || "Exam Security Warning"}
+                </span>
+              </DialogTitle>
+              {securitySettings.maxViolations ? (
+                <span className="font-mono text-xs px-2 py-0.5 rounded-md font-bold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 tabular-nums shrink-0">
+                  {totalViolations} / {securitySettings.maxViolations}
+                </span>
+              ) : null}
+            </div>
+            <DialogDescription className="text-sm text-foreground whitespace-pre-line pt-1">
               {cheatingWarningMessage}
             </DialogDescription>
           </DialogHeader>
@@ -659,6 +664,8 @@ export function OSExamWorkspace({
               <p className="text-xs text-muted-foreground">
                 {language === "Kinyarwanda" || language === "rw"
                   ? `Ufite ibibazo ${unansweredCount} bitarasubizwa. Kanda ku kibazo ushaka gusubiza.`
+                  : language === "French" || language === "fr"
+                  ? `Vous avez ${unansweredCount} question(s) sans réponse. Cliquez sur une question ci-dessous pour y revenir.`
                   : `You have ${unansweredCount} unanswered question(s). Click a question below to jump back.`}
               </p>
             )}

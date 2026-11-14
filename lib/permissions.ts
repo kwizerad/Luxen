@@ -12,8 +12,7 @@ export type PermissionKey =
   | "courseStudio"
   | "exams"
   | "settings"
-  | "notifications"
-  | "drivers";
+  | "notifications";
 
 export type PermissionSection = PermissionKey | "users";
 
@@ -49,7 +48,6 @@ export interface AdminPermissions {
   exams: PermissionAccess;
   settings: PermissionAccess;
   notifications: PermissionAccess;
-  drivers: PermissionAccess;
 }
 
 export const ALL_PERMISSIONS: AdminPermissions = {
@@ -59,7 +57,6 @@ export const ALL_PERMISSIONS: AdminPermissions = {
   exams: "read_write",
   settings: "read_write",
   notifications: "read_write",
-  drivers: "read_write",
 };
 
 export const NO_PERMISSIONS: AdminPermissions = {
@@ -69,7 +66,6 @@ export const NO_PERMISSIONS: AdminPermissions = {
   exams: "none",
   settings: "none",
   notifications: "none",
-  drivers: "none",
 };
 
 export const PERMISSION_SECTIONS: { key: PermissionKey; labelKey: string }[] = [
@@ -79,7 +75,6 @@ export const PERMISSION_SECTIONS: { key: PermissionKey; labelKey: string }[] = [
   { key: "exams", labelKey: "permExams" },
   { key: "settings", labelKey: "permSettings" },
   { key: "notifications", labelKey: "permNotifications" },
-  { key: "drivers", labelKey: "permDrivers" },
 ];
 
 export const STUDENT_ONLY_EMAILS: string[] = [
@@ -117,27 +112,25 @@ export function isNationalIdUser(user: User | null): boolean {
 }
 
 /**
- * Resolve effective role for user ("Admin", "Driver", "Student", or "Guest")
+ * Resolve effective role for user ("Admin", "Student", or "Guest")
  */
-export function getUserRole(user: User | null): "Admin" | "Driver" | "Student" | "Guest" {
+export function getUserRole(user: User | null): "Admin" | "Student" | "Guest" {
   if (!user) return "Guest";
   if (isStrictlyStudentEmail(user.email)) return "Student";
   if (isPrimaryAdmin(user)) return "Admin";
 
-  // National ID citizen accounts are strictly Students (or Drivers), never Admins
+  // National ID citizen accounts are strictly Students, never Admins
   if (user.email && /@nid\.(rw|internal|local)$/i.test(user.email)) {
     return "Student";
   }
 
-  // Prefer explicit Admin or Driver role if present in either user_profiles or user_metadata
+  // Prefer explicit Admin role if present in either user_profiles or user_metadata
   const profileRole = typeof user.role === "string" ? user.role.trim().toLowerCase() : "";
   const metaRole = typeof user.user_metadata?.role === "string" ? user.user_metadata.role.trim().toLowerCase() : "";
 
   if (profileRole === "admin" || metaRole === "admin") return "Admin";
-  if (profileRole === "driver" || metaRole === "driver") return "Driver";
-  if (profileRole === "student" || metaRole === "student") return "Student";
 
-  // ID-based users and standard authenticated accounts default to Student role
+  // All standard authenticated and citizen accounts resolve to Student role
   return "Student";
 }
 
@@ -148,14 +141,6 @@ export function isAdmin(user: User | null): boolean {
   if (!user) return false;
   if (isPrimaryAdmin(user)) return true;
   return getUserRole(user) === "Admin";
-}
-
-/**
- * Check if user has driver role
- */
-export function isDriver(user: User | null): boolean {
-  if (!user) return false;
-  return getUserRole(user) === "Driver";
 }
 
 /**
@@ -194,8 +179,7 @@ export function migratePermissions(raw: any): AdminPermissions {
     typeof raw.courseStudio === "string" ||
     typeof raw.exams === "string" ||
     typeof raw.settings === "string" ||
-    typeof raw.notifications === "string" ||
-    typeof raw.drivers === "string"
+    typeof raw.notifications === "string"
   ) {
     return {
       students: validAccess(rawStudents),
@@ -204,7 +188,6 @@ export function migratePermissions(raw: any): AdminPermissions {
       exams: validAccess(raw.exams),
       settings: validAccess(raw.settings),
       notifications: validAccess(raw.notifications),
-      drivers: validAccess(raw.drivers),
     };
   }
 
@@ -217,7 +200,6 @@ export function migratePermissions(raw: any): AdminPermissions {
       exams: validAccess(raw.exams?.access ?? raw.exams),
       settings: validAccess(raw.settings?.access ?? raw.settings),
       notifications: validAccess(raw.notifications?.access ?? raw.notifications),
-      drivers: validAccess(raw.drivers?.access ?? raw.drivers),
     };
   }
 
@@ -235,7 +217,6 @@ export function migratePermissions(raw: any): AdminPermissions {
     exams: legacy?.examPermissions?.enabled ? validAccess(legacy.examPermissions.questionAccess ?? "read_write") : "none",
     settings: legacy?.examPermissions?.canManageSettings ? "read_write" : "none",
     notifications: "none",
-    drivers: "none",
   };
 }
 

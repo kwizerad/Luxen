@@ -16,7 +16,6 @@ import {
   Target,
   Award,
   TrendingUp,
-  Car,
   ShieldCheck,
   Sun,
   SunMedium,
@@ -95,33 +94,89 @@ interface CategoryPerformance {
   status: "mastered" | "on_track" | "needs_focus";
 }
 
-const DRIVING_TIPS = [
-  {
-    title: "The 2-Second Following Rule",
-    desc: "Maintain at least a 2-second distance from the vehicle ahead in normal conditions; double it to 4 seconds during rain or low visibility.",
-    category: "Safety",
-  },
-  {
-    title: "Roundabout Priority",
-    desc: "Always yield to vehicles already circulating inside the roundabout from your left unless traffic signs state otherwise.",
-    category: "Priority",
-  },
-  {
-    title: "Blind Spot Observation",
-    desc: "Always physically check your shoulder blind spot before changing lanes or merging, in addition to using all three mirrors.",
-    category: "Observation",
-  },
-  {
-    title: "Hydroplaning Recovery",
-    desc: "If your vehicle starts hydroplaning on wet asphalt, ease off the accelerator smoothly without slamming on the brakes.",
-    category: "Hazard Control",
-  },
-  {
-    title: "Pedestrian Crossings",
-    desc: "Slow down and be prepared to stop completely whenever approaching marked zebra crossings or school zones.",
-    category: "Regulations",
-  },
-];
+const DRIVING_TIPS_BY_LANG: Record<string, Array<{ title: string; desc: string; category: string }>> = {
+  Kinyarwanda: [
+    {
+      title: "Ihame ry'Amasegonda 2 yo Gukurikira",
+      desc: "Siga intera y'nibura amasegonda 2 hagati yawe n'ikinyabiziga kiri imbere mu bihe bisanzwe; uyikube kabiri ibe amasegonda 4 mu mvura cyangwa igihu.",
+      category: "Umutekano",
+    },
+    {
+      title: "Uburenganzira mu Masangano Azunguruka",
+      desc: "Buri gihe ha inzira ibinyabiziga bisanzwe bizunguruka mu masangano biturutse ibumoso bwawe keretse hari ibyapa bibitegeka ukundi.",
+      category: "Uburenganzira",
+    },
+    {
+      title: "Kureba Ahantu Hihishe",
+      desc: "Buri gihe kebuka urebe ahantu hihishe mu rubavu mbere yo guhindura icyerekezo cyangwa kwinjira mu wundi murongo, uretse kureba mu ndorerwamo gusa.",
+      category: "Kwitegereza",
+    },
+    {
+      title: "Kwirinda Kunyerera ku Mazi",
+      desc: "Ikinyabiziga nitangira kunyerera ku muhanda utose, oroshya ikirenge kuri agiselerateri buhoro utabanje gukanda feri cyane.",
+      category: "Kwirinda Impanuka",
+    },
+    {
+      title: "Ahantu Abanyamaguru Bambukira",
+      desc: "Gabanya umuvuduko kandi witegure guhagarara burundu igihe cyose wegereye imirongo y'abanyamaguru cyangwa hafi y'amashuri.",
+      category: "Amategeko",
+    },
+  ],
+  French: [
+    {
+      title: "La règle des 2 secondes",
+      desc: "Maintenez au moins 2 secondes de distance avec le véhicule qui vous précède par temps normal ; doublez à 4 secondes sous la pluie ou le brouillard.",
+      category: "Sécurité",
+    },
+    {
+      title: "Priorité au rond-point",
+      desc: "Cédez toujours le passage aux véhicules déjà engagés dans l'anneau venant de votre gauche, sauf indication contraire des panneaux.",
+      category: "Priorité",
+    },
+    {
+      title: "Contrôle des angles morts",
+      desc: "Vérifiez toujours votre angle mort d'un coup d'œil par-dessus l'épaule avant de changer de voie ou de vous insérer, en plus des rétroviseurs.",
+      category: "Observation",
+    },
+    {
+      title: "Réaction à l'aquaplanage",
+      desc: "Si votre véhicule commence à glisser sur chaussée mouillée, levez doucement le pied de l'accélérateur sans freiner brusquement.",
+      category: "Maîtrise",
+    },
+    {
+      title: "Passages piétons",
+      desc: "Ralentissez et soyez prêt à vous arrêter complètement à l'approche des passages pour piétons ou des zones scolaires.",
+      category: "Règlementation",
+    },
+  ],
+  English: [
+    {
+      title: "The 2-Second Following Rule",
+      desc: "Maintain at least a 2-second distance from the vehicle ahead in normal conditions; double it to 4 seconds during rain or low visibility.",
+      category: "Safety",
+    },
+    {
+      title: "Roundabout Priority",
+      desc: "Always yield to vehicles already circulating inside the roundabout from your left unless traffic signs state otherwise.",
+      category: "Priority",
+    },
+    {
+      title: "Blind Spot Observation",
+      desc: "Always physically check your shoulder blind spot before changing lanes or merging, in addition to using all three mirrors.",
+      category: "Observation",
+    },
+    {
+      title: "Hydroplaning Recovery",
+      desc: "If your vehicle starts hydroplaning on wet asphalt, ease off the accelerator smoothly without slamming on the brakes.",
+      category: "Hazard Control",
+    },
+    {
+      title: "Pedestrian Crossings",
+      desc: "Slow down and be prepared to stop completely whenever approaching marked zebra crossings or school zones.",
+      category: "Regulations",
+    },
+  ],
+};
 
 export function HomeView({ navigate }: HomeViewProps) {
   const router = useRouter();
@@ -138,7 +193,6 @@ export function HomeView({ navigate }: HomeViewProps) {
   const [servicesPageEnabled, setServicesPageEnabled] = useState<boolean>(true);
   const [tipIndex, setTipIndex] = useState(0);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [upcomingBooking, setUpcomingBooking] = useState<any | null>(null);
   const [groupChallenges, setGroupChallenges] = useState<any[]>([]);
   const [battleStats, setBattleStats] = useState<{ totalBattles: number; wins: number }>({
     totalBattles: 0,
@@ -166,6 +220,10 @@ export function HomeView({ navigate }: HomeViewProps) {
       : userCourseLang === "English"
       ? "Continue in English"
       : "Komeza mu Kinyarwanda"
+    : interfaceLanguage === "French"
+    ? "Commencer à apprendre"
+    : interfaceLanguage === "English"
+    ? "Start Learning"
     : "Tangira Kwiga";
 
   useEffect(() => {
@@ -215,7 +273,14 @@ export function HomeView({ navigate }: HomeViewProps) {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "Failed to respond to invitation");
+        toast.error(
+          data.error ||
+            (interfaceLanguage === "French"
+              ? "Impossible de répondre à l'invitation"
+              : interfaceLanguage === "English"
+              ? "Failed to respond to invitation"
+              : "Ntibyakunze gusubiza ubutumire")
+        );
         return;
       }
       if (accept) {
@@ -227,7 +292,13 @@ export function HomeView({ navigate }: HomeViewProps) {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to respond to invitation");
+      toast.error(
+        interfaceLanguage === "French"
+          ? "Impossible de répondre à l'invitation"
+          : interfaceLanguage === "English"
+          ? "Failed to respond to invitation"
+          : "Ntibyakunze gusubiza ubutumire"
+      );
     } finally {
       setActionLoadingKey(null);
     }
@@ -245,11 +316,24 @@ export function HomeView({ navigate }: HomeViewProps) {
         await fetchGroupChallenges();
       } else {
         const data = await res.json();
-        toast.error(data.error || "Failed to cancel exam challenge");
+        toast.error(
+          data.error ||
+            (interfaceLanguage === "French"
+              ? "Impossible d'annuler le défi d'examen"
+              : interfaceLanguage === "English"
+              ? "Failed to cancel exam challenge"
+              : "Ntibyakunze guhagarika ikizamini cy'itsinda")
+        );
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to cancel exam challenge");
+      toast.error(
+        interfaceLanguage === "French"
+          ? "Impossible d'annuler le défi d'examen"
+          : interfaceLanguage === "English"
+          ? "Failed to cancel exam challenge"
+          : "Ntibyakunze guhagarika ikizamini cy'itsinda"
+      );
     } finally {
       setActionLoadingKey(null);
     }
@@ -267,11 +351,24 @@ export function HomeView({ navigate }: HomeViewProps) {
         await fetchGroupChallenges();
       } else {
         const data = await res.json();
-        toast.error(data.error || "Failed to leave exam room");
+        toast.error(
+          data.error ||
+            (interfaceLanguage === "French"
+              ? "Impossible de quitter la salle d'examen"
+              : interfaceLanguage === "English"
+              ? "Failed to leave exam room"
+              : "Ntibyakunze gusohoka mu cyumba cy'ikizamini")
+        );
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to leave exam room");
+      toast.error(
+        interfaceLanguage === "French"
+          ? "Impossible de quitter la salle d'examen"
+          : interfaceLanguage === "English"
+          ? "Failed to leave exam room"
+          : "Ntibyakunze gusohoka mu cyumba cy'ikizamini"
+      );
     } finally {
       setActionLoadingKey(null);
     }
@@ -383,12 +480,30 @@ export function HomeView({ navigate }: HomeViewProps) {
 
                   const examTypeLabel =
                     att.exam_type === "final"
-                      ? "Final Comprehensive Exam"
+                      ? interfaceLanguage === "French"
+                        ? "Examen Final Complet"
+                        : interfaceLanguage === "English"
+                        ? "Final Comprehensive Exam"
+                        : "Ikizamini Gisoza Cyuzuye"
                       : att.exam_type === "midterm"
-                      ? "Midterm Exam"
+                      ? interfaceLanguage === "French"
+                        ? "Examen Intermédiaire"
+                        : interfaceLanguage === "English"
+                        ? "Midterm Exam"
+                        : "Ikizamini cyo Hagati"
                       : att.module_title
-                      ? `${att.module_title} (Module Exam)`
-                      : "Module Exam";
+                      ? `${att.module_title} (${
+                          interfaceLanguage === "French"
+                            ? "Examen du module"
+                            : interfaceLanguage === "English"
+                            ? "Module Exam"
+                            : "Ikizamini cy'isomo"
+                        })`
+                      : interfaceLanguage === "French"
+                      ? "Examen du module"
+                      : interfaceLanguage === "English"
+                      ? "Module Exam"
+                      : "Ikizamini cy'isomo";
 
                   return {
                     id: att.id,
@@ -424,22 +539,6 @@ export function HomeView({ navigate }: HomeViewProps) {
         }
       };
 
-      // Fetch upcoming practical booking
-      const fetchUpcomingBooking = async () => {
-        try {
-          const { data } = await supabase
-            .from("driver_bookings")
-            .select("*, drivers(*)")
-            .eq("student_id", user.id)
-            .in("status", ["booked", "pending"])
-            .order("booking_date", { ascending: true })
-            .limit(1);
-          return data?.[0] || null;
-        } catch {
-          return null;
-        }
-      };
-
       // Fetch group battle stats (exclude solo attempts where only 1 person attempted)
       const fetchBattleStats = async () => {
         try {
@@ -469,7 +568,7 @@ export function HomeView({ navigate }: HomeViewProps) {
         }
       };
 
-      const [dashResult, attemptsData, examEnabledResult, servicesConfigResult, profileData, bookingData, battlesData] = await Promise.allSettled([
+      const [dashResult, attemptsData, examEnabledResult, servicesConfigResult, profileData, battlesData] = await Promise.allSettled([
         Promise.race([
           getDashboardData(interfaceLanguage),
           new Promise<never>((_, reject) =>
@@ -480,7 +579,6 @@ export function HomeView({ navigate }: HomeViewProps) {
         isStandaloneExamEnabled().catch(() => true),
         getCachedServicesConfig().catch(() => ({ pageEnabled: true, services: {} })),
         fetchProfile(),
-        fetchUpcomingBooking(),
         fetchBattleStats(),
       ]);
 
@@ -512,9 +610,6 @@ export function HomeView({ navigate }: HomeViewProps) {
           // Dispatch 2x/week background reminder notification
           void checkAndDispatchPasswordReminder(user, prof);
         }
-      }
-      if (bookingData.status === "fulfilled") {
-        setUpcomingBooking(bookingData.value);
       }
       if (battlesData.status === "fulfilled") {
         setBattleStats(battlesData.value);
@@ -801,8 +896,10 @@ export function HomeView({ navigate }: HomeViewProps) {
   const hasCourses = isCourseVisible && (stats?.totalLessons ?? 0) > 0;
   const progressPercent = stats?.progressPercent ?? 0;
 
+  const activeDrivingTips = DRIVING_TIPS_BY_LANG[interfaceLanguage] || DRIVING_TIPS_BY_LANG.Kinyarwanda;
+
   const handleNextTip = () => {
-    setTipIndex((prev) => (prev + 1) % DRIVING_TIPS.length);
+    setTipIndex((prev) => (prev + 1) % activeDrivingTips.length);
   };
 
   if (authLoading || (loadingData && !stats)) {
@@ -1235,41 +1332,6 @@ export function HomeView({ navigate }: HomeViewProps) {
         </div>
       )}
 
-      {/* Practical Driving Training Status (if booking exists) */}
-      {upcomingBooking && (
-        <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card p-5 shadow-sm space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/15 text-primary">
-                  <Car className="w-3.5 h-3.5" />
-                  {t("upcomingPracticalLesson") || "Scheduled Practical Training"}
-                </span>
-                <span className="text-xs text-muted-foreground font-medium">
-                  {upcomingBooking.booking_date} {upcomingBooking.start_time ? `at ${upcomingBooking.start_time}` : ""}
-                </span>
-              </div>
-              <h3 className="text-base font-bold text-foreground">
-                {upcomingBooking.drivers?.full_name || t("certifiedInstructor") || "Certified Instructor"}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {upcomingBooking.drivers?.vehicle_type ? `Vehicle: ${upcomingBooking.drivers.vehicle_type} · ` : ""}
-                {upcomingBooking.drivers?.training_location || "Kigali"}
-              </p>
-            </div>
-
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => navigate("services")}
-              className="rounded-xl text-xs font-semibold px-4 shrink-0 shadow-sm"
-            >
-              <span>{t("viewPracticalLog") || "View Training Log"}</span>
-            </Button>
-          </div>
-        </section>
-      )}
-
       {/* Quick Action Matrix */}
       <section className="space-y-3">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
@@ -1299,10 +1361,10 @@ export function HomeView({ navigate }: HomeViewProps) {
               className="flex flex-col items-start p-4 rounded-2xl border border-border/60 bg-card hover:border-primary/50 hover:shadow-md transition-all text-left group"
             >
               <div className="p-2.5 rounded-xl bg-primary/10 text-primary mb-2.5 group-hover:scale-105 transition-transform">
-                <Car className="w-5 h-5" />
+                <Compass className="w-5 h-5" />
               </div>
-              <span className="text-sm font-bold text-foreground line-clamp-1">{t("services") || "Driver Hub"}</span>
-              <span className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t("allServicesDesc") || "Practical sessions"}</span>
+              <span className="text-sm font-bold text-foreground line-clamp-1">{t("services") || "Services"}</span>
+              <span className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t("allServicesDesc") || "Official services & tools"}</span>
             </button>
           )}
 
@@ -1413,7 +1475,7 @@ export function HomeView({ navigate }: HomeViewProps) {
                               : "text-red-600 dark:text-red-400"
                           }`}
                         >
-                          {percent}% · {isPassed ? (t("passed") || "Passed") : isAbandoned ? "Incomplete" : isInProgress ? "In Progress" : (t("failed") || "Failed")}
+                          {percent}% · {isPassed ? (t("passed") || "Passed") : isAbandoned ? (t("incomplete") || "Incomplete") : isInProgress ? (t("inProgress") || "In Progress") : (t("failed") || "Failed")}
                         </div>
                       </div>
                       <button
@@ -1470,13 +1532,13 @@ export function HomeView({ navigate }: HomeViewProps) {
           <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-primary/5 p-5 space-y-2.5 shadow-sm">
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
               <ShieldCheck className="w-3 h-3" />
-              {DRIVING_TIPS[tipIndex].category}
+              {activeDrivingTips[tipIndex].category}
             </span>
             <h3 className="text-sm sm:text-base font-bold text-foreground">
-              {DRIVING_TIPS[tipIndex].title}
+              {activeDrivingTips[tipIndex].title}
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              {DRIVING_TIPS[tipIndex].desc}
+              {activeDrivingTips[tipIndex].desc}
             </p>
           </div>
         </section>

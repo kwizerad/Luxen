@@ -93,7 +93,6 @@ export interface AdminStats {
     totalUsers: number;
     totalAdmins: number;
     totalStudents: number;
-    totalDrivers: number;
     onlineUsers: number;
     totalCategories: number;
     totalQuestions: number;
@@ -371,7 +370,6 @@ export async function getAdminStats(forceRefresh = false): Promise<ActionResult<
     const totalUsers = allUsers.length;
     const totalAdmins = allUsers.filter((u) => u.role === "Admin").length;
     const totalStudents = allUsers.filter((u) => !u.role || u.role.toLowerCase() === "student").length;
-    const totalDrivers = allUsers.filter((u) => u.role === "Driver").length;
     const onlineUsers = allUsers.filter((u) => u.last_seen && now - new Date(u.last_seen).getTime() <= ONLINE_WINDOW_MS).length;
     const unverifiedUsers = allUsers.filter((u) => (!u.role || u.role.toLowerCase() === "student") && !u.provision_verified).length;
     const suspendedUsers = allUsers.filter((u) => Boolean((u as any).banned)).length;
@@ -727,7 +725,6 @@ export async function getAdminStats(forceRefresh = false): Promise<ActionResult<
         totalUsers,
         totalAdmins,
         totalStudents,
-        totalDrivers,
         onlineUsers,
         totalCategories: (allCategories || []).length,
         totalQuestions: (allQuestions || []).length,

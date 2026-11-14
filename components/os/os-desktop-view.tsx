@@ -32,7 +32,9 @@ interface OSDesktopViewProps {
 
 export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
   const { isServicesPageEnabled } = useServiceVisibilityManager();
   const [loading, setLoading] = useState(true);
   const [continueData, setContinueData] = useState<ContinueLearningData | null>(null);
@@ -106,7 +108,7 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
       icon: BookOpen,
       action: () => navigate("course"),
       gradient: "from-emerald-500 to-teal-700",
-      badge: continueData ? "Active" : undefined,
+      badge: continueData ? (isRw ? "Birakora" : isFr ? "Actif" : "Active") : undefined,
     },
     {
       id: "exams",
