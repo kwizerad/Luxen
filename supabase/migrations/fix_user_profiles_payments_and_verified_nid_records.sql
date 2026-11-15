@@ -173,7 +173,20 @@ CREATE POLICY "Admins can view all payments"
 --    AND DEDUPLICATED MULTI-ACCOUNT VERIFICATION HISTORY
 -- ============================================================================
 
-ALTER TABLE IF EXISTS public.national_id_records
+CREATE TABLE IF NOT EXISTS public.national_id_records (
+  id BIGSERIAL PRIMARY KEY,
+  national_id TEXT NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_national_id_records_national_id
+  ON public.national_id_records(national_id);
+
+ALTER TABLE public.national_id_records ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.national_id_records
   ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false;
 ALTER TABLE IF EXISTS public.national_id_records
   ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
@@ -240,6 +253,7 @@ BEGIN
   FOR dup IN
     SELECT national_id
     FROM public.national_id_records
+    WHERE national_id IS NOT NULL
     GROUP BY national_id
     HAVING COUNT(*) > 1
   LOOP
@@ -273,6 +287,11 @@ BEGIN
     SET
       checked_accounts = merged_checked,
       verified_accounts = merged_verified,
+      verified_user_id = COALESCE(k.verified_user_id, (
+        SELECT r.verified_user_id FROM public.national_id_records r
+        WHERE r.national_id = dup.national_id AND r.verified_user_id IS NOT NULL
+        ORDER BY r.id ASC LIMIT 1
+      )),
       is_verified = EXISTS (
         SELECT 1 FROM public.national_id_records r
         WHERE r.national_id = dup.national_id AND (r.is_verified = true OR r.verified = true OR r.verified_user_id IS NOT NULL)
@@ -298,6 +317,86 @@ ALTER TABLE public.national_id_records DROP CONSTRAINT IF EXISTS national_id_rec
 ALTER TABLE public.national_id_records ADD CONSTRAINT national_id_records_national_id_key UNIQUE (national_id);
 
 -- Backfill any verified users from user_profiles into canonical national_id_records
+-- (Grouped strictly to 1 row per TRIM(national_id) while aggregating all accounts
+--  that verified that National ID so ON CONFLICT DO UPDATE never hits a row twice)
+WITH eligible_profiles AS (
+  SELECT
+    TRIM(up.national_id) AS nid,
+    up.id,
+    up.email,
+    up.username,
+    up.full_name,
+    up.first_name,
+    up.last_name,
+    up.birthdate,
+    up.gender,
+    up.nationality,
+    up.avatar_url,
+    up.phone_number,
+    up.created_at,
+    up.updated_at,
+    up.provision_verified_at
+  FROM public.user_profiles up
+  WHERE LENGTH(TRIM(COALESCE(up.national_id, ''))) = 16
+    AND (up.id_verified = true OR up.provision_verified = true)
+    AND LOWER(COALESCE(up."role", 'Student')) <> 'admin'
+),
+primary_per_nid AS (
+  SELECT DISTINCT ON (nid)
+    nid,
+    id,
+    email,
+    username,
+    full_name,
+    first_name,
+    last_name,
+    birthdate,
+    gender,
+    nationality,
+    avatar_url,
+    created_at,
+    updated_at,
+    provision_verified_at
+  FROM eligible_profiles
+  ORDER BY nid, COALESCE(provision_verified_at, updated_at, created_at, NOW()) ASC, id ASC
+),
+agg_per_nid AS (
+  SELECT
+    nid,
+    COUNT(*)::INTEGER AS acct_count,
+    MIN(COALESCE(created_at, NOW())) AS first_checked_at,
+    MAX(COALESCE(updated_at, NOW())) AS last_checked_at,
+    MAX(COALESCE(provision_verified_at, updated_at, created_at, NOW())) AS last_verified_at,
+    jsonb_agg(
+      jsonb_build_object(
+        'user_id', id::TEXT,
+        'email', email,
+        'full_name', COALESCE(full_name, NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)), ''), username),
+        'username', username,
+        'avatar_url', avatar_url,
+        'phone_number', phone_number,
+        'checked_at', COALESCE(updated_at, created_at, NOW()),
+        'verified_at', COALESCE(provision_verified_at, updated_at, created_at, NOW()),
+        'is_verified', true
+      )
+      ORDER BY COALESCE(provision_verified_at, updated_at, created_at, NOW()) ASC, id ASC
+    ) AS checked_accounts,
+    jsonb_agg(
+      jsonb_build_object(
+        'user_id', id::TEXT,
+        'email', email,
+        'full_name', COALESCE(full_name, NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)), ''), username),
+        'username', username,
+        'avatar_url', avatar_url,
+        'phone_number', phone_number,
+        'verified_at', COALESCE(provision_verified_at, updated_at, created_at, NOW()),
+        'verification_count', 1
+      )
+      ORDER BY COALESCE(provision_verified_at, updated_at, created_at, NOW()) ASC, id ASC
+    ) AS verified_accounts
+  FROM eligible_profiles
+  GROUP BY nid
+)
 INSERT INTO public.national_id_records (
   national_id,
   user_id,
@@ -324,52 +423,31 @@ INSERT INTO public.national_id_records (
   updated_at
 )
 SELECT
-  TRIM(up.national_id),
-  up.id,
-  up.id,
+  p.nid,
+  p.id,
+  p.id,
   true,
   true,
-  COALESCE(up.full_name, NULLIF(TRIM(CONCAT_WS(' ', up.first_name, up.last_name)), ''), up.username, up.email),
-  up.email,
-  COALESCE(up.full_name, NULLIF(TRIM(CONCAT_WS(' ', up.first_name, up.last_name)), '')),
-  up.first_name,
-  up.last_name,
-  up.birthdate::TEXT,
-  up.gender,
-  up.nationality,
-  up.avatar_url,
-  jsonb_build_array(jsonb_build_object(
-    'user_id', up.id::TEXT,
-    'email', up.email,
-    'full_name', COALESCE(up.full_name, NULLIF(TRIM(CONCAT_WS(' ', up.first_name, up.last_name)), ''), up.username),
-    'username', up.username,
-    'avatar_url', up.avatar_url,
-    'phone_number', up.phone_number,
-    'checked_at', COALESCE(up.updated_at, up.created_at, NOW()),
-    'verified_at', COALESCE(up.provision_verified_at, up.updated_at, up.created_at, NOW()),
-    'is_verified', true
-  )),
-  jsonb_build_array(jsonb_build_object(
-    'user_id', up.id::TEXT,
-    'email', up.email,
-    'full_name', COALESCE(up.full_name, NULLIF(TRIM(CONCAT_WS(' ', up.first_name, up.last_name)), ''), up.username),
-    'username', up.username,
-    'avatar_url', up.avatar_url,
-    'phone_number', up.phone_number,
-    'verified_at', COALESCE(up.provision_verified_at, up.updated_at, up.created_at, NOW()),
-    'verification_count', 1
-  )),
-  1,
-  1,
-  COALESCE(up.created_at, NOW()),
-  COALESCE(up.updated_at, NOW()),
-  COALESCE(up.provision_verified_at, up.updated_at, NOW()),
-  COALESCE(up.created_at, NOW()),
+  COALESCE(p.full_name, NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''), p.username, p.email),
+  p.email,
+  COALESCE(p.full_name, NULLIF(TRIM(CONCAT_WS(' ', p.first_name, p.last_name)), '')),
+  p.first_name,
+  p.last_name,
+  p.birthdate::TEXT,
+  p.gender,
+  p.nationality,
+  p.avatar_url,
+  a.checked_accounts,
+  a.verified_accounts,
+  a.acct_count,
+  a.acct_count,
+  a.first_checked_at,
+  a.last_checked_at,
+  a.last_verified_at,
+  a.first_checked_at,
   NOW()
-FROM public.user_profiles up
-WHERE LENGTH(TRIM(COALESCE(up.national_id, ''))) = 16
-  AND (up.id_verified = true OR up.provision_verified = true)
-  AND LOWER(COALESCE(up."role", 'Student')) <> 'admin'
+FROM primary_per_nid p
+JOIN agg_per_nid a ON a.nid = p.nid
 ON CONFLICT (national_id) DO UPDATE SET
   verified = true,
   is_verified = true,
@@ -381,13 +459,45 @@ ON CONFLICT (national_id) DO UPDATE SET
   gender = COALESCE(public.national_id_records.gender, EXCLUDED.gender),
   nationality = COALESCE(public.national_id_records.nationality, EXCLUDED.nationality),
   photo_url = COALESCE(public.national_id_records.photo_url, EXCLUDED.photo_url),
-  verified_accounts = CASE
-    WHEN COALESCE(public.national_id_records.verified_accounts, '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('user_id', EXCLUDED.verified_user_id::TEXT))
-      THEN public.national_id_records.verified_accounts
-    WHEN EXCLUDED.verified_user_id IS NULL
-      THEN COALESCE(public.national_id_records.verified_accounts, '[]'::jsonb)
-    ELSE COALESCE(public.national_id_records.verified_accounts, '[]'::jsonb) || EXCLUDED.verified_accounts
-  END,
+  checked_accounts = COALESCE(
+    (
+      SELECT jsonb_agg(elem)
+      FROM (
+        SELECT elem
+        FROM jsonb_array_elements(COALESCE(public.national_id_records.checked_accounts, '[]'::jsonb)) elem
+        UNION ALL
+        SELECT elem
+        FROM jsonb_array_elements(COALESCE(EXCLUDED.checked_accounts, '[]'::jsonb)) elem
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements(COALESCE(public.national_id_records.checked_accounts, '[]'::jsonb)) existing_elem
+          WHERE existing_elem->>'user_id' = elem->>'user_id'
+        )
+      ) merged
+    ),
+    '[]'::jsonb
+  ),
+  verified_accounts = COALESCE(
+    (
+      SELECT jsonb_agg(elem)
+      FROM (
+        SELECT elem
+        FROM jsonb_array_elements(COALESCE(public.national_id_records.verified_accounts, '[]'::jsonb)) elem
+        UNION ALL
+        SELECT elem
+        FROM jsonb_array_elements(COALESCE(EXCLUDED.verified_accounts, '[]'::jsonb)) elem
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements(COALESCE(public.national_id_records.verified_accounts, '[]'::jsonb)) existing_elem
+          WHERE existing_elem->>'user_id' = elem->>'user_id'
+        )
+      ) merged
+    ),
+    '[]'::jsonb
+  ),
+  check_count = GREATEST(COALESCE(public.national_id_records.check_count, 1), EXCLUDED.check_count),
+  verification_count = GREATEST(COALESCE(public.national_id_records.verification_count, 0), EXCLUDED.verification_count),
+  last_verified_at = GREATEST(COALESCE(public.national_id_records.last_verified_at, EXCLUDED.last_verified_at), EXCLUDED.last_verified_at),
   updated_at = NOW();
 
 -- Sync verified and is_verified columns everywhere
@@ -400,6 +510,9 @@ SET
 DROP POLICY IF EXISTS "Anyone authenticated can view national_id_records" ON public.national_id_records;
 DROP POLICY IF EXISTS "Anyone authenticated can insert national_id_records" ON public.national_id_records;
 DROP POLICY IF EXISTS "Anyone authenticated can update national_id_records" ON public.national_id_records;
+DROP POLICY IF EXISTS "Primary admin or owner can view national_id_records" ON public.national_id_records;
+DROP POLICY IF EXISTS "Service role and owner insert national_id_records" ON public.national_id_records;
+DROP POLICY IF EXISTS "Service role and owner update national_id_records" ON public.national_id_records;
 
 CREATE POLICY "Primary admin or owner can view national_id_records"
   ON public.national_id_records FOR SELECT
@@ -420,5 +533,12 @@ CREATE POLICY "Service role and owner update national_id_records"
   TO authenticated
   USING (user_id = auth.uid() OR verified_user_id = auth.uid() OR LOWER(auth.jwt()->>'email') = LOWER('Navo@admin.jn'))
   WITH CHECK (user_id = auth.uid() OR verified_user_id = auth.uid() OR LOWER(auth.jwt()->>'email') = LOWER('Navo@admin.jn'));
+
+-- ============================================================================
+-- 4. ENSURE public.exam_challenges STORES GROUP EXAM LANGUAGE
+-- ============================================================================
+
+ALTER TABLE IF EXISTS public.exam_challenges
+  ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'Kinyarwanda';
 
 COMMIT;

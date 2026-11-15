@@ -488,13 +488,31 @@ export async function POST(req: NextRequest) {
 
       let selectedQuestions = picked;
 
-      // Support shared question order for group challenges
+      let effectiveLanguage = language;
+
+      // Support shared question order and shared language for group challenges
       if (challengeId) {
-        const { data: challengeData } = await adminSb
+        let challengeData: any = null;
+        const { data: cWithLang, error: cErr } = await adminSb
           .from("exam_challenges")
-          .select("id, question_ids")
+          .select("id, question_ids, language")
           .eq("id", challengeId)
           .maybeSingle();
+
+        if (cErr && (cErr.code === "42703" || /language/i.test(cErr.message || ""))) {
+          const { data: cFallback } = await adminSb
+            .from("exam_challenges")
+            .select("id, question_ids")
+            .eq("id", challengeId)
+            .maybeSingle();
+          challengeData = cFallback;
+        } else {
+          challengeData = cWithLang;
+        }
+
+        if (challengeData?.language) {
+          effectiveLanguage = challengeData.language;
+        }
 
         if (
           challengeData?.question_ids &&
@@ -517,8 +535,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Translate questions into requested UI language if needed
-      const translatedSelected = await translateQuestionBatch(adminSb, selectedQuestions, language);
+      // Translate questions into requested UI/challenge language if needed
+      const translatedSelected = await translateQuestionBatch(adminSb, selectedQuestions, effectiveLanguage);
 
       // Strip correct_answer before sending to client
       const safeQuestions = translatedSelected.map(({ correct_answer, explanation, ...rest }) => rest);

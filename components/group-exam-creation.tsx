@@ -10,6 +10,7 @@ import {
   X,
   CheckSquare,
   Square,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,11 +34,24 @@ interface ClassmateProfile {
 
 interface GroupExamCreationProps {
   onBack: () => void;
-  onStartExam: (categoryId: string, inviteeIds: string[]) => void;
+  onStartExam: (categoryId: string, inviteeIds: string[], examLanguage: string) => void;
+}
+
+const EXAM_LANGUAGES = [
+  { value: "Kinyarwanda", label: "Kinyarwanda", flag: "🇷🇼" },
+  { value: "English", label: "English", flag: "🇬🇧" },
+  { value: "French", label: "Français", flag: "🇫🇷" },
+] as const;
+
+function resolveDefaultExamLang(lang?: string): "Kinyarwanda" | "English" | "French" {
+  const l = (lang || "").toLowerCase();
+  if (l === "en" || l === "english") return "English";
+  if (l === "fr" || l === "french") return "French";
+  return "Kinyarwanda";
 }
 
 export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
 
   const [allUsers, setAllUsers] = useState<ClassmateProfile[]>([]);
@@ -56,6 +70,9 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
   const [categorySearchQuery, setCategorySearchQuery] = useState("");
   const [selectedInvitees, setSelectedInvitees] = useState<Set<string>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedExamLanguage, setSelectedExamLanguage] = useState<"Kinyarwanda" | "English" | "French">(
+    () => resolveDefaultExamLang(language)
+  );
 
   useEffect(() => {
     fetchData();
@@ -194,7 +211,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
     }
     setSubmitting(true);
     try {
-      await onStartExam(selectedCategory, cleanInvitees);
+      await onStartExam(selectedCategory, cleanInvitees, selectedExamLanguage);
     } finally {
       setSubmitting(false);
     }
@@ -292,6 +309,43 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
             </div>
           </div>
         ) : null}
+
+        {/* Exam Language Selector */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Globe className="h-3.5 w-3.5 text-primary" />
+            <span>
+              {language === "Kinyarwanda" || language === "rw"
+                ? "Ururimi rw'Ikizamini"
+                : language === "French" || language === "fr"
+                ? "Langue de l'examen"
+                : t("selectExamLanguage") !== "selectExamLanguage"
+                ? t("selectExamLanguage")
+                : "Exam Language"}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {EXAM_LANGUAGES.map((opt) => {
+              const isSelected = selectedExamLanguage === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setSelectedExamLanguage(opt.value)}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium border transition-colors cursor-pointer",
+                    isSelected
+                      ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                      : "bg-card/60 text-foreground border-border/70 hover:bg-muted/50"
+                  )}
+                >
+                  <span aria-hidden="true">{opt.flag}</span>
+                  <span className="truncate">{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Primary Focal Area: Invite Classmates List (Single Clean Container) */}
         <div className="space-y-3">
@@ -416,7 +470,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
       <div className="sticky bottom-0 z-20 border-t border-border/60 bg-background/95 dark:bg-zinc-950/95 backdrop-blur-xl px-3.5 sm:px-6 py-3 space-y-2">
         <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground tabular-nums">
           <span className="truncate min-w-0">
-            {selectedCategoryObj?.name || t("noCategorySelected") || "Select category"}
+            {selectedCategoryObj?.name || t("noCategorySelected") || "Select category"} · {selectedExamLanguage}
           </span>
           <span className="shrink-0 font-medium text-foreground">
             {selectedInvitees.size} {t("selected") || "selected"}

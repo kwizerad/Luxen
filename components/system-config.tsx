@@ -8,12 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Settings2, Shield, ShieldCheck, ClipboardList, FileText, LayoutList, Globe, Users, Trophy, Database, Volume2, Clock } from "lucide-react";
+import { Loader2, BookOpen, ShieldCheck, ClipboardList, FileText, LayoutList, Globe, Users, Trophy, Database, Volume2, Clock } from "lucide-react";
 import { getSystemConfig, updateSystemConfig, getServicesConfig } from "@/lib/supabase/queries";
 import { invalidateServicesConfigCache } from "@/lib/feature-flags";
 import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
-import { parseSecuritySettings, type SecuritySettings, SECURITY_CONFIG_KEYS, DEFAULT_SECURITY_SETTINGS } from "@/lib/security-config";
+import {
+  parseAllScopedSecuritySettings,
+  getSecurityConfigKeysForScope,
+  type SecuritySettings,
+  type SecurityScope,
+  DEFAULT_SECURITY_SETTINGS,
+} from "@/lib/security-config";
 
 interface SecurityFeatureToggleProps {
   id: string;
@@ -43,6 +49,164 @@ function SecurityFeatureToggle({ id, label, description, checked, onCheckedChang
   );
 }
 
+interface ScopedAntiCheatCardProps {
+  scope: SecurityScope;
+  title: string;
+  badgeLabel: string;
+  description: string;
+  icon: React.ReactNode;
+  settings: SecuritySettings;
+  onChange: (updater: (prev: SecuritySettings) => SecuritySettings) => void;
+  onSave: () => void;
+  saving: boolean;
+  saveLabel: string;
+  t: (key: string) => string;
+}
+
+function ScopedAntiCheatCard({
+  scope,
+  title,
+  badgeLabel,
+  description,
+  icon,
+  settings,
+  onChange,
+  onSave,
+  saving,
+  saveLabel,
+  t,
+}: ScopedAntiCheatCardProps) {
+  return (
+    <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2">
+            {icon}
+            {title}
+          </CardTitle>
+          <Badge variant="secondary" className="text-xs font-semibold">
+            {badgeLabel}
+          </Badge>
+        </div>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5 pr-3">
+            <Label htmlFor={`violations-toggle-${scope}`} className="text-base">
+              {t("violationMeasures")}
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              {t("securityFeaturesList")}
+            </p>
+          </div>
+          <Switch
+            id={`violations-toggle-${scope}`}
+            checked={settings.violationMeasuresEnabled}
+            onCheckedChange={(checked) => onChange((s) => ({ ...s, violationMeasuresEnabled: checked }))}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor={`max-violations-${scope}`}>
+            {t("maxViolations") || "Max Violations Before Auto-Submit"}
+          </Label>
+          <div className="flex flex-wrap items-center gap-4">
+            <Input
+              id={`max-violations-${scope}`}
+              type="number"
+              min={1}
+              max={10}
+              value={settings.maxViolations}
+              onChange={(e) => onChange((s) => ({ ...s, maxViolations: Math.min(10, Math.max(1, parseInt(e.target.value, 10) || 1)) }))}
+              className="w-32"
+              disabled={!settings.violationMeasuresEnabled}
+            />
+            <span className="text-sm text-muted-foreground">
+              {t("maxViolationsHint") || "Number of cheating attempts before the exam is submitted automatically"}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <SecurityFeatureToggle
+            id={`security-fullscreen-${scope}`}
+            label={t("fullscreenSecurity") || "Fullscreen"}
+            description={t("fullscreenSecurityDesc") || "Require and enforce fullscreen"}
+            checked={settings.fullscreenEnabled}
+            onCheckedChange={(checked) => onChange((s) => ({ ...s, fullscreenEnabled: checked }))}
+            disabled={!settings.violationMeasuresEnabled}
+          />
+          <SecurityFeatureToggle
+            id={`security-tab-switch-${scope}`}
+            label={t("tabSwitchSecurity") || "Tab Switch"}
+            description={t("tabSwitchSecurityDesc") || "Detect switching tabs or windows"}
+            checked={settings.tabSwitchEnabled}
+            onCheckedChange={(checked) => onChange((s) => ({ ...s, tabSwitchEnabled: checked }))}
+            disabled={!settings.violationMeasuresEnabled}
+          />
+          <SecurityFeatureToggle
+            id={`security-copy-paste-${scope}`}
+            label={t("copyPasteSecurity") || "Copy / Paste"}
+            description={t("copyPasteSecurityDesc") || "Block copy, paste, and cut"}
+            checked={settings.copyPasteEnabled}
+            onCheckedChange={(checked) => onChange((s) => ({ ...s, copyPasteEnabled: checked }))}
+            disabled={!settings.violationMeasuresEnabled}
+          />
+          <SecurityFeatureToggle
+            id={`security-right-click-${scope}`}
+            label={t("rightClickSecurity") || "Right Click"}
+            description={t("rightClickSecurityDesc") || "Disable context menu"}
+            checked={settings.rightClickEnabled}
+            onCheckedChange={(checked) => onChange((s) => ({ ...s, rightClickEnabled: checked }))}
+            disabled={!settings.violationMeasuresEnabled}
+          />
+          <SecurityFeatureToggle
+            id={`security-text-selection-${scope}`}
+            label={t("textSelectionSecurity") || "Text Selection"}
+            description={t("textSelectionSecurityDesc") || "Prevent selecting text"}
+            checked={settings.textSelectionEnabled}
+            onCheckedChange={(checked) => onChange((s) => ({ ...s, textSelectionEnabled: checked }))}
+            disabled={!settings.violationMeasuresEnabled}
+          />
+          <SecurityFeatureToggle
+            id={`security-drag-drop-${scope}`}
+            label={t("dragDropSecurity") || "Drag & Drop"}
+            description={t("dragDropSecurityDesc") || "Prevent drag and drop"}
+            checked={settings.dragDropEnabled}
+            onCheckedChange={(checked) => onChange((s) => ({ ...s, dragDropEnabled: checked }))}
+            disabled={!settings.violationMeasuresEnabled}
+          />
+          <SecurityFeatureToggle
+            id={`security-ai-detection-${scope}`}
+            label={t("aiDetectionSecurity") || "AI Detection"}
+            description={t("aiDetectionSecurityDesc") || "Block AI shortcuts and detect AI sidebars"}
+            checked={settings.aiDetectionEnabled}
+            onCheckedChange={(checked) => onChange((s) => ({ ...s, aiDetectionEnabled: checked }))}
+            disabled={!settings.violationMeasuresEnabled}
+          />
+        </div>
+
+        <Button
+          onClick={onSave}
+          disabled={saving}
+          className="w-full sm:w-auto"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              {t("saving")}
+            </>
+          ) : (
+            saveLabel
+          )}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages" | "services" }) {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
@@ -61,7 +225,11 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   const [groupExamJoinWindow, setGroupExamJoinWindow] = useState<number>(120);
   const [saveIndividualExamsEnabled, setSaveIndividualExamsEnabled] = useState<boolean>(true);
   const [saveGroupExamsEnabled, setSaveGroupExamsEnabled] = useState<boolean>(true);
-  const [security, setSecurity] = useState<SecuritySettings>(DEFAULT_SECURITY_SETTINGS);
+  const [scopedSecurity, setScopedSecurity] = useState<Record<SecurityScope, SecuritySettings>>({
+    course: DEFAULT_SECURITY_SETTINGS,
+    official: DEFAULT_SECURITY_SETTINGS,
+  });
+  const [savingSecurityScope, setSavingSecurityScope] = useState<SecurityScope | null>(null);
 
   // Services settings
   const [servicesPageEnabled, setServicesPageEnabled] = useState<boolean>(true);
@@ -267,7 +435,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           if (configMap["save_group_exams_enabled"]) {
             setSaveGroupExamsEnabled(configMap["save_group_exams_enabled"].value !== "false");
           }
-          setSecurity(parseSecuritySettings(configMap));
+          setScopedSecurity(parseAllScopedSecuritySettings(configMap));
 
           // Load learning language toggles (default to enabled if not set)
           const langToggles: Record<string, boolean> = { english: true, french: true, kinyarwanda: true };
@@ -381,25 +549,36 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
     }
   };
 
-  const handleSaveSecurity = async () => {
+  const saveScopeKeys = async (scope: SecurityScope, settingsObj: SecuritySettings) => {
+    const keys = getSecurityConfigKeysForScope(scope);
+    const label = scope === "course" ? "Course Exams" : "Official Exams";
+    await Promise.all([
+      updateSystemConfig(keys.VIOLATION_MEASURES_ENABLED, settingsObj.violationMeasuresEnabled.toString(), `${label}: Violation measures enabled`),
+      updateSystemConfig(keys.MAX_VIOLATIONS, settingsObj.maxViolations.toString(), `${label}: Maximum allowed violation attempts before auto-submission`),
+      updateSystemConfig(keys.FULLSCREEN_ENABLED, settingsObj.fullscreenEnabled.toString(), `${label}: Enforce fullscreen during exams`),
+      updateSystemConfig(keys.TAB_SWITCH_ENABLED, settingsObj.tabSwitchEnabled.toString(), `${label}: Detect tab or window switching`),
+      updateSystemConfig(keys.COPY_PASTE_ENABLED, settingsObj.copyPasteEnabled.toString(), `${label}: Prevent copy, paste, and cut`),
+      updateSystemConfig(keys.RIGHT_CLICK_ENABLED, settingsObj.rightClickEnabled.toString(), `${label}: Disable right-click context menu`),
+      updateSystemConfig(keys.TEXT_SELECTION_ENABLED, settingsObj.textSelectionEnabled.toString(), `${label}: Prevent text selection`),
+      updateSystemConfig(keys.DRAG_DROP_ENABLED, settingsObj.dragDropEnabled.toString(), `${label}: Prevent drag and drop`),
+      updateSystemConfig(keys.AI_DETECTION_ENABLED, settingsObj.aiDetectionEnabled.toString(), `${label}: Detect AI sidebars and block AI shortcuts`),
+    ]);
+  };
+
+  const handleSaveSecurity = async (scope: SecurityScope) => {
     try {
-      setSaving(true);
-      await Promise.all([
-        updateSystemConfig(SECURITY_CONFIG_KEYS.VIOLATION_MEASURES_ENABLED, security.violationMeasuresEnabled.toString(), t("violationMeasuresDesc")),
-        updateSystemConfig(SECURITY_CONFIG_KEYS.MAX_VIOLATIONS, security.maxViolations.toString(), t("maxViolationsDesc") || "Maximum allowed violation attempts before auto-submission"),
-        updateSystemConfig(SECURITY_CONFIG_KEYS.FULLSCREEN_ENABLED, security.fullscreenEnabled.toString(), t("fullscreenSecurityDesc") || "Enforce fullscreen during exams"),
-        updateSystemConfig(SECURITY_CONFIG_KEYS.TAB_SWITCH_ENABLED, security.tabSwitchEnabled.toString(), t("tabSwitchSecurityDesc") || "Detect tab or window switching"),
-        updateSystemConfig(SECURITY_CONFIG_KEYS.COPY_PASTE_ENABLED, security.copyPasteEnabled.toString(), t("copyPasteSecurityDesc") || "Prevent copy, paste, and cut"),
-        updateSystemConfig(SECURITY_CONFIG_KEYS.RIGHT_CLICK_ENABLED, security.rightClickEnabled.toString(), t("rightClickSecurityDesc") || "Disable right-click context menu"),
-        updateSystemConfig(SECURITY_CONFIG_KEYS.TEXT_SELECTION_ENABLED, security.textSelectionEnabled.toString(), t("textSelectionSecurityDesc") || "Prevent text selection"),
-        updateSystemConfig(SECURITY_CONFIG_KEYS.DRAG_DROP_ENABLED, security.dragDropEnabled.toString(), t("dragDropSecurityDesc") || "Prevent drag and drop"),
-        updateSystemConfig(SECURITY_CONFIG_KEYS.AI_DETECTION_ENABLED, security.aiDetectionEnabled.toString(), t("aiDetectionSecurityDesc") || "Detect AI sidebars and block AI shortcuts"),
-      ]);
-      toast.success(t("securitySettingsSaved") || "Security settings saved");
+      setSavingSecurityScope(scope);
+      const currentSettings = scopedSecurity[scope];
+      await saveScopeKeys(scope, currentSettings);
+      toast.success(
+        scope === "course"
+          ? (t("courseSecuritySettingsSaved") || "Courses anti-cheat settings saved")
+          : (t("officialSecuritySettingsSaved") || "Official Exams anti-cheat settings saved")
+      );
     } catch (error: any) {
       toast.error((t("failedToUpdateSecuritySettings") || "Failed to save security settings: ") + error.message);
     } finally {
-      setSaving(false);
+      setSavingSecurityScope(null);
     }
   };
 
@@ -806,127 +985,44 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
         </CardContent>
       </Card>
 
-      {/* Exam Security Settings */}
-      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            {t("examSecuritySettings")}
-          </CardTitle>
-          <CardDescription>
-            {t("enableEachSecurityFeature") || "Enable or disable each exam security feature individually"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="violations-toggle" className="text-base">
-                {t("violationMeasures")}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {t("securityFeaturesList")}
-              </p>
-            </div>
-            <Switch
-              id="violations-toggle"
-              checked={security.violationMeasuresEnabled}
-              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, violationMeasuresEnabled: checked }))}
-            />
-          </div>
+      {/* Separate Anti-Cheat Configurations: Courses & Official Exams */}
+      <ScopedAntiCheatCard
+        scope="course"
+        title={t("courseExamsAntiCheat") || "Courses Anti-Cheat Settings"}
+        badgeLabel={t("courses") || "Courses"}
+        description={
+          t("courseExamsAntiCheatDesc") ||
+          "Independent anti-cheat configuration applied exclusively to Courses (Module, Midterm, and Final exams)."
+        }
+        icon={<BookOpen className="h-5 w-5 text-primary" />}
+        settings={scopedSecurity.course}
+        onChange={(updater) =>
+          setScopedSecurity((prev) => ({ ...prev, course: updater(prev.course) }))
+        }
+        onSave={() => handleSaveSecurity("course")}
+        saving={savingSecurityScope === "course"}
+        saveLabel={t("saveCourseSecuritySettings") || "Save Courses Anti-Cheat"}
+        t={t}
+      />
 
-          <div className="space-y-2">
-            <Label htmlFor="max-violations">{t("maxViolations") || "Max Violations Before Auto-Submit"}</Label>
-            <div className="flex items-center gap-4">
-              <Input
-                id="max-violations"
-                type="number"
-                min={1}
-                max={10}
-                value={security.maxViolations}
-                onChange={(e) => setSecurity((s) => ({ ...s, maxViolations: parseInt(e.target.value, 10) || 1 }))}
-                className="w-32"
-              />
-              <span className="text-sm text-muted-foreground">
-                {t("maxViolationsHint") || "Number of cheating attempts before the exam is submitted automatically"}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <SecurityFeatureToggle
-              id="security-fullscreen"
-              label={t("fullscreenSecurity") || "Fullscreen"}
-              description={t("fullscreenSecurityDesc") || "Require and enforce fullscreen"}
-              checked={security.fullscreenEnabled}
-              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, fullscreenEnabled: checked }))}
-              disabled={!security.violationMeasuresEnabled}
-            />
-            <SecurityFeatureToggle
-              id="security-tab-switch"
-              label={t("tabSwitchSecurity") || "Tab Switch"}
-              description={t("tabSwitchSecurityDesc") || "Detect switching tabs or windows"}
-              checked={security.tabSwitchEnabled}
-              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, tabSwitchEnabled: checked }))}
-              disabled={!security.violationMeasuresEnabled}
-            />
-            <SecurityFeatureToggle
-              id="security-copy-paste"
-              label={t("copyPasteSecurity") || "Copy / Paste"}
-              description={t("copyPasteSecurityDesc") || "Block copy, paste, and cut"}
-              checked={security.copyPasteEnabled}
-              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, copyPasteEnabled: checked }))}
-              disabled={!security.violationMeasuresEnabled}
-            />
-            <SecurityFeatureToggle
-              id="security-right-click"
-              label={t("rightClickSecurity") || "Right Click"}
-              description={t("rightClickSecurityDesc") || "Disable context menu"}
-              checked={security.rightClickEnabled}
-              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, rightClickEnabled: checked }))}
-              disabled={!security.violationMeasuresEnabled}
-            />
-            <SecurityFeatureToggle
-              id="security-text-selection"
-              label={t("textSelectionSecurity") || "Text Selection"}
-              description={t("textSelectionSecurityDesc") || "Prevent selecting text"}
-              checked={security.textSelectionEnabled}
-              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, textSelectionEnabled: checked }))}
-              disabled={!security.violationMeasuresEnabled}
-            />
-            <SecurityFeatureToggle
-              id="security-drag-drop"
-              label={t("dragDropSecurity") || "Drag & Drop"}
-              description={t("dragDropSecurityDesc") || "Prevent drag and drop"}
-              checked={security.dragDropEnabled}
-              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, dragDropEnabled: checked }))}
-              disabled={!security.violationMeasuresEnabled}
-            />
-            <SecurityFeatureToggle
-              id="security-ai-detection"
-              label={t("aiDetectionSecurity") || "AI Detection"}
-              description={t("aiDetectionSecurityDesc") || "Block AI shortcuts and detect AI sidebars"}
-              checked={security.aiDetectionEnabled}
-              onCheckedChange={(checked) => setSecurity((s) => ({ ...s, aiDetectionEnabled: checked }))}
-              disabled={!security.violationMeasuresEnabled}
-            />
-          </div>
-
-          <Button
-            onClick={handleSaveSecurity}
-            disabled={saving}
-            className="w-full sm:w-auto"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {t("saving")}
-              </>
-            ) : (
-              t("saveSecuritySettings")
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+      <ScopedAntiCheatCard
+        scope="official"
+        title={t("officialExamsAntiCheat") || "Official Exams Anti-Cheat Settings"}
+        badgeLabel={t("officialExams") || "Official Exams"}
+        description={
+          t("officialExamsAntiCheatDesc") ||
+          "Independent anti-cheat configuration applied exclusively to Official Exams (Standalone Mock, Group Challenge, and Guest Practice exams)."
+        }
+        icon={<ShieldCheck className="h-5 w-5 text-primary" />}
+        settings={scopedSecurity.official}
+        onChange={(updater) =>
+          setScopedSecurity((prev) => ({ ...prev, official: updater(prev.official) }))
+        }
+        onSave={() => handleSaveSecurity("official")}
+        saving={savingSecurityScope === "official"}
+        saveLabel={t("saveOfficialSecuritySettings") || "Save Official Exams Anti-Cheat"}
+        t={t}
+      />
 
       {/* Standalone Exam Toggle */}
       <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">

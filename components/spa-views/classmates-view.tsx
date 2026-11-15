@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Send, Loader2, Users, UserPlus, MessageCircle, Trophy, X, Check, CheckCheck, ArrowLeft, Eye, EyeOff, Bell, Clock, Play, Smile, Heart, Sparkles, CheckCircle2 } from "lucide-react";
+import { Search, Send, Loader2, Users, UserPlus, MessageCircle, Trophy, X, Check, CheckCheck, ArrowLeft, Eye, EyeOff, Bell, Clock, Play, Smile, Heart, Sparkles, CheckCircle2, Globe } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "👏"] as const;
@@ -140,7 +140,8 @@ function ChatExamInviteBanner({
                 setActing(true);
                 try {
                   await onRespond(challenge.id, true);
-                  window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}&from=classmates`;
+                  const langParam = (challenge as any).language ? `&language=${encodeURIComponent((challenge as any).language)}` : "";
+                  window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}${langParam}&from=classmates`;
                   window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
                 } finally {
                   setActing(false);
@@ -207,7 +208,8 @@ function ChatExamInviteBanner({
         <Button
           size="sm"
           onClick={() => {
-            window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}&from=classmates`;
+            const langParam = (challenge as any).language ? `&language=${encodeURIComponent((challenge as any).language)}` : "";
+            window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}${langParam}&from=classmates`;
             window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
           }}
           className="h-8 px-3.5 text-xs font-bold self-end sm:self-auto shrink-0 bg-primary text-primary-foreground shadow-sm"
@@ -244,7 +246,8 @@ function ChatExamInviteBanner({
         <Button
           size="sm"
           onClick={() => {
-            window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}&from=classmates`;
+            const langParam = (challenge as any).language ? `&language=${encodeURIComponent((challenge as any).language)}` : "";
+            window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}${langParam}&from=classmates`;
             window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
           }}
           className="h-7 px-3 text-xs font-bold bg-green-600 hover:bg-green-700 text-white shrink-0"
@@ -988,7 +991,7 @@ function ExamInvitationsContent({
 }
 
 export function ClassmatesView({ navigate }: ClassmatesViewProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const supabase = createClient();
 
@@ -1021,6 +1024,12 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [examCategories, setExamCategories] = useState<{ id: string; name: string }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedExamLanguage, setSelectedExamLanguage] = useState<"Kinyarwanda" | "English" | "French">(() => {
+    const l = (language || "").toLowerCase();
+    if (l === "en" || l === "english") return "English";
+    if (l === "fr" || l === "french") return "French";
+    return "Kinyarwanda";
+  });
   const [selectedInvitees, setSelectedInvitees] = useState<Set<string>>(new Set());
   const [creatingChallenge, setCreatingChallenge] = useState(false);
   const [inviteSearchQuery, setInviteSearchQuery] = useState("");
@@ -2029,6 +2038,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
           category_id: selectedCategory,
           category_name: category?.name || "",
           invite_user_ids: Array.from(selectedInvitees),
+          language: selectedExamLanguage,
         }),
       });
       const data = await res.json();
@@ -2036,9 +2046,15 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         toast.success(t("challengeCreated") || "Group exam created!");
         setShowInviteModal(false);
         const catId = selectedCategory;
+        const examLang = data.challenge?.language || selectedExamLanguage;
         setSelectedCategory("");
         setSelectedInvitees(new Set());
-        navigate("exam", { challenge_id: data.challenge.id, category_id: catId, from: "classmates" });
+        navigate("exam", {
+          challenge_id: data.challenge.id,
+          category_id: catId,
+          language: examLang,
+          from: "classmates",
+        });
       } else {
         toast.error(data.error || t("failedToCreateChallenge"));
       }
@@ -2823,6 +2839,44 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                   ))}
                 </select>
               )}
+            </div>
+
+            {/* 1b. Exam Language */}
+            <div>
+              <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
+                <Globe className="h-3.5 w-3.5 text-primary" />
+                <span>
+                  {language === "Kinyarwanda" || language === "rw"
+                    ? "Ururimi rw'Ikizamini"
+                    : language === "French" || language === "fr"
+                    ? "Langue de l'examen"
+                    : "Exam Language"}
+                </span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { value: "Kinyarwanda", label: "Kinyarwanda", flag: "🇷🇼" },
+                  { value: "English", label: "English", flag: "🇬🇧" },
+                  { value: "French", label: "Français", flag: "🇫🇷" },
+                ] as const).map((opt) => {
+                  const isSelected = selectedExamLanguage === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setSelectedExamLanguage(opt.value)}
+                      className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-foreground border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <span aria-hidden="true">{opt.flag}</span>
+                      <span className="truncate">{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* 2. Search bar */}

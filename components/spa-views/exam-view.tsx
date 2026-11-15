@@ -9,6 +9,7 @@ import { GroupExamCreation } from "@/components/group-exam-creation";
 import { GroupExamLobby } from "@/components/group-exam-lobby";
 import { GroupExamResults } from "@/components/group-exam-results";
 import { ExamCategorySkeleton, ExamChoiceSkeleton } from "@/components/skeletons";
+import { ExamStartVerificationCard } from "@/components/exam-start-verification-card";
 import { OSExamLauncher } from "@/components/os-exam/os-exam-launcher";
 import {
   OSExamWorkspace,
@@ -86,6 +87,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const paramCategoryId = params?.get("category_id") || "";
   const paramMode = params?.get("mode") || "";
   const paramFrom = params?.get("from") || "";
+  const paramLanguage = params?.get("language") || "";
 
   const [categories, setCategories] = useState<ExamCategory[]>([]);
   const [categoryId, setCategoryId] = useState<string>(paramCategoryId);
@@ -104,7 +106,11 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     paramChallengeId ? "lobby" : paramMode === "group" ? "group" : "launcher"
   );
   const [selectedExamLanguage, setSelectedExamLanguage] =
-    useState<string>("Kinyarwanda");
+    useState<string>(paramLanguage || "Kinyarwanda");
+  const [pendingStartExam, setPendingStartExam] = useState<{
+    categoryId: string;
+    language: string;
+  } | null>(null);
 
   const [loadingExam, setLoadingExam] = useState(false);
   const [submittingExam, setSubmittingExam] = useState(false);
@@ -163,6 +169,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     const resolvedCategoryId =
       paramCategoryId || urlParams.get("category_id") || "";
     const resolvedMode = paramMode || urlParams.get("mode") || "";
+    const resolvedLanguage = paramLanguage || urlParams.get("language") || "";
 
     if (resolvedChallengeId) {
       setChallengeId(resolvedChallengeId);
@@ -176,6 +183,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     if (resolvedCategoryId) {
       setCategoryId(resolvedCategoryId);
     }
+    if (resolvedLanguage) {
+      setSelectedExamLanguage(resolvedLanguage);
+    }
 
     Promise.all([isStandaloneExamEnabled(), isGroupExamEnabled()])
       .then(([standalone, group]) => {
@@ -186,23 +196,26 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       .catch(() => {
         setAccessChecked(true);
       });
-  }, [authLoading, paramChallengeId, paramCategoryId, paramMode]);
+  }, [authLoading, paramChallengeId, paramCategoryId, paramMode, paramLanguage]);
 
-  // If arriving with challengeId but no categoryId, resolve category from challenge row
+  // If arriving with challengeId, resolve category & language from challenge row
   useEffect(() => {
-    if (!challengeId || categoryId) return;
-    const fetchChallengeCategory = async () => {
+    if (!challengeId) return;
+    const fetchChallengeDetails = async () => {
       const supabase = createClient();
       const { data } = await supabase
         .from("exam_challenges")
-        .select("category_id")
+        .select("*")
         .eq("id", challengeId)
         .maybeSingle();
-      if (data?.category_id) {
+      if (data?.category_id && !categoryId) {
         setCategoryId(data.category_id);
       }
+      if ((data as any)?.language) {
+        setSelectedExamLanguage((data as any).language);
+      }
     };
-    void fetchChallengeCategory();
+    void fetchChallengeDetails();
   }, [challengeId, categoryId]);
 
   // Check if student has past exam history for quick navigation button
@@ -251,7 +264,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
     const loadSecurity = async () => {
       try {
-        const settings = await getSecuritySettings();
+        const settings = await getSecuritySettings("official");
         setSecuritySettings(settings);
       } catch (error) {
         console.error("[ExamView] Failed to load security settings:", error);
@@ -747,6 +760,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     submittingExamRef.current = false;
     setChallengeId("");
     setExamMode("launcher");
+    setPendingStartExam(null);
     setShowPreSubmitModal(false);
     setShowAlert(false);
     setShowConfirm(false);
@@ -848,8 +862,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     return (
       <GroupExamCreation
         onBack={() => setExamMode("launcher")}
-        onStartExam={async (selectedCatId, inviteeIds) => {
+        onStartExam={async (selectedCatId, inviteeIds, examLang) => {
           setCategoryId(selectedCatId);
+          setSelectedExamLanguage(examLang);
           const catName =
             categories.find((c) => c.id === selectedCatId)?.name || "Exam";
           try {
@@ -860,6 +875,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
                 category_id: selectedCatId,
                 category_name: catName,
                 invite_user_ids: inviteeIds,
+                language: examLang,
               }),
             });
             const data = await res.json();
@@ -897,14 +913,15 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         categoryName={categoryName}
         durationMinutes={selectedCat?.duration_minutes}
         questionCount={selectedCat?.question_count}
+        examLanguage={selectedExamLanguage}
         securitySettings={{
           fullscreenEnabled: securitySettings.fullscreenEnabled,
           tabSwitchEnabled: securitySettings.tabSwitchEnabled,
           rightClickEnabled: securitySettings.rightClickEnabled,
           aiDetectionEnabled: securitySettings.aiDetectionEnabled,
         }}
-        onStart={() => {
-          void startExam(categoryId || EXTERNAL_EXAM_CATEGORY_ID);
+        onStart={(resolvedLang) => {
+          void startExam(categoryId || EXTERNAL_EXAM_CATEGORY_ID, resolvedLang || selectedExamLanguage);
         }}
         onCancel={() => {
           const from =
@@ -1061,7 +1078,33 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     );
   }
 
-  // Default: Native Navo OS Exam Center Launcher (No Pre-Exam Instructions)
+  if (pendingStartExam) {
+    const targetCategory =
+      categories.find((c) => c.id === pendingStartExam.categoryId) ||
+      categories[0];
+    return (
+      <div className="flex-1 flex flex-col justify-center min-h-[65vh] py-4">
+        <ExamStartVerificationCard
+          examTitle={
+            targetCategory?.name ||
+            (t("exams") || "Official Practice Exam")
+          }
+          durationMinutes={targetCategory?.duration_minutes ?? 20}
+          totalQuestions={targetCategory?.question_count ?? 20}
+          examLanguage={pendingStartExam.language}
+          loading={loadingExam}
+          onConfirmStart={() => {
+            const next = pendingStartExam;
+            setPendingStartExam(null);
+            void startExam(next.categoryId, next.language);
+          }}
+          onCancel={() => setPendingStartExam(null)}
+        />
+      </div>
+    );
+  }
+
+  // Default: Native Navo OS Exam Center Launcher
   return (
     <OSExamLauncher
       standaloneEnabled={standaloneEnabled}
@@ -1074,7 +1117,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       loadingExam={loadingExam}
       selectedExamLanguage={selectedExamLanguage}
       onStartExam={(catId, lang) => {
-        void startExam(catId, lang);
+        setCategoryId(catId);
+        setSelectedExamLanguage(lang);
+        setPendingStartExam({ categoryId: catId, language: lang });
       }}
       onOpenGroupChallenge={() => setExamMode("group")}
       navigate={navigate}

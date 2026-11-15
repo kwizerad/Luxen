@@ -15,6 +15,7 @@ interface PendingInvite {
   id: string;
   category_id: string;
   category_name: string;
+  language?: string;
   creator_id: string;
   created_at: string;
   creator_profile?: {
@@ -185,13 +186,15 @@ export function GlobalGroupExamInvite() {
         toast.success(t("invitationAccepted") || "Joined group exam!");
         const challengeId = activeInvite.id;
         const categoryId = activeInvite.category_id;
+        const inviteLang = activeInvite.language || "Kinyarwanda";
         dismissedIdsRef.current.add(challengeId);
         setActiveInvite(null);
+        const hashTarget = `#exam?challenge_id=${encodeURIComponent(challengeId)}&category_id=${encodeURIComponent(categoryId || "")}&language=${encodeURIComponent(inviteLang)}`;
         if (pathname === "/dashboard") {
-          window.location.hash = `#exam?challenge_id=${encodeURIComponent(challengeId)}&category_id=${encodeURIComponent(categoryId || "")}`;
+          window.location.hash = hashTarget;
           window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
         } else {
-          router.push(`/dashboard#exam?challenge_id=${encodeURIComponent(challengeId)}&category_id=${encodeURIComponent(categoryId || "")}`);
+          router.push(`/dashboard${hashTarget}`);
         }
       } else {
         const data = await res.json();
@@ -281,6 +284,11 @@ export function GlobalGroupExamInvite() {
               </p>
               <p className="text-xs text-muted-foreground truncate">
                 {t("category") || "Category"}: <span className="font-semibold text-foreground">{activeInvite.category_name}</span>
+                {activeInvite.language ? (
+                  <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
+                    {activeInvite.language}
+                  </span>
+                ) : null}
               </p>
             </div>
           </div>

@@ -12,6 +12,7 @@ import {
   Trophy,
   AlertCircle,
   Crown,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -52,13 +53,14 @@ interface GroupExamLobbyProps {
   categoryName: string;
   durationMinutes?: number;
   questionCount?: number;
+  examLanguage?: string;
   securitySettings?: {
     fullscreenEnabled: boolean;
     tabSwitchEnabled: boolean;
     rightClickEnabled: boolean;
     aiDetectionEnabled: boolean;
   };
-  onStart: () => void;
+  onStart: (examLanguage?: string) => void;
   onCancel: () => void;
 }
 
@@ -67,6 +69,7 @@ export function GroupExamLobby({
   categoryName,
   durationMinutes = 20,
   questionCount = 20,
+  examLanguage,
   onStart,
   onCancel,
 }: GroupExamLobbyProps) {
@@ -91,6 +94,8 @@ export function GroupExamLobby({
   const hasStartedRef = useRef(false);
   const onStartRef = useRef(onStart);
   onStartRef.current = onStart;
+  const resolvedLanguageRef = useRef<string>(examLanguage || "Kinyarwanda");
+  resolvedLanguageRef.current = challenge?.language || examLanguage || "Kinyarwanda";
   const challengeChannelRef = useRef<any>(null);
   const isFetchingRef = useRef(false);
 
@@ -155,7 +160,7 @@ export function GroupExamLobby({
           } else if (challengeData.status === "active") {
             if (!hasStartedRef.current) {
               hasStartedRef.current = true;
-              onStartRef.current();
+              onStartRef.current(challengeData.language || resolvedLanguageRef.current);
             }
           }
 
@@ -272,7 +277,7 @@ export function GroupExamLobby({
       setCountdown(null);
       if (!hasStartedRef.current) {
         hasStartedRef.current = true;
-        onStartRef.current();
+        onStartRef.current(resolvedLanguageRef.current);
       }
       return;
     }
@@ -315,7 +320,7 @@ export function GroupExamLobby({
           if (payload.new?.status === "active") {
             if (!hasStartedRef.current) {
               hasStartedRef.current = true;
-              onStartRef.current();
+              onStartRef.current(payload.new?.language || resolvedLanguageRef.current);
             }
           } else {
             fetchChallengeDetails();
@@ -329,7 +334,7 @@ export function GroupExamLobby({
       .on("broadcast", { event: "exam_started" }, () => {
         if (!hasStartedRef.current) {
           hasStartedRef.current = true;
-          onStartRef.current();
+          onStartRef.current(resolvedLanguageRef.current);
         }
       })
       .subscribe();
@@ -574,12 +579,17 @@ export function GroupExamLobby({
             <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground truncate">
               {categoryName}
             </h1>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground tabular-nums">
               <span>{t("groupExam") || "Group Exam"}</span>
               <span aria-hidden="true">·</span>
               <span>{durationMinutes}m</span>
               <span aria-hidden="true">·</span>
               <span>{questionCount} Q</span>
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex items-center gap-1 text-foreground font-medium">
+                <Globe className="h-3 w-3 text-primary" />
+                {challenge?.language || examLanguage || "Kinyarwanda"}
+              </span>
             </div>
           </div>
 

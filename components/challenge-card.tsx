@@ -155,12 +155,14 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
     }
   };
 
+  const challengeLanguage = (challenge as any).language || "Kinyarwanda";
+
   const handleJoin = async () => {
     await callApi(`/api/exam-challenges/${challenge.id}/join`);
     if (navigate) {
-      navigate("exam", { challenge_id: challenge.id, category_id: challenge.category_id });
+      navigate("exam", { challenge_id: challenge.id, category_id: challenge.category_id, language: challengeLanguage });
     } else if (typeof window !== "undefined") {
-      window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}`;
+      window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}&language=${encodeURIComponent(challengeLanguage)}`;
       window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
     }
   };
@@ -185,9 +187,9 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
 
   const handleStartExam = () => {
     if (navigate) {
-      navigate("exam", { challenge_id: challenge.id, category_id: challenge.category_id });
+      navigate("exam", { challenge_id: challenge.id, category_id: challenge.category_id, language: challengeLanguage });
     } else if (typeof window !== "undefined") {
-      window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}`;
+      window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}&language=${encodeURIComponent(challengeLanguage)}`;
       window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
     }
   };
@@ -266,11 +268,18 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
             {challenge.status === "cancelled" && (t("challengeCancelled") || "Exam cancelled")}
           </p>
         </div>
-        <Badge variant="secondary" className="text-xs capitalize">
-          {challenge.status === "completed" && ((challenge as any).is_solo_attempt || completedCount <= 1)
-            ? t("individualExam") || "Individual"
-            : challenge.status}
-        </Badge>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {(challenge as any).language && (
+            <Badge variant="outline" className="text-[11px] font-medium">
+              {(challenge as any).language}
+            </Badge>
+          )}
+          <Badge variant="secondary" className="text-xs capitalize">
+            {challenge.status === "completed" && ((challenge as any).is_solo_attempt || completedCount <= 1)
+              ? t("individualExam") || "Individual"
+              : challenge.status}
+          </Badge>
+        </div>
       </div>
 
       {/* Participant avatars */}

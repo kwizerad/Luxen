@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ArrowLeft, Trophy, Plus, Loader2, Users, ShieldAlert, Search, CheckSquare, Square, UserPlus } from "lucide-react";
+import { ArrowLeft, Trophy, Plus, Loader2, Users, ShieldAlert, Search, CheckSquare, Square, UserPlus, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -35,8 +35,21 @@ export interface GroupExamViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
 }
 
+const EXAM_LANGUAGES = [
+  { value: "Kinyarwanda", label: "Kinyarwanda", flag: "🇷🇼" },
+  { value: "English", label: "English", flag: "🇬🇧" },
+  { value: "French", label: "Français", flag: "🇫🇷" },
+] as const;
+
+function resolveDefaultExamLang(lang?: string): "Kinyarwanda" | "English" | "French" {
+  const l = (lang || "").toLowerCase();
+  if (l === "en" || l === "english") return "English";
+  if (l === "fr" || l === "french") return "French";
+  return "Kinyarwanda";
+}
+
 export function GroupExamView({ navigate }: GroupExamViewProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
@@ -48,6 +61,9 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [examCategories, setExamCategories] = useState<{ id: string; name: string }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedExamLanguage, setSelectedExamLanguage] = useState<"Kinyarwanda" | "English" | "French">(
+    () => resolveDefaultExamLang(language)
+  );
   const [selectedInvitees, setSelectedInvitees] = useState<Set<string>>(new Set());
   const [creatingChallenge, setCreatingChallenge] = useState(false);
   const [modalSearch, setModalSearch] = useState("");
@@ -168,6 +184,7 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
           category_id: selectedCategory,
           category_name: category?.name || "",
           invite_user_ids: Array.from(selectedInvitees),
+          language: selectedExamLanguage,
         }),
       });
       const data = await res.json();
@@ -175,9 +192,15 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
         toast.success(t("challengeCreated") || "Group exam created!");
         setShowCreateModal(false);
         const catId = selectedCategory;
+        const examLang = data.challenge?.language || selectedExamLanguage;
         setSelectedCategory("");
         setSelectedInvitees(new Set());
-        navigate("exam", { challenge_id: data.challenge.id, category_id: catId, from: "services" });
+        navigate("exam", {
+          challenge_id: data.challenge.id,
+          category_id: catId,
+          language: examLang,
+          from: "services",
+        });
       } else {
         toast.error(data.error || t("failedToCreateChallenge"));
       }
@@ -398,6 +421,40 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Exam Language Select */}
+            <div>
+              <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
+                <Globe className="h-3.5 w-3.5 text-primary" />
+                <span>
+                  {language === "Kinyarwanda" || language === "rw"
+                    ? "Ururimi rw'Ikizamini"
+                    : language === "French" || language === "fr"
+                    ? "Langue de l'examen"
+                    : "Exam Language"}
+                </span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {EXAM_LANGUAGES.map((opt) => {
+                  const isSelected = selectedExamLanguage === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setSelectedExamLanguage(opt.value)}
+                      className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-foreground border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <span aria-hidden="true">{opt.flag}</span>
+                      <span className="truncate">{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Friends Multi-Select */}

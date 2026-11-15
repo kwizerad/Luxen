@@ -206,7 +206,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { category_id, category_name, invite_user_ids } = body;
+    const { category_id, category_name, invite_user_ids, language: rawLanguage } = body;
+
+    const normalizeExamLanguage = (val?: string | null): string => {
+      const lower = (val || "").trim().toLowerCase();
+      if (lower === "en" || lower === "english") return "English";
+      if (lower === "fr" || lower === "french" || lower === "français" || lower === "francais") return "French";
+      return "Kinyarwanda";
+    };
+    const examLanguage = normalizeExamLanguage(rawLanguage);
 
     if (!category_id || !category_name) {
       return NextResponse.json({ error: "Category ID and name are required" }, { status: 400 });
@@ -276,16 +284,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data: challenge, error: challengeError } = await adminClient
-      .from("exam_challenges")
-      .insert([{
-        creator_id: user.id,
-        category_id,
-        category_name,
-        status: "pending",
-      }])
-      .select()
-      .single();
+    let challenge: any = null;
+    let challengeError: any = null;
+
+    {
+      const attempt = await adminClient
+        .from("exam_challenges")
+        .insert([{
+          creator_id: user.id,
+          category_id,
+          category_name,
+          language: examLanguage,
+          status: "pending",
+        }])
+        .select()
+        .single();
+
+      challenge = attempt.data;
+      challengeError = attempt.error;
+
+      // Graceful fallback if optional language column has not yet been migrated
+      if (challengeError && (challengeError.code === "42703" || /language/i.test(challengeError.message || ""))) {
+        const retry = await adminClient
+          .from("exam_challenges")
+          .insert([{
+            creator_id: user.id,
+            category_id,
+            category_name,
+            status: "pending",
+          }])
+          .select()
+          .single();
+        challenge = retry.data ? { ...retry.data, language: examLanguage } : retry.data;
+        challengeError = retry.error;
+      }
+    }
 
     if (challengeError) throw new Error(challengeError.message || "Failed to create challenge");
 
@@ -310,16 +343,17 @@ export async function POST(request: NextRequest) {
           target_user_id: inviteeId,
           type: "exam_challenge_invite",
           title: "Group Exam Invite",
-          message: `${creatorName} invited you to the "${category_name}" group exam.`,
+          message: `${creatorName} invited you to the "${category_name}" group exam (${examLanguage}).`,
           data: {
             sender_id: user.id,
             sender_name: creatorName,
             challenge_id: challenge.id,
             category_name,
+            language: examLanguage,
           },
           sender_id: user.id,
           sender_name: creatorName,
-          action_url: "/dashboard#classmates",
+          action_url: `/dashboard#exam?challenge_id=${encodeURIComponent(challenge.id)}&language=${encodeURIComponent(examLanguage)}`,
         });
       } catch (notifError) {
         console.error("Failed to insert notification for", inviteeId, notifError);
@@ -347,7 +381,7 @@ export async function POST(request: NextRequest) {
           await adminClient.from("chat_messages").insert({
             conversation_id: conversationId,
             sender_id: user.id,
-            message: `🏆 ${creatorName} invited you to take the "${category_name}" exam together.`,
+            message: `🏆 ${creatorName} invited you to take the "${category_name}" exam together (${examLanguage}).`,
           });
 
           await adminClient
@@ -360,7 +394,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ challenge, status: "success" });
+    return NextResponse.json({ challenge: { ...challenge, language: challenge?.language || examLanguage }, status: "success" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create exam challenge.";
     return NextResponse.json({ error: message }, { status: 500 });

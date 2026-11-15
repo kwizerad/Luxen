@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Watermark } from "@/components/watermark";
 import { SmartImage, preloadImages } from "@/components/smart-image";
-import { ExamInstructionsView } from "@/components/exam-instructions-view";
+import { ExamStartVerificationCard } from "@/components/exam-start-verification-card";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/language-context";
 import {
   CheckCircle,
@@ -18,15 +17,12 @@ import {
   Home,
   AlertCircle,
   AlertTriangle,
-  BookOpen,
   HelpCircle,
   Play,
   LogOut,
   Monitor,
   Shield,
   ShieldAlert,
-  Clock,
-  Hash,
 } from "lucide-react";
 import {
   Dialog,
@@ -36,7 +32,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useExamSecurity } from "@/hooks/use-exam-security";
 import { QuestionTTSButton } from "@/components/course/question-tts-button";
 import {
@@ -107,9 +102,7 @@ export function ModuleExamRunner({
   const [userAnswers, setUserAnswers] = useState<Record<string, UserAnswer>>({});
   const [showResults, setShowResults] = useState(false);
   const [examResult, setExamResult] = useState<ModuleExamAttempt | null>(null);
-  const [showInstructions, setShowInstructions] = useState(false);
-  const [instructionsAccepted, setInstructionsAccepted] = useState(false);
-  const [showExamInstructions, setShowExamInstructions] = useState(true);
+  const [showVerificationCard, setShowVerificationCard] = useState(false);
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(DEFAULT_SECURITY_SETTINGS);
   const [showQuestionPalette, setShowQuestionPalette] = useState(true);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -122,7 +115,7 @@ export function ModuleExamRunner({
   const examActiveRef = useRef(false);
   const handleSubmitExamRef = useRef<((isAutoSubmit?: boolean) => Promise<void>) | null>(null);
 
-  const fullscreenEnabled = examType === "final" && securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled;
+  const fullscreenEnabled = securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled;
 
   const handleAutoSubmit = useCallback(() => {
     handleSubmitExamRef.current?.(true);
@@ -160,7 +153,7 @@ export function ModuleExamRunner({
     const loadExam = async () => {
       setLoading(true);
       try {
-        const settings = await getSecuritySettings();
+        const settings = await getSecuritySettings("course");
         setSecuritySettings(settings);
 
         if (examType === "module" && moduleId) {
@@ -187,7 +180,7 @@ export function ModuleExamRunner({
           setQuestions(data.questions);
           setDurationMinutes(data.durationMinutes);
         }
-        setShowInstructions(true);
+        setShowVerificationCard(true);
       } catch (error) {
         toast.error((error instanceof Error ? error.message : String(error)) || t("failedToLoadExam") || "Failed to load exam");
         onExit();
@@ -219,13 +212,6 @@ export function ModuleExamRunner({
     if (!examActiveRef.current || showResultsRef.current) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-      if (showExamInstructions) {
-        if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          setShowExamInstructions(false);
-        }
-        return;
-      }
       if (e.key === "ArrowLeft") {
         e.preventDefault();
         setCurrentIndex((i) => Math.max(0, i - 1));
@@ -246,15 +232,10 @@ export function ModuleExamRunner({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [questions.length, showExamInstructions, activeQuestion]);
+  }, [questions.length, activeQuestion]);
 
   const startExam = async () => {
-    if (!instructionsAccepted) {
-      toast.error(t("pleaseAcceptExamInstructions") || "Please accept the instructions");
-      return;
-    }
-    setShowInstructions(false);
-    setShowExamInstructions(false);
+    setShowVerificationCard(false);
     setCurrentIndex(0);
     setSecondsLeft(durationMinutes * 60);
     setExamStartTime(Date.now());
@@ -432,8 +413,7 @@ export function ModuleExamRunner({
     examActiveRef.current = false;
     submittingRef.current = false;
     security.resetSecurity();
-    setShowInstructions(true);
-    setInstructionsAccepted(false);
+    setShowVerificationCard(true);
   };
 
   const handleRequestRetake = async () => {
@@ -467,8 +447,7 @@ export function ModuleExamRunner({
     setUserAnswers({});
     setShowResults(false);
     setExamResult(null);
-    setShowInstructions(false);
-    setInstructionsAccepted(false);
+    setShowVerificationCard(false);
     security.resetSecurity();
     sessionStorage.removeItem("exam-active");
     window.dispatchEvent(new CustomEvent("exam-state-change"));
@@ -848,20 +827,12 @@ export function ModuleExamRunner({
               </div>
             </div>
 
-            {showExamInstructions ? (
-              <ExamInstructionsView
-                totalQuestions={questions.length}
-                durationMinutes={durationMinutes}
-                onStartQuestions={() => setShowExamInstructions(false)}
-                examTitle={moduleTitle || (examType === "final" ? "Final Exam" : examType === "midterm" ? "Midterm Exam" : "Module Exam")}
-              />
-            ) : (
-              <Card
-                className="navo-card-brand select-none rounded-[14px] sm:rounded-[24px] touch-pan-y"
-                onTouchStart={onTouchStart}
-                onTouchMove={onTouchMove}
-                onTouchEnd={onTouchEnd}
-              >
+            <Card
+              className="navo-card-brand select-none rounded-[14px] sm:rounded-[24px] touch-pan-y"
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+            >
               <CardHeader className="p-3 sm:p-6">
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-sm sm:text-base">
@@ -1005,8 +976,29 @@ export function ModuleExamRunner({
                 )}
               </CardContent>
             </Card>
-            )}
           </>
+        )}
+
+        {!isExamActive && !showResults && showVerificationCard && questions.length > 0 && (
+          <div className="min-h-[70vh] flex items-center justify-center py-6">
+            <ExamStartVerificationCard
+              examTitle={
+                moduleTitle ||
+                (examType === "final"
+                  ? t("finalExam") || "Final Exam"
+                  : examType === "midterm"
+                  ? t("midtermTest") || "Midterm Test"
+                  : t("moduleExam") || "Module Exam")
+              }
+              durationMinutes={durationMinutes}
+              totalQuestions={questions.length}
+              examLanguage={language}
+              onConfirmStart={() => {
+                void startExam();
+              }}
+              onCancel={reset}
+            />
+          </div>
         )}
       </main>
 
@@ -1017,144 +1009,6 @@ export function ModuleExamRunner({
             <DialogTitle className="sr-only">{t("preview") || "Preview"}</DialogTitle>
           </DialogHeader>
           {previewImage && <img src={previewImage} alt={t("preview") || "Preview"} className="w-full h-auto rounded-lg" />}
-        </DialogContent>
-      </Dialog>
-
-      {/* Instructions Dialog */}
-      <Dialog open={showInstructions && !isExamActive} onOpenChange={setShowInstructions}>
-        <DialogContent
-          className="max-w-2xl sm:max-w-3xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto"
-          style={{ WebkitOverflowScrolling: "touch" }}
-        >
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg sm:text-2xl">
-              <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary-readable" />
-              {t("examInstructions") || "Exam Instructions"}
-            </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
-              {t("readInstructionsCarefully") || "Please read the instructions carefully"}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 sm:space-y-4 py-2 sm:py-4">
-            {/* Exam Overview - Only Exam Time and Number of Questions */}
-            <div className="bg-primary/5 border border-primary/10 rounded-xl p-3.5 sm:p-4 space-y-2.5">
-              <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base text-primary-readable">
-                <HelpCircle className="h-4 w-4 text-primary-readable" />
-                {t("examOverview") || "Exam Overview"}
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-background/90 border">
-                  <div className="p-2 rounded-md bg-primary/10 text-primary-readable shrink-0">
-                    <Clock className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("examDurationLabel") || "Exam Time"}</p>
-                    <p className="text-sm sm:text-base font-semibold">
-                      {durationMinutes} {t("minutes") || "minutes"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-background/90 border">
-                  <div className="p-2 rounded-md bg-primary/10 text-primary-readable shrink-0">
-                    <Hash className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("examQuestionsLabel") || "Number of Questions"}</p>
-                    <p className="text-sm sm:text-base font-semibold">
-                      {questions.length} {t("questions") || "questions"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Important Rules */}
-            <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900 rounded-xl p-3.5 sm:p-4 space-y-2">
-              <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base text-yellow-800 dark:text-yellow-400">
-                <AlertTriangle className="h-4 w-4" />
-                {t("examRules.title") || "Important Rules"}
-              </h3>
-              <div className="space-y-1.5 text-xs sm:text-sm text-yellow-800/90 dark:text-yellow-300">
-                <p>• {t("examRules.noRefresh") || "Do not refresh the page during the exam"}</p>
-                <p>• {t("examRules.noMultipleTabs") || "Do not open multiple tabs or secondary windows"}</p>
-                <p>• {t("examRules.noTabSwitch") || "Do not switch tabs or leave the exam window"}</p>
-                <p>• {t("examRules.stayFullscreen") || "You must remain in fullscreen mode during the entire exam"}</p>
-                <p>• {t("examRules.oneSitting") || "Complete the exam in one sitting"}</p>
-                <p>• {t("examRules.stableInternet") || "Ensure you have a stable internet connection"}</p>
-              </div>
-            </div>
-
-            {/* Security Restrictions (Alone - No Technical Requirements) */}
-            {fullscreenEnabled && (
-              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-xl p-3.5 sm:p-4 space-y-2">
-                <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base text-red-700 dark:text-red-400">
-                  <Shield className="h-4 w-4" />
-                  {t("examSecurity.title") || "Security Restrictions"}
-                </h3>
-                <div className="space-y-1.5 text-xs sm:text-sm text-red-700 dark:text-red-300">
-                  <p>• {t("examSecurity.copyPasteCutDisabled") || "Copy, paste, and cut are disabled during the exam"}</p>
-                  <p>• {t("examSecurity.textSelectionLimited") || "Text selection is restricted during the exam"}</p>
-                  <p>• {t("examSecurity.rightClickDisabled") || "Right-click context menu is disabled"}</p>
-                  <p>• {t("examSecurity.noAISidebars") || "AI assistants, sidebars, and unauthorized tools are prohibited"}</p>
-                  <p>• {t("examSecurity.shortcutsBlocked") || "Unauthorized navigation shortcuts and browser keys are blocked"}</p>
-                  <p>• {t("examSecurity.leaveTriggersSubmit") || "Repeated violations or leaving the exam triggers automatic submission"}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Acceptance - High Contrast, Large Tap Area */}
-            <div
-              onClick={() => setInstructionsAccepted(!instructionsAccepted)}
-              className={cn(
-                "flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer select-none",
-                instructionsAccepted
-                  ? "bg-primary/10 border-primary shadow-sm dark:bg-primary/20"
-                  : "bg-muted/80 hover:bg-muted border-primary/50 dark:border-primary/60"
-              )}
-            >
-              <div className="flex items-center justify-center shrink-0">
-                <Checkbox
-                  id="accept-exam"
-                  checked={instructionsAccepted}
-                  onCheckedChange={(checked) => setInstructionsAccepted(checked as boolean)}
-                  className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg border-2 border-primary bg-background dark:bg-card"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <label
-                  htmlFor="accept-exam"
-                  className="text-xs sm:text-sm font-bold text-foreground leading-snug cursor-pointer block"
-                >
-                  {t("acceptExamInstructions") || "I have read and agree to all exam instructions and security rules."}
-                </label>
-                <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-                  {instructionsAccepted
-                    ? (language === "Kinyarwanda" || language === "rw" ? "Amategeko yemejwe. Ushobora gutangira ikizamini." : language === "French" || language === "fr" ? "Instructions acceptées. Vous pouvez commencer l'examen." : "Instructions accepted. You can now begin the exam.")
-                    : (language === "Kinyarwanda" || language === "rw" ? "Kanda hano kwemeza ko wasomye amategeko" : language === "French" || language === "fr" ? "Cliquez ici pour accepter les instructions" : "Tap here to confirm you have read the instructions")}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 flex-col-reverse sm:flex-row">
-            <Button variant="outline" onClick={reset} className="w-full sm:w-auto">
-              {t("cancel") || "Cancel"}
-            </Button>
-            <Button
-              onClick={async () => {
-                if (fullscreenEnabled) {
-                  void security.requestFullscreen();
-                }
-                await startExam();
-              }}
-              disabled={!instructionsAccepted}
-              className="w-full sm:w-auto sm:min-w-[120px]"
-            >
-              {t("beginExam") || "Begin Exam"}
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

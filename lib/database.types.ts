@@ -516,6 +516,7 @@ export interface ExamChallenge {
   creator_id: string;
   category_id: string;
   category_name: string;
+  language?: string;
   status: ExamChallengeStatus;
   started_at?: string | null;
   created_at: string;

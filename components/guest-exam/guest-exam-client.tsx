@@ -24,6 +24,7 @@ import {
   type UserAnswer,
 } from "@/components/os-exam/os-exam-workspace";
 import { ExamReview } from "@/components/exam-review";
+import { ExamStartVerificationCard } from "@/components/exam-start-verification-card";
 import {
   useExamAnticheat,
   type SubmissionReason,
@@ -117,6 +118,10 @@ export function GuestExamClient() {
   );
   const [selectedExamLanguage, setSelectedExamLanguage] =
     useState("Kinyarwanda");
+  const [pendingStartExam, setPendingStartExam] = useState<{
+    categoryId: string;
+    language: string;
+  } | null>(null);
 
   const [loadingExam, setLoadingExam] = useState(false);
   const [submittingExam, setSubmittingExam] = useState(false);
@@ -187,7 +192,7 @@ export function GuestExamClient() {
               cache: "no-store",
             }
           ).then((r) => (r.ok ? r.json() : null)),
-          getSecuritySettings().catch(() => DEFAULT_SECURITY_SETTINGS),
+          getSecuritySettings("official").catch(() => DEFAULT_SECURITY_SETTINGS),
         ]);
 
         if (!mounted) return;
@@ -575,6 +580,7 @@ export function GuestExamClient() {
     showResultsRef.current = false;
     setExamResult(null);
     setPendingPayload(null);
+    setPendingStartExam(null);
     setSavePromptDismissed(false);
     submittingExamRef.current = false;
     setShowPreSubmitModal(false);
@@ -951,6 +957,33 @@ export function GuestExamClient() {
               </button>
             </div>
           </div>
+        ) : pendingStartExam ? (
+          <div className="flex-1 flex flex-col justify-center py-4">
+            <ExamStartVerificationCard
+              examTitle={
+                categories.find((c) => c.id === pendingStartExam.categoryId)
+                  ?.name ||
+                categories[0]?.name ||
+                "Official Mock Exam"
+              }
+              durationMinutes={
+                categories.find((c) => c.id === pendingStartExam.categoryId)
+                  ?.duration_minutes ?? 20
+              }
+              totalQuestions={
+                categories.find((c) => c.id === pendingStartExam.categoryId)
+                  ?.question_count ?? 20
+              }
+              examLanguage={pendingStartExam.language}
+              loading={loadingExam}
+              onConfirmStart={() => {
+                const next = pendingStartExam;
+                setPendingStartExam(null);
+                void startGuestExam(next.categoryId, next.language);
+              }}
+              onCancel={() => setPendingStartExam(null)}
+            />
+          </div>
         ) : (
           <OSExamLauncher
             standaloneEnabled={standaloneEnabled}
@@ -963,7 +996,9 @@ export function GuestExamClient() {
             loadingExam={loadingExam}
             selectedExamLanguage={selectedExamLanguage}
             onStartExam={(catId, lang) => {
-              void startGuestExam(catId, lang);
+              setSelectedCategoryId(catId);
+              setSelectedExamLanguage(lang);
+              setPendingStartExam({ categoryId: catId, language: lang });
             }}
             onOpenGroupChallenge={() => {}}
             navigate={(view) => {
