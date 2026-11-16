@@ -26,6 +26,11 @@ import {
 import { ExamReview } from "@/components/exam-review";
 import { ExamStartVerificationCard } from "@/components/exam-start-verification-card";
 import {
+  PostExamLanguageGate,
+  normalizeExamLanguage,
+  type ExamLangOption,
+} from "@/components/exam/post-exam-language-gate";
+import {
   useExamAnticheat,
   type SubmissionReason,
 } from "@/hooks/use-exam-anticheat";
@@ -78,7 +83,7 @@ function formatResetCountdown(totalSeconds: number, isFr = false): string {
 export function GuestExamClient() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { t, language } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
 
   const isRw = language === "Kinyarwanda" || language === "rw";
   const isFr = language === "French" || language === "fr";
@@ -133,6 +138,8 @@ export function GuestExamClient() {
     {}
   );
   const [showResults, setShowResults] = useState(false);
+  const [postExamLangConfirmed, setPostExamLangConfirmed] = useState(false);
+  const [translatingPostExamLang, setTranslatingPostExamLang] = useState<string | null>(null);
   const [examResult, setExamResult] = useState<ExamAttempt | null>(null);
   const [pendingPayload, setPendingPayload] =
     useState<PendingGuestExamPayload | null>(null);
@@ -260,7 +267,8 @@ export function GuestExamClient() {
 
   const activeQuestion = useMemo<TakeExamQuestion | null>(() => {
     if (!exam?.questions?.length) return null;
-    return exam.questions[currentIndex] ?? null;
+    const safeIdx = Math.min(Math.max(0, currentIndex), exam.questions.length - 1);
+    return exam.questions[safeIdx] ?? null;
   }, [exam, currentIndex]);
 
   const handleSelectAnswer = useCallback(
@@ -350,15 +358,18 @@ export function GuestExamClient() {
       return;
     }
 
+    const activeLang = normalizeExamLanguage(
+      examLang || selectedExamLanguage || language || "Kinyarwanda"
+    );
+    setSelectedExamLanguage(activeLang);
+    setLanguage(activeLang);
+
     if (
       securitySettings.violationMeasuresEnabled &&
       securitySettings.fullscreenEnabled
     ) {
       await anticheat.enterFullscreen();
     }
-
-    const activeLang = examLang || selectedExamLanguage || "Kinyarwanda";
-    if (examLang) setSelectedExamLanguage(examLang);
 
     setLoadingExam(true);
     try {
@@ -420,6 +431,8 @@ export function GuestExamClient() {
       setExamStartTime(Date.now());
       setUserAnswers({});
       setShowResults(false);
+      setPostExamLangConfirmed(false);
+      setTranslatingPostExamLang(null);
       showResultsRef.current = false;
       setExamResult(null);
       setPendingPayload(null);
@@ -546,6 +559,8 @@ export function GuestExamClient() {
         savedAt: Date.now(),
       });
       setExamResult(attempt);
+      setPostExamLangConfirmed(false);
+      setTranslatingPostExamLang(null);
       setShowResults(true);
       showResultsRef.current = true;
       setSavePromptDismissed(false);
@@ -577,6 +592,8 @@ export function GuestExamClient() {
     setExamStartTime(null);
     setUserAnswers({});
     setShowResults(false);
+    setPostExamLangConfirmed(false);
+    setTranslatingPostExamLang(null);
     showResultsRef.current = false;
     setExamResult(null);
     setPendingPayload(null);
@@ -663,6 +680,68 @@ export function GuestExamClient() {
     </div>
   );
 
+  const handlePostExamLanguageSwitch = async (targetLang: ExamLangOption) => {
+    const normalizedCurrent = normalizeExamLanguage(
+      selectedExamLanguage || language
+    );
+    if (targetLang === normalizedCurrent) {
+      setLanguage(targetLang);
+      setPostExamLangConfirmed(true);
+      return;
+    }
+
+    setTranslatingPostExamLang(targetLang);
+    try {
+      if (exam?.questions?.length) {
+        const deviceId = getGuestDeviceId();
+        const { ok, data } = await secureApiPost("/api/guest-exam", {
+          action: "translate_questions",
+          deviceId,
+          questions: exam.questions,
+          language: targetLang,
+          sourceLanguage: normalizedCurrent,
+        });
+        if (ok && Array.isArray(data?.questions)) {
+          const translatedById = new Map<string, any>();
+          for (const tq of data.questions) {
+            if (tq?.id) translatedById.set(String(tq.id), tq);
+          }
+          setExam((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  questions: prev.questions.map((q, idx) => {
+                    const matched =
+                      translatedById.get(String(q.id)) || data.questions[idx];
+                    if (!matched) return q;
+                    return {
+                      ...q,
+                      question: matched.question || q.question,
+                      option_a: matched.option_a || q.option_a,
+                      option_b: matched.option_b || q.option_b,
+                      option_c: matched.option_c || q.option_c,
+                      option_d: matched.option_d || q.option_d,
+                      explanation: matched.explanation ?? q.explanation,
+                    };
+                  }),
+                }
+              : prev
+          );
+        }
+      }
+      setSelectedExamLanguage(targetLang);
+      setLanguage(targetLang);
+      setPostExamLangConfirmed(true);
+    } catch (err) {
+      console.error("[GuestExam] Post-exam translation error:", err);
+      setSelectedExamLanguage(targetLang);
+      setLanguage(targetLang);
+      setPostExamLangConfirmed(true);
+    } finally {
+      setTranslatingPostExamLang(null);
+    }
+  };
+
   return (
     <div className="relative min-h-[100dvh] w-full flex flex-col justify-center bg-slate-100/80 dark:bg-zinc-950 px-2 sm:px-4 py-2 sm:py-4 overflow-x-hidden">
       {/* Navo OS Subtle Wallpaper Backdrop */}
@@ -681,6 +760,21 @@ export function GuestExamClient() {
             <div className="h-8 w-8 animate-spin rounded-full border-3 border-primary border-t-transparent" />
           </div>
         ) : showResults && examResult ? (
+          !postExamLangConfirmed ? (
+            <PostExamLanguageGate
+              currentLanguage={selectedExamLanguage || language}
+              translatingLanguage={translatingPostExamLang}
+              onContinueCurrent={() => {
+                const norm = normalizeExamLanguage(selectedExamLanguage || language);
+                setSelectedExamLanguage(norm);
+                setLanguage(norm);
+                setPostExamLangConfirmed(true);
+              }}
+              onSelectLanguage={(targetLang) => {
+                void handlePostExamLanguageSwitch(targetLang);
+              }}
+            />
+          ) : (
           <div className="flex-1 flex flex-col">
             {/* Post-Exam Save History Prompt Banner (Guest mode does not save automatically, only shown while quota is not exhausted) */}
             {!savePromptDismissed && !quota.exhausted && (
@@ -771,6 +865,7 @@ export function GuestExamClient() {
               onSignIn={() => handleSaveAndRedirect("login")}
             />
           </div>
+          )
         ) : loadingExam ? (
           <div className="flex-1 flex flex-col items-center justify-center min-h-[360px] gap-3 p-6">
             <div className="h-9 w-9 animate-spin rounded-full border-3 border-primary border-t-transparent" />
@@ -996,9 +1091,11 @@ export function GuestExamClient() {
             loadingExam={loadingExam}
             selectedExamLanguage={selectedExamLanguage}
             onStartExam={(catId, lang) => {
+              const normalizedLang = normalizeExamLanguage(lang);
               setSelectedCategoryId(catId);
-              setSelectedExamLanguage(lang);
-              setPendingStartExam({ categoryId: catId, language: lang });
+              setSelectedExamLanguage(normalizedLang);
+              setLanguage(normalizedLang);
+              setPendingStartExam({ categoryId: catId, language: normalizedLang });
             }}
             onOpenGroupChallenge={() => {}}
             navigate={(view) => {

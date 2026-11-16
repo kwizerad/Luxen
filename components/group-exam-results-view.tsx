@@ -15,6 +15,7 @@ import { GroupExamResultsSkeleton } from "@/components/skeletons";
 import { ExamCelebration } from "@/components/exam-celebration";
 import { ExamPodium } from "@/components/exam-podium";
 import { ExamReview } from "@/components/exam-review";
+import { SmartImage } from "@/components/smart-image";
 import { cn } from "@/lib/utils";
 import type { ExamChallenge, ExamChallengeParticipant, ExamQuestion, ExamAttempt } from "@/lib/database.types";
 
@@ -804,10 +805,10 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
 
                     {q.question_image && (
                       <div className="mb-3 rounded-lg overflow-hidden border">
-                        <img
+                        <SmartImage
                           src={q.question_image}
                           alt=""
-                          className="w-full max-h-48 object-contain bg-muted/20"
+                          className="w-full h-48 object-contain bg-muted/20"
                         />
                       </div>
                     )}
@@ -851,10 +852,11 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
                               <div className="flex-1 min-w-0">
                                 {optImg && (
                                   <div className="mb-2 rounded-md overflow-hidden border">
-                                    <img
+                                    <SmartImage
                                       src={optImg}
                                       alt=""
-                                      className="w-full max-h-32 object-contain bg-muted/20"
+                                      width={640}
+                                      className="w-full h-32 object-contain bg-muted/20"
                                     />
                                   </div>
                                 )}

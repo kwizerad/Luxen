@@ -23,6 +23,7 @@ import { Settings, LogOut, User, LogIn, Moon, Sun, Globe, Check, Download, Home,
 import { useLanguage } from "@/lib/language-context";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { isAdmin } from "@/lib/permissions";
+import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
 
 type Language = "English" | "Kinyarwanda" | "French";
 type LanguageCode = "en" | "rw" | "fr";
@@ -73,6 +74,13 @@ export function FloatingSettings() {
 
   const logout = async () => {
     try {
+      const isAdminLogout =
+        userIsAdmin ||
+        Boolean(pathname?.toLowerCase().startsWith("/admin"));
+      if (isAdminLogout) {
+        resetLandingLanguageForAdminLogout();
+        fetch("/api/admin-signout", { method: "POST" }).catch(() => {});
+      }
       const supabase = createClient();
       await supabase.auth.signOut();
       window.location.href = "/";

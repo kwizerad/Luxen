@@ -144,24 +144,69 @@ export function hasCustomScopeSettings(
   return Object.values(scopedKeys).some((k) => map[k] !== undefined);
 }
 
+const securitySettingsCache: Partial<Record<SecurityScope, { value: SecuritySettings; expiresAt: number }>> = {};
+const securityInFlight: Partial<Record<SecurityScope, Promise<SecuritySettings>>> = {};
+
+if (typeof window !== "undefined") {
+  const clearSecCache = () => {
+    delete securitySettingsCache.course;
+    delete securitySettingsCache.official;
+  };
+  window.addEventListener("config-changed", clearSecCache);
+  window.addEventListener("system-config-updated", clearSecCache);
+}
+
 export async function getSecuritySettings(scope: SecurityScope): Promise<SecuritySettings> {
-  const supabase = createClient();
-  const keys = Array.from(
-    new Set([
-      ...Object.values(SECURITY_CONFIG_KEYS),
-      ...Object.values(getSecurityConfigKeysForScope(scope)),
-    ])
-  );
-
-  const { data, error } = await supabase
-    .from("system_config")
-    .select("*")
-    .in("key", keys);
-
-  if (error) {
-    console.error("Failed to load security settings:", error);
-    return DEFAULT_SECURITY_SETTINGS;
+  const cached = securitySettingsCache[scope];
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
   }
 
-  return parseSecuritySettings(data || [], scope);
+  const running = securityInFlight[scope];
+  if (running) return running;
+
+  const promise = (async () => {
+    try {
+      if (typeof window !== "undefined") {
+        try {
+          const res = await fetch("/api/system-config", { cache: "no-store" });
+          if (res.ok) {
+            const json = await res.json();
+            if (Array.isArray(json.configs)) {
+              const parsed = parseSecuritySettings(json.configs, scope);
+              securitySettingsCache[scope] = { value: parsed, expiresAt: Date.now() + 30_000 };
+              return parsed;
+            }
+          }
+        } catch {}
+      }
+
+      const supabase = createClient();
+      const keys = Array.from(
+        new Set([
+          ...Object.values(SECURITY_CONFIG_KEYS),
+          ...Object.values(getSecurityConfigKeysForScope(scope)),
+        ])
+      );
+
+      const { data, error } = await supabase
+        .from("system_config")
+        .select("*")
+        .in("key", keys);
+
+      if (error) {
+        console.error("Failed to load security settings:", error);
+        return DEFAULT_SECURITY_SETTINGS;
+      }
+
+      const parsed = parseSecuritySettings(data || [], scope);
+      securitySettingsCache[scope] = { value: parsed, expiresAt: Date.now() + 30_000 };
+      return parsed;
+    } finally {
+      delete securityInFlight[scope];
+    }
+  })();
+
+  securityInFlight[scope] = promise;
+  return promise;
 }

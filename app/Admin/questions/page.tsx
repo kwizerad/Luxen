@@ -533,7 +533,7 @@ export default function QuestionManagementPage() {
               alt={t("preview")}
               width={1200}
               height={800}
-              unoptimized
+              referrerPolicy="no-referrer"
               className="w-full h-auto rounded-lg"
             />
           )}
@@ -568,7 +568,7 @@ export default function QuestionManagementPage() {
                         alt={t("question")} 
                         width={800}
                         height={600}
-                        unoptimized
+                        referrerPolicy="no-referrer"
                         className="w-full h-auto rounded-lg border cursor-pointer"
                         onClick={() => setSelectedImage(viewingQuestion.question_image!)}
                       />
@@ -622,7 +622,7 @@ export default function QuestionManagementPage() {
                                 alt={`Option ${option}`} 
                                 width={800}
                                 height={600}
-                                unoptimized
+                                referrerPolicy="no-referrer"
                                 className="w-full h-auto rounded border cursor-pointer"
                                 onClick={() => setSelectedImage(optionImage as string)}
                               />

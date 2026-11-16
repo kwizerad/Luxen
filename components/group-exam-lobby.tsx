@@ -73,7 +73,7 @@ export function GroupExamLobby({
   onStart,
   onCancel,
 }: GroupExamLobbyProps) {
-  const { t, language } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { user } = useAuth();
   const canShowAvatar = (targetUserId: string, avatarUrl?: string | null) =>
     canViewUserAvatar(avatarUrl, targetUserId, user?.id, user?.user_metadata?.role);
@@ -98,6 +98,19 @@ export function GroupExamLobby({
   resolvedLanguageRef.current = challenge?.language || examLanguage || "Kinyarwanda";
   const challengeChannelRef = useRef<any>(null);
   const isFetchingRef = useRef(false);
+
+  useEffect(() => {
+    const rawLang = challenge?.language || examLanguage;
+    if (!rawLang) return;
+    const lower = String(rawLang).trim().toLowerCase();
+    const normalized =
+      lower === "en" || lower === "english"
+        ? "English"
+        : lower === "fr" || lower === "french" || lower === "français"
+        ? "French"
+        : "Kinyarwanda";
+    setLanguage(normalized);
+  }, [challenge?.language, examLanguage, setLanguage]);
 
   // Hide dock on mobile while waiting in lobby
   useEffect(() => {

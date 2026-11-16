@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { getCurrentUser } from "@/lib/auth-utils";
+import { getCurrentUser, resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Lock,
+  LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
@@ -258,6 +259,26 @@ export default function AdminLayout({
                       {t("changePassword")}
                     </>
                   )}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-2 border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 cursor-pointer"
+                  onClick={async () => {
+                    try {
+                      resetLandingLanguageForAdminLogout();
+                      const supabase = createClient();
+                      await supabase.auth.signOut();
+                      fetch("/api/admin-signout", { method: "POST" }).catch(() => {});
+                    } catch {}
+                    if (typeof window !== "undefined") {
+                      window.location.href = "/";
+                    }
+                  }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>{t("logout") || "Sign Out"}</span>
                 </Button>
               </form>
             </motion.div>

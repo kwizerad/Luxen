@@ -7,6 +7,7 @@ import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { canViewUserAvatar } from "@/lib/avatar-helper";
 import { ExamCelebration } from "@/components/exam-celebration";
+import { SmartImage } from "@/components/smart-image";
 import {
   CheckCircle2,
   XCircle,
@@ -700,10 +701,10 @@ export function ExamReview({
                     {/* Question Diagram Image */}
                     {question.question_image && (
                       <div className="rounded-xl border border-border/50 bg-muted/20 p-2 sm:p-3 w-full max-w-2xl">
-                        <img
+                        <SmartImage
                           src={question.question_image}
                           alt="Question diagram"
-                          className="w-full min-h-[200px] sm:min-h-[260px] max-h-[340px] sm:max-h-[440px] object-contain rounded-lg mx-auto"
+                          className="w-full min-h-[200px] sm:min-h-[260px] h-[280px] sm:h-[360px] object-contain rounded-lg mx-auto"
                         />
                       </div>
                     )}
@@ -745,10 +746,11 @@ export function ExamReview({
 
                             <div className="flex-1 min-w-0">
                               {optImg && (
-                                <img
+                                <SmartImage
                                   src={optImg}
                                   alt={`Option ${opt}`}
-                                  className="max-h-40 sm:max-h-48 w-auto max-w-full object-contain rounded-md mb-1.5"
+                                  width={640}
+                                  className="h-40 sm:h-48 w-full max-w-md object-contain rounded-md mb-1.5"
                                 />
                               )}
                               {optText && <span className="leading-snug block">{optText}</span>}

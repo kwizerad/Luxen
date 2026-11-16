@@ -7,6 +7,50 @@ let cachedGroupExam: boolean | null = null;
 let cachedStandaloneExam: boolean | null = null;
 let cachedLiveExamIdVerification: boolean | null = null;
 let cachedServicesConfig: { pageEnabled: boolean; services: Record<string, boolean>; idVerificationRequired?: boolean } | null = null;
+let cachedConfigRows: Array<{ key: string; value: string }> | null = null;
+let cachedConfigRowsAt = 0;
+let inFlightConfigPromise: Promise<Array<{ key: string; value: string }> | null> | null = null;
+const CLIENT_CONFIG_TTL_MS = 30_000;
+
+async function fetchAllConfigRowsDeduplicated(): Promise<Array<{ key: string; value: string }> | null> {
+  if (cachedConfigRows && Date.now() - cachedConfigRowsAt < CLIENT_CONFIG_TTL_MS) {
+    return cachedConfigRows;
+  }
+  if (inFlightConfigPromise) {
+    return inFlightConfigPromise;
+  }
+
+  inFlightConfigPromise = (async () => {
+    try {
+      if (typeof window !== "undefined") {
+        try {
+          const res = await fetch("/api/system-config", { cache: "no-store" });
+          if (res.ok) {
+            const json = await res.json();
+            if (Array.isArray(json.configs)) {
+              cachedConfigRows = json.configs;
+              cachedConfigRowsAt = Date.now();
+              return json.configs;
+            }
+          }
+        } catch {}
+      }
+
+      const supabase = createClient();
+      const { data, error } = await supabase.from("system_config").select("key, value");
+      if (!error && Array.isArray(data)) {
+        cachedConfigRows = data;
+        cachedConfigRowsAt = Date.now();
+        return data;
+      }
+      return cachedConfigRows;
+    } finally {
+      inFlightConfigPromise = null;
+    }
+  })();
+
+  return inFlightConfigPromise;
+}
 
 // Read from session storage if available
 if (typeof window !== "undefined") {
@@ -37,45 +81,19 @@ export function getCachedGroupExamEnabled(): boolean | null {
  */
 export async function isGroupExamEnabled(): Promise<boolean> {
   try {
-    if (typeof window !== "undefined") {
-      try {
-        const res = await fetch("/api/system-config?key=group_exam_enabled", {
-          cache: "no-store",
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.config) {
-            const isEnabled = String(json.config.value).toLowerCase() !== "false";
-            cachedGroupExam = isEnabled;
-            try {
-              sessionStorage.setItem("app_group_exam_enabled", String(isEnabled));
-            } catch {}
-            return isEnabled;
-          }
-        }
-      } catch {}
+    const rows = await fetchAllConfigRowsDeduplicated();
+    if (rows) {
+      const entry = rows.find((r) => r.key === "group_exam_enabled");
+      const isEnabled = entry ? String(entry.value).toLowerCase() !== "false" : true;
+      cachedGroupExam = isEnabled;
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem("app_group_exam_enabled", String(isEnabled));
+        } catch {}
+      }
+      return isEnabled;
     }
-
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("system_config")
-      .select("value")
-      .eq("key", "group_exam_enabled")
-      .maybeSingle();
-
-    if (error) {
-      console.error("Failed to fetch group_exam_enabled:", error);
-      return cachedGroupExam !== null ? cachedGroupExam : true;
-    }
-
-    const isEnabled = data ? data.value === "true" : true;
-    cachedGroupExam = isEnabled;
-    if (typeof window !== "undefined") {
-      try {
-        sessionStorage.setItem("app_group_exam_enabled", String(isEnabled));
-      } catch {}
-    }
-    return isEnabled;
+    return cachedGroupExam !== null ? cachedGroupExam : true;
   } catch {
     return cachedGroupExam !== null ? cachedGroupExam : true;
   }
@@ -86,45 +104,19 @@ export async function isGroupExamEnabled(): Promise<boolean> {
  */
 export async function isStandaloneExamEnabled(): Promise<boolean> {
   try {
-    if (typeof window !== "undefined") {
-      try {
-        const res = await fetch("/api/system-config?key=standalone_exam_enabled", {
-          cache: "no-store",
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.config) {
-            const isEnabled = String(json.config.value).toLowerCase() !== "false";
-            cachedStandaloneExam = isEnabled;
-            try {
-              sessionStorage.setItem("app_standalone_exam_enabled", String(isEnabled));
-            } catch {}
-            return isEnabled;
-          }
-        }
-      } catch {}
+    const rows = await fetchAllConfigRowsDeduplicated();
+    if (rows) {
+      const entry = rows.find((r) => r.key === "standalone_exam_enabled");
+      const isEnabled = entry ? String(entry.value).toLowerCase() !== "false" : true;
+      cachedStandaloneExam = isEnabled;
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem("app_standalone_exam_enabled", String(isEnabled));
+        } catch {}
+      }
+      return isEnabled;
     }
-
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("system_config")
-      .select("value")
-      .eq("key", "standalone_exam_enabled")
-      .maybeSingle();
-
-    if (error) {
-      console.error("Failed to fetch standalone_exam_enabled:", error);
-      return cachedStandaloneExam !== null ? cachedStandaloneExam : true;
-    }
-
-    const isEnabled = data ? data.value === "true" : true;
-    cachedStandaloneExam = isEnabled;
-    if (typeof window !== "undefined") {
-      try {
-        sessionStorage.setItem("app_standalone_exam_enabled", String(isEnabled));
-      } catch {}
-    }
-    return isEnabled;
+    return cachedStandaloneExam !== null ? cachedStandaloneExam : true;
   } catch {
     return cachedStandaloneExam !== null ? cachedStandaloneExam : true;
   }
@@ -136,45 +128,19 @@ export async function isStandaloneExamEnabled(): Promise<boolean> {
  */
 export async function isLiveExamIdVerificationRequired(): Promise<boolean> {
   try {
-    if (typeof window !== "undefined") {
-      try {
-        const res = await fetch("/api/system-config?key=live_exam_id_verification_required", {
-          cache: "no-store",
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.config) {
-            const isRequired = String(json.config.value).toLowerCase() !== "false";
-            cachedLiveExamIdVerification = isRequired;
-            try {
-              sessionStorage.setItem("app_live_exam_id_verification_required", String(isRequired));
-            } catch {}
-            return isRequired;
-          }
-        }
-      } catch {}
+    const rows = await fetchAllConfigRowsDeduplicated();
+    if (rows) {
+      const entry = rows.find((r) => r.key === "live_exam_id_verification_required");
+      const isRequired = entry ? String(entry.value).toLowerCase() !== "false" : true;
+      cachedLiveExamIdVerification = isRequired;
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem("app_live_exam_id_verification_required", String(isRequired));
+        } catch {}
+      }
+      return isRequired;
     }
-
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("system_config")
-      .select("value")
-      .eq("key", "live_exam_id_verification_required")
-      .maybeSingle();
-
-    if (error) {
-      console.error("Failed to fetch live_exam_id_verification_required:", error);
-      return cachedLiveExamIdVerification !== null ? cachedLiveExamIdVerification : true;
-    }
-
-    const isRequired = data ? String(data.value).toLowerCase() !== "false" : true;
-    cachedLiveExamIdVerification = isRequired;
-    if (typeof window !== "undefined") {
-      try {
-        sessionStorage.setItem("app_live_exam_id_verification_required", String(isRequired));
-      } catch {}
-    }
-    return isRequired;
+    return cachedLiveExamIdVerification !== null ? cachedLiveExamIdVerification : true;
   } catch {
     return cachedLiveExamIdVerification !== null ? cachedLiveExamIdVerification : true;
   }
@@ -207,30 +173,7 @@ export async function getCachedServicesConfig(): Promise<{
   idVerificationRequired: boolean;
 }> {
   try {
-    let rows: Array<{ key: string; value: string }> | null = null;
-
-    if (typeof window !== "undefined") {
-      try {
-        const res = await fetch("/api/system-config", { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json();
-          if (Array.isArray(json.configs)) {
-            rows = json.configs;
-          }
-        }
-      } catch {}
-    }
-
-    if (!rows) {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("system_config")
-        .select("key, value");
-
-      if (!error && data) {
-        rows = data;
-      }
-    }
+    const rows = await fetchAllConfigRowsDeduplicated();
 
     if (!rows) {
       return (
@@ -297,6 +240,8 @@ export async function getCachedServicesConfig(): Promise<{
  */
 export function invalidateServicesConfigCache(): void {
   cachedServicesConfig = null;
+  cachedConfigRows = null;
+  cachedConfigRowsAt = 0;
   if (typeof window !== "undefined") {
     try {
       sessionStorage.removeItem("app_services_config");
@@ -310,11 +255,15 @@ if (typeof window !== "undefined") {
     cachedServicesConfig = null;
     cachedGroupExam = null;
     cachedStandaloneExam = null;
+    cachedConfigRows = null;
+    cachedConfigRowsAt = 0;
   });
   window.addEventListener("system-config-updated", () => {
     cachedServicesConfig = null;
     cachedGroupExam = null;
     cachedStandaloneExam = null;
+    cachedConfigRows = null;
+    cachedConfigRowsAt = 0;
   });
 }
 

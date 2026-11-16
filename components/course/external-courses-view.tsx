@@ -48,6 +48,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { QuestionTTSButton } from "@/components/course/question-tts-button";
+import { SmartImage } from "@/components/smart-image";
+import { compressImageFile } from "@/lib/image-compression";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type {
@@ -71,7 +73,9 @@ interface ExternalCoursesViewProps {
 }
 
 function hasValidImage(url: string | null | undefined): boolean {
-  return Boolean(url && typeof url === "string" && url.trim().length > 0);
+  if (!url || typeof url !== "string") return false;
+  const trimmed = url.trim();
+  return trimmed.length > 0 && trimmed !== "null" && trimmed !== "undefined" && trimmed !== "N/A";
 }
 
 export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesViewProps) {
@@ -551,8 +555,13 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
     const toastId = toast.loading("Uploading and updating picture in external database...");
 
     try {
+      const compressedFile = await compressImageFile(file, {
+        maxDimension: 1280,
+        quality: 0.80,
+        minBytesToCompress: 15 * 1024,
+      });
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", compressedFile);
       formData.append("entityType", type);
       formData.append("entityId", id);
 
@@ -2001,10 +2010,10 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
 
                 {hasValidImage(lFormImage) ? (
                   <div className="rounded-lg border bg-background p-4 flex items-center justify-center min-h-[180px] max-h-[300px] overflow-hidden">
-                    <img
+                    <SmartImage
                       src={lFormImage}
                       alt="Lesson visual"
-                      className="max-h-[260px] w-auto object-contain rounded cursor-zoom-in"
+                      className="w-full h-[240px] object-contain rounded cursor-zoom-in"
                       onClick={() => setPreviewImageUrl(lFormImage)}
                     />
                   </div>
@@ -2220,9 +2229,10 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
                             #{lesson.lesson_number}
                           </span>
                           {hasImg && (
-                            <img
+                            <SmartImage
                               src={lesson.lesson_image!}
                               alt=""
+                              width={384}
                               className="h-9 w-9 rounded object-contain border bg-muted/30 shrink-0"
                             />
                           )}
@@ -2491,10 +2501,10 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
 
                         {hasValidImage(qFormImage) ? (
                           <div className="rounded-lg border bg-background p-3 flex items-center justify-center min-h-[160px] max-h-[260px]">
-                            <img
+                            <SmartImage
                               src={qFormImage}
                               alt="Question illustration"
-                              className="max-h-[230px] w-auto object-contain rounded cursor-zoom-in"
+                              className="w-full h-[220px] object-contain rounded cursor-zoom-in"
                               onClick={() => setPreviewImageUrl(qFormImage)}
                             />
                           </div>
@@ -2646,10 +2656,11 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
           </DialogHeader>
           {previewImageUrl && (
             <div className="flex items-center justify-center p-2 bg-muted/20 rounded-xl max-h-[75vh] overflow-auto">
-              <img
+              <SmartImage
                 src={previewImageUrl}
                 alt="Preview"
-                className="max-h-[70vh] w-auto object-contain rounded-lg"
+                priority
+                className="w-full h-[65vh] max-h-[70vh] object-contain rounded-lg"
               />
             </div>
           )}
@@ -2909,10 +2920,11 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
 
                   {hasValidImage(currentQ.image) && (
                     <div className="rounded-xl border bg-muted/20 p-3 flex justify-center max-h-[220px]">
-                      <img
+                      <SmartImage
                         src={currentQ.image!}
                         alt=""
-                        className="max-h-[190px] w-auto object-contain rounded"
+                        priority
+                        className="w-full h-[190px] object-contain rounded"
                       />
                     </div>
                   )}

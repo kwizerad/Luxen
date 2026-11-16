@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LessonContentView } from "@/app/dashboard/course/LessonContentView";
+import { SmartImage } from "@/components/smart-image";
 import { loadFullCourse, type FullCourse } from "@/app/Admin/actions/courses";
 import type {
   CourseLanguageCourse,
@@ -170,13 +171,12 @@ function MediaPreview({ lesson }: { lesson: CourseLesson }) {
   if (image_url) {
     return (
       <div className="space-y-2">
-        <img
+        <SmartImage
           src={image_url}
           alt={lesson.title}
-          className="rounded-[14px] max-h-64 w-auto object-contain border border-[var(--admin-border)] bg-[var(--admin-input-bg)]"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = "none";
-          }}
+          width={640}
+          height={384}
+          className="rounded-[14px] h-64 w-full max-w-md border border-[var(--admin-border)] bg-[var(--admin-input-bg)]"
         />
       </div>
     );
@@ -249,10 +249,12 @@ function QuestionPreview({
             <p className="text-sm font-medium text-[var(--admin-text)]">{question.question}</p>
           )}
           {question.question_image && (
-            <img
+            <SmartImage
               src={question.question_image}
               alt="Question"
-              className="rounded-lg max-h-48 object-contain border border-[var(--admin-border)]"
+              width={640}
+              height={320}
+              className="rounded-lg h-48 w-full max-w-md border border-[var(--admin-border)]"
             />
           )}
           {questionAudio && (
@@ -291,10 +293,12 @@ function QuestionPreview({
               <div className="flex-1 space-y-2">
                 {option.label && <span>{option.label}</span>}
                 {option.image && (
-                  <img
+                  <SmartImage
                     src={option.image}
                     alt={`Option ${option.key}`}
-                    className="rounded-lg max-h-40 object-contain border border-[var(--admin-border)]"
+                    width={384}
+                    height={256}
+                    className="rounded-lg h-36 w-full border border-[var(--admin-border)]"
                   />
                 )}
               </div>
@@ -633,10 +637,12 @@ export function CoursePreviewDialog({
             </div>
           </div>
           {course.thumbnail_url && (
-            <img
+            <SmartImage
               src={course.thumbnail_url}
               alt={course.title}
-              className="h-20 w-20 rounded-[14px] object-cover border border-[var(--admin-border)] flex-shrink-0"
+              width={256}
+              height={256}
+              className="h-20 w-20 rounded-[14px] [&_img]:object-cover border border-[var(--admin-border)] flex-shrink-0"
             />
           )}
         </div>
@@ -648,10 +654,12 @@ export function CoursePreviewDialog({
         )}
 
         {course.banner_url && (
-          <img
+          <SmartImage
             src={course.banner_url}
             alt={course.title}
-            className="w-full h-40 object-cover rounded-[14px] border border-[var(--admin-border)]"
+            width={1080}
+            height={320}
+            className="w-full h-40 [&_img]:object-cover rounded-[14px] border border-[var(--admin-border)]"
           />
         )}
       </div>

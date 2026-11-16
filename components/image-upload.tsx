@@ -2,9 +2,10 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ImageIcon, X, Upload, Loader2 } from "lucide-react";
+import { X, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { compressImageFile } from "@/lib/image-compression";
 import { useLanguage } from "@/lib/language-context";
 
 interface ImageUploadProps {
@@ -36,50 +37,88 @@ export function ImageUpload({
   }, [value]);
 
   const handleFileChange = async (file: File) => {
-    // Validate file
+    // Validate file type and pre-compression cap (20MB)
     if (!file.type.startsWith("image/")) {
       toast.error(t("imageUpload.selectImageFile"));
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 20 * 1024 * 1024) {
       toast.error(t("imageUpload.fileSizeLimit"));
       return;
     }
 
-    // Show preview
+    // Show immediate local preview
     const reader = new FileReader();
     reader.onload = (e) => {
       setPreview(e.target?.result as string);
     };
     reader.readAsDataURL(file);
 
-    // Upload file
     setIsUploading(true);
     onUploadStart?.();
 
     try {
-      const supabase = createClient();
+      const targetMaxDim = folder === "profile-pictures" ? 512 : 1280;
+      const uploadFile = await compressImageFile(file, {
+        maxDimension: targetMaxDim,
+        quality: 0.80,
+        minBytesToCompress: 15 * 1024,
+      });
 
-      const timestamp = Date.now();
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${timestamp}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePathLocal = `${folder}/${fileName}`;
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("images")
-        .upload(filePathLocal, file, {
-          contentType: file.type,
-          cacheControl: "3600",
-        });
-
-      if (uploadError) {
-        console.error("Supabase storage upload error:", uploadError);
-        throw uploadError;
+      if (uploadFile.size > 5 * 1024 * 1024) {
+        toast.error(t("imageUpload.fileSizeLimit"));
+        setPreview(value || null);
+        return;
       }
 
-      const { data: publicData } = supabase.storage.from("images").getPublicUrl(filePathLocal);
-      const publicUrl = publicData.publicUrl;
+      const supabase = createClient();
+      let publicUrl = "";
+      let uploadedPath = "";
+
+      // Prefer server-side `/api/upload` so Sharp ensures optimal WebP encoding
+      try {
+        const formData = new FormData();
+        formData.append("file", uploadFile);
+        formData.append("folder", folder);
+
+        const apiRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (apiRes.ok) {
+          const apiData = await apiRes.json();
+          if (apiData?.url) {
+            publicUrl = apiData.url;
+            uploadedPath = apiData.path || "";
+          }
+        }
+      } catch {
+        // Fallback to direct Supabase upload with client-compressed file below
+      }
+
+      if (!publicUrl) {
+        const timestamp = Date.now();
+        const fileExt = uploadFile.name.split(".").pop() || "webp";
+        const fileName = `${timestamp}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+        const filePathLocal = `${folder}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("images")
+          .upload(filePathLocal, uploadFile, {
+            contentType: uploadFile.type || file.type,
+            cacheControl: "31536000",
+          });
+
+        if (uploadError) {
+          console.error("Supabase storage upload error:", uploadError);
+          throw uploadError;
+        }
+
+        const { data: publicData } = supabase.storage.from("images").getPublicUrl(filePathLocal);
+        publicUrl = publicData.publicUrl;
+        uploadedPath = filePathLocal;
+      }
 
       // If profile picture, update user metadata
       if (folder === "profile-pictures") {
@@ -92,7 +131,7 @@ export function ImageUpload({
       }
 
       onChange(publicUrl);
-      setFilePath(filePathLocal);
+      setFilePath(uploadedPath);
       toast.success(t("imageUploadedSuccess"));
     } catch (error: any) {
       console.error("Upload error:", error);
@@ -140,6 +179,7 @@ export function ImageUpload({
         <img
           src={preview}
           alt={t("imageUpload.uploaded")}
+          referrerPolicy="no-referrer"
           className="w-full h-48 object-cover rounded-lg border border-border"
         />
         <Button

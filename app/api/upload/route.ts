@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdmin } from "@/lib/permissions";
+import { compressUploadedImage } from "@/lib/server-image-compress";
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,27 +61,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
     }
 
-    const maxSize = isLessonAsset ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+    const maxSize = isLessonAsset ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
     if (file.size > maxSize) {
-      return NextResponse.json({ error: `File size must be less than ${isLessonAsset ? 50 : 5}MB` }, { status: 400 });
+      return NextResponse.json({ error: `File size must be less than ${isLessonAsset ? 50 : 15}MB` }, { status: 400 });
     }
+
+    // Convert file to buffer and compress images automatically to WebP via Sharp
+    const bytes = await file.arrayBuffer();
+    const rawBuffer = Buffer.from(bytes);
+    const compressedResult = file.type.startsWith("image/")
+      ? await compressUploadedImage(rawBuffer, file.type, file.name, {
+          maxDimension: folder === "profile-pictures" ? 512 : 1280,
+          quality: 80,
+          minBytesToCompress: 12 * 1024,
+        })
+      : {
+          buffer: rawBuffer,
+          contentType: file.type,
+          extension: file.name.split(".").pop() || "bin",
+          originalBytes: rawBuffer.byteLength,
+          compressedBytes: rawBuffer.byteLength,
+          savedPercent: 0,
+        };
+    const { buffer, contentType, extension, originalBytes, compressedBytes, savedPercent } = compressedResult;
 
     // Generate unique filename
     const timestamp = Date.now();
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${timestamp}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+    const fileName = `${timestamp}-${Math.random().toString(36).substring(2, 15)}.${extension}`;
     const filePath = `${folder}/${fileName}`;
 
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Upload to Supabase Storage
+    // Upload to Supabase Storage with long cacheControl for fast CDN/browser loading
     const { data, error } = await supabase.storage
       .from("images")
       .upload(filePath, buffer, {
-        contentType: file.type,
-        cacheControl: "3600",
+        contentType,
+        cacheControl: "31536000",
+        upsert: true,
       });
 
     if (error) {
@@ -96,6 +112,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       url: publicUrl, 
       path: filePath,
+      originalBytes,
+      compressedBytes,
+      savedPercent,
       message: "Image uploaded successfully" 
     });
 

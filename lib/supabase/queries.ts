@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth-utils";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
 import { EXTERNAL_EXAM_CATEGORY_ID, isExternalExamCategoryId, isExternalModuleId, isExternalLessonId } from "@/lib/supabase/external";
 import { secureApiPost } from "@/lib/e2e-crypto";
+import { normalizeExamQuestion, getBuiltinFallbackQuestions } from "@/lib/exam-question-utils";
 import { isUUID } from "@/lib/utils";
 import type { ExamCategory, ExamQuestion, ExamAnswer, ExamAttempt, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
 
@@ -1429,57 +1430,65 @@ export async function getExamForTaking(categoryId: string, challengeId?: string,
 
   const hasValidUser = Boolean(user?.id && isUUID(user.id));
 
-  // Get universal exam limit
+  // Fetch universal limit, user override, and today's attempt count concurrently
   let universalExamLimit = 5;
-  try {
-    const { data: universalLimit } = await supabase
-      .from("system_config")
-      .select("value")
-      .eq("key", "universal_exam_limit")
-      .single();
-
-    if (universalLimit?.value) {
-      universalExamLimit = parseInt(universalLimit.value, 10) || 5;
-    }
-  } catch {}
-
   let isLimited = true;
   let dailyLimit = universalExamLimit;
   let attemptsCount = 0;
 
-  if (hasValidUser && user?.id) {
-    try {
-      // Get user's daily limit and unlimited status (user limit can override universal)
-      const { data: userLimit, error: limitError } = await supabase
-        .from("user_exam_limits")
-        .select("daily_limit, is_limited")
-        .eq("user_id", user.id)
-        .single();
+  const universalPromise = Promise.resolve(
+    supabase
+      .from("system_config")
+      .select("value")
+      .eq("key", "universal_exam_limit")
+      .single()
+  ).catch(() => ({ data: null, error: null }));
 
-      if (limitError && limitError.code !== "PGRST116") {
-        console.warn("Could not fetch user limit:", limitError.message);
-      }
+  const userLimitPromise =
+    hasValidUser && user?.id
+      ? Promise.resolve(
+          supabase
+            .from("user_exam_limits")
+            .select("daily_limit, is_limited")
+            .eq("user_id", user.id)
+            .single()
+        ).catch(() => ({ data: null, error: null }))
+      : Promise.resolve({ data: null, error: null });
 
-      isLimited = userLimit?.is_limited ?? true;
-      const userLimitValue = userLimit?.daily_limit ?? universalExamLimit;
-      dailyLimit = Math.min(userLimitValue, universalExamLimit);
-    } catch {}
+  const attemptsCountPromise =
+    hasValidUser && user?.id
+      ? Promise.resolve(
+          supabase
+            .from("exam_attempts")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .gte("started_at", today.toISOString())
+            .lt("started_at", tomorrow.toISOString())
+        ).catch(() => ({ count: 0, error: null }))
+      : Promise.resolve({ count: 0, error: null });
 
-    try {
-      // Count today's attempts
-      const { count: attemptsToday, error: countError } = await supabase
-        .from("exam_attempts")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .gte("started_at", today.toISOString())
-        .lt("started_at", tomorrow.toISOString());
+  const [universalRes, userLimitRes, attemptsRes] = await Promise.all([
+    universalPromise,
+    userLimitPromise,
+    attemptsCountPromise,
+  ]);
 
-      if (countError) {
-        console.warn("Could not count attempts:", countError.message);
-      } else {
-        attemptsCount = attemptsToday || 0;
-      }
-    } catch {}
+  if ((universalRes as any)?.data?.value) {
+    universalExamLimit = parseInt((universalRes as any).data.value, 10) || 5;
+  }
+  const userLimitData = (userLimitRes as any)?.data;
+  const userLimitError = (userLimitRes as any)?.error;
+  if (userLimitError && userLimitError.code !== "PGRST116") {
+    console.warn("Could not fetch user limit:", userLimitError.message);
+  }
+  isLimited = userLimitData?.is_limited ?? true;
+  const userLimitValue = userLimitData?.daily_limit ?? universalExamLimit;
+  dailyLimit = Math.min(userLimitValue, universalExamLimit);
+
+  if ((attemptsRes as any)?.error) {
+    console.warn("Could not count attempts:", (attemptsRes as any).error.message);
+  } else {
+    attemptsCount = (attemptsRes as any)?.count || 0;
   }
 
   // Only enforce limit if user is in limited mode
@@ -1582,375 +1591,16 @@ export async function getExamForTaking(categoryId: string, challengeId?: string,
     } catch {}
   }
 
-  // Fallback 3 (Bulletproof): If still 0 questions, generate built-in official mock exam questions
+  // Fallback 3 (Bulletproof): If still 0 questions, use shared built-in mock exam questions
   if (rawQuestions.length === 0) {
-    rawQuestions = [
-      {
-        id: "fallback-q1",
-        category_id: categoryId,
-        question: "What should a driver do when encountering a steady red traffic light?",
-        question_image: null,
-        option_a: "Stop completely before the stop line or crosswalk",
-        option_a_image: null,
-        option_b: "Slow down and proceed with caution if road is clear",
-        option_b_image: null,
-        option_c: "Turn right immediately without stopping",
-        option_c_image: null,
-        option_d: "Accelerate to pass through before other cars move",
-        option_d_image: null,
-        correct_answer: "A",
-        explanation: "A steady red light requires all drivers to come to a complete stop.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q2",
-        category_id: categoryId,
-        question: "What is the general speed limit in built-up urban areas in Rwanda unless otherwise posted?",
-        question_image: null,
-        option_a: "30 km/h",
-        option_a_image: null,
-        option_b: "40 km/h",
-        option_b_image: null,
-        option_c: "50 km/h",
-        option_c_image: null,
-        option_d: "60 km/h",
-        option_d_image: null,
-        correct_answer: "C",
-        explanation: "In urban areas and built-up zones, the standard speed limit is 50 km/h.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q3",
-        category_id: categoryId,
-        question: "When approaching a pedestrian crossing where pedestrians are waiting to cross, what is your obligation?",
-        question_image: null,
-        option_a: "Sound your horn to warn them",
-        option_a_image: null,
-        option_b: "Yield right of way and stop to allow them to cross safely",
-        option_b_image: null,
-        option_c: "Maintain your speed if you are closer to the crossing",
-        option_c_image: null,
-        option_d: "Pass behind them quickly",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "Drivers must always yield right of way to pedestrians at marked crosswalks.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q4",
-        category_id: categoryId,
-        question: "What does a triangular yield sign (give way) require you to do?",
-        question_image: null,
-        option_a: "Stop completely in all circumstances",
-        option_a_image: null,
-        option_b: "Give right of way to traffic on the major road",
-        option_b_image: null,
-        option_c: "Speed up to merge before other vehicles",
-        option_c_image: null,
-        option_d: "Flash your headlights and proceed",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "A yield sign requires you to slow down and give right of way to any vehicles on the intersecting road.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q5",
-        category_id: categoryId,
-        question: "When is overtaking on the left prohibited?",
-        question_image: null,
-        option_a: "On multi-lane one-way streets",
-        option_a_image: null,
-        option_b: "On curves, blind summits, and near intersections where visibility is restricted",
-        option_b_image: null,
-        option_c: "When the vehicle ahead is traveling at normal speed",
-        option_c_image: null,
-        option_d: "During daytime hours",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "Overtaking is strictly prohibited where visibility is impaired such as curves and hillcrests.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q6",
-        category_id: categoryId,
-        question: "What is the minimum legal blood alcohol concentration (BAC) limit for ordinary drivers in Rwanda?",
-        question_image: null,
-        option_a: "0.00% (Zero tolerance)",
-        option_a_image: null,
-        option_b: "0.05%",
-        option_b_image: null,
-        option_c: "0.08%",
-        option_c_image: null,
-        option_d: "0.10%",
-        option_d_image: null,
-        correct_answer: "A",
-        explanation: "Rwanda enforces strict zero tolerance regarding driving under the influence of alcohol.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q7",
-        category_id: categoryId,
-        question: "What action must you take when you hear or see an emergency vehicle approaching with flashing lights and sirens?",
-        question_image: null,
-        option_a: "Speed up to stay ahead of it",
-        option_a_image: null,
-        option_b: "Pull over to the right side of the road and stop",
-        option_b_image: null,
-        option_c: "Brake sharply in your current lane",
-        option_c_image: null,
-        option_d: "Ignore it if traffic is heavy",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "Drivers must yield and clear the road for authorized emergency vehicles.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q8",
-        category_id: categoryId,
-        question: "What does a solid yellow line along the center of the road mean?",
-        question_image: null,
-        option_a: "Overtaking is permitted with caution",
-        option_a_image: null,
-        option_b: "Overtaking is strictly prohibited across the line",
-        option_b_image: null,
-        option_c: "Parking is allowed on the shoulder",
-        option_c_image: null,
-        option_d: "Bus lane only",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "Solid center lines indicate that crossing or overtaking is prohibited.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q9",
-        category_id: categoryId,
-        question: "What should you check before starting a journey in your vehicle?",
-        question_image: null,
-        option_a: "Tyre pressure, brakes, lights, and fluid levels",
-        option_a_image: null,
-        option_b: "Only the radio station",
-        option_b_image: null,
-        option_c: "Fuel gauge only",
-        option_c_image: null,
-        option_d: "Air conditioning settings",
-        option_d_image: null,
-        correct_answer: "A",
-        explanation: "Routine vehicle safety checks ensure roadworthiness and prevent accidents.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q10",
-        category_id: categoryId,
-        question: "When parking on a steep incline facing uphill without a curb, which way should you turn your front wheels?",
-        question_image: null,
-        option_a: "Toward the center of the road",
-        option_a_image: null,
-        option_b: "Toward the edge/curb (right)",
-        option_b_image: null,
-        option_c: "Keep them straight",
-        option_c_image: null,
-        option_d: "Any direction",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "Turning wheels toward the edge prevents the vehicle from rolling into traffic if brakes fail.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q11",
-        category_id: categoryId,
-        question: "What is the primary purpose of wearing seatbelts while driving?",
-        question_image: null,
-        option_a: "To avoid police fines only",
-        option_a_image: null,
-        option_b: "To keep you securely in your seat and reduce injury severity in a collision",
-        option_b_image: null,
-        option_c: "To improve vehicle aerodynamics",
-        option_c_image: null,
-        option_d: "To stay awake",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "Seatbelts significantly reduce fatalities and serious injuries during accidents.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q12",
-        category_id: categoryId,
-        question: "What does a circular sign with a red border and a white background depicting a speed number indicate?",
-        question_image: null,
-        option_a: "Recommended minimum speed",
-        option_a_image: null,
-        option_b: "Maximum speed limit permitted",
-        option_b_image: null,
-        option_c: "Distance to destination",
-        option_c_image: null,
-        option_d: "Route number",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "Regulatory circular red-bordered signs indicate mandatory speed limits or restrictions.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q13",
-        category_id: categoryId,
-        question: "How should you react if your vehicle begins to hydroplane on a wet road?",
-        question_image: null,
-        option_a: "Slam on the brakes hard immediately",
-        option_a_image: null,
-        option_b: "Ease your foot off the accelerator and steer straight until tires regain traction",
-        option_b_image: null,
-        option_c: "Turn the steering wheel sharply left and right",
-        option_c_image: null,
-        option_d: "Pull the handbrake",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "Hard braking during hydroplaning causes loss of control. Easing off gas lets tires regain grip.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q14",
-        category_id: categoryId,
-        question: "What does a flashing yellow traffic light mean?",
-        question_image: null,
-        option_a: "Stop completely and wait for green",
-        option_a_image: null,
-        option_b: "Proceed with caution",
-        option_b_image: null,
-        option_c: "Road is closed ahead",
-        option_c_image: null,
-        option_d: "Speed up quickly",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "A flashing yellow light warns drivers to exercise caution and yield if necessary.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q15",
-        category_id: categoryId,
-        question: "When is it permissible to use a mobile phone while driving without a hands-free device?",
-        question_image: null,
-        option_a: "Never while the vehicle is in motion",
-        option_a_image: null,
-        option_b: "When stopped at a red traffic light",
-        option_b_image: null,
-        option_c: "When driving slowly in residential areas",
-        option_c_image: null,
-        option_d: "When calling emergency services only",
-        option_d_image: null,
-        correct_answer: "A",
-        explanation: "Using handheld mobile devices while driving is strictly illegal and dangerous.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q16",
-        category_id: categoryId,
-        question: "What is the purpose of indicator (turn) signals?",
-        question_image: null,
-        option_a: "To decorate the vehicle",
-        option_a_image: null,
-        option_b: "To inform other road users of your intended direction change or maneuver",
-        option_b_image: null,
-        option_c: "To greet oncoming drivers",
-        option_c_image: null,
-        option_d: "To test electrical circuits",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "Turn signals communicate your intentions to other drivers and pedestrians in advance.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q17",
-        category_id: categoryId,
-        question: "What should you do when approaching a roundabout?",
-        question_image: null,
-        option_a: "Yield to traffic already circulating within the roundabout",
-        option_a_image: null,
-        option_b: "Always have absolute priority over circulating traffic",
-        option_b_image: null,
-        option_c: "Enter without looking",
-        option_c_image: null,
-        option_d: "Stop inside the roundabout",
-        option_d_image: null,
-        correct_answer: "A",
-        explanation: "Traffic already inside the circulating lane of a roundabout has right of way.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q18",
-        category_id: categoryId,
-        question: "What is the recommended following distance behind the vehicle in front of you under normal dry conditions?",
-        question_image: null,
-        option_a: "At least 1 second",
-        option_a_image: null,
-        option_b: "At least 2 to 3 seconds",
-        option_b_image: null,
-        option_c: "Less than half a second",
-        option_c_image: null,
-        option_d: "Touch bumper",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "A 2-to-3 second following rule provides adequate stopping reaction time.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q19",
-        category_id: categoryId,
-        question: "What does an octagonal red sign bearing the word 'STOP' mean?",
-        question_image: null,
-        option_a: "Slow down slightly",
-        option_a_image: null,
-        option_b: "Come to a complete stop and yield to all right-of-way traffic before proceeding",
-        option_b_image: null,
-        option_c: "Stop only if police officers are present",
-        option_c_image: null,
-        option_d: "Optional halt",
-        option_d_image: null,
-        correct_answer: "B",
-        explanation: "A stop sign requires a complete halt and yielding to conflicting traffic.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-      {
-        id: "fallback-q20",
-        category_id: categoryId,
-        question: "Why is regular tire tread depth inspection important?",
-        question_image: null,
-        option_a: "To ensure adequate grip and prevent skidding on wet roads",
-        option_a_image: null,
-        option_b: "To make the car look sporty",
-        option_b_image: null,
-        option_c: "To increase fuel consumption",
-        option_c_image: null,
-        option_d: "It has no safety impact",
-        option_d_image: null,
-        correct_answer: "A",
-        explanation: "Sufficient tread depth channels water away and maintains necessary road traction.",
-        created_at: new Date().toISOString(),
-        created_by: "system",
-      },
-    ] as unknown as ExamQuestion[];
+    rawQuestions = getBuiltinFallbackQuestions(resolvedCategoryId, 20);
   }
 
   // Pick questions based on sorting mode
   // Sort deterministically first so that seeded shuffle produces the identical list across all clients
-  const typedQuestions = (rawQuestions as ExamQuestion[]).sort((a, b) => a.id.localeCompare(b.id));
+  const typedQuestions = (rawQuestions as ExamQuestion[])
+    .map((q, idx) => normalizeExamQuestion(q, idx, resolvedCategoryId))
+    .sort((a, b) => a.id.localeCompare(b.id));
   const withPic = typedQuestions.filter(questionHasAnyImage);
   const textOnly = typedQuestions.filter((q) => !questionHasAnyImage(q));
 
@@ -2634,6 +2284,22 @@ export interface ModuleExamTakeData {
   questions: ModuleExamQuestion[];
 }
 
+function buildDefaultModuleSettings(moduleId: string): ModuleExamSettings {
+  const now = new Date().toISOString();
+  return {
+    id: `default-${moduleId}`,
+    module_id: moduleId,
+    duration_minutes: 20,
+    passing_percentage: 70,
+    question_count: 20,
+    randomize_questions: true,
+    show_results_immediately: true,
+    show_explanations: true,
+    created_at: now,
+    updated_at: now,
+  } as ModuleExamSettings;
+}
+
 export async function getModuleExamForTaking(
   moduleId: string,
   language?: string
@@ -2647,49 +2313,115 @@ export async function getModuleExamForTaking(
     (typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || undefined : undefined);
 
   if (isExternalModuleId(moduleId)) {
-    const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
-      action: "take_module_exam",
-      moduleId,
-      examType: "module",
-      language: activeLang,
-    });
-    if (!ok) {
-      throw new Error(json?.error || "Failed to load external course quiz");
+    try {
+      const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+        action: "take_module_exam",
+        moduleId,
+        examType: "module",
+        language: activeLang,
+      });
+      if (ok && Array.isArray(json?.questions) && json.questions.length > 0) {
+        return {
+          settings: (json.settings || buildDefaultModuleSettings(moduleId)) as ModuleExamSettings,
+          questions: json.questions.map((q: any, idx: number) =>
+            normalizeExamQuestion(q, idx, moduleId)
+          ) as ModuleExamQuestion[],
+        };
+      }
+    } catch (err) {
+      console.warn("[ModuleExam] External module exam API fallback triggered:", err);
     }
+
+    const fallbackList = getBuiltinFallbackQuestions(moduleId, 20).map((q, idx) =>
+      normalizeExamQuestion(
+        { ...q, module_id: moduleId, order_index: idx, is_published: true },
+        idx,
+        moduleId
+      )
+    );
     return {
-      settings: json.settings as ModuleExamSettings,
-      questions: json.questions as ModuleExamQuestion[],
+      settings: buildDefaultModuleSettings(moduleId),
+      questions: fallbackList as unknown as ModuleExamQuestion[],
     };
   }
 
-  const { data: settings, error: settingsError } = await supabase
-    .from("module_exam_settings")
-    .select("*")
-    .eq("module_id", moduleId)
-    .is("deleted_at", null)
-    .maybeSingle();
+  const [{ data: settings, error: settingsError }, { data: questions, error: questionsError }] =
+    await Promise.all([
+      supabase
+        .from("module_exam_settings")
+        .select("*")
+        .eq("module_id", moduleId)
+        .is("deleted_at", null)
+        .maybeSingle(),
+      supabase
+        .from("module_exam_questions")
+        .select("*")
+        .eq("module_id", moduleId)
+        .is("deleted_at", null)
+        .eq("is_published", true)
+        .order("order_index", { ascending: true }),
+    ]);
 
-  if (settingsError) throw settingsError;
-  if (!settings) throw new Error("No exam found for this module");
+  if (settingsError) console.warn("[ModuleExam] settings notice:", settingsError.message);
+  if (questionsError) console.warn("[ModuleExam] questions notice:", questionsError.message);
 
-  const { data: questions, error: questionsError } = await supabase
-    .from("module_exam_questions")
-    .select("*")
-    .eq("module_id", moduleId)
-    .is("deleted_at", null)
-    .eq("is_published", true)
-    .order("order_index", { ascending: true });
+  let finalQuestions: any[] = questions || [];
 
-  if (questionsError) throw questionsError;
+  // Fallback 1: If no published rows found, query any non-deleted questions in this module
+  if (finalQuestions.length === 0) {
+    try {
+      const { data: anyModQuestions } = await supabase
+        .from("module_exam_questions")
+        .select("*")
+        .eq("module_id", moduleId)
+        .is("deleted_at", null)
+        .order("order_index", { ascending: true });
+      if (anyModQuestions && anyModQuestions.length > 0) {
+        finalQuestions = anyModQuestions;
+      }
+    } catch {}
+  }
 
-  let finalQuestions = questions || [];
-  if ((settings as ModuleExamSettings).randomize_questions) {
+  // Fallback 2: Use secure server exam endpoint so student never lands on an empty module quiz
+  if (finalQuestions.length === 0) {
+    try {
+      const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+        action: "take_module_exam",
+        moduleId,
+        examType: "module",
+        language: activeLang,
+      });
+      if (ok && Array.isArray(json?.questions) && json.questions.length > 0) {
+        return {
+          settings: (settings || json.settings || buildDefaultModuleSettings(moduleId)) as ModuleExamSettings,
+          questions: json.questions.map((q: any, idx: number) =>
+            normalizeExamQuestion(q, idx, moduleId)
+          ) as ModuleExamQuestion[],
+        };
+      }
+    } catch {}
+  }
+
+  // Fallback 3: Built-in mock questions
+  if (finalQuestions.length === 0) {
+    finalQuestions = getBuiltinFallbackQuestions(moduleId, 20).map((q, idx) => ({
+      ...q,
+      module_id: moduleId,
+      order_index: idx,
+      is_published: true,
+    }));
+  }
+
+  const resolvedSettings = (settings || buildDefaultModuleSettings(moduleId)) as ModuleExamSettings;
+  if (resolvedSettings.randomize_questions) {
     finalQuestions = shuffleArray(finalQuestions);
   }
-  const questionCount = (settings as ModuleExamSettings).question_count;
+  const questionCount = resolvedSettings.question_count;
   if (questionCount && finalQuestions.length > questionCount) {
     finalQuestions = finalQuestions.slice(0, questionCount);
   }
+
+  finalQuestions = finalQuestions.map((q, idx) => normalizeExamQuestion(q, idx, moduleId));
 
   if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda" && finalQuestions.length > 0) {
     try {
@@ -2698,14 +2430,16 @@ export async function getModuleExamForTaking(
         questions: finalQuestions,
         language: activeLang,
       });
-      if (ok && Array.isArray(tJson?.questions)) {
-        finalQuestions = tJson.questions;
+      if (ok && Array.isArray(tJson?.questions) && tJson.questions.length > 0) {
+        finalQuestions = tJson.questions.map((q: any, idx: number) =>
+          normalizeExamQuestion(q, idx, moduleId)
+        );
       }
     } catch {}
   }
 
   return {
-    settings: settings as ModuleExamSettings,
+    settings: resolvedSettings,
     questions: finalQuestions as ModuleExamQuestion[],
   };
 }
@@ -2716,10 +2450,6 @@ export async function getMidtermExamForTaking(
   durationMinutes: number,
   language?: string
 ): Promise<{ questions: ModuleExamQuestion[]; durationMinutes: number; questionCount: number }> {
-  if (completedModuleIds.length === 0) {
-    return { questions: [], durationMinutes, questionCount };
-  }
-
   const supabase = createClient();
   const user = await getAuthUser();
   if (!user) throw new Error("Not authenticated");
@@ -2728,32 +2458,72 @@ export async function getMidtermExamForTaking(
     language ||
     (typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || undefined : undefined);
 
-  if (completedModuleIds.some((id) => isExternalModuleId(id))) {
-    const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
-      action: "take_module_exam",
-      examType: "midterm",
-      language: activeLang,
-    });
-    if (ok && Array.isArray(json?.questions)) {
-      return {
-        questions: json.questions.slice(0, questionCount) as ModuleExamQuestion[],
-        durationMinutes: json.settings?.duration_minutes || durationMinutes,
-        questionCount: Math.min(questionCount, json.questions.length),
-      };
+  if (completedModuleIds.length === 0 || completedModuleIds.some((id) => isExternalModuleId(id))) {
+    try {
+      const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+        action: "take_module_exam",
+        examType: "midterm",
+        language: activeLang,
+      });
+      if (ok && Array.isArray(json?.questions) && json.questions.length > 0) {
+        const sliced = json.questions
+          .slice(0, questionCount)
+          .map((q: any, idx: number) => normalizeExamQuestion(q, idx, "midterm"));
+        return {
+          questions: sliced as ModuleExamQuestion[],
+          durationMinutes: json.settings?.duration_minutes || durationMinutes,
+          questionCount: Math.min(questionCount, sliced.length),
+        };
+      }
+    } catch (err) {
+      console.warn("[MidtermExam] External API fallback triggered:", err);
     }
   }
 
-  const { data: questions, error } = await supabase
-    .from("module_exam_questions")
-    .select("*")
-    .in("module_id", completedModuleIds)
-    .is("deleted_at", null)
-    .eq("is_published", true);
+  let rawQuestions: any[] = [];
+  if (completedModuleIds.length > 0) {
+    try {
+      const { data: questions, error } = await supabase
+        .from("module_exam_questions")
+        .select("*")
+        .in("module_id", completedModuleIds)
+        .is("deleted_at", null)
+        .eq("is_published", true);
+      if (!error && questions && questions.length > 0) {
+        rawQuestions = questions;
+      }
+    } catch {}
+  }
 
-  if (error) throw error;
+  // Fallback to external question pool or built-in pool if internal query yielded 0 rows
+  if (rawQuestions.length === 0) {
+    try {
+      const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+        action: "take_module_exam",
+        examType: "midterm",
+        language: activeLang,
+      });
+      if (ok && Array.isArray(json?.questions) && json.questions.length > 0) {
+        const sliced = json.questions
+          .slice(0, questionCount)
+          .map((q: any, idx: number) => normalizeExamQuestion(q, idx, "midterm"));
+        return {
+          questions: sliced as ModuleExamQuestion[],
+          durationMinutes: json.settings?.duration_minutes || durationMinutes,
+          questionCount: Math.min(questionCount, sliced.length),
+        };
+      }
+    } catch {}
+  }
 
-  const shuffled = shuffleArray(questions || []);
-  let sliced = shuffled.slice(0, questionCount);
+  if (rawQuestions.length === 0) {
+    rawQuestions = getBuiltinFallbackQuestions("midterm", questionCount);
+  }
+
+  const shuffled = shuffleArray(rawQuestions);
+  let sliced = shuffled
+    .slice(0, questionCount)
+    .map((q, idx) => normalizeExamQuestion(q, idx, "midterm"));
 
   if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda" && sliced.length > 0) {
     try {
@@ -2762,8 +2532,10 @@ export async function getMidtermExamForTaking(
         questions: sliced,
         language: activeLang,
       });
-      if (ok && Array.isArray(tJson?.questions)) {
-        sliced = tJson.questions;
+      if (ok && Array.isArray(tJson?.questions) && tJson.questions.length > 0) {
+        sliced = tJson.questions.map((q: any, idx: number) =>
+          normalizeExamQuestion(q, idx, "midterm")
+        );
       }
     } catch {}
   }
@@ -2771,7 +2543,7 @@ export async function getMidtermExamForTaking(
   return {
     questions: sliced as ModuleExamQuestion[],
     durationMinutes,
-    questionCount,
+    questionCount: sliced.length,
   };
 }
 
@@ -2781,10 +2553,6 @@ export async function getFinalExamForTaking(
   durationMinutes: number,
   language?: string
 ): Promise<{ questions: ModuleExamQuestion[]; durationMinutes: number; questionCount: number }> {
-  if (allModuleIds.length === 0) {
-    return { questions: [], durationMinutes, questionCount };
-  }
-
   const supabase = createClient();
   const user = await getAuthUser();
   if (!user) throw new Error("Not authenticated");
@@ -2793,32 +2561,71 @@ export async function getFinalExamForTaking(
     language ||
     (typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || undefined : undefined);
 
-  if (allModuleIds.some((id) => isExternalModuleId(id))) {
-    const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
-      action: "take_module_exam",
-      examType: "final",
-      language: activeLang,
-    });
-    if (ok && Array.isArray(json?.questions)) {
-      return {
-        questions: json.questions.slice(0, questionCount) as ModuleExamQuestion[],
-        durationMinutes: json.settings?.duration_minutes || durationMinutes,
-        questionCount: Math.min(questionCount, json.questions.length),
-      };
+  if (allModuleIds.length === 0 || allModuleIds.some((id) => isExternalModuleId(id))) {
+    try {
+      const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+        action: "take_module_exam",
+        examType: "final",
+        language: activeLang,
+      });
+      if (ok && Array.isArray(json?.questions) && json.questions.length > 0) {
+        const sliced = json.questions
+          .slice(0, questionCount)
+          .map((q: any, idx: number) => normalizeExamQuestion(q, idx, "final"));
+        return {
+          questions: sliced as ModuleExamQuestion[],
+          durationMinutes: json.settings?.duration_minutes || durationMinutes,
+          questionCount: Math.min(questionCount, sliced.length),
+        };
+      }
+    } catch (err) {
+      console.warn("[FinalExam] External API fallback triggered:", err);
     }
   }
 
-  const { data: questions, error } = await supabase
-    .from("module_exam_questions")
-    .select("*")
-    .in("module_id", allModuleIds)
-    .is("deleted_at", null)
-    .eq("is_published", true);
+  let rawQuestions: any[] = [];
+  if (allModuleIds.length > 0) {
+    try {
+      const { data: questions, error } = await supabase
+        .from("module_exam_questions")
+        .select("*")
+        .in("module_id", allModuleIds)
+        .is("deleted_at", null)
+        .eq("is_published", true);
+      if (!error && questions && questions.length > 0) {
+        rawQuestions = questions;
+      }
+    } catch {}
+  }
 
-  if (error) throw error;
+  if (rawQuestions.length === 0) {
+    try {
+      const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
+        action: "take_module_exam",
+        examType: "final",
+        language: activeLang,
+      });
+      if (ok && Array.isArray(json?.questions) && json.questions.length > 0) {
+        const sliced = json.questions
+          .slice(0, questionCount)
+          .map((q: any, idx: number) => normalizeExamQuestion(q, idx, "final"));
+        return {
+          questions: sliced as ModuleExamQuestion[],
+          durationMinutes: json.settings?.duration_minutes || durationMinutes,
+          questionCount: Math.min(questionCount, sliced.length),
+        };
+      }
+    } catch {}
+  }
 
-  const shuffled = shuffleArray(questions || []);
-  let sliced = shuffled.slice(0, questionCount);
+  if (rawQuestions.length === 0) {
+    rawQuestions = getBuiltinFallbackQuestions("final", questionCount);
+  }
+
+  const shuffled = shuffleArray(rawQuestions);
+  let sliced = shuffled
+    .slice(0, questionCount)
+    .map((q, idx) => normalizeExamQuestion(q, idx, "final"));
 
   if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda" && sliced.length > 0) {
     try {
@@ -2827,8 +2634,10 @@ export async function getFinalExamForTaking(
         questions: sliced,
         language: activeLang,
       });
-      if (ok && Array.isArray(tJson?.questions)) {
-        sliced = tJson.questions;
+      if (ok && Array.isArray(tJson?.questions) && tJson.questions.length > 0) {
+        sliced = tJson.questions.map((q: any, idx: number) =>
+          normalizeExamQuestion(q, idx, "final")
+        );
       }
     } catch {}
   }
@@ -2836,7 +2645,7 @@ export async function getFinalExamForTaking(
   return {
     questions: sliced as ModuleExamQuestion[],
     durationMinutes,
-    questionCount,
+    questionCount: sliced.length,
   };
 }
 

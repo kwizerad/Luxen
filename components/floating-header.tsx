@@ -17,6 +17,7 @@ import {
   FileText,
   BarChart3,
   Scale,
+  LogOut,
 } from "lucide-react";
 import { NotificationsDropdown } from "./notifications-dropdown";
 import { FloatingUserSettings } from "./floating-user-settings";
@@ -25,6 +26,8 @@ import { useLanguage } from "@/lib/language-context";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useNavigationVisibility } from "@/hooks/use-navigation-visibility";
 import { useAdminSpa } from "@/lib/admin-spa-router";
+import { createClient } from "@/lib/supabase/client";
+import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
 
 interface NavItem {
   id: string;
@@ -136,6 +139,18 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
     },
     [pathname, router]
   );
+
+  const handleMobileAdminLogout = useCallback(async () => {
+    try {
+      resetLandingLanguageForAdminLogout();
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      fetch("/api/admin-signout", { method: "POST" }).catch(() => {});
+    } catch {}
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
+  }, []);
 
   if (!user && !authLoading) {
     return null;
@@ -423,8 +438,20 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
             })}
           </nav>
 
-          {/* Right: Floating Settings — Notifications & User Profile Picture Dropdown */}
+          {/* Right: Floating Settings — Notifications, Mobile Admin Logout, & User Profile Picture Dropdown */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {adminMode && (
+              <button
+                type="button"
+                onClick={handleMobileAdminLogout}
+                title={t("logout") || "Logout"}
+                aria-label={t("logout") || "Logout"}
+                className="md:hidden inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/25 cursor-pointer transition-colors"
+              >
+                <LogOut className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden min-[360px]:inline">{t("logout") || "Logout"}</span>
+              </button>
+            )}
             <div className="rounded-full transition-all relative">
               <NotificationsDropdown />
             </div>

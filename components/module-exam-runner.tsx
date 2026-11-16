@@ -110,10 +110,25 @@ export function ModuleExamRunner({
   const [showRetakeRequest, setShowRetakeRequest] = useState(false);
   const [retakeReason, setRetakeReason] = useState("");
   const [submittingRetake, setSubmittingRetake] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
 
   const showResultsRef = useRef(false);
   const examActiveRef = useRef(false);
   const handleSubmitExamRef = useRef<((isAutoSubmit?: boolean) => Promise<void>) | null>(null);
+  const handleSelectAnswerRef = useRef<((answer: "A" | "B" | "C" | "D") => void) | null>(null);
+  const onExitRef = useRef(onExit);
+  onExitRef.current = onExit;
+  const midtermModuleIdsRef = useRef(midtermModuleIds);
+  midtermModuleIdsRef.current = midtermModuleIds;
+  const finalModuleIdsRef = useRef(finalModuleIds);
+  finalModuleIdsRef.current = finalModuleIds;
+  const tRef = useRef(t);
+  tRef.current = t;
+  const loadSeqRef = useRef(0);
+
+  const midtermKey = (midtermModuleIds || []).join(",");
+  const finalKey = (finalModuleIds || []).join(",");
 
   const fullscreenEnabled = securitySettings.violationMeasuresEnabled && securitySettings.fullscreenEnabled;
 
@@ -148,68 +163,108 @@ export function ModuleExamRunner({
     return () => clearTimeout(timer);
   }, [security.showCheatingWarning, security.violationType, security.fullscreenRetryCount, security.cheatingAttempts, securitySettings.maxViolations, security]);
 
-  // Load exam data
-  useEffect(() => {
-    const loadExam = async () => {
-      setLoading(true);
-      try {
-        const settings = await getSecuritySettings("course");
-        setSecuritySettings(settings);
+  const loadExamData = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const secSettings = await getSecuritySettings("course");
+      if (seq !== loadSeqRef.current) return;
+      setSecuritySettings(secSettings);
 
-        if (examType === "module" && moduleId) {
-          const data = await getModuleExamForTaking(moduleId, language);
-          setQuestions(data.questions);
-          setSettings(data.settings);
-          setDurationMinutes(data.settings.duration_minutes || 20);
-        } else if (examType === "midterm" && midtermModuleIds) {
-          const data = await getMidtermExamForTaking(
-            midtermModuleIds,
-            midtermQuestionCount,
-            midtermDurationMinutes,
-            language
-          );
-          setQuestions(data.questions);
-          setDurationMinutes(data.durationMinutes);
-        } else if (examType === "final" && finalModuleIds) {
-          const data = await getFinalExamForTaking(
-            finalModuleIds,
-            finalQuestionCount,
-            finalDurationMinutes,
-            language
-          );
-          setQuestions(data.questions);
-          setDurationMinutes(data.durationMinutes);
-        }
-        setShowVerificationCard(true);
-      } catch (error) {
-        toast.error((error instanceof Error ? error.message : String(error)) || t("failedToLoadExam") || "Failed to load exam");
-        onExit();
-      } finally {
+      let loadedQuestions: ModuleExamQuestion[] = [];
+
+      if (examType === "module" && moduleId) {
+        const data = await getModuleExamForTaking(moduleId, language);
+        if (seq !== loadSeqRef.current) return;
+        loadedQuestions = data.questions || [];
+        setSettings(data.settings);
+        setDurationMinutes(data.settings?.duration_minutes || 20);
+      } else if (examType === "midterm") {
+        const data = await getMidtermExamForTaking(
+          midtermModuleIdsRef.current || [],
+          midtermQuestionCount,
+          midtermDurationMinutes,
+          language
+        );
+        if (seq !== loadSeqRef.current) return;
+        loadedQuestions = data.questions || [];
+        setDurationMinutes(data.durationMinutes || midtermDurationMinutes);
+      } else if (examType === "final") {
+        const data = await getFinalExamForTaking(
+          finalModuleIdsRef.current || [],
+          finalQuestionCount,
+          finalDurationMinutes,
+          language
+        );
+        if (seq !== loadSeqRef.current) return;
+        loadedQuestions = data.questions || [];
+        setDurationMinutes(data.durationMinutes || finalDurationMinutes);
+      } else {
+        throw new Error(tRef.current("failedToLoadExam") || "Failed to load exam");
+      }
+
+      if (loadedQuestions.length === 0) {
+        throw new Error(tRef.current("noQuestionsReturned") || "No questions available for this exam right now.");
+      }
+
+      setQuestions(loadedQuestions);
+      setCurrentIndex(0);
+      setShowVerificationCard(true);
+    } catch (error) {
+      if (seq !== loadSeqRef.current) return;
+      const msg =
+        (error instanceof Error ? error.message : String(error)) ||
+        tRef.current("failedToLoadExam") ||
+        "Failed to load exam";
+      setLoadError(msg);
+      toast.error(msg);
+    } finally {
+      if (seq === loadSeqRef.current) {
         setLoading(false);
       }
-    };
-    loadExam();
-  }, [examType, moduleId, midtermModuleIds, finalModuleIds, midtermQuestionCount, midtermDurationMinutes, finalQuestionCount, finalDurationMinutes, language, onExit, t]);
+    }
+  }, [
+    examType,
+    moduleId,
+    midtermKey,
+    finalKey,
+    midtermQuestionCount,
+    midtermDurationMinutes,
+    finalQuestionCount,
+    finalDurationMinutes,
+    language,
+  ]);
+
+  // Load exam data (never wipes or reloads an already-active exam or results view)
+  useEffect(() => {
+    if (examActiveRef.current || showResultsRef.current) return;
+    void loadExamData();
+  }, [loadExamData]);
 
   // Timer
   useEffect(() => {
-    if (secondsLeft === null) return;
+    if (secondsLeft === null || showResults) return;
     if (secondsLeft <= 0) {
       handleSubmitExamRef.current?.(true);
       return;
     }
     const id = setInterval(() => setSecondsLeft((s) => (s === null ? s : Math.max(0, s - 1))), 1000);
     return () => clearInterval(id);
-  }, [secondsLeft]);
+  }, [secondsLeft, showResults]);
+
+  const safeIndex = questions.length > 0 ? Math.min(Math.max(0, currentIndex), questions.length - 1) : 0;
 
   const activeQuestion = useMemo(() => {
     if (!questions.length) return null;
-    return questions[currentIndex] ?? null;
-  }, [questions, currentIndex]);
+    return questions[safeIndex] ?? null;
+  }, [questions, safeIndex]);
+
+  const isExamActiveNow = questions.length > 0 && secondsLeft !== null && !showResults;
 
   // Arrow key navigation & option selection on desktop
   useEffect(() => {
-    if (!examActiveRef.current || showResultsRef.current) return;
+    if (!isExamActiveNow) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       if (e.key === "ArrowLeft") {
@@ -220,19 +275,19 @@ export function ModuleExamRunner({
         setCurrentIndex((i) => Math.min(questions.length - 1, i + 1));
       } else if (activeQuestion) {
         if (["a", "A", "1"].includes(e.key)) {
-          handleSelectAnswer("A");
+          handleSelectAnswerRef.current?.("A");
         } else if (["b", "B", "2"].includes(e.key)) {
-          handleSelectAnswer("B");
+          handleSelectAnswerRef.current?.("B");
         } else if (["c", "C", "3"].includes(e.key)) {
-          handleSelectAnswer("C");
+          handleSelectAnswerRef.current?.("C");
         } else if (["d", "D", "4"].includes(e.key)) {
-          handleSelectAnswer("D");
+          handleSelectAnswerRef.current?.("D");
         }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [questions.length, activeQuestion]);
+  }, [isExamActiveNow, questions.length, activeQuestion]);
 
   const startExam = async () => {
     setShowVerificationCard(false);
@@ -272,7 +327,7 @@ export function ModuleExamRunner({
     }
   };
 
-  const handleSelectAnswer = (answer: "A" | "B" | "C" | "D") => {
+  const handleSelectAnswer = useCallback((answer: "A" | "B" | "C" | "D") => {
     if (!activeQuestion) return;
     setUserAnswers((prev) => ({
       ...prev,
@@ -282,7 +337,8 @@ export function ModuleExamRunner({
         timeStarted: prev[activeQuestion.id]?.timeStarted || Date.now(),
       },
     }));
-  };
+  }, [activeQuestion]);
+  handleSelectAnswerRef.current = handleSelectAnswer;
 
   // Swipe for mobile
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -488,6 +544,43 @@ export function ModuleExamRunner({
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (loadError || (!isExamActive && !showResults && questions.length === 0)) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-4">
+        <Card className="max-w-md w-full rounded-2xl border-border/80">
+          <CardHeader className="text-center space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <CardTitle className="text-base sm:text-lg">
+              {t("failedToLoadExam") || "Could Not Load Exam Questions"}
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              {loadError || t("noQuestionsReturned") || "No questions were available for this quiz."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row gap-2.5 pt-2">
+            <Button
+              type="button"
+              onClick={() => void loadExamData()}
+              className="flex-1 rounded-xl"
+            >
+              {t("tryAgain") || "Try Again"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onExitRef.current()}
+              className="flex-1 rounded-xl"
+            >
+              {t("back") || "Back to Course"}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -804,11 +897,7 @@ export function ModuleExamRunner({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    if (confirm(t("quitExamMessage") || "Are you sure you want to quit? Your exam will be submitted.")) {
-                      handleSubmitExam(true);
-                    }
-                  }}
+                  onClick={() => setShowQuitConfirm(true)}
                   className="gap-2"
                 >
                   <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -836,7 +925,7 @@ export function ModuleExamRunner({
               <CardHeader className="p-3 sm:p-6">
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-sm sm:text-base">
-                    {t("question") || "Question"} {currentIndex + 1} {t("of") || "of"} {questions.length}
+                    {t("question") || "Question"} {safeIndex + 1} {t("of") || "of"} {questions.length}
                   </CardTitle>
                   <button
                     type="button"
@@ -857,7 +946,7 @@ export function ModuleExamRunner({
                   <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {questions.map((q, i) => {
                       const isAnswered = !!userAnswers[q.id]?.selectedAnswer;
-                      const isCurrent = i === currentIndex;
+                      const isCurrent = i === safeIndex;
                       return (
                         <button
                           key={q.id}
@@ -882,7 +971,7 @@ export function ModuleExamRunner({
                 {activeQuestion ? (
                   <>
                     {activeQuestion.question_image && (
-                      <SmartImage src={activeQuestion.question_image} alt={t("question") || "Question"} className="w-full h-[260px] sm:h-[380px] lg:h-[440px] object-contain rounded-[10px] sm:rounded-lg border bg-muted/15" />
+                      <SmartImage src={activeQuestion.question_image} alt={t("question") || "Question"} priority className="w-full h-[260px] sm:h-[380px] lg:h-[440px] object-contain rounded-[10px] sm:rounded-lg border bg-muted/15" />
                     )}
                     {activeQuestion.question && (
                       <div className="flex items-start justify-between gap-3">
@@ -963,10 +1052,10 @@ export function ModuleExamRunner({
                     })()}
 
                     <div className="flex items-center justify-between pt-1.5 sm:pt-2">
-                      <Button variant="outline" size="sm" onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))} disabled={currentIndex === 0}>
+                      <Button variant="outline" size="sm" onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))} disabled={safeIndex === 0}>
                         {t("previous") || "Previous"}
                       </Button>
-                      <Button size="sm" onClick={() => setCurrentIndex((i) => Math.min(questions.length - 1, i + 1))} disabled={currentIndex >= questions.length - 1}>
+                      <Button size="sm" onClick={() => setCurrentIndex((i) => Math.min(questions.length - 1, i + 1))} disabled={safeIndex >= questions.length - 1}>
                         {t("next") || "Next"}
                       </Button>
                     </div>
@@ -1002,13 +1091,57 @@ export function ModuleExamRunner({
         )}
       </main>
 
+      {/* Quit Confirm Dialog */}
+      <Dialog open={showQuitConfirm} onOpenChange={setShowQuitConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              {t("quitExamTitle") || "Quit Exam?"}
+            </DialogTitle>
+            <DialogDescription className="text-sm pt-1">
+              {t("quitExamMessage") || "Are you sure you want to quit? Your exam will be submitted."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowQuitConfirm(false)}
+              className="flex-1 rounded-xl"
+            >
+              {t("cancel") || "Cancel"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setShowQuitConfirm(false);
+                void handleSubmitExam(true);
+              }}
+              className="flex-1 rounded-xl bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {t("confirm") || "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Image preview lightbox */}
       <Dialog open={!!previewImage} onOpenChange={(open) => { if (!open) setPreviewImage(null); }}>
         <DialogContent className="max-w-3xl p-2 sm:p-4">
           <DialogHeader>
             <DialogTitle className="sr-only">{t("preview") || "Preview"}</DialogTitle>
           </DialogHeader>
-          {previewImage && <img src={previewImage} alt={t("preview") || "Preview"} className="w-full h-auto rounded-lg" />}
+          {previewImage && (
+            <SmartImage
+              src={previewImage}
+              alt={t("preview") || "Preview"}
+              priority
+              className="w-full h-[60vh] max-h-[640px] object-contain rounded-lg"
+            />
+          )}
         </DialogContent>
       </Dialog>
 

@@ -25,11 +25,12 @@ export function ExamStartVerificationCard({
   onCancel,
 }: ExamStartVerificationCardProps) {
   const { language } = useLanguage();
+  const activeLang = String(examLanguage || language || "").toLowerCase();
 
   const langCode =
-    language === "Kinyarwanda" || language === "rw"
+    activeLang === "kinyarwanda" || activeLang === "rw"
       ? "rw"
-      : language === "French" || language === "fr"
+      : activeLang === "french" || activeLang === "fr" || activeLang === "français"
       ? "fr"
       : "en";
 

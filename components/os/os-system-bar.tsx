@@ -54,6 +54,8 @@ import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
 import { useDesktopWidgets } from "@/lib/desktop-widgets";
 import { formatLocalizedDate } from "@/lib/date-utils";
+import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
+import { isAdmin } from "@/lib/permissions";
 
 interface OSSystemBarProps {
   activeView: string;
@@ -93,6 +95,14 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
       return;
     }
     try {
+      const isAdminLogout =
+        isAdmin(user) ||
+        (typeof window !== "undefined" &&
+          window.location.pathname.toLowerCase().startsWith("/admin"));
+      if (isAdminLogout) {
+        resetLandingLanguageForAdminLogout();
+        fetch("/api/admin-signout", { method: "POST" }).catch(() => {});
+      }
       const supabase = createClient();
       await supabase.auth.signOut();
     } catch {}

@@ -162,10 +162,12 @@ export async function translateTextSnippets(
   // Batch process in chunks of 80 to minimize API round-trips and prevent timeouts
   const BATCH_SIZE = 80;
   const resultMap = new Map<number, string>();
-
+  const chunks: TextSnippet[][] = [];
   for (let i = 0; i < snippets.length; i += BATCH_SIZE) {
-    const chunk = snippets.slice(i, i + BATCH_SIZE);
+    chunks.push(snippets.slice(i, i + BATCH_SIZE));
+  }
 
+  const processChunk = async (chunk: TextSnippet[]) => {
     const prompt = `Translate the following text items from ${sourceLang} to ${targetLang}. Ensure every output translatedText is completely written in ${targetLang}:\n` +
       JSON.stringify(chunk, null, 2);
 
@@ -245,7 +247,7 @@ export async function translateTextSnippets(
       const missed = chunk.filter((item) => !resultMap.has(item.id));
       if (missed.length > 0 && missed.length <= chunk.length) {
         try {
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 250));
           const retryPrompt =
             `Translate the following remaining text snippets from ${sourceLang} to ${targetLang}:\n` +
             JSON.stringify(missed, null, 2);
@@ -285,15 +287,17 @@ export async function translateTextSnippets(
           resultMap.set(item.id, item.text);
         }
       }
-
-      // Small throttle between batches to avoid RPM quota spikes
-      if (i + BATCH_SIZE < snippets.length) {
-        await new Promise((resolve) => setTimeout(resolve, 600));
-      }
     } catch (err: any) {
       console.error("Translation batch failed:", err);
       throw new Error(`AI translation error: ${err?.message || "Failed to generate translated text. Please retry."}`);
     }
+  };
+
+  // Run up to 2 chunks concurrently to speed up large translations while staying within rate limits
+  const CONCURRENCY = 2;
+  for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+    const wave = chunks.slice(i, i + CONCURRENCY);
+    await Promise.all(wave.map((chunk) => processChunk(chunk)));
   }
 
   return resultMap;

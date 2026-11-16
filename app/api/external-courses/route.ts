@@ -5,6 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin, isPrimaryAdmin } from "@/lib/permissions";
 import { DEFAULT_ADMIN_EMAIL } from "@/lib/server-config";
 import { translateTextSnippets, type TargetLanguage } from "@/lib/ai/tiptap-translator";
+import { CACHE_KEYS, getCached, invalidateCache, invalidateCachePrefix } from "@/lib/server-cache";
+import { compressUploadedImage } from "@/lib/server-image-compress";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -83,60 +85,73 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const [chaptersRes, sectionsRes, lessonsRes, questionsRes, setsRes] = await Promise.all([
-      extSb
-        .from("chapters")
-        .select("*")
-        .order("chapter_number", { ascending: true })
-        .order("id", { ascending: true }),
-      extSb
-        .from("sections")
-        .select("*")
-        .order("section_number", { ascending: true })
-        .order("id", { ascending: true }),
-      extSb
-        .from("lessons")
-        .select("*")
-        .order("lesson_number", { ascending: true })
-        .order("id", { ascending: true }),
-      extSb
-        .from("questions")
-        .select("*")
-        .order("question_numbers", { ascending: true, nullsFirst: false })
-        .order("id", { ascending: true }),
-      extSb
-        .from("question_sets")
-        .select("*")
-        .order("set_number", { ascending: true })
-        .order("id", { ascending: true }),
+    const [{ chapters, sections, lessons, questions, questionSets }, cfgRows] = await Promise.all([
+      getCached(CACHE_KEYS.EXTERNAL_CATALOG, 120_000, async () => {
+        const [chaptersRes, sectionsRes, lessonsRes, questionsRes, setsRes] = await Promise.all([
+          extSb
+            .from("chapters")
+            .select("*")
+            .order("chapter_number", { ascending: true })
+            .order("id", { ascending: true }),
+          extSb
+            .from("sections")
+            .select("*")
+            .order("section_number", { ascending: true })
+            .order("id", { ascending: true }),
+          extSb
+            .from("lessons")
+            .select("*")
+            .order("lesson_number", { ascending: true })
+            .order("id", { ascending: true }),
+          extSb
+            .from("questions")
+            .select("*")
+            .order("question_numbers", { ascending: true, nullsFirst: false })
+            .order("id", { ascending: true }),
+          extSb
+            .from("question_sets")
+            .select("*")
+            .order("set_number", { ascending: true })
+            .order("id", { ascending: true }),
+        ]);
+
+        if (chaptersRes.error) throw chaptersRes.error;
+        if (sectionsRes.error) throw sectionsRes.error;
+        if (lessonsRes.error) throw lessonsRes.error;
+        if (questionsRes.error) throw questionsRes.error;
+
+        const mappedQuestions = (questionsRes.data || []).map((q: any) => ({
+          ...q,
+          choice: Array.isArray(q.choice)
+            ? q.choice
+            : typeof q.choice === "string"
+            ? (() => {
+                try {
+                  return JSON.parse(q.choice);
+                } catch {
+                  return [q.choice];
+                }
+              })()
+            : [],
+          choice_answer: typeof q.choice_answer === "number" ? q.choice_answer : Number(q.choice_answer) || 0,
+        }));
+
+        return {
+          chapters: chaptersRes.data || [],
+          sections: sectionsRes.data || [],
+          lessons: lessonsRes.data || [],
+          questions: mappedQuestions,
+          questionSets: setsRes.data || [],
+        };
+      }),
+      getCached(CACHE_KEYS.SYSTEM_CONFIG_ALL, 60_000, async () => {
+        const adminSb = createAdminClient();
+        const { data } = await adminSb.from("system_config").select("*").order("key");
+        return data || [];
+      }).catch(() => []),
     ]);
 
-    if (chaptersRes.error) throw chaptersRes.error;
-    if (sectionsRes.error) throw sectionsRes.error;
-    if (lessonsRes.error) throw lessonsRes.error;
-    if (questionsRes.error) throw questionsRes.error;
-
-    const chapters = chaptersRes.data || [];
-    const sections = sectionsRes.data || [];
-    const lessons = lessonsRes.data || [];
-    const questions = (questionsRes.data || []).map((q: any) => ({
-      ...q,
-      choice: Array.isArray(q.choice)
-        ? q.choice
-        : typeof q.choice === "string"
-        ? (() => {
-            try {
-              return JSON.parse(q.choice);
-            } catch {
-              return [q.choice];
-            }
-          })()
-        : [],
-      choice_answer: typeof q.choice_answer === "number" ? q.choice_answer : Number(q.choice_answer) || 0,
-    }));
-    const questionSets = setsRes.data || [];
-
-    // Fetch publish & quiz settings from primary system_config
+    // Fetch publish & quiz settings from cached system_config
     let publishConfig = {
       examPublished: false,
       examTitle: "Navo's Mock Exam (External DB)",
@@ -153,21 +168,6 @@ export async function GET(req: NextRequest) {
     };
 
     try {
-      const adminSb = createAdminClient();
-      const { data: cfgRows } = await adminSb
-        .from("system_config")
-        .select("key, value")
-        .in("key", [
-          "external_exam_published",
-          "external_exam_title",
-          "external_exam_duration_minutes",
-          "external_exam_question_count",
-          "external_course_published",
-          "external_course_title",
-          "external_course_quiz_settings",
-          "course_sequential_unlock",
-        ]);
-
       const cfgMap = new Map<string, string>();
       for (const r of cfgRows || []) {
         if (r.key && r.value !== undefined && r.value !== null) {
@@ -285,6 +285,8 @@ export async function PATCH(req: NextRequest) {
         .single();
 
       if (error) throw error;
+      invalidateCache(CACHE_KEYS.EXTERNAL_QUESTIONS_POOL);
+      invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       return NextResponse.json({ success: true, data });
     }
 
@@ -305,6 +307,7 @@ export async function PATCH(req: NextRequest) {
         .single();
 
       if (error) throw error;
+      invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       return NextResponse.json({ success: true, data });
     }
 
@@ -322,6 +325,7 @@ export async function PATCH(req: NextRequest) {
         .single();
 
       if (error) throw error;
+      invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       return NextResponse.json({ success: true, data });
     }
 
@@ -339,6 +343,7 @@ export async function PATCH(req: NextRequest) {
         .single();
 
       if (error) throw error;
+      invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       return NextResponse.json({ success: true, data });
     }
 
@@ -386,16 +391,20 @@ export async function POST(req: NextRequest) {
         // Bucket already exists
       }
 
-      const ext = file.name.split(".").pop() || "png";
+      const rawArrayBuffer = await file.arrayBuffer();
+      const { buffer, contentType: compressedType, extension } = await compressUploadedImage(
+        Buffer.from(rawArrayBuffer),
+        file.type || "image/png",
+        file.name
+      );
       const safeFolder = entityType || "general";
-      const filePath = `${safeFolder}/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${ext}`;
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const filePath = `${safeFolder}/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${extension}`;
 
       const { error: uploadError } = await extSb.storage
         .from(bucketName)
         .upload(filePath, buffer, {
-          contentType: file.type || "image/png",
+          contentType: compressedType,
+          cacheControl: "31536000",
           upsert: true,
         });
 
@@ -439,6 +448,8 @@ export async function POST(req: NextRequest) {
           if (!data) throw new Error(`Chapter record (${entityId}) not found in external database.`);
           updatedRecord = data;
         }
+        invalidateCache(CACHE_KEYS.EXTERNAL_QUESTIONS_POOL);
+        invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       }
 
       return NextResponse.json({
@@ -590,6 +601,8 @@ export async function POST(req: NextRequest) {
 
       const { data, error } = await extSb.from("questions").insert(newQuestion).select().single();
       if (error) throw error;
+      invalidateCache(CACHE_KEYS.EXTERNAL_QUESTIONS_POOL);
+      invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       return NextResponse.json({ success: true, data });
     }
 
@@ -597,6 +610,8 @@ export async function POST(req: NextRequest) {
       const { id } = body;
       const { error } = await extSb.from("questions").delete().eq("id", id);
       if (error) throw error;
+      invalidateCache(CACHE_KEYS.EXTERNAL_QUESTIONS_POOL);
+      invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       return NextResponse.json({ success: true });
     }
 
@@ -613,6 +628,7 @@ export async function POST(req: NextRequest) {
       };
       const { data, error } = await extSb.from("lessons").insert(newLesson).select().single();
       if (error) throw error;
+      invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       return NextResponse.json({ success: true, data });
     }
 
@@ -620,6 +636,7 @@ export async function POST(req: NextRequest) {
       const { id } = body;
       const { error } = await extSb.from("lessons").delete().eq("id", id);
       if (error) throw error;
+      invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       return NextResponse.json({ success: true });
     }
 
@@ -647,6 +664,7 @@ export async function POST(req: NextRequest) {
       };
       const { data: secData } = await extSb.from("sections").insert(defaultSection).select().single();
 
+      invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       return NextResponse.json({ success: true, data, section: secData || null });
     }
 
@@ -662,6 +680,7 @@ export async function POST(req: NextRequest) {
       };
       const { data, error } = await extSb.from("sections").insert(newSection).select().single();
       if (error) throw error;
+      invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       return NextResponse.json({ success: true, data });
     }
 
@@ -669,6 +688,7 @@ export async function POST(req: NextRequest) {
       const { id } = body;
       const { error } = await extSb.from("chapters").delete().eq("id", id);
       if (error) throw error;
+      invalidateCache(CACHE_KEYS.EXTERNAL_CATALOG);
       return NextResponse.json({ success: true });
     }
 
@@ -805,6 +825,9 @@ export async function POST(req: NextRequest) {
           console.warn("Could not sync external exam category row:", syncErr);
         }
       }
+
+      invalidateCache(CACHE_KEYS.SYSTEM_CONFIG_ALL);
+      invalidateCachePrefix("exam_categories:");
 
       return NextResponse.json({ success: true });
     }

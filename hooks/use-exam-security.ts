@@ -304,8 +304,23 @@ export function useExamSecurity({
       // Allow bare modifier keys
       if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return;
 
-      // Allow ONLY arrow keys for question navigation (no modifiers)
-      if ((e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") && !ctrlOrCmd && !e.altKey && !e.shiftKey) return;
+      // Allow arrow keys and answer choice keys (A-D / 1-4) without modifiers
+      if (
+        (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") &&
+        !ctrlOrCmd &&
+        !e.altKey &&
+        !e.shiftKey
+      ) {
+        return;
+      }
+      if (
+        ["a", "A", "b", "B", "c", "C", "d", "D", "1", "2", "3", "4"].includes(e.key) &&
+        !ctrlOrCmd &&
+        !e.altKey &&
+        !e.shiftKey
+      ) {
+        return;
+      }
 
       // Allow Tab/Enter/Space/Escape only while inside a dialog
       if (

@@ -11,6 +11,13 @@ function isExternalExamCategoryId(categoryId?: string | null): boolean {
 }
 import { translateTextSnippets, type TargetLanguage } from "@/lib/ai/tiptap-translator";
 import { decryptPayload, encryptPayload, isEncryptedEnvelope } from "@/lib/e2e-crypto";
+import { CACHE_KEYS, getCached } from "@/lib/server-cache";
+import {
+  getBuiltinFallbackQuestions,
+  normalizeExamQuestion,
+  sanitizeImageUrl,
+  seededShuffleArray,
+} from "@/lib/exam-question-utils";
 import crypto from "crypto";
 import { isUUID } from "@/lib/utils";
 
@@ -41,10 +48,15 @@ async function translateQuestionBatch<
 >(
   adminSb: ReturnType<typeof createAdminClient>,
   questions: T[],
-  language?: string | null
+  language?: string | null,
+  sourceLanguage?: string | null
 ): Promise<T[]> {
   const targetLang = resolveTargetLang(language);
-  if (targetLang === "Kinyarwanda" || questions.length === 0) {
+  const srcLang = sourceLanguage ? resolveTargetLang(sourceLanguage) : "Kinyarwanda";
+  if ((targetLang === srcLang && !sourceLanguage) || questions.length === 0) {
+    return questions;
+  }
+  if (targetLang === srcLang) {
     return questions;
   }
 
@@ -73,6 +85,7 @@ async function translateQuestionBatch<
       optB: string;
       optC: string;
       optD: string;
+      expl: string;
     }[] = [];
 
     const result = questions.map((q) => ({ ...q }));
@@ -84,7 +97,8 @@ async function translateQuestionBatch<
       const optB = String(q.option_b || "").trim();
       const optC = String(q.option_c || "").trim();
       const optD = String(q.option_d || "").trim();
-      const combined = `${qText}||${optA}||${optB}||${optC}||${optD}`;
+      const expl = String(q.explanation || "").trim();
+      const combined = `${qText}||${optA}||${optB}||${optC}||${optD}||${expl}`;
       const hash = crypto.createHash("md5").update(combined).digest("hex");
       const cached = cachedMap.get(`q_trans_${q.id}`);
 
@@ -94,8 +108,9 @@ async function translateQuestionBatch<
         if (cached.data.option_b) q.option_b = cached.data.option_b;
         if (cached.data.option_c) q.option_c = cached.data.option_c;
         if (cached.data.option_d) q.option_d = cached.data.option_d;
+        if (cached.data.explanation) q.explanation = cached.data.explanation;
       } else {
-        toTranslate.push({ qIdx: i, qId: q.id, hash, qText, optA, optB, optC, optD });
+        toTranslate.push({ qIdx: i, qId: q.id, hash, qText, optA, optB, optC, optD, expl });
       }
     }
 
@@ -103,26 +118,28 @@ async function translateQuestionBatch<
       const snippets: { id: number; text: string }[] = [];
       for (let idx = 0; idx < toTranslate.length; idx++) {
         const item = toTranslate[idx];
-        const base = idx * 5;
+        const base = idx * 6;
         if (item.qText) snippets.push({ id: base + 0, text: item.qText });
         if (item.optA) snippets.push({ id: base + 1, text: item.optA });
         if (item.optB) snippets.push({ id: base + 2, text: item.optB });
         if (item.optC) snippets.push({ id: base + 3, text: item.optC });
         if (item.optD) snippets.push({ id: base + 4, text: item.optD });
+        if (item.expl) snippets.push({ id: base + 5, text: item.expl });
       }
 
-      const translatedMap = await translateTextSnippets(snippets, "Kinyarwanda", targetLang);
+      const translatedMap = await translateTextSnippets(snippets, srcLang, targetLang);
       const nowStr = new Date().toISOString();
       const upserts = [];
 
       for (let idx = 0; idx < toTranslate.length; idx++) {
         const item = toTranslate[idx];
-        const base = idx * 5;
+        const base = idx * 6;
         const tQ = translatedMap.get(base + 0) || item.qText;
         const tA = translatedMap.get(base + 1) || item.optA;
         const tB = translatedMap.get(base + 2) || item.optB;
         const tC = translatedMap.get(base + 3) || item.optC;
         const tD = translatedMap.get(base + 4) || item.optD;
+        const tE = translatedMap.get(base + 5) || item.expl;
 
         const targetObj = result[item.qIdx];
         if (tQ) targetObj.question = tQ;
@@ -130,22 +147,27 @@ async function translateQuestionBatch<
         if (tB) targetObj.option_b = tB;
         if (tC) targetObj.option_c = tC;
         if (tD) targetObj.option_d = tD;
+        if (tE) targetObj.explanation = tE;
 
-        upserts.push({
-          entity_id: `q_trans_${item.qId}`,
-          target_language: targetLang,
-          feature_type: "question_translation",
-          content_hash: item.hash,
-          cached_data: {
-            question: tQ,
-            option_a: tA,
-            option_b: tB,
-            option_c: tC,
-            option_d: tD,
-            updatedAt: nowStr,
-          },
-          updated_at: nowStr,
-        });
+        // Only cache translations generated from the canonical Kinyarwanda source
+        if (srcLang === "Kinyarwanda") {
+          upserts.push({
+            entity_id: `q_trans_${item.qId}`,
+            target_language: targetLang,
+            feature_type: "question_translation",
+            content_hash: item.hash,
+            cached_data: {
+              question: tQ,
+              option_a: tA,
+              option_b: tB,
+              option_c: tC,
+              option_d: tD,
+              explanation: tE || undefined,
+              updatedAt: nowStr,
+            },
+            updated_at: nowStr,
+          });
+        }
       }
 
       if (upserts.length > 0) {
@@ -224,40 +246,154 @@ export async function POST(req: NextRequest) {
     }
 
     const adminSb = createAdminClient();
-
-    if (action === "translate_questions" && Array.isArray(body.questions)) {
-      const translated = await translateQuestionBatch(adminSb, body.questions, language);
-      return secureJsonResponse({ questions: translated });
-    }
-
     const extSb = await getExternalAdminClient();
 
-    if (!extSb) {
-      return secureJsonResponse(
-        { error: "External Supabase database is not configured." },
-        500
-      );
-    }
+    if (action === "translate_questions" && Array.isArray(body.questions)) {
+      const inputQuestions = body.questions as Array<Record<string, any>>;
+      const questionIds = inputQuestions.map((q) => String(q.id || "")).filter(Boolean);
+      const canonicalById = new Map<string, { item: Record<string, any>; sourceLang: TargetLanguage }>();
 
-    // Load external config from system_config
-    const { data: configRows } = await adminSb
-      .from("system_config")
-      .select("key, value")
-      .in("key", [
-        "external_exam_published",
-        "external_exam_title",
-        "external_exam_duration_minutes",
-        "external_exam_question_count",
-        "external_course_published",
-        "external_course_quiz_settings",
+      if (extSb && questionIds.length > 0) {
+        try {
+          const { data: extRows } = await extSb
+            .from("questions")
+            .select("*")
+            .in("id", questionIds);
+          for (const row of extRows || []) {
+            const choices = parseExternalChoices(row.choice);
+            canonicalById.set(String(row.id), {
+              sourceLang: "Kinyarwanda",
+              item: {
+                question: String(row.title || ""),
+                option_a: choices[0] || "Option A",
+                option_b: choices[1] || "Option B",
+                option_c: choices[2] || "Option C",
+                option_d: choices[3] || "Option D",
+              },
+            });
+          }
+        } catch {}
+      }
+
+      const missingIds = questionIds.filter((id) => !canonicalById.has(id));
+      if (missingIds.length > 0) {
+        const uuidIds = missingIds.filter((id) => isUUID(id));
+        if (uuidIds.length > 0) {
+          const { data: primaryRows } = await adminSb
+            .from("exam_questions")
+            .select("id, question, option_a, option_b, option_c, option_d, explanation")
+            .in("id", uuidIds);
+          for (const row of primaryRows || []) {
+            canonicalById.set(String(row.id), {
+              sourceLang: "Kinyarwanda",
+              item: {
+                question: row.question,
+                option_a: row.option_a,
+                option_b: row.option_b,
+                option_c: row.option_c,
+                option_d: row.option_d,
+                explanation: row.explanation,
+              },
+            });
+          }
+        }
+        const builtinFallback = getBuiltinFallbackQuestions("fallback", 20);
+        for (const fb of builtinFallback) {
+          if (!canonicalById.has(String(fb.id))) {
+            canonicalById.set(String(fb.id), {
+              sourceLang: "English",
+              item: fb,
+            });
+          }
+        }
+      }
+
+      const dbSourced: any[] = [];
+      const fallbackSourced: any[] = [];
+      const builtinEnglishSourced: any[] = [];
+      const orderIndex = new Map<string, number>();
+
+      inputQuestions.forEach((q, idx) => {
+        const idStr = String(q.id || `q-${idx}`);
+        orderIndex.set(idStr, idx);
+        const canonical = canonicalById.get(idStr);
+        if (canonical) {
+          const merged = {
+            ...q,
+            question: canonical.item.question ?? q.question,
+            option_a: canonical.item.option_a ?? q.option_a,
+            option_b: canonical.item.option_b ?? q.option_b,
+            option_c: canonical.item.option_c ?? q.option_c,
+            option_d: canonical.item.option_d ?? q.option_d,
+            explanation: canonical.item.explanation ?? q.explanation,
+          };
+          if (canonical.sourceLang === "English") {
+            builtinEnglishSourced.push(merged);
+          } else {
+            dbSourced.push(merged);
+          }
+        } else {
+          fallbackSourced.push(q);
+        }
+      });
+
+      const [tDb, tBuiltin, tFallback] = await Promise.all([
+        dbSourced.length > 0
+          ? translateQuestionBatch(adminSb, dbSourced, language, "Kinyarwanda")
+          : Promise.resolve([]),
+        builtinEnglishSourced.length > 0
+          ? translateQuestionBatch(adminSb, builtinEnglishSourced, language, "English")
+          : Promise.resolve([]),
+        fallbackSourced.length > 0
+          ? translateQuestionBatch(
+              adminSb,
+              fallbackSourced,
+              language,
+              body.sourceLanguage || "Kinyarwanda"
+            )
+          : Promise.resolve([]),
       ]);
 
-    const configMap = new Map<string, string>();
-    for (const row of configRows || []) {
-      if (row.key && row.value !== undefined && row.value !== null) {
-        configMap.set(String(row.key), String(row.value));
-      }
+      const mergedOut = [...tDb, ...tBuiltin, ...tFallback].sort(
+        (a, b) => (orderIndex.get(String(a.id)) ?? 0) - (orderIndex.get(String(b.id)) ?? 0)
+      );
+      return secureJsonResponse({ questions: mergedOut });
     }
+
+    const getCachedSystemConfigMap = async () => {
+      const rows = await getCached(CACHE_KEYS.SYSTEM_CONFIG_ALL, 60_000, async () => {
+        const { data } = await adminSb.from("system_config").select("key, value").order("key");
+        return data || [];
+      }).catch(() => []);
+      const map = new Map<string, string>();
+      for (const row of rows || []) {
+        if (row.key && row.value !== undefined && row.value !== null) {
+          map.set(String(row.key), String(row.value));
+        }
+      }
+      return map;
+    };
+
+    const getCachedExternalQuestions = async (): Promise<any[]> => {
+      if (!extSb) return [];
+      return getCached(CACHE_KEYS.EXTERNAL_QUESTIONS_POOL, 120_000, async () => {
+        const { data: qData, error: qErr } = await extSb
+          .from("questions")
+          .select("*")
+          .order("question_numbers", { ascending: true, nullsFirst: false })
+          .order("id", { ascending: true });
+        if (qErr) {
+          console.warn("[ExamAPI] External questions query error:", qErr.message);
+          return [];
+        }
+        return Array.isArray(qData) ? qData : [];
+      }).catch((err) => {
+        console.warn("[ExamAPI] External questions fetch exception:", err);
+        return [];
+      });
+    };
+
+    const configMap = await getCachedSystemConfigMap();
 
     let quizSettings: {
       globalDurationMinutes: number;
@@ -306,52 +442,40 @@ export async function POST(req: NextRequest) {
         return secureJsonResponse({ error: "Admin authorization required" }, 403);
       }
 
-      let allExtQuestions: any[] = [];
-      try {
-        if (extSb) {
-          const { data: qData } = await extSb
-            .from("questions")
-            .select("*")
-            .order("question_numbers", { ascending: true, nullsFirst: false })
-            .order("id", { ascending: true });
-
-          if (Array.isArray(qData) && qData.length > 0) {
-            allExtQuestions = qData;
-          }
-        }
-      } catch (extQueryErr) {
-        console.warn("[GetExternalQuestions] External questions query error:", extQueryErr);
-      }
+      const allExtQuestions = await getCachedExternalQuestions();
 
       let formattedPool: any[] = [];
       if (allExtQuestions.length > 0) {
-        formattedPool = allExtQuestions.map((q: any) => {
+        formattedPool = allExtQuestions.map((q: any, idx: number) => {
           const choices = parseExternalChoices(q.choice);
           const ansIdx = typeof q.choice_answer === "number" ? q.choice_answer : Number(q.choice_answer) || 0;
-          return {
-            id: String(q.id),
-            category_id: body.categoryId || EXTERNAL_EXAM_CATEGORY_ID,
-            question: String(q.title || ""),
-            question_image: q.image || null,
-            option_a: choices[0] || "Option A",
-            option_a_image: null,
-            option_b: choices[1] || "Option B",
-            option_b_image: null,
-            option_c: choices[2] || "Option C",
-            option_c_image: null,
-            option_d: choices[3] || "Option D",
-            option_d_image: null,
-            correct_answer: mapExternalChoiceToLetter(ansIdx),
-            explanation: null,
-            created_at: q.created_at || new Date().toISOString(),
-          };
+          return normalizeExamQuestion(
+            {
+              id: String(q.id),
+              category_id: body.categoryId || EXTERNAL_EXAM_CATEGORY_ID,
+              question: String(q.title || ""),
+              question_image: sanitizeImageUrl(q.image),
+              option_a: choices[0] || "Option A",
+              option_a_image: null,
+              option_b: choices[1] || "Option B",
+              option_b_image: null,
+              option_c: choices[2] || "Option C",
+              option_c_image: null,
+              option_d: choices[3] || "Option D",
+              option_d_image: null,
+              correct_answer: mapExternalChoiceToLetter(ansIdx),
+              explanation: null,
+              created_at: q.created_at || new Date().toISOString(),
+            },
+            idx
+          );
         });
       } else {
         const { data: primaryQ } = await adminSb
           .from("exam_questions")
           .select("*")
           .order("id", { ascending: true });
-        formattedPool = primaryQ || [];
+        formattedPool = (primaryQ || []).map((q: any, idx: number) => normalizeExamQuestion(q, idx));
       }
 
       return secureJsonResponse({ questions: formattedPool });
@@ -370,21 +494,25 @@ export async function POST(req: NextRequest) {
       let availableTo = null;
 
       const targetCatId = categoryId || EXTERNAL_EXAM_CATEGORY_ID;
-      let { data: dbSettings } = await adminSb
-        .from("exam_settings")
-        .select("*")
-        .eq("category_id", targetCatId)
-        .maybeSingle();
+      const [dbSettingsRes, allExtQuestions] = await Promise.all([
+        (async () => {
+          const { data } = await adminSb
+            .from("exam_settings")
+            .select("*")
+            .eq("category_id", targetCatId)
+            .maybeSingle();
+          if (data || !isExternalExamCategoryId(targetCatId)) return data;
+          const { data: fb } = await adminSb
+            .from("exam_settings")
+            .select("*")
+            .eq("category_id", EXTERNAL_EXAM_CATEGORY_ID)
+            .maybeSingle();
+          return fb;
+        })(),
+        getCachedExternalQuestions(),
+      ]);
 
-      if (!dbSettings && isExternalExamCategoryId(targetCatId)) {
-        const { data: fallbackSettings } = await adminSb
-          .from("exam_settings")
-          .select("*")
-          .eq("category_id", EXTERNAL_EXAM_CATEGORY_ID)
-          .maybeSingle();
-        dbSettings = fallbackSettings;
-      }
-
+      const dbSettings = dbSettingsRes;
       if (dbSettings) {
         if (dbSettings.question_count != null) questionCount = dbSettings.question_count;
         if (dbSettings.duration_minutes != null) durationMinutes = dbSettings.duration_minutes;
@@ -394,60 +522,50 @@ export async function POST(req: NextRequest) {
         availableTo = dbSettings.available_to;
       }
 
-      let allExtQuestions: any[] = [];
-      try {
-        if (extSb) {
-          const { data: qData, error: qErr } = await extSb
-            .from("questions")
-            .select("*")
-            .order("question_numbers", { ascending: true, nullsFirst: false })
-            .order("id", { ascending: true });
-
-          if (!qErr && Array.isArray(qData) && qData.length > 0) {
-            allExtQuestions = qData;
-          }
-        }
-      } catch (extQueryErr) {
-        console.warn("[TakeExam] External questions query error, trying primary DB:", extQueryErr);
-      }
-
       let formattedPool: any[] = [];
 
       if (allExtQuestions.length > 0) {
-        formattedPool = allExtQuestions.map((q: any) => {
+        formattedPool = allExtQuestions.map((q: any, idx: number) => {
           const choices = parseExternalChoices(q.choice);
           const ansIdx = typeof q.choice_answer === "number" ? q.choice_answer : Number(q.choice_answer) || 0;
-          return {
-            id: String(q.id),
-            category_id: targetCatId,
-            question: String(q.title || ""),
-            question_image: q.image || null,
-            option_a: choices[0] || "Option A",
-            option_a_image: null,
-            option_b: choices[1] || "Option B",
-            option_b_image: null,
-            option_c: choices[2] || "Option C",
-            option_c_image: null,
-            option_d: choices[3] || "Option D",
-            option_d_image: null,
-            correct_answer: mapExternalChoiceToLetter(ansIdx),
-            explanation: null,
-            created_at: q.created_at || new Date().toISOString(),
-          };
+          return normalizeExamQuestion(
+            {
+              id: String(q.id),
+              category_id: targetCatId,
+              question: String(q.title || ""),
+              question_image: sanitizeImageUrl(q.image),
+              option_a: choices[0] || "Option A",
+              option_a_image: null,
+              option_b: choices[1] || "Option B",
+              option_b_image: null,
+              option_c: choices[2] || "Option C",
+              option_c_image: null,
+              option_d: choices[3] || "Option D",
+              option_d_image: null,
+              correct_answer: mapExternalChoiceToLetter(ansIdx),
+              explanation: null,
+              created_at: q.created_at || new Date().toISOString(),
+            },
+            idx,
+            targetCatId
+          );
         });
       } else {
-        // Fallback to primary database exam_questions table (365 questions)
+        // Fallback to primary database exam_questions table
         const { data: primaryQ } = await adminSb
           .from("exam_questions")
           .select("*")
           .order("id", { ascending: true });
 
         if (primaryQ && primaryQ.length > 0) {
-          formattedPool = primaryQ.map((q: any) => ({
-            ...q,
-            category_id: targetCatId,
-          }));
+          formattedPool = primaryQ.map((q: any, idx: number) =>
+            normalizeExamQuestion({ ...q, category_id: targetCatId }, idx, targetCatId)
+          );
         }
+      }
+
+      if (formattedPool.length === 0) {
+        formattedPool = getBuiltinFallbackQuestions(targetCatId, questionCount);
       }
 
       const hasImg = (img: any) => typeof img === "string" && img.trim().length > 0 && img.trim() !== "null" && img.trim() !== "undefined";
@@ -493,19 +611,30 @@ export async function POST(req: NextRequest) {
       // Support shared question order and shared language for group challenges
       if (challengeId) {
         let challengeData: any = null;
+        let canPersistQuestionIds = true;
         const { data: cWithLang, error: cErr } = await adminSb
           .from("exam_challenges")
           .select("id, question_ids, language")
           .eq("id", challengeId)
           .maybeSingle();
 
-        if (cErr && (cErr.code === "42703" || /language/i.test(cErr.message || ""))) {
-          const { data: cFallback } = await adminSb
+        if (cErr && (cErr.code === "42703" || /language|question_ids/i.test(cErr.message || ""))) {
+          const { data: cOnlyQIds, error: cErr2 } = await adminSb
             .from("exam_challenges")
             .select("id, question_ids")
             .eq("id", challengeId)
             .maybeSingle();
-          challengeData = cFallback;
+          if (cErr2 && (cErr2.code === "42703" || /question_ids/i.test(cErr2.message || ""))) {
+            canPersistQuestionIds = false;
+            const { data: cMinimal } = await adminSb
+              .from("exam_challenges")
+              .select("*")
+              .eq("id", challengeId)
+              .maybeSingle();
+            challengeData = cMinimal;
+          } else {
+            challengeData = cOnlyQIds;
+          }
         } else {
           challengeData = cWithLang;
         }
@@ -526,25 +655,32 @@ export async function POST(req: NextRequest) {
           if (ordered.length > 0) {
             selectedQuestions = ordered;
           }
-        } else {
+        } else if (canPersistQuestionIds) {
           const selectedIds = selectedQuestions.map((q) => q.id);
           await adminSb
             .from("exam_challenges")
             .update({ question_ids: selectedIds })
-            .eq("id", challengeId);
+            .eq("id", challengeId)
+            .then(() => {}, () => {});
+        } else {
+          // Deterministic seeded selection so all participants receive identical questions
+          selectedQuestions = seededShuffleArray(formattedPool, challengeId).slice(0, questionCount);
         }
       }
 
       // Translate questions into requested UI/challenge language if needed
       const translatedSelected = await translateQuestionBatch(adminSb, selectedQuestions, effectiveLanguage);
 
-      // Strip correct_answer before sending to client
-      const safeQuestions = translatedSelected.map(({ correct_answer, explanation, ...rest }) => rest);
+      // Strip correct_answer before sending to client and enforce strict shape
+      const safeQuestions = translatedSelected.map((item, idx) => {
+        const { correct_answer: _c, explanation: _e, ...rest } = normalizeExamQuestion(item, idx, targetCatId);
+        return rest;
+      });
 
       return secureJsonResponse({
         categoryId: categoryId || EXTERNAL_EXAM_CATEGORY_ID,
         settings: {
-          question_count: questionCount,
+          question_count: safeQuestions.length || questionCount,
           duration_minutes: durationMinutes,
           sorting_mode: sortingMode,
           passing_percentage: passingPercentage,
@@ -568,10 +704,15 @@ export async function POST(req: NextRequest) {
       }> = Array.isArray(attemptData?.answers) ? attemptData.answers : [];
 
       const questionIds = rawAnswers.map((a) => a.question_id).filter(Boolean);
-      const { data: extQuestions } = await extSb
-        .from("questions")
-        .select("id, choice_answer")
-        .in("id", questionIds.length > 0 ? questionIds : ["__none__"]);
+      const extQuestions =
+        extSb && questionIds.length > 0
+          ? (
+              await extSb
+                .from("questions")
+                .select("id, choice_answer")
+                .in("id", questionIds)
+            ).data
+          : [];
 
       const correctByQuestionId = new Map<string, "A" | "B" | "C" | "D">();
       const questionDetails: Record<string, { correct_answer: string; explanation?: string }> = {};
@@ -601,6 +742,18 @@ export async function POST(req: NextRequest) {
                 explanation: q.explanation || undefined,
               };
             }
+          }
+        }
+      }
+
+      if (correctByQuestionId.size < questionIds.length) {
+        for (const fb of getBuiltinFallbackQuestions("fallback", 20)) {
+          if (!correctByQuestionId.has(fb.id)) {
+            correctByQuestionId.set(fb.id, fb.correct_answer as "A" | "B" | "C" | "D");
+            questionDetails[fb.id] = {
+              correct_answer: fb.correct_answer,
+              explanation: fb.explanation,
+            };
           }
         }
       }
@@ -721,58 +874,76 @@ export async function POST(req: NextRequest) {
       const rawChapterId = String(moduleId || "").replace(/^ext-mod-/, "");
       const courseOverride = quizSettings.perCourse?.[rawChapterId];
       const durationMinutes =
-        Number(courseOverride?.durationMinutes) || Number(quizSettings.globalDurationMinutes) || 20;
+        Number(courseOverride?.durationMinutes) ||
+        (examType === "final" ? 45 : examType === "midterm" ? 30 : Number(quizSettings.globalDurationMinutes) || 20);
       const questionCount =
-        Number(courseOverride?.questionCount) || Number(quizSettings.globalQuestionCount) || 20;
+        Number(courseOverride?.questionCount) ||
+        (examType === "final" ? 50 : examType === "midterm" ? 30 : Number(quizSettings.globalQuestionCount) || 20);
 
-      let qQuery = extSb
-        .from("questions")
-        .select("*")
-        .order("question_numbers", { ascending: true, nullsFirst: false })
-        .order("id", { ascending: true });
+      const allCachedExt = await getCachedExternalQuestions();
+      let pool =
+        examType === "module" && rawChapterId
+          ? allCachedExt.filter((q: any) => String(q.chapter_id || "") === rawChapterId)
+          : allCachedExt;
 
-      if (examType === "module" && rawChapterId) {
-        qQuery = qQuery.eq("chapter_id", rawChapterId);
-      }
-
-      const { data: rawQuestions, error: qErr } = await qQuery;
-      if (qErr) throw qErr;
-
-      let pool = rawQuestions || [];
-      // If a specific chapter has fewer questions than requested or 0, fallback to all questions if empty
+      // If a specific chapter has 0 questions, gracefully fall back to the full external pool
       if (pool.length === 0) {
-        const { data: fallbackQ } = await extSb.from("questions").select("*").limit(100);
-        pool = fallbackQ || [];
+        pool = allCachedExt;
       }
 
-      const formatted = pool.map((q: any, idx: number) => {
+      let formatted = pool.map((q: any, idx: number) => {
         const choices = parseExternalChoices(q.choice);
         const ansIdx = typeof q.choice_answer === "number" ? q.choice_answer : Number(q.choice_answer) || 0;
-        return {
-          id: String(q.id),
+        return normalizeExamQuestion(
+          {
+            id: String(q.id),
+            module_id: moduleId || rawChapterId,
+            question: String(q.title || ""),
+            question_image: sanitizeImageUrl(q.image),
+            option_a: choices[0] || "Option A",
+            option_a_image: null,
+            option_b: choices[1] || "Option B",
+            option_b_image: null,
+            option_c: choices[2] || "Option C",
+            option_c_image: null,
+            option_d: choices[3] || "Option D",
+            option_d_image: null,
+            correct_answer: mapExternalChoiceToLetter(ansIdx),
+            explanation: null,
+            order_index: idx,
+            is_published: true,
+            created_at: q.created_at || new Date().toISOString(),
+            updated_at: q.updated_at || new Date().toISOString(),
+          },
+          idx
+        );
+      });
+
+      if (formatted.length === 0) {
+        const { data: primaryModQ } = await adminSb
+          .from("module_exam_questions")
+          .select("*")
+          .limit(60);
+        if (primaryModQ && primaryModQ.length > 0) {
+          formatted = primaryModQ.map((q: any, idx: number) => normalizeExamQuestion(q, idx));
+        }
+      }
+
+      if (formatted.length === 0) {
+        formatted = getBuiltinFallbackQuestions(moduleId || "ext-module", questionCount).map((q, idx) => ({
+          ...q,
           module_id: moduleId || rawChapterId,
-          question: String(q.title || ""),
-          question_image: q.image || null,
-          option_a: choices[0] || "Option A",
-          option_a_image: null,
-          option_b: choices[1] || "Option B",
-          option_b_image: null,
-          option_c: choices[2] || "Option C",
-          option_c_image: null,
-          option_d: choices[3] || "Option D",
-          option_d_image: null,
-          correct_answer: mapExternalChoiceToLetter(ansIdx),
-          explanation: null,
           order_index: idx,
           is_published: true,
-          created_at: q.created_at || new Date().toISOString(),
-          updated_at: q.updated_at || new Date().toISOString(),
-        };
-      });
+          updated_at: q.created_at,
+        })) as any[];
+      }
 
       const shuffled = [...formatted].sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, Math.min(questionCount, shuffled.length));
-      const translatedSelected = await translateQuestionBatch(adminSb, selected, language);
+      const translatedSelected = (await translateQuestionBatch(adminSb, selected, language)).map(
+        (q, idx) => normalizeExamQuestion(q, idx)
+      );
 
       return secureJsonResponse({
         settings: {

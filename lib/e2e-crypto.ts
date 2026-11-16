@@ -212,11 +212,25 @@ export function getClientAccessToken(): string {
   return "";
 }
 
+export async function resolveClientAccessToken(): Promise<string> {
+  const syncTok = getClientAccessToken();
+  if (syncTok) return syncTok;
+  if (typeof window === "undefined") return "";
+  try {
+    const { createClient } = await import("@/lib/supabase/client");
+    const sb = createClient();
+    const { data } = await sb.auth.getSession();
+    return data?.session?.access_token || "";
+  } catch {
+    return "";
+  }
+}
+
 export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
   const headersObj: Record<string, string> = {
     ...(init?.headers as Record<string, string>),
   };
-  const token = getClientAccessToken();
+  const token = await resolveClientAccessToken();
   if (token && !headersObj["Authorization"] && !headersObj["authorization"]) {
     headersObj["Authorization"] = `Bearer ${token}`;
   }
@@ -231,7 +245,7 @@ export async function secureApiPost<T = any>(
 
   if (typeof window !== "undefined") {
     try {
-      const token = getClientAccessToken();
+      const token = await resolveClientAccessToken();
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
         if (!bodyObj.accessToken) {

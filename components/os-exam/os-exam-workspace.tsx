@@ -151,9 +151,10 @@ export function OSExamWorkspace({
 }: OSExamWorkspaceProps) {
   const { t, language } = useLanguage();
 
-  const activeQuestion = exam.questions[currentIndex] ?? null;
-  const answeredCount = Object.keys(userAnswers).length;
   const totalQuestions = exam.questions.length;
+  const safeIndex = totalQuestions > 0 ? Math.min(Math.max(0, currentIndex), totalQuestions - 1) : 0;
+  const activeQuestion = exam.questions[safeIndex] ?? null;
+  const answeredCount = Object.keys(userAnswers).length;
   const unansweredCount = Math.max(0, totalQuestions - answeredCount);
   const progress = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0;
 
@@ -191,7 +192,7 @@ export function OSExamWorkspace({
           {/* Left: Clean Question Counter & Exam Track */}
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-mono text-xs sm:text-sm font-semibold tabular-nums text-foreground whitespace-nowrap">
-              {String(currentIndex + 1).padStart(2, "0")} / {String(totalQuestions).padStart(2, "0")}
+              {String(safeIndex + 1).padStart(2, "0")} / {String(totalQuestions).padStart(2, "0")}
             </span>
             <span className="text-muted-foreground/40 hidden sm:inline">·</span>
             <span className="text-xs text-muted-foreground truncate hidden sm:inline">
@@ -271,7 +272,7 @@ export function OSExamWorkspace({
           <GroupExamLiveHUD
             challengeId={challengeId}
             currentUserId={currentUserId}
-            currentIndex={currentIndex}
+            currentIndex={safeIndex}
             answeredCount={answeredCount}
             totalQuestions={totalQuestions}
             isExamActive={true}
@@ -297,6 +298,7 @@ export function OSExamWorkspace({
                   <SmartImage
                     src={activeQuestion.question_image}
                     alt={t("question") || "Question diagram"}
+                    priority
                     className="w-full h-[270px] sm:h-[380px] lg:h-[460px] object-contain rounded-lg"
                   />
                 </div>
@@ -437,8 +439,8 @@ export function OSExamWorkspace({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => onChangeIndex(Math.max(0, currentIndex - 1))}
-            disabled={currentIndex === 0}
+            onClick={() => onChangeIndex(Math.max(0, safeIndex - 1))}
+            disabled={safeIndex === 0}
             className="rounded-lg h-8 sm:h-9 px-2.5 sm:px-3.5 text-xs font-medium whitespace-nowrap shrink-0"
           >
             <ChevronLeft className="w-4 h-4 sm:mr-1" />
@@ -449,7 +451,7 @@ export function OSExamWorkspace({
           <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
             <div className="flex items-center justify-start sm:justify-center gap-1 py-0.5 px-1 w-max mx-auto">
               {exam.questions.map((q, i) => {
-                const isCurrent = i === currentIndex;
+                const isCurrent = i === safeIndex;
                 const isAnswered = !!userAnswers[q.id]?.selectedAnswer;
                 return (
                   <button
@@ -473,7 +475,7 @@ export function OSExamWorkspace({
             </div>
           </div>
 
-          {currentIndex === totalQuestions - 1 ? (
+          {safeIndex === totalQuestions - 1 ? (
             <Button
               type="button"
               size="sm"
@@ -488,7 +490,7 @@ export function OSExamWorkspace({
             <Button
               type="button"
               size="sm"
-              onClick={() => onChangeIndex(Math.min(totalQuestions - 1, currentIndex + 1))}
+              onClick={() => onChangeIndex(Math.min(totalQuestions - 1, safeIndex + 1))}
               className="rounded-lg h-8 sm:h-9 px-2.5 sm:px-3.5 text-xs font-semibold whitespace-nowrap shrink-0"
             >
               <span className="hidden sm:inline">{t("next") || "Next"}</span>

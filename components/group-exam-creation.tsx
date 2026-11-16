@@ -51,7 +51,7 @@ function resolveDefaultExamLang(lang?: string): "Kinyarwanda" | "English" | "Fre
 }
 
 export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProps) {
-  const { t, language } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { user } = useAuth();
 
   const [allUsers, setAllUsers] = useState<ClassmateProfile[]>([]);
@@ -210,6 +210,7 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
       return;
     }
     setSubmitting(true);
+    setLanguage(selectedExamLanguage);
     try {
       await onStartExam(selectedCategory, cleanInvitees, selectedExamLanguage);
     } finally {
@@ -331,7 +332,10 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setSelectedExamLanguage(opt.value)}
+                  onClick={() => {
+                    setSelectedExamLanguage(opt.value);
+                    setLanguage(opt.value);
+                  }}
                   className={cn(
                     "inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium border transition-colors cursor-pointer",
                     isSelected

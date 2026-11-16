@@ -17,6 +17,9 @@ import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import { UserDevicesList } from "@/components/user-devices-list";
 import { VerifyIdModal } from "@/components/verify-id-modal";
+import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
+import { isAdmin } from "@/lib/permissions";
+import { compressImageFile } from "@/lib/image-compression";
 
 type TextSize = "sm" | "md" | "lg";
 type Language = "English" | "Kinyarwanda" | "French";
@@ -952,21 +955,29 @@ export default function UserSettings({
                     toast.error(t("imageUpload.selectImageFile"));
                     return;
                   }
-                  if (file.size > 5 * 1024 * 1024) {
+                  if (file.size > 10 * 1024 * 1024) {
                     toast.error(t("imageUpload.fileSizeLimit"));
                     return;
                   }
                   
                   setUploadingAvatar(true);
                   try {
+                    const compressedAvatar = await compressImageFile(file, {
+                      maxDimension: 512,
+                      quality: 0.80,
+                      minBytesToCompress: 10 * 1024,
+                    });
                     const supabase = createClient();
-                    const fileExt = file.name.split('.').pop();
+                    const fileExt = compressedAvatar.name.split('.').pop() || 'webp';
                     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
                     const filePath = `profile-pictures/${fileName}`;
 
                     const { error: uploadError } = await supabase.storage
                       .from('avatars')
-                      .upload(filePath, file);
+                      .upload(filePath, compressedAvatar, {
+                        contentType: compressedAvatar.type || file.type,
+                        cacheControl: "31536000",
+                      });
 
                     if (uploadError) throw uploadError;
 
@@ -1298,6 +1309,9 @@ export default function UserSettings({
                     if (error) throw error;
 
                     toast.success(t("userSettings.accountDeleted"));
+                    if (isAdmin(user) || isAdminMode) {
+                      resetLandingLanguageForAdminLogout();
+                    }
                     await supabase.auth.signOut();
                     window.location.href = "/";
                   } catch (error: any) {

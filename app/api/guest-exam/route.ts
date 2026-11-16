@@ -20,7 +20,27 @@ import {
   getGuestExamQuota,
   incrementGuestExamQuota,
 } from "@/lib/guest-exam-limit";
+import { CACHE_KEYS, getCached } from "@/lib/server-cache";
+import {
+  getBuiltinFallbackQuestions,
+  normalizeExamQuestion,
+  sanitizeImageUrl,
+} from "@/lib/exam-question-utils";
 import { isUUID } from "@/lib/utils";
+
+async function getGuestConfigMap(adminSb: ReturnType<typeof createAdminClient>) {
+  const rows = await getCached(CACHE_KEYS.SYSTEM_CONFIG_ALL, 60_000, async () => {
+    const { data } = await adminSb.from("system_config").select("key, value").order("key");
+    return data || [];
+  }).catch(() => []);
+  const map = new Map<string, string>();
+  for (const row of rows || []) {
+    if (row.key && row.value !== undefined && row.value !== null) {
+      map.set(String(row.key), String(row.value));
+    }
+  }
+  return map;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -65,14 +85,17 @@ async function translateQuestionBatch<
     option_b?: string | null;
     option_c?: string | null;
     option_d?: string | null;
+    explanation?: string | null;
   }
 >(
   adminSb: ReturnType<typeof createAdminClient>,
   questions: T[],
-  language?: string | null
+  language?: string | null,
+  sourceLanguage?: string | null
 ): Promise<T[]> {
   const targetLang = resolveTargetLang(language);
-  if (targetLang === "Kinyarwanda" || questions.length === 0) {
+  const srcLang = sourceLanguage ? resolveTargetLang(sourceLanguage) : "Kinyarwanda";
+  if (targetLang === srcLang || questions.length === 0) {
     return questions;
   }
 
@@ -104,6 +127,7 @@ async function translateQuestionBatch<
       optB: string;
       optC: string;
       optD: string;
+      expl: string;
     }[] = [];
 
     const result = questions.map((q) => ({ ...q }));
@@ -115,7 +139,8 @@ async function translateQuestionBatch<
       const optB = String(q.option_b || "").trim();
       const optC = String(q.option_c || "").trim();
       const optD = String(q.option_d || "").trim();
-      const combined = `${qText}||${optA}||${optB}||${optC}||${optD}`;
+      const expl = String(q.explanation || "").trim();
+      const combined = `${qText}||${optA}||${optB}||${optC}||${optD}||${expl}`;
       const hash = crypto.createHash("md5").update(combined).digest("hex");
       const cached = cachedMap.get(`q_trans_${q.id}`);
 
@@ -125,6 +150,7 @@ async function translateQuestionBatch<
         if (cached.data.option_b) q.option_b = cached.data.option_b;
         if (cached.data.option_c) q.option_c = cached.data.option_c;
         if (cached.data.option_d) q.option_d = cached.data.option_d;
+        if (cached.data.explanation) q.explanation = cached.data.explanation;
       } else {
         toTranslate.push({
           qIdx: i,
@@ -135,6 +161,7 @@ async function translateQuestionBatch<
           optB,
           optC,
           optD,
+          expl,
         });
       }
     }
@@ -143,17 +170,18 @@ async function translateQuestionBatch<
       const snippets: { id: number; text: string }[] = [];
       for (let idx = 0; idx < toTranslate.length; idx++) {
         const item = toTranslate[idx];
-        const base = idx * 5;
+        const base = idx * 6;
         if (item.qText) snippets.push({ id: base + 0, text: item.qText });
         if (item.optA) snippets.push({ id: base + 1, text: item.optA });
         if (item.optB) snippets.push({ id: base + 2, text: item.optB });
         if (item.optC) snippets.push({ id: base + 3, text: item.optC });
         if (item.optD) snippets.push({ id: base + 4, text: item.optD });
+        if (item.expl) snippets.push({ id: base + 5, text: item.expl });
       }
 
       const translatedMap = await translateTextSnippets(
         snippets,
-        "Kinyarwanda",
+        srcLang,
         targetLang
       );
       const nowStr = new Date().toISOString();
@@ -161,12 +189,13 @@ async function translateQuestionBatch<
 
       for (let idx = 0; idx < toTranslate.length; idx++) {
         const item = toTranslate[idx];
-        const base = idx * 5;
+        const base = idx * 6;
         const tQ = translatedMap.get(base + 0) || item.qText;
         const tA = translatedMap.get(base + 1) || item.optA;
         const tB = translatedMap.get(base + 2) || item.optB;
         const tC = translatedMap.get(base + 3) || item.optC;
         const tD = translatedMap.get(base + 4) || item.optD;
+        const tE = translatedMap.get(base + 5) || item.expl;
 
         const targetObj = result[item.qIdx];
         if (tQ) targetObj.question = tQ;
@@ -174,22 +203,26 @@ async function translateQuestionBatch<
         if (tB) targetObj.option_b = tB;
         if (tC) targetObj.option_c = tC;
         if (tD) targetObj.option_d = tD;
+        if (tE) targetObj.explanation = tE;
 
-        upserts.push({
-          entity_id: `q_trans_${item.qId}`,
-          target_language: targetLang,
-          feature_type: "question_translation",
-          content_hash: item.hash,
-          cached_data: {
-            question: tQ,
-            option_a: tA,
-            option_b: tB,
-            option_c: tC,
-            option_d: tD,
-            updatedAt: nowStr,
-          },
-          updated_at: nowStr,
-        });
+        if (srcLang === "Kinyarwanda") {
+          upserts.push({
+            entity_id: `q_trans_${item.qId}`,
+            target_language: targetLang,
+            feature_type: "question_translation",
+            content_hash: item.hash,
+            cached_data: {
+              question: tQ,
+              option_a: tA,
+              option_b: tB,
+              option_c: tC,
+              option_d: tD,
+              explanation: tE || undefined,
+              updatedAt: nowStr,
+            },
+            updated_at: nowStr,
+          });
+        }
       }
 
       if (upserts.length > 0) {
@@ -293,25 +326,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const deviceId = searchParams.get("deviceId");
     const targetLang = resolveTargetLang(searchParams.get("language"));
-    const quota = await getGuestExamQuota(req, deviceId);
-
     const adminSb = createAdminClient();
-    const { data: configRows } = await adminSb
-      .from("system_config")
-      .select("key, value")
-      .in("key", [
-        "standalone_exam_enabled",
-        "external_exam_title",
-        "external_exam_duration_minutes",
-        "external_exam_question_count",
-      ]);
-
-    const configMap = new Map<string, string>();
-    for (const row of configRows || []) {
-      if (row.key && row.value !== undefined && row.value !== null) {
-        configMap.set(String(row.key), String(row.value));
-      }
-    }
+    const [quota, configMap] = await Promise.all([
+      getGuestExamQuota(req, deviceId),
+      getGuestConfigMap(adminSb),
+    ]);
 
     const standaloneEnabled =
       String(configMap.get("standalone_exam_enabled") ?? "true").toLowerCase() !==
@@ -370,30 +389,127 @@ export async function POST(req: NextRequest) {
     const { action, language, deviceId } = body || {};
 
     const adminSb = createAdminClient();
-
-    // Load Admin exam configuration toggles
-    const { data: configRows } = await adminSb
-      .from("system_config")
-      .select("key, value")
-      .in("key", [
-        "standalone_exam_enabled",
-        "save_individual_exams_enabled",
-        "external_exam_published",
-        "external_exam_title",
-        "external_exam_duration_minutes",
-        "external_exam_question_count",
-      ]);
-
-    const configMap = new Map<string, string>();
-    for (const row of configRows || []) {
-      if (row.key && row.value !== undefined && row.value !== null) {
-        configMap.set(String(row.key), String(row.value));
-      }
-    }
+    const configMap = await getGuestConfigMap(adminSb);
 
     const standaloneEnabled =
       String(configMap.get("standalone_exam_enabled") ?? "true").toLowerCase() !==
       "false";
+
+    // ------------------------------------------------------------------------
+    // 0. TRANSLATE COMPLETED EXAM QUESTIONS FOR POST-EXAM REVIEW LANGUAGE SWITCH
+    // ------------------------------------------------------------------------
+    if (action === "translate_questions" && Array.isArray(body?.questions)) {
+      const inputQuestions = body.questions as Array<Record<string, any>>;
+      const questionIds = inputQuestions.map((q) => String(q.id || "")).filter(Boolean);
+      const extSb = await getExternalAdminClient();
+      const canonicalById = new Map<string, { item: Record<string, any>; sourceLang: TargetLanguage }>();
+
+      if (extSb && questionIds.length > 0) {
+        try {
+          const { data: extRows } = await extSb
+            .from("questions")
+            .select("*")
+            .in("id", questionIds);
+          for (const row of extRows || []) {
+            const choices = parseExternalChoices(row.choice);
+            canonicalById.set(String(row.id), {
+              sourceLang: "Kinyarwanda",
+              item: {
+                question: String(row.title || ""),
+                option_a: choices[0] || "Option A",
+                option_b: choices[1] || "Option B",
+                option_c: choices[2] || "Option C",
+                option_d: choices[3] || "Option D",
+              },
+            });
+          }
+        } catch {}
+      }
+
+      const missingIds = questionIds.filter((id) => !canonicalById.has(id));
+      if (missingIds.length > 0) {
+        const uuidIds = missingIds.filter((id) => isUUID(id));
+        if (uuidIds.length > 0) {
+          const { data: primaryRows } = await adminSb
+            .from("exam_questions")
+            .select("id, question, option_a, option_b, option_c, option_d, explanation")
+            .in("id", uuidIds);
+          for (const row of primaryRows || []) {
+            canonicalById.set(String(row.id), {
+              sourceLang: "Kinyarwanda",
+              item: {
+                question: row.question,
+                option_a: row.option_a,
+                option_b: row.option_b,
+                option_c: row.option_c,
+                option_d: row.option_d,
+                explanation: row.explanation,
+              },
+            });
+          }
+        }
+        const builtinFallback = getBuiltinFallbackQuestions("fallback", 20);
+        for (const fb of builtinFallback) {
+          if (!canonicalById.has(String(fb.id))) {
+            canonicalById.set(String(fb.id), {
+              sourceLang: "English",
+              item: fb,
+            });
+          }
+        }
+      }
+
+      const dbSourced: any[] = [];
+      const fallbackSourced: any[] = [];
+      const builtinEnglishSourced: any[] = [];
+      const orderIndex = new Map<string, number>();
+
+      inputQuestions.forEach((q, idx) => {
+        const idStr = String(q.id || `q-${idx}`);
+        orderIndex.set(idStr, idx);
+        const canonical = canonicalById.get(idStr);
+        if (canonical) {
+          const merged = {
+            ...q,
+            question: canonical.item.question ?? q.question,
+            option_a: canonical.item.option_a ?? q.option_a,
+            option_b: canonical.item.option_b ?? q.option_b,
+            option_c: canonical.item.option_c ?? q.option_c,
+            option_d: canonical.item.option_d ?? q.option_d,
+            explanation: canonical.item.explanation ?? q.explanation,
+          };
+          if (canonical.sourceLang === "English") {
+            builtinEnglishSourced.push(merged);
+          } else {
+            dbSourced.push(merged);
+          }
+        } else {
+          fallbackSourced.push(q);
+        }
+      });
+
+      const [tDb, tBuiltin, tFallback] = await Promise.all([
+        dbSourced.length > 0
+          ? translateQuestionBatch(adminSb, dbSourced, language, "Kinyarwanda")
+          : Promise.resolve([]),
+        builtinEnglishSourced.length > 0
+          ? translateQuestionBatch(adminSb, builtinEnglishSourced, language, "English")
+          : Promise.resolve([]),
+        fallbackSourced.length > 0
+          ? translateQuestionBatch(
+              adminSb,
+              fallbackSourced,
+              language,
+              body?.sourceLanguage || "Kinyarwanda"
+            )
+          : Promise.resolve([]),
+      ]);
+
+      const mergedOut = [...tDb, ...tBuiltin, ...tFallback].sort(
+        (a, b) => (orderIndex.get(String(a.id)) ?? 0) - (orderIndex.get(String(b.id)) ?? 0)
+      );
+      return secureJsonResponse({ questions: mergedOut });
+    }
 
     // ------------------------------------------------------------------------
     // 1. START GUEST EXAM (Daily 3-exam limit for guests; no auth needed)
@@ -481,11 +597,14 @@ export async function POST(req: NextRequest) {
       let availableTo: string | null = null;
 
       const targetCatId = body?.categoryId || EXTERNAL_EXAM_CATEGORY_ID;
-      const { data: dbSettings } = await adminSb
-        .from("exam_settings")
-        .select("*")
-        .eq("category_id", targetCatId)
-        .maybeSingle();
+      const [{ data: dbSettings }, extSb] = await Promise.all([
+        adminSb
+          .from("exam_settings")
+          .select("*")
+          .eq("category_id", targetCatId)
+          .maybeSingle(),
+        getExternalAdminClient(),
+      ]);
 
       if (dbSettings) {
         if (dbSettings.question_count != null)
@@ -500,41 +619,48 @@ export async function POST(req: NextRequest) {
         availableTo = dbSettings.available_to;
       }
 
-      const extSb = await getExternalAdminClient();
       let formattedPool: any[] = [];
 
       if (extSb) {
         try {
-          const { data: qData, error: qErr } = await extSb
-            .from("questions")
-            .select("*")
-            .order("question_numbers", { ascending: true, nullsFirst: false })
-            .order("id", { ascending: true });
+          const qData = await getCached(CACHE_KEYS.EXTERNAL_QUESTIONS_POOL, 120_000, async () => {
+            const { data, error: qErr } = await extSb
+              .from("questions")
+              .select("*")
+              .order("question_numbers", { ascending: true, nullsFirst: false })
+              .order("id", { ascending: true });
+            if (qErr) return [];
+            return Array.isArray(data) ? data : [];
+          });
 
-          if (!qErr && Array.isArray(qData) && qData.length > 0) {
-            formattedPool = qData.map((q: any) => {
+          if (qData.length > 0) {
+            formattedPool = qData.map((q: any, idx: number) => {
               const choices = parseExternalChoices(q.choice);
               const ansIdx =
                 typeof q.choice_answer === "number"
                   ? q.choice_answer
                   : Number(q.choice_answer) || 0;
-              return {
-                id: String(q.id),
-                category_id: targetCatId,
-                question: String(q.title || ""),
-                question_image: q.image || null,
-                option_a: choices[0] || "Option A",
-                option_a_image: null,
-                option_b: choices[1] || "Option B",
-                option_b_image: null,
-                option_c: choices[2] || "Option C",
-                option_c_image: null,
-                option_d: choices[3] || "Option D",
-                option_d_image: null,
-                correct_answer: mapExternalChoiceToLetter(ansIdx),
-                explanation: null,
-                created_at: q.created_at || new Date().toISOString(),
-              };
+              return normalizeExamQuestion(
+                {
+                  id: String(q.id),
+                  category_id: targetCatId,
+                  question: String(q.title || ""),
+                  question_image: sanitizeImageUrl(q.image),
+                  option_a: choices[0] || "Option A",
+                  option_a_image: null,
+                  option_b: choices[1] || "Option B",
+                  option_b_image: null,
+                  option_c: choices[2] || "Option C",
+                  option_c_image: null,
+                  option_d: choices[3] || "Option D",
+                  option_d_image: null,
+                  correct_answer: mapExternalChoiceToLetter(ansIdx),
+                  explanation: null,
+                  created_at: q.created_at || new Date().toISOString(),
+                },
+                idx,
+                targetCatId
+              );
             });
           }
         } catch (extErr) {
@@ -548,18 +674,14 @@ export async function POST(req: NextRequest) {
           .select("*")
           .order("id", { ascending: true });
         if (primaryQ && primaryQ.length > 0) {
-          formattedPool = primaryQ.map((q: any) => ({
-            ...q,
-            category_id: targetCatId,
-          }));
+          formattedPool = primaryQ.map((q: any, idx: number) =>
+            normalizeExamQuestion({ ...q, category_id: targetCatId }, idx, targetCatId)
+          );
         }
       }
 
       if (formattedPool.length === 0) {
-        return secureJsonResponse(
-          { error: "No exam questions are currently available." },
-          500
-        );
+        formattedPool = getBuiltinFallbackQuestions(targetCatId, questionCount);
       }
 
       const hasImg = (img: unknown) =>
@@ -611,10 +733,15 @@ export async function POST(req: NextRequest) {
         language
       );
 
-      // Strip correct answers before sending to guest client
-      const safeQuestions = translatedSelected.map(
-        ({ correct_answer, explanation, ...rest }) => rest
-      );
+      // Strip correct answers before sending to guest client and normalize shape
+      const safeQuestions = translatedSelected.map((item, idx) => {
+        const { correct_answer: _c, explanation: _e, ...rest } = normalizeExamQuestion(
+          item,
+          idx,
+          targetCatId
+        );
+        return rest;
+      });
 
       // Consume 1 guest exam quota slot on IP + Device
       const updatedQuota = await incrementGuestExamQuota(req, deviceId);

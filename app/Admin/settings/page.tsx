@@ -6,9 +6,10 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, User, Palette, ImageIcon, Settings2, Shield, Globe, LayoutList, ClipboardList, ChevronRight, Monitor, Volume2, Scale } from "lucide-react";
+import { Mail, User, Palette, ImageIcon, Settings2, Shield, Globe, LayoutList, ClipboardList, ChevronRight, Monitor, Volume2, Scale, LogOut } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import UserSettings from "@/components/user-settings";
+import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
 import { ThemeCustomizer } from "@/components/theme-customizer";
 import { BrandingCustomizer } from "@/components/branding-customizer";
 import { SystemConfigSettings } from "@/components/system-config";
@@ -90,6 +91,18 @@ export default function AdminSettingsPage() {
     loadUser();
   }, [setThemeIsAdmin, setBrandingIsAdmin, router]);
 
+  const handleAdminLogout = async () => {
+    try {
+      resetLandingLanguageForAdminLogout();
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      fetch("/api/admin-signout", { method: "POST" }).catch(() => {});
+    } catch {}
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
+  };
+
   if (loading) {
     return null;
   }
@@ -135,6 +148,16 @@ export default function AdminSettingsPage() {
             </p>
           </div>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleAdminLogout}
+          className="self-start lg:self-auto gap-1.5 rounded-xl font-semibold text-xs border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 hover:text-rose-400 cursor-pointer shrink-0"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          <span>{t("logout") || "Sign Out"}</span>
+        </Button>
       </div>
 
       {/* Mobile tab selector */}
@@ -198,14 +221,26 @@ export default function AdminSettingsPage() {
               {activeTab === "account" && (
                 <>
                   <div className="admin-card p-6 sm:p-7 border border-[var(--admin-border)] space-y-5">
-                    <div className="flex items-center gap-3 pb-4 border-b border-[var(--admin-border)]">
-                      <div className="p-2.5 rounded-xl bg-indigo-500/15 text-indigo-400">
-                        <User className="h-5 w-5" />
+                    <div className="flex items-center justify-between gap-3 pb-4 border-b border-[var(--admin-border)] flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-indigo-500/15 text-indigo-400">
+                          <User className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-bold text-[var(--admin-text)]">{t("accountOverview")}</h3>
+                          <p className="text-xs text-[var(--admin-muted)]">{t("accountOverviewDescription")}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-base font-bold text-[var(--admin-text)]">{t("accountOverview")}</h3>
-                        <p className="text-xs text-[var(--admin-muted)]">{t("accountOverviewDescription")}</p>
-                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleAdminLogout}
+                        className="gap-1.5 rounded-xl font-semibold text-xs shrink-0 cursor-pointer"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                        <span>{t("logout") || "Sign Out"}</span>
+                      </Button>
                     </div>
                     <div className="grid sm:grid-cols-3 gap-4">
                       <div className="p-4 rounded-2xl bg-[var(--admin-input-bg)] border border-[var(--admin-border)] space-y-1">

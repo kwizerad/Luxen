@@ -2,44 +2,51 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
+import { CACHE_KEYS, getCached, invalidateCache, invalidateCachePrefix } from "@/lib/server-cache";
 
 export const dynamic = "force-dynamic";
 
-// GET all system_config rows (or specific keys via ?keys=a,b,c) using Admin client so it works for all users (authenticated or guest)
+async function getAllSystemConfigsCached() {
+  return getCached(CACHE_KEYS.SYSTEM_CONFIG_ALL, 60_000, async () => {
+    const adminSupabase = createAdminClient();
+    const { data, error } = await adminSupabase
+      .from("system_config")
+      .select("*")
+      .order("key");
+    if (error) throw error;
+    return data || [];
+  });
+}
+
+// GET all system_config rows (or specific keys via ?keys=a,b,c) using Admin client + TTL cache
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const keysParam = searchParams.get("keys");
     const keyParam = searchParams.get("key");
 
-    const adminSupabase = createAdminClient();
-    let query = adminSupabase.from("system_config").select("*").order("key");
+    const allConfigs = await getAllSystemConfigsCached();
 
     if (keyParam) {
-      const { data, error } = await adminSupabase
-        .from("system_config")
-        .select("*")
-        .eq("key", keyParam)
-        .maybeSingle();
-
-      if (error) throw error;
-      return NextResponse.json({ config: data || null });
+      const found = allConfigs.find((row: any) => row.key === keyParam) || null;
+      return NextResponse.json({ config: found });
     }
 
     if (keysParam) {
-      const keys = keysParam
-        .split(",")
-        .map((k) => k.trim())
-        .filter(Boolean);
-      if (keys.length > 0) {
-        query = query.in("key", keys);
+      const keys = new Set(
+        keysParam
+          .split(",")
+          .map((k) => k.trim())
+          .filter(Boolean)
+      );
+      if (keys.size > 0) {
+        return NextResponse.json({
+          configs: allConfigs.filter((row: any) => keys.has(row.key)),
+        });
       }
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
-
-    return NextResponse.json({ configs: data || [] });
+    return NextResponse.json({ configs: allConfigs });
   } catch (error: any) {
     console.error("Error fetching system_config:", error);
     return NextResponse.json(
@@ -117,6 +124,9 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (error) throw error;
+
+    invalidateCache(CACHE_KEYS.SYSTEM_CONFIG_ALL);
+    invalidateCachePrefix("exam_categories:");
 
     return NextResponse.json({
       success: true,

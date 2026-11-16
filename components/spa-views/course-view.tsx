@@ -48,6 +48,7 @@ import {
   HelpCircle,
   Brain,
   Search,
+  ImageIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -69,6 +70,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { loadCourseByLanguage } from "@/app/dashboard/actions/course";
 import { spaCache } from "@/lib/spa-cache";
+import { preloadImages } from "@/components/smart-image";
+import { extractContentImageUrls } from "@/lib/image-compression";
 import {
   getStudentModuleProgress,
   getStudentLessonProgress,
@@ -245,6 +248,56 @@ function buildFlatList(course: CourseWithModules): FlatItem[] {
     }
   }
   return items;
+}
+
+function contentHasImage(raw: unknown): boolean {
+  if (!raw) return false;
+  if (typeof raw === "string") {
+    const str = raw.trim();
+    if (!str) return false;
+    if (
+      /<img[\s>]/i.test(str) ||
+      /!\[[^\]]*\]\([^)]+\)/.test(str) ||
+      /background-image\s*:\s*url\(/i.test(str) ||
+      /"type"\s*:\s*"image"/i.test(str)
+    ) {
+      return true;
+    }
+    if (str.startsWith("{") || str.startsWith("[")) {
+      try {
+        return contentHasImage(JSON.parse(str));
+      } catch {}
+    }
+    return false;
+  }
+  if (Array.isArray(raw)) {
+    return raw.some((item) => contentHasImage(item));
+  }
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    if (obj.type === "image" || obj.type === "imageUpload") return true;
+    const attrs = obj.attrs as Record<string, unknown> | undefined;
+    if (attrs && typeof attrs.src === "string" && attrs.src.trim().length > 0) return true;
+    if (typeof obj.src === "string" && obj.src.trim().length > 0 && obj.type === "image") return true;
+    if (Array.isArray(obj.content) && contentHasImage(obj.content)) return true;
+    if (typeof obj.content === "string" && contentHasImage(obj.content)) return true;
+  }
+  return false;
+}
+
+function lessonHasImage(lesson: CourseLesson): boolean {
+  const record = lesson as CourseLesson & {
+    image_url?: string | null;
+    lesson_image?: string | null;
+    thumbnail_url?: string | null;
+  };
+  if (typeof record.media_url === "string" && record.media_url.trim().length > 0) return true;
+  if (typeof record.image_url === "string" && record.image_url.trim().length > 0) return true;
+  if (typeof record.lesson_image === "string" && record.lesson_image.trim().length > 0) return true;
+  if (typeof record.thumbnail_url === "string" && record.thumbnail_url.trim().length > 0) return true;
+  if (contentHasImage(lesson.content)) return true;
+  const topics = parseTopics(lesson.topics);
+  return topics.some((topic) => contentHasImage(topic.content));
 }
 
 interface ModuleProgress {
@@ -578,7 +631,39 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
   const [touchEndY, setTouchEndY] = useState<number | null>(null);
 
-  const flatList = useMemo(() => (course ? buildFlatList(course) : []), [course]);
+  const moduleParam = (params.get("module") || params.get("moduleId") || "").toLowerCase();
+  const filterParam = (params.get("filter") || "").toLowerCase();
+  const isRoadSignsFilter = moduleParam === "signs" || filterParam === "images";
+
+  const prevRoadSignsFilterRef = useRef(isRoadSignsFilter);
+  useEffect(() => {
+    if (prevRoadSignsFilterRef.current !== isRoadSignsFilter) {
+      prevRoadSignsFilterRef.current = isRoadSignsFilter;
+      setViewMode("modules");
+      setSelectedModuleId(null);
+    }
+  }, [isRoadSignsFilter]);
+
+  const effectiveCourse = useMemo<CourseWithModules | null>(() => {
+    if (!course) return null;
+    if (!isRoadSignsFilter) return course;
+    const filteredModules = course.modules
+      .map((mod) => {
+        const imageLessons = mod.lessons.filter(lessonHasImage);
+        if (imageLessons.length === 0) return null;
+        return {
+          ...mod,
+          lessons: imageLessons,
+        };
+      })
+      .filter((mod): mod is ModuleWithLessons => mod !== null);
+    return {
+      ...course,
+      modules: filteredModules,
+    };
+  }, [course, isRoadSignsFilter]);
+
+  const flatList = useMemo(() => (effectiveCourse ? buildFlatList(effectiveCourse) : []), [effectiveCourse]);
 
   const itemKey = (item: FlatItem) =>
     item.type === "topic"
@@ -591,15 +676,15 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   // Selected module object
   const currentModule = useMemo(() => {
-    if (!course) return null;
+    if (!effectiveCourse) return null;
     if (selectedModuleId) {
-      return course.modules.find((m) => m.id === selectedModuleId) || course.modules[0] || null;
+      return effectiveCourse.modules.find((m) => m.id === selectedModuleId) || effectiveCourse.modules[0] || null;
     }
     if (currentItem) {
-      return course.modules.find((m) => m.id === currentItem.moduleId) || course.modules[0] || null;
+      return effectiveCourse.modules.find((m) => m.id === currentItem.moduleId) || effectiveCourse.modules[0] || null;
     }
-    return course.modules[0] || null;
-  }, [course, selectedModuleId, currentItem]);
+    return effectiveCourse.modules[0] || null;
+  }, [effectiveCourse, selectedModuleId, currentItem]);
 
   const filteredLessons = useMemo(() => {
     if (!currentModule) return [];
@@ -614,10 +699,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   // Current lesson object
   const currentLesson = useMemo(() => {
-    if (!course || !currentItem) return null;
-    const mod = course.modules.find((m) => m.id === currentItem.moduleId);
+    if (!effectiveCourse || !currentItem) return null;
+    const mod = effectiveCourse.modules.find((m) => m.id === currentItem.moduleId);
     return mod?.lessons.find((l) => l.id === currentItem.lessonId) || null;
-  }, [course, currentItem]);
+  }, [effectiveCourse, currentItem]);
 
   // Current topic object
   const currentTopic = useMemo(() => {
@@ -856,6 +941,46 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
   }, [viewMode, currentItem, course?.id, learningLanguage]);
 
+  // Preload upcoming lesson & road sign images through /_next/image (Sharp WebP)
+  useEffect(() => {
+    if (viewMode !== "study" || !effectiveCourse || flatList.length === 0) return;
+    const upcomingItems = flatList.slice(currentItemIndex, currentItemIndex + 4);
+    const urlsToPreload: string[] = [];
+
+    for (const item of upcomingItems) {
+      if (item.type === "exam") continue;
+      const mod = effectiveCourse.modules.find((m) => m.id === item.moduleId);
+      const lesson = mod?.lessons.find((l) => l.id === item.lessonId);
+      if (!lesson) continue;
+      const record = lesson as CourseLesson & {
+        image_url?: string | null;
+        lesson_image?: string | null;
+        thumbnail_url?: string | null;
+      };
+      if (typeof record.media_url === "string" && record.media_url.startsWith("http")) {
+        urlsToPreload.push(record.media_url);
+      }
+      if (typeof record.image_url === "string" && record.image_url.startsWith("http")) {
+        urlsToPreload.push(record.image_url);
+      }
+      if (typeof record.lesson_image === "string" && record.lesson_image.startsWith("http")) {
+        urlsToPreload.push(record.lesson_image);
+      }
+      if (item.type === "topic" && item.topicId) {
+        const tp = parseTopics(lesson.topics).find((t) => t.id === item.topicId);
+        if (tp?.content) {
+          urlsToPreload.push(...extractContentImageUrls(tp.content));
+        }
+      } else if (lesson.content) {
+        urlsToPreload.push(...extractContentImageUrls(lesson.content));
+      }
+    }
+
+    if (urlsToPreload.length > 0) {
+      preloadImages(urlsToPreload);
+    }
+  }, [viewMode, effectiveCourse, flatList, currentItemIndex]);
+
   // Focus Detection: Pause timer if window/tab loses focus, resume on refocus
   useEffect(() => {
     const handleFocus = () => setIsFocusActive(true);
@@ -961,8 +1086,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const isLessonCompleted = useCallback((lessonId: string): boolean => {
     const lp = lessonProgress.get(lessonId);
     if (lp && lp.completed) return true;
-    if (!course) return false;
-    for (const mod of course.modules) {
+    if (!effectiveCourse) return false;
+    for (const mod of effectiveCourse.modules) {
       const lesson = mod.lessons.find((l) => l.id === lessonId);
       if (lesson) {
         const topics = parseTopics(lesson.topics);
@@ -971,53 +1096,53 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       }
     }
     return false;
-  }, [lessonProgress, course, completedItems]);
+  }, [lessonProgress, effectiveCourse, completedItems]);
 
   const isModuleCompleted = useCallback((moduleId: string): boolean => {
-    if (!course) return false;
-    const mod = course.modules.find((m) => m.id === moduleId);
+    if (!effectiveCourse) return false;
+    const mod = effectiveCourse.modules.find((m) => m.id === moduleId);
     if (!mod) return false;
     const allLessonsDone = mod.lessons.length > 0 && mod.lessons.every((l) => isLessonCompleted(l.id));
     const mp = moduleProgress.get(moduleId);
     const examTaken = (mp?.exam_attempts || 0) > 0;
     return allLessonsDone && (examTaken || !mod.examSettings);
-  }, [course, isLessonCompleted, moduleProgress]);
+  }, [effectiveCourse, isLessonCompleted, moduleProgress]);
 
   const isModuleUnlocked = useCallback((modIdx: number): boolean => {
-    if (!sequentialUnlockEnabled) return true;
+    if (isRoadSignsFilter || !sequentialUnlockEnabled) return true;
     if (modIdx === 0) return true;
-    if (!course) return false;
-    const prevMod = course.modules[modIdx - 1];
+    if (!effectiveCourse) return false;
+    const prevMod = effectiveCourse.modules[modIdx - 1];
     return prevMod ? isModuleCompleted(prevMod.id) : false;
-  }, [course, isModuleCompleted, sequentialUnlockEnabled]);
+  }, [effectiveCourse, isModuleCompleted, sequentialUnlockEnabled, isRoadSignsFilter]);
 
   const isLessonUnlocked = useCallback((moduleId: string, lessonIdx: number): boolean => {
-    if (!course) return false;
-    if (!sequentialUnlockEnabled) return true;
-    const modIdx = course.modules.findIndex((m) => m.id === moduleId);
+    if (!effectiveCourse) return false;
+    if (isRoadSignsFilter || !sequentialUnlockEnabled) return true;
+    const modIdx = effectiveCourse.modules.findIndex((m) => m.id === moduleId);
     if (modIdx < 0 || !isModuleUnlocked(modIdx)) return false;
 
     // First lesson in an unlocked module is unlocked
     if (lessonIdx === 0) return true;
 
     // Subsequent lessons unlock ONLY after the previous lesson is completed!
-    const mod = course.modules[modIdx];
+    const mod = effectiveCourse.modules[modIdx];
     const prevLesson = mod.lessons[lessonIdx - 1];
     return prevLesson ? isLessonCompleted(prevLesson.id) : false;
-  }, [course, isModuleUnlocked, isLessonCompleted, sequentialUnlockEnabled]);
+  }, [effectiveCourse, isModuleUnlocked, isLessonCompleted, sequentialUnlockEnabled, isRoadSignsFilter]);
 
   const isItemUnlocked = useCallback((index: number): boolean => {
-    if (!sequentialUnlockEnabled) return true;
+    if (isRoadSignsFilter || !sequentialUnlockEnabled) return true;
     if (index === 0) return true;
     const item = flatList[index];
     if (!item) return false;
     if (completedItems.has(itemKey(item))) return true;
 
     // Find the lesson and module for this item
-    const modIdx = course?.modules.findIndex((m) => m.id === item.moduleId) ?? -1;
+    const modIdx = effectiveCourse?.modules.findIndex((m) => m.id === item.moduleId) ?? -1;
     if (modIdx < 0 || !isModuleUnlocked(modIdx)) return false;
 
-    const mod = course?.modules[modIdx];
+    const mod = effectiveCourse?.modules[modIdx];
     const lessonIdx = mod?.lessons.findIndex((l) => l.id === item.lessonId) ?? -1;
     if (lessonIdx < 0 || !isLessonUnlocked(item.moduleId, lessonIdx)) return false;
 
@@ -1028,7 +1153,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
 
     return true;
-  }, [flatList, completedItems, course, isModuleUnlocked, isLessonUnlocked, sequentialUnlockEnabled]);
+  }, [flatList, completedItems, effectiveCourse, isModuleUnlocked, isLessonUnlocked, sequentialUnlockEnabled, isRoadSignsFilter]);
 
   const isLastItemInLesson = (item: FlatItem | null): boolean => {
     if (!item) return false;
@@ -1041,7 +1166,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     if (item.type === "exam") return;
     const timeSpent = Math.max(customTimeSpent ?? lessonElapsedSeconds, 1);
 
-    const mod = course?.modules.find((m) => m.id === item.moduleId);
+    const mod = effectiveCourse?.modules.find((m) => m.id === item.moduleId);
     const lesson = mod?.lessons.find((l) => l.id === item.lessonId);
     const estimatedSeconds = lesson ? lessonTime(lesson) * 60 : 0;
     const exceededSeconds = estimatedSeconds > 0 ? Math.max(0, timeSpent - estimatedSeconds) : 0;
@@ -1060,7 +1185,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     } catch (error) {
       console.error("Failed to save lesson progress:", error);
     }
-  }, [course, lessonElapsedSeconds]);
+  }, [effectiveCourse, lessonElapsedSeconds]);
 
   /**
    * Mark current topic / lesson complete and advance.
@@ -1642,7 +1767,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   }, [translatedLang, currentContent, currentTopic, isDualView, isPlainLanguageOpen, learningLanguage]);
 
   const resumeTarget = useMemo(() => {
-    if (!course || flatList.length === 0) return null;
+    if (!effectiveCourse || flatList.length === 0) return null;
 
     // 1. Try saved position from localStorage
     if (typeof window !== "undefined") {
@@ -1703,7 +1828,37 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
 
     return null;
-  }, [course, flatList, learningLanguage, completedItems]);
+  }, [effectiveCourse, flatList, learningLanguage, completedItems]);
+
+  const examAllModuleIds = useMemo(
+    () => (effectiveCourse?.modules || []).map((m) => m.id),
+    [effectiveCourse?.modules]
+  );
+
+  const examCompletedModuleIds = useMemo(
+    () => (effectiveCourse?.modules || []).filter((m) => isModuleCompleted(m.id)).map((m) => m.id),
+    [effectiveCourse?.modules, isModuleCompleted]
+  );
+
+  const nextModuleForActiveExam = useMemo(() => {
+    if (!effectiveCourse?.modules || !activeExam?.moduleId) return null;
+    const idx = effectiveCourse.modules.findIndex((m) => m.id === activeExam.moduleId);
+    return idx >= 0 && idx + 1 < effectiveCourse.modules.length ? effectiveCourse.modules[idx + 1] : null;
+  }, [effectiveCourse?.modules, activeExam?.moduleId]);
+
+  const handleExitActiveExam = useCallback(() => {
+    setActiveExam(null);
+  }, []);
+
+  const handleNextCourseFromExam = useCallback(() => {
+    setActiveExam(null);
+    if (nextModuleForActiveExam) {
+      setSelectedModuleId(nextModuleForActiveExam.id);
+      setViewMode("module-lessons");
+    } else {
+      setViewMode("modules");
+    }
+  }, [nextModuleForActiveExam]);
 
   if (authLoading || loading) {
     return <CourseViewSkeleton />;
@@ -1851,7 +2006,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     );
   }
 
-  if (!course) {
+  if (!effectiveCourse) {
     return (
       <div className="text-center py-16 border border-dashed rounded-[20px] bg-muted/40 max-w-2xl mx-auto mt-8 p-8 space-y-4">
         <BookOpen className="h-12 w-12 mx-auto mb-2 text-muted-foreground opacity-40" />
@@ -1862,45 +2017,21 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   }
 
   if (activeExam) {
-    const allModuleIds = course.modules.map((m) => m.id);
-    const completedModuleIds = course.modules
-      .filter((m) => isModuleCompleted(m.id))
-      .map((m) => m.id);
-
-    const activeModIdx = activeExam.moduleId
-      ? course.modules.findIndex((m) => m.id === activeExam.moduleId)
-      : -1;
-    const nextModule =
-      activeModIdx >= 0 && activeModIdx + 1 < course.modules.length
-        ? course.modules[activeModIdx + 1]
-        : null;
-
     return (
       <ModuleExamRunner
         examType={activeExam.type}
         moduleId={activeExam.moduleId}
         moduleTitle={activeExam.moduleTitle}
-        nextCourseTitle={nextModule?.title}
-        onNextCourse={
-          nextModule
-            ? () => {
-                setActiveExam(null);
-                setSelectedModuleId(nextModule.id);
-                setViewMode("module-lessons");
-              }
-            : () => {
-                setActiveExam(null);
-                setViewMode("modules");
-              }
-        }
-        midtermModuleIds={activeExam.type === "midterm" ? completedModuleIds : undefined}
-        midtermQuestionCount={course.midterm_question_count || 30}
-        midtermDurationMinutes={course.midterm_duration_minutes || 30}
-        finalModuleIds={activeExam.type === "final" ? allModuleIds : undefined}
+        nextCourseTitle={nextModuleForActiveExam?.title}
+        onNextCourse={handleNextCourseFromExam}
+        midtermModuleIds={activeExam.type === "midterm" ? examCompletedModuleIds : undefined}
+        midtermQuestionCount={effectiveCourse.midterm_question_count || 30}
+        midtermDurationMinutes={effectiveCourse.midterm_duration_minutes || 30}
+        finalModuleIds={activeExam.type === "final" ? examAllModuleIds : undefined}
         finalQuestionCount={50}
         finalDurationMinutes={45}
         onComplete={handleExamComplete}
-        onExit={() => setActiveExam(null)}
+        onExit={handleExitActiveExam}
       />
     );
   }
@@ -1920,13 +2051,26 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         {/* Course Header */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <button
-              onClick={() => navigate("back", { fallback: "home" })}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>{t("back") || t("backToHome") || "Back"}</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => navigate("back", { fallback: "home" })}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span>{t("back") || t("backToHome") || "Back"}</span>
+              </button>
+
+              {isRoadSignsFilter && (
+                <button
+                  type="button"
+                  onClick={() => navigate("course")}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 bg-primary/5 border border-primary/20 transition-colors cursor-pointer"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  <span>{t("allCourses") || "All Courses"}</span>
+                </button>
+              )}
+            </div>
 
             {/* Language Switcher Bar */}
             <div className="flex items-center gap-1 bg-card border border-border dark:border-zinc-800 rounded-xl p-1 shadow-xs">
@@ -1951,11 +2095,19 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-foreground dark:text-zinc-100">
-                {course.title}
-              </h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-foreground dark:text-zinc-100">
+                  {isRoadSignsFilter ? (t("roadSigns") || "Road Signs") : effectiveCourse.title}
+                </h1>
+                {isRoadSignsFilter && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                    <ImageIcon className="h-3 w-3" />
+                    <span>{t("coursesWithImages") || "Courses with Images"}</span>
+                  </span>
+                )}
+              </div>
               <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400">
-                {course.modules.length} {t("modules") || "Modules"} · {formatMinutes(courseTime(course))} {t("totalEstimatedTime") || "total study time"}
+                {effectiveCourse.modules.length} {t("modules") || "Modules"} · {formatMinutes(courseTime(effectiveCourse))} {t("totalEstimatedTime") || "total study time"}
               </p>
             </div>
 
@@ -2023,12 +2175,26 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               {t("modules") || "Modules"}
             </span>
             <span className="text-xs font-mono text-muted-foreground dark:text-zinc-400">
-              {course.modules.length} {course.modules.length === 1 ? (t("module") || "Module") : (t("modules") || "Modules")}
+              {effectiveCourse.modules.length} {effectiveCourse.modules.length === 1 ? (t("module") || "Module") : (t("modules") || "Modules")}
             </span>
           </div>
 
+          {effectiveCourse.modules.length === 0 ? (
+            <div className="text-center py-14 border border-dashed rounded-2xl bg-card/50 p-6 space-y-3">
+              <ImageIcon className="h-10 w-10 mx-auto text-muted-foreground/50" />
+              <p className="text-sm font-semibold text-foreground">
+                {t("noCoursesWithImages") || "No courses with images found"}
+              </p>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                {t("noCoursesWithImagesDesc") || "No road sign lessons with images are available in this language yet."}
+              </p>
+              <Button size="sm" onClick={() => navigate("course")} className="rounded-lg text-xs">
+                {t("allCourses") || "View All Courses"}
+              </Button>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {course.modules.map((module, modIdx) => {
+            {effectiveCourse.modules.map((module, modIdx) => {
               const isUnlocked = isModuleUnlocked(modIdx);
               const isComplete = isModuleCompleted(module.id);
               const totalLessons = module.lessons.length;
@@ -2162,6 +2328,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               );
             })}
           </div>
+          )}
         </div>
       </div>
     );
@@ -2171,7 +2338,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // VIEW 2: MODULE LESSONS (Selected Module Detail)
   // ─────────────────────────────────────────────────────────────────────────────
   if (viewMode === "module-lessons" && currentModule) {
-    const modIdx = course.modules.findIndex((m) => m.id === currentModule.id);
+    const modIdx = effectiveCourse.modules.findIndex((m) => m.id === currentModule.id);
     const totalLessons = currentModule.lessons.length;
     const completedLessonsCount = currentModule.lessons.filter((l) => isLessonCompleted(l.id)).length;
     const modulePct = totalLessons > 0 ? Math.round((completedLessonsCount / totalLessons) * 100) : 0;

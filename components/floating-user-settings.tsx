@@ -18,6 +18,7 @@ import { useTheme } from "next-themes";
 import { useLanguage } from "@/lib/language-context";
 import { isAdmin } from "@/lib/permissions";
 import { dispatchAdminSpaNavigate } from "@/lib/admin-spa-router";
+import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
 
 type Language = "English" | "Kinyarwanda" | "French";
 type LanguageCode = "en" | "rw" | "fr";
@@ -166,14 +167,26 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
   };
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    if (typeof window !== "undefined") {
+    const isAdminLogout =
+      adminMode ||
+      isAdmin(user) ||
+      (typeof window !== "undefined" &&
+        window.location.pathname.toLowerCase().startsWith("/admin"));
+
+    if (isAdminLogout) {
+      resetLandingLanguageForAdminLogout();
+      fetch("/api/admin-signout", { method: "POST" }).catch(() => {});
+    } else if (typeof window !== "undefined") {
       sessionStorage.removeItem("navo-is-admin");
       sessionStorage.removeItem("navo-auth-token");
       localStorage.removeItem("navo-auth-token");
     }
-    router.push("/");
+
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   };
 
   const handleLanguageChange = async (newLanguage: string) => {

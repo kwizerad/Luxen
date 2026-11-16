@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, CheckCircle, XCircle, Trophy, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ExamAttempt, ExamAnswer, ExamQuestion } from "@/lib/database.types";
+import { SmartImage } from "@/components/smart-image";
 import { useLanguage } from "@/lib/language-context";
 
 interface ExamDetailsModalProps {
@@ -368,10 +369,10 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                         {/* Question Image */}
                         {currentQuestion.question_image && (
                           <div>
-                            <img 
-                              src={currentQuestion.question_image} 
-                              alt={t("examDetails.questionImage")} 
-                              className="max-w-full h-auto rounded-[10px] sm:rounded-lg border max-h-36 sm:max-h-48 sm:max-h-64 object-contain"
+                            <SmartImage
+                              src={currentQuestion.question_image}
+                              alt={t("examDetails.questionImage")}
+                              className="w-full h-44 sm:h-64 rounded-[10px] sm:rounded-lg border object-contain"
                             />
                           </div>
                         )}
@@ -418,10 +419,11 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                                         {option}
                                       </div>
                                       {optionImage && (
-                                        <img
+                                        <SmartImage
                                           src={optionImage}
                                           alt={`${t("examDetails.option")} ${option}`}
-                                          className="w-full h-24 sm:h-32 object-cover rounded-md border mb-2 cursor-zoom-in"
+                                          width={640}
+                                          className="w-full h-24 sm:h-32 object-contain rounded-md border mb-2 cursor-zoom-in"
                                           onClick={() => setPreviewImage(optionImage)}
                                         />
                                       )}
@@ -481,10 +483,11 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
                                         <div className="text-xs sm:text-base break-words">{optionText}</div>
                                       )}
                                       {optionImage && (
-                                        <img
+                                        <SmartImage
                                           src={optionImage}
                                           alt={`${t("examDetails.option")} ${option}`}
-                                          className="mt-1.5 sm:mt-2 max-w-full h-auto rounded border max-h-32 sm:max-h-40 object-contain border-border cursor-zoom-in"
+                                          width={640}
+                                          className="mt-1.5 sm:mt-2 w-full max-w-sm h-32 sm:h-40 rounded border object-contain border-border cursor-zoom-in"
                                           onClick={() => setPreviewImage(optionImage)}
                                         />
                                       )}
@@ -568,7 +571,12 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
           <DialogTitle className="sr-only">{t("preview") || "Preview"}</DialogTitle>
         </DialogHeader>
         {previewImage && (
-          <img src={previewImage} alt={t("preview") || "Preview"} className="w-full h-auto rounded-lg" />
+          <SmartImage
+            src={previewImage}
+            alt={t("preview") || "Preview"}
+            priority
+            className="w-full h-[60vh] max-h-[640px] object-contain rounded-lg"
+          />
         )}
       </DialogContent>
     </Dialog>

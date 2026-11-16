@@ -310,7 +310,7 @@ function StudentAnswerArea({
               </span>
               <span className="text-sm text-[var(--admin-text)]">{option.text || option.id}</span>
               {option.image && (
-                <Image src={option.image} alt="" width={40} height={40} unoptimized className="h-10 w-10 rounded object-cover" />
+                <Image src={option.image} alt="" width={40} height={40} referrerPolicy="no-referrer" className="h-10 w-10 rounded object-cover" />
               )}
             </div>
           );
@@ -352,7 +352,7 @@ function StudentAnswerArea({
               <Checkbox checked={isSelected} className="border-[var(--admin-border)]" />
               <span className="text-sm text-[var(--admin-text)]">{option.text || option.id}</span>
               {option.image && (
-                <Image src={option.image} alt="" width={40} height={40} unoptimized className="h-10 w-10 rounded object-cover" />
+                <Image src={option.image} alt="" width={40} height={40} referrerPolicy="no-referrer" className="h-10 w-10 rounded object-cover" />
               )}
             </div>
           );

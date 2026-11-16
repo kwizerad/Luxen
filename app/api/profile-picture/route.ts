@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { compressUploadedImage } from "@/lib/server-image-compress";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,27 +24,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File must be an image" }, { status: 400 });
     }
 
-    // Validate file size (2MB for profile pictures)
-    if (file.size > 2 * 1024 * 1024) {
-      return NextResponse.json({ error: "File size must be less than 2MB" }, { status: 400 });
+    // Validate raw file size (10MB before automatic Sharp compression)
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: "File size must be less than 10MB" }, { status: 400 });
     }
 
-    // Generate unique filename based on user ID
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}.${fileExt}`;
+    // Compress and resize profile picture automatically with Sharp
+    const bytes = await file.arrayBuffer();
+    const rawBuffer = Buffer.from(bytes);
+    const {
+      buffer,
+      contentType,
+      extension,
+      originalBytes,
+      compressedBytes,
+      savedPercent,
+    } = await compressUploadedImage(rawBuffer, file.type, file.name, {
+      maxDimension: 512,
+      quality: 80,
+      minBytesToCompress: 10 * 1024,
+    });
+
+    const fileName = `${user.id}.${extension}`;
     const filePath = `profile-pictures/${fileName}`;
 
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
+    // Upload to Supabase Storage with long CDN cache
+    const { error } = await supabase.storage
       .from("images")
       .upload(filePath, buffer, {
-        contentType: file.type,
-        cacheControl: "3600",
-        upsert: true, // Overwrite existing profile picture
+        contentType,
+        cacheControl: "31536000",
+        upsert: true,
       });
 
     if (error) {
@@ -68,6 +79,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       url: publicUrl, 
       path: filePath,
+      originalBytes,
+      compressedBytes,
+      savedPercent,
       message: "Profile picture uploaded successfully" 
     });
 

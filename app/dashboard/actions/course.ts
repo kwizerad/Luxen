@@ -40,7 +40,7 @@ function formatExternalLessonHtml(rawTitle: string, lessonImage: string | null):
 
   const imageHtml =
     lessonImage && lessonImage.startsWith("http")
-      ? `<div class="my-4 flex justify-center"><img src="${lessonImage}" alt="${shortTitle.replace(/"/g, "&quot;")}" class="max-h-72 rounded-xl object-contain border border-border/60 p-2 bg-white" /></div>`
+      ? `<div class="my-4 flex justify-center"><img src="${lessonImage}" alt="${shortTitle.replace(/"/g, "&quot;")}" loading="eager" decoding="async" referrerpolicy="no-referrer" class="max-h-72 rounded-xl object-contain border border-border/60 p-2 bg-white" /></div>`
       : "";
 
   return {

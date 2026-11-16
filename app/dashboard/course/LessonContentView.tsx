@@ -14,6 +14,30 @@ import ImageResize from "tiptap-extension-resize-image";
 import Youtube from "@tiptap/extension-youtube";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { CustomYouTubePlayer } from "@/app/Admin/course-studio/components/custom-youtube-player";
+import { optimizeContentImages, extractRawImageUrl } from "@/lib/image-compression";
+
+const OptimizedImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      loading: {
+        default: "lazy",
+        parseHTML: (el: HTMLElement) => el.getAttribute("loading") || "lazy",
+        renderHTML: (attrs: Record<string, unknown>) => ({
+          loading: typeof attrs.loading === "string" ? attrs.loading : "lazy",
+        }),
+      },
+      decoding: {
+        default: "async",
+        renderHTML: () => ({ decoding: "async" }),
+      },
+      referrerPolicy: {
+        default: "no-referrer",
+        renderHTML: () => ({ referrerpolicy: "no-referrer" }),
+      },
+    };
+  },
+});
 
 const CustomYouTube = Youtube.extend({
   addAttributes() {
@@ -149,7 +173,10 @@ export function LessonContentView({ content, textSize = "base" }: LessonContentV
     xl: "text-xl [&_.ProseMirror]:text-xl [&_p]:text-xl [&_p]:leading-relaxed [&_li]:text-xl [&_td]:text-xl [&_th]:text-xl [&_h1]:text-5xl [&_h2]:text-4xl [&_h3]:text-3xl",
   };
 
-  const parsedContent = useMemo(() => safeContent(content), [content]);
+  const parsedContent = useMemo(
+    () => optimizeContentImages(safeContent(content), 1080, 75),
+    [content]
+  );
 
   const editor = useEditor({
     extensions: [
@@ -160,7 +187,7 @@ export function LessonContentView({ content, textSize = "base" }: LessonContentV
       Superscript,
       Subscript,
       Link.configure({ openOnClick: true, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } }),
-      Image,
+      OptimizedImage,
       ImageResize,
       CustomYouTube.configure({ width: 640, height: 360 }),
       Table.configure({ resizable: true }),
@@ -225,6 +252,19 @@ export function LessonContentView({ content, textSize = "base" }: LessonContentV
     <div
       className={`w-full transition-all duration-200 ${scaleClasses[textSize]}`}
       style={{ fontSize: fontSizeMap[textSize] }}
+      onErrorCapture={(e) => {
+        const target = e.target as HTMLElement | null;
+        if (target && target.tagName === "IMG") {
+          const imgEl = target as HTMLImageElement;
+          if (imgEl.dataset.rawFallback === "1") return;
+          const rawUrl = extractRawImageUrl(imgEl.src);
+          if (rawUrl && rawUrl !== imgEl.src) {
+            imgEl.dataset.rawFallback = "1";
+            imgEl.referrerPolicy = "no-referrer";
+            imgEl.src = rawUrl;
+          }
+        }
+      }}
     >
       <EditorContent editor={editor} />
     </div>

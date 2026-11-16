@@ -10,6 +10,11 @@ import { GroupExamLobby } from "@/components/group-exam-lobby";
 import { GroupExamResults } from "@/components/group-exam-results";
 import { ExamCategorySkeleton, ExamChoiceSkeleton } from "@/components/skeletons";
 import { ExamStartVerificationCard } from "@/components/exam-start-verification-card";
+import {
+  PostExamLanguageGate,
+  normalizeExamLanguage,
+  type ExamLangOption,
+} from "@/components/exam/post-exam-language-gate";
 import { OSExamLauncher } from "@/components/os-exam/os-exam-launcher";
 import {
   OSExamWorkspace,
@@ -28,7 +33,7 @@ import {
   isGroupExamEnabled,
   isStandaloneExamEnabled,
 } from "@/lib/feature-flags";
-import { authFetch } from "@/lib/e2e-crypto";
+import { authFetch, secureApiPost } from "@/lib/e2e-crypto";
 import {
   DEFAULT_SECURITY_SETTINGS,
   getSecuritySettings,
@@ -80,7 +85,7 @@ function buildFallbackCategory(language: string): ExamCategory {
 }
 
 export function ExamView({ navigate, params }: ExamViewProps) {
-  const { t, language } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { user, loading: authLoading } = useAuth();
 
   const paramChallengeId = params?.get("challenge_id") || "";
@@ -106,7 +111,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     paramChallengeId ? "lobby" : paramMode === "group" ? "group" : "launcher"
   );
   const [selectedExamLanguage, setSelectedExamLanguage] =
-    useState<string>(paramLanguage || "Kinyarwanda");
+    useState<string>(() =>
+      paramLanguage ? normalizeExamLanguage(paramLanguage) : "Kinyarwanda"
+    );
   const [pendingStartExam, setPendingStartExam] = useState<{
     categoryId: string;
     language: string;
@@ -122,6 +129,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     {}
   );
   const [showResults, setShowResults] = useState(false);
+  const [postExamLangConfirmed, setPostExamLangConfirmed] = useState(false);
+  const [translatingPostExamLang, setTranslatingPostExamLang] = useState<string | null>(null);
   const [examResult, setExamResult] = useState<ExamAttempt | null>(null);
   const [isSoloGroupAttempt, setIsSoloGroupAttempt] = useState(false);
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(
@@ -159,9 +168,25 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     },
   });
 
+  const activeExamRef = useRef(false);
+  activeExamRef.current = Boolean(exam);
+
   // Sync URL/hash route parameters and check Admin feature flags
   useEffect(() => {
     if (typeof window === "undefined" || authLoading) return;
+
+    Promise.all([isStandaloneExamEnabled(), isGroupExamEnabled()])
+      .then(([standalone, group]) => {
+        setStandaloneEnabled(standalone);
+        setGroupExamEnabled(group);
+        setAccessChecked(true);
+      })
+      .catch(() => {
+        setAccessChecked(true);
+      });
+
+    // Never disrupt or reset an active exam when auth or URL ticks update
+    if (activeExamRef.current) return;
 
     const urlParams = new URLSearchParams(window.location.search);
     const resolvedChallengeId =
@@ -184,19 +209,11 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       setCategoryId(resolvedCategoryId);
     }
     if (resolvedLanguage) {
-      setSelectedExamLanguage(resolvedLanguage);
+      const normalized = normalizeExamLanguage(resolvedLanguage);
+      setSelectedExamLanguage(normalized);
+      setLanguage(normalized);
     }
-
-    Promise.all([isStandaloneExamEnabled(), isGroupExamEnabled()])
-      .then(([standalone, group]) => {
-        setStandaloneEnabled(standalone);
-        setGroupExamEnabled(group);
-        setAccessChecked(true);
-      })
-      .catch(() => {
-        setAccessChecked(true);
-      });
-  }, [authLoading, paramChallengeId, paramCategoryId, paramMode, paramLanguage]);
+  }, [authLoading, paramChallengeId, paramCategoryId, paramMode, paramLanguage, setLanguage]);
 
   // If arriving with challengeId, resolve category & language from challenge row
   useEffect(() => {
@@ -212,11 +229,13 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         setCategoryId(data.category_id);
       }
       if ((data as any)?.language) {
-        setSelectedExamLanguage((data as any).language);
+        const normalized = normalizeExamLanguage((data as any).language);
+        setSelectedExamLanguage(normalized);
+        setLanguage(normalized);
       }
     };
     void fetchChallengeDetails();
-  }, [challengeId, categoryId]);
+  }, [challengeId, categoryId, setLanguage]);
 
   // Check if student has past exam history for quick navigation button
   useEffect(() => {
@@ -240,7 +259,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     void checkExamHistory();
   }, [user]);
 
-  // Load published exam categories and admin security settings
+  // Load published exam categories
   useEffect(() => {
     if (typeof window === "undefined" || !accessChecked) return;
 
@@ -262,18 +281,18 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       }
     };
 
-    const loadSecurity = async () => {
-      try {
-        const settings = await getSecuritySettings("official");
-        setSecuritySettings(settings);
-      } catch (error) {
-        console.error("[ExamView] Failed to load security settings:", error);
-      }
-    };
-
     void loadInitialData();
-    void loadSecurity();
   }, [accessChecked, language]);
+
+  // Load official exam security settings once when access is verified
+  useEffect(() => {
+    if (typeof window === "undefined" || !accessChecked) return;
+    getSecuritySettings("official")
+      .then(setSecuritySettings)
+      .catch((error) => {
+        console.error("[ExamView] Failed to load security settings:", error);
+      });
+  }, [accessChecked]);
 
   // Auto-select first category if none selected yet
   useEffect(() => {
@@ -365,7 +384,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
   const activeQuestion = useMemo<TakeExamQuestion | null>(() => {
     if (!exam?.questions?.length) return null;
-    return exam.questions[currentIndex] ?? null;
+    const safeIdx = Math.min(Math.max(0, currentIndex), exam.questions.length - 1);
+    return exam.questions[safeIdx] ?? null;
   }, [exam, currentIndex]);
 
   const handleSelectAnswer = useCallback(
@@ -478,18 +498,19 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     return () => clearInterval(id);
   }, [secondsLeft, showResults, anticheat]);
 
-  // Direct exam start — opens Question 1 immediately without any pre-exam instructions
+  // Direct exam start — opens Question 1 immediately in chosen exam language
   const startExam = async (catId?: string, examLang?: string) => {
+    const activeLang = normalizeExamLanguage(
+      examLang || selectedExamLanguage || language || "Kinyarwanda"
+    );
+    setSelectedExamLanguage(activeLang);
+    setLanguage(activeLang);
+
     if (
       securitySettings.violationMeasuresEnabled &&
       securitySettings.fullscreenEnabled
     ) {
       await anticheat.enterFullscreen();
-    }
-
-    const activeLang = examLang || selectedExamLanguage || "Kinyarwanda";
-    if (examLang) {
-      setSelectedExamLanguage(examLang);
     }
 
     let targetCategoryId = catId || categoryId;
@@ -551,6 +572,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       setExamStartTime(Date.now());
       setUserAnswers({});
       setShowResults(false);
+      setPostExamLangConfirmed(false);
+      setTranslatingPostExamLang(null);
       showResultsRef.current = false;
       setExamResult(null);
       setIsSoloGroupAttempt(false);
@@ -669,6 +692,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       );
 
       setExamResult(attempt);
+      setPostExamLangConfirmed(false);
+      setTranslatingPostExamLang(null);
       setShowResults(true);
       showResultsRef.current = true;
       submitSuccess = true;
@@ -754,6 +779,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     setExamStartTime(null);
     setUserAnswers({});
     setShowResults(false);
+    setPostExamLangConfirmed(false);
+    setTranslatingPostExamLang(null);
     showResultsRef.current = false;
     setExamResult(null);
     setIsSoloGroupAttempt(false);
@@ -863,8 +890,10 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       <GroupExamCreation
         onBack={() => setExamMode("launcher")}
         onStartExam={async (selectedCatId, inviteeIds, examLang) => {
+          const normalizedLang = normalizeExamLanguage(examLang);
           setCategoryId(selectedCatId);
-          setSelectedExamLanguage(examLang);
+          setSelectedExamLanguage(normalizedLang);
+          setLanguage(normalizedLang);
           const catName =
             categories.find((c) => c.id === selectedCatId)?.name || "Exam";
           try {
@@ -948,8 +977,86 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     );
   }
 
-  // Post-Submission Results & Group Challenge Leaderboard (preserved)
+  const handlePostExamLanguageSwitch = async (targetLang: ExamLangOption) => {
+    const normalizedCurrent = normalizeExamLanguage(
+      selectedExamLanguage || language
+    );
+    if (targetLang === normalizedCurrent) {
+      setLanguage(targetLang);
+      setPostExamLangConfirmed(true);
+      return;
+    }
+
+    setTranslatingPostExamLang(targetLang);
+    try {
+      if (exam?.questions?.length) {
+        const { ok, data } = await secureApiPost("/api/external-courses/exam", {
+          action: "translate_questions",
+          questions: exam.questions,
+          language: targetLang,
+          sourceLanguage: normalizedCurrent,
+        });
+        if (ok && Array.isArray(data?.questions)) {
+          const translatedById = new Map<string, any>();
+          for (const tq of data.questions) {
+            if (tq?.id) translatedById.set(String(tq.id), tq);
+          }
+          setExam((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  questions: prev.questions.map((q, idx) => {
+                    const matched =
+                      translatedById.get(String(q.id)) || data.questions[idx];
+                    if (!matched) return q;
+                    return {
+                      ...q,
+                      question: matched.question || q.question,
+                      option_a: matched.option_a || q.option_a,
+                      option_b: matched.option_b || q.option_b,
+                      option_c: matched.option_c || q.option_c,
+                      option_d: matched.option_d || q.option_d,
+                      explanation: matched.explanation ?? q.explanation,
+                    };
+                  }),
+                }
+              : prev
+          );
+        }
+      }
+      setSelectedExamLanguage(targetLang);
+      setLanguage(targetLang);
+      setPostExamLangConfirmed(true);
+    } catch (err) {
+      console.error("[ExamView] Post-exam translation error:", err);
+      setSelectedExamLanguage(targetLang);
+      setLanguage(targetLang);
+      setPostExamLangConfirmed(true);
+    } finally {
+      setTranslatingPostExamLang(null);
+    }
+  };
+
+  // Post-Submission Results & Group Challenge Leaderboard (gated by language confirmation)
   if (showResults && examResult) {
+    if (!postExamLangConfirmed) {
+      return (
+        <PostExamLanguageGate
+          currentLanguage={selectedExamLanguage || language}
+          translatingLanguage={translatingPostExamLang}
+          onContinueCurrent={() => {
+            const norm = normalizeExamLanguage(selectedExamLanguage || language);
+            setSelectedExamLanguage(norm);
+            setLanguage(norm);
+            setPostExamLangConfirmed(true);
+          }}
+          onSelectLanguage={(targetLang) => {
+            void handlePostExamLanguageSwitch(targetLang);
+          }}
+        />
+      );
+    }
+
     const effectiveChallengeId =
       challengeId ||
       examResult.challenge_id ||
@@ -1117,9 +1224,11 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       loadingExam={loadingExam}
       selectedExamLanguage={selectedExamLanguage}
       onStartExam={(catId, lang) => {
+        const normalizedLang = normalizeExamLanguage(lang);
         setCategoryId(catId);
-        setSelectedExamLanguage(lang);
-        setPendingStartExam({ categoryId: catId, language: lang });
+        setSelectedExamLanguage(normalizedLang);
+        setLanguage(normalizedLang);
+        setPendingStartExam({ categoryId: catId, language: normalizedLang });
       }}
       onOpenGroupChallenge={() => setExamMode("group")}
       navigate={navigate}

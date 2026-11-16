@@ -18,6 +18,20 @@ export function clearCurrentUserCache() {
   cachedUserTimestamp = 0;
 }
 
+export function resetLandingLanguageForAdminLogout() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("navo-language", "Kinyarwanda");
+    localStorage.removeItem("navo-language-code");
+    sessionStorage.removeItem("navo-is-admin");
+    sessionStorage.removeItem("navo-auth-token");
+    localStorage.removeItem("navo-auth-token");
+  } catch {
+    // Ignore storage quota or security errors
+  }
+  clearCurrentUserCache();
+}
+
 function ensureAuthCacheListener() {
   if (authListenerAttached || typeof window === "undefined") return;
   authListenerAttached = true;
