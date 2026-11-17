@@ -11,11 +11,20 @@ import {
   X,
   Trophy,
   AlertCircle,
+  AlertTriangle,
   Crown,
   Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { canViewUserAvatar } from "@/lib/avatar-helper";
@@ -90,6 +99,7 @@ export function GroupExamLobby({
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const [isExpiredOrCompleted, setIsExpiredOrCompleted] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
 
   const hasStartedRef = useRef(false);
   const onStartRef = useRef(onStart);
@@ -112,13 +122,39 @@ export function GroupExamLobby({
     setLanguage(normalized);
   }, [challenge?.language, examLanguage, setLanguage]);
 
-  // Hide dock on mobile while waiting in lobby
+  // Hide dock and track waiting chamber active in sessionStorage
   useEffect(() => {
     sessionStorage.setItem("group-creation-active", "true");
+    sessionStorage.setItem("waiting-chamber-active", "true");
     window.dispatchEvent(new CustomEvent("group-creation-state-change"));
+    window.dispatchEvent(new CustomEvent("waiting-chamber-state-change"));
     return () => {
       sessionStorage.removeItem("group-creation-active");
+      sessionStorage.removeItem("waiting-chamber-active");
       window.dispatchEvent(new CustomEvent("group-creation-state-change"));
+      window.dispatchEvent(new CustomEvent("waiting-chamber-state-change"));
+    };
+  }, []);
+
+  // Intercept OSWindow close button and browser tab close in waiting chamber
+  useEffect(() => {
+    const handleCloseRequest = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowWarningModal(true);
+    };
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+      return "";
+    };
+
+    window.addEventListener("navo:window-close-request", handleCloseRequest);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("navo:window-close-request", handleCloseRequest);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
 
@@ -335,11 +371,32 @@ export function GroupExamLobby({
               hasStartedRef.current = true;
               onStartRef.current(payload.new?.language || resolvedLanguageRef.current);
             }
+          } else if (payload.new?.status === "cancelled") {
+            toast.error(
+              t("examChallengeCancelledByHost") ||
+                (language === "Kinyarwanda" || language === "rw"
+                  ? "Uwateguye ikizamini yagihagaritse."
+                  : language === "French" || language === "fr"
+                  ? "L'hôte a annulé cette session d'examen."
+                  : "The host has cancelled this exam challenge.")
+            );
+            onCancel();
           } else {
             fetchChallengeDetails();
           }
         }
       )
+      .on("broadcast", { event: "exam_cancelled" }, () => {
+        toast.error(
+          t("examChallengeCancelledByHost") ||
+            (language === "Kinyarwanda" || language === "rw"
+              ? "Uwateguye ikizamini yagihagaritse."
+              : language === "French" || language === "fr"
+              ? "L'hôte a annulé cette session d'examen."
+              : "The host has cancelled this exam challenge.")
+        );
+        onCancel();
+      })
       .on("broadcast", { event: "exam_countdown" }, (payload: any) => {
         const count = payload.payload?.count ?? 3;
         setCountdown(count);
@@ -397,31 +454,38 @@ export function GroupExamLobby({
     }
   };
 
-  const handleLeaveOrCancel = async () => {
+  const requestLeaveOrCancel = () => {
+    setShowWarningModal(true);
+  };
+
+  const executeLeaveOrCancel = async () => {
     if (actionLoading) return;
     setActionLoading(true);
+    setShowWarningModal(false);
     try {
       const isCreator = challenge?.creator_id === user?.id;
+      if (challengeChannelRef.current) {
+        try {
+          challengeChannelRef.current.send({
+            type: "broadcast",
+            event: isCreator ? "exam_cancelled" : "participant_left",
+            payload: { challengeId, userId: user?.id },
+          });
+        } catch {}
+      }
+
       if (isCreator) {
-        const res = await fetch(`/api/exam-challenges/${challengeId}`, { method: "DELETE" });
-        if (!res.ok) {
-          const d = await res.json();
-          throw new Error(d.error || "Failed to cancel");
-        }
+        await fetch(`/api/exam-challenges/${challengeId}`, { method: "DELETE" }).catch(() => null);
         toast.success(t("examCancelledSuccess") || "Exam challenge cancelled");
       } else {
-        const res = await fetch(`/api/exam-challenges/${challengeId}/deny`, { method: "POST" });
-        if (!res.ok) {
-          const d = await res.json();
-          throw new Error(d.error || "Failed to leave");
-        }
+        await fetch(`/api/exam-challenges/${challengeId}/deny`, { method: "POST" }).catch(() => null);
         toast.success(t("examLeftSuccess") || "Left exam room");
       }
-      onCancel();
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "Action failed";
-      toast.error(msg);
+      console.warn("Leave/cancel error:", error);
+    } finally {
       setActionLoading(false);
+      onCancel();
     }
   };
 
@@ -582,7 +646,7 @@ export function GroupExamLobby({
           <div className="min-w-0 space-y-1">
             <button
               type="button"
-              onClick={handleLeaveOrCancel}
+              onClick={requestLeaveOrCancel}
               disabled={starting || actionLoading}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
             >
@@ -688,7 +752,7 @@ export function GroupExamLobby({
           <Button
             type="button"
             variant="outline"
-            onClick={handleLeaveOrCancel}
+            onClick={requestLeaveOrCancel}
             disabled={starting || actionLoading}
             className="min-h-[42px] h-auto py-2.5 px-4 flex-1 rounded-xl text-xs sm:text-sm font-medium border-destructive/30 text-destructive hover:bg-destructive/10 whitespace-normal text-center"
           >
@@ -724,6 +788,84 @@ export function GroupExamLobby({
               "Starting launches a 3-second synchronized countdown for everyone."}
         </p>
       </div>
+
+      {/* Warning Confirmation Modal on Cancel / Close Waiting Chamber */}
+      <Dialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive text-base sm:text-lg">
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+              <span>
+                {isCreator
+                  ? isRw
+                    ? "Guhagarika Ikizamini cy'Itsinda?"
+                    : isFr
+                    ? "Annuler l'examen de groupe ?"
+                    : "Cancel Group Exam?"
+                  : isRw
+                  ? "Kuva mu Cyumba cy'Ikizamini?"
+                  : isFr
+                  ? "Quitter la salle d'attente ?"
+                  : "Leave Waiting Chamber?"}
+              </span>
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm pt-2 text-muted-foreground leading-relaxed">
+              {isCreator
+                ? isRw
+                  ? "Uremeza ko ushaka guhagarika iki kizamini cy'itsinda? Abanyeshuri bose bari mu cyumba barahita basezererwa kandi icyumba gifungwe."
+                  : isFr
+                  ? "Êtes-vous sûr de vouloir annuler cette session ? Tous les participants en attente seront déconnectés et la salle fermée."
+                  : "Are you sure you want to cancel this group exam session? All waiting participants will be disconnected and the lobby will close."
+                : isRw
+                ? "Uremeza ko ushaka kuva muri iki cyumba cy'ikizamini cy'itsinda? Ntabwo uzakora iki kizamini uretse wongeye gutumirwa."
+                : isFr
+                ? "Êtes-vous sûr de vouloir quitter cette salle d'attente ? Vous ne pourrez pas participer à cette session sauf si vous êtes réinvité."
+                : "Are you sure you want to leave this exam lobby? You will not participate in this session unless re-invited."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2 pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={actionLoading}
+              onClick={() => setShowWarningModal(false)}
+              className="w-full sm:w-auto text-xs"
+            >
+              {isRw ? "Oya, Guma mu Cyumba" : isFr ? "Non, Rester" : "No, Stay"}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={actionLoading}
+              onClick={executeLeaveOrCancel}
+              className="w-full sm:w-auto text-xs font-semibold"
+            >
+              {actionLoading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  <span>{isRw ? "Birimo guhagarikwa..." : "Cancelling..."}</span>
+                </>
+              ) : (
+                <span>
+                  {isCreator
+                    ? isRw
+                      ? "Yego, Hagarika Ikizamini"
+                      : isFr
+                      ? "Oui, Annuler l'examen"
+                      : "Yes, Cancel Exam"
+                    : isRw
+                    ? "Yego, Sohoka"
+                    : isFr
+                    ? "Oui, Quitter"
+                    : "Yes, Leave"}
+                </span>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

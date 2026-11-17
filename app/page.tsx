@@ -122,7 +122,7 @@ export default function Home() {
         : "Student Account");
 
     return (
-      <div className="relative min-h-[100dvh] w-full bg-[#050816] flex flex-col items-center justify-center text-white select-none overflow-hidden px-4 transition-colors">
+      <div className="relative min-h-screen min-h-[100dvh] w-full bg-[#050816] flex flex-col items-center justify-center text-white select-none overflow-hidden px-4 transition-colors">
         <div className="absolute inset-0 bg-black/40 backdrop-blur-md -z-10" />
 
         <motion.div
@@ -167,7 +167,7 @@ export default function Home() {
   // Windows 11 Lock Screen & Authentic Navo OS Auth Options
   if (!isAuthenticated) {
     return (
-      <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-between select-none overflow-x-hidden px-4 sm:px-6 py-8 sm:py-12 bg-slate-50 dark:bg-zinc-950 transition-colors">
+      <div className="relative min-h-screen min-h-[100dvh] w-full flex flex-col items-center justify-between select-none overflow-x-hidden px-4 sm:px-6 py-8 sm:py-12 bg-slate-50 dark:bg-zinc-950 transition-colors">
         <AuthModalsContainer />
         <GoogleOneTap alwaysPrompt />
 

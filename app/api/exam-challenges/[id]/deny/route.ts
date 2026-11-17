@@ -22,9 +22,9 @@ export async function POST(
       .eq("challenge_id", params.id)
       .eq("user_id", user.id)
       .select()
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
+    if (error && error.code !== "PGRST116") throw error;
 
     return NextResponse.json({ participant: updated, status: "success" });
   } catch (error) {

@@ -55,7 +55,11 @@ import { isUUID } from "@/lib/utils";
 import { toast } from "sonner";
 
 export interface ExamViewProps {
-  navigate: (view: string, params?: Record<string, string>) => void;
+  navigate: (
+    view: string,
+    params?: Record<string, string>,
+    options?: { replace?: boolean; fallback?: string }
+  ) => void;
   params?: URLSearchParams;
 }
 
@@ -170,6 +174,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
   const activeExamRef = useRef(false);
   activeExamRef.current = Boolean(exam);
+  const hasCancelledChallengeRef = useRef<string | null>(null);
 
   // Sync URL/hash route parameters and check Admin feature flags
   useEffect(() => {
@@ -196,12 +201,15 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     const resolvedMode = paramMode || urlParams.get("mode") || "";
     const resolvedLanguage = paramLanguage || urlParams.get("language") || "";
 
-    if (resolvedChallengeId) {
+    if (
+      resolvedChallengeId &&
+      resolvedChallengeId !== hasCancelledChallengeRef.current
+    ) {
       setChallengeId(resolvedChallengeId);
       setExamMode("lobby");
     } else if (resolvedMode === "group") {
       setExamMode("group");
-    } else {
+    } else if (!challengeId) {
       setExamMode("launcher");
     }
 
@@ -888,6 +896,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   if (examMode === "group" && !exam && groupExamEnabled) {
     return (
       <GroupExamCreation
+        initialLanguage={selectedExamLanguage}
+        initialCategoryId={categoryId}
         onBack={() => setExamMode("launcher")}
         onStartExam={async (selectedCatId, inviteeIds, examLang) => {
           const normalizedLang = normalizeExamLanguage(examLang);
@@ -953,25 +963,35 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           void startExam(categoryId || EXTERNAL_EXAM_CATEGORY_ID, resolvedLang || selectedExamLanguage);
         }}
         onCancel={() => {
+          if (challengeId) {
+            hasCancelledChallengeRef.current = challengeId;
+          }
+          setChallengeId("");
+          setExamMode("launcher");
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem("group-creation-active");
+            sessionStorage.removeItem("waiting-chamber-active");
+            window.dispatchEvent(new CustomEvent("group-creation-state-change"));
+            window.dispatchEvent(new CustomEvent("waiting-chamber-state-change"));
+          }
           const from =
             paramFrom ||
             (typeof window !== "undefined"
               ? new URLSearchParams(window.location.search).get("from") || ""
               : "");
           if (from === "classmates") {
-            navigate("classmates");
+            navigate("classmates", {}, { replace: true });
             return;
           }
           if (from === "services") {
-            navigate("services/group-exam");
+            navigate("services/group-exam", {}, { replace: true });
             return;
           }
           if (from === "dashboard") {
-            navigate("home");
+            navigate("home", {}, { replace: true });
             return;
           }
-          setChallengeId("");
-          setExamMode("launcher");
+          navigate("exam", {}, { replace: true });
         }}
       />
     );
@@ -1230,7 +1250,15 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         setLanguage(normalizedLang);
         setPendingStartExam({ categoryId: catId, language: normalizedLang });
       }}
-      onOpenGroupChallenge={() => setExamMode("group")}
+      onOpenGroupChallenge={(catId, lang) => {
+        if (catId) setCategoryId(catId);
+        if (lang) {
+          const norm = normalizeExamLanguage(lang);
+          setSelectedExamLanguage(norm);
+          setLanguage(norm);
+        }
+        setExamMode("group");
+      }}
       navigate={navigate}
     />
   );

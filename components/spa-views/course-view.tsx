@@ -49,6 +49,8 @@ import {
   Brain,
   Search,
   ImageIcon,
+  PanelLeftOpen,
+  PanelLeftClose,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -66,12 +68,15 @@ import { PlainLanguageCard, type PlainLanguageData } from "@/components/course/p
 import { AINeuralVoicePlayer } from "@/components/course/ai-neural-voice-player";
 import { markTTSDisabledForSession } from "@/components/course/question-tts-button";
 import { ModuleExamRunner, type ExamType } from "@/components/module-exam-runner";
+import { CourseTreePanel } from "@/components/course/course-tree-panel";
+import { CourseImageStage } from "@/components/course/course-image-stage";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { loadCourseByLanguage } from "@/app/dashboard/actions/course";
 import { spaCache } from "@/lib/spa-cache";
-import { preloadImages } from "@/components/smart-image";
+import { SmartImage, preloadImages } from "@/components/smart-image";
 import { extractContentImageUrls } from "@/lib/image-compression";
+import { extractCourseMediaAndCleanContent, getLessonThumbnail } from "@/lib/course-media";
 import {
   getStudentModuleProgress,
   getStudentLessonProgress,
@@ -113,7 +118,7 @@ interface RawTopicInput {
   audio_url?: string;
 }
 
-function parseTopics(raw: unknown[] | undefined | null): LessonTopicUI[] {
+function parseTopics(raw: unknown): LessonTopicUI[] {
   if (!Array.isArray(raw)) {
     if (typeof raw === "string") {
       try {
@@ -352,148 +357,6 @@ function extractFromTiptapNode(node: any): string {
     }
   }
   return text.trim();
-}
-
-function VirtualizedSidebarLessonItem({
-  lesson,
-  lessonIdx,
-  isUnlocked,
-  isComplete,
-  isCurrent,
-  isExpanded,
-  topics,
-  currentItem,
-  completedItems,
-  flatList,
-  isItemUnlocked,
-  toggleLessonExpand,
-  startLesson,
-  setCurrentItemIndex,
-}: {
-  lesson: any;
-  lessonIdx: number;
-  isUnlocked: boolean;
-  isComplete: boolean;
-  isCurrent: boolean;
-  isExpanded: boolean;
-  topics: any[];
-  currentItem: any;
-  completedItems: Set<string>;
-  flatList: any[];
-  isItemUnlocked: (idx: number) => boolean;
-  toggleLessonExpand: (id: string) => void;
-  startLesson: (modId: string, lessonId: string) => void;
-  setCurrentItemIndex: (idx: number) => void;
-}) {
-  const [isVisible, setIsVisible] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!ref.current || typeof IntersectionObserver === "undefined") {
-      setIsVisible(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      { root: null, rootMargin: "150px", threshold: 0 }
-    );
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div ref={ref} className="space-y-1 min-h-[36px]">
-      {isVisible ? (
-        <>
-          <button
-            type="button"
-            onClick={() => {
-              toggleLessonExpand(lesson.id);
-              if (isUnlocked && !isCurrent) {
-                startLesson(lesson.moduleId || lesson.module_id, lesson.id);
-              }
-            }}
-            disabled={!isUnlocked}
-            className={cn(
-              "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all text-left group",
-              isCurrent
-                ? "bg-primary/10 text-primary font-bold"
-                : isUnlocked
-                ? "hover:bg-muted text-foreground"
-                : "opacity-40 cursor-not-allowed text-muted-foreground"
-            )}
-          >
-            <span className="p-0.5 text-muted-foreground">
-              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            </span>
-            {topics.length > 0 ? (
-              isExpanded ? (
-                <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0" />
-              ) : isUnlocked ? (
-                <Folder className="h-3.5 w-3.5 text-primary/80 shrink-0" />
-              ) : (
-                <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              )
-            ) : isUnlocked ? (
-              <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
-            ) : (
-              <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            )}
-            <span className="flex-1 truncate">{lesson.title}</span>
-            {isComplete && <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />}
-          </button>
-
-          {isExpanded && topics.length > 0 && (
-            <div className="ml-4 pl-2 border-l border-border/60 space-y-0.5 max-h-[150px] overflow-y-auto navo-sidebar-scrollbar pr-1">
-              {topics.map((tp: any) => {
-                const isTpCurrent = currentItem?.type === "topic" && currentItem.topicId === tp.id;
-                const isTpDone = completedItems.has(`${lesson.id}:${tp.id}`);
-                const targetIdx = flatList.findIndex((f) => f.lessonId === lesson.id && f.topicId === tp.id);
-                const isTpUnlocked = targetIdx >= 0 && isItemUnlocked(targetIdx);
-
-                return (
-                  <button
-                    key={tp.id}
-                    type="button"
-                    onClick={() => isTpUnlocked && targetIdx >= 0 && setCurrentItemIndex(targetIdx)}
-                    disabled={!isTpUnlocked}
-                    className={cn(
-                      "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-all text-left",
-                      isTpCurrent
-                        ? "bg-primary/15 text-foreground font-semibold border border-primary/40 shadow-xs"
-                        : isTpDone
-                        ? "text-primary hover:bg-muted"
-                        : isTpUnlocked
-                        ? "hover:bg-muted text-foreground/80"
-                        : "opacity-40 cursor-not-allowed text-muted-foreground"
-                    )}
-                  >
-                    {isTpDone ? (
-                      <CheckCircle2 className="h-3 w-3 shrink-0 text-primary" />
-                    ) : isTpCurrent ? (
-                      <FileText className="h-3 w-3 shrink-0 text-primary" />
-                    ) : isTpUnlocked ? (
-                      <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    ) : (
-                      <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    )}
-                    <span className="flex-1 truncate">{tp.title}</span>
-                    {tp.audioUrl && <Volume2 className="h-3 w-3 shrink-0 text-primary" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="w-full h-8 bg-muted/20 rounded-lg animate-pulse" />
-      )}
-    </div>
-  );
 }
 
 export function CourseView({ navigate, params }: CourseViewProps) {
@@ -1533,6 +1396,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       ? currentTopic?.content || ""
       : currentLesson?.content || "";
 
+  const activeDisplayedContent = translatedContent || currentContent;
+
+  const extractedMedia = useMemo(
+    () => extractCourseMediaAndCleanContent(currentLesson, activeDisplayedContent),
+    [currentLesson, activeDisplayedContent]
+  );
+
   const currentEstimatedMinutes =
     currentItem?.type === "topic"
       ? currentTopic?.estimated_minutes || 3
@@ -2036,72 +1906,136 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     );
   }
 
+  const handleSelectTreeLesson = (modId: string, lessonId: string, topicId?: string) => {
+    startLesson(modId, lessonId, topicId);
+    setIsMobileSidebarOpen(false);
+  };
+
+  const handleSelectTreeExam = (modId: string, examTitle: string) => {
+    const mod = effectiveCourse.modules.find((m) => m.id === modId);
+    const totalCount = mod?.lessons.length || 0;
+    const completedCount = mod ? mod.lessons.filter((l) => isLessonCompleted(l.id)).length : 0;
+    const reqCount = Math.max(1, Math.ceil(totalCount / 3));
+    const isQuizUnlocked = totalCount === 0 || completedCount >= reqCount;
+    if (!isQuizUnlocked) {
+      toast.error(`Utari wakora 1/3 cy'amasomo (${completedCount}/${reqCount}) kugira ngo ufungure ikizamini.`);
+      return;
+    }
+    setIsMobileSidebarOpen(false);
+    startModuleExam(modId, examTitle);
+  };
+
+  const mobileCourseTreeDrawer = isMobileSidebarOpen ? (
+    <div className="fixed inset-0 z-[100] flex lg:hidden">
+      <div
+        onClick={() => setIsMobileSidebarOpen(false)}
+        className="fixed inset-0 bg-black/60"
+        aria-hidden="true"
+      />
+      <div className="relative z-10 w-[85vw] max-w-[320px] h-full bg-card dark:bg-zinc-950 border-r border-border shadow-2xl flex flex-col">
+        <CourseTreePanel
+          modules={effectiveCourse.modules}
+          parseTopics={parseTopics}
+          lessonHasImage={lessonHasImage}
+          isModuleUnlocked={isModuleUnlocked}
+          isModuleCompleted={isModuleCompleted}
+          isLessonUnlocked={isLessonUnlocked}
+          isLessonCompleted={isLessonCompleted}
+          isItemUnlocked={isItemUnlocked}
+          completedItems={completedItems}
+          flatList={flatList}
+          activeModuleId={currentItem?.moduleId || currentModule?.id}
+          activeLessonId={currentItem?.lessonId}
+          activeTopicId={currentItem?.topicId}
+          searchQuery={sidebarSearchQuery}
+          onSearchChange={setSidebarSearchQuery}
+          onSelectLesson={handleSelectTreeLesson}
+          onSelectExam={handleSelectTreeExam}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
+          titleLabel={t("courseTree") !== "courseTree" ? t("courseTree") : "Course Tree"}
+        />
+      </div>
+    </div>
+  ) : null;
+
   // ─────────────────────────────────────────────────────────────────────────────
   // VIEW 1: MODULES LIST (Course Level)
   // ─────────────────────────────────────────────────────────────────────────────
   if (viewMode === "modules") {
     return (
       <div
-        className="min-h-[calc(100vh-4rem)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200 select-none"
+        className="min-h-[calc(100vh-4rem)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200 select-none overflow-x-hidden"
         onContextMenu={(e) => e.preventDefault()}
         onCopy={(e) => e.preventDefault()}
         onCut={(e) => e.preventDefault()}
         onPaste={(e) => e.preventDefault()}
       >
+        {mobileCourseTreeDrawer}
+
         {/* Course Header */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap">
+            <div className="flex items-center flex-wrap mb-2 sm:mb-0">
               <button
+                type="button"
                 onClick={() => navigate("back", { fallback: "home" })}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors"
+                className="inline-flex items-center px-3 py-1.5 mr-2 mb-1 sm:mb-0 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
               >
-                <ArrowLeft className="h-3.5 w-3.5" />
+                <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
                 <span>{t("back") || t("backToHome") || "Back"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="lg:hidden inline-flex items-center px-3 py-1.5 mr-2 mb-1 sm:mb-0 rounded-lg text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 border border-primary/25 transition-colors cursor-pointer"
+              >
+                <PanelLeftOpen className="h-3.5 w-3.5 mr-1.5" />
+                <span>Course Tree</span>
               </button>
 
               {isRoadSignsFilter && (
                 <button
                   type="button"
                   onClick={() => navigate("course")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 bg-primary/5 border border-primary/20 transition-colors cursor-pointer"
+                  className="inline-flex items-center px-3 py-1.5 mb-1 sm:mb-0 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 bg-primary/5 border border-primary/20 transition-colors cursor-pointer"
                 >
-                  <BookOpen className="h-3.5 w-3.5" />
+                  <BookOpen className="h-3.5 w-3.5 mr-1.5" />
                   <span>{t("allCourses") || "All Courses"}</span>
                 </button>
               )}
             </div>
 
             {/* Language Switcher Bar */}
-            <div className="flex items-center gap-1 bg-card border border-border dark:border-zinc-800 rounded-xl p-1 shadow-xs">
+            <div className="flex items-center bg-card border border-border dark:border-zinc-800 rounded-xl p-1 shadow-xs">
               {(["English", "French", "Kinyarwanda"] as const).map((lang) => (
                 <button
                   key={lang}
                   type="button"
                   onClick={() => void handleChooseCourseLanguage(lang)}
                   className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                    "px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center",
                     learningLanguage === lang
                       ? "bg-primary text-primary-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
-                  <span>{lang === "French" ? "🇫🇷" : lang === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
+                  <span className="sm:mr-1.5">{lang === "French" ? "🇫🇷" : lang === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
                   <span className="hidden sm:inline">{lang}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-foreground dark:text-zinc-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+            <div className="space-y-1 mb-3 sm:mb-0">
+              <div className="flex items-center flex-wrap">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-foreground dark:text-zinc-100 mr-2">
                   {isRoadSignsFilter ? (t("roadSigns") || "Road Signs") : effectiveCourse.title}
                 </h1>
                 {isRoadSignsFilter && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
-                    <ImageIcon className="h-3 w-3" />
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                    <ImageIcon className="h-3 w-3 mr-1" />
                     <span>{t("coursesWithImages") || "Courses with Images"}</span>
                   </span>
                 )}
@@ -2118,22 +2052,22 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   setSelectedModuleId(resumeTarget.item.moduleId);
                   setViewMode("study");
                 }}
-                className="gap-2 font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-none px-4 py-2 self-start sm:self-auto"
+                className="font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-none px-4 py-2 self-start sm:self-auto"
               >
-                <Play className="h-3.5 w-3.5 fill-current" />
+                <Play className="h-3.5 w-3.5 fill-current mr-2" />
                 <span>{t("continueFromLastTopic") || t("resumeLearning") || "Resume Topic"}</span>
               </Button>
             )}
           </div>
         </div>
 
-        {/* Continue from Last Topic Bento Card */}
+        {/* Continue from Last Topic Card */}
         {resumeTarget && (
-          <div className="rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 p-4 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-none">
-            <div className="space-y-1.5 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/20 text-primary border border-primary/30 lowercase">
-                  <BookMarked className="w-3 h-3" />
+          <div className="rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 p-4 transition-colors flex flex-col sm:flex-row sm:items-center justify-between shadow-none">
+            <div className="space-y-1.5 min-w-0 mb-3 sm:mb-0 sm:mr-4">
+              <div className="flex items-center flex-wrap">
+                <span className="inline-flex items-center px-2 py-0.5 mr-2 rounded text-[10px] font-mono font-bold bg-primary/20 text-primary border border-primary/30 lowercase">
+                  <BookMarked className="w-3 h-3 mr-1.5" />
                   <span>{t("resumeLearning") || "resume"}</span>
                 </span>
                 {resumeTarget.topicCount > 1 && (
@@ -2159,9 +2093,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   setSelectedModuleId(resumeTarget.item.moduleId);
                   setViewMode("study");
                 }}
-                className="w-full sm:w-auto gap-2 px-4 py-2 rounded-lg font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-none"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-none"
               >
-                <Play className="h-3.5 w-3.5 fill-current" />
+                <Play className="h-3.5 w-3.5 fill-current mr-2" />
                 <span>{t("continueFromLastTopic") || "Continue Learning"}</span>
               </Button>
             </div>
@@ -2180,7 +2114,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           </div>
 
           {effectiveCourse.modules.length === 0 ? (
-            <div className="text-center py-14 border border-dashed rounded-2xl bg-card/50 p-6 space-y-3">
+            <div className="text-center py-14 border border-dashed rounded-2xl bg-card p-6 space-y-3">
               <ImageIcon className="h-10 w-10 mx-auto text-muted-foreground/50" />
               <p className="text-sm font-semibold text-foreground">
                 {t("noCoursesWithImages") || "No courses with images found"}
@@ -2193,141 +2127,150 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               </Button>
             </div>
           ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {effectiveCourse.modules.map((module, modIdx) => {
-              const isUnlocked = isModuleUnlocked(modIdx);
-              const isComplete = isModuleCompleted(module.id);
-              const totalLessons = module.lessons.length;
-              const completedLessonsCount = module.lessons.filter((l) => isLessonCompleted(l.id)).length;
-              const modulePct = totalLessons > 0 ? Math.round((completedLessonsCount / totalLessons) * 100) : 0;
-              const calcModuleTime = moduleTime(module);
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {effectiveCourse.modules.map((module, modIdx) => {
+                const isUnlocked = isModuleUnlocked(modIdx);
+                const isComplete = isModuleCompleted(module.id);
+                const totalLessons = module.lessons.length;
+                const completedLessonsCount = module.lessons.filter((l) => isLessonCompleted(l.id)).length;
+                const modulePct = totalLessons > 0 ? Math.round((completedLessonsCount / totalLessons) * 100) : 0;
+                const calcModuleTime = moduleTime(module);
+                const hasVisualLessons = module.lessons.some(lessonHasImage);
 
-              return (
-                <div
-                  key={module.id}
-                  onClick={() => isUnlocked && openModuleLessons(module.id)}
-                  className={cn(
-                    "relative flex flex-col justify-between rounded-xl border p-4 transition-colors space-y-3.5 shadow-xs select-none",
-                    isUnlocked
-                      ? "border-border dark:border-zinc-800 bg-card hover:bg-muted/30 dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900/90 cursor-pointer group"
-                      : "border-border/60 dark:border-zinc-800/50 bg-muted/40 dark:bg-zinc-950/40 opacity-60 cursor-not-allowed"
-                  )}
-                >
-                  <div className="space-y-2.5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div
-                        className={cn(
-                          "flex items-center justify-center h-9 w-9 rounded-lg shrink-0 font-mono text-xs font-bold border",
-                          isComplete || isUnlocked
-                            ? "bg-primary/10 border-primary/20 text-primary"
-                            : "bg-muted dark:bg-zinc-800/60 border-border dark:border-zinc-700/40 text-muted-foreground dark:text-zinc-500"
-                        )}
-                      >
-                        {isUnlocked ? (
-                          isComplete || completedLessonsCount > 0 ? (
-                            <FolderOpen className="h-4 w-4" />
-                          ) : (
-                            <Folder className="h-4 w-4" />
-                          )
-                        ) : (
-                          <Lock className="h-4 w-4" />
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                        <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase px-2 py-0.5 rounded bg-muted dark:bg-zinc-800/80 border border-border dark:border-zinc-700/50">
-                          0{modIdx + 1}
-                        </span>
-                        {isComplete && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase">
-                            {t("completed") || "done"}
-                          </span>
-                        )}
-                        {!isComplete && isUnlocked && completedLessonsCount > 0 && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase">
-                            {t("inProgress") || "in-progress"}
-                          </span>
-                        )}
-                        {!isUnlocked && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted dark:bg-zinc-800/50 text-muted-foreground dark:text-zinc-500 font-semibold flex items-center gap-1 border border-border dark:border-zinc-700/40 lowercase">
-                            <Lock className="h-2.5 w-2.5" /> {t("locked") || "locked"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="font-bold text-sm sm:text-base text-foreground dark:text-zinc-100 group-hover:text-primary dark:group-hover:text-zinc-200 transition-colors line-clamp-2">
-                        {module.title}
-                      </h3>
-
-                      {module.description && (
-                        <p className="text-xs text-muted-foreground dark:text-zinc-400 line-clamp-2 mt-1">
-                          {module.description}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground dark:text-zinc-400 pt-1 flex-wrap font-mono">
-                      <span>{totalLessons} {t("lessons") || "Lessons"}</span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatMinutes(calcModuleTime)}
-                      </span>
-                      {module.examSettings && (
-                        <span className="flex items-center gap-1 text-primary font-medium">
-                          <FileText className="h-3 w-3" />
-                          {t("moduleExam") || "Module Exam"}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2.5 pt-2.5 border-t border-border/80 dark:border-zinc-800/80">
-                    {/* Module Progress Bar */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground dark:text-zinc-400">
-                        <span>{t("progress") || "progress"}</span>
-                        <span className="text-foreground dark:text-zinc-300 font-bold">{completedLessonsCount}/{totalLessons} ({modulePct}%)</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-muted dark:bg-zinc-800 overflow-hidden">
+                return (
+                  <div
+                    key={module.id}
+                    onClick={() => isUnlocked && openModuleLessons(module.id)}
+                    className={cn(
+                      "relative flex flex-col justify-between rounded-xl border p-4 transition-colors space-y-3.5 shadow-xs select-none",
+                      isUnlocked
+                        ? "border-border dark:border-zinc-800 bg-card hover:bg-muted/30 dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900/90 cursor-pointer group"
+                        : "border-border/60 dark:border-zinc-800/50 bg-muted/40 dark:bg-zinc-950/40 opacity-60 cursor-not-allowed"
+                    )}
+                  >
+                    <div className="space-y-2.5">
+                      <div className="flex items-start justify-between">
                         <div
-                          className="h-full bg-primary transition-all duration-500 rounded-full"
-                          style={{ width: `${modulePct}%` }}
-                        />
+                          className={cn(
+                            "flex items-center justify-center h-9 w-9 rounded-lg shrink-0 font-mono text-xs font-bold border mr-3",
+                            isComplete || isUnlocked
+                              ? "bg-primary/10 border-primary/20 text-primary"
+                              : "bg-muted dark:bg-zinc-800/60 border-border dark:border-zinc-700/40 text-muted-foreground dark:text-zinc-500"
+                          )}
+                        >
+                          {isUnlocked ? (
+                            isComplete || completedLessonsCount > 0 ? (
+                              <FolderOpen className="h-4 w-4" />
+                            ) : (
+                              <Folder className="h-4 w-4" />
+                            )
+                          ) : (
+                            <Lock className="h-4 w-4" />
+                          )}
+                        </div>
+
+                        <div className="flex items-center flex-wrap justify-end">
+                          <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase px-2 py-0.5 rounded bg-muted dark:bg-zinc-800/80 border border-border dark:border-zinc-700/50 ml-1 mb-1">
+                            {String(modIdx + 1).padStart(2, "0")}
+                          </span>
+                          {hasVisualLessons && (
+                            <span
+                              title="Contains visual diagrams / road signs"
+                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 ml-1 mb-1 flex items-center"
+                            >
+                              <ImageIcon className="h-3 w-3" />
+                            </span>
+                          )}
+                          {isComplete && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase ml-1 mb-1">
+                              {t("completed") || "done"}
+                            </span>
+                          )}
+                          {!isComplete && isUnlocked && completedLessonsCount > 0 && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase ml-1 mb-1">
+                              {t("inProgress") || "in-progress"}
+                            </span>
+                          )}
+                          {!isUnlocked && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted dark:bg-zinc-800/50 text-muted-foreground dark:text-zinc-500 font-semibold flex items-center border border-border dark:border-zinc-700/40 lowercase ml-1 mb-1">
+                              <Lock className="h-2.5 w-2.5 mr-1" /> {t("locked") || "locked"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="font-bold text-sm sm:text-base text-foreground dark:text-zinc-100 group-hover:text-primary dark:group-hover:text-zinc-200 transition-colors line-clamp-2">
+                          {module.title}
+                        </h3>
+
+                        {module.description && (
+                          <p className="text-xs text-muted-foreground dark:text-zinc-400 line-clamp-2 mt-1">
+                            {module.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center text-xs text-muted-foreground dark:text-zinc-400 pt-1 flex-wrap font-mono">
+                        <span className="mr-3">{totalLessons} {t("lessons") || "Lessons"}</span>
+                        <span className="flex items-center mr-3">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {formatMinutes(calcModuleTime)}
+                        </span>
+                        {module.examSettings && (
+                          <span className="flex items-center text-primary font-medium">
+                            <FileText className="h-3 w-3 mr-1" />
+                            {t("moduleExam") || "Module Exam"}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    <div className="pt-1 flex items-center justify-between gap-2">
-                      {isUnlocked ? (
-                        <Button
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openModuleLessons(module.id);
-                          }}
-                          className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-xs rounded-lg shadow-none h-8"
-                        >
-                          <span>{t("open") || "Open"}</span>
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled
-                          className="w-full gap-1.5 text-xs rounded-lg h-8 opacity-70"
-                        >
-                          <Lock className="h-3.5 w-3.5" />
-                          <span>{t("locked") || "Locked"}</span>
-                        </Button>
-                      )}
+                    <div className="space-y-2.5 pt-2.5 border-t border-border/80 dark:border-zinc-800/80">
+                      {/* Module Progress Bar */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground dark:text-zinc-400">
+                          <span>{t("progress") || "progress"}</span>
+                          <span className="text-foreground dark:text-zinc-300 font-bold">{completedLessonsCount}/{totalLessons} ({modulePct}%)</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted dark:bg-zinc-800 overflow-hidden">
+                          <div
+                            className="h-full bg-primary transition-all duration-500 rounded-full"
+                            style={{ width: `${modulePct}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-1 flex items-center justify-between">
+                        {isUnlocked ? (
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openModuleLessons(module.id);
+                            }}
+                            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-xs rounded-lg shadow-none h-8"
+                          >
+                            <span>{t("open") || "Open"}</span>
+                            <ArrowRight className="h-3.5 w-3.5 ml-2" />
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled
+                            className="w-full text-xs rounded-lg h-8 opacity-70"
+                          >
+                            <Lock className="h-3.5 w-3.5 mr-1.5" />
+                            <span>{t("locked") || "Locked"}</span>
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
@@ -2338,7 +2281,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   // VIEW 2: MODULE LESSONS (Selected Module Detail)
   // ─────────────────────────────────────────────────────────────────────────────
   if (viewMode === "module-lessons" && currentModule) {
-    const modIdx = effectiveCourse.modules.findIndex((m) => m.id === currentModule.id);
     const totalLessons = currentModule.lessons.length;
     const completedLessonsCount = currentModule.lessons.filter((l) => isLessonCompleted(l.id)).length;
     const modulePct = totalLessons > 0 ? Math.round((completedLessonsCount / totalLessons) * 100) : 0;
@@ -2347,21 +2289,35 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
     return (
       <div
-        className="min-h-[calc(100vh-4rem)] w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200 select-none"
+        className="min-h-[calc(100vh-4rem)] w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200 select-none overflow-x-hidden"
         onContextMenu={(e) => e.preventDefault()}
         onCopy={(e) => e.preventDefault()}
         onCut={(e) => e.preventDefault()}
         onPaste={(e) => e.preventDefault()}
       >
+        {mobileCourseTreeDrawer}
+
         {/* Navigation Breadcrumb */}
         <div className="space-y-3 border-b border-border dark:border-zinc-800 pb-4">
-          <button
-            onClick={() => setViewMode("modules")}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>{t("allModules") || "All Modules"}</span>
-          </button>
+          <div className="flex items-center justify-between flex-wrap">
+            <button
+              type="button"
+              onClick={() => setViewMode("modules")}
+              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer mr-2 mb-1 sm:mb-0"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+              <span>{t("allModules") || "All Modules"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="lg:hidden inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 border border-primary/25 transition-colors cursor-pointer mb-1 sm:mb-0"
+            >
+              <PanelLeftOpen className="h-3.5 w-3.5 mr-1.5" />
+              <span>Course Tree</span>
+            </button>
+          </div>
 
           <div className="space-y-1">
             <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground dark:text-zinc-100">
@@ -2392,19 +2348,20 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           </div>
         </div>
 
-        {/* Desktop File Grid for Lessons */}
+        {/* File Explorer Grid for Lessons (2 cols on small Android 5 screens, scaling up) */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground dark:text-zinc-400 flex items-center gap-2">
-              <FolderOpen className="h-3.5 w-3.5 text-primary" />
-              <span>{t("moduleFiles") || "Desktop File Explorer"}</span>
+            <span className="text-xs font-medium text-muted-foreground dark:text-zinc-400 flex items-center">
+              <FolderOpen className="h-3.5 w-3.5 text-primary mr-2" />
+              <span className="sm:hidden">nPhone Explorer</span>
+              <span className="hidden sm:inline">{t("moduleFiles") || "Desktop File Explorer"}</span>
             </span>
             <span className="text-xs font-mono text-muted-foreground dark:text-zinc-400">
               {currentModule.lessons.length} {t("lessons") || "lessons"} {currentModule.examSettings ? "+ 1 Quiz" : ""}
             </span>
           </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 min-[480px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 sm:gap-4">
             {currentModule.lessons.map((lesson, lessonIdx) => {
               const isUnlocked = isLessonUnlocked(currentModule.id, lessonIdx);
               const isComplete = isLessonCompleted(lesson.id);
@@ -2414,6 +2371,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 completedItems.has(`${lesson.id}:${tp.id}`)
               ).length;
               const isInProgress = !isComplete && isUnlocked && completedTopicsInLesson > 0;
+              const thumbUrl = getLessonThumbnail(lesson);
 
               return (
                 <div
@@ -2433,46 +2391,57 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   className={cn(
                     "group relative flex flex-col items-center text-center rounded-2xl border p-3 sm:p-4 transition-all duration-200 select-none",
                     isUnlocked
-                      ? "border-slate-200/80 dark:border-white/10 bg-gradient-to-b from-white/90 to-slate-50/90 dark:from-zinc-900/90 dark:to-zinc-950/90 hover:border-emerald-500/50 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
-                      : "border-slate-200/40 dark:border-zinc-800/40 bg-slate-100/40 dark:bg-zinc-950/40 opacity-60 cursor-not-allowed"
+                      ? "border-slate-200 dark:border-zinc-800 bg-card dark:bg-zinc-900 hover:border-emerald-500/60 hover:shadow-lg sm:hover:-translate-y-1 cursor-pointer"
+                      : "border-slate-200/50 dark:border-zinc-800/50 bg-slate-100 dark:bg-zinc-950 opacity-60 cursor-not-allowed"
                   )}
                 >
                   {/* Status indicator top corner */}
-                  <div className="absolute top-2 right-2">
+                  <div className="absolute top-2 right-2 z-10">
                     {isComplete ? (
                       <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                     ) : !isUnlocked ? (
                       <Lock className="h-3.5 w-3.5 text-zinc-400" />
                     ) : isInProgress ? (
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                      <span className="block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                     ) : null}
                   </div>
 
-                  {/* Desktop File Icon Box */}
-                  <div
-                    className={cn(
-                      "w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 my-1.5 shadow-xs border",
-                      isComplete
-                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
-                        : isUnlocked
-                        ? "bg-emerald-500/5 border-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                        : "bg-zinc-200/50 dark:bg-zinc-800/50 border-zinc-300/30 dark:border-zinc-700/30 text-zinc-400"
-                    )}
-                  >
-                    <FileText className="h-6 w-6 sm:h-7 sm:w-7" />
-                  </div>
+                  {/* Lesson Visual Thumbnail or Icon Box */}
+                  {thumbUrl ? (
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white dark:bg-zinc-950 border border-border/60 p-1 my-1.5 overflow-hidden flex items-center justify-center">
+                      <SmartImage
+                        src={thumbUrl}
+                        alt={lesson.title}
+                        width={160}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className={cn(
+                        "w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 my-1.5 shadow-xs border",
+                        isComplete
+                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
+                          : isUnlocked
+                          ? "bg-emerald-500/5 border-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                          : "bg-zinc-200/50 dark:bg-zinc-800/50 border-zinc-300/30 dark:border-zinc-700/30 text-zinc-400"
+                      )}
+                    >
+                      <FileText className="h-6 w-6 sm:h-7 sm:w-7" />
+                    </div>
+                  )}
 
                   {/* Lesson Number & Title */}
                   <span className="text-[10px] font-mono text-muted-foreground uppercase font-bold tracking-wider">
                     Item #{lessonIdx + 1}
                   </span>
-                  <h3 className="text-xs sm:text-sm font-bold text-foreground dark:text-zinc-100 line-clamp-2 mt-0.5 leading-snug">
+                  <h3 className="text-xs sm:text-sm font-bold text-foreground dark:text-zinc-100 line-clamp-2 mt-0.5 leading-snug break-words w-full">
                     {lesson.title}
                   </h3>
 
                   {/* Duration & Details */}
-                  <div className="mt-2 pt-2 border-t border-border/40 w-full flex items-center justify-center gap-1 text-[10px] font-mono text-muted-foreground">
-                    <Clock className="h-3 w-3" />
+                  <div className="mt-2 pt-2 border-t border-border/40 w-full flex items-center justify-center text-[10px] font-mono text-muted-foreground">
+                    <Clock className="h-3 w-3 mr-1" />
                     <span>{formatMinutes(calcLessonTime)}</span>
                   </div>
                 </div>
@@ -2494,8 +2463,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 className={cn(
                   "group relative flex flex-col items-center text-center rounded-2xl border p-3 sm:p-4 transition-all duration-200 select-none",
                   isQuizUnlocked
-                    ? "border-emerald-500/40 bg-gradient-to-b from-emerald-500/10 to-emerald-950/10 dark:from-emerald-950/20 dark:to-zinc-950/90 hover:border-emerald-500 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
-                    : "border-amber-500/30 bg-amber-500/5 dark:bg-zinc-950/60 opacity-80 cursor-not-allowed"
+                    ? "border-emerald-500/40 bg-emerald-500/10 dark:bg-zinc-900 hover:border-emerald-500 hover:shadow-xl sm:hover:-translate-y-1 cursor-pointer"
+                    : "border-amber-500/30 bg-amber-500/5 dark:bg-zinc-950 opacity-80 cursor-not-allowed"
                 )}
               >
                 {/* Status indicator */}
@@ -2507,7 +2476,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   )}
                 </div>
 
-                {/* Quiz Desktop Icon */}
+                {/* Quiz Icon */}
                 <div
                   className={cn(
                     "w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 my-1.5 shadow-xs border",
@@ -2537,8 +2506,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                     </span>
                   </div>
                 ) : (
-                  <div className="mt-2 pt-2 border-t border-emerald-500/20 w-full flex items-center justify-center gap-1 text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                    <Clock className="h-3 w-3" />
+                  <div className="mt-2 pt-2 border-t border-emerald-500/20 w-full flex items-center justify-center text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                    <Clock className="h-3 w-3 mr-1" />
                     <span>{currentModule.examSettings.duration_minutes} min ({currentModule.examSettings.question_count} Qs)</span>
                   </div>
                 )}
@@ -2556,7 +2525,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   return (
     <div
       className={cn(
-        "min-h-[calc(100vh-4rem)] flex flex-col transition-all overflow-x-clip touch-pan-y select-none",
+        "min-h-[calc(100vh-4rem)] flex flex-col transition-all overflow-x-hidden touch-pan-y select-none",
         isFocusMode ? "bg-background fixed inset-0 z-50 overflow-y-auto" : ""
       )}
       onContextMenu={(e) => e.preventDefault()}
@@ -2692,325 +2661,258 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         )}
       </AnimatePresence>
 
-      {/* Top Study Header: docks right under fixed navbar (top-14 sm:top-16) or top-0 in focus mode */}
-      <div
-        className={cn(
-          "z-30 flex flex-col bg-card/90 backdrop-blur-md border-b shadow-xs transition-all",
-          isFocusMode ? "sticky top-0" : "sticky top-14 sm:top-16"
-        )}
-      >
+      {mobileCourseTreeDrawer}
+
+      {/* Top Study Header: docks cleanly at top-0 inside OSWindow or Focus Mode */}
+      <div className="z-30 flex flex-col bg-card dark:bg-zinc-950 border-b border-border shadow-xs transition-all sticky top-0">
         {/* Focus Lost Paused Alert Banner */}
         {!isFocusActive && (
           <div
             onClick={() => setIsFocusActive(true)}
-            className="bg-primary/15 border-b border-primary/30 px-4 py-2 text-center text-xs font-medium text-primary flex items-center justify-center gap-2 cursor-pointer transition-colors hover:bg-primary/20"
+            className="bg-primary/15 border-b border-primary/30 px-4 py-2 text-center text-xs font-medium text-primary flex items-center justify-center cursor-pointer transition-colors hover:bg-primary/20"
           >
-            <Pause className="h-3.5 w-3.5 shrink-0" />
+            <Pause className="h-3.5 w-3.5 shrink-0 mr-2" />
             <span>{t("studyTimerPausedFocusLost") || "Study timer paused (Focus lost) — Click anywhere to resume studying"}</span>
           </div>
         )}
 
         {/* Top Study Navigation Bar */}
-        <div className="px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
-        {/* Breadcrumb path */}
-        <div className="flex items-center gap-2 min-w-0 text-xs">
-          <button
-            onClick={() => setViewMode("modules")}
-            className="text-muted-foreground hover:text-foreground transition-colors font-medium shrink-0 hidden sm:inline"
-          >
-            {t("course") || "Course"}
-          </button>
-          <span className="text-muted-foreground/40 hidden sm:inline">/</span>
-          <button
-            onClick={() => {
-              if (currentItem) {
-                setSelectedModuleId(currentItem.moduleId);
-                setViewMode("module-lessons");
-              } else {
-                setViewMode("modules");
-              }
-            }}
-            className="text-muted-foreground hover:text-foreground transition-colors font-medium truncate max-w-[120px] sm:max-w-[180px]"
-            title={currentItem?.moduleTitle}
-          >
-            {currentItem?.moduleTitle}
-          </button>
-          <span className="text-muted-foreground/40">/</span>
-          <span className="font-bold text-foreground truncate max-w-[140px] sm:max-w-[220px]">
-            {currentItem?.lessonTitle}
-          </span>
-        </div>
+        <div className="px-2.5 sm:px-5 py-2 flex items-center justify-between">
+          {/* Course Tree Toggle + Breadcrumb Path */}
+          <div className="flex items-center min-w-0 text-xs flex-1 mr-2">
+            {/* Mobile Course Tree Button */}
+            <button
+              type="button"
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="lg:hidden inline-flex items-center px-2 py-1 mr-2 rounded-lg border border-border bg-background hover:bg-muted text-foreground shrink-0 cursor-pointer"
+              title="Open Course Tree"
+              aria-label="Open Course Tree"
+            >
+              <PanelLeftOpen className="h-3.5 w-3.5 text-primary sm:mr-1" />
+              <span className="hidden sm:inline font-semibold">Tree</span>
+            </button>
 
-        {/* Action / Reader Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Active Lesson Study Timer */}
-          <div
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tabular-nums border transition-colors",
-              isFocusActive
-                ? "bg-primary/10 text-primary border-primary/20"
-                : "bg-muted text-muted-foreground border-border"
+            {/* Desktop Sidebar Toggle when collapsed */}
+            {!isSidebarOpen && !isFocusMode && (
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(true)}
+                className="hidden lg:inline-flex items-center px-2 py-1 mr-2 rounded-lg border border-border bg-background hover:bg-muted text-foreground shrink-0 cursor-pointer"
+                title="Expand Course Tree"
+              >
+                <PanelLeftOpen className="h-3.5 w-3.5 text-primary mr-1" />
+                <span className="font-semibold">Tree</span>
+              </button>
             )}
-            title="Lesson Study Timer"
-          >
-            <Clock className={cn("h-3 w-3", isFocusActive && "animate-pulse")} />
-            <span>{formatTimer(lessonElapsedSeconds)}</span>
+
+            <button
+              type="button"
+              onClick={() => setViewMode("modules")}
+              className="text-muted-foreground hover:text-foreground transition-colors font-medium shrink-0 hidden sm:inline cursor-pointer"
+            >
+              {t("course") || "Course"}
+            </button>
+            <span className="text-muted-foreground/40 hidden sm:inline mx-1.5">/</span>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentItem) {
+                  setSelectedModuleId(currentItem.moduleId);
+                  setViewMode("module-lessons");
+                } else {
+                  setViewMode("modules");
+                }
+              }}
+              className="text-muted-foreground hover:text-foreground transition-colors font-medium truncate max-w-[90px] sm:max-w-[160px] hidden min-[420px]:inline cursor-pointer"
+              title={currentItem?.moduleTitle}
+            >
+              {currentItem?.moduleTitle}
+            </button>
+            <span className="text-muted-foreground/40 hidden min-[420px]:inline mx-1.5">/</span>
+            <span className="font-bold text-foreground truncate max-w-[140px] sm:max-w-[240px]">
+              {currentItem?.lessonTitle}
+            </span>
           </div>
 
-          {/* Text Size Control */}
-          <div className="hidden sm:flex items-center border rounded-lg bg-background p-0.5">
-            <button
-              type="button"
-              onClick={() => setTextSize("sm")}
-              className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", textSize === "sm" ? "bg-muted text-foreground" : "text-muted-foreground")}
-              title="Small text"
-            >
-              A-
-            </button>
-            <button
-              type="button"
-              onClick={() => setTextSize("base")}
-              className={cn("px-1.5 py-0.5 rounded text-xs font-bold", textSize === "base" ? "bg-muted text-foreground" : "text-muted-foreground")}
-              title="Normal text"
-            >
-              A
-            </button>
-            <button
-              type="button"
-              onClick={() => setTextSize("lg")}
-              className={cn("px-1.5 py-0.5 rounded text-sm font-bold", textSize === "lg" ? "bg-muted text-foreground" : "text-muted-foreground")}
-              title="Large text"
-            >
-              A+
-            </button>
-          </div>
-
-          {/* Scratchpad / Notes Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowNotes(!showNotes)}
-            className={cn(
-              "p-1.5 rounded-lg border text-xs font-medium transition-colors",
-              showNotes ? "bg-primary/15 border-primary/30 text-primary" : "bg-background hover:bg-muted text-muted-foreground"
-            )}
-            title="Study notes & scratchpad"
-          >
-            <StickyNote className="h-4 w-4" />
-          </button>
-
-          {/* Current Selected Course Language */}
-          <button
-            type="button"
-            onClick={() => setLearningLanguage(null)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border/70 hover:border-primary/40 bg-card hover:bg-muted text-xs font-semibold transition-colors cursor-pointer text-foreground"
-            title={t("changeLanguage") || "Change course language"}
-          >
-            <span>{learningLanguage === "French" ? "🇫🇷" : learningLanguage === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
-            <span className="hidden sm:inline">{learningLanguage || "Course Language"}</span>
-            <span className="text-[10px] text-primary underline ml-1">{t("change") || "Change"}</span>
-          </button>
-
-          {/* Plain Terms Legal Explainer Toggle */}
-          <button
-            type="button"
-            onClick={handleTogglePlainLanguage}
-            className={cn(
-              "hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
-              isPlainLanguageOpen
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-background hover:bg-muted text-muted-foreground border-border"
-            )}
-            title="Explain road rules in plain, simple terms [Press P]"
-          >
-            <Lightbulb className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">Plain Terms</span>
-          </button>
-
-          {/* AI Neural Cloud Voice Player Toggle */}
-          {!isTTSDisabled && (
-            <button
-              type="button"
-              onClick={handleToggleTTS}
+          {/* Action / Reader Controls */}
+          <div className="flex items-center shrink-0">
+            {/* Active Lesson Study Timer */}
+            <div
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
-                isTTSOpen
+                "flex items-center px-2 py-1 mr-1.5 rounded-full text-[11px] font-semibold tabular-nums border transition-colors",
+                isFocusActive
+                  ? "bg-primary/10 text-primary border-primary/20"
+                  : "bg-muted text-muted-foreground border-border"
+              )}
+              title="Lesson Study Timer"
+            >
+              <Clock className={cn("h-3 w-3 mr-1", isFocusActive && "animate-pulse")} />
+              <span>{formatTimer(lessonElapsedSeconds)}</span>
+            </div>
+
+            {/* Text Size Control */}
+            <div className="hidden sm:flex items-center border rounded-lg bg-background p-0.5 mr-1.5">
+              <button
+                type="button"
+                onClick={() => setTextSize("sm")}
+                className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer", textSize === "sm" ? "bg-muted text-foreground" : "text-muted-foreground")}
+                title="Small text"
+              >
+                A-
+              </button>
+              <button
+                type="button"
+                onClick={() => setTextSize("base")}
+                className={cn("px-1.5 py-0.5 rounded text-xs font-bold cursor-pointer", textSize === "base" ? "bg-muted text-foreground" : "text-muted-foreground")}
+                title="Normal text"
+              >
+                A
+              </button>
+              <button
+                type="button"
+                onClick={() => setTextSize("lg")}
+                className={cn("px-1.5 py-0.5 rounded text-sm font-bold cursor-pointer", textSize === "lg" ? "bg-muted text-foreground" : "text-muted-foreground")}
+                title="Large text"
+              >
+                A+
+              </button>
+            </div>
+
+            {/* Scratchpad / Notes Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowNotes(!showNotes)}
+              className={cn(
+                "p-1.5 mr-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer",
+                showNotes ? "bg-primary/15 border-primary/30 text-primary" : "bg-background hover:bg-muted text-muted-foreground"
+              )}
+              title="Study notes & scratchpad"
+            >
+              <StickyNote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </button>
+
+            {/* Current Selected Course Language */}
+            <button
+              type="button"
+              onClick={() => setLearningLanguage(null)}
+              className="flex items-center px-2 py-1 mr-1.5 rounded-xl border border-border/70 hover:border-primary/40 bg-card hover:bg-muted text-xs font-semibold transition-colors cursor-pointer text-foreground"
+              title={t("changeLanguage") || "Change course language"}
+            >
+              <span>{learningLanguage === "French" ? "🇫🇷" : learningLanguage === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
+              <span className="hidden md:inline ml-1.5">{learningLanguage || "Language"}</span>
+              <span className="text-[10px] text-primary underline ml-1 hidden sm:inline">{t("change") || "Change"}</span>
+            </button>
+
+            {/* Plain Terms Legal Explainer Toggle */}
+            <button
+              type="button"
+              onClick={handleTogglePlainLanguage}
+              className={cn(
+                "hidden sm:flex items-center px-2.5 py-1 mr-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
+                isPlainLanguageOpen
                   ? "bg-primary text-primary-foreground border-primary shadow-sm"
                   : "bg-background hover:bg-muted text-muted-foreground border-border"
               )}
-              title="Listen with AI Cloud Voice (Gemini Neural TTS)"
+              title="Explain road rules in plain, simple terms [Press P]"
             >
-              {isLoadingTTS ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Volume2 className="h-3.5 w-3.5" />
-              )}
-              <span className="hidden sm:inline">AI Voice</span>
+              <Lightbulb className="h-3.5 w-3.5 mr-1" />
+              <span className="hidden lg:inline">Plain Terms</span>
             </button>
-          )}
 
-          {/* Distraction-Free Focus Mode Toggle */}
-          <button
-            type="button"
-            onClick={() => setIsFocusMode(!isFocusMode)}
-            className="p-1.5 rounded-lg border bg-background hover:bg-muted text-muted-foreground transition-colors"
-            title={isFocusMode ? "Exit Fullscreen" : "Distraction-Free Mode"}
-          >
-            {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </button>
+            {/* AI Neural Cloud Voice Player Toggle */}
+            {!isTTSDisabled && (
+              <button
+                type="button"
+                onClick={handleToggleTTS}
+                className={cn(
+                  "flex items-center px-2 py-1 mr-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
+                  isTTSOpen
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-background hover:bg-muted text-muted-foreground border-border"
+                )}
+                title="Listen with AI Cloud Voice (Gemini Neural TTS)"
+              >
+                {isLoadingTTS ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Volume2 className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden md:inline ml-1">AI Voice</span>
+              </button>
+            )}
+
+            {/* Distraction-Free Focus Mode Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsFocusMode(!isFocusMode)}
+              className="p-1.5 rounded-lg border bg-background hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
+              title={isFocusMode ? "Exit Fullscreen" : "Distraction-Free Mode"}
+            >
+              {isFocusMode ? <Minimize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 
       {/* Main Study Layout */}
       <div className="flex flex-1 min-h-0 relative">
-        {/* Left Sidebar (Collapsible on Desktop, Folder Navigator) */}
-        {!isFocusMode && (
-          <aside
-            className={cn(
-              "border-r bg-card/50 transition-all duration-300 flex flex-col shrink-0",
-              isSidebarOpen ? "w-64" : "w-12",
-              "hidden lg:flex"
-            )}
-          >
-            <div className="flex items-center justify-between p-2.5 border-b h-11">
-              {isSidebarOpen ? (
-                <>
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground truncate">
-                    {t("moduleLessons") || "Module Lessons"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsSidebarOpen(false)}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground"
-                    title="Collapse sidebar"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="p-1 mx-auto rounded hover:bg-muted text-muted-foreground"
-                  title="Expand sidebar"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              )}
+        {/* Left Sidebar: Full Navo OS Hierarchical Course Tree (Desktop) */}
+        {!isFocusMode && isSidebarOpen && (
+          <aside className="hidden lg:flex w-72 xl:w-80 border-r border-border bg-card dark:bg-zinc-950 flex-col shrink-0">
+            <div className="flex items-center justify-end px-2 pt-2 pb-0">
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                className="inline-flex items-center px-2 py-1 rounded-md hover:bg-muted text-[11px] font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+                title="Collapse Course Tree"
+              >
+                <PanelLeftClose className="h-3.5 w-3.5 mr-1" />
+                <span>Hide Tree</span>
+              </button>
             </div>
-
-            {isSidebarOpen && currentModule && (
-              <div className="flex-1 overflow-y-auto p-3 space-y-3 navo-sidebar-scrollbar">
-                {/* Local Sidebar Search Bar */}
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Search lessons..."
-                    value={sidebarSearchQuery}
-                    onChange={(e) => setSidebarSearchQuery(e.target.value)}
-                    className="w-full h-8 pl-8 pr-3 rounded-lg border bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                  />
-                </div>
-
-                <div
-                  className={cn(
-                    "space-y-1.5",
-                    filteredLessons.length > 5
-                      ? "max-h-[200px] overflow-y-auto navo-sidebar-scrollbar pr-1"
-                      : ""
-                  )}
-                >
-                  {filteredLessons.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-4 italic">No lessons found</p>
-                  ) : (
-                    filteredLessons.map((lesson) => {
-                      const lIdx = currentModule.lessons.findIndex((l) => l.id === lesson.id);
-                      const isUnlocked = isLessonUnlocked(currentModule.id, lIdx);
-                      const isComplete = isLessonCompleted(lesson.id);
-                      const isCurrent = currentItem?.lessonId === lesson.id;
-                      const isExpanded = expandedLessons.has(lesson.id);
-                      const topics = parseTopics(lesson.topics);
-
-                      return (
-                        <VirtualizedSidebarLessonItem
-                          key={lesson.id}
-                          lesson={lesson}
-                          lessonIdx={lIdx}
-                          isUnlocked={isUnlocked}
-                          isComplete={isComplete}
-                          isCurrent={isCurrent}
-                          isExpanded={isExpanded}
-                          topics={topics}
-                          currentItem={currentItem}
-                          completedItems={completedItems}
-                          flatList={flatList}
-                          isItemUnlocked={isItemUnlocked}
-                          toggleLessonExpand={toggleLessonExpand}
-                          startLesson={startLesson}
-                          setCurrentItemIndex={setCurrentItemIndex}
-                        />
-                      );
-                    })
-                  )}
-                </div>
-
-                {/* Sidebar Quiz Item if examSettings exist */}
-                {currentModule.examSettings && (() => {
-                  const totalCount = currentModule.lessons.length;
-                  const completedCount = currentModule.lessons.filter((l) => isLessonCompleted(l.id)).length;
-                  const reqCount = Math.max(1, Math.ceil(totalCount / 3));
-                  const isQuizUnlocked = totalCount === 0 || completedCount >= reqCount;
-
-                  return (
-                    <div className="pt-2 border-t border-border/40">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!isQuizUnlocked) {
-                            toast.error(`Utari wakora 1/3 cy'amasomo (${completedCount}/${reqCount}) kugira ngo ufungure ikizamini.`);
-                            return;
-                          }
-                          startModuleExam(currentModule.id, currentModule.examSettings?.title || currentModule.title);
-                        }}
-                        className={cn(
-                          "w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-semibold transition-all text-left border",
-                          isQuizUnlocked
-                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
-                            : "bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400 opacity-80"
-                        )}
-                      >
-                        <Brain className="h-4 w-4 shrink-0 text-emerald-500" />
-                        <span className="flex-1 truncate">
-                          {currentModule.examSettings.title || "Module Quiz"}
-                        </span>
-                        {!isQuizUnlocked ? (
-                          <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                        ) : (
-                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                        )}
-                      </button>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
+            <div className="flex-1 min-h-0">
+              <CourseTreePanel
+                modules={effectiveCourse.modules}
+                parseTopics={parseTopics}
+                lessonHasImage={lessonHasImage}
+                isModuleUnlocked={isModuleUnlocked}
+                isModuleCompleted={isModuleCompleted}
+                isLessonUnlocked={isLessonUnlocked}
+                isLessonCompleted={isLessonCompleted}
+                isItemUnlocked={isItemUnlocked}
+                completedItems={completedItems}
+                flatList={flatList}
+                activeModuleId={currentItem?.moduleId || currentModule?.id}
+                activeLessonId={currentItem?.lessonId}
+                activeTopicId={currentItem?.topicId}
+                searchQuery={sidebarSearchQuery}
+                onSearchChange={setSidebarSearchQuery}
+                onSelectLesson={handleSelectTreeLesson}
+                onSelectExam={handleSelectTreeExam}
+                titleLabel={t("courseTree") !== "courseTree" ? t("courseTree") : "Course Tree"}
+              />
+            </div>
           </aside>
         )}
 
         {/* Center Reader Content Canvas */}
-        <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 pb-24 lg:pb-8 space-y-6 max-w-4xl mx-auto overflow-x-hidden">
-          {/* Progress Indicators: Module Progress and Lesson Progress ONLY */}
+        <main
+          className={cn(
+            "flex-1 min-w-0 p-3 sm:p-5 md:p-7 pb-24 lg:pb-8 space-y-5 mx-auto w-full overflow-x-hidden",
+            extractedMedia.images.length > 0 ? "max-w-6xl" : "max-w-4xl"
+          )}
+        >
+          {/* Progress Indicators: Module Progress and Lesson Progress */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Module Progress */}
-            <div className="rounded-[16px] border bg-card/80 p-3.5 space-y-2">
+            <div className="rounded-2xl border bg-card dark:bg-zinc-900 p-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <FolderOpen className="h-3.5 w-3.5 text-primary" />
-                  {t("moduleProgress") || "Module Progress"}
+                <span className="text-muted-foreground flex items-center min-w-0 pr-2">
+                  <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0 mr-1.5" />
+                  <span className="truncate">{t("moduleProgress") || "Module Progress"}</span>
                 </span>
-                <span className="text-foreground">
-                  {activeModuleCompletedLessonsCount} / {activeModuleLessons.length} {t("lessons") || "Lessons"} ({activeModuleProgressPct}%)
+                <span className="text-foreground shrink-0 tabular-nums">
+                  {activeModuleCompletedLessonsCount} / {activeModuleLessons.length} ({activeModuleProgressPct}%)
                 </span>
               </div>
               <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -3022,13 +2924,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             </div>
 
             {/* Lesson Progress */}
-            <div className="rounded-[16px] border bg-card/80 p-3.5 space-y-2">
+            <div className="rounded-2xl border bg-card dark:bg-zinc-900 p-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5 text-primary" />
-                  {t("lessonProgress") || "Lesson Progress"}
+                <span className="text-muted-foreground flex items-center min-w-0 pr-2">
+                  <FileText className="h-3.5 w-3.5 text-primary shrink-0 mr-1.5" />
+                  <span className="truncate">{t("lessonProgress") || "Lesson Progress"}</span>
                 </span>
-                <span className="text-foreground">
+                <span className="text-foreground shrink-0 tabular-nums">
                   {currentLessonTopics.length > 0
                     ? `${currentLessonCompletedTopicsCount} / ${currentLessonTopics.length} Topics (${currentLessonProgressPct}%)`
                     : isLessonCompleted(currentLesson?.id || "")
@@ -3046,33 +2948,33 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           </div>
 
           {/* Main Topic / Reading Card */}
-          <div className="rounded-[20px] border bg-card shadow-sm overflow-hidden relative">
-            <div className="p-5 sm:p-8 space-y-6">
-              {/* Topic Header & Meta (Sticky inside card so title & reading progress remain always visible) */}
-              <div className="space-y-2 border-b pb-4 sticky top-0 bg-card/95 backdrop-blur-md z-10 pt-1 -mt-1">
-                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground flex-wrap font-medium">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-muted text-foreground font-semibold">
+          <div className="rounded-2xl border bg-card dark:bg-zinc-900 shadow-sm overflow-hidden relative">
+            <div className="p-4 sm:p-6 md:p-8 space-y-5">
+              {/* Topic Header & Meta (Flows naturally so Android 5 screens aren't trapped by stacked sticky headers) */}
+              <div className="space-y-2 border-b border-border/70 pb-4">
+                <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap font-medium">
+                  <div className="flex items-center flex-wrap">
+                    <span className="px-2.5 py-0.5 mr-2 rounded-full bg-muted text-foreground font-semibold">
                       {currentItem?.type === "topic" && currentItem.topicIndex !== undefined
                         ? `Topic ${currentItem.topicIndex + 1} of ${currentItem.topicCount}`
                         : "Lesson"}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
+                    <span className="flex items-center">
+                      <Clock className="h-3.5 w-3.5 mr-1" />
                       {formatMinutes(currentEstimatedMinutes)} {t("readingTime") || "reading"}
                     </span>
                   </div>
 
                   {currentItem && completedItems.has(itemKey(currentItem)) && (
-                    <span className="inline-flex items-center gap-1 text-primary font-semibold">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span className="inline-flex items-center text-primary font-semibold">
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                       {t("completed") || "Completed"}
                     </span>
                   )}
                 </div>
 
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                  {currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle}
+                <h1 className="text-lg sm:text-2xl md:text-3xl font-bold tracking-tight text-foreground break-words">
+                  {translatedTitle || (currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle)}
                 </h1>
               </div>
 
@@ -3105,15 +3007,46 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 />
               )}
 
-              {/* Topic Body Content in Selected Language (Scrollable so long lessons can be fully read without losing card view) */}
-              <div onMouseUp={handleMouseUpContent} className="max-h-[calc(100vh-16rem)] overflow-y-auto pr-1 sm:pr-2 scrollbar-thin">
-                <div className="w-full transition-all leading-relaxed">
-                  {currentContent ? (
-                    <LessonContentView content={currentContent} textSize={textSize} />
-                  ) : (
-                    <p className="text-muted-foreground italic">{t("noContent") || "No content available yet."}</p>
-                  )}
-                </div>
+              {/* Exam-Style Split Content: Images on the LEFT side, Explanation on the RIGHT side */}
+              <div onMouseUp={handleMouseUpContent} className="w-full min-w-0">
+                {extractedMedia.images.length > 0 ? (
+                  <div className="flex flex-col md:flex-row md:items-start">
+                    {/* LEFT SIDE: Visual Diagram / Road Sign Stage */}
+                    <div className="w-full md:w-[44%] lg:w-[42%] shrink-0 mb-5 md:mb-0 md:mr-6 md:sticky md:top-16">
+                      <CourseImageStage
+                        images={extractedMedia.images}
+                        title={
+                          (currentItem?.type === "topic"
+                            ? currentItem.topicTitle
+                            : currentItem?.lessonTitle) || "Course Diagram"
+                        }
+                      />
+                    </div>
+
+                    {/* RIGHT SIDE: Explanation Prose */}
+                    <div className="flex-1 min-w-0 w-full leading-relaxed">
+                      {extractedMedia.cleanContent &&
+                      (typeof extractedMedia.cleanContent !== "string" ||
+                        extractedMedia.cleanContent.trim().length > 0) ? (
+                        <LessonContentView content={extractedMedia.cleanContent} textSize={textSize} />
+                      ) : (
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {currentItem?.type === "topic"
+                            ? currentItem.topicTitle
+                            : currentItem?.lessonTitle}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full min-w-0 transition-all leading-relaxed">
+                    {activeDisplayedContent ? (
+                      <LessonContentView content={activeDisplayedContent} textSize={textSize} />
+                    ) : (
+                      <p className="text-muted-foreground italic">{t("noContent") || "No content available yet."}</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Floating Term Tooltip on Selection */}
@@ -3129,9 +3062,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               )}
 
               {/* PC Desktop Hotkey Hints */}
-              <div className="hidden md:flex items-center justify-end gap-3 pt-2 text-[11px] text-muted-foreground border-t border-border/40">
-                <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[10px]">P</kbd>
+              <div className="hidden md:flex items-center justify-end pt-2 text-[11px] text-muted-foreground border-t border-border/40">
+                <span className="flex items-center">
+                  <kbd className="px-1.5 py-0.5 mr-1.5 rounded bg-muted border font-mono text-[10px]">P</kbd>
                   <span>{t("plainTerms") || "Plain Terms"}</span>
                 </span>
               </div>
@@ -3149,41 +3082,41 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             </div>
           </div>
 
-          {/* Bottom Navigation Toolbar (Sticky so user can always advance or go back regardless of scroll position) */}
-          <div className="sticky bottom-16 sm:bottom-4 z-20 bg-card/95 backdrop-blur-md px-3 sm:px-5 py-2.5 rounded-2xl border shadow-lg flex items-center justify-between gap-3 mt-4">
+          {/* Bottom Navigation Toolbar */}
+          <div className="sticky bottom-14 sm:bottom-4 z-20 bg-card dark:bg-zinc-950 px-3 sm:px-5 py-2.5 rounded-2xl border shadow-lg flex items-center justify-between mt-4">
             <Button
               variant="outline"
               size="sm"
               onClick={goToPrevious}
               disabled={currentItemIndex === 0}
-              className="gap-1.5 rounded-xl font-medium text-xs sm:text-sm"
+              className="rounded-xl font-medium text-xs sm:text-sm cursor-pointer"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 mr-1" />
               <span>{t("previousTopic") || "Previous"}</span>
             </Button>
 
-            <div className="text-xs text-muted-foreground font-semibold tabular-nums">
+            <div className="text-xs text-muted-foreground font-semibold tabular-nums px-2">
               {currentItemIndex + 1} / {flatList.length}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center">
               {currentItem && isLastItemInLesson(currentItem) ? (
                 <Button
                   size="sm"
                   onClick={() => void markCompleteAndAdvance()}
-                  className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold text-xs sm:text-sm shadow-sm"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold text-xs sm:text-sm shadow-sm cursor-pointer"
                 >
-                  <CheckCircle2 className="h-4 w-4" />
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
                   <span>{t("completeLesson") || "Complete Lesson"}</span>
                 </Button>
               ) : (
                 <Button
                   size="sm"
                   onClick={() => void markCompleteAndAdvance()}
-                  className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold text-xs sm:text-sm shadow-sm"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold text-xs sm:text-sm shadow-sm cursor-pointer"
                 >
                   <span>{t("nextTopic") || "Next"}</span>
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               )}
             </div>

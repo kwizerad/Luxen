@@ -62,20 +62,20 @@ export function OSWindow({
     <div
       className={`flex flex-col select-none transition-all duration-200 ${
         isExamSessionActive
-          ? `fixed inset-0 z-50 w-screen h-[100dvh] max-w-none m-0 rounded-none border-0 bg-background dark:bg-zinc-950 overflow-hidden ${className}`
+          ? `fixed inset-0 z-50 w-screen h-screen h-[100dvh] max-w-none m-0 rounded-none border-0 bg-background dark:bg-zinc-950 overflow-hidden ${className}`
           : isMaximized
-          ? `border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl shadow-2xl overflow-hidden w-full max-w-none flex-1 min-h-[calc(100dvh-6.5rem)] h-full my-0 rounded-xl sm:rounded-2xl z-30 ${className}`
-          : `border border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl shadow-2xl overflow-hidden rounded-xl sm:rounded-2xl w-full max-w-7xl mx-auto min-h-[calc(100dvh-7.5rem)] sm:min-h-[calc(100vh-8.5rem)] my-1 sm:my-2 z-30 ${className}`
+          ? `border border-slate-200/80 dark:border-white/10 bg-white dark:bg-zinc-950 backdrop-blur-2xl shadow-2xl overflow-hidden w-full max-w-none flex-1 min-h-[calc(100vh-6.5rem)] min-h-[calc(100dvh-6.5rem)] h-full my-0 rounded-xl sm:rounded-2xl z-30 ${className}`
+          : `border border-slate-200/80 dark:border-white/10 bg-white dark:bg-zinc-950 backdrop-blur-2xl shadow-2xl overflow-hidden rounded-xl sm:rounded-2xl w-full max-w-7xl mx-auto min-h-[calc(100vh-7.5rem)] min-h-[calc(100dvh-7.5rem)] sm:min-h-[calc(100vh-8.5rem)] my-1 sm:my-2 z-30 ${className}`
       }`}
     >
       {/* OS Window Header / Title Bar — Hidden completely during full-screen active exam */}
       {!isExamSessionActive && (
         <div
           dir={isRTL ? "rtl" : "ltr"}
-          className="h-9 sm:h-10 px-2.5 sm:px-3.5 border-b border-slate-200/60 dark:border-white/10 bg-slate-100/90 dark:bg-zinc-900/90 backdrop-blur-md flex items-center justify-between select-none shrink-0 relative z-20"
+          className="h-9 sm:h-10 px-2.5 sm:px-3.5 border-b border-slate-200/60 dark:border-white/10 bg-slate-100 dark:bg-zinc-900 backdrop-blur-md flex items-center justify-between select-none shrink-0 relative z-20"
         >
           {/* Left: Window App Icon & Title */}
-          <div className="flex items-center gap-2 truncate max-w-[65%] sm:max-w-md">
+          <div className="flex items-center gap-2 truncate max-w-[65%] sm:max-w-md min-w-0">
             <div className="p-1 rounded-md bg-primary/10 text-primary shrink-0">
               <Icon className="w-3.5 h-3.5" />
             </div>
@@ -107,7 +107,7 @@ export function OSWindow({
                   if (isMaximized) setIsMaximized(false);
                   (onMinimize || onClose)?.();
                 }}
-                title="Minimize Window (Return to Desktop)"
+                title="Minimize Window"
                 aria-label="Minimize Window"
                 className="w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-[#FEBC2E] hover:bg-[#F5B01C] text-amber-950/90 flex items-center justify-center transition-transform cursor-pointer border border-[#E0A11B]/80 shadow-xs active:scale-90"
               >
@@ -144,7 +144,7 @@ export function OSWindow({
                   if (isMaximized) setIsMaximized(false);
                   onClose?.();
                 }}
-                title="Close Window (Return to Desktop)"
+                title="Close Window"
                 aria-label="Close Window"
                 className="w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-[#FF5F57] hover:bg-[#F04D45] text-rose-950/90 flex items-center justify-center transition-transform cursor-pointer border border-[#E0443E]/80 shadow-xs active:scale-90"
               >
@@ -156,7 +156,7 @@ export function OSWindow({
       )}
 
       {/* Window Body Canvas */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto relative">
+      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden relative">
         {children}
       </div>
     </div>

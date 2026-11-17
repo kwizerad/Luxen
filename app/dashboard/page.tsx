@@ -56,8 +56,19 @@ export default function DashboardPage() {
             icon={FileText}
             onMinimize={() => navigate("home")}
             onClose={() => {
+              if (
+                typeof window !== "undefined" &&
+                sessionStorage.getItem("waiting-chamber-active") === "true"
+              ) {
+                const closeEvent = new CustomEvent("navo:window-close-request", {
+                  cancelable: true,
+                });
+                const handled = !window.dispatchEvent(closeEvent);
+                if (handled) return;
+              }
               if (typeof window !== "undefined") {
                 sessionStorage.removeItem("exam-active");
+                sessionStorage.removeItem("waiting-chamber-active");
                 window.dispatchEvent(new CustomEvent("exam-state-change"));
               }
               navigate("home");
@@ -113,7 +124,19 @@ export default function DashboardPage() {
             subtitle={loc("Irushanwa ry'Abanyeshuri", "Défi multijoueur", "Multiplayer Challenge")}
             icon={Users}
             onMinimize={() => navigate("services")}
-            onClose={() => navigate("services")}
+            onClose={() => {
+              if (
+                typeof window !== "undefined" &&
+                sessionStorage.getItem("waiting-chamber-active") === "true"
+              ) {
+                const closeEvent = new CustomEvent("navo:window-close-request", {
+                  cancelable: true,
+                });
+                const handled = !window.dispatchEvent(closeEvent);
+                if (handled) return;
+              }
+              navigate("services");
+            }}
           >
             <GroupExamView navigate={navigate} />
           </OSWindow>

@@ -222,6 +222,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Only the creator can cancel" }, { status: 403 });
     }
 
+    if (challenge.status === "cancelled") {
+      return NextResponse.json({ status: "success", alreadyCancelled: true });
+    }
+
     if (challenge.status === "active" || challenge.status === "completed") {
       return NextResponse.json({ error: "Cannot cancel an active or completed challenge" }, { status: 400 });
     }

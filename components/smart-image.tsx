@@ -66,14 +66,14 @@ export function SmartImage({
     <div
       key={src}
       onClick={onClick}
-      className={`relative overflow-hidden ${className ?? ""}`}
+      className={`relative overflow-hidden flex items-center justify-center ${className ?? ""}`}
       style={width && height ? { aspectRatio: `${width} / ${height}` } : undefined}
     >
       {!loaded && !hasError && (
         <div className="absolute inset-0 animate-pulse bg-muted/40 rounded-[inherit]" />
       )}
       {hasError ? (
-        <div className="w-full h-full flex items-center justify-center bg-muted/20 text-muted-foreground/60 p-4">
+        <div className="w-full h-full min-h-[120px] flex items-center justify-center bg-muted/20 text-muted-foreground/60 p-4">
           <ImageOff className="w-6 h-6" />
         </div>
       ) : (
@@ -96,7 +96,7 @@ export function SmartImage({
               setLoaded(true);
             }
           }}
-          className={`w-full h-full object-contain transition-opacity duration-200 ${
+          className={`max-w-full max-h-full w-auto h-auto object-contain transition-opacity duration-200 ${
             loaded ? "opacity-100" : "opacity-0"
           }`}
         />

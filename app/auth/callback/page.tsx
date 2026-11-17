@@ -4,8 +4,7 @@ import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
-import { Card } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { NavoOSLoading } from "@/components/auth/navo-os-loading";
 
 function AuthCallbackContent() {
   const router = useRouter();
@@ -155,24 +154,12 @@ function AuthCallbackContent() {
     handleCallback();
   }, [router, searchParams]);
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
-      <Card className="w-full max-w-md p-8 space-y-4 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </Card>
-    </div>
-  );
+  return <NavoOSLoading />;
 }
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
-        <Card className="w-full max-w-md p-8 space-y-4 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </Card>
-      </div>
-    }>
+    <Suspense fallback={<NavoOSLoading />}>
       <AuthCallbackContent />
     </Suspense>
   );

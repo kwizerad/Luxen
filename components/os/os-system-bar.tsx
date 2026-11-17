@@ -256,7 +256,8 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
               onClick={() => navigate("home")}
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
             >
-              <span>{t("desktop") || loc("Ahabanza", "Bureau", "Desktop Workspace")}</span>
+              <span className="sm:hidden">nPhone</span>
+              <span className="hidden sm:inline">{t("desktop") || loc("Ahabanza", "Bureau", "Desktop Workspace")}</span>
               <span className="font-mono text-[10px] text-muted-foreground">⌘1</span>
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -310,9 +311,16 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Active Application Name in bold */}
-        <span className="font-bold text-foreground dark:text-white px-1 sm:px-2 py-0.5 rounded tracking-tight truncate max-w-[80px] min-[380px]:max-w-[110px] sm:max-w-none">
-          {appDisplayName}
+        {/* Active Application Name in bold (nPhone on small screens when on home) */}
+        <span className="font-bold text-foreground dark:text-white px-1 sm:px-2 py-0.5 rounded tracking-tight truncate max-w-[96px] min-[380px]:max-w-[120px] sm:max-w-none">
+          {activeView === "home" || !activeView ? (
+            <>
+              <span className="sm:hidden">nPhone</span>
+              <span className="hidden sm:inline">{appDisplayName}</span>
+            </>
+          ) : (
+            appDisplayName
+          )}
         </span>
 
         {/* Context-Aware OS Menu Items */}
@@ -343,7 +351,12 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                   onClick={() => navigate("home")}
                   className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  {loc("Sohoka usubire Ahabanza", "Quitter vers le Bureau", "Exit Exam & Return to Desktop")}
+                  <span className="sm:hidden">
+                    {loc("Sohoka usubire kuri nPhone", "Quitter vers nPhone", "Exit Exam & Return to nPhone")}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {loc("Sohoka usubire Ahabanza", "Quitter vers le Bureau", "Exit Exam & Return to Desktop")}
+                  </span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -419,7 +432,8 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                 onClick={() => navigate("home")}
                 className="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
               >
-                {loc("Ahabanza (Desktop)", "Bureau principal", "Desktop Workspace")}
+                <span className="sm:hidden">{loc("Ahabanza (nPhone)", "nPhone principal", "nPhone Workspace")}</span>
+                <span className="hidden sm:inline">{loc("Ahabanza (Desktop)", "Bureau principal", "Desktop Workspace")}</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={toggleFullscreen}
@@ -465,7 +479,8 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
             <DropdownMenuContent className="w-64 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-1.5 z-[150]">
               <div className="flex items-center justify-between px-2 py-1">
                 <DropdownMenuLabel className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400 p-0">
-                  {loc("Utudirishya tw'Ahabanza", "Widgets du bureau", "Desktop Widgets")}
+                  <span className="sm:hidden">{loc("Utudirishya twa nPhone", "Widgets nPhone", "nPhone Widgets")}</span>
+                  <span className="hidden sm:inline">{loc("Utudirishya tw'Ahabanza", "Widgets du bureau", "Desktop Widgets")}</span>
                 </DropdownMenuLabel>
                 {dismissed.length > 0 && (
                   <button

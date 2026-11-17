@@ -111,7 +111,12 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
   const handleGoHome = () => {
     navigate("home");
     setIsOpen(false);
-    toast.success(loc("Wasubiye ahabanza", "Retour au bureau", "Returned to Desktop Workspace"));
+    const isSmall = typeof window !== "undefined" && window.innerWidth < 640;
+    toast.success(
+      isSmall
+        ? loc("Wasubiye kuri nPhone", "Retour à nPhone", "Returned to nPhone")
+        : loc("Wasubiye ahabanza", "Retour au bureau", "Returned to Desktop Workspace")
+    );
   };
 
   const handleCopyUrl = async () => {

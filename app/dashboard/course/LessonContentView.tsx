@@ -205,7 +205,7 @@ export function LessonContentView({ content, textSize = "base" }: LessonContentV
     editable: false,
     editorProps: {
       attributes: {
-        class: "prose prose-slate dark:prose-invert max-w-none outline-none select-none transition-all duration-200 [&_img]:rounded-lg [&_img]:max-w-full [&_img]:h-auto [&_img]:my-4 [&_img]:shadow-sm [&_img]:pointer-events-none",
+        class: "prose prose-slate dark:prose-invert max-w-none outline-none select-none transition-all duration-200 break-words overflow-x-hidden [&_img]:rounded-lg [&_img]:max-w-full [&_img]:max-h-[240px] sm:[&_img]:max-h-[300px] [&_img]:w-auto [&_img]:h-auto [&_img]:mx-auto [&_img]:object-contain [&_img]:my-3 [&_img]:shadow-sm [&_img]:pointer-events-none",
       },
       handleDOMEvents: {
         copy: (_view, event) => {
@@ -250,7 +250,7 @@ export function LessonContentView({ content, textSize = "base" }: LessonContentV
 
   return (
     <div
-      className={`w-full transition-all duration-200 ${scaleClasses[textSize]}`}
+      className={`w-full min-w-0 break-words overflow-x-hidden transition-all duration-200 ${scaleClasses[textSize]}`}
       style={{ fontSize: fontSizeMap[textSize] }}
       onErrorCapture={(e) => {
         const target = e.target as HTMLElement | null;

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import { createClient } from "@/lib/supabase/client";
 import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 import { GOOGLE_CLIENT_ID, loadGoogleIdentityScript } from "@/lib/auth/google";
+import { NavoOSLoading } from "@/components/auth/navo-os-loading";
 
 interface GoogleLoginButtonProps {
   /**
@@ -263,6 +265,10 @@ export function GoogleLoginButton({
         aria-hidden="true"
         className="hidden pointer-events-none opacity-0 w-0 h-0 overflow-hidden absolute -top-[9999px] -left-[9999px]"
       />
+
+      {isAuthLoading &&
+        typeof document !== "undefined" &&
+        createPortal(<NavoOSLoading />, document.body)}
     </>
   );
 }

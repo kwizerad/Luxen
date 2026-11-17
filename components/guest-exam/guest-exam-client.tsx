@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { preloadImages } from "@/components/smart-image";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { OSWindow } from "@/components/os/os-window";
 import { OSExamLauncher } from "@/components/os-exam/os-exam-launcher";
 import {
@@ -144,6 +145,8 @@ export function GuestExamClient() {
   const [pendingPayload, setPendingPayload] =
     useState<PendingGuestExamPayload | null>(null);
   const [savePromptDismissed, setSavePromptDismissed] = useState(false);
+  const [guestGroupSelectedLang, setGuestGroupSelectedLang] = useState<string>("Kinyarwanda");
+  const [showGuestGroupDialog, setShowGuestGroupDialog] = useState(false);
 
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(
     DEFAULT_SECURITY_SETTINGS
@@ -1082,7 +1085,7 @@ export function GuestExamClient() {
         ) : (
           <OSExamLauncher
             standaloneEnabled={standaloneEnabled}
-            groupExamEnabled={false}
+            groupExamEnabled={true}
             hasExamHistory={false}
             categories={categories}
             selectedCategoryId={selectedCategoryId}
@@ -1097,7 +1100,11 @@ export function GuestExamClient() {
               setLanguage(normalizedLang);
               setPendingStartExam({ categoryId: catId, language: normalizedLang });
             }}
-            onOpenGroupChallenge={() => {}}
+            onOpenGroupChallenge={(_catId, lang) => {
+              const norm = normalizeExamLanguage(lang || selectedExamLanguage);
+              setGuestGroupSelectedLang(norm);
+              setShowGuestGroupDialog(true);
+            }}
             navigate={(view) => {
               if (view === "home") router.push("/");
               else router.push("/?auth=login");
@@ -1105,6 +1112,57 @@ export function GuestExamClient() {
             footerNote={footerQuotaText}
           />
         )}
+
+        {/* Guest Group Exam Sign-In Prompt Modal */}
+        <Dialog open={showGuestGroupDialog} onOpenChange={setShowGuestGroupDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <LogIn className="h-5 w-5 text-primary" />
+                <span>
+                  {isRw
+                    ? "Kwinjira Birakenewe ku Kizamini cy'Itsinda"
+                    : isFr
+                    ? "Connexion Requise pour l'Examen de Groupe"
+                    : "Sign In Required for Group Exam"}
+                </span>
+              </DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm pt-2 leading-relaxed text-muted-foreground">
+                {isRw
+                  ? `Kugira ngo ukore ikizamini cy'itsinda n'abandi banyeshuri mu gihe nyacyo mu rurimi rw'${guestGroupSelectedLang}, banza winjire cyangwa ufungure konti nshya ku buntu.`
+                  : isFr
+                  ? `Pour participer à un défi multijoueur en direct en ${guestGroupSelectedLang} avec vos camarades, veuillez vous connecter ou créer un compte gratuit.`
+                  : `To participate in real-time group exams with your classmates in ${guestGroupSelectedLang}, please sign in or register for a free account.`}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex-col sm:flex-row gap-2 pt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowGuestGroupDialog(false)}
+                className="w-full sm:w-auto text-xs"
+              >
+                {isRw ? "Reka" : isFr ? "Annuler" : "Cancel"}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  try {
+                    sessionStorage.setItem(
+                      "intended-dashboard-view",
+                      `exam?mode=group&language=${encodeURIComponent(guestGroupSelectedLang)}`
+                    );
+                  } catch {}
+                  router.push("/?auth=login");
+                }}
+                className="w-full sm:w-auto text-xs font-semibold"
+              >
+                <LogIn className="h-4 w-4 mr-1.5" />
+                <span>{isRw ? "Injira / Iyandikishe" : isFr ? "Se connecter" : "Sign In / Register"}</span>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </OSWindow>
     </div>
   );

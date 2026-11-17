@@ -36,6 +36,7 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
   const { isServicesPageEnabled } = useServiceVisibilityManager();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [isExamActive, setIsExamActive] = useState<boolean>(false);
+  const [isSmallScreen, setIsSmallScreen] = useState<boolean>(false);
 
   const checkExamState = () => {
     if (typeof window === "undefined") return;
@@ -50,6 +51,19 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
       window.removeEventListener("exam-state-change", checkExamState);
       window.removeEventListener("storage", checkExamState);
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsSmallScreen(mq.matches);
+    update();
+    if (mq.addEventListener) {
+      mq.addEventListener("change", update);
+      return () => mq.removeEventListener("change", update);
+    }
+    mq.addListener?.(update);
+    return () => mq.removeListener?.(update);
   }, []);
 
   const isExamSessionActive = isExamActive;
@@ -67,7 +81,7 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
     {
       id: "home",
       view: "home",
-      title: getLabel("desktop", "Desktop Workspace"),
+      title: isSmallScreen ? "nPhone" : getLabel("desktop", "Desktop Workspace"),
       icon: Compass,
       color: "from-blue-500 to-indigo-600",
     },

@@ -42,6 +42,20 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
 
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsSmallScreen(mq.matches);
+    update();
+    if (mq.addEventListener) {
+      mq.addEventListener("change", update);
+      return () => mq.removeEventListener("change", update);
+    }
+    mq.addListener?.(update);
+    return () => mq.removeListener?.(update);
+  }, []);
 
   // Close on Escape or click outside, and forbid opening during exam
   useEffect(() => {
@@ -74,7 +88,9 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
   const items: SpotlightItem[] = useMemo(() => [
     {
       id: "app-home",
-      title: t("desktop") || loc("Ahabanza ya Navo", "Bureau Navo OS", "Navo Desktop Workspace"),
+      title: isSmallScreen
+        ? "nPhone"
+        : t("desktop") || loc("Ahabanza ya Navo", "Bureau Navo OS", "Navo Desktop Workspace"),
       category: appsLabel as SpotlightItem["category"],
       icon: Compass,
       action: () => {
@@ -183,7 +199,7 @@ export function OSSpotlight({ isOpen, onClose, navigate }: OSSpotlightProps) {
       },
       badge: "🇫🇷 FR",
     },
-  ], [t, navigate, onClose, setLanguage, isRw, isFr]);
+  ], [t, navigate, onClose, setLanguage, isRw, isFr, isSmallScreen, appsLabel, coursesCatLabel, systemLabel]);
 
   const filteredItems = useMemo(() => {
     if (!query.trim()) return items;

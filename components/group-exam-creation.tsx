@@ -35,6 +35,8 @@ interface ClassmateProfile {
 interface GroupExamCreationProps {
   onBack: () => void;
   onStartExam: (categoryId: string, inviteeIds: string[], examLanguage: string) => void;
+  initialLanguage?: string;
+  initialCategoryId?: string;
 }
 
 const EXAM_LANGUAGES = [
@@ -50,7 +52,12 @@ function resolveDefaultExamLang(lang?: string): "Kinyarwanda" | "English" | "Fre
   return "Kinyarwanda";
 }
 
-export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProps) {
+export function GroupExamCreation({
+  onBack,
+  onStartExam,
+  initialLanguage,
+  initialCategoryId,
+}: GroupExamCreationProps) {
   const { t, language, setLanguage } = useLanguage();
   const { user } = useAuth();
 
@@ -69,10 +76,24 @@ export function GroupExamCreation({ onBack, onStartExam }: GroupExamCreationProp
   const [searchQuery, setSearchQuery] = useState("");
   const [categorySearchQuery, setCategorySearchQuery] = useState("");
   const [selectedInvitees, setSelectedInvitees] = useState<Set<string>>(new Set());
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategoryId || "");
   const [selectedExamLanguage, setSelectedExamLanguage] = useState<"Kinyarwanda" | "English" | "French">(
-    () => resolveDefaultExamLang(language)
+    () => resolveDefaultExamLang(initialLanguage || language)
   );
+
+  useEffect(() => {
+    if (initialLanguage) {
+      const resolved = resolveDefaultExamLang(initialLanguage);
+      setSelectedExamLanguage(resolved);
+      setLanguage(resolved);
+    }
+  }, [initialLanguage, setLanguage]);
+
+  useEffect(() => {
+    if (initialCategoryId) {
+      setSelectedCategory(initialCategoryId);
+    }
+  }, [initialCategoryId]);
 
   useEffect(() => {
     fetchData();
