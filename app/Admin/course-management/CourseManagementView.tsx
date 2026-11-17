@@ -11,13 +11,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { BookOpen, MoreHorizontal, Check, Loader2, Globe, Lock, Layers, FileText, Pencil, ChevronDown, ChevronRight, Eye } from "lucide-react";
+import { BookOpen, MoreHorizontal, Check, Loader2, Globe, Lock, Layers, FileText, Pencil, ChevronDown, ChevronRight, Eye, FolderTree } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { createClient } from "@/lib/supabase/client";
-import { updateCourse, updateModule, updateLesson } from "@/app/Admin/actions/courses";
+import {
+  updateCourse,
+  updateModule,
+  updateLesson,
+  reorderModules,
+  reorderLessons,
+  moveLessonToModule,
+  createModuleWithDefaults,
+  createLesson,
+} from "@/app/Admin/actions/courses";
 import { toast } from "sonner";
 import type { CourseLanguageCourse, CourseModule, CourseLesson } from "@/lib/database.types";
 import { CoursePreviewDialog } from "@/components/course-preview-dialog";
+import { CourseTreeBuilder } from "./CourseTreeBuilder";
 
 const LANGUAGES: CourseLanguage[] = ["English", "Kinyarwanda", "French"];
 type CourseLanguage = "English" | "Kinyarwanda" | "French";
@@ -46,6 +56,8 @@ export function CourseManagementView() {
   const [preview, setPreview] = useState<{ type: "course"; course: CourseWithCounts } | { type: "module"; course: CourseWithCounts; module: ModuleWithLessons } | { type: "lesson"; course: CourseWithCounts; module: ModuleWithLessons; lesson: CourseLesson } | null>(null);
   const [sequentialUnlock, setSequentialUnlock] = useState<boolean>(true);
   const [savingSeqUnlock, setSavingSeqUnlock] = useState<boolean>(false);
+  const [structureViewMode, setStructureViewMode] = useState<"tree" | "table">("tree");
+  const [isReordering, setIsReordering] = useState<boolean>(false);
 
   const load = async () => {
     const supabase = createClient();
@@ -181,15 +193,33 @@ export function CourseManagementView() {
         .sort((a: CourseLesson, b: CourseLesson) => a.order_index - b.order_index),
     }));
     setCourseModules((prev) => ({ ...prev, [courseId]: sorted }));
+    setExpandedModules((prev) => {
+      const next = new Set(prev);
+      for (const m of sorted) {
+        next.add(m.id);
+      }
+      return next;
+    });
     setLoadingModules(null);
   }, [t]);
+
+  // Open the first course's visual tree builder automatically on initial load for immediate overview
+  useEffect(() => {
+    if (!loading && courses.length > 0 && expandedCourseId === null) {
+      const firstId = courses[0].id;
+      setExpandedCourseId(firstId);
+      if (!courseModules[firstId]) {
+        void loadModules(firstId);
+      }
+    }
+  }, [loading, courses, expandedCourseId, courseModules, loadModules]);
 
   const toggleCourseExpand = (courseId: string) => {
     if (expandedCourseId === courseId) {
       setExpandedCourseId(null);
     } else {
       setExpandedCourseId(courseId);
-      if (!courseModules[courseId]) loadModules(courseId);
+      if (!courseModules[courseId]) void loadModules(courseId);
     }
   };
 
@@ -300,6 +330,202 @@ export function CourseManagementView() {
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const expandModule = (moduleId: string) => {
+    setExpandedModules((prev) => {
+      if (prev.has(moduleId)) return prev;
+      const next = new Set(prev);
+      next.add(moduleId);
+      return next;
+    });
+  };
+
+  const expandAllModulesForCourse = (courseId: string) => {
+    const mods = courseModules[courseId] || [];
+    setExpandedModules(new Set(mods.map((m) => m.id)));
+  };
+
+  const collapseAllModules = () => {
+    setExpandedModules(new Set());
+  };
+
+  const handleReorderModules = async (courseId: string, newModuleIds: string[]) => {
+    const currentMods = courseModules[courseId];
+    if (!currentMods) return;
+
+    const moduleMap = new Map(currentMods.map((m) => [m.id, m]));
+    const reordered = newModuleIds
+      .map((id, idx) => {
+        const mod = moduleMap.get(id);
+        return mod ? { ...mod, order_index: idx } : null;
+      })
+      .filter((m): m is ModuleWithLessons => Boolean(m));
+
+    if (reordered.length !== currentMods.length) return;
+
+    const snapshot = currentMods;
+    setCourseModules((prev) => ({ ...prev, [courseId]: reordered }));
+    setIsReordering(true);
+    try {
+      const res = await reorderModules(newModuleIds);
+      if (!res.success) {
+        throw new Error(res.error || "Failed to reorder modules");
+      }
+      toast.success(t("modulesReordered") || "Module order updated.");
+    } catch (err) {
+      setCourseModules((prev) => ({ ...prev, [courseId]: snapshot }));
+      toast.error(err instanceof Error ? err.message : "Failed to save module order.");
+    } finally {
+      setIsReordering(false);
+    }
+  };
+
+  const handleReorderLessons = async (courseId: string, moduleId: string, newLessonIds: string[]) => {
+    const currentMods = courseModules[courseId];
+    if (!currentMods) return;
+    const targetMod = currentMods.find((m) => m.id === moduleId);
+    if (!targetMod) return;
+
+    const lessonMap = new Map(targetMod.lessons.map((l) => [l.id, l]));
+    const reorderedLessons = newLessonIds
+      .map((id, idx) => {
+        const lesson = lessonMap.get(id);
+        return lesson ? { ...lesson, order_index: idx } : null;
+      })
+      .filter((l): l is CourseLesson => Boolean(l));
+
+    if (reorderedLessons.length !== targetMod.lessons.length) return;
+
+    const snapshot = currentMods;
+    setCourseModules((prev) => ({
+      ...prev,
+      [courseId]: (prev[courseId] || []).map((m) =>
+        m.id === moduleId ? { ...m, lessons: reorderedLessons } : m
+      ),
+    }));
+    setIsReordering(true);
+    try {
+      const res = await reorderLessons(newLessonIds);
+      if (!res.success) {
+        throw new Error(res.error || "Failed to reorder lessons");
+      }
+      toast.success(t("lessonsReordered") || "Lesson order updated.");
+    } catch (err) {
+      setCourseModules((prev) => ({ ...prev, [courseId]: snapshot }));
+      toast.error(err instanceof Error ? err.message : "Failed to save lesson order.");
+    } finally {
+      setIsReordering(false);
+    }
+  };
+
+  const handleMoveLessonBetweenModules = async (
+    courseId: string,
+    lessonId: string,
+    sourceModuleId: string,
+    targetModuleId: string,
+    targetIndex: number
+  ) => {
+    const currentMods = courseModules[courseId];
+    if (!currentMods) return;
+    const sourceMod = currentMods.find((m) => m.id === sourceModuleId);
+    const targetMod = currentMods.find((m) => m.id === targetModuleId);
+    if (!sourceMod || !targetMod) return;
+
+    const movingLesson = sourceMod.lessons.find((l) => l.id === lessonId);
+    if (!movingLesson) return;
+
+    const nextSourceLessons = sourceMod.lessons
+      .filter((l) => l.id !== lessonId)
+      .map((l, idx) => ({ ...l, order_index: idx }));
+
+    const clampedIndex = Math.max(0, Math.min(targetIndex, targetMod.lessons.length));
+    const nextTargetLessonsRaw = [...targetMod.lessons];
+    nextTargetLessonsRaw.splice(clampedIndex, 0, {
+      ...movingLesson,
+      module_id: targetModuleId,
+    });
+    const nextTargetLessons = nextTargetLessonsRaw.map((l, idx) => ({
+      ...l,
+      order_index: idx,
+    }));
+
+    const snapshot = currentMods;
+    setCourseModules((prev) => ({
+      ...prev,
+      [courseId]: (prev[courseId] || []).map((m) => {
+        if (m.id === sourceModuleId) return { ...m, lessons: nextSourceLessons };
+        if (m.id === targetModuleId) return { ...m, lessons: nextTargetLessons };
+        return m;
+      }),
+    }));
+
+    setIsReordering(true);
+    try {
+      const res = await moveLessonToModule(
+        lessonId,
+        targetModuleId,
+        nextTargetLessons.map((l) => l.id),
+        nextSourceLessons.map((l) => l.id)
+      );
+      if (!res.success) {
+        throw new Error(res.error || "Failed to move lesson");
+      }
+      toast.success(
+        `Moved "${movingLesson.title}" to "${targetMod.title}".`
+      );
+    } catch (err) {
+      setCourseModules((prev) => ({ ...prev, [courseId]: snapshot }));
+      toast.error(err instanceof Error ? err.message : "Failed to move lesson between modules.");
+    } finally {
+      setIsReordering(false);
+    }
+  };
+
+  const handleQuickCreateModule = async (courseId: string, title: string) => {
+    const res = await createModuleWithDefaults(courseId, title);
+    if (!res.success) {
+      toast.error(res.error || "Failed to create module.");
+      throw new Error(res.error || "Failed to create module");
+    }
+    const newMod: ModuleWithLessons = {
+      ...res.data.module,
+      lessons: [res.data.lesson],
+    };
+    setCourseModules((prev) => ({
+      ...prev,
+      [courseId]: [...(prev[courseId] || []), newMod],
+    }));
+    setCourses((prev) =>
+      prev.map((c) =>
+        c.id === courseId
+          ? { ...c, moduleCount: c.moduleCount + 1, lessonCount: c.lessonCount + 1 }
+          : c
+      )
+    );
+    expandModule(newMod.id);
+    toast.success(t("moduleCreated") || "Module created.");
+  };
+
+  const handleQuickCreateLesson = async (courseId: string, moduleId: string, title: string) => {
+    const res = await createLesson(moduleId, title);
+    if (!res.success) {
+      toast.error(res.error || "Failed to create lesson.");
+      throw new Error(res.error || "Failed to create lesson");
+    }
+    setCourseModules((prev) => ({
+      ...prev,
+      [courseId]: (prev[courseId] || []).map((m) =>
+        m.id === moduleId ? { ...m, lessons: [...m.lessons, res.data] } : m
+      ),
+    }));
+    setCourses((prev) =>
+      prev.map((c) =>
+        c.id === courseId ? { ...c, lessonCount: c.lessonCount + 1 } : c
+      )
+    );
+    expandModule(moduleId);
+    toast.success(t("lessonCreated") || "Lesson created.");
   };
 
   const languageLabel = (lang: CourseLanguage) =>
@@ -503,8 +729,8 @@ export function CourseManagementView() {
                   onClick={() => toggleCourseExpand(course.id)}
                   className="gap-1.5 flex-1 sm:flex-none justify-center sm:justify-start"
                 >
-                  {isActive ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  <span className="truncate">{isActive ? (t("hideModules") || "Hide Modules") : (t("viewModules") || "View Modules")}</span>
+                  {isActive ? <ChevronDown className="h-4 w-4" /> : <FolderTree className="h-4 w-4" />}
+                  <span className="truncate">{isActive ? (t("hideTree") || "Hide Tree") : (t("courseTree") || "Course Tree")}</span>
                 </Button>
                 <Button
                   type="button"
@@ -528,240 +754,234 @@ export function CourseManagementView() {
         })}
       </div>
 
-      {/* Modules table for selected course — appears below the grid */}
+      {/* Visual Course Tree Builder & Optional Table View for selected course */}
       {expandedCourseId && (() => {
         const course = courses.find((c) => c.id === expandedCourseId);
+        if (!course) return null;
         const modules = courseModules[expandedCourseId] || [];
-        const isPublished = course?.status === "published";
 
-        return (
-          <div className="admin-card !rounded-[5px] overflow-hidden">
-            {/* Table header */}
-            <div className="flex items-center justify-between gap-2 px-4 sm:px-5 py-3 sm:py-4 border-b border-[var(--admin-border)]">
-              <div className="flex items-center gap-2 min-w-0">
-                <BookOpen className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${isPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-primary)]"}`} />
-                <h3 className="text-base sm:text-lg font-semibold truncate text-[var(--admin-text)]">
-                  {course?.title} — {t("modules") || "Modules"}
-                </h3>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setExpandedCourseId(null)}
-                className="text-[var(--admin-muted)] hover:text-[var(--admin-text)] flex-shrink-0"
-              >
-                {t("cancel") || "Close"}
-              </Button>
-            </div>
+        const legacyTableContent = (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--admin-border)] text-[var(--admin-muted)] text-xs">
+                  <th className="text-left font-medium px-3 sm:px-4 py-2.5">{t("moduleName") || "Module / Lesson Name"}</th>
+                  <th className="text-center font-medium px-3 py-2.5 hidden sm:table-cell">{t("totalLessons") || "Lessons / Topics"}</th>
+                  <th className="text-center font-medium px-2 sm:px-3 py-2.5">{t("status") || "Status"}</th>
+                  <th className="text-left font-medium px-3 py-2.5 hidden md:table-cell">{t("createdAt") || "Created At"}</th>
+                  <th className="text-right font-medium px-3 sm:px-4 py-2.5">{t("actions") || "Actions"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {modules.map((mod) => {
+                  const modPublished = mod.status === "published";
+                  const isModExpanded = expandedModules.has(mod.id);
+                  const allLessonsPublished = mod.lessons.length > 0 && mod.lessons.every((l) => l.status === "published");
+                  const allLessonsDraft = mod.lessons.length > 0 && mod.lessons.every((l) => l.status === "draft");
 
-            {/* Loading state */}
-            {loadingModules === expandedCourseId && (
-              <div className="p-4 sm:p-6 flex items-center gap-2 text-sm text-[var(--admin-muted)]">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t("loading") || "Loading..."}
-              </div>
-            )}
-
-            {/* Empty state */}
-            {modules.length === 0 && loadingModules !== expandedCourseId && (
-              <div className="p-6 sm:p-8 text-center text-sm text-[var(--admin-muted)]">
-                {t("noModulesYet") || "No modules yet."}
-              </div>
-            )}
-
-            {/* Modules table */}
-            {modules.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[var(--admin-border)] text-[var(--admin-muted)] text-xs">
-                      <th className="text-left font-medium px-3 sm:px-4 py-2.5">{t("moduleName") || "Module / Lesson Name"}</th>
-                      <th className="text-center font-medium px-3 py-2.5 hidden sm:table-cell">{t("totalLessons") || "Lessons / Topics"}</th>
-                      <th className="text-center font-medium px-2 sm:px-3 py-2.5">{t("status") || "Status"}</th>
-                      <th className="text-left font-medium px-3 py-2.5 hidden md:table-cell">{t("createdAt") || "Created At"}</th>
-                      <th className="text-right font-medium px-3 sm:px-4 py-2.5">{t("actions") || "Actions"}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {modules.map((mod) => {
-                      const modPublished = mod.status === "published";
-                      const isModExpanded = expandedModules.has(mod.id);
-                      const allLessonsPublished = mod.lessons.length > 0 && mod.lessons.every((l) => l.status === "published");
-                      const allLessonsDraft = mod.lessons.length > 0 && mod.lessons.every((l) => l.status === "draft");
-
-                      return (
-                        <Fragment key={mod.id}>
-                          {/* Module row */}
-                          <tr
-                            className="border-b border-[var(--admin-border)] hover:bg-[var(--admin-hover-bg)] transition-colors cursor-pointer"
-                            onClick={() => toggleModuleExpand(mod.id)}
-                          >
-                            <td className="px-3 sm:px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                {isModExpanded ? (
-                                  <ChevronDown className="h-4 w-4 text-[var(--admin-muted)] flex-shrink-0" />
+                  return (
+                    <Fragment key={mod.id}>
+                      {/* Module row */}
+                      <tr
+                        className="border-b border-[var(--admin-border)] hover:bg-[var(--admin-hover-bg)] transition-colors cursor-pointer"
+                        onClick={() => toggleModuleExpand(mod.id)}
+                      >
+                        <td className="px-3 sm:px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {isModExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-[var(--admin-muted)] flex-shrink-0" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-[var(--admin-muted)] flex-shrink-0" />
+                            )}
+                            <Layers className={`h-4 w-4 flex-shrink-0 ${modPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-primary)]"}`} />
+                            <span className="font-medium truncate text-[var(--admin-text)]">{mod.title}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-center hidden sm:table-cell">
+                          <span className="text-xs text-[var(--admin-muted)] tabular-nums">{mod.lessons.length} {t("lessons") || "lessons"}</span>
+                        </td>
+                        <td className="px-2 sm:px-3 py-3 text-center">
+                          <span className={`text-xs font-medium ${modPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-muted)]"}`}>
+                            {modPublished ? (t("published") || "Published") : (t("draft") || "Draft")}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-xs text-[var(--admin-muted)] hidden md:table-cell tabular-nums">
+                          {new Date(mod.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-3 sm:px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleModuleStatusChange(expandedCourseId, mod.id, modPublished ? "draft" : "published")}
+                              disabled={updatingId === mod.id}
+                              className={modPublished ? "text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300" : "text-[var(--admin-muted)] hover:text-[var(--admin-text)]"}
+                              title={modPublished ? (t("draftModule") || "Move to Draft") : (t("publishModule") || "Publish Module")}
+                            >
+                              {updatingId === mod.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : modPublished ? (
+                                <Globe className="h-3.5 w-3.5" />
+                              ) : (
+                                <Lock className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePreviewModule(course, mod)}
+                              className="text-[var(--admin-primary)] hover:text-[var(--admin-primary)] hover:bg-[var(--admin-primary)]/10"
+                              title={t("preview") || "Preview"}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                            {mod.lessons.length > 0 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => publishAllLessons(expandedCourseId, mod.id)}
+                                disabled={updatingId === `all-${mod.id}` || allLessonsPublished}
+                                className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 disabled:opacity-30"
+                                title={t("publishAllLessons") || "Publish All Lessons"}
+                              >
+                                {updatingId === `all-${mod.id}` ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                  <ChevronRight className="h-4 w-4 text-[var(--admin-muted)] flex-shrink-0" />
+                                  <Check className="h-3.5 w-3.5" />
                                 )}
-                                <Layers className={`h-4 w-4 flex-shrink-0 ${modPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-primary)]"}`} />
-                                <span className="font-medium truncate text-[var(--admin-text)]">{mod.title}</span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 text-center hidden sm:table-cell">
-                              <span className="text-xs text-[var(--admin-muted)]">{mod.lessons.length} {t("lessons") || "lessons"}</span>
-                            </td>
-                            <td className="px-2 sm:px-3 py-3 text-center">
-                              <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${modPublished ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-[var(--admin-hover-bg)] text-[var(--admin-muted)]"}`}>
-                                {modPublished ? <Globe className="h-2.5 w-2.5" /> : <Lock className="h-2.5 w-2.5" />}
-                                {modPublished ? (t("published") || "Published") : (t("draft") || "Draft")}
-                              </span>
-                            </td>
-                            <td className="px-3 py-3 text-xs text-[var(--admin-muted)] hidden md:table-cell">
-                              {new Date(mod.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="px-3 sm:px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleModuleStatusChange(expandedCourseId, mod.id, modPublished ? "draft" : "published")}
-                                  disabled={updatingId === mod.id}
-                                  className={modPublished ? "text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300" : "text-[var(--admin-muted)] hover:text-[var(--admin-text)]"}
-                                  title={modPublished ? (t("draftModule") || "Move to Draft") : (t("publishModule") || "Publish Module")}
-                                >
-                                  {updatingId === mod.id ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : modPublished ? (
-                                    <Globe className="h-3.5 w-3.5" />
-                                  ) : (
-                                    <Lock className="h-3.5 w-3.5" />
-                                  )}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => course && handlePreviewModule(course, mod)}
-                                  className="text-[var(--admin-primary)] hover:text-[var(--admin-primary)] hover:bg-[var(--admin-primary)]/10"
-                                  title={t("preview") || "Preview"}
-                                >
-                                  <Eye className="h-3.5 w-3.5" />
-                                </Button>
-                                {mod.lessons.length > 0 && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => publishAllLessons(expandedCourseId, mod.id)}
-                                    disabled={updatingId === `all-${mod.id}` || allLessonsPublished}
-                                    className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 disabled:opacity-30"
-                                    title={t("publishAllLessons") || "Publish All Lessons"}
-                                  >
-                                    {updatingId === `all-${mod.id}` ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <Check className="h-3.5 w-3.5" />
-                                    )}
-                                  </Button>
-                                )}
-                                {mod.lessons.length > 0 && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => draftAllLessons(expandedCourseId, mod.id)}
-                                    disabled={updatingId === `all-${mod.id}` || allLessonsDraft}
-                                    className="text-[var(--admin-muted)] hover:text-[var(--admin-text)] disabled:opacity-30"
-                                    title={t("draftAllLessons") || "Draft All Lessons"}
-                                  >
-                                    <Lock className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                              </div>
+                              </Button>
+                            )}
+                            {mod.lessons.length > 0 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => draftAllLessons(expandedCourseId, mod.id)}
+                                disabled={updatingId === `all-${mod.id}` || allLessonsDraft}
+                                className="text-[var(--admin-muted)] hover:text-[var(--admin-text)] disabled:opacity-30"
+                                title={t("draftAllLessons") || "Draft All Lessons"}
+                              >
+                                <Lock className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expanded lesson rows */}
+                      {isModExpanded && (
+                        mod.lessons.length === 0 ? (
+                          <tr className="border-b border-[var(--admin-border)]">
+                            <td colSpan={5} className="px-4 py-3 text-center text-xs text-[var(--admin-muted)]">
+                              {t("noLessonsYet") || "No lessons yet."}
                             </td>
                           </tr>
-
-                          {/* Expanded lesson rows */}
-                          {isModExpanded && (
-                            mod.lessons.length === 0 ? (
-                              <tr className="border-b border-[var(--admin-border)]">
-                                <td colSpan={5} className="px-4 py-3 text-center text-xs text-[var(--admin-muted)]">
-                                  {t("noLessonsYet") || "No lessons yet."}
+                        ) : (
+                          mod.lessons.map((lesson) => {
+                            const lessonPublished = lesson.status === "published";
+                            const topicCount = Array.isArray(lesson.topics) ? lesson.topics.length : 0;
+                            return (
+                              <tr
+                                key={lesson.id}
+                                className="border-b border-[var(--admin-border)] last:border-b-0 hover:bg-[var(--admin-hover-bg)] transition-colors"
+                              >
+                                <td className="px-3 sm:px-4 py-2.5 pl-8 sm:pl-10">
+                                  <div className="flex items-center gap-2">
+                                    <FileText className={`h-3.5 w-3.5 flex-shrink-0 ${lessonPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-muted)]"}`} />
+                                    <span className="text-xs truncate text-[var(--admin-text)]">{lesson.title}</span>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2.5 text-center hidden sm:table-cell">
+                                  <span className="text-xs text-[var(--admin-muted)] tabular-nums">{topicCount} {t("topics") || "topics"}</span>
+                                </td>
+                                <td className="px-2 sm:px-3 py-2.5 text-center">
+                                  <span className={`text-xs font-medium ${lessonPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-muted)]"}`}>
+                                    {lessonPublished ? (t("published") || "Published") : (t("draft") || "Draft")}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 text-xs text-[var(--admin-muted)] hidden md:table-cell tabular-nums">
+                                  {new Date(lesson.created_at).toLocaleDateString()}
+                                </td>
+                                <td className="px-3 sm:px-4 py-2.5">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleLessonStatusChange(expandedCourseId, mod.id, lesson.id, lessonPublished ? "draft" : "published")}
+                                      disabled={updatingId === lesson.id}
+                                      className={lessonPublished ? "text-green-600 dark:text-green-400 hover:text-green-700" : "text-[var(--admin-muted)] hover:text-[var(--admin-text)]"}
+                                      title={lessonPublished ? (t("draftLesson") || "Move to Draft") : (t("publishLesson") || "Publish Lesson")}
+                                    >
+                                      {updatingId === lesson.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : lessonPublished ? (
+                                        <Globe className="h-3.5 w-3.5" />
+                                      ) : (
+                                        <Lock className="h-3.5 w-3.5" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handlePreviewLesson(course, mod, lesson)}
+                                      className="text-[var(--admin-primary)] hover:text-[var(--admin-primary)] hover:bg-[var(--admin-primary)]/10"
+                                      title={t("preview") || "Preview"}
+                                    >
+                                      <Eye className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
-                            ) : (
-                              mod.lessons.map((lesson) => {
-                                const lessonPublished = lesson.status === "published";
-                                const topicCount = Array.isArray(lesson.topics) ? lesson.topics.length : 0;
-                                return (
-                                  <tr
-                                    key={lesson.id}
-                                    className="border-b border-[var(--admin-border)] last:border-b-0 hover:bg-[var(--admin-hover-bg)] transition-colors"
-                                  >
-                                    <td className="px-3 sm:px-4 py-2.5 pl-8 sm:pl-10">
-                                      <div className="flex items-center gap-2">
-                                        <FileText className={`h-3.5 w-3.5 flex-shrink-0 ${lessonPublished ? "text-green-600 dark:text-green-400" : "text-[var(--admin-muted)]"}`} />
-                                        <span className="text-xs truncate text-[var(--admin-text)]">{lesson.title}</span>
-                                      </div>
-                                    </td>
-                                    <td className="px-3 py-2.5 text-center hidden sm:table-cell">
-                                      <span className="text-xs text-[var(--admin-muted)]">{topicCount} {t("topics") || "topics"}</span>
-                                    </td>
-                                    <td className="px-2 sm:px-3 py-2.5 text-center">
-                                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${lessonPublished ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-[var(--admin-hover-bg)] text-[var(--admin-muted)]"}`}>
-                                        {lessonPublished ? <Globe className="h-2.5 w-2.5" /> : <Lock className="h-2.5 w-2.5" />}
-                                        {lessonPublished ? (t("published") || "Published") : (t("draft") || "Draft")}
-                                      </span>
-                                    </td>
-                                    <td className="px-3 py-2.5 text-xs text-[var(--admin-muted)] hidden md:table-cell">
-                                      {new Date(lesson.created_at).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-3 sm:px-4 py-2.5">
-                                      <div className="flex items-center justify-end gap-1">
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleLessonStatusChange(expandedCourseId, mod.id, lesson.id, lessonPublished ? "draft" : "published")}
-                                          disabled={updatingId === lesson.id}
-                                          className={lessonPublished ? "text-green-400 hover:text-green-300" : "text-[var(--admin-muted)] hover:text-[var(--admin-text)]"}
-                                          title={lessonPublished ? (t("draftLesson") || "Move to Draft") : (t("publishLesson") || "Publish Lesson")}
-                                        >
-                                          {updatingId === lesson.id ? (
-                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                          ) : lessonPublished ? (
-                                            <Globe className="h-3.5 w-3.5" />
-                                          ) : (
-                                            <Lock className="h-3.5 w-3.5" />
-                                          )}
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => course && handlePreviewLesson(course, mod, lesson)}
-                                          className="text-[var(--admin-primary)] hover:text-[var(--admin-primary)] hover:bg-[var(--admin-primary)]/10"
-                                          title={t("preview") || "Preview"}
-                                        >
-                                          <Eye className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              })
-                            )
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                            );
+                          })
+                        )
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
+        );
+
+        return (
+          <CourseTreeBuilder
+            course={course}
+            modules={modules}
+            loading={loadingModules === expandedCourseId}
+            updatingId={updatingId}
+            isReordering={isReordering}
+            expandedModules={expandedModules}
+            viewMode={structureViewMode}
+            onViewModeChange={setStructureViewMode}
+            onToggleModule={toggleModuleExpand}
+            onExpandModule={expandModule}
+            onExpandAll={() => expandAllModulesForCourse(expandedCourseId)}
+            onCollapseAll={collapseAllModules}
+            onReorderModules={(ids) => handleReorderModules(expandedCourseId, ids)}
+            onReorderLessons={(modId, ids) => handleReorderLessons(expandedCourseId, modId, ids)}
+            onMoveLessonToModule={(lessonId, sourceModId, targetModId, targetIdx) =>
+              handleMoveLessonBetweenModules(expandedCourseId, lessonId, sourceModId, targetModId, targetIdx)
+            }
+            onModuleStatusChange={(modId, status) => handleModuleStatusChange(expandedCourseId, modId, status)}
+            onLessonStatusChange={(modId, lessonId, status) =>
+              handleLessonStatusChange(expandedCourseId, modId, lessonId, status)
+            }
+            onPublishAllLessons={(modId) => publishAllLessons(expandedCourseId, modId)}
+            onDraftAllLessons={(modId) => draftAllLessons(expandedCourseId, modId)}
+            onPreviewCourse={() => handlePreviewCourse(course)}
+            onPreviewModule={(mod) => handlePreviewModule(course, mod)}
+            onPreviewLesson={(mod, lesson) => handlePreviewLesson(course, mod, lesson)}
+            onCreateModule={(title) => handleQuickCreateModule(expandedCourseId, title)}
+            onCreateLesson={(modId, title) => handleQuickCreateLesson(expandedCourseId, modId, title)}
+            onClose={() => setExpandedCourseId(null)}
+            tableContent={legacyTableContent}
+          />
         );
       })()}
 

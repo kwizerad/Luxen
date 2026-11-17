@@ -567,6 +567,7 @@ export async function reorderModules(moduleIds: string[]): Promise<ActionResult<
     
     revalidatePath("/Admin/course-studio");
     revalidatePath("/Admin/course");
+    revalidatePath("/Admin/course-management");
     return { success: true, data: null };
   } catch (error) {
     return handleError(error);
@@ -771,6 +772,115 @@ export async function reorderLessons(lessonIds: string[]): Promise<ActionResult<
     
     revalidatePath("/Admin/course-studio");
     revalidatePath("/Admin/course");
+    revalidatePath("/Admin/course-management");
+    return { success: true, data: null };
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+export async function moveLessonToModule(
+  lessonId: string,
+  targetModuleId: string,
+  targetModuleLessonIds: string[],
+  sourceModuleLessonIds?: string[]
+): Promise<ActionResult<null>> {
+  try {
+    const admin = await requireAdmin();
+    const supabase = createAdminClient();
+
+    if (!lessonId || !targetModuleId) {
+      throw new Error("Lesson ID and target module ID are required");
+    }
+
+    const { data: lesson, error: lessonError } = await supabase
+      .from("course_lessons")
+      .select("id, module_id")
+      .eq("id", lessonId)
+      .is("deleted_at", null)
+      .single();
+
+    if (lessonError || !lesson) {
+      throw new Error("Lesson not found or already deleted");
+    }
+
+    const sourceModuleId = lesson.module_id;
+    if (sourceModuleId === targetModuleId) {
+      return reorderLessons(targetModuleLessonIds);
+    }
+
+    // Ensure both modules exist and belong to the same course
+    const { data: modules, error: modulesError } = await supabase
+      .from("course_modules")
+      .select("id, language_id")
+      .in("id", [sourceModuleId, targetModuleId])
+      .is("deleted_at", null);
+
+    if (modulesError || !modules || modules.length !== 2) {
+      throw new Error("Source or target module not found");
+    }
+
+    if (modules[0].language_id !== modules[1].language_id) {
+      throw new Error("Cannot move lessons across different courses");
+    }
+
+    const now = new Date().toISOString();
+    const uniqueTargetIds = Array.from(new Set(targetModuleLessonIds));
+    if (!uniqueTargetIds.includes(lessonId)) {
+      uniqueTargetIds.push(lessonId);
+    }
+
+    const { error: moveError } = await supabase
+      .from("course_lessons")
+      .update({
+        module_id: targetModuleId,
+        order_index: uniqueTargetIds.indexOf(lessonId),
+        updated_at: now,
+        updated_by: admin.id,
+      })
+      .eq("id", lessonId)
+      .is("deleted_at", null);
+
+    if (moveError) throw moveError;
+
+    const targetUpdates = uniqueTargetIds.map((id, index) =>
+      supabase
+        .from("course_lessons")
+        .update({
+          order_index: index,
+          updated_at: now,
+          updated_by: admin.id,
+        })
+        .eq("id", id)
+        .eq("module_id", targetModuleId)
+        .is("deleted_at", null)
+    );
+
+    const uniqueSourceIds = Array.from(
+      new Set((sourceModuleLessonIds || []).filter((id) => id !== lessonId))
+    );
+    const sourceUpdates = uniqueSourceIds.map((id, index) =>
+      supabase
+        .from("course_lessons")
+        .update({
+          order_index: index,
+          updated_at: now,
+          updated_by: admin.id,
+        })
+        .eq("id", id)
+        .eq("module_id", sourceModuleId)
+        .is("deleted_at", null)
+    );
+
+    const results = await Promise.all([...targetUpdates, ...sourceUpdates]);
+    const failed = results.find((r) => r.error);
+    if (failed?.error) {
+      throw new Error(failed.error.message || "Failed to update lesson ordering");
+    }
+
+    revalidatePath("/Admin/course-studio");
+    revalidatePath("/Admin/course");
+    revalidatePath("/Admin/course-management");
     return { success: true, data: null };
   } catch (error) {
     return handleError(error);

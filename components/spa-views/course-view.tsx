@@ -2898,7 +2898,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         {/* Center Reader Content Canvas */}
         <main
           className={cn(
-            "flex-1 min-w-0 p-3 sm:p-5 md:p-7 pb-24 lg:pb-8 space-y-5 mx-auto w-full overflow-x-hidden",
+            "flex-1 min-w-0 p-3 sm:p-5 md:p-7 pb-6 sm:pb-8 space-y-5 mx-auto w-full overflow-x-hidden",
             extractedMedia.images.length > 0 ? "max-w-6xl" : "max-w-4xl"
           )}
         >
@@ -3082,47 +3082,53 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             </div>
           </div>
 
-          {/* Bottom Navigation Toolbar */}
-          <div className="sticky bottom-14 sm:bottom-4 z-20 bg-card dark:bg-zinc-950 px-3 sm:px-5 py-2.5 rounded-2xl border shadow-lg flex items-center justify-between mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToPrevious}
-              disabled={currentItemIndex === 0}
-              className="rounded-xl font-medium text-xs sm:text-sm cursor-pointer"
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              <span>{t("previousTopic") || "Previous"}</span>
-            </Button>
-
-            <div className="text-xs text-muted-foreground font-semibold tabular-nums px-2">
-              {currentItemIndex + 1} / {flatList.length}
-            </div>
-
-            <div className="flex items-center">
-              {currentItem && isLastItemInLesson(currentItem) ? (
-                <Button
-                  size="sm"
-                  onClick={() => void markCompleteAndAdvance()}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold text-xs sm:text-sm shadow-sm cursor-pointer"
-                >
-                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                  <span>{t("completeLesson") || "Complete Lesson"}</span>
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={() => void markCompleteAndAdvance()}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold text-xs sm:text-sm shadow-sm cursor-pointer"
-                >
-                  <span>{t("nextTopic") || "Next"}</span>
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              )}
-            </div>
-          </div>
         </main>
       </div>
+
+      {/* Bottom Navigation Footer (Placed below content like the exam so buttons never cover course text) */}
+      <footer className="shrink-0 mt-auto border-t border-border bg-card dark:bg-zinc-950 px-3 sm:px-6 py-2.5 sm:py-3">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={goToPrevious}
+            disabled={currentItemIndex === 0}
+            className="rounded-lg h-8 sm:h-9 px-2.5 sm:px-3.5 font-medium text-xs sm:text-sm cursor-pointer"
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            <span>{t("previousTopic") || "Previous"}</span>
+          </Button>
+
+          <div className="text-xs text-muted-foreground font-mono font-semibold tabular-nums px-2">
+            {currentItemIndex + 1} / {flatList.length}
+          </div>
+
+          <div className="flex items-center">
+            {currentItem && isLastItemInLesson(currentItem) ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void markCompleteAndAdvance()}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-8 sm:h-9 px-3 sm:px-4 font-semibold text-xs sm:text-sm shadow-xs cursor-pointer"
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                <span>{t("completeLesson") || "Complete Lesson"}</span>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void markCompleteAndAdvance()}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-8 sm:h-9 px-3 sm:px-4 font-semibold text-xs sm:text-sm shadow-xs cursor-pointer"
+              >
+                <span>{t("nextTopic") || "Next"}</span>
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
