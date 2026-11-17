@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUserFromRequest } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: participant } = await supabase
+    const adminClient = createAdminClient();
+
+    const { data: participant } = await adminClient
       .from("exam_challenge_participants")
       .select("status")
       .eq("challenge_id", params.id)
@@ -28,7 +30,7 @@ export async function POST(
       return NextResponse.json({ error: "Only joined participants can ready up" }, { status: 400 });
     }
 
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await adminClient
       .from("exam_challenge_participants")
       .update({ status: "ready", ready_at: new Date().toISOString() })
       .eq("challenge_id", params.id)

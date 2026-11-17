@@ -171,9 +171,73 @@ export async function decryptPayload<T = any>(payload: unknown): Promise<T> {
   return JSON.parse(jsonStr) as T;
 }
 
+const SESSION_MIRROR_KEY = "navo-session-mirror";
+
+function isJwtValid(token: string, leewaySeconds = 45): boolean {
+  if (!token || token.split(".").length !== 3) return false;
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(base64));
+    if (!payload?.sub) return false;
+    if (typeof payload.exp === "number") {
+      return payload.exp * 1000 > Date.now() + leewaySeconds * 1000;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function syncClientSessionMirror(
+  session: { access_token?: string; refresh_token?: string; expires_at?: number } | null
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (!session?.access_token) {
+      sessionStorage.removeItem(SESSION_MIRROR_KEY);
+      localStorage.removeItem(SESSION_MIRROR_KEY);
+      return;
+    }
+    const serialized = JSON.stringify({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token || "",
+      expires_at: session.expires_at || 0,
+    });
+    const encrypted = encryptSyncString(serialized);
+    if (sessionStorage.getItem("navo-is-admin") === "true") {
+      sessionStorage.setItem(SESSION_MIRROR_KEY, encrypted);
+    } else {
+      localStorage.setItem(SESSION_MIRROR_KEY, encrypted);
+    }
+  } catch {}
+}
+
+export function getMirroredSession(): {
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: number;
+} | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw =
+      sessionStorage.getItem(SESSION_MIRROR_KEY) ||
+      localStorage.getItem(SESSION_MIRROR_KEY);
+    if (!raw) return null;
+    const dec = decryptSyncString(raw);
+    const parsed = JSON.parse(dec || raw);
+    if (parsed && typeof parsed === "object") return parsed;
+  } catch {}
+  return null;
+}
+
 export function getClientAccessToken(): string {
   if (typeof window === "undefined") return "";
   try {
+    const mirrored = getMirroredSession();
+    if (mirrored?.access_token && isJwtValid(mirrored.access_token)) {
+      return mirrored.access_token;
+    }
+
     const rawSession =
       sessionStorage.getItem("navo-auth-token") ||
       localStorage.getItem("navo-auth-token");
@@ -182,9 +246,11 @@ export function getClientAccessToken(): string {
         const decrypted = decryptSyncString(rawSession);
         const parsed = JSON.parse(decrypted || rawSession);
         const tok = parsed?.access_token || parsed?.currentSession?.access_token || "";
-        if (tok) return tok;
+        if (tok && isJwtValid(tok)) return tok;
       } catch {
-        if (rawSession.length > 20 && !rawSession.startsWith("{")) return rawSession;
+        if (rawSession.length > 20 && !rawSession.startsWith("{") && isJwtValid(rawSession)) {
+          return rawSession;
+        }
       }
     }
 
@@ -197,8 +263,8 @@ export function getClientAccessToken(): string {
             try {
               const decrypted = decryptSyncString(val);
               const parsed = JSON.parse(decrypted || val);
-              if (parsed?.access_token) return parsed.access_token;
-              if (parsed?.currentSession?.access_token) return parsed.currentSession.access_token;
+              const tok = parsed?.access_token || parsed?.currentSession?.access_token || "";
+              if (tok && isJwtValid(tok)) return tok;
             } catch {}
           }
         }
@@ -212,69 +278,146 @@ export function getClientAccessToken(): string {
   return "";
 }
 
-export async function resolveClientAccessToken(): Promise<string> {
-  const syncTok = getClientAccessToken();
-  if (syncTok) return syncTok;
+export async function resolveClientAccessToken(forceRefresh = false): Promise<string> {
   if (typeof window === "undefined") return "";
+  if (!forceRefresh) {
+    const syncTok = getClientAccessToken();
+    if (syncTok) return syncTok;
+  }
+
   try {
     const { createClient } = await import("@/lib/supabase/client");
     const sb = createClient();
     const { data } = await sb.auth.getSession();
-    return data?.session?.access_token || "";
-  } catch {
-    return "";
-  }
+    const session = data?.session;
+
+    if (session?.access_token && !forceRefresh && isJwtValid(session.access_token)) {
+      syncClientSessionMirror(session);
+      return session.access_token;
+    }
+
+    if (session?.refresh_token) {
+      const { data: refreshed } = await sb.auth.refreshSession();
+      if (refreshed?.session?.access_token) {
+        syncClientSessionMirror(refreshed.session);
+        return refreshed.session.access_token;
+      }
+    }
+
+    const mirrored = getMirroredSession();
+    if (mirrored?.refresh_token && mirrored?.access_token) {
+      if (!forceRefresh && isJwtValid(mirrored.access_token)) {
+        return mirrored.access_token;
+      }
+      const { data: restored } = await sb.auth.setSession({
+        access_token: mirrored.access_token,
+        refresh_token: mirrored.refresh_token,
+      });
+      if (restored?.session?.access_token) {
+        syncClientSessionMirror(restored.session);
+        return restored.session.access_token;
+      }
+    }
+
+    if (session?.access_token && isJwtValid(session.access_token, 0)) {
+      return session.access_token;
+    }
+  } catch {}
+
+  return getClientAccessToken();
 }
 
 export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
-  const headersObj: Record<string, string> = {
-    ...(init?.headers as Record<string, string>),
+  const buildHeaders = (tok: string): Record<string, string> => {
+    const headersObj: Record<string, string> = {
+      ...(init?.headers as Record<string, string>),
+    };
+    if (tok && !headersObj["Authorization"] && !headersObj["authorization"]) {
+      headersObj["Authorization"] = `Bearer ${tok}`;
+    }
+    return headersObj;
   };
-  const token = await resolveClientAccessToken();
-  if (token && !headersObj["Authorization"] && !headersObj["authorization"]) {
-    headersObj["Authorization"] = `Bearer ${token}`;
+
+  const token = await resolveClientAccessToken(false);
+  const res = await fetch(url, {
+    credentials: "same-origin",
+    ...init,
+    headers: buildHeaders(token),
+  });
+
+  if (res.status === 401) {
+    const freshToken = await resolveClientAccessToken(true);
+    if (freshToken && freshToken !== token) {
+      const retryHeaders: Record<string, string> = {
+        ...(init?.headers as Record<string, string>),
+        Authorization: `Bearer ${freshToken}`,
+      };
+      return fetch(url, {
+        credentials: "same-origin",
+        ...init,
+        headers: retryHeaders,
+      });
+    }
   }
-  return fetch(url, { ...init, headers: headersObj });
+
+  return res;
 }
 
 export async function secureApiPost<T = any>(
   url: string,
   bodyObj: Record<string, any>
 ): Promise<{ ok: boolean; status: number; data: T }> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const sendWithToken = async (tok: string) => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const payloadCopy: Record<string, any> = { ...bodyObj };
+    if (tok) {
+      headers["Authorization"] = `Bearer ${tok}`;
+      if (!payloadCopy.accessToken) {
+        payloadCopy.accessToken = tok;
+      }
+    }
+    const encryptedReq = await encryptPayload(payloadCopy);
+    const res = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers,
+      body: JSON.stringify(encryptedReq),
+      cache: "no-store",
+    });
+    const rawJson = await res.json().catch(() => ({}));
+    const decrypted = isEncryptedEnvelope(rawJson) ? await decryptPayload<T>(rawJson) : (rawJson as T);
+    return {
+      ok: res.ok,
+      status: res.status,
+      data: decrypted,
+    };
+  };
 
+  let token = "";
   if (typeof window !== "undefined") {
     try {
-      const token = await resolveClientAccessToken();
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-        if (!bodyObj.accessToken) {
-          bodyObj.accessToken = token;
-        }
+      token = await resolveClientAccessToken(false);
+    } catch {}
+  }
+
+  const firstAttempt = await sendWithToken(token);
+  if (firstAttempt.status === 401 && typeof window !== "undefined") {
+    try {
+      const freshToken = await resolveClientAccessToken(true);
+      if (freshToken && freshToken !== token) {
+        return await sendWithToken(freshToken);
       }
     } catch {}
   }
 
-  const encryptedReq = await encryptPayload(bodyObj);
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(encryptedReq),
-    cache: "no-store",
-  });
-  const rawJson = await res.json().catch(() => ({}));
-  const decrypted = isEncryptedEnvelope(rawJson) ? await decryptPayload<T>(rawJson) : (rawJson as T);
-  return {
-    ok: res.ok,
-    status: res.status,
-    data: decrypted,
-  };
+  return firstAttempt;
 }
 
 let devToolsShieldInstalled = false;
 
 const SENSITIVE_STORAGE_PREFIXES = [
   "navo-auth-token",
+  "navo-session-mirror",
   "sb-",
   "luxen_external_module_exams",
   "luxen_external_lesson_progress",

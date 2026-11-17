@@ -768,7 +768,24 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         error instanceof Error
           ? error.message
           : (error as { message?: string })?.message || String(error);
-      toast.error(`${t("failedToSubmitExam")}: ${message}`);
+      if (isAutoSubmit && reasonOverride === "manual") {
+        // Never trap the user inside an exam when they explicitly confirmed Quit
+        if (challengeId) {
+          await authFetch(`/api/exam-challenges/${challengeId}/abandon`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          }).catch(() => {});
+        }
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("exam-active");
+          window.dispatchEvent(new CustomEvent("exam-state-change"));
+        }
+        await anticheat.exitFullscreenSafe().catch(() => {});
+        submitSuccess = true;
+        reset();
+      } else {
+        toast.error(`${t("failedToSubmitExam")}: ${message}`);
+      }
     } finally {
       setSubmittingExam(false);
       submittingExamRef.current = false;

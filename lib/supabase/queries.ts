@@ -24,14 +24,19 @@ async function getAuthUser() {
   const supabase = createClient();
   try {
     const result = await supabase.auth.getUser();
-    return result.data.user;
+    if (result.data.user) return result.data.user;
   } catch (error: any) {
     // Suppress lock errors - they're internal Supabase timing issues
     if (error?.message?.includes("lock") || error?.message?.includes("Lock")) {
       console.warn("Supabase auth lock error (non-critical):", error.message);
       throw new Error("Auth temporarily unavailable, please try again");
     }
-    throw error;
+  }
+  try {
+    const { data: sessData } = await supabase.auth.getSession();
+    return sessData?.session?.user ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -914,20 +919,38 @@ export async function createExamAttempt(attemptData: {
 
   // Never trust client-supplied is_correct — look up the real answer key
   // server-side so a tampered request can't fake a passing score.
-  const questionIds = answers.map((ans) => ans.question_id);
-  const { data: answerKeyRows, error: answerKeyError } = await supabase
-    .from("exam_questions")
-    .select("id, correct_answer, explanation")
-    .in("id", questionIds);
+  const questionIds = answers.map((ans) => ans.question_id).filter(Boolean);
+  const uuidQuestionIds = questionIds.filter((id) => isUUID(id));
+  let answerKeyRows: Array<{ id: string; correct_answer: string; explanation?: string }> = [];
 
-  if (answerKeyError) throw new Error(answerKeyError.message || "Failed to fetch answer key");
+  if (uuidQuestionIds.length > 0) {
+    const { data, error: answerKeyError } = await supabase
+      .from("exam_questions")
+      .select("id, correct_answer, explanation")
+      .in("id", uuidQuestionIds);
+
+    if (answerKeyError) {
+      console.warn("Answer key lookup warning:", answerKeyError.message);
+    } else if (data) {
+      answerKeyRows = data;
+    }
+  }
 
   const answerKey = new Map<string, { correct_answer: string; explanation?: string }>(
-    (answerKeyRows || []).map((q: { id: string; correct_answer: string; explanation?: string }) => [
+    answerKeyRows.map((q) => [
       q.id,
       { correct_answer: q.correct_answer, explanation: q.explanation },
     ])
   );
+
+  for (const fb of getBuiltinFallbackQuestions("fallback", 20)) {
+    if (!answerKey.has(fb.id)) {
+      answerKey.set(fb.id, {
+        correct_answer: fb.correct_answer,
+        explanation: fb.explanation,
+      });
+    }
+  }
 
   let correctAnswers = 0;
   const processedAnswers: ExamAnswer[] = answers.map((ans) => {
@@ -2664,8 +2687,13 @@ export async function createModuleExamAttempt(
   }
 ): Promise<ModuleExamAttempt> {
   const supabase = createClient();
-  const user = await getAuthUser();
-  if (!user) throw new Error("Not authenticated");
+  let user = await getAuthUser().catch(() => null);
+  if (!user) {
+    try {
+      const { data: sessData } = await supabase.auth.getSession();
+      if (sessData?.session?.user) user = sessData.session.user;
+    } catch {}
+  }
 
   const hasAnsweredAny = (attemptData.answers || []).some((ans) => Boolean(ans.selected_answer));
   const answersToPersist: ModuleExamAnswer[] = hasAnsweredAny ? attemptData.answers : [];
@@ -2700,55 +2728,66 @@ export async function createModuleExamAttempt(
     }
   }
 
+  const hasValidUser = Boolean(user?.id && isUUID(user.id));
   const savingConfig = await getExamSavingConfig();
-  if (!savingConfig.saveIndividualExams) {
-    return {
-      id: `temp-mod-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      user_id: user.id,
-      module_id: attemptData.module_id,
-      module_title: attemptData.module_title,
-      exam_type: attemptData.exam_type,
-      started_at: new Date(Date.now() - attemptData.duration_seconds * 1000).toISOString(),
-      completed_at: new Date().toISOString(),
-      duration_seconds: attemptData.duration_seconds,
-      total_questions: attemptData.total_questions,
-      correct_answers: attemptData.correct_answers,
-      score_percentage: attemptData.score_percentage,
-      passed: attemptData.passed,
-      answers: answersToPersist,
-      status: attemptData.status,
-      created_at: new Date().toISOString(),
-    } as ModuleExamAttempt;
+  const transientAttempt: ModuleExamAttempt = {
+    id: `temp-mod-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    user_id: hasValidUser && user?.id ? user.id : "guest",
+    module_id: attemptData.module_id,
+    module_title: attemptData.module_title,
+    exam_type: attemptData.exam_type,
+    started_at: new Date(Date.now() - attemptData.duration_seconds * 1000).toISOString(),
+    completed_at: new Date().toISOString(),
+    duration_seconds: attemptData.duration_seconds,
+    total_questions: attemptData.total_questions,
+    correct_answers: attemptData.correct_answers,
+    score_percentage: attemptData.score_percentage,
+    passed: attemptData.passed,
+    answers: answersToPersist,
+    status: attemptData.status,
+    created_at: new Date().toISOString(),
+  } as ModuleExamAttempt;
+
+  if (!hasValidUser || !user?.id || !savingConfig.saveIndividualExams) {
+    return transientAttempt;
   }
 
-  const { data, error } = await supabase
-    .from("module_exam_attempts")
-    .insert({
-      user_id: user.id,
-      module_id: attemptData.module_id,
-      module_title: attemptData.module_title,
-      exam_type: attemptData.exam_type,
-      started_at: new Date(Date.now() - attemptData.duration_seconds * 1000).toISOString(),
-      completed_at: new Date().toISOString(),
-      duration_seconds: attemptData.duration_seconds,
-      total_questions: attemptData.total_questions,
-      correct_answers: attemptData.correct_answers,
-      score_percentage: attemptData.score_percentage,
-      passed: attemptData.passed,
-      answers: answersToPersist,
-      status: attemptData.status,
-    })
-    .select("*")
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from("module_exam_attempts")
+      .insert({
+        user_id: user.id,
+        module_id: attemptData.module_id,
+        module_title: attemptData.module_title,
+        exam_type: attemptData.exam_type,
+        started_at: new Date(Date.now() - attemptData.duration_seconds * 1000).toISOString(),
+        completed_at: new Date().toISOString(),
+        duration_seconds: attemptData.duration_seconds,
+        total_questions: attemptData.total_questions,
+        correct_answers: attemptData.correct_answers,
+        score_percentage: attemptData.score_percentage,
+        passed: attemptData.passed,
+        answers: answersToPersist,
+        status: attemptData.status,
+      })
+      .select("*")
+      .single();
 
-  if (error) throw error;
+    if (error) {
+      console.warn("Could not persist module exam attempt, returning transient:", error.message);
+      return transientAttempt;
+    }
 
-  // Update student_module_progress for module exams
-  if (attemptData.exam_type === "module" && attemptData.module_id) {
-    await updateModuleProgressAfterExam(attemptData.module_id, attemptData.passed, attemptData.score_percentage);
+    // Update student_module_progress for module exams
+    if (attemptData.exam_type === "module" && attemptData.module_id) {
+      await updateModuleProgressAfterExam(attemptData.module_id, attemptData.passed, attemptData.score_percentage).catch(() => {});
+    }
+
+    return data as ModuleExamAttempt;
+  } catch (err) {
+    console.warn("Exception inserting module exam attempt, returning transient:", err);
+    return transientAttempt;
   }
-
-  return data as ModuleExamAttempt;
 }
 
 async function updateModuleProgressAfterExam(

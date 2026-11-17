@@ -5,7 +5,7 @@ import { createClient, setAdminSessionFlag } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-utils";
 import { isAdmin, isPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 import { clearOneTapDismissal } from "@/lib/auth/google";
-import { secureApiPost } from "@/lib/e2e-crypto";
+import { secureApiPost, syncClientSessionMirror } from "@/lib/e2e-crypto";
 import { claimPendingGuestExamIfAny } from "@/lib/guest-exam-client";
 import { toast } from "sonner";
 
@@ -46,11 +46,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.auth.getSession().catch(() => ({ data: { session: null }, error: null })),
       ]);
       setUser(userResult as User | null);
-      setSession((sessionResult?.data?.session || null) as Session | null);
+      const nextSession = (sessionResult?.data?.session || null) as Session | null;
+      setSession(nextSession);
+      if (nextSession?.access_token) {
+        syncClientSessionMirror(nextSession);
+      }
     } catch (error: any) {
       if (error?.message?.includes("Auth session missing") || error?.name === "AuthSessionMissingError") {
         setUser(null);
         setSession(null);
+        syncClientSessionMirror(null);
         return;
       }
       // Suppress lock errors - they're internal Supabase timing issues
@@ -86,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           refresh_token: localSession.refresh_token,
           expires_at: localSession.expires_at,
         });
+        syncClientSessionMirror(localSession);
       }
     }).catch(() => {});
 
@@ -102,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session
     ) => {
       if (event === "SIGNED_OUT" || !session) {
+        syncClientSessionMirror(null);
         clearOneTapDismissal();
         if (typeof window !== "undefined") {
           try {
@@ -111,6 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // ignore
           }
         }
+      } else if (session.access_token) {
+        syncClientSessionMirror(session);
       }
 
       let sessionUser: any = session?.user ? {

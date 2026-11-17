@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptPayload, encryptPayload, isEncryptedEnvelope } from "@/lib/e2e-crypto";
 
@@ -29,9 +29,7 @@ export async function POST(req: NextRequest) {
     const { action, payload } = body || {};
 
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUserFromRequest(req, body?.accessToken);
 
     // 1. Encrypted Current Auth User + Profile lookup (hides user info from DevTools Network tab)
     if (action === "get_secure_user") {
@@ -76,12 +74,16 @@ export async function POST(req: NextRequest) {
       const forwardHeaders = new Headers();
       forwardHeaders.set("apikey", supabaseAnonKey);
 
-      // Forward auth header or use server session token
-      if (clientHeaders["authorization"] || clientHeaders["Authorization"]) {
-        forwardHeaders.set(
-          "Authorization",
-          clientHeaders["authorization"] || clientHeaders["Authorization"]
-        );
+      const clientAuthHeader =
+        clientHeaders["authorization"] || clientHeaders["Authorization"] || "";
+      const clientToken = clientAuthHeader.replace(/^bearer\s+/i, "").trim();
+      const isClientAnonOnly = !clientToken || clientToken === supabaseAnonKey;
+
+      // Forward user auth header, body accessToken, or server cookie session token
+      if (!isClientAnonOnly) {
+        forwardHeaders.set("Authorization", `Bearer ${clientToken}`);
+      } else if (body?.accessToken && body.accessToken !== supabaseAnonKey) {
+        forwardHeaders.set("Authorization", `Bearer ${body.accessToken}`);
       } else {
         const {
           data: { session },

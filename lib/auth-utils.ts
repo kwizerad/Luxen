@@ -1,6 +1,6 @@
 import { createClient } from "./supabase/client";
 import { isPrimaryAdmin, isStrictlyStudentEmail } from "./permissions";
-import { secureApiPost } from "./e2e-crypto";
+import { secureApiPost, getMirroredSession, syncClientSessionMirror } from "./e2e-crypto";
 
 let authRequestInProgress = false;
 let pendingAuthRequests: Array<{
@@ -26,6 +26,8 @@ export function resetLandingLanguageForAdminLogout() {
     sessionStorage.removeItem("navo-is-admin");
     sessionStorage.removeItem("navo-auth-token");
     localStorage.removeItem("navo-auth-token");
+    sessionStorage.removeItem("navo-session-mirror");
+    localStorage.removeItem("navo-session-mirror");
   } catch {
     // Ignore storage quota or security errors
   }
@@ -76,19 +78,55 @@ export async function getCurrentUser(retryCount = 0, forceRefresh = false): Prom
 
   try {
     const supabase = createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
+    let { data: { user }, error } = await supabase.auth.getUser();
 
-    // Normal unauthenticated state: no session exists
+    // Normal unauthenticated state: try recovering from getSession(), mirrored session, or server cookie session
     const isMissingSession = error && (
       (error as any).message?.includes("Auth session missing") ||
       (error as any).name === "AuthSessionMissingError"
     );
 
-    if (isMissingSession) {
-      const pending = [...pendingAuthRequests];
-      pendingAuthRequests = [];
-      pending.forEach(({ resolve }) => resolve(null));
-      return null;
+    if ((!user && !error) || isMissingSession) {
+      try {
+        const { data: sessData } = await supabase.auth.getSession();
+        if (sessData?.session?.user) {
+          user = sessData.session.user;
+          error = null;
+          syncClientSessionMirror(sessData.session);
+        } else {
+          const mirrored = getMirroredSession();
+          if (mirrored?.access_token && mirrored?.refresh_token) {
+            const { data: restored } = await supabase.auth.setSession({
+              access_token: mirrored.access_token,
+              refresh_token: mirrored.refresh_token,
+            });
+            if (restored?.user) {
+              user = restored.user;
+              error = null;
+              if (restored.session) syncClientSessionMirror(restored.session);
+            }
+          }
+        }
+      } catch {}
+
+      if (!user && typeof window !== "undefined") {
+        try {
+          const { ok, data: secData } = await secureApiPost("/api/e2e", {
+            action: "get_secure_user",
+          });
+          if (ok && secData?.user?.id) {
+            user = secData.user;
+            error = null;
+          }
+        } catch {}
+      }
+
+      if (!user && isMissingSession) {
+        const pending = [...pendingAuthRequests];
+        pendingAuthRequests = [];
+        pending.forEach(({ resolve }) => resolve(null));
+        return null;
+      }
     }
 
     // Handle auth lock error by retrying
@@ -106,7 +144,7 @@ export async function getCurrentUser(retryCount = 0, forceRefresh = false): Prom
       return getCurrentUser(retryCount + 1);
     }
 
-    if (error) {
+    if (error && !user) {
       throw error;
     }
 

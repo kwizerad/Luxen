@@ -447,10 +447,21 @@ export function ModuleExamRunner({
       onComplete({ passed, score: scorePercentage, taken: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      toast.error(`${t("failedToSubmitExam") || "Failed to submit exam"}: ${message}`);
-      examActiveRef.current = true;
-      showResultsRef.current = false;
-      submittingRef.current = false;
+      if (isAutoSubmit) {
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("exam-active");
+          window.dispatchEvent(new CustomEvent("exam-state-change"));
+        }
+        if (fullscreenEnabled) {
+          await security.exitFullscreen().catch(() => {});
+        }
+        onExit();
+      } else {
+        toast.error(`${t("failedToSubmitExam") || "Failed to submit exam"}: ${message}`);
+        examActiveRef.current = true;
+        showResultsRef.current = false;
+        submittingRef.current = false;
+      }
     } finally {
       setSubmitting(false);
     }

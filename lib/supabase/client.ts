@@ -172,6 +172,17 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     DEFAULT_SUPABASE_ANON_KEY;
+  const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+  const inIframe =
+    typeof window !== "undefined" &&
+    (() => {
+      try {
+        return window.self !== window.top;
+      } catch {
+        return true;
+      }
+    })();
+
   clientInstance = createBrowserClient(supabaseUrl, supabaseKey, {
     auth: {
       storage: typeof window !== "undefined" ? customStorage : undefined,
@@ -183,8 +194,8 @@ export function createClient() {
     cookieOptions: {
       name: AUTH_TOKEN_KEY,
       priority: "high",
-      sameSite: "lax",
-      secure: typeof window !== "undefined" ? window.location.protocol === "https:" : false,
+      sameSite: inIframe && isHttps ? "none" : "lax",
+      secure: isHttps,
     },
   });
 

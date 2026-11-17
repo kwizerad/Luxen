@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin-client";
 
 export async function POST(
@@ -7,14 +7,15 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: challenge } = await supabase
+    const adminClient = createAdminClient();
+
+    const { data: challenge } = await adminClient
       .from("exam_challenges")
       .select("*")
       .eq("id", params.id)
@@ -35,7 +36,7 @@ export async function POST(
       return NextResponse.json({ error: "Participant ID is required" }, { status: 400 });
     }
 
-    const { data: participant } = await supabase
+    const { data: participant } = await adminClient
       .from("exam_challenge_participants")
       .select("*")
       .eq("id", participant_id)
@@ -49,14 +50,12 @@ export async function POST(
       return NextResponse.json({ error: "Only joined (not ready) participants can be reminded" }, { status: 400 });
     }
 
-    const { error: remindError } = await supabase
+    const { error: remindError } = await adminClient
       .from("exam_challenge_participants")
       .update({ reminded_at: new Date().toISOString() })
       .eq("id", participant_id);
 
     if (remindError) throw remindError;
-
-    const adminClient = createAdminClient();
 
     const { data: existingConv } = await adminClient
       .from("chat_conversations")

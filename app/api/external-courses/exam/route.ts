@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getExternalAdminClient, EXTERNAL_EXAM_CATEGORY_ID, isExternalModuleId } from "@/lib/supabase/external";
 import { isAdmin, isPrimaryAdmin } from "@/lib/permissions";
@@ -217,28 +217,14 @@ function parseExternalChoices(choice: any): string[] {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    let {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     const rawBody = await req.json();
     const body = isEncryptedEnvelope(rawBody) ? await decryptPayload(rawBody) : rawBody;
     const { action, language } = body || {};
 
-    if (!user) {
-      const authHeader = req.headers.get("authorization");
-      const bearerToken = authHeader?.replace(/^bearer\s+/i, "").trim() || body?.accessToken;
-      if (bearerToken) {
-        try {
-          const adminSb = createAdminClient();
-          const { data: { user: bearerUser } } = await adminSb.auth.getUser(bearerToken);
-          if (bearerUser) user = bearerUser;
-        } catch {}
-      }
-    }
+    const user = await getAuthUserFromRequest(req, body?.accessToken);
+    const isSubmissionAction = action === "submit_exam" || action === "submit_module_exam";
 
-    if (!user) {
+    if (!user && !isSubmissionAction) {
       return secureJsonResponse(
         { error: "Authentication required to access exam questions." },
         401
@@ -423,6 +409,9 @@ export async function POST(req: NextRequest) {
     // 0. GET ALL EXTERNAL QUESTIONS FOR ADMIN / MANAGEMENT
     // ------------------------------------------------------------------------
     if (action === "get_external_questions") {
+      if (!user) {
+        return secureJsonResponse({ error: "Unauthorized" }, 401);
+      }
       const email = (user.email || "").toLowerCase();
       let isAdminUser =
         email === DEFAULT_ADMIN_EMAIL.toLowerCase() ||
@@ -704,13 +693,14 @@ export async function POST(req: NextRequest) {
       }> = Array.isArray(attemptData?.answers) ? attemptData.answers : [];
 
       const questionIds = rawAnswers.map((a) => a.question_id).filter(Boolean);
+      const nonFallbackIds = questionIds.filter((id) => !String(id).startsWith("fallback-"));
       const extQuestions =
-        extSb && questionIds.length > 0
+        extSb && nonFallbackIds.length > 0
           ? (
               await extSb
                 .from("questions")
                 .select("id, choice_answer")
-                .in("id", questionIds)
+                .in("id", nonFallbackIds)
             ).data
           : [];
 
@@ -728,12 +718,12 @@ export async function POST(req: NextRequest) {
       }
 
       if (correctByQuestionId.size < questionIds.length) {
-        const missingIds = questionIds.filter((id) => !correctByQuestionId.has(id));
-        if (missingIds.length > 0) {
+        const missingUuidIds = questionIds.filter((id) => !correctByQuestionId.has(id) && isUUID(id));
+        if (missingUuidIds.length > 0) {
           const { data: primaryQ } = await adminSb
             .from("exam_questions")
             .select("id, correct_answer, explanation")
-            .in("id", missingIds);
+            .in("id", missingUuidIds);
           for (const q of primaryQ || []) {
             if (q.correct_answer) {
               correctByQuestionId.set(String(q.id), q.correct_answer as any);
@@ -812,7 +802,11 @@ export async function POST(req: NextRequest) {
         violation_summary: attemptData.violation_summary || null,
       };
 
-      if (!isValidUser || !userId) {
+      const saveIndividual = configMap.get("save_individual_exams_enabled") !== "false";
+      const saveGroup = configMap.get("save_group_exams_enabled") !== "false";
+      const shouldSave = attemptData?.is_group_challenge ? saveGroup : saveIndividual;
+
+      if (!shouldSave || !isValidUser || !userId) {
         return secureJsonResponse({
           success: true,
           attempt: transientAttempt,
