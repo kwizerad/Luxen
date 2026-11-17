@@ -167,10 +167,10 @@ export function LessonContentView({ content, textSize = "base" }: LessonContentV
   };
 
   const scaleClasses = {
-    sm: "text-sm [&_.ProseMirror]:text-sm [&_p]:text-sm [&_p]:leading-relaxed [&_li]:text-sm [&_td]:text-sm [&_th]:text-sm [&_h1]:text-2xl [&_h2]:text-xl [&_h3]:text-lg",
-    base: "text-base [&_.ProseMirror]:text-base [&_p]:text-base [&_p]:leading-relaxed [&_li]:text-base [&_td]:text-base [&_th]:text-base [&_h1]:text-3xl [&_h2]:text-2xl [&_h3]:text-xl",
-    lg: "text-lg [&_.ProseMirror]:text-lg [&_p]:text-lg [&_p]:leading-relaxed [&_li]:text-lg [&_td]:text-lg [&_th]:text-lg [&_h1]:text-4xl [&_h2]:text-3xl [&_h3]:text-2xl",
-    xl: "text-xl [&_.ProseMirror]:text-xl [&_p]:text-xl [&_p]:leading-relaxed [&_li]:text-xl [&_td]:text-xl [&_th]:text-xl [&_h1]:text-5xl [&_h2]:text-4xl [&_h3]:text-3xl",
+    sm: "text-sm [&_.ProseMirror]:text-sm [&_p]:text-sm [&_p]:leading-relaxed [&_li]:text-sm [&_td]:text-xs sm:[&_td]:text-sm [&_th]:text-xs sm:[&_th]:text-sm [&_h1]:text-xl sm:[&_h1]:text-2xl [&_h2]:text-lg sm:[&_h2]:text-xl [&_h3]:text-base sm:[&_h3]:text-lg",
+    base: "text-base [&_.ProseMirror]:text-sm sm:[&_.ProseMirror]:text-base [&_p]:text-sm sm:[&_p]:text-base [&_p]:leading-relaxed [&_li]:text-sm sm:[&_li]:text-base [&_td]:text-xs sm:[&_td]:text-base [&_th]:text-xs sm:[&_th]:text-base [&_h1]:text-2xl sm:[&_h1]:text-3xl [&_h2]:text-xl sm:[&_h2]:text-2xl [&_h3]:text-lg sm:[&_h3]:text-xl",
+    lg: "text-lg [&_.ProseMirror]:text-base sm:[&_.ProseMirror]:text-lg [&_p]:text-base sm:[&_p]:text-lg [&_p]:leading-relaxed [&_li]:text-base sm:[&_li]:text-lg [&_td]:text-sm sm:[&_td]:text-lg [&_th]:text-sm sm:[&_th]:text-lg [&_h1]:text-2xl sm:[&_h1]:text-4xl [&_h2]:text-xl sm:[&_h2]:text-3xl [&_h3]:text-lg sm:[&_h3]:text-2xl",
+    xl: "text-xl [&_.ProseMirror]:text-lg sm:[&_.ProseMirror]:text-xl [&_p]:text-lg sm:[&_p]:text-xl [&_p]:leading-relaxed [&_li]:text-lg sm:[&_li]:text-xl [&_td]:text-base sm:[&_td]:text-xl [&_th]:text-base sm:[&_th]:text-xl [&_h1]:text-3xl sm:[&_h1]:text-5xl [&_h2]:text-2xl sm:[&_h2]:text-4xl [&_h3]:text-xl sm:[&_h3]:text-3xl",
   };
 
   const parsedContent = useMemo(
@@ -205,7 +205,7 @@ export function LessonContentView({ content, textSize = "base" }: LessonContentV
     editable: false,
     editorProps: {
       attributes: {
-        class: "prose prose-slate dark:prose-invert max-w-none outline-none select-none transition-all duration-200 break-words overflow-x-hidden [&_img]:rounded-lg [&_img]:max-w-full [&_img]:max-h-[240px] sm:[&_img]:max-h-[300px] [&_img]:w-auto [&_img]:h-auto [&_img]:mx-auto [&_img]:object-contain [&_img]:my-3 [&_img]:shadow-sm [&_img]:pointer-events-none",
+        class: "prose prose-slate dark:prose-invert max-w-none w-full min-w-0 outline-none select-none transition-all duration-200 break-words [overflow-wrap:anywhere] [&_img]:rounded-lg [&_img]:!max-w-full [&_img]:max-h-[220px] sm:[&_img]:max-h-[300px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:mx-auto [&_img]:object-contain [&_img]:my-3 [&_img]:shadow-sm [&_img]:pointer-events-none [&_table]:block [&_table]:w-full [&_table]:max-w-full [&_table]:overflow-x-auto [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_iframe]:!max-w-full [&_iframe]:!w-full [&_iframe]:aspect-video",
       },
       handleDOMEvents: {
         copy: (_view, event) => {

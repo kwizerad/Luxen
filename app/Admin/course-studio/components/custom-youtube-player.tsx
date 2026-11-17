@@ -225,8 +225,8 @@ export function CustomYouTubePlayer({ node, selected, updateAttributes }: NodeVi
 
   return (
     <NodeViewWrapper
-      className="relative max-w-full"
-      style={{ width: width || 640, height: height || undefined, display: "block", ...alignStyle }}
+      className="relative w-full max-w-full"
+      style={{ width: "100%", maxWidth: width || 640, display: "block", ...alignStyle }}
       onMouseMove={handleMouseMove}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -235,8 +235,8 @@ export function CustomYouTubePlayer({ node, selected, updateAttributes }: NodeVi
       <div
         ref={containerRef}
         data-youtube-player
-        className="rounded-lg overflow-hidden"
-        style={{ width: "100%", height: height ? "100%" : undefined, aspectRatio: height ? undefined : "16 / 9" }}
+        className="rounded-lg overflow-hidden w-full"
+        style={{ width: "100%", aspectRatio: "16 / 9" }}
       />
 
       {/* Transparent overlay to block ALL YouTube native UI interaction */}

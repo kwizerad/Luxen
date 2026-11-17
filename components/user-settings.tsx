@@ -48,7 +48,9 @@ export default function UserSettings({
   const { theme, setTheme } = useTheme();
   const { t, language: contextLanguage, setLanguage: setContextLanguage, availableLanguages } = useLanguage();
   const [textSize, setTextSize] = useState<TextSize>("md");
-  const [language, setLanguage] = useState<LanguageCode>("en");
+  const [language, setLanguage] = useState<LanguageCode>(
+    contextLanguage === "English" ? "en" : contextLanguage === "French" ? "fr" : "rw"
+  );
   const [cardHoverClass, setCardHoverClass] = useState("transition-all duration-200 shadow-none border-border/40");
 
   // Profile state
@@ -142,22 +144,15 @@ export default function UserSettings({
         applyTextSize(metadata.text_size);
       }
       
-      // Load language preference
-      if (metadata.language) {
-        setLanguage(metadata.language);
-
-        // Convert language code to full name for context
-        const languageMap: Record<LanguageCode, Language> = {
-          en: "English",
-          rw: "Kinyarwanda",
-          fr: "French",
-        };
-        if (!localStorage.getItem("navo-language")) {
-          setContextLanguage(languageMap[metadata.language as LanguageCode]);
-        }
-      }
     }
-  }, [user, setContextLanguage]);
+    const activeLangCode: LanguageCode =
+      contextLanguage === "English"
+        ? "en"
+        : contextLanguage === "French"
+        ? "fr"
+        : "rw";
+    setLanguage(activeLangCode);
+  }, [user, contextLanguage]);
 
   const applyTextSize = (size: TextSize) => {
     const root = document.documentElement;

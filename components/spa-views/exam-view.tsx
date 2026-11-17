@@ -89,7 +89,7 @@ function buildFallbackCategory(language: string): ExamCategory {
 }
 
 export function ExamView({ navigate, params }: ExamViewProps) {
-  const { t, language, setLanguage } = useLanguage();
+  const { t, language } = useLanguage();
   const { user, loading: authLoading } = useAuth();
 
   const paramChallengeId = params?.get("challenge_id") || "";
@@ -219,9 +219,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     if (resolvedLanguage) {
       const normalized = normalizeExamLanguage(resolvedLanguage);
       setSelectedExamLanguage(normalized);
-      setLanguage(normalized);
     }
-  }, [authLoading, paramChallengeId, paramCategoryId, paramMode, paramLanguage, setLanguage]);
+  }, [authLoading, paramChallengeId, paramCategoryId, paramMode, paramLanguage]);
 
   // If arriving with challengeId, resolve category & language from challenge row
   useEffect(() => {
@@ -239,11 +238,10 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       if ((data as any)?.language) {
         const normalized = normalizeExamLanguage((data as any).language);
         setSelectedExamLanguage(normalized);
-        setLanguage(normalized);
       }
     };
     void fetchChallengeDetails();
-  }, [challengeId, categoryId, setLanguage]);
+  }, [challengeId, categoryId]);
 
   // Check if student has past exam history for quick navigation button
   useEffect(() => {
@@ -512,7 +510,6 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       examLang || selectedExamLanguage || language || "Kinyarwanda"
     );
     setSelectedExamLanguage(activeLang);
-    setLanguage(activeLang);
 
     if (
       securitySettings.violationMeasuresEnabled &&
@@ -920,7 +917,6 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           const normalizedLang = normalizeExamLanguage(examLang);
           setCategoryId(selectedCatId);
           setSelectedExamLanguage(normalizedLang);
-          setLanguage(normalizedLang);
           const catName =
             categories.find((c) => c.id === selectedCatId)?.name || "Exam";
           try {
@@ -1019,7 +1015,6 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       selectedExamLanguage || language
     );
     if (targetLang === normalizedCurrent) {
-      setLanguage(targetLang);
       setPostExamLangConfirmed(true);
       return;
     }
@@ -1062,12 +1057,10 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         }
       }
       setSelectedExamLanguage(targetLang);
-      setLanguage(targetLang);
       setPostExamLangConfirmed(true);
     } catch (err) {
       console.error("[ExamView] Post-exam translation error:", err);
       setSelectedExamLanguage(targetLang);
-      setLanguage(targetLang);
       setPostExamLangConfirmed(true);
     } finally {
       setTranslatingPostExamLang(null);
@@ -1084,7 +1077,6 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           onContinueCurrent={() => {
             const norm = normalizeExamLanguage(selectedExamLanguage || language);
             setSelectedExamLanguage(norm);
-            setLanguage(norm);
             setPostExamLangConfirmed(true);
           }}
           onSelectLanguage={(targetLang) => {
@@ -1264,7 +1256,6 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         const normalizedLang = normalizeExamLanguage(lang);
         setCategoryId(catId);
         setSelectedExamLanguage(normalizedLang);
-        setLanguage(normalizedLang);
         setPendingStartExam({ categoryId: catId, language: normalizedLang });
       }}
       onOpenGroupChallenge={(catId, lang) => {
@@ -1272,7 +1263,6 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         if (lang) {
           const norm = normalizeExamLanguage(lang);
           setSelectedExamLanguage(norm);
-          setLanguage(norm);
         }
         setExamMode("group");
       }}

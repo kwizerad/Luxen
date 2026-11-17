@@ -144,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ? "p-0"
             : isFullBleedView
             ? "pt-10 pb-0 px-1 sm:px-2"
-            : "pt-10 pb-14 sm:pb-16 lg:pb-20 px-1.5 sm:px-4"
+            : "pt-10 pb-[4.75rem] sm:pb-20 px-1.5 sm:px-4"
         }`}
       >
         {children}

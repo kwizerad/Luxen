@@ -51,7 +51,7 @@ export function CourseImageStage({ images, title }: CourseImageStageProps) {
         {/* Main Bounded Image Frame (matches exam visual proportions) */}
         <div
           onClick={() => setIsZoomOpen(true)}
-          className="relative w-full h-[200px] sm:h-[260px] md:h-[310px] lg:h-[350px] flex items-center justify-center rounded-lg bg-white/95 dark:bg-zinc-950/70 border border-border/40 overflow-hidden cursor-zoom-in p-2"
+          className="relative w-full h-[180px] min-[400px]:h-[210px] sm:h-[260px] md:h-[310px] lg:h-[350px] flex items-center justify-center rounded-lg bg-white/95 dark:bg-zinc-950/70 border border-border/40 overflow-hidden cursor-zoom-in p-2"
         >
           <SmartImage
             src={activeSrc}

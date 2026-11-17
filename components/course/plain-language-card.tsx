@@ -18,14 +18,14 @@ interface PlainLanguageCardProps {
 
 export function PlainLanguageCard({ data, language, onClose }: PlainLanguageCardProps) {
   return (
-    <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 sm:p-6 space-y-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-      <div className="flex items-center justify-between border-b border-primary/20 pb-3">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+    <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-3.5 sm:p-6 space-y-3.5 sm:space-y-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+      <div className="flex items-start sm:items-center justify-between gap-2 border-b border-primary/20 pb-3">
+        <div className="flex items-start sm:items-center gap-2 min-w-0">
+          <div className="h-8 w-8 rounded-xl bg-primary/20 flex items-center justify-center text-primary shrink-0">
             <Lightbulb className="h-4 w-4" />
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <div className="min-w-0">
+            <h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center flex-wrap gap-1.5 sm:gap-2">
               <span>Plain Terms &amp; Real-World Road Rules</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-semibold">
                 Simplified
@@ -77,7 +77,7 @@ export function PlainLanguageCard({ data, language, onClose }: PlainLanguageCard
             <Car className="h-3.5 w-3.5" />
             <span>Rwanda Real-World Scenario:</span>
           </div>
-          <p className="text-foreground leading-relaxed pl-5">{data.practicalExample}</p>
+          <p className="text-foreground leading-relaxed sm:pl-5">{data.practicalExample}</p>
         </div>
       )}
 
@@ -88,7 +88,7 @@ export function PlainLanguageCard({ data, language, onClose }: PlainLanguageCard
             <Award className="h-3.5 w-3.5 text-primary" />
             <span>Police Exam Tip:</span>
           </div>
-          <p className="leading-relaxed pl-5">{data.examTip}</p>
+          <p className="leading-relaxed sm:pl-5">{data.examTip}</p>
         </div>
       )}
     </div>

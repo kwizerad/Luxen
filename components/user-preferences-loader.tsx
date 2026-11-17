@@ -3,16 +3,11 @@
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "next-themes";
-import { useLanguage } from "@/lib/language-context";
 import { createClient } from "@/lib/supabase/client";
-
-type LanguageCode = "en" | "rw" | "fr";
-type Language = "English" | "Kinyarwanda" | "French";
 
 export function UserPreferencesLoader() {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
-  const { language, setLanguage } = useLanguage();
 
   // Immediately restore saved text size on mount before auth/network resolves
   useEffect(() => {
@@ -52,16 +47,7 @@ export function UserPreferencesLoader() {
             setTheme(metadata.theme);
           }
 
-          // Load language preference
-          const hasLocalLanguage = localStorage.getItem("navo-language") !== null;
-          if (!hasLocalLanguage && metadata.language && metadata.language !== language) {
-            const languageMap: Record<LanguageCode, Language> = {
-              en: "English",
-              rw: "Kinyarwanda",
-              fr: "French",
-            };
-            setLanguage(languageMap[metadata.language as LanguageCode] || "English");
-          }
+          // Keep active/default UI language (Kinyarwanda for first-time users); never auto-switch language silently on auth load
 
           // Load text size preference if not overridden by floating slider
           const hasLocalScale = localStorage.getItem("user_text_size") !== null;
@@ -90,7 +76,7 @@ export function UserPreferencesLoader() {
     };
 
     loadUserPreferences();
-  }, [user, theme, setTheme, language, setLanguage]);
+  }, [user, theme, setTheme]);
 
   return null;
 }

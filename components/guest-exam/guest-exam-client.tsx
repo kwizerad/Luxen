@@ -84,7 +84,7 @@ function formatResetCountdown(totalSeconds: number, isFr = false): string {
 export function GuestExamClient() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { t, language, setLanguage } = useLanguage();
+  const { t, language } = useLanguage();
 
   const isRw = language === "Kinyarwanda" || language === "rw";
   const isFr = language === "French" || language === "fr";
@@ -365,7 +365,6 @@ export function GuestExamClient() {
       examLang || selectedExamLanguage || language || "Kinyarwanda"
     );
     setSelectedExamLanguage(activeLang);
-    setLanguage(activeLang);
 
     if (
       securitySettings.violationMeasuresEnabled &&
@@ -688,7 +687,6 @@ export function GuestExamClient() {
       selectedExamLanguage || language
     );
     if (targetLang === normalizedCurrent) {
-      setLanguage(targetLang);
       setPostExamLangConfirmed(true);
       return;
     }
@@ -733,12 +731,10 @@ export function GuestExamClient() {
         }
       }
       setSelectedExamLanguage(targetLang);
-      setLanguage(targetLang);
       setPostExamLangConfirmed(true);
     } catch (err) {
       console.error("[GuestExam] Post-exam translation error:", err);
       setSelectedExamLanguage(targetLang);
-      setLanguage(targetLang);
       setPostExamLangConfirmed(true);
     } finally {
       setTranslatingPostExamLang(null);
@@ -770,7 +766,6 @@ export function GuestExamClient() {
               onContinueCurrent={() => {
                 const norm = normalizeExamLanguage(selectedExamLanguage || language);
                 setSelectedExamLanguage(norm);
-                setLanguage(norm);
                 setPostExamLangConfirmed(true);
               }}
               onSelectLanguage={(targetLang) => {
@@ -1097,7 +1092,6 @@ export function GuestExamClient() {
               const normalizedLang = normalizeExamLanguage(lang);
               setSelectedCategoryId(catId);
               setSelectedExamLanguage(normalizedLang);
-              setLanguage(normalizedLang);
               setPendingStartExam({ categoryId: catId, language: normalizedLang });
             }}
             onOpenGroupChallenge={(_catId, lang) => {

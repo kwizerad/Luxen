@@ -135,12 +135,12 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
   });
 
   return (
-    <div className="fixed bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 z-[75] max-w-[calc(100vw-0.5rem)] select-none pointer-events-auto">
+    <div className="fixed bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 z-[75] max-w-[calc(100vw-0.75rem)] select-none pointer-events-auto">
       <motion.nav
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", damping: 24, stiffness: 300 }}
-        className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-1 sm:py-2 rounded-xl sm:rounded-2xl bg-card/85 dark:bg-black/85 backdrop-blur-2xl border border-border/60 dark:border-white/10 shadow-none max-w-full overflow-x-auto scrollbar-none"
+        className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:py-2 rounded-2xl bg-card/85 dark:bg-black/85 backdrop-blur-2xl border border-border/60 dark:border-white/10 shadow-none max-w-full overflow-x-auto scrollbar-none"
       >
         {items.map((item) => {
           const Icon = item.icon;
@@ -192,15 +192,15 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
                 whileHover={isExamSessionActive ? undefined : { scale: 1.14, y: -3 }}
                 whileTap={isExamSessionActive ? undefined : { scale: 0.92 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className={`relative w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center cursor-pointer bg-gradient-to-br ${item.color} text-white shadow-none ${
+                className={`relative w-9 h-9 min-[380px]:w-10 min-[380px]:h-10 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center cursor-pointer bg-gradient-to-br ${item.color} text-white shadow-none ${
                   isExamSessionActive ? "opacity-20 pointer-events-none cursor-not-allowed" : ""
                 }`}
               >
-                <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-white/10 opacity-0 hover:opacity-100 transition-opacity" />
-                <Icon className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] drop-shadow-sm" />
+                <div className="absolute inset-0 rounded-xl bg-white/10 opacity-0 hover:opacity-100 transition-opacity" />
+                <Icon className="w-[18px] h-[18px] sm:w-[19px] sm:h-[19px] drop-shadow-sm" />
 
                 {item.badge && (
-                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-rose-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center border border-background shadow-none">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center border border-background shadow-none">
                     {item.badge}
                   </span>
                 )}
@@ -208,7 +208,7 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
 
               {/* Active Indicator Dot */}
               <div
-                className={`w-1 h-1 rounded-full mt-0.5 sm:mt-1 transition-all ${
+                className={`w-1.5 h-1.5 sm:w-1 sm:h-1 rounded-full mt-1 transition-all ${
                   isActive
                     ? "bg-primary dark:bg-white scale-110"
                     : "bg-transparent scale-0"
@@ -219,7 +219,7 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
         })}
 
         {/* Divider */}
-        <div className="w-px h-4 sm:h-7 bg-border/60 dark:bg-white/15 mx-0.5 shrink-0" />
+        <div className="w-px h-6 sm:h-7 bg-border/60 dark:bg-white/15 mx-0.5 shrink-0" />
 
         {/* Quick Spotlight Icon */}
         <div
@@ -254,13 +254,13 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
             }}
             whileHover={isExamSessionActive ? undefined : { scale: 1.14, y: -3 }}
             whileTap={isExamSessionActive ? undefined : { scale: 0.92 }}
-            className={`w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center cursor-pointer bg-muted/70 hover:bg-muted dark:bg-white/10 dark:hover:bg-white/15 text-foreground dark:text-zinc-200 border border-border/60 dark:border-white/10 shadow-none ${
+            className={`w-9 h-9 min-[380px]:w-10 min-[380px]:h-10 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center cursor-pointer bg-muted/70 hover:bg-muted dark:bg-white/10 dark:hover:bg-white/15 text-foreground dark:text-zinc-200 border border-border/60 dark:border-white/10 shadow-none ${
               isExamSessionActive ? "opacity-20 pointer-events-none cursor-not-allowed" : ""
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 dark:text-amber-400" />
+            <Sparkles className="w-[18px] h-[18px] text-amber-500 dark:text-amber-400" />
           </motion.button>
-          <div className="w-1 h-1 mt-0.5 sm:mt-1 opacity-0" />
+          <div className="w-1.5 h-1.5 sm:w-1 sm:h-1 mt-1 opacity-0" />
         </div>
       </motion.nav>
     </div>

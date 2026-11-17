@@ -67,12 +67,20 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const effectiveLanguage: Language = isAdminRoute ? "English" : language;
   const effectiveIsRTL = false;
 
-  const applyLanguage = useCallback((lang: Language) => {
-    setLanguageState(lang || "English");
-    if (typeof window !== "undefined") {
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, lang || "English");
-    }
+  const normalizeLanguage = useCallback((lang?: string | null): Language => {
+    const raw = String(lang || "").trim().toLowerCase();
+    if (raw === "en" || raw === "english") return "English";
+    if (raw === "fr" || raw === "french" || raw === "français") return "French";
+    return "Kinyarwanda";
   }, []);
+
+  const applyLanguage = useCallback((lang?: string | null) => {
+    const normalized = normalizeLanguage(lang);
+    setLanguageState(normalized);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, normalized);
+    }
+  }, [normalizeLanguage]);
 
   // Fetch interface language toggles from system_config
   useEffect(() => {
@@ -100,24 +108,26 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
       setAvailableLanguages(enabled.length > 0 ? enabled : ALL_LANGUAGES.map(l => ({ value: l.value, label: l.label, flag: l.flag })));
 
-      // If current language is now disabled, fall back to English
-      const currentLang = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-      if (currentLang) {
-        const currentConfigKey = ALL_LANGUAGES.find((l) => l.value === currentLang)?.configKey;
-        if (currentConfigKey && disabledSet.has(currentConfigKey)) {
-          applyLanguage("English");
-        }
+      // Only switch if current language was explicitly disabled by Admin, preferring Kinyarwanda first
+      const currentLang = normalizeLanguage(localStorage.getItem(LANGUAGE_STORAGE_KEY));
+      const currentConfigKey = ALL_LANGUAGES.find((l) => l.value === currentLang)?.configKey;
+      if (currentConfigKey && disabledSet.has(currentConfigKey)) {
+        const fallback =
+          !disabledSet.has("kinyarwanda")
+            ? "Kinyarwanda"
+            : enabled[0]?.value || "Kinyarwanda";
+        applyLanguage(fallback);
       }
     };
 
     fetchEnabled();
-  }, [applyLanguage]);
+  }, [applyLanguage, normalizeLanguage]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (savedLanguage) {
+    if (savedLanguage && savedLanguage.trim()) {
       applyLanguage(savedLanguage);
     } else {
       applyLanguage("Kinyarwanda");

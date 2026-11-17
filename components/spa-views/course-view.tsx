@@ -1736,8 +1736,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   if (!authUser) {
     return (
-      <div className="min-h-[calc(100vh-140px)] flex items-center justify-center px-4 py-10">
-        <div className="max-w-md w-full rounded-2xl border border-border bg-card p-6 sm:p-8 text-center space-y-4">
+      <div className="flex-1 flex items-center justify-center px-3 sm:px-4 py-6 sm:py-10">
+        <div className="max-w-md w-full rounded-2xl border border-border bg-card p-5 sm:p-8 text-center space-y-4">
           <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
             <Lock className="w-6 h-6" />
           </div>
@@ -1774,23 +1774,23 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   if (showLanguagePicker || !learningLanguage) {
     return (
-      <div className="min-h-[calc(100vh-80px)] max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 animate-in fade-in duration-200 select-none">
+      <div className="flex-1 w-full max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-5 sm:space-y-6 animate-in fade-in duration-200 select-none overflow-x-hidden">
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={() => navigate("home")}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 border border-border transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 border border-border transition-colors shadow-xs cursor-pointer"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>{t("backToHome") || "Back to Home"}</span>
           </button>
         </div>
 
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2">
-            <BookOpen className="h-6 w-6" />
+        <div className="text-center max-w-2xl mx-auto space-y-2 px-1">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2">
+            <BookOpen className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-foreground">
             {t("chooseCourseLanguage") || "Choose Course Language"}
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
@@ -1798,7 +1798,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5 pt-2 sm:pt-4">
           {[
             {
               lang: "Kinyarwanda" as const,
@@ -1832,40 +1832,40 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               key={item.lang}
               onClick={() => void handleChooseCourseLanguage(item.lang)}
               className={cn(
-                "group cursor-pointer rounded-2xl sm:rounded-3xl border p-6 sm:p-7 flex flex-col justify-between transition-all hover:shadow-md hover:border-primary/50 bg-card",
+                "group cursor-pointer rounded-2xl border p-4 sm:p-6 flex flex-col justify-between transition-all hover:shadow-md hover:border-primary/50 bg-card min-w-0",
                 learningLanguage === item.lang ? "border-primary ring-1 ring-primary/30" : "border-border/80"
               )}
             >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl">{item.flag}</span>
-                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-2xl sm:text-3xl">{item.flag}</span>
+                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary truncate max-w-full">
                     {item.badge}
                   </span>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">
+                  <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors">
                     {item.label}
                   </h3>
                   <p className="text-xs font-semibold text-primary/80 mt-0.5">
                     {item.title}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
+                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
                     {item.desc}
                   </p>
                 </div>
               </div>
 
-              <div className="pt-6">
+              <div className="pt-4 sm:pt-6">
                 <Button
-                  className="w-full rounded-xl py-2.5 font-semibold text-xs sm:text-sm group-hover:bg-primary/90 transition-colors"
+                  className="w-full rounded-xl min-h-[40px] h-auto py-2 px-3 font-semibold text-xs sm:text-sm group-hover:bg-primary/90 transition-colors whitespace-normal text-center leading-tight"
                   disabled={savingLanguage}
                   onClick={(e) => {
                     e.stopPropagation();
                     void handleChooseCourseLanguage(item.lang);
                   }}
                 >
-                  <Play className="h-3.5 w-3.5 mr-2 fill-current" />
+                  <Play className="h-3.5 w-3.5 mr-1.5 fill-current shrink-0" />
                   <span>{item.btnText}</span>
                 </Button>
               </div>
@@ -1878,10 +1878,31 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   if (!effectiveCourse) {
     return (
-      <div className="text-center py-16 border border-dashed rounded-[20px] bg-muted/40 max-w-2xl mx-auto mt-8 p-8 space-y-4">
-        <BookOpen className="h-12 w-12 mx-auto mb-2 text-muted-foreground opacity-40" />
-        <p className="text-lg font-semibold">{t("noCoursesAvailable") || "No courses available"}</p>
-        <p className="text-sm text-muted-foreground mt-1">{(t("noPublishedCourse") || "There is no published {language} course right now.").replace("{language}", learningLanguage)}</p>
+      <div className="flex-1 flex items-center justify-center px-3 sm:px-6 py-8">
+        <div className="text-center py-10 sm:py-14 border border-dashed rounded-2xl bg-muted/40 max-w-lg w-full p-5 sm:p-8 space-y-4">
+          <BookOpen className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-muted-foreground opacity-40" />
+          <div className="space-y-1">
+            <p className="text-base sm:text-lg font-semibold">{t("noCoursesAvailable") || "No courses available"}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">{(t("noPublishedCourse") || "There is no published {language} course right now.").replace("{language}", learningLanguage)}</p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLearningLanguage(null)}
+              className="rounded-xl text-xs cursor-pointer"
+            >
+              {t("changeLanguage") || "Change Language"}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => navigate("home")}
+              className="rounded-xl text-xs cursor-pointer"
+            >
+              {t("backToHome") || "Back"}
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1964,7 +1985,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   if (viewMode === "modules") {
     return (
       <div
-        className="min-h-[calc(100vh-4rem)] max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200 select-none overflow-x-hidden"
+        className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-4 sm:space-y-5 animate-in fade-in duration-200 select-none overflow-x-hidden"
         onContextMenu={(e) => e.preventDefault()}
         onCopy={(e) => e.preventDefault()}
         onCut={(e) => e.preventDefault()}
@@ -1974,12 +1995,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
         {/* Course Header */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between flex-wrap">
-            <div className="flex items-center flex-wrap mb-2 sm:mb-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => navigate("back", { fallback: "home" })}
-                className="inline-flex items-center px-3 py-1.5 mr-2 mb-1 sm:mb-0 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
+                className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
               >
                 <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
                 <span>{t("back") || t("backToHome") || "Back"}</span>
@@ -1988,17 +2009,17 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               <button
                 type="button"
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="lg:hidden inline-flex items-center px-3 py-1.5 mr-2 mb-1 sm:mb-0 rounded-lg text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 border border-primary/25 transition-colors cursor-pointer"
+                className="lg:hidden inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 border border-primary/25 transition-colors cursor-pointer"
               >
                 <PanelLeftOpen className="h-3.5 w-3.5 mr-1.5" />
-                <span>Course Tree</span>
+                <span>{t("courseTree") !== "courseTree" ? t("courseTree") : "Course Tree"}</span>
               </button>
 
               {isRoadSignsFilter && (
                 <button
                   type="button"
                   onClick={() => navigate("course")}
-                  className="inline-flex items-center px-3 py-1.5 mb-1 sm:mb-0 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 bg-primary/5 border border-primary/20 transition-colors cursor-pointer"
+                  className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 bg-primary/5 border border-primary/20 transition-colors cursor-pointer"
                 >
                   <BookOpen className="h-3.5 w-3.5 mr-1.5" />
                   <span>{t("allCourses") || "All Courses"}</span>
@@ -2006,31 +2027,32 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               )}
             </div>
 
-            {/* Language Switcher Bar */}
-            <div className="flex items-center bg-card border border-border dark:border-zinc-800 rounded-xl p-1 shadow-xs">
+            {/* Language Switcher Bar (Clean responsive labels on all viewports) */}
+            <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-card border border-border dark:border-zinc-800 rounded-xl p-1 shadow-xs w-full sm:w-auto">
               {(["English", "French", "Kinyarwanda"] as const).map((lang) => (
                 <button
                   key={lang}
                   type="button"
                   onClick={() => void handleChooseCourseLanguage(lang)}
                   className={cn(
-                    "px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center",
+                    "px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center justify-center min-w-0",
                     learningLanguage === lang
                       ? "bg-primary text-primary-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
-                  <span className="sm:mr-1.5">{lang === "French" ? "🇫🇷" : lang === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
+                  <span className="mr-1 sm:mr-1.5 shrink-0">{lang === "French" ? "🇫🇷" : lang === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
+                  <span className="sm:hidden">{lang === "French" ? "FR" : lang === "Kinyarwanda" ? "RW" : "EN"}</span>
                   <span className="hidden sm:inline">{lang}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-            <div className="space-y-1 mb-3 sm:mb-0">
-              <div className="flex items-center flex-wrap">
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-foreground dark:text-zinc-100 mr-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center flex-wrap gap-2">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-foreground dark:text-zinc-100 break-words">
                   {isRoadSignsFilter ? (t("roadSigns") || "Road Signs") : effectiveCourse.title}
                 </h1>
                 {isRoadSignsFilter && (
@@ -2052,7 +2074,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   setSelectedModuleId(resumeTarget.item.moduleId);
                   setViewMode("study");
                 }}
-                className="font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-none px-4 py-2 self-start sm:self-auto"
+                className="font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-none px-4 py-2 w-full sm:w-auto shrink-0"
               >
                 <Play className="h-3.5 w-3.5 fill-current mr-2" />
                 <span>{t("continueFromLastTopic") || t("resumeLearning") || "Resume Topic"}</span>
@@ -2063,15 +2085,15 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
         {/* Continue from Last Topic Card */}
         {resumeTarget && (
-          <div className="rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 p-4 transition-colors flex flex-col sm:flex-row sm:items-center justify-between shadow-none">
-            <div className="space-y-1.5 min-w-0 mb-3 sm:mb-0 sm:mr-4">
-              <div className="flex items-center flex-wrap">
-                <span className="inline-flex items-center px-2 py-0.5 mr-2 rounded text-[10px] font-mono font-bold bg-primary/20 text-primary border border-primary/30 lowercase">
+          <div className="rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 p-3.5 sm:p-4 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-none">
+            <div className="space-y-1.5 min-w-0 flex-1">
+              <div className="flex items-center flex-wrap gap-2">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/20 text-primary border border-primary/30 lowercase">
                   <BookMarked className="w-3 h-3 mr-1.5" />
                   <span>{t("resumeLearning") || "resume"}</span>
                 </span>
                 {resumeTarget.topicCount > 1 && (
-                  <span className="text-[11px] font-mono text-muted-foreground dark:text-zinc-400">
+                  <span className="text-[11px] font-mono text-muted-foreground dark:text-zinc-400 tabular-nums">
                     {resumeTarget.topicIndex + 1}/{resumeTarget.topicCount}
                   </span>
                 )}
@@ -2085,7 +2107,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               </p>
             </div>
 
-            <div className="shrink-0">
+            <div className="shrink-0 w-full sm:w-auto">
               <Button
                 size="sm"
                 onClick={() => {
@@ -2108,13 +2130,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             <span className="text-xs font-medium text-muted-foreground dark:text-zinc-400">
               {t("modules") || "Modules"}
             </span>
-            <span className="text-xs font-mono text-muted-foreground dark:text-zinc-400">
+            <span className="text-xs font-mono text-muted-foreground dark:text-zinc-400 tabular-nums">
               {effectiveCourse.modules.length} {effectiveCourse.modules.length === 1 ? (t("module") || "Module") : (t("modules") || "Modules")}
             </span>
           </div>
 
           {effectiveCourse.modules.length === 0 ? (
-            <div className="text-center py-14 border border-dashed rounded-2xl bg-card p-6 space-y-3">
+            <div className="text-center py-12 sm:py-14 border border-dashed rounded-2xl bg-card p-5 sm:p-6 space-y-3">
               <ImageIcon className="h-10 w-10 mx-auto text-muted-foreground/50" />
               <p className="text-sm font-semibold text-foreground">
                 {t("noCoursesWithImages") || "No courses with images found"}
@@ -2127,7 +2149,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {effectiveCourse.modules.map((module, modIdx) => {
                 const isUnlocked = isModuleUnlocked(modIdx);
                 const isComplete = isModuleCompleted(module.id);
@@ -2289,7 +2311,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
     return (
       <div
-        className="min-h-[calc(100vh-4rem)] w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-in fade-in duration-200 select-none overflow-x-hidden"
+        className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-4 sm:space-y-5 animate-in fade-in duration-200 select-none overflow-x-hidden"
         onContextMenu={(e) => e.preventDefault()}
         onCopy={(e) => e.preventDefault()}
         onCut={(e) => e.preventDefault()}
@@ -2299,11 +2321,11 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
         {/* Navigation Breadcrumb */}
         <div className="space-y-3 border-b border-border dark:border-zinc-800 pb-4">
-          <div className="flex items-center justify-between flex-wrap">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setViewMode("modules")}
-              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer mr-2 mb-1 sm:mb-0"
+              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
             >
               <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
               <span>{t("allModules") || "All Modules"}</span>
@@ -2312,30 +2334,30 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="lg:hidden inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 border border-primary/25 transition-colors cursor-pointer mb-1 sm:mb-0"
+              className="lg:hidden inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 border border-primary/25 transition-colors cursor-pointer"
             >
               <PanelLeftOpen className="h-3.5 w-3.5 mr-1.5" />
-              <span>Course Tree</span>
+              <span>{t("courseTree") !== "courseTree" ? t("courseTree") : "Course Tree"}</span>
             </button>
           </div>
 
-          <div className="space-y-1">
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground dark:text-zinc-100">
+          <div className="space-y-1 min-w-0">
+            <h1 className="text-base sm:text-xl font-bold tracking-tight text-foreground dark:text-zinc-100 break-words">
               {currentModule.title}
             </h1>
           </div>
 
           {currentModule.description && (
-            <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 max-w-2xl">
+            <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 max-w-2xl break-words">
               {currentModule.description}
             </p>
           )}
 
           {/* Module Progress Overview */}
-          <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-[rgb(15,15,16)] p-3.5 space-y-2 mt-2 shadow-xs">
-            <div className="flex items-center justify-between text-xs font-mono">
+          <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-[rgb(15,15,16)] p-3 sm:p-3.5 space-y-2 mt-2 shadow-xs">
+            <div className="flex items-center justify-between flex-wrap gap-1.5 text-xs font-mono">
               <span className="text-muted-foreground dark:text-zinc-400">{t("progress") || "Progress"}</span>
-              <span className="text-primary font-bold">
+              <span className="text-primary font-bold tabular-nums">
                 {completedLessonsCount} / {totalLessons} {t("lessonsMastered") || "Mastered"} ({modulePct}%)
               </span>
             </div>
@@ -2348,20 +2370,20 @@ export function CourseView({ navigate, params }: CourseViewProps) {
           </div>
         </div>
 
-        {/* File Explorer Grid for Lessons (2 cols on small Android 5 screens, scaling up) */}
+        {/* File Explorer Grid for Lessons (1 col on ultra-narrow, 2 cols on small Android 5 screens, scaling up) */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-1.5">
             <span className="text-xs font-medium text-muted-foreground dark:text-zinc-400 flex items-center">
-              <FolderOpen className="h-3.5 w-3.5 text-primary mr-2" />
+              <FolderOpen className="h-3.5 w-3.5 text-primary mr-2 shrink-0" />
               <span className="sm:hidden">nPhone Explorer</span>
               <span className="hidden sm:inline">{t("moduleFiles") || "Desktop File Explorer"}</span>
             </span>
-            <span className="text-xs font-mono text-muted-foreground dark:text-zinc-400">
+            <span className="text-xs font-mono text-muted-foreground dark:text-zinc-400 tabular-nums">
               {currentModule.lessons.length} {t("lessons") || "lessons"} {currentModule.examSettings ? "+ 1 Quiz" : ""}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 min-[480px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 sm:gap-4">
+          <div className="grid grid-cols-1 min-[340px]:grid-cols-2 min-[500px]:grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
             {currentModule.lessons.map((lesson, lessonIdx) => {
               const isUnlocked = isLessonUnlocked(currentModule.id, lessonIdx);
               const isComplete = isLessonCompleted(lesson.id);
@@ -2525,7 +2547,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   return (
     <div
       className={cn(
-        "min-h-[calc(100vh-4rem)] flex flex-col transition-all overflow-x-hidden touch-pan-y select-none",
+        "flex-1 min-h-0 w-full flex flex-col transition-all overflow-x-hidden touch-pan-y select-none",
         isFocusMode ? "bg-background fixed inset-0 z-50 overflow-y-auto" : ""
       )}
       onContextMenu={(e) => e.preventDefault()}
@@ -2541,7 +2563,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center"
+            className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center p-4"
           >
             <div className="absolute inset-0 bg-black/30 backdrop-blur-xs" />
             <motion.div
@@ -2549,11 +2571,11 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 8 }}
               transition={{ type: "spring", damping: 24, stiffness: 320 }}
-              className="relative z-10 text-center space-y-4 p-6 bg-card border-2 border-primary rounded-[28px] shadow-2xl transform-gpu"
+              className="relative z-10 text-center space-y-3 sm:space-y-4 p-5 sm:p-6 max-w-sm w-full bg-card border-2 border-primary rounded-3xl shadow-2xl transform-gpu"
             >
-              <div className="text-6xl animate-bounce">🎉</div>
-              <h2 className="text-3xl font-bold tracking-tight">{t("courseCompleted") || "Course Completed!"}</h2>
-              <p className="text-base text-muted-foreground">{t("congratulations") || "Congratulations on finishing all modules!"}</p>
+              <div className="text-5xl sm:text-6xl animate-bounce">🎉</div>
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("courseCompleted") || "Course Completed!"}</h2>
+              <p className="text-sm sm:text-base text-muted-foreground">{t("congratulations") || "Congratulations on finishing all modules!"}</p>
             </motion.div>
           </motion.div>
         )}
@@ -2567,14 +2589,14 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[95] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm"
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ type: "spring", damping: 26, stiffness: 340, mass: 0.8 }}
-              className="relative max-w-md w-full rounded-[24px] border-2 border-primary/40 bg-card shadow-2xl p-6 sm:p-8 space-y-6 transform-gpu"
+              className="relative max-w-md w-full max-h-[90dvh] overflow-y-auto rounded-3xl border-2 border-primary/40 bg-card shadow-2xl p-5 sm:p-8 space-y-5 sm:space-y-6 transform-gpu"
             >
               <div className="text-center space-y-3">
                 <div className="w-16 h-16 mx-auto rounded-full bg-primary/15 flex items-center justify-center text-primary">
@@ -2677,69 +2699,95 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         )}
 
         {/* Top Study Navigation Bar */}
-        <div className="px-2.5 sm:px-5 py-2 flex items-center justify-between">
-          {/* Course Tree Toggle + Breadcrumb Path */}
-          <div className="flex items-center min-w-0 text-xs flex-1 mr-2">
-            {/* Mobile Course Tree Button */}
-            <button
-              type="button"
-              onClick={() => setIsMobileSidebarOpen(true)}
-              className="lg:hidden inline-flex items-center px-2 py-1 mr-2 rounded-lg border border-border bg-background hover:bg-muted text-foreground shrink-0 cursor-pointer"
-              title="Open Course Tree"
-              aria-label="Open Course Tree"
-            >
-              <PanelLeftOpen className="h-3.5 w-3.5 text-primary sm:mr-1" />
-              <span className="hidden sm:inline font-semibold">Tree</span>
-            </button>
-
-            {/* Desktop Sidebar Toggle when collapsed */}
-            {!isSidebarOpen && !isFocusMode && (
+        <div className="px-2.5 sm:px-5 py-2 flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between md:gap-2">
+          {/* Row 1: Tree Toggle + Breadcrumb + Primary Status Controls */}
+          <div className="flex items-center justify-between gap-2 min-w-0 flex-1">
+            <div className="flex items-center min-w-0 text-xs flex-1">
+              {/* Mobile Course Tree Button */}
               <button
                 type="button"
-                onClick={() => setIsSidebarOpen(true)}
-                className="hidden lg:inline-flex items-center px-2 py-1 mr-2 rounded-lg border border-border bg-background hover:bg-muted text-foreground shrink-0 cursor-pointer"
-                title="Expand Course Tree"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="lg:hidden inline-flex items-center px-2 py-1 mr-2 rounded-lg border border-border bg-background hover:bg-muted text-foreground shrink-0 cursor-pointer"
+                title="Open Course Tree"
+                aria-label="Open Course Tree"
               >
-                <PanelLeftOpen className="h-3.5 w-3.5 text-primary mr-1" />
-                <span className="font-semibold">Tree</span>
+                <PanelLeftOpen className="h-3.5 w-3.5 text-primary min-[380px]:mr-1" />
+                <span className="hidden min-[380px]:inline font-semibold">Tree</span>
               </button>
-            )}
 
-            <button
-              type="button"
-              onClick={() => setViewMode("modules")}
-              className="text-muted-foreground hover:text-foreground transition-colors font-medium shrink-0 hidden sm:inline cursor-pointer"
-            >
-              {t("course") || "Course"}
-            </button>
-            <span className="text-muted-foreground/40 hidden sm:inline mx-1.5">/</span>
-            <button
-              type="button"
-              onClick={() => {
-                if (currentItem) {
-                  setSelectedModuleId(currentItem.moduleId);
-                  setViewMode("module-lessons");
-                } else {
-                  setViewMode("modules");
-                }
-              }}
-              className="text-muted-foreground hover:text-foreground transition-colors font-medium truncate max-w-[90px] sm:max-w-[160px] hidden min-[420px]:inline cursor-pointer"
-              title={currentItem?.moduleTitle}
-            >
-              {currentItem?.moduleTitle}
-            </button>
-            <span className="text-muted-foreground/40 hidden min-[420px]:inline mx-1.5">/</span>
-            <span className="font-bold text-foreground truncate max-w-[140px] sm:max-w-[240px]">
-              {currentItem?.lessonTitle}
-            </span>
+              {/* Desktop Sidebar Toggle when collapsed */}
+              {!isSidebarOpen && !isFocusMode && (
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="hidden lg:inline-flex items-center px-2 py-1 mr-2 rounded-lg border border-border bg-background hover:bg-muted text-foreground shrink-0 cursor-pointer"
+                  title="Expand Course Tree"
+                >
+                  <PanelLeftOpen className="h-3.5 w-3.5 text-primary mr-1" />
+                  <span className="font-semibold">Tree</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setViewMode("modules")}
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium shrink-0 hidden sm:inline cursor-pointer"
+              >
+                {t("course") || "Course"}
+              </button>
+              <span className="text-muted-foreground/40 hidden sm:inline mx-1.5">/</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentItem) {
+                    setSelectedModuleId(currentItem.moduleId);
+                    setViewMode("module-lessons");
+                  } else {
+                    setViewMode("modules");
+                  }
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium truncate max-w-[100px] sm:max-w-[160px] hidden sm:inline cursor-pointer"
+                title={currentItem?.moduleTitle}
+              >
+                {currentItem?.moduleTitle}
+              </button>
+              <span className="text-muted-foreground/40 hidden sm:inline mx-1.5">/</span>
+              <span className="font-bold text-foreground truncate min-w-0 flex-1 md:flex-initial md:max-w-[240px]">
+                {currentItem?.lessonTitle}
+              </span>
+            </div>
+
+            {/* Mobile-only right pills (Timer + Focus) */}
+            <div className="flex items-center gap-1.5 shrink-0 md:hidden">
+              <div
+                className={cn(
+                  "flex items-center px-2 py-1 rounded-full text-[11px] font-semibold tabular-nums border transition-colors",
+                  isFocusActive
+                    ? "bg-primary/10 text-primary border-primary/20"
+                    : "bg-muted text-muted-foreground border-border"
+                )}
+                title="Lesson Study Timer"
+              >
+                <Clock className={cn("h-3 w-3 mr-1", isFocusActive && "animate-pulse")} />
+                <span>{formatTimer(lessonElapsedSeconds)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFocusMode(!isFocusMode)}
+                className="p-1.5 rounded-lg border bg-background hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
+                title={isFocusMode ? "Exit Fullscreen" : "Distraction-Free Mode"}
+              >
+                {isFocusMode ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              </button>
+            </div>
           </div>
 
-          {/* Action / Reader Controls */}
-          <div className="flex items-center shrink-0">
-            {/* Active Lesson Study Timer */}
+          {/* Row 2 on Mobile / Right Cluster on Desktop: Reader Tools */}
+          <div className="flex items-center justify-between md:justify-end gap-1.5 pt-1.5 md:pt-0 border-t border-border/50 md:border-t-0 overflow-x-auto scrollbar-none shrink-0">
+            {/* Active Lesson Study Timer (Desktop) */}
             <div
               className={cn(
-                "flex items-center px-2 py-1 mr-1.5 rounded-full text-[11px] font-semibold tabular-nums border transition-colors",
+                "hidden md:flex items-center px-2 py-1 rounded-full text-[11px] font-semibold tabular-nums border transition-colors shrink-0",
                 isFocusActive
                   ? "bg-primary/10 text-primary border-primary/20"
                   : "bg-muted text-muted-foreground border-border"
@@ -2750,8 +2798,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               <span>{formatTimer(lessonElapsedSeconds)}</span>
             </div>
 
-            {/* Text Size Control */}
-            <div className="hidden sm:flex items-center border rounded-lg bg-background p-0.5 mr-1.5">
+            {/* Text Size Control (Accessible on mobile & desktop) */}
+            <div className="flex items-center border rounded-lg bg-background p-0.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setTextSize("sm")}
@@ -2778,78 +2826,84 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               </button>
             </div>
 
-            {/* Scratchpad / Notes Toggle */}
-            <button
-              type="button"
-              onClick={() => setShowNotes(!showNotes)}
-              className={cn(
-                "p-1.5 mr-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer",
-                showNotes ? "bg-primary/15 border-primary/30 text-primary" : "bg-background hover:bg-muted text-muted-foreground"
-              )}
-              title="Study notes & scratchpad"
-            >
-              <StickyNote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </button>
-
-            {/* Current Selected Course Language */}
-            <button
-              type="button"
-              onClick={() => setLearningLanguage(null)}
-              className="flex items-center px-2 py-1 mr-1.5 rounded-xl border border-border/70 hover:border-primary/40 bg-card hover:bg-muted text-xs font-semibold transition-colors cursor-pointer text-foreground"
-              title={t("changeLanguage") || "Change course language"}
-            >
-              <span>{learningLanguage === "French" ? "🇫🇷" : learningLanguage === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
-              <span className="hidden md:inline ml-1.5">{learningLanguage || "Language"}</span>
-              <span className="text-[10px] text-primary underline ml-1 hidden sm:inline">{t("change") || "Change"}</span>
-            </button>
-
-            {/* Plain Terms Legal Explainer Toggle */}
-            <button
-              type="button"
-              onClick={handleTogglePlainLanguage}
-              className={cn(
-                "hidden sm:flex items-center px-2.5 py-1 mr-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
-                isPlainLanguageOpen
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                  : "bg-background hover:bg-muted text-muted-foreground border-border"
-              )}
-              title="Explain road rules in plain, simple terms [Press P]"
-            >
-              <Lightbulb className="h-3.5 w-3.5 mr-1" />
-              <span className="hidden lg:inline">Plain Terms</span>
-            </button>
-
-            {/* AI Neural Cloud Voice Player Toggle */}
-            {!isTTSDisabled && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Scratchpad / Notes Toggle */}
               <button
                 type="button"
-                onClick={handleToggleTTS}
+                onClick={() => setShowNotes(!showNotes)}
                 className={cn(
-                  "flex items-center px-2 py-1 mr-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
-                  isTTSOpen
+                  "p-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer shrink-0",
+                  showNotes ? "bg-primary/15 border-primary/30 text-primary" : "bg-background hover:bg-muted text-muted-foreground"
+                )}
+                title="Study notes & scratchpad"
+              >
+                <StickyNote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              </button>
+
+              {/* Current Selected Course Language */}
+              <button
+                type="button"
+                onClick={() => setLearningLanguage(null)}
+                className="flex items-center px-2 py-1 rounded-xl border border-border/70 hover:border-primary/40 bg-card hover:bg-muted text-xs font-semibold transition-colors cursor-pointer text-foreground shrink-0"
+                title={t("changeLanguage") || "Change course language"}
+              >
+                <span>{learningLanguage === "French" ? "🇫🇷" : learningLanguage === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
+                <span className="ml-1 md:hidden text-[10px] font-mono">
+                  {learningLanguage === "French" ? "FR" : learningLanguage === "Kinyarwanda" ? "RW" : "EN"}
+                </span>
+                <span className="hidden md:inline ml-1.5">{learningLanguage || "Language"}</span>
+                <span className="text-[10px] text-primary underline ml-1 hidden sm:inline">{t("change") || "Change"}</span>
+              </button>
+
+              {/* Plain Terms Legal Explainer Toggle (Visible on mobile too) */}
+              <button
+                type="button"
+                onClick={handleTogglePlainLanguage}
+                className={cn(
+                  "flex items-center px-2 sm:px-2.5 py-1 rounded-xl border text-xs font-semibold transition-all cursor-pointer shrink-0",
+                  isPlainLanguageOpen
                     ? "bg-primary text-primary-foreground border-primary shadow-sm"
                     : "bg-background hover:bg-muted text-muted-foreground border-border"
                 )}
-                title="Listen with AI Cloud Voice (Gemini Neural TTS)"
+                title="Explain road rules in plain, simple terms [Press P]"
               >
-                {isLoadingTTS ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Volume2 className="h-3.5 w-3.5" />
-                )}
-                <span className="hidden md:inline ml-1">AI Voice</span>
+                <Lightbulb className="h-3.5 w-3.5 min-[380px]:mr-1" />
+                <span className="hidden min-[380px]:inline lg:hidden">Plain</span>
+                <span className="hidden lg:inline">Plain Terms</span>
               </button>
-            )}
 
-            {/* Distraction-Free Focus Mode Toggle */}
-            <button
-              type="button"
-              onClick={() => setIsFocusMode(!isFocusMode)}
-              className="p-1.5 rounded-lg border bg-background hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
-              title={isFocusMode ? "Exit Fullscreen" : "Distraction-Free Mode"}
-            >
-              {isFocusMode ? <Minimize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-            </button>
+              {/* AI Neural Cloud Voice Player Toggle */}
+              {!isTTSDisabled && (
+                <button
+                  type="button"
+                  onClick={handleToggleTTS}
+                  className={cn(
+                    "flex items-center px-2 py-1 rounded-xl border text-xs font-semibold transition-all cursor-pointer shrink-0",
+                    isTTSOpen
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background hover:bg-muted text-muted-foreground border-border"
+                  )}
+                  title="Listen with AI Cloud Voice (Gemini Neural TTS)"
+                >
+                  {isLoadingTTS ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Volume2 className="h-3.5 w-3.5" />
+                  )}
+                  <span className="hidden md:inline ml-1">AI Voice</span>
+                </button>
+              )}
+
+              {/* Distraction-Free Focus Mode Toggle (Desktop) */}
+              <button
+                type="button"
+                onClick={() => setIsFocusMode(!isFocusMode)}
+                className="hidden md:inline-flex p-1.5 rounded-lg border bg-background hover:bg-muted text-muted-foreground transition-colors cursor-pointer shrink-0"
+                title={isFocusMode ? "Exit Fullscreen" : "Distraction-Free Mode"}
+              >
+                {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2898,21 +2952,21 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         {/* Center Reader Content Canvas */}
         <main
           className={cn(
-            "flex-1 min-w-0 p-3 sm:p-5 md:p-7 pb-6 sm:pb-8 space-y-5 mx-auto w-full overflow-x-hidden",
+            "flex-1 min-w-0 p-2.5 sm:p-5 md:p-7 pb-6 sm:pb-8 space-y-3.5 sm:space-y-5 mx-auto w-full overflow-x-hidden",
             extractedMedia.images.length > 0 ? "max-w-6xl" : "max-w-4xl"
           )}
         >
           {/* Progress Indicators: Module Progress and Lesson Progress */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             {/* Module Progress */}
-            <div className="rounded-2xl border bg-card dark:bg-zinc-900 p-3.5 space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-muted-foreground flex items-center min-w-0 pr-2">
-                  <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0 mr-1.5" />
-                  <span className="truncate">{t("moduleProgress") || "Module Progress"}</span>
+            <div className="rounded-xl sm:rounded-2xl border bg-card dark:bg-zinc-900 p-2.5 sm:p-3.5 space-y-1.5 sm:space-y-2 min-w-0">
+              <div className="flex items-center justify-between text-[11px] sm:text-xs font-semibold gap-1">
+                <span className="text-muted-foreground flex items-center min-w-0">
+                  <FolderOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0 mr-1 sm:mr-1.5" />
+                  <span className="truncate">{t("moduleProgress") || "Module"}</span>
                 </span>
                 <span className="text-foreground shrink-0 tabular-nums">
-                  {activeModuleCompletedLessonsCount} / {activeModuleLessons.length} ({activeModuleProgressPct}%)
+                  {activeModuleCompletedLessonsCount}/{activeModuleLessons.length} <span className="hidden min-[420px]:inline">({activeModuleProgressPct}%)</span>
                 </span>
               </div>
               <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -2924,18 +2978,21 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             </div>
 
             {/* Lesson Progress */}
-            <div className="rounded-2xl border bg-card dark:bg-zinc-900 p-3.5 space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-muted-foreground flex items-center min-w-0 pr-2">
-                  <FileText className="h-3.5 w-3.5 text-primary shrink-0 mr-1.5" />
-                  <span className="truncate">{t("lessonProgress") || "Lesson Progress"}</span>
+            <div className="rounded-xl sm:rounded-2xl border bg-card dark:bg-zinc-900 p-2.5 sm:p-3.5 space-y-1.5 sm:space-y-2 min-w-0">
+              <div className="flex items-center justify-between text-[11px] sm:text-xs font-semibold gap-1">
+                <span className="text-muted-foreground flex items-center min-w-0">
+                  <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0 mr-1 sm:mr-1.5" />
+                  <span className="truncate">{t("lessonProgress") || "Lesson"}</span>
                 </span>
                 <span className="text-foreground shrink-0 tabular-nums">
                   {currentLessonTopics.length > 0
-                    ? `${currentLessonCompletedTopicsCount} / ${currentLessonTopics.length} Topics (${currentLessonProgressPct}%)`
+                    ? `${currentLessonCompletedTopicsCount}/${currentLessonTopics.length}`
                     : isLessonCompleted(currentLesson?.id || "")
                     ? "100%"
                     : "0%"}
+                  {currentLessonTopics.length > 0 && (
+                    <span className="hidden min-[420px]:inline"> ({currentLessonProgressPct}%)</span>
+                  )}
                 </span>
               </div>
               <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -2949,12 +3006,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
           {/* Main Topic / Reading Card */}
           <div className="rounded-2xl border bg-card dark:bg-zinc-900 shadow-sm overflow-hidden relative">
-            <div className="p-4 sm:p-6 md:p-8 space-y-5">
+            <div className="p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-5">
               {/* Topic Header & Meta (Flows naturally so Android 5 screens aren't trapped by stacked sticky headers) */}
-              <div className="space-y-2 border-b border-border/70 pb-4">
-                <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap font-medium">
-                  <div className="flex items-center flex-wrap">
-                    <span className="px-2.5 py-0.5 mr-2 rounded-full bg-muted text-foreground font-semibold">
+              <div className="space-y-2 border-b border-border/70 pb-3.5 sm:pb-4">
+                <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2 font-medium">
+                  <div className="flex items-center flex-wrap gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-muted text-foreground font-semibold">
                       {currentItem?.type === "topic" && currentItem.topicIndex !== undefined
                         ? `Topic ${currentItem.topicIndex + 1} of ${currentItem.topicCount}`
                         : "Lesson"}
@@ -2973,7 +3030,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                   )}
                 </div>
 
-                <h1 className="text-lg sm:text-2xl md:text-3xl font-bold tracking-tight text-foreground break-words">
+                <h1 className="text-base sm:text-xl md:text-2xl font-bold tracking-tight text-foreground break-words">
                   {translatedTitle || (currentItem?.type === "topic" ? currentItem.topicTitle : currentItem?.lessonTitle)}
                 </h1>
               </div>
@@ -3010,9 +3067,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               {/* Exam-Style Split Content: Images on the LEFT side, Explanation on the RIGHT side */}
               <div onMouseUp={handleMouseUpContent} className="w-full min-w-0">
                 {extractedMedia.images.length > 0 ? (
-                  <div className="flex flex-col md:flex-row md:items-start">
+                  <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
                     {/* LEFT SIDE: Visual Diagram / Road Sign Stage */}
-                    <div className="w-full md:w-[44%] lg:w-[42%] shrink-0 mb-5 md:mb-0 md:mr-6 md:sticky md:top-16">
+                    <div className="w-full md:w-[44%] lg:w-[42%] shrink-0 md:sticky md:top-20">
                       <CourseImageStage
                         images={extractedMedia.images}
                         title={
@@ -3086,33 +3143,33 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       </div>
 
       {/* Bottom Navigation Footer (Placed below content like the exam so buttons never cover course text) */}
-      <footer className="shrink-0 mt-auto border-t border-border bg-card dark:bg-zinc-950 px-3 sm:px-6 py-2.5 sm:py-3">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+      <footer className="shrink-0 mt-auto border-t border-border bg-card dark:bg-zinc-950 px-2.5 sm:px-6 py-2.5 sm:py-3">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={goToPrevious}
             disabled={currentItemIndex === 0}
-            className="rounded-lg h-8 sm:h-9 px-2.5 sm:px-3.5 font-medium text-xs sm:text-sm cursor-pointer"
+            className="rounded-lg h-9 px-2.5 sm:px-3.5 font-medium text-xs sm:text-sm cursor-pointer shrink-0 whitespace-nowrap"
           >
-            <ChevronLeft className="h-4 w-4 mr-1" />
+            <ChevronLeft className="h-4 w-4 mr-1 shrink-0" />
             <span>{t("previousTopic") || "Previous"}</span>
           </Button>
 
-          <div className="text-xs text-muted-foreground font-mono font-semibold tabular-nums px-2">
+          <div className="text-[11px] sm:text-xs text-muted-foreground font-mono font-semibold tabular-nums px-1.5 shrink-0">
             {currentItemIndex + 1} / {flatList.length}
           </div>
 
-          <div className="flex items-center">
+          <div className="flex items-center shrink-0">
             {currentItem && isLastItemInLesson(currentItem) ? (
               <Button
                 type="button"
                 size="sm"
                 onClick={() => void markCompleteAndAdvance()}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-8 sm:h-9 px-3 sm:px-4 font-semibold text-xs sm:text-sm shadow-xs cursor-pointer"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-9 px-3 sm:px-4 font-semibold text-xs sm:text-sm shadow-xs cursor-pointer whitespace-nowrap"
               >
-                <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                <CheckCircle2 className="h-4 w-4 mr-1.5 shrink-0" />
                 <span>{t("completeLesson") || "Complete Lesson"}</span>
               </Button>
             ) : (
@@ -3120,10 +3177,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 type="button"
                 size="sm"
                 onClick={() => void markCompleteAndAdvance()}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-8 sm:h-9 px-3 sm:px-4 font-semibold text-xs sm:text-sm shadow-xs cursor-pointer"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-9 px-3 sm:px-4 font-semibold text-xs sm:text-sm shadow-xs cursor-pointer whitespace-nowrap"
               >
                 <span>{t("nextTopic") || "Next"}</span>
-                <ChevronRight className="h-4 w-4 ml-1" />
+                <ChevronRight className="h-4 w-4 ml-1 shrink-0" />
               </Button>
             )}
           </div>

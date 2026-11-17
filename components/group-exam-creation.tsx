@@ -58,7 +58,7 @@ export function GroupExamCreation({
   initialLanguage,
   initialCategoryId,
 }: GroupExamCreationProps) {
-  const { t, language, setLanguage } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
 
   const [allUsers, setAllUsers] = useState<ClassmateProfile[]>([]);
@@ -85,9 +85,8 @@ export function GroupExamCreation({
     if (initialLanguage) {
       const resolved = resolveDefaultExamLang(initialLanguage);
       setSelectedExamLanguage(resolved);
-      setLanguage(resolved);
     }
-  }, [initialLanguage, setLanguage]);
+  }, [initialLanguage]);
 
   useEffect(() => {
     if (initialCategoryId) {
@@ -231,7 +230,6 @@ export function GroupExamCreation({
       return;
     }
     setSubmitting(true);
-    setLanguage(selectedExamLanguage);
     try {
       await onStartExam(selectedCategory, cleanInvitees, selectedExamLanguage);
     } finally {
@@ -355,7 +353,6 @@ export function GroupExamCreation({
                   type="button"
                   onClick={() => {
                     setSelectedExamLanguage(opt.value);
-                    setLanguage(opt.value);
                   }}
                   className={cn(
                     "inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium border transition-colors cursor-pointer",

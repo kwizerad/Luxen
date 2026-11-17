@@ -136,7 +136,7 @@ export function isNewGoogleUser(user: User | null): boolean {
  * Build a stable language code from localStorage or fallback to English.
  */
 function resolveLanguagePreference(): string {
-  if (typeof window === "undefined") return "en";
+  if (typeof window === "undefined") return "rw";
 
   const stored = window.localStorage.getItem("navo-language") as SupportedLanguage | null;
   if (stored && LANGUAGE_CODE_MAP[stored]) {
@@ -148,7 +148,7 @@ function resolveLanguagePreference(): string {
     return storedCode;
   }
 
-  return "en";
+  return "rw";
 }
 
 /**
