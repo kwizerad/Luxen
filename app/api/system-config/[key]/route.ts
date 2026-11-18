@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/permissions";
+
+import { CACHE_KEYS, invalidateCache, invalidateCachePrefix } from "@/lib/server-cache";
 
 // GET system config value by key (all authenticated users can read; public configs can be read anonymously)
 export async function GET(
@@ -10,15 +12,6 @@ export async function GET(
 ) {
   try {
     const { key } = await params;
-    const supabase = await createClient();
-
-    // Get the authenticated user
-    const authHeader = request.headers.get('authorization');
-    const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
-
-    const { data: { user }, error: authError } = accessToken
-      ? await supabase.auth.getUser(accessToken)
-      : await supabase.auth.getUser();
 
     const PUBLIC_CONFIG_KEYS = [
       "theme_config",
@@ -32,6 +25,7 @@ export async function GET(
       "service_traffic-assistant_enabled",
       "group_exam_enabled",
       "standalone_exam_enabled",
+      "guest_free_exam_enabled",
       "save_individual_exams_enabled",
       "save_group_exams_enabled",
       "universal_exam_limit",
@@ -43,10 +37,15 @@ export async function GET(
       key.startsWith("service_") ||
       key.startsWith("interface_language_") ||
       key.startsWith("learning_language_") ||
-      key.startsWith("security_");
+      key.startsWith("security_") ||
+      key.startsWith("tts_") ||
+      key.startsWith("exam_category_passing_percentage_");
 
-    if (!isPublic && (authError || !user)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!isPublic) {
+      const user = await getAuthUserFromRequest(request);
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
     }
 
     // Use admin client to bypass RLS for reading
@@ -82,17 +81,9 @@ export async function PUT(
 ) {
   try {
     const { key } = await params;
-    const supabase = await createClient();
+    const user = await getAuthUserFromRequest(request);
 
-    // Get the authenticated user
-    const authHeader = request.headers.get('authorization');
-    const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
-
-    const { data: { user }, error: authError } = accessToken
-      ? await supabase.auth.getUser(accessToken)
-      : await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -131,6 +122,9 @@ export async function PUT(
       );
 
     if (error) throw error;
+
+    invalidateCache(CACHE_KEYS.SYSTEM_CONFIG_ALL);
+    invalidateCachePrefix("exam_categories:");
 
     return NextResponse.json({ success: true, data });
   } catch (error: any) {

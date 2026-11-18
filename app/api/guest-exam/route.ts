@@ -21,6 +21,7 @@ import {
   incrementGuestExamQuota,
 } from "@/lib/guest-exam-limit";
 import { CACHE_KEYS, getCached } from "@/lib/server-cache";
+import { isWithinAvailabilityWindow } from "@/lib/exam-settings";
 import {
   getBuiltinFallbackQuestions,
   normalizeExamQuestion,
@@ -179,11 +180,18 @@ async function translateQuestionBatch<
         if (item.expl) snippets.push({ id: base + 5, text: item.expl });
       }
 
-      const translatedMap = await translateTextSnippets(
-        snippets,
-        srcLang,
-        targetLang
-      );
+      const translatedMap = await Promise.race([
+        translateTextSnippets(snippets, srcLang, targetLang, {
+          batchSize: 30,
+          concurrency: 3,
+          timeoutMs: 10000,
+          maxRetries: 1,
+          skipRetryMissed: true,
+        }),
+        new Promise<Map<number, string>>((resolve) =>
+          setTimeout(() => resolve(new Map()), 11000)
+        ),
+      ]).catch(() => new Map<number, string>());
       const nowStr = new Date().toISOString();
       const upserts = [];
 
@@ -335,6 +343,9 @@ export async function GET(req: NextRequest) {
     const standaloneEnabled =
       String(configMap.get("standalone_exam_enabled") ?? "true").toLowerCase() !==
       "false";
+    const guestFreeExamEnabled =
+      String(configMap.get("guest_free_exam_enabled") ?? "true").toLowerCase() !==
+      "false";
 
     const rawTitle = configMap.get("external_exam_title") || "";
     const isDefaultTitle =
@@ -351,6 +362,7 @@ export async function GET(req: NextRequest) {
 
     const res = NextResponse.json({
       standaloneEnabled,
+      guestFreeExamEnabled,
       quota: {
         usedCount: quota.usedCount,
         remainingCount: quota.remainingCount,
@@ -393,6 +405,9 @@ export async function POST(req: NextRequest) {
 
     const standaloneEnabled =
       String(configMap.get("standalone_exam_enabled") ?? "true").toLowerCase() !==
+      "false";
+    const guestFreeExamEnabled =
+      String(configMap.get("guest_free_exam_enabled") ?? "true").toLowerCase() !==
       "false";
 
     // ------------------------------------------------------------------------
@@ -517,6 +532,15 @@ export async function POST(req: NextRequest) {
     if (action === "start") {
       const targetLang = resolveTargetLang(language);
 
+      if (!guestFreeExamEnabled) {
+        return secureJsonResponse(
+          {
+            error: "FREE_EXAM_DISABLED",
+          },
+          403
+        );
+      }
+
       if (!standaloneEnabled) {
         const pausedMsg =
           targetLang === "French"
@@ -592,7 +616,8 @@ export async function POST(req: NextRequest) {
       let questionCount =
         Number(configMap.get("external_exam_question_count")) || 20;
       let sortingMode = "RANDOM";
-      let passingPercentage = 70;
+      let passingPercentage =
+        Number(configMap.get("universal_passing_percentage")) || 60;
       let availableFrom: string | null = null;
       let availableTo: string | null = null;
 
@@ -606,6 +631,14 @@ export async function POST(req: NextRequest) {
         getExternalAdminClient(),
       ]);
 
+      const catPassingOverride = Number(
+        configMap.get(`exam_category_passing_percentage_${targetCatId}`) ??
+          configMap.get(`exam_category_passing_percentage_${EXTERNAL_EXAM_CATEGORY_ID}`)
+      );
+      if (Number.isFinite(catPassingOverride) && catPassingOverride >= 1 && catPassingOverride <= 100) {
+        passingPercentage = catPassingOverride;
+      }
+
       if (dbSettings) {
         if (dbSettings.question_count != null)
           questionCount = dbSettings.question_count;
@@ -617,6 +650,13 @@ export async function POST(req: NextRequest) {
           passingPercentage = dbSettings.passing_percentage;
         availableFrom = dbSettings.available_from;
         availableTo = dbSettings.available_to;
+      }
+
+      if (!isWithinAvailabilityWindow(new Date(), availableFrom, availableTo)) {
+        return secureJsonResponse(
+          { error: "Exam is not available at this time." },
+          403
+        );
       }
 
       let formattedPool: any[] = [];

@@ -2947,7 +2947,13 @@ const rw: Record<string, string> = {
   "guestResetInterval": "Igihe Bisubiriraho (Amasaha cyangwa Iminsi)",
   "examSingular": "ikizamini cy'ubuntu",
   "examsPlural": "ibizamini by'ubuntu",
-  "saveGuestQuota": "Bika Amabwiriza y'Ibizamini by'Ubuntu"
+  "saveGuestQuota": "Bika Amabwiriza y'Ibizamini by'Ubuntu",
+  "allCourses": "Amasomo Yose",
+  "courseTree": "Urutonde rw'Amasomo",
+  "coursesWithImages": "Amasomo afite Amafoto",
+  "noCoursesWithImages": "Nta masomo afite amafoto abonetse",
+  "noCoursesWithImagesDesc": "Nta masomo y'ibyapa by'umuhanda afite amafoto araboneka muri uru rurimi kugeza ubu.",
+  "roadSigns": "Ibyapa by'Umuhanda"
 };
 
 export default rw;

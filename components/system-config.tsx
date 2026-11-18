@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, BookOpen, ShieldCheck, ClipboardList, FileText, LayoutList, Globe, Users, Trophy, Database, Volume2, Clock } from "lucide-react";
-import { getSystemConfig, updateSystemConfig, getServicesConfig } from "@/lib/supabase/queries";
+import { getSystemConfig, updateSystemConfig, updateSystemConfigBatch, getServicesConfig } from "@/lib/supabase/queries";
 import { invalidateServicesConfigCache } from "@/lib/feature-flags";
 import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
@@ -215,6 +215,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   
   // Individual settings
   const [examLimit, setExamLimit] = useState<number>(5);
+  const [guestFreeExamEnabled, setGuestFreeExamEnabled] = useState<boolean>(true);
   const [guestFreeExamLimit, setGuestFreeExamLimit] = useState<number>(3);
   const [guestResetValue, setGuestResetValue] = useState<number>(1);
   const [guestResetUnit, setGuestResetUnit] = useState<"hours" | "days">("days");
@@ -286,6 +287,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   const [liveExamIdVerificationRequired, setLiveExamIdVerificationRequired] = useState<boolean>(true);
 
   const handleToggleLiveExamIdVerification = async (checked: boolean) => {
+    const prev = liveExamIdVerificationRequired;
     setLiveExamIdVerificationRequired(checked);
     try {
       await updateSystemConfig(
@@ -300,11 +302,13 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
       }
       toast.success(t("servicesSettingsSaved") || "ID verification requirement setting updated");
     } catch (error: any) {
+      setLiveExamIdVerificationRequired(prev);
       toast.error((t("failedToUpdateServicesSettings") || "Failed to update setting: ") + error.message);
     }
   };
 
   const handleToggleSaveIndividualExams = async (checked: boolean) => {
+    const prev = saveIndividualExamsEnabled;
     setSaveIndividualExamsEnabled(checked);
     try {
       await updateSystemConfig(
@@ -314,11 +318,13 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
       );
       toast.success(t("examPersistenceSettingsSaved") || "Individual exam saving setting updated");
     } catch (error: any) {
+      setSaveIndividualExamsEnabled(prev);
       toast.error((t("failedToUpdateExamPersistence") || "Failed to update exam saving setting: ") + error.message);
     }
   };
 
   const handleToggleSaveGroupExams = async (checked: boolean) => {
+    const prev = saveGroupExamsEnabled;
     setSaveGroupExamsEnabled(checked);
     try {
       await updateSystemConfig(
@@ -328,28 +334,41 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
       );
       toast.success(t("examPersistenceSettingsSaved") || "Group exam saving setting updated");
     } catch (error: any) {
+      setSaveGroupExamsEnabled(prev);
       toast.error((t("failedToUpdateExamPersistence") || "Failed to update exam saving setting: ") + error.message);
     }
   };
 
   const handleToggleService = async (key: string, checked: boolean) => {
+    const prevServiceVal = serviceToggles[key] ?? true;
+    const prevGroupExamVal = groupExamEnabled;
     setServiceToggles((prev) => ({ ...prev, [key]: checked }));
+    if (key === "group-exam") {
+      setGroupExamEnabled(checked);
+    }
     try {
-      await updateSystemConfig(
-        `service_${key}_enabled`,
-        checked.toString(),
-        `Enable or disable the ${key} service`
-      );
-      if (key === "group-exam") {
-        await updateSystemConfig(
-          "group_exam_enabled",
-          checked.toString(),
-          "Enable or disable group exam"
-        );
-        setGroupExamEnabled(checked);
-      }
+      const batchItems = [
+        {
+          key: `service_${key}_enabled`,
+          value: checked.toString(),
+          description: `Enable or disable the ${key} service`,
+        },
+        ...(key === "group-exam"
+          ? [
+              {
+                key: "group_exam_enabled",
+                value: checked.toString(),
+                description: "Enable or disable group exam",
+              },
+            ]
+          : []),
+      ];
+      await updateSystemConfigBatch(batchItems);
       if (typeof window !== "undefined") {
         invalidateServicesConfigCache();
+        if (key === "group-exam") {
+          sessionStorage.setItem("app_group_exam_enabled", String(checked));
+        }
         sessionStorage.removeItem("app_services_config");
         window.dispatchEvent(
           new CustomEvent("config-changed", {
@@ -360,11 +379,16 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
       }
       toast.success(t("servicesSettingsSaved") || "Service setting updated");
     } catch (error: any) {
+      setServiceToggles((prev) => ({ ...prev, [key]: prevServiceVal }));
+      if (key === "group-exam") {
+        setGroupExamEnabled(prevGroupExamVal);
+      }
       toast.error((t("failedToUpdateServicesSettings") || "Failed to update service: ") + error.message);
     }
   };
 
   const handleToggleServicesPage = async (checked: boolean) => {
+    const prev = servicesPageEnabled;
     setServicesPageEnabled(checked);
     try {
       await updateSystemConfig(
@@ -380,26 +404,32 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
       }
       toast.success(t("servicesSettingsSaved") || "Services page setting updated");
     } catch (error: any) {
+      setServicesPageEnabled(prev);
       toast.error((t("failedToUpdateServicesSettings") || "Failed to update services page setting: ") + error.message);
     }
   };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    
+    let active = true;
+
     const loadConfigs = async () => {
       try {
         const { configs: data } = await getSystemConfig();
+        if (!active) return;
         if (data) {
           const configMap: Record<string, SystemConfig> = {};
           data.forEach((c: SystemConfig) => {
             configMap[c.key] = c;
           });
           setConfigs(configMap);
-          
+
           // Set individual values
           if (configMap["universal_exam_limit"]) {
             setExamLimit(parseInt(configMap["universal_exam_limit"].value, 10) || 5);
+          }
+          if (configMap["guest_free_exam_enabled"]) {
+            setGuestFreeExamEnabled(String(configMap["guest_free_exam_enabled"].value).toLowerCase() !== "false");
           }
           if (configMap["guest_free_exam_limit"]) {
             const parsedGuestLimit = parseInt(configMap["guest_free_exam_limit"].value, 10);
@@ -464,27 +494,38 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
 
         // Load services config
         const servicesConfig = await getServicesConfig();
+        if (!active) return;
         setServicesPageEnabled(servicesConfig.pageEnabled);
         setServiceToggles(servicesConfig.services);
         if (servicesConfig.idVerificationRequired !== undefined) {
           setLiveExamIdVerificationRequired(servicesConfig.idVerificationRequired);
         }
       } catch (error: any) {
-        toast.error(t("failedToLoadSystemConfig") + error.message);
+        if (active) {
+          toast.error((t("failedToLoadSystemConfig") || "Failed to load system config: ") + error.message);
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
     loadConfigs();
-  }, [t]);
+    return () => {
+      active = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSaveExamLimit = async () => {
+    const safeLimit = Math.min(100, Math.max(1, Math.floor(Number(examLimit) || 5)));
+    setExamLimit(safeLimit);
     try {
       setSaving(true);
       await updateSystemConfig(
         "universal_exam_limit",
-        examLimit.toString(),
+        safeLimit.toString(),
         t("universalExamLimitDesc")
       );
       toast.success(t("universalExamLimitUpdated"));
@@ -492,6 +533,34 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
       toast.error(t("failedToUpdateExamLimit") + error.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleGuestFreeExam = async (checked: boolean) => {
+    const prev = guestFreeExamEnabled;
+    setGuestFreeExamEnabled(checked);
+    try {
+      setSavingGuestQuota(true);
+      await updateSystemConfig(
+        "guest_free_exam_enabled",
+        checked.toString(),
+        "Enable or disable free exams for unauthenticated visitors"
+      );
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("luxen_guest_free_exam_updated", String(Date.now()));
+        } catch {}
+      }
+      toast.success(
+        checked
+          ? "Free exams for unauthenticated users enabled"
+          : "Free exams for unauthenticated users hidden"
+      );
+    } catch (error: any) {
+      setGuestFreeExamEnabled(prev);
+      toast.error((t("failedToUpdateGuestQuota") || "Failed to update free exam setting: ") + error.message);
+    } finally {
+      setSavingGuestQuota(false);
     }
   };
 
@@ -505,23 +574,33 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
 
     try {
       setSavingGuestQuota(true);
-      await Promise.all([
-        updateSystemConfig(
-          "guest_free_exam_limit",
-          safeLimit.toString(),
-          "Number of free practice exams allowed for unauthenticated visitors per reset window"
-        ),
-        updateSystemConfig(
-          "guest_exam_reset_value",
-          safeResetVal.toString(),
-          "Duration value after which free guest exams reset"
-        ),
-        updateSystemConfig(
-          "guest_exam_reset_unit",
-          safeUnit,
-          "Duration unit (hours or days) for free guest exam quota reset"
-        ),
+      await updateSystemConfigBatch([
+        {
+          key: "guest_free_exam_enabled",
+          value: guestFreeExamEnabled.toString(),
+          description: "Enable or disable free exams for unauthenticated visitors",
+        },
+        {
+          key: "guest_free_exam_limit",
+          value: safeLimit.toString(),
+          description: "Number of free practice exams allowed for unauthenticated visitors per reset window",
+        },
+        {
+          key: "guest_exam_reset_value",
+          value: safeResetVal.toString(),
+          description: "Duration value after which free guest exams reset",
+        },
+        {
+          key: "guest_exam_reset_unit",
+          value: safeUnit,
+          description: "Duration unit (hours or days) for free guest exam quota reset",
+        },
       ]);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("luxen_guest_free_exam_updated", String(Date.now()));
+        } catch {}
+      }
       toast.success(
         t("guestQuotaSaved") ||
           `Guest quota updated: ${safeLimit} free exam(s) every ${safeResetVal} ${safeUnit}.`
@@ -534,11 +613,13 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   };
 
   const handleSavePassingPercentage = async () => {
+    const safePct = Math.min(100, Math.max(1, Math.floor(Number(universalPassingPercentage) || 60)));
+    setUniversalPassingPercentage(safePct);
     try {
       setSaving(true);
       await updateSystemConfig(
         "universal_passing_percentage",
-        universalPassingPercentage.toString(),
+        safePct.toString(),
         "Default minimum percentage required to pass exams"
       );
       toast.success(t("passingPercentageUpdated") || "Exam passing percentage saved successfully");
@@ -552,16 +633,16 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   const saveScopeKeys = async (scope: SecurityScope, settingsObj: SecuritySettings) => {
     const keys = getSecurityConfigKeysForScope(scope);
     const label = scope === "course" ? "Course Exams" : "Official Exams";
-    await Promise.all([
-      updateSystemConfig(keys.VIOLATION_MEASURES_ENABLED, settingsObj.violationMeasuresEnabled.toString(), `${label}: Violation measures enabled`),
-      updateSystemConfig(keys.MAX_VIOLATIONS, settingsObj.maxViolations.toString(), `${label}: Maximum allowed violation attempts before auto-submission`),
-      updateSystemConfig(keys.FULLSCREEN_ENABLED, settingsObj.fullscreenEnabled.toString(), `${label}: Enforce fullscreen during exams`),
-      updateSystemConfig(keys.TAB_SWITCH_ENABLED, settingsObj.tabSwitchEnabled.toString(), `${label}: Detect tab or window switching`),
-      updateSystemConfig(keys.COPY_PASTE_ENABLED, settingsObj.copyPasteEnabled.toString(), `${label}: Prevent copy, paste, and cut`),
-      updateSystemConfig(keys.RIGHT_CLICK_ENABLED, settingsObj.rightClickEnabled.toString(), `${label}: Disable right-click context menu`),
-      updateSystemConfig(keys.TEXT_SELECTION_ENABLED, settingsObj.textSelectionEnabled.toString(), `${label}: Prevent text selection`),
-      updateSystemConfig(keys.DRAG_DROP_ENABLED, settingsObj.dragDropEnabled.toString(), `${label}: Prevent drag and drop`),
-      updateSystemConfig(keys.AI_DETECTION_ENABLED, settingsObj.aiDetectionEnabled.toString(), `${label}: Detect AI sidebars and block AI shortcuts`),
+    await updateSystemConfigBatch([
+      { key: keys.VIOLATION_MEASURES_ENABLED, value: settingsObj.violationMeasuresEnabled.toString(), description: `${label}: Violation measures enabled` },
+      { key: keys.MAX_VIOLATIONS, value: settingsObj.maxViolations.toString(), description: `${label}: Maximum allowed violation attempts before auto-submission` },
+      { key: keys.FULLSCREEN_ENABLED, value: settingsObj.fullscreenEnabled.toString(), description: `${label}: Enforce fullscreen during exams` },
+      { key: keys.TAB_SWITCH_ENABLED, value: settingsObj.tabSwitchEnabled.toString(), description: `${label}: Detect tab or window switching` },
+      { key: keys.COPY_PASTE_ENABLED, value: settingsObj.copyPasteEnabled.toString(), description: `${label}: Prevent copy, paste, and cut` },
+      { key: keys.RIGHT_CLICK_ENABLED, value: settingsObj.rightClickEnabled.toString(), description: `${label}: Disable right-click context menu` },
+      { key: keys.TEXT_SELECTION_ENABLED, value: settingsObj.textSelectionEnabled.toString(), description: `${label}: Prevent text selection` },
+      { key: keys.DRAG_DROP_ENABLED, value: settingsObj.dragDropEnabled.toString(), description: `${label}: Prevent drag and drop` },
+      { key: keys.AI_DETECTION_ENABLED, value: settingsObj.aiDetectionEnabled.toString(), description: `${label}: Detect AI sidebars and block AI shortcuts` },
     ]);
   };
 
@@ -582,32 +663,94 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
     }
   };
 
+  const handleToggleGroupExam = async (checked: boolean) => {
+    const prevGroup = groupExamEnabled;
+    const prevService = serviceToggles["group-exam"] ?? true;
+    setGroupExamEnabled(checked);
+    setServiceToggles((prev) => ({ ...prev, "group-exam": checked }));
+    try {
+      await updateSystemConfigBatch([
+        {
+          key: "group_exam_enabled",
+          value: checked.toString(),
+          description: t("groupExamToggleDesc") || "Enable or disable the group exam functionality for students",
+        },
+        {
+          key: "service_group-exam_enabled",
+          value: checked.toString(),
+          description: "Enable or disable the group exam service",
+        },
+      ]);
+      if (typeof window !== "undefined") {
+        invalidateServicesConfigCache();
+        sessionStorage.setItem("app_group_exam_enabled", String(checked));
+        sessionStorage.removeItem("app_services_config");
+        window.dispatchEvent(new CustomEvent("system-config-updated"));
+      }
+      toast.success(t(checked ? "groupExamEnabled" : "groupExamDisabled") || "Group exam setting updated");
+    } catch (error: any) {
+      setGroupExamEnabled(prevGroup);
+      setServiceToggles((prev) => ({ ...prev, "group-exam": prevService }));
+      toast.error((t("failedToUpdateGroupExam") || "Failed to update group exam setting: ") + error.message);
+    }
+  };
+
   const handleSaveGroupExam = async () => {
+    const safeJoinWindow = Math.min(3600, Math.max(15, Math.floor(Number(groupExamJoinWindow) || 120)));
+    setGroupExamJoinWindow(safeJoinWindow);
     try {
       setSaving(true);
-      await Promise.all([
-        updateSystemConfig(
-          "group_exam_enabled",
-          groupExamEnabled.toString(),
-          t("groupExamToggleDesc") || "Enable or disable the group exam functionality for students"
-        ),
-        updateSystemConfig(
-          "service_group-exam_enabled",
-          groupExamEnabled.toString(),
-          "Enable or disable the group exam service"
-        ),
-        updateSystemConfig(
-          "group_exam_join_window_seconds",
-          groupExamJoinWindow.toString(),
-          "Time window in seconds during which invited students can enter the group exam room"
-        ),
+      await updateSystemConfigBatch([
+        {
+          key: "group_exam_enabled",
+          value: groupExamEnabled.toString(),
+          description: t("groupExamToggleDesc") || "Enable or disable the group exam functionality for students",
+        },
+        {
+          key: "service_group-exam_enabled",
+          value: groupExamEnabled.toString(),
+          description: "Enable or disable the group exam service",
+        },
+        {
+          key: "group_exam_join_window_seconds",
+          value: safeJoinWindow.toString(),
+          description: "Time window in seconds during which invited students can enter the group exam room",
+        },
       ]);
       setServiceToggles((prev) => ({ ...prev, "group-exam": groupExamEnabled }));
+      if (typeof window !== "undefined") {
+        invalidateServicesConfigCache();
+        sessionStorage.setItem("app_group_exam_enabled", String(groupExamEnabled));
+        sessionStorage.removeItem("app_services_config");
+        window.dispatchEvent(new CustomEvent("system-config-updated"));
+      }
       toast.success(t(groupExamEnabled ? "groupExamEnabled" : "groupExamDisabled") || "Group exam settings updated");
     } catch (error: any) {
       toast.error((t("failedToUpdateGroupExam") || "Failed to update group exam setting: ") + error.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleStandaloneExam = async (checked: boolean) => {
+    const prev = standaloneExamEnabled;
+    setStandaloneExamEnabled(checked);
+    try {
+      await updateSystemConfig(
+        "standalone_exam_enabled",
+        checked.toString(),
+        t("standaloneExamDesc") || "Enable or disable the standalone Take Exam page"
+      );
+      if (typeof window !== "undefined") {
+        invalidateServicesConfigCache();
+        sessionStorage.setItem("app_standalone_exam_enabled", String(checked));
+        sessionStorage.removeItem("app_admin_nav_toggles");
+        window.dispatchEvent(new CustomEvent("system-config-updated"));
+      }
+      toast.success(t(checked ? "standaloneExamEnabled" : "standaloneExamDisabled") || "Standalone exam setting updated");
+    } catch (error: any) {
+      setStandaloneExamEnabled(prev);
+      toast.error(t("failedToUpdateStandaloneExam") + error.message);
     }
   };
 
@@ -620,6 +763,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
         t("standaloneExamDesc") || "Enable or disable the standalone Take Exam page"
       );
       if (typeof window !== "undefined") {
+        invalidateServicesConfigCache();
         sessionStorage.setItem("app_standalone_exam_enabled", String(standaloneExamEnabled));
         sessionStorage.removeItem("app_admin_nav_toggles");
         window.dispatchEvent(new CustomEvent("system-config-updated"));
@@ -635,17 +779,17 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   const handleSaveExamPersistence = async () => {
     try {
       setSaving(true);
-      await Promise.all([
-        updateSystemConfig(
-          "save_individual_exams_enabled",
-          saveIndividualExamsEnabled.toString(),
-          "Allow or disallow saving individual exam attempts to database and user history"
-        ),
-        updateSystemConfig(
-          "save_group_exams_enabled",
-          saveGroupExamsEnabled.toString(),
-          "Allow or disallow saving group exam challenges and results to database and history"
-        ),
+      await updateSystemConfigBatch([
+        {
+          key: "save_individual_exams_enabled",
+          value: saveIndividualExamsEnabled.toString(),
+          description: "Allow or disallow saving individual exam attempts to database and user history",
+        },
+        {
+          key: "save_group_exams_enabled",
+          value: saveGroupExamsEnabled.toString(),
+          description: "Allow or disallow saving group exam challenges and results to database and history",
+        },
       ]);
       toast.success(t("examPersistenceSettingsSaved") || "Exam saving and persistence settings saved successfully");
     } catch (error: any) {
@@ -658,29 +802,38 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   const handleSaveServices = async () => {
     try {
       setSaving(true);
-      await updateSystemConfig(
-        "services_page_enabled",
-        servicesPageEnabled.toString(),
-        t("servicesPageToggleDesc") || "Enable or disable the entire services page"
-      );
-      await updateSystemConfig(
-        "live_exam_id_verification_required",
-        liveExamIdVerificationRequired.toString(),
-        "Require National ID verification before viewing driving exam results"
-      );
-      await Promise.all(
-        serviceDefinitions.map((svc) =>
-          updateSystemConfig(
-            `service_${svc.key}_enabled`,
-            (serviceToggles[svc.key] ?? true).toString(),
-            t(svc.descKey) || `Enable or disable the ${svc.key} service`
-          )
-        )
-      );
+      const groupExamSvcEnabled = serviceToggles["group-exam"] ?? true;
+      await updateSystemConfigBatch([
+        {
+          key: "services_page_enabled",
+          value: servicesPageEnabled.toString(),
+          description: t("servicesPageToggleDesc") || "Enable or disable the entire services page",
+        },
+        {
+          key: "live_exam_id_verification_required",
+          value: liveExamIdVerificationRequired.toString(),
+          description: "Require National ID verification before viewing driving exam results",
+        },
+        {
+          key: "group_exam_enabled",
+          value: groupExamSvcEnabled.toString(),
+          description: "Enable or disable group exam",
+        },
+        ...serviceDefinitions.map((svc) => ({
+          key: `service_${svc.key}_enabled`,
+          value: (serviceToggles[svc.key] ?? true).toString(),
+          description: t(svc.descKey) || `Enable or disable the ${svc.key} service`,
+        })),
+      ]);
+      setGroupExamEnabled(groupExamSvcEnabled);
       if (typeof window !== "undefined") {
+        invalidateServicesConfigCache();
         sessionStorage.setItem("app_live_exam_id_verification_required", String(liveExamIdVerificationRequired));
+        sessionStorage.setItem("app_group_exam_enabled", String(groupExamSvcEnabled));
         sessionStorage.removeItem("app_services_config");
+        sessionStorage.removeItem("app_admin_nav_toggles");
         window.dispatchEvent(new CustomEvent("config-changed", { detail: { key: "live_exam_id_verification_required", value: liveExamIdVerificationRequired } }));
+        window.dispatchEvent(new CustomEvent("system-config-updated"));
       }
       toast.success(t("servicesSettingsSaved") || "Services settings saved");
     } catch (error: any) {
@@ -693,14 +846,12 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   const handleSaveLanguages = async () => {
     try {
       setSaving(true);
-      await Promise.all(
-        LEARNING_LANGUAGES.map((lang) =>
-          updateSystemConfig(
-            `learning_language_${lang.key}_enabled`,
-            (languageToggles[lang.key] ?? true).toString(),
-            t("learningLanguageToggleDesc") || `Enable or disable ${lang.label} as a learning language`
-          )
-        )
+      await updateSystemConfigBatch(
+        LEARNING_LANGUAGES.map((lang) => ({
+          key: `learning_language_${lang.key}_enabled`,
+          value: (languageToggles[lang.key] ?? true).toString(),
+          description: t("learningLanguageToggleDesc") || `Enable or disable ${lang.label} as a learning language`,
+        }))
       );
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("app_admin_nav_toggles");
@@ -717,14 +868,12 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   const handleSaveInterfaceLanguages = async () => {
     try {
       setSaving(true);
-      await Promise.all(
-        INTERFACE_LANGUAGES.map((lang) =>
-          updateSystemConfig(
-            `interface_language_${lang.key}_enabled`,
-            (interfaceLanguageToggles[lang.key] ?? true).toString(),
-            t("interfaceLanguageToggleDesc") || `Enable or disable ${lang.label} as an interface language`
-          )
-        )
+      await updateSystemConfigBatch(
+        INTERFACE_LANGUAGES.map((lang) => ({
+          key: `interface_language_${lang.key}_enabled`,
+          value: (interfaceLanguageToggles[lang.key] ?? true).toString(),
+          description: t("interfaceLanguageToggleDesc") || `Enable or disable ${lang.label} as an interface language`,
+        }))
       );
       toast.success(t("interfaceLanguagesSaved") || "Interface language settings saved");
     } catch (error: any) {
@@ -808,7 +957,37 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="flex items-start justify-between gap-4 p-4 rounded-xl border border-border bg-muted/20">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Label htmlFor="guest-free-exam-enabled-toggle" className="text-base font-semibold cursor-pointer">
+                  {t("enableGuestFreeExams") || "Enable Free Exam for Unauthenticated Users"}
+                </Label>
+                <Badge
+                  variant={guestFreeExamEnabled ? "default" : "secondary"}
+                  className={
+                    guestFreeExamEnabled
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                      : "bg-muted text-muted-foreground"
+                  }
+                >
+                  {guestFreeExamEnabled ? (t("enabled") || "Enabled") : (t("disabled") || "Hidden")}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t("enableGuestFreeExamsDesc") ||
+                  "When disabled, unauthenticated visitors will not see any Take Exam button or free exam prompt."}
+              </p>
+            </div>
+            <Switch
+              id="guest-free-exam-enabled-toggle"
+              checked={guestFreeExamEnabled}
+              onCheckedChange={handleToggleGuestFreeExam}
+              disabled={savingGuestQuota}
+            />
+          </div>
+
+          <div className={`grid gap-5 sm:grid-cols-2 ${!guestFreeExamEnabled ? "opacity-55" : ""}`}>
             <div className="space-y-2">
               <Label htmlFor="guest-free-exam-limit">
                 {t("guestFreeExamsCount") || "Number of Free Exams Allowed"}
@@ -1048,7 +1227,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
             <Switch
               id="standalone-exam-toggle"
               checked={standaloneExamEnabled}
-              onCheckedChange={setStandaloneExamEnabled}
+              onCheckedChange={handleToggleStandaloneExam}
             />
           </div>
 
@@ -1093,7 +1272,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
             <Switch
               id="group-exam-toggle"
               checked={groupExamEnabled}
-              onCheckedChange={setGroupExamEnabled}
+              onCheckedChange={handleToggleGroupExam}
             />
           </div>
 

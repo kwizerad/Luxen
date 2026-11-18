@@ -1,21 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 import { CACHE_KEYS, getCached, invalidateCache, invalidateCachePrefix } from "@/lib/server-cache";
 
 export const dynamic = "force-dynamic";
 
-async function getAllSystemConfigsCached() {
-  return getCached(CACHE_KEYS.SYSTEM_CONFIG_ALL, 60_000, async () => {
-    const adminSupabase = createAdminClient();
-    const { data, error } = await adminSupabase
-      .from("system_config")
-      .select("*")
-      .order("key");
-    if (error) throw error;
-    return data || [];
-  });
+async function fetchAllSystemConfigsFresh() {
+  const adminSupabase = createAdminClient();
+  const { data, error } = await adminSupabase
+    .from("system_config")
+    .select("*")
+    .order("key");
+  if (error) throw error;
+  return data || [];
+}
+
+async function getAllSystemConfigsCached(bypassCache = false) {
+  if (bypassCache) {
+    invalidateCache(CACHE_KEYS.SYSTEM_CONFIG_ALL);
+  }
+  return getCached(CACHE_KEYS.SYSTEM_CONFIG_ALL, 60_000, fetchAllSystemConfigsFresh);
 }
 
 // GET all system_config rows (or specific keys via ?keys=a,b,c) using Admin client + TTL cache
@@ -24,12 +29,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const keysParam = searchParams.get("keys");
     const keyParam = searchParams.get("key");
+    const freshParam = searchParams.get("fresh") === "1" || searchParams.get("fresh") === "true";
 
-    const allConfigs = await getAllSystemConfigsCached();
+    const allConfigs = await getAllSystemConfigsCached(freshParam);
+    const headers = { "Cache-Control": "no-store" };
 
     if (keyParam) {
       const found = allConfigs.find((row: any) => row.key === keyParam) || null;
-      return NextResponse.json({ config: found });
+      return NextResponse.json({ config: found }, { headers });
     }
 
     if (keysParam) {
@@ -40,13 +47,16 @@ export async function GET(request: NextRequest) {
           .filter(Boolean)
       );
       if (keys.size > 0) {
-        return NextResponse.json({
-          configs: allConfigs.filter((row: any) => keys.has(row.key)),
-        });
+        return NextResponse.json(
+          {
+            configs: allConfigs.filter((row: any) => keys.has(row.key)),
+          },
+          { headers }
+        );
       }
     }
 
-    return NextResponse.json({ configs: allConfigs });
+    return NextResponse.json({ configs: allConfigs }, { headers });
   } catch (error: any) {
     console.error("Error fetching system_config:", error);
     return NextResponse.json(
@@ -59,18 +69,9 @@ export async function GET(request: NextRequest) {
 // POST/PUT single or batch system_config updates using Admin client (bypasses RLS restrictions)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const authHeader = request.headers.get("authorization");
-    const accessToken = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : undefined;
+    const user = await getAuthUserFromRequest(request);
 
-    const {
-      data: { user },
-      error: authError,
-    } = accessToken
-      ? await supabase.auth.getUser(accessToken)
-      : await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

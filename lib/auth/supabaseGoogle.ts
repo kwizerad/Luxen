@@ -192,11 +192,18 @@ export async function syncGoogleUserProfile(user: User): Promise<{
   if (isNew) {
     const languageCode = resolveLanguagePreference();
     const theme = resolveThemePreference();
+    const userExplicitlySelectedLang =
+      typeof window !== "undefined" &&
+      (window.localStorage.getItem("navo-language-user-set") === "true" ||
+        languageCode !== "rw");
 
     const role = isPrimaryAdmin(user) ? "Admin" : "Student";
 
     baseMetadata.role = role;
     baseMetadata.language = languageCode;
+    if (userExplicitlySelectedLang) {
+      baseMetadata.language_user_selected = true;
+    }
     baseMetadata.theme = theme;
     baseMetadata.created_at = user.created_at ?? now;
     baseMetadata.last_login_at = now;

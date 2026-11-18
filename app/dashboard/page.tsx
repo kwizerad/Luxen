@@ -20,20 +20,33 @@ import {
 } from "lucide-react";
 
 import nextDynamic from "next/dynamic";
-import { DashboardViewSkeleton } from "@/components/skeletons";
+import {
+  CourseViewSkeleton,
+  ServicesViewSkeleton,
+  LiveExamViewSkeleton,
+  SettingsViewSkeleton,
+  RequestCodeViewSkeleton,
+  ExamHistorySkeleton,
+  MyReportsViewSkeleton,
+  ClassmatesViewSkeleton,
+  GroupExamResultsSkeleton,
+  GroupExamViewSkeleton,
+  ChatListViewSkeleton,
+  ChatConversationViewSkeleton,
+} from "@/components/skeletons";
 import { ExamView } from "@/components/spa-views/exam-view";
-const CourseView = nextDynamic(() => import("@/components/spa-views/course-view").then(m => m.CourseView), { loading: () => <DashboardViewSkeleton /> });
-const ServicesView = nextDynamic(() => import("@/components/spa-views/services-view").then(m => m.ServicesView), { loading: () => <DashboardViewSkeleton /> });
-const LiveExamView = nextDynamic(() => import("@/components/spa-views/live-exam-view").then(m => m.LiveExamView), { loading: () => <DashboardViewSkeleton /> });
-const SettingsView = nextDynamic(() => import("@/components/spa-views/settings-view").then(m => m.SettingsView), { loading: () => <DashboardViewSkeleton /> });
-const RequestCodeView = nextDynamic(() => import("@/components/spa-views/request-code-view").then(m => m.RequestCodeView), { loading: () => <DashboardViewSkeleton /> });
-const ExamHistoryView = nextDynamic(() => import("@/components/spa-views/exam-history-view").then(m => m.ExamHistoryView), { loading: () => <DashboardViewSkeleton /> });
-const MyReportsView = nextDynamic(() => import("@/components/spa-views/my-reports-view").then(m => m.MyReportsView), { loading: () => <DashboardViewSkeleton /> });
-const ClassmatesView = nextDynamic(() => import("@/components/spa-views/classmates-view").then(m => m.ClassmatesView), { loading: () => <DashboardViewSkeleton /> });
-const GroupExamResultsView = nextDynamic(() => import("@/components/group-exam-results-view").then(m => m.GroupExamResultsView), { loading: () => <DashboardViewSkeleton /> });
-const GroupExamView = nextDynamic(() => import("@/components/spa-views/group-exam-view").then(m => m.GroupExamView), { loading: () => <DashboardViewSkeleton /> });
-const ChatListView = nextDynamic(() => import("@/components/spa-views/chat-list-view").then(m => m.ChatListView), { loading: () => <DashboardViewSkeleton /> });
-const ChatConversationView = nextDynamic(() => import("@/components/spa-views/chat-conversation-view").then(m => m.ChatConversationView), { loading: () => <DashboardViewSkeleton /> });
+const CourseView = nextDynamic(() => import("@/components/spa-views/course-view").then(m => m.CourseView), { loading: () => <CourseViewSkeleton /> });
+const ServicesView = nextDynamic(() => import("@/components/spa-views/services-view").then(m => m.ServicesView), { loading: () => <ServicesViewSkeleton /> });
+const LiveExamView = nextDynamic(() => import("@/components/spa-views/live-exam-view").then(m => m.LiveExamView), { loading: () => <LiveExamViewSkeleton /> });
+const SettingsView = nextDynamic(() => import("@/components/spa-views/settings-view").then(m => m.SettingsView), { loading: () => <SettingsViewSkeleton /> });
+const RequestCodeView = nextDynamic(() => import("@/components/spa-views/request-code-view").then(m => m.RequestCodeView), { loading: () => <RequestCodeViewSkeleton /> });
+const ExamHistoryView = nextDynamic(() => import("@/components/spa-views/exam-history-view").then(m => m.ExamHistoryView), { loading: () => <ExamHistorySkeleton /> });
+const MyReportsView = nextDynamic(() => import("@/components/spa-views/my-reports-view").then(m => m.MyReportsView), { loading: () => <MyReportsViewSkeleton /> });
+const ClassmatesView = nextDynamic(() => import("@/components/spa-views/classmates-view").then(m => m.ClassmatesView), { loading: () => <ClassmatesViewSkeleton /> });
+const GroupExamResultsView = nextDynamic(() => import("@/components/group-exam-results-view").then(m => m.GroupExamResultsView), { loading: () => <GroupExamResultsSkeleton /> });
+const GroupExamView = nextDynamic(() => import("@/components/spa-views/group-exam-view").then(m => m.GroupExamView), { loading: () => <GroupExamViewSkeleton /> });
+const ChatListView = nextDynamic(() => import("@/components/spa-views/chat-list-view").then(m => m.ChatListView), { loading: () => <ChatListViewSkeleton /> });
+const ChatConversationView = nextDynamic(() => import("@/components/spa-views/chat-conversation-view").then(m => m.ChatConversationView), { loading: () => <ChatConversationViewSkeleton /> });
 
 export default function DashboardPage() {
   const { view, params, navigate } = useHashRouter();

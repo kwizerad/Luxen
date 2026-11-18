@@ -8,10 +8,20 @@ import { useLanguage } from "@/lib/language-context";
 // Session memory cache to make re-listening during exams instant (0 ms latency)
 const ttsSessionCache = new Map<string, string>();
 let ttsSessionDisabled = false;
-let ttsStatusCheckedForLang = new Map<string, boolean>();
+
+interface CachedTTSStatus {
+  enabled: boolean;
+  masterEnabled: boolean;
+  checkedAt: number;
+}
+
+const STATUS_CACHE_TTL_MS = 15_000;
+const ttsStatusCache = new Map<string, CachedTTSStatus>();
+const ttsStatusInFlight = new Map<string, Promise<CachedTTSStatus>>();
 
 export function markTTSDisabledForSession() {
   ttsSessionDisabled = true;
+  ttsStatusCache.clear();
   if (typeof window !== "undefined") {
     try {
       sessionStorage.setItem("luxen_tts_disabled", "true");
@@ -22,7 +32,8 @@ export function markTTSDisabledForSession() {
 
 export function clearTTSDisabledForSession() {
   ttsSessionDisabled = false;
-  ttsStatusCheckedForLang.clear();
+  ttsStatusCache.clear();
+  ttsStatusInFlight.clear();
   if (typeof window !== "undefined") {
     try {
       sessionStorage.removeItem("luxen_tts_disabled");
@@ -31,10 +42,68 @@ export function clearTTSDisabledForSession() {
   }
 }
 
+async function fetchTTSStatus(
+  scope: "exam" | "learning",
+  targetLanguage: string,
+  entityId: string,
+  bypassCache: boolean
+): Promise<CachedTTSStatus> {
+  const statusKey = `${scope}:${targetLanguage}:${entityId || "*"}`;
+  const now = Date.now();
+
+  if (!bypassCache) {
+    const cached = ttsStatusCache.get(statusKey);
+    if (cached && now - cached.checkedAt < STATUS_CACHE_TTL_MS) {
+      return cached;
+    }
+    const pending = ttsStatusInFlight.get(statusKey);
+    if (pending) {
+      return pending;
+    }
+  }
+
+  const reqPromise = (async (): Promise<CachedTTSStatus> => {
+    try {
+      const qs = new URLSearchParams({
+        scope,
+        language: targetLanguage,
+      });
+      if (entityId) {
+        qs.set("entityId", entityId);
+      }
+      const res = await fetch(`/api/ai/tts?${qs.toString()}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        return { enabled: false, masterEnabled: true, checkedAt: Date.now() };
+      }
+      const data = await res.json().catch(() => null);
+      if (!data) {
+        return { enabled: false, masterEnabled: true, checkedAt: Date.now() };
+      }
+      const result: CachedTTSStatus = {
+        enabled: data.enabled === true,
+        masterEnabled: data.masterEnabled !== false && data.quotaExceeded !== true,
+        checkedAt: Date.now(),
+      };
+      ttsStatusCache.set(statusKey, result);
+      return result;
+    } catch {
+      return { enabled: false, masterEnabled: true, checkedAt: Date.now() };
+    } finally {
+      ttsStatusInFlight.delete(statusKey);
+    }
+  })();
+
+  ttsStatusInFlight.set(statusKey, reqPromise);
+  return reqPromise;
+}
+
 interface QuestionTTSButtonProps {
   text: string;
   entityId: string;
   language?: string;
+  scope?: "exam" | "learning";
   className?: string;
   readOptions?: boolean;
   options?: { opt: string; text?: string }[];
@@ -45,6 +114,7 @@ export function QuestionTTSButton({
   text,
   entityId,
   language: propLanguage,
+  scope = "exam",
   className = "",
   readOptions = false,
   options = [],
@@ -53,15 +123,8 @@ export function QuestionTTSButton({
   const { language: currentLangCode } = useLanguage();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isDisabled, setIsDisabled] = useState<boolean>(() => {
-    if (ttsSessionDisabled) return true;
-    if (typeof window !== "undefined") {
-      try {
-        return sessionStorage.getItem("luxen_tts_disabled") === "true";
-      } catch {}
-    }
-    return false;
-  });
+  // Fail closed until verified enabled by server
+  const [isEnabled, setIsEnabled] = useState<boolean>(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Normalize language name
@@ -75,45 +138,90 @@ export function QuestionTTSButton({
 
   // Sync with global TTS disable/enable events and verify server TTS config
   useEffect(() => {
-    const handleDisabled = () => {
+    let active = true;
+
+    const stopPlaybackAndHide = () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
       setIsPlaying(false);
       setIsLoading(false);
-      setIsDisabled(true);
+      setIsEnabled(false);
     };
+
+    const checkServerStatus = async (bypassCache = false) => {
+      if (
+        !bypassCache &&
+        (ttsSessionDisabled ||
+          (typeof window !== "undefined" &&
+            (() => {
+              try {
+                return sessionStorage.getItem("luxen_tts_disabled") === "true";
+              } catch {
+                return false;
+              }
+            })()))
+      ) {
+        if (active) stopPlaybackAndHide();
+        return;
+      }
+
+      const result = await fetchTTSStatus(scope, targetLanguage, entityId, bypassCache);
+      if (!active) return;
+
+      if (!result.masterEnabled) {
+        markTTSDisabledForSession();
+        stopPlaybackAndHide();
+        return;
+      }
+
+      ttsSessionDisabled = false;
+      try {
+        sessionStorage.removeItem("luxen_tts_disabled");
+      } catch {}
+
+      if (result.enabled) {
+        setIsEnabled(true);
+      } else {
+        stopPlaybackAndHide();
+      }
+    };
+
     const handleEnabled = () => {
-      setIsDisabled(false);
+      ttsStatusCache.clear();
+      void checkServerStatus(true);
     };
 
-    window.addEventListener("luxen-tts-disabled", handleDisabled);
-    window.addEventListener("luxen-tts-enabled", handleEnabled);
+    const handleConfigUpdated = () => {
+      ttsStatusCache.clear();
+      void checkServerStatus(true);
+    };
 
-    if (!ttsStatusCheckedForLang.has(targetLanguage)) {
-      ttsStatusCheckedForLang.set(targetLanguage, true);
-      fetch(`/api/ai/tts?scope=exam&language=${encodeURIComponent(targetLanguage)}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data && data.enabled === false) {
-            markTTSDisabledForSession();
-          } else if (data && data.enabled === true) {
-            ttsSessionDisabled = false;
-            try {
-              sessionStorage.removeItem("luxen_tts_disabled");
-            } catch {}
-            setIsDisabled(false);
-          }
-        })
-        .catch(() => {});
-    }
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "luxen_tts_updated_at" || e.key === "luxen_tts_disabled") {
+        ttsStatusCache.clear();
+        void checkServerStatus(true);
+      }
+    };
+
+    window.addEventListener("luxen-tts-disabled", stopPlaybackAndHide);
+    window.addEventListener("luxen-tts-enabled", handleEnabled);
+    window.addEventListener("system-config-updated", handleConfigUpdated);
+    window.addEventListener("luxen-tts-config-updated", handleConfigUpdated);
+    window.addEventListener("storage", handleStorage);
+
+    void checkServerStatus(false);
 
     return () => {
-      window.removeEventListener("luxen-tts-disabled", handleDisabled);
+      active = false;
+      window.removeEventListener("luxen-tts-disabled", stopPlaybackAndHide);
       window.removeEventListener("luxen-tts-enabled", handleEnabled);
+      window.removeEventListener("system-config-updated", handleConfigUpdated);
+      window.removeEventListener("luxen-tts-config-updated", handleConfigUpdated);
+      window.removeEventListener("storage", handleStorage);
     };
-  }, [targetLanguage]);
+  }, [scope, targetLanguage, entityId]);
 
   // Cleanup when entityId changes (student switches questions)
   useEffect(() => {
@@ -135,14 +243,14 @@ export function QuestionTTSButton({
     };
   }, []);
 
-  if (isDisabled) {
+  if (!isEnabled) {
     return null;
   }
 
   const handlePlayToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    if (isDisabled) return;
+    if (!isEnabled) return;
 
     // If already playing, stop
     if (isPlaying && audioRef.current) {
@@ -161,7 +269,7 @@ export function QuestionTTSButton({
       fullScript = `${text}. ${optionsText}`;
     }
 
-    const cacheKey = `${entityId}:${targetLanguage}:${fullScript}`;
+    const cacheKey = `${scope}:${entityId}:${targetLanguage}:${fullScript}`;
 
     try {
       let audioUrl = ttsSessionCache.get(cacheKey);
@@ -176,16 +284,18 @@ export function QuestionTTSButton({
             entityId,
             text: fullScript,
             language: targetLanguage,
-            scope: "exam",
+            scope,
           }),
         });
 
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok || data.disabled || data.quotaExceeded || !data.audioUrl) {
-          // Do not show any error message inside the exam; automatically disable TTS feature
-          markTTSDisabledForSession();
-          setIsDisabled(true);
+          ttsStatusCache.delete(`${scope}:${targetLanguage}:${entityId || "*"}`);
+          if (data.masterEnabled === false || data.quotaExceeded) {
+            markTTSDisabledForSession();
+          }
+          setIsEnabled(false);
           return;
         }
 
@@ -208,8 +318,7 @@ export function QuestionTTSButton({
       }
     } catch (err: any) {
       console.warn("TTS fetch error:", err);
-      markTTSDisabledForSession();
-      setIsDisabled(true);
+      setIsEnabled(false);
     } finally {
       setIsLoading(false);
     }

@@ -32,57 +32,95 @@ export function Loading({ message = "Loading..." }: { message?: string }) {
 
 export function HomeViewSkeleton() {
   return (
-    <div className="min-h-[calc(100vh-80px)] pb-20 sm:pb-24 animate-in fade-in duration-200">
-      <div className="container mx-auto max-w-4xl px-4 py-5 sm:py-8 space-y-5">
-        {/* Welcome Banner */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="md:hidden"><LoadingLogo size="md" /></div>
-          <div className="hidden md:block h-14 w-14 shrink-0 rounded-xl bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-5 sm:h-7 w-36 sm:w-52 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-            <div className="h-3 sm:h-4 w-48 sm:w-72 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
-          </div>
-        </div>
-
-        {/* Stat Cards */}
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-          {[0, 1].map((i) => (
-            <div key={i} className="flex flex-col items-center gap-2 rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-muted/40 dark:bg-zinc-900/50 p-3 sm:p-4 text-center">
-              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-              <div className="h-5 sm:h-6 w-14 sm:w-20 rounded bg-muted-foreground/20 dark:bg-muted-foreground/15 dark:bg-zinc-800/90 animate-pulse" />
-              <div className="h-2.5 sm:h-3 w-16 sm:w-24 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
+    <div className="w-full max-w-6xl mx-auto space-y-6 pb-24 px-4 sm:px-6 animate-in fade-in duration-200">
+      {/* Comprehensive Student Profile Banner */}
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 dark:border-zinc-800 bg-card p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex items-start sm:items-center gap-4 sm:gap-5 min-w-0">
+            <div className="h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-2xl bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="h-5 w-28 rounded-full bg-primary/15 animate-pulse" />
+                <div className="h-5 w-24 rounded-full bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
+              </div>
+              <div className="h-6 sm:h-7 w-40 sm:w-56 rounded-lg bg-muted-foreground/20 dark:bg-zinc-800/90 animate-pulse" />
+              <div className="h-3.5 w-48 sm:w-64 rounded bg-muted-foreground/10 dark:bg-zinc-800/60 animate-pulse" />
             </div>
-          ))}
-        </div>
-
-        {/* Progress Bar Card */}
-        <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-muted/40 dark:bg-zinc-900/50 p-3.5 sm:p-4 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <div className="h-3 sm:h-4 w-28 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
-            <div className="h-3 sm:h-4 w-12 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
           </div>
-          <div className="h-2 rounded-full bg-muted-foreground/15 dark:bg-zinc-800 overflow-hidden animate-pulse" />
-        </div>
 
-        {/* Continue Learning Card */}
-        <div className="rounded-xl sm:rounded-2xl border border-border dark:border-zinc-800 bg-card dark:bg-muted/40 dark:bg-zinc-900/50 p-4 sm:p-5 flex items-center gap-3 sm:gap-4">
-          <div className="h-11 w-11 sm:h-14 sm:w-14 shrink-0 rounded-xl bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-2.5 sm:h-3 w-24 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse" />
-            <div className="h-4 sm:h-5 w-44 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-            <div className="h-3 sm:h-3.5 w-60 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
+          <div className="flex items-center flex-wrap gap-2 shrink-0">
+            <div className="h-10 w-32 rounded-xl bg-primary/20 animate-pulse" />
+            <div className="h-10 w-36 rounded-xl bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
           </div>
-          <div className="hidden sm:block h-9 w-28 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/70 shrink-0 animate-pulse" />
         </div>
+      </div>
 
-        {/* Quick Links Grid */}
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="flex flex-col gap-2.5 sm:gap-3 rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-muted/40 dark:bg-zinc-900/50 p-3.5 sm:p-5">
-              <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-              <div className="space-y-1.5">
-                <div className="h-3.5 sm:h-4 w-24 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-                <div className="h-2.5 sm:h-3 w-full rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
+      {/* Primary Hero Row: Theory Curriculum Card + Take Exam Card */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+        {[0, 1].map((cardIdx) => (
+          <div
+            key={cardIdx}
+            className="rounded-2xl sm:rounded-3xl border border-border/70 dark:border-zinc-800 bg-card p-6 sm:p-7 shadow-sm flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-3.5">
+                <div className="h-6 w-32 rounded-full bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
+                <div className="h-5 w-24 rounded-full bg-muted-foreground/10 dark:bg-zinc-800/60 animate-pulse" />
+              </div>
+
+              <div className="h-6 sm:h-7 w-48 sm:w-60 rounded-lg bg-muted-foreground/20 dark:bg-zinc-800/90 mb-2.5 animate-pulse" />
+              <div className="space-y-1.5 mb-5">
+                <div className="h-3.5 w-full rounded bg-muted-foreground/10 dark:bg-zinc-800/50 animate-pulse" />
+                <div className="h-3.5 w-4/5 rounded bg-muted-foreground/10 dark:bg-zinc-800/40 animate-pulse" />
+              </div>
+
+              <div className="space-y-3 p-4 rounded-xl bg-muted/40 dark:bg-zinc-900/60 border border-border/50 dark:border-zinc-800/60 mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="h-3 w-28 rounded bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
+                  <div className="h-3.5 w-20 rounded bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
+                </div>
+                {cardIdx === 0 ? (
+                  <>
+                    <div className="h-2 w-full rounded-full bg-muted-foreground/15 dark:bg-zinc-800 animate-pulse" />
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="h-3 w-40 rounded bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
+                      <div className="h-3 w-14 rounded bg-primary/20 animate-pulse" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="h-3.5 w-24 rounded bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse" />
+                      <div className="h-3.5 w-28 rounded bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse" />
+                    </div>
+                    <div className="pt-2 border-t border-border/40 dark:border-zinc-800/60">
+                      <div className="h-3 w-52 rounded bg-muted-foreground/10 dark:bg-zinc-800/50 animate-pulse" />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <div className="h-12 w-full rounded-xl bg-primary/20 animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Quick Action Matrix */}
+      <div className="space-y-3">
+        <div className="h-3.5 w-36 mx-1 rounded bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="flex flex-col items-start p-4 rounded-2xl border border-border/60 dark:border-zinc-800 bg-card space-y-2.5"
+            >
+              <div className="h-10 w-10 rounded-xl bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
+              <div className="space-y-1.5 w-full">
+                <div className="h-4 w-24 rounded bg-muted-foreground/20 dark:bg-zinc-800/90 animate-pulse" />
+                <div className="h-3 w-full rounded bg-muted-foreground/10 dark:bg-zinc-800/50 animate-pulse" />
               </div>
             </div>
           ))}
@@ -98,75 +136,86 @@ export function HomeViewSkeleton() {
 
 export function CourseViewSkeleton() {
   return (
-    <div className="min-h-[calc(100vh-4rem)] max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-5 sm:space-y-6 animate-in fade-in duration-200">
-      {/* Top Navigation & Title Header */}
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <div className="h-7 w-20 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-          <div className="h-3.5 w-40 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse hidden sm:block" />
+    <div className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-4 sm:space-y-5 animate-in fade-in duration-200 overflow-x-hidden">
+      {/* Course Header */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center flex-wrap gap-2">
+            <div className="h-8 w-20 rounded-lg bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
+            <div className="lg:hidden h-8 w-28 rounded-lg bg-primary/15 animate-pulse" />
+          </div>
+
+          {/* Language Switcher Bar */}
+          <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-card border border-border dark:border-zinc-800 rounded-xl p-1 w-full sm:w-auto">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-7 sm:w-24 rounded-lg bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse"
+              />
+            ))}
+          </div>
         </div>
+
+        {/* Course Title & Meta (matches rendered heading without nonexistent progress card) */}
         <div className="space-y-1.5">
-          <div className="h-3 w-32 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse" />
-          <div className="h-7 sm:h-9 w-52 sm:w-72 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-          <div className="h-3.5 sm:h-4 w-72 sm:w-96 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
+          <div className="h-6 sm:h-8 w-52 sm:w-72 rounded-lg bg-muted-foreground/20 dark:bg-zinc-800/90 animate-pulse" />
+          <div className="h-3.5 sm:h-4 w-56 sm:w-72 rounded bg-muted-foreground/10 dark:bg-zinc-800/50 animate-pulse" />
         </div>
       </div>
 
-      {/* Progress Card */}
-      <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-muted/40 dark:bg-zinc-900/50 p-4 space-y-3 shadow-none">
-        <div className="flex items-center justify-between">
-          <div className="h-3.5 w-28 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
-          <div className="h-3.5 w-16 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
-        </div>
-        <div className="h-2 rounded-full bg-muted-foreground/15 dark:bg-zinc-800 overflow-hidden animate-pulse" />
-        <div className="flex items-center gap-4 pt-1">
-          <div className="h-3 w-20 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
-          <div className="h-3 w-24 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
-          <div className="h-3 w-16 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
-        </div>
-      </div>
-
-      {/* Continue Learning Resume Banner */}
-      <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-muted/40 dark:bg-zinc-900/50 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Continue from Last Topic Card (Single unified resume surface) */}
+      <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5 sm:p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div className="space-y-2 flex-1 min-w-0">
-          <div className="h-3 w-28 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse" />
-          <div className="h-5 w-48 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-          <div className="h-3.5 w-64 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
+          <div className="flex items-center justify-between sm:justify-start gap-2.5">
+            <div className="h-3.5 w-28 rounded bg-primary/20 animate-pulse" />
+            <div className="h-3 w-8 rounded bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
+          </div>
+          <div className="h-4 sm:h-5 w-full max-w-md rounded bg-muted-foreground/20 dark:bg-zinc-800/90 animate-pulse" />
+          <div className="h-3 w-44 sm:w-64 rounded bg-muted-foreground/10 dark:bg-zinc-800/50 animate-pulse" />
         </div>
-        <div className="h-9 w-36 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 shrink-0 animate-pulse" />
+        <div className="h-10 sm:h-9 w-full sm:w-44 rounded-lg bg-primary/25 shrink-0 animate-pulse" />
       </div>
 
-      {/* Modules Structured Grid */}
+      {/* Modules Grid */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <div className="h-3.5 w-36 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse" />
-          <div className="h-3.5 w-16 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
+          <div className="h-3.5 w-20 rounded bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
+          <div className="h-3.5 w-16 rounded bg-muted-foreground/10 dark:bg-zinc-800/50 animate-pulse" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex flex-col justify-between rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-muted/40 dark:bg-zinc-900/50 p-4 sm:p-5 space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse shrink-0" />
-                  <div className="h-5 w-20 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse" />
+            <div
+              key={i}
+              className="flex flex-col justify-between rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-[rgb(15,15,16)] p-4 space-y-3.5 shadow-xs"
+            >
+              <div className="space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="h-9 w-9 rounded-lg bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse shrink-0" />
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-5 w-8 rounded bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
+                    <div className="h-5 w-14 rounded bg-muted-foreground/10 dark:bg-zinc-800/60 animate-pulse" />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
-                  <div className="h-5 w-4/5 rounded bg-muted-foreground/20 dark:bg-muted-foreground/15 dark:bg-zinc-800/90 animate-pulse" />
-                  <div className="h-3 w-full rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
-                  <div className="h-3 w-2/3 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/40 animate-pulse" />
+                  <div className="h-4 sm:h-5 w-4/5 rounded bg-muted-foreground/20 dark:bg-zinc-800/90 animate-pulse" />
+                  <div className="h-3 w-full rounded bg-muted-foreground/10 dark:bg-zinc-800/50 animate-pulse" />
+                  <div className="h-3 w-2/3 rounded bg-muted-foreground/10 dark:bg-zinc-800/40 animate-pulse" />
                 </div>
                 <div className="flex items-center gap-3 pt-1">
-                  <div className="h-3 w-16 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
-                  <div className="h-3 w-16 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
+                  <div className="h-3 w-16 rounded bg-muted-foreground/10 dark:bg-zinc-800/50 animate-pulse" />
+                  <div className="h-3 w-14 rounded bg-muted-foreground/10 dark:bg-zinc-800/50 animate-pulse" />
                 </div>
               </div>
-              <div className="space-y-2 pt-3 border-t border-border/80 dark:border-border dark:border-zinc-800/80">
-                <div className="flex justify-between">
-                  <div className="h-2.5 w-14 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
-                  <div className="h-2.5 w-10 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
+              <div className="space-y-2.5 pt-2.5 border-t border-border/80 dark:border-zinc-800/80">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between">
+                    <div className="h-2.5 w-14 rounded bg-muted-foreground/10 dark:bg-zinc-800/50 animate-pulse" />
+                    <div className="h-2.5 w-12 rounded bg-muted-foreground/10 dark:bg-zinc-800/60 animate-pulse" />
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted-foreground/15 dark:bg-zinc-800 animate-pulse" />
                 </div>
-                <div className="h-1.5 rounded-full bg-muted-foreground/15 dark:bg-zinc-800 animate-pulse" />
+                <div className="h-8 w-full rounded-lg bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
               </div>
             </div>
           ))}
@@ -182,7 +231,7 @@ export function CourseViewSkeleton() {
 
 export function SettingsViewSkeleton() {
   return (
-    <div className="min-h-[calc(100vh-80px)] max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-5 sm:space-y-6 pb-24 animate-in fade-in duration-200">
+    <div className="min-h-[calc(100vh-80px)] w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 pb-24 animate-in fade-in duration-200">
       {/* Top Bar Header */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
@@ -269,38 +318,23 @@ export function ExamCategorySkeleton({ count = 6 }: { count?: number }) {
 
 export function DashboardLayoutSkeleton() {
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-4xl px-4 py-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="md:hidden"><LoadingLogo size="md" /></div>
-          <div className="hidden md:block h-12 w-12 rounded-xl bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-          <div className="space-y-2">
-            <div className="h-6 w-40 rounded bg-muted-foreground/20 dark:bg-muted-foreground/15 dark:bg-zinc-800/90 animate-pulse" />
-            <div className="h-4 w-56 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
-          </div>
+    <div className="relative min-h-screen w-full flex flex-col bg-background text-foreground overflow-x-hidden animate-in fade-in duration-200">
+      {/* OS Top System Bar Placeholder */}
+      <div className="h-9 border-b border-border/60 dark:border-zinc-800 px-3 flex items-center justify-between bg-card/80">
+        <div className="h-4 w-28 rounded bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-16 rounded bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
+          <div className="h-5 w-5 rounded-full bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {[0, 1].map((i) => (
-            <div key={i} className="h-24 rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-muted/40 dark:bg-zinc-900/50 p-3 flex flex-col items-center justify-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-              <div className="h-5 w-16 rounded bg-muted-foreground/20 dark:bg-muted-foreground/15 dark:bg-zinc-800/90 animate-pulse" />
-              <div className="h-3 w-20 rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
-            </div>
-          ))}
-        </div>
-        <div className="h-24 rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-muted/40 dark:bg-zinc-900/50 p-4 space-y-2">
-          <div className="flex justify-between">
-            <div className="h-4 w-24 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
-            <div className="h-4 w-10 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
-          </div>
-          <div className="h-2 rounded-full bg-muted-foreground/15 dark:bg-zinc-800 animate-pulse" />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-32 rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-muted/40 dark:bg-zinc-900/50 p-5 space-y-3">
-              <div className="h-10 w-10 rounded-xl bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-              <div className="h-4 w-24 rounded bg-muted-foreground/15 dark:bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
-              <div className="h-3 w-full rounded bg-muted-foreground/10 dark:bg-muted-foreground/15 dark:bg-zinc-800/50 animate-pulse" />
+      </div>
+
+      {/* Desktop App Launcher Grid Matching OSDesktopView */}
+      <div className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-12 pb-24">
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 sm:gap-6">
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="flex flex-col items-center gap-2 p-2">
+              <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
+              <div className="h-3 w-16 rounded bg-muted-foreground/15 dark:bg-zinc-800/60 animate-pulse" />
             </div>
           ))}
         </div>
@@ -869,4 +903,66 @@ export function DashboardViewSkeleton() {
     </div>
   );
 }
+
+// ============================================================================
+// LIVE EXAM VIEW SKELETON
+// ============================================================================
+
+export function LiveExamViewSkeleton() {
+  return (
+    <div className="min-h-[calc(100vh-80px)] pb-24 animate-in fade-in duration-200">
+      <div className="container mx-auto max-w-2xl px-2.5 sm:px-4 py-4 sm:py-6 space-y-4">
+        <div className="h-5 w-24 rounded bg-muted-foreground/15 dark:bg-zinc-800/80 animate-pulse" />
+        <div className="w-full rounded-2xl border border-border/80 dark:border-zinc-800 bg-card/70 p-4 sm:p-6 space-y-5">
+          <div className="flex items-start gap-3 border-b border-border/60 dark:border-zinc-800 pb-4">
+            <div className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl bg-primary/15 animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-5 sm:h-6 w-56 rounded bg-muted-foreground/20 dark:bg-zinc-800/90 animate-pulse" />
+              <div className="h-3.5 w-full max-w-sm rounded bg-muted-foreground/10 dark:bg-zinc-800/50 animate-pulse" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/40 dark:bg-zinc-900 border border-border/60 dark:border-zinc-800">
+            <div className="h-9 rounded-lg bg-card dark:bg-zinc-800/80 animate-pulse" />
+            <div className="h-9 rounded-lg bg-muted-foreground/10 dark:bg-zinc-800/40 animate-pulse" />
+          </div>
+          <div className="space-y-3">
+            <div className="h-11 w-full rounded-xl bg-muted-foreground/15 dark:bg-zinc-800/70 animate-pulse" />
+            <div className="h-11 w-full rounded-xl bg-primary/20 animate-pulse" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// REPORT COMMENTS THREAD SKELETON (Matches left/right comment bubbles)
+// ============================================================================
+
+export function ReportCommentsSkeleton() {
+  return (
+    <div className="space-y-3 py-2 animate-in fade-in duration-200">
+      {[
+        { isOwn: false, width: "w-56 sm:w-72" },
+        { isOwn: true, width: "w-48 sm:w-64" },
+        { isOwn: false, width: "w-64 sm:w-80" },
+      ].map((item, idx) => (
+        <div key={idx} className={`flex flex-col ${item.isOwn ? "items-end" : "items-start"}`}>
+          <div
+            className={`${item.width} max-w-[80%] rounded-2xl px-4 py-3 space-y-2 ${
+              item.isOwn
+                ? "bg-primary/15 border border-primary/20"
+                : "bg-muted dark:bg-zinc-800/70"
+            }`}
+          >
+            <div className="h-3.5 w-full rounded bg-muted-foreground/20 dark:bg-zinc-700/80 animate-pulse" />
+            <div className="h-3.5 w-3/4 rounded bg-muted-foreground/15 dark:bg-zinc-700/60 animate-pulse" />
+            <div className="h-2.5 w-20 rounded bg-muted-foreground/15 dark:bg-zinc-700/50 animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 

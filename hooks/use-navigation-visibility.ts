@@ -40,7 +40,7 @@ const LANG_NORMALIZE_MAP: Record<string, string> = {
 };
 
 function normalizeLanguageName(lang?: string | null): string {
-  if (!lang) return "English";
+  if (!lang) return "Kinyarwanda";
   return LANG_NORMALIZE_MAP[lang.toLowerCase()] || lang;
 }
 
@@ -282,7 +282,7 @@ export function useNavigationVisibility(adminMode = false) {
     if (userLearningLanguage && ["English", "French", "Kinyarwanda"].includes(userLearningLanguage)) {
       return userLearningLanguage;
     }
-    return "English";
+    return "Kinyarwanda";
   }, [interfaceLanguage, userLearningLanguage]);
 
   // Check if the Course tab is visible for the selected UI language:

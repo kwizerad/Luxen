@@ -53,6 +53,27 @@ const getDefaultSystemName = (): string => {
 };
 
 const LANGUAGE_STORAGE_KEY = "navo-language";
+const LANGUAGE_CODE_STORAGE_KEY = "navo-language-code";
+const LEGACY_LANG_CACHE_KEY = "luxen_lang";
+const EXPLICIT_LANG_FLAG_KEY = "navo-language-user-set";
+const LANGUAGE_COOKIE_NAME = "navo_lang";
+
+function languageToCode(lang: string): "rw" | "en" | "fr" {
+  const raw = String(lang || "").trim().toLowerCase();
+  if (raw === "en" || raw === "english") return "en";
+  if (raw === "fr" || raw === "french" || raw === "français") return "fr";
+  return "rw";
+}
+
+function readLangCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  try {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${LANGUAGE_COOKIE_NAME}=([^;]*)`));
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>("Kinyarwanda");
@@ -74,11 +95,44 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return "Kinyarwanda";
   }, []);
 
-  const applyLanguage = useCallback((lang?: string | null) => {
+  const readCachedUserLanguage = useCallback((): Language => {
+    if (typeof window === "undefined") return "Kinyarwanda";
+    try {
+      const primary = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      if (primary && primary.trim()) {
+        return normalizeLanguage(primary);
+      }
+      // Restore from secondary caches only if the user explicitly chose a non-Kinyarwanda language
+      const fallbackRaw =
+        localStorage.getItem(LANGUAGE_CODE_STORAGE_KEY) ||
+        localStorage.getItem(LEGACY_LANG_CACHE_KEY) ||
+        readLangCookie();
+      if (fallbackRaw && fallbackRaw.trim()) {
+        const normalized = normalizeLanguage(fallbackRaw);
+        if (normalized !== "Kinyarwanda") {
+          return normalized;
+        }
+      }
+    } catch {}
+    return "Kinyarwanda";
+  }, [normalizeLanguage]);
+
+  const applyLanguage = useCallback((lang?: string | null, markExplicit = false) => {
     const normalized = normalizeLanguage(lang);
     setLanguageState(normalized);
     if (typeof window !== "undefined") {
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, normalized);
+      const code = languageToCode(normalized);
+      try {
+        localStorage.setItem(LANGUAGE_STORAGE_KEY, normalized);
+        localStorage.setItem(LANGUAGE_CODE_STORAGE_KEY, code);
+        localStorage.setItem(LEGACY_LANG_CACHE_KEY, code);
+        if (markExplicit || normalized !== "Kinyarwanda") {
+          localStorage.setItem(EXPLICIT_LANG_FLAG_KEY, "true");
+        }
+      } catch {}
+      try {
+        document.cookie = `${LANGUAGE_COOKIE_NAME}=${code}; path=/; max-age=31536000; SameSite=Lax`;
+      } catch {}
     }
   }, [normalizeLanguage]);
 
@@ -109,29 +163,25 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       setAvailableLanguages(enabled.length > 0 ? enabled : ALL_LANGUAGES.map(l => ({ value: l.value, label: l.label, flag: l.flag })));
 
       // Only switch if current language was explicitly disabled by Admin, preferring Kinyarwanda first
-      const currentLang = normalizeLanguage(localStorage.getItem(LANGUAGE_STORAGE_KEY));
+      const currentLang = readCachedUserLanguage();
       const currentConfigKey = ALL_LANGUAGES.find((l) => l.value === currentLang)?.configKey;
       if (currentConfigKey && disabledSet.has(currentConfigKey)) {
         const fallback =
           !disabledSet.has("kinyarwanda")
             ? "Kinyarwanda"
             : enabled[0]?.value || "Kinyarwanda";
-        applyLanguage(fallback);
+        applyLanguage(fallback, false);
       }
     };
 
     fetchEnabled();
-  }, [applyLanguage, normalizeLanguage]);
+  }, [applyLanguage, readCachedUserLanguage]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (savedLanguage && savedLanguage.trim()) {
-      applyLanguage(savedLanguage);
-    } else {
-      applyLanguage("Kinyarwanda");
-    }
+    const resolved = readCachedUserLanguage();
+    applyLanguage(resolved, resolved !== "Kinyarwanda");
 
     setSystemName(getDefaultSystemName());
     setMounted(true);
@@ -139,12 +189,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "navo-branding-config") {
         setSystemName(getDefaultSystemName());
+      } else if (e.key === LANGUAGE_STORAGE_KEY && e.newValue) {
+        const synced = normalizeLanguage(e.newValue);
+        setLanguageState(synced);
       }
     };
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [applyLanguage]);
+  }, [applyLanguage, normalizeLanguage, readCachedUserLanguage]);
 
   // Keep document attributes in sync with the effective language
   useEffect(() => {
@@ -155,14 +208,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = useCallback((lang: Language) => {
     if (isAdminRoute) return;
-    applyLanguage(lang);
+    applyLanguage(lang, true);
   }, [isAdminRoute, applyLanguage]);
 
   const t = useCallback((key: string): string => {
     if (key === "navo") {
       return mounted ? systemName : "Navo";
     }
-    const langTranslations = translations[effectiveLanguage] || translations["English"];
+    const langTranslations = translations[effectiveLanguage] || translations["Kinyarwanda"];
     return langTranslations[key] || translations["English"][key] || key;
   }, [effectiveLanguage, mounted, systemName]);
 

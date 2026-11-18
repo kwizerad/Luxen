@@ -4,9 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    const { id } = await Promise.resolve(params);
     const user = await getAuthUserFromRequest(request);
 
     if (!user) {
@@ -18,7 +19,7 @@ export async function POST(
     const { data: challenge } = await adminClient
       .from("exam_challenges")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", id)
       .maybeSingle();
 
     if (!challenge) {
@@ -31,7 +32,7 @@ export async function POST(
       const { data: participant } = await adminClient
         .from("exam_challenge_participants")
         .select("status")
-        .eq("challenge_id", params.id)
+        .eq("challenge_id", id)
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -46,7 +47,7 @@ export async function POST(
     const { data: updated, error } = await adminClient
       .from("exam_challenges")
       .update({ status: "active", started_at: startedAt })
-      .eq("id", params.id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -56,7 +57,7 @@ export async function POST(
     await adminClient
       .from("exam_challenge_participants")
       .update({ status: "in_progress" })
-      .eq("challenge_id", params.id)
+      .eq("challenge_id", id)
       .eq("user_id", user.id)
       .in("status", ["joined", "ready"]);
 

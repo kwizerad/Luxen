@@ -314,6 +314,8 @@ export function OSExamWorkspace({
                     <QuestionTTSButton
                       entityId={activeQuestion.id}
                       text={activeQuestion.question}
+                      language={examLanguage}
+                      scope="exam"
                       className="shrink-0 mt-0.5"
                     />
                   )}

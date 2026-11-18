@@ -6,6 +6,7 @@ import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import type { ReportComment } from "@/lib/database.types";
+import { ReportCommentsSkeleton } from "@/components/skeletons";
 
 export interface ReportThreadProps {
   reportId: string;
@@ -91,9 +92,7 @@ export function ReportThread({ reportId, onBack }: ReportThreadProps) {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <ReportCommentsSkeleton />
         ) : comments.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-8">{t("noCommentsYet")}</p>
         ) : (

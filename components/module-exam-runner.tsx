@@ -990,6 +990,8 @@ export function ModuleExamRunner({
                         <QuestionTTSButton
                           entityId={activeQuestion.id}
                           text={activeQuestion.question}
+                          language={language}
+                          scope="exam"
                           className="shrink-0 mt-0.5"
                         />
                       </div>

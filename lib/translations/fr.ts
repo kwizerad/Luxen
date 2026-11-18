@@ -2947,7 +2947,13 @@ const fr: Record<string, string> = {
   "guestResetInterval": "Délai de réinitialisation (Heures ou Jours)",
   "examSingular": "examen gratuit",
   "examsPlural": "examens gratuits",
-  "saveGuestQuota": "Enregistrer le quota visiteur"
+  "saveGuestQuota": "Enregistrer le quota visiteur",
+  "allCourses": "Tous les cours",
+  "courseTree": "Plan du cours",
+  "coursesWithImages": "Cours avec images",
+  "noCoursesWithImages": "Aucun cours avec images trouvé",
+  "noCoursesWithImagesDesc": "Aucune leçon sur les panneaux avec images n'est encore disponible dans cette langue.",
+  "roadSigns": "Panneaux routiers"
 };
 
 export default fr;

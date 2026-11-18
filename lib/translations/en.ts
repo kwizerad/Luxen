@@ -2947,7 +2947,13 @@ const en: Record<string, string> = {
   "guestResetInterval": "Reset Time (Hours or Days)",
   "examSingular": "free exam",
   "examsPlural": "free exams",
-  "saveGuestQuota": "Save Guest Exam Quota"
+  "saveGuestQuota": "Save Guest Exam Quota",
+  "allCourses": "All Courses",
+  "courseTree": "Course Tree",
+  "coursesWithImages": "Courses with Images",
+  "noCoursesWithImages": "No courses with images found",
+  "noCoursesWithImagesDesc": "No road sign lessons with images are available in this language yet.",
+  "roadSigns": "Road Signs"
 };
 
 export default en;

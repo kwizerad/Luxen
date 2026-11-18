@@ -241,9 +241,13 @@ export function GroupExamCreation({
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[320px]">
-        <div className="animate-spin rounded-full h-7 w-7 border-2 border-primary border-t-transparent mb-3" />
-        <p className="text-xs sm:text-sm text-muted-foreground">{t("loading") || "Loading..."}</p>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[320px] gap-3.5">
+        <div
+          role="status"
+          aria-label="Loading"
+          className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-300/80 dark:border-zinc-700 border-t-emerald-600 dark:border-t-emerald-400"
+        />
+        <p className="text-xs sm:text-sm font-medium text-foreground">{t("loading") || "Loading..."}</p>
       </div>
     );
   }
@@ -507,7 +511,7 @@ export function GroupExamCreation({
         >
           {submitting ? (
             <>
-              <div className="h-4 w-4 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin shrink-0" />
+              <div className="h-4 w-4 rounded-full border-2 border-current/30 border-t-current animate-spin shrink-0" />
               <span>{t("creatingExam") || "Creating Group Exam..."}</span>
             </>
           ) : (

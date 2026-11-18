@@ -106,7 +106,12 @@ export function FloatingSettings() {
     if (user) {
       try {
         const supabase = createClient();
-        await supabase.auth.updateUser({ data: { language: languageToCode[newLanguage] || "en" } });
+        await supabase.auth.updateUser({
+          data: {
+            language: languageToCode[newLanguage] || "rw",
+            language_user_selected: true,
+          },
+        });
       } catch (error) {
         console.error("Failed to save language:", error);
       }

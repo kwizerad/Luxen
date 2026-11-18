@@ -1876,6 +1876,7 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
                     entityId={`ext_lesson_${selectedLesson.id}`}
                     text={getText(`lesson_${selectedLesson.id}`, lFormTitle || selectedLesson.title)}
                     language={activeLang}
+                    scope="learning"
                   />
                   {isAdmin && (
                     <>
@@ -2417,6 +2418,7 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
                             entityId={`ext_q_${activeQuestion.id}`}
                             text={getText(`q_${activeQuestion.id}_title`, qFormTitle)}
                             language={activeLang}
+                            scope="exam"
                             readOptions={true}
                             options={qFormChoices.map((c, idx) => ({
                               opt: ["A", "B", "C", "D"][idx] || String(idx + 1),
@@ -2915,6 +2917,7 @@ export function ExternalCoursesView({ isAdminMode = false }: ExternalCoursesView
                       entityId={`prac_${currentQ.id}`}
                       text={getText(`q_${currentQ.id}_title`, currentQ.title)}
                       language={activeLang}
+                      scope="exam"
                     />
                   </div>
 

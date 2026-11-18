@@ -12,6 +12,7 @@ function isExternalExamCategoryId(categoryId?: string | null): boolean {
 import { translateTextSnippets, type TargetLanguage } from "@/lib/ai/tiptap-translator";
 import { decryptPayload, encryptPayload, isEncryptedEnvelope } from "@/lib/e2e-crypto";
 import { CACHE_KEYS, getCached } from "@/lib/server-cache";
+import { isWithinAvailabilityWindow } from "@/lib/exam-settings";
 import {
   getBuiltinFallbackQuestions,
   normalizeExamQuestion,
@@ -127,7 +128,18 @@ async function translateQuestionBatch<
         if (item.expl) snippets.push({ id: base + 5, text: item.expl });
       }
 
-      const translatedMap = await translateTextSnippets(snippets, srcLang, targetLang);
+      const translatedMap = await Promise.race([
+        translateTextSnippets(snippets, srcLang, targetLang, {
+          batchSize: 30,
+          concurrency: 3,
+          timeoutMs: 10000,
+          maxRetries: 1,
+          skipRetryMissed: true,
+        }),
+        new Promise<Map<number, string>>((resolve) =>
+          setTimeout(() => resolve(new Map()), 11000)
+        ),
+      ]).catch(() => new Map<number, string>());
       const nowStr = new Date().toISOString();
       const upserts = [];
 
@@ -478,7 +490,7 @@ export async function POST(req: NextRequest) {
       let durationMinutes = Number(configMap.get("external_exam_duration_minutes")) || 20;
       let questionCount = Number(configMap.get("external_exam_question_count")) || 20;
       let sortingMode = "RANDOM";
-      let passingPercentage = 70;
+      let passingPercentage = Number(configMap.get("universal_passing_percentage")) || 60;
       let availableFrom = null;
       let availableTo = null;
 
@@ -501,6 +513,16 @@ export async function POST(req: NextRequest) {
         getCachedExternalQuestions(),
       ]);
 
+      const catPassingOverride = Number(
+        configMap.get(`exam_category_passing_percentage_${targetCatId}`) ??
+          (isExternalExamCategoryId(targetCatId)
+            ? configMap.get(`exam_category_passing_percentage_${EXTERNAL_EXAM_CATEGORY_ID}`)
+            : undefined)
+      );
+      if (Number.isFinite(catPassingOverride) && catPassingOverride >= 1 && catPassingOverride <= 100) {
+        passingPercentage = catPassingOverride;
+      }
+
       const dbSettings = dbSettingsRes;
       if (dbSettings) {
         if (dbSettings.question_count != null) questionCount = dbSettings.question_count;
@@ -509,6 +531,13 @@ export async function POST(req: NextRequest) {
         if (dbSettings.passing_percentage != null) passingPercentage = dbSettings.passing_percentage;
         availableFrom = dbSettings.available_from;
         availableTo = dbSettings.available_to;
+      }
+
+      if (!challengeId && !isWithinAvailabilityWindow(new Date(), availableFrom, availableTo)) {
+        return secureJsonResponse(
+          { error: "Exam is not available at this time." },
+          403
+        );
       }
 
       let formattedPool: any[] = [];

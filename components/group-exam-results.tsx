@@ -294,7 +294,17 @@ export function GroupExamResults({
 
         <div className="border border-border/60 rounded-xl overflow-hidden bg-card/40 dark:bg-zinc-900/30">
           {loading ? (
-            <div className="p-4 space-y-2.5">
+            <div className="p-5 space-y-3">
+              <div className="flex items-center justify-center gap-2.5 py-2">
+                <div
+                  role="status"
+                  aria-label="Loading results"
+                  className="h-7 w-7 animate-spin rounded-full border-3 border-zinc-300/80 dark:border-zinc-700 border-t-emerald-600 dark:border-t-emerald-400"
+                />
+                <span className="text-xs sm:text-sm font-medium text-foreground">
+                  {t("loading") || "Loading..."}
+                </span>
+              </div>
               {[1, 2, 3].map((i) => (
                 <div key={i} className="h-12 bg-muted/50 rounded-lg animate-pulse" />
               ))}
@@ -420,7 +430,7 @@ export function GroupExamResults({
                               <span className="inline-flex items-center gap-1">
                                 {entry.status === "in_progress" || entry.status === "active" ? (
                                   <>
-                                    <Loader2 className="h-3 w-3 animate-spin text-amber-500" />
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-600 dark:text-amber-400" />
                                     <span>{t("takingExamNow") || "In exam..."}</span>
                                   </>
                                 ) : entry.status === "joined" ? (

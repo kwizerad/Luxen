@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin, ActionResult } from "./_shared";
 import { TTSConfig, DEFAULT_TTS_CONFIG, ImportedTTSAudioRecord, normalizeTTSLanguage } from "@/lib/tts-config";
+import { CACHE_KEYS, invalidateCache } from "@/lib/server-cache";
 import crypto from "crypto";
 
 function handleError(error: unknown): { success: false; error: string } {
@@ -94,12 +95,21 @@ export async function saveTTSConfigAction(config: Partial<TTSConfig>): Promise<A
       { key: "tts_gemini_voice", value: String(updated.geminiVoice || "Kore"), description: "Default prebuilt voice for Gemini Neural TTS" },
     ];
 
-    for (const item of entries) {
-      await supabase.from("system_config").upsert(
-        { key: item.key, value: item.value, description: item.description, updated_at: new Date().toISOString() },
-        { onConflict: "key" }
-      );
-    }
+    const now = new Date().toISOString();
+    const rows = entries.map((item) => ({
+      key: item.key,
+      value: item.value,
+      description: item.description,
+      updated_at: now,
+    }));
+
+    const { error } = await supabase
+      .from("system_config")
+      .upsert(rows, { onConflict: "key" });
+
+    if (error) throw error;
+
+    invalidateCache(CACHE_KEYS.SYSTEM_CONFIG_ALL);
 
     return { success: true, data: updated };
   } catch (error) {
@@ -173,6 +183,8 @@ export async function saveImportedTTSAudioAction(payload: {
       .single();
 
     if (error) throw error;
+
+    invalidateCache("tts:audio_index");
 
     return {
       success: true,
@@ -249,6 +261,8 @@ export async function deleteImportedTTSAudioAction(id: string): Promise<ActionRe
 
     const { error } = await supabase.from("course_ai_cache").delete().eq("id", id);
     if (error) throw error;
+
+    invalidateCache("tts:audio_index");
 
     return { success: true, data: null };
   } catch (error) {

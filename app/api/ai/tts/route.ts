@@ -2,7 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { ai } from "@/lib/ai/gemini-client";
 import { pcmToWav } from "@/lib/ai/audio-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CACHE_KEYS, getCached, invalidateCache } from "@/lib/server-cache";
 import crypto from "crypto";
+
+const TTS_AUDIO_INDEX_CACHE_KEY = "tts:audio_index";
+
+async function getTTSAudioIndex(supabase: ReturnType<typeof createAdminClient>): Promise<Set<string>> {
+  return getCached<Set<string>>(TTS_AUDIO_INDEX_CACHE_KEY, 15_000, async () => {
+    const { data, error } = await supabase
+      .from("course_ai_cache")
+      .select("entity_id, target_language, cached_data")
+      .eq("feature_type", "tts_audio");
+
+    if (error) {
+      throw error;
+    }
+
+    const keys = new Set<string>();
+    for (const row of data || []) {
+      if (row.entity_id && row.target_language && row.cached_data?.audioUrl) {
+        keys.add(`${row.entity_id}:${row.target_language}`);
+      }
+    }
+    return keys;
+  });
+}
 
 function isQuotaError(error: any): boolean {
   const status = error?.status || error?.code || error?.httpStatus || error?.response?.status;
@@ -37,6 +61,7 @@ async function disableTTSInSystemConfig(supabase: ReturnType<typeof createAdminC
         { onConflict: "key" }
       );
     }
+    invalidateCache(CACHE_KEYS.SYSTEM_CONFIG_ALL);
   } catch (err) {
     console.warn("Failed to auto-disable TTS in system_config:", err);
   }
@@ -46,6 +71,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const scope = searchParams.get("scope");
+    const entityId = searchParams.get("entityId")?.trim() || "";
     const language = searchParams.get("language") || "English";
     const normLang =
       language.toLowerCase().includes("kinya") || language === "rw"
@@ -55,7 +81,7 @@ export async function GET(req: NextRequest) {
         : "English";
 
     const supabase = createAdminClient();
-    const { data: configRows } = await supabase
+    const { data: configRows, error: configError } = await supabase
       .from("system_config")
       .select("key, value")
       .in("key", [
@@ -63,37 +89,67 @@ export async function GET(req: NextRequest) {
         `tts_language_${normLang.toLowerCase()}_enabled`,
         "tts_learning_enabled",
         "tts_exams_enabled",
+        "tts_prefer_imported_audio",
         "tts_gemini_neural_enabled",
+        `tts_gemini_${normLang.toLowerCase()}_enabled`,
       ]);
+
+    if (configError) {
+      throw configError;
+    }
 
     let masterEnabled = true;
     let langEnabled = true;
     let learningEnabled = true;
     let examsEnabled = true;
+    let preferImportedAudio = true;
     let geminiNeuralEnabled = true;
+    let geminiLangEnabled = true;
 
     if (configRows && configRows.length > 0) {
       masterEnabled = configRows.find((r) => r.key === "tts_master_enabled")?.value !== "false";
       langEnabled = configRows.find((r) => r.key === `tts_language_${normLang.toLowerCase()}_enabled`)?.value !== "false";
       learningEnabled = configRows.find((r) => r.key === "tts_learning_enabled")?.value !== "false";
       examsEnabled = configRows.find((r) => r.key === "tts_exams_enabled")?.value !== "false";
+      preferImportedAudio = configRows.find((r) => r.key === "tts_prefer_imported_audio")?.value !== "false";
       geminiNeuralEnabled = configRows.find((r) => r.key === "tts_gemini_neural_enabled")?.value !== "false";
+      geminiLangEnabled = configRows.find((r) => r.key === `tts_gemini_${normLang.toLowerCase()}_enabled`)?.value !== "false";
     }
 
     let enabled = masterEnabled && langEnabled;
     if (scope === "exam" && !examsEnabled) enabled = false;
     if (scope === "learning" && !learningEnabled) enabled = false;
 
-    return NextResponse.json({
-      enabled,
-      masterEnabled,
-      langEnabled,
-      learningEnabled,
-      examsEnabled,
-      geminiNeuralEnabled,
-    });
-  } catch {
-    return NextResponse.json({ enabled: true });
+    if (enabled && (!geminiNeuralEnabled || !geminiLangEnabled)) {
+      if (!preferImportedAudio || !entityId) {
+        enabled = false;
+      } else {
+        const audioIndex = await getTTSAudioIndex(supabase);
+        if (!audioIndex.has(`${entityId}:${normLang}`)) {
+          enabled = false;
+        }
+      }
+    }
+
+    return NextResponse.json(
+      {
+        enabled,
+        masterEnabled,
+        langEnabled,
+        learningEnabled,
+        examsEnabled,
+        preferImportedAudio,
+        geminiNeuralEnabled,
+        geminiLangEnabled,
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (err) {
+    console.warn("GET /api/ai/tts failed closed:", err);
+    return NextResponse.json(
+      { enabled: false },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   }
 }
 
@@ -119,60 +175,68 @@ export async function POST(req: NextRequest) {
         ? "French"
         : "English";
 
-    // 1. Check system_config for TTS toggles
+    // 1. Check system_config for TTS toggles (fail closed on DB errors)
     let geminiNeuralEnabled = true;
     let geminiLangEnabled = true;
-    try {
-      const { data: configRows } = await supabase
-        .from("system_config")
-        .select("key, value")
-        .in("key", [
-          "tts_master_enabled",
-          `tts_language_${normLang.toLowerCase()}_enabled`,
-          "tts_learning_enabled",
-          "tts_exams_enabled",
-          "tts_gemini_neural_enabled",
-          `tts_gemini_${normLang.toLowerCase()}_enabled`,
-        ]);
+    let preferImportedAudio = true;
 
-      if (configRows && configRows.length > 0) {
-        const masterEnabled = configRows.find((r) => r.key === "tts_master_enabled")?.value !== "false";
-        const langEnabled = configRows.find((r) => r.key === `tts_language_${normLang.toLowerCase()}_enabled`)?.value !== "false";
-        const learningEnabled = configRows.find((r) => r.key === "tts_learning_enabled")?.value !== "false";
-        const examsEnabled = configRows.find((r) => r.key === "tts_exams_enabled")?.value !== "false";
-        geminiNeuralEnabled = configRows.find((r) => r.key === "tts_gemini_neural_enabled")?.value !== "false";
-        geminiLangEnabled = configRows.find((r) => r.key === `tts_gemini_${normLang.toLowerCase()}_enabled`)?.value !== "false";
+    const { data: configRows, error: configError } = await supabase
+      .from("system_config")
+      .select("key, value")
+      .in("key", [
+        "tts_master_enabled",
+        `tts_language_${normLang.toLowerCase()}_enabled`,
+        "tts_learning_enabled",
+        "tts_exams_enabled",
+        "tts_prefer_imported_audio",
+        "tts_gemini_neural_enabled",
+        `tts_gemini_${normLang.toLowerCase()}_enabled`,
+      ]);
 
-        if (!masterEnabled) {
-          return NextResponse.json(
-            { error: "Text-to-Speech is currently disabled by administrator.", disabled: true },
-            { status: 403 }
-          );
-        }
+    if (configError) {
+      console.error("Failed to check system_config TTS flags:", configError);
+      return NextResponse.json(
+        { error: "Unable to verify Text-to-Speech configuration.", disabled: true },
+        { status: 500 }
+      );
+    }
 
-        if (!langEnabled) {
-          return NextResponse.json(
-            { error: `Text-to-Speech for ${normLang} is currently disabled by administrator.`, disabled: true },
-            { status: 403 }
-          );
-        }
+    if (configRows && configRows.length > 0) {
+      const masterEnabled = configRows.find((r) => r.key === "tts_master_enabled")?.value !== "false";
+      const langEnabled = configRows.find((r) => r.key === `tts_language_${normLang.toLowerCase()}_enabled`)?.value !== "false";
+      const learningEnabled = configRows.find((r) => r.key === "tts_learning_enabled")?.value !== "false";
+      const examsEnabled = configRows.find((r) => r.key === "tts_exams_enabled")?.value !== "false";
+      preferImportedAudio = configRows.find((r) => r.key === "tts_prefer_imported_audio")?.value !== "false";
+      geminiNeuralEnabled = configRows.find((r) => r.key === "tts_gemini_neural_enabled")?.value !== "false";
+      geminiLangEnabled = configRows.find((r) => r.key === `tts_gemini_${normLang.toLowerCase()}_enabled`)?.value !== "false";
 
-        if (scope === "exam" && !examsEnabled) {
-          return NextResponse.json(
-            { error: "Text-to-Speech is currently disabled for exams.", disabled: true },
-            { status: 403 }
-          );
-        }
-
-        if (scope === "learning" && !learningEnabled) {
-          return NextResponse.json(
-            { error: "Text-to-Speech is currently disabled for learning courses.", disabled: true },
-            { status: 403 }
-          );
-        }
+      if (!masterEnabled) {
+        return NextResponse.json(
+          { error: "Text-to-Speech is currently disabled by administrator.", disabled: true, masterEnabled: false },
+          { status: 403 }
+        );
       }
-    } catch (err) {
-      console.warn("Could not check system_config TTS flags:", err);
+
+      if (!langEnabled) {
+        return NextResponse.json(
+          { error: `Text-to-Speech for ${normLang} is currently disabled by administrator.`, disabled: true },
+          { status: 403 }
+        );
+      }
+
+      if (scope === "exam" && !examsEnabled) {
+        return NextResponse.json(
+          { error: "Text-to-Speech is currently disabled for exams.", disabled: true },
+          { status: 403 }
+        );
+      }
+
+      if (scope === "learning" && !learningEnabled) {
+        return NextResponse.json(
+          { error: "Text-to-Speech is currently disabled for learning courses.", disabled: true },
+          { status: 403 }
+        );
+      }
     }
 
     // 2. Check dedicated Supabase Storage bucket ("tts-audio") and course_ai_cache
@@ -186,31 +250,9 @@ export async function POST(req: NextRequest) {
       // Bucket may already exist
     }
 
-    if (entityId) {
+    if (entityId && (preferImportedAudio || (geminiNeuralEnabled && geminiLangEnabled))) {
       try {
-        // Check if audio file already exists in Supabase Storage bucket
-        const { data: fileData, error: fileError } = await supabase.storage
-          .from(ttsBucket)
-          .download(storagePath);
-
-        if (!fileError && fileData) {
-          const { data: publicData } = supabase.storage
-            .from(ttsBucket)
-            .getPublicUrl(storagePath);
-
-          if (publicData?.publicUrl) {
-            return NextResponse.json({
-              success: true,
-              audioUrl: publicData.publicUrl,
-              fromStorageCache: true,
-              sampleRate: 24000,
-              voice,
-              language: normLang,
-            });
-          }
-        }
-
-        // Fallback to table cache check
+        // Check imported/cached audio first when preferImportedAudio is enabled
         const { data: cached } = await supabase
           .from("course_ai_cache")
           .select("cached_data, content_hash")
@@ -220,7 +262,18 @@ export async function POST(req: NextRequest) {
           .maybeSingle();
 
         if (cached?.cached_data?.audioUrl) {
-          if (cached.cached_data.isImported || cached.content_hash === contentHash) {
+          if (cached.cached_data.isImported && preferImportedAudio) {
+            return NextResponse.json({
+              success: true,
+              audioUrl: cached.cached_data.audioUrl,
+              fromCache: true,
+              isImported: true,
+              sampleRate: 24000,
+              voice,
+              language: normLang,
+            });
+          }
+          if (cached.content_hash === contentHash && (preferImportedAudio || (geminiNeuralEnabled && geminiLangEnabled))) {
             return NextResponse.json({
               success: true,
               audioUrl: cached.cached_data.audioUrl,
@@ -230,6 +283,30 @@ export async function POST(req: NextRequest) {
               voice,
               language: normLang,
             });
+          }
+        }
+
+        // Check if generated neural audio file already exists in Supabase Storage bucket
+        if (geminiNeuralEnabled && geminiLangEnabled) {
+          const { data: fileData, error: fileError } = await supabase.storage
+            .from(ttsBucket)
+            .download(storagePath);
+
+          if (!fileError && fileData) {
+            const { data: publicData } = supabase.storage
+              .from(ttsBucket)
+              .getPublicUrl(storagePath);
+
+            if (publicData?.publicUrl) {
+              return NextResponse.json({
+                success: true,
+                audioUrl: publicData.publicUrl,
+                fromStorageCache: true,
+                sampleRate: 24000,
+                voice,
+                language: normLang,
+              });
+            }
           }
         }
       } catch (err) {
@@ -349,6 +426,7 @@ export async function POST(req: NextRequest) {
           },
           { onConflict: "entity_id,target_language,feature_type" }
         );
+        invalidateCache(TTS_AUDIO_INDEX_CACHE_KEY);
       } catch (err) {
         console.warn("Failed to persist tts to course_ai_cache:", err);
       }

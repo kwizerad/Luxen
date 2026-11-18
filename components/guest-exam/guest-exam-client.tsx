@@ -91,6 +91,7 @@ export function GuestExamClient() {
 
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [standaloneEnabled, setStandaloneEnabled] = useState(true);
+  const [guestFreeExamEnabled, setGuestFreeExamEnabled] = useState<boolean | null>(null);
   const [quota, setQuota] = useState<GuestQuotaState>({
     usedCount: 0,
     remainingCount: 3,
@@ -208,7 +209,13 @@ export function GuestExamClient() {
         if (!mounted) return;
         setSecuritySettings(secSettings);
         if (statusRes) {
+          const freeEnabled = statusRes.guestFreeExamEnabled !== false;
+          setGuestFreeExamEnabled(freeEnabled);
           setStandaloneEnabled(statusRes.standaloneEnabled !== false);
+          if (!user && !freeEnabled) {
+            router.replace("/");
+            return;
+          }
           if (statusRes.quota) {
             setQuota(statusRes.quota);
           }
@@ -236,7 +243,7 @@ export function GuestExamClient() {
     return () => {
       mounted = false;
     };
-  }, [language]);
+  }, [language, user, router]);
 
   const anticheat = useExamAnticheat({
     isActive: Boolean(exam && !showResults),
@@ -382,6 +389,13 @@ export function GuestExamClient() {
         language: activeLang,
         deviceId,
       });
+
+      if (status === 403 && data?.error === "FREE_EXAM_DISABLED") {
+        setGuestFreeExamEnabled(false);
+        setExam(null);
+        router.replace("/");
+        return;
+      }
 
       if (status === 429 || data?.error === "LIMIT_REACHED") {
         if (data?.quota) setQuota(data.quota);
@@ -754,9 +768,11 @@ export function GuestExamClient() {
         onMinimize={() => router.push("/")}
         toolbarRight={toolbarRight}
       >
-        {checkingStatus ? (
+        {checkingStatus || (!user && guestFreeExamEnabled === false) ? (
           <div className="flex-1 flex flex-col items-center justify-center min-h-[360px] gap-3 p-6">
-            <div className="h-8 w-8 animate-spin rounded-full border-3 border-primary border-t-transparent" />
+            <div className="relative h-10 w-10">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-300/70 dark:border-zinc-700/90 border-t-emerald-600 dark:border-t-emerald-400" />
+            </div>
           </div>
         ) : showResults && examResult ? (
           !postExamLangConfirmed ? (
@@ -865,8 +881,10 @@ export function GuestExamClient() {
           </div>
           )
         ) : loadingExam ? (
-          <div className="flex-1 flex flex-col items-center justify-center min-h-[360px] gap-3 p-6">
-            <div className="h-9 w-9 animate-spin rounded-full border-3 border-primary border-t-transparent" />
+          <div className="flex-1 flex flex-col items-center justify-center min-h-[360px] gap-3.5 p-6">
+            <div className="relative h-11 w-11 flex items-center justify-center">
+              <div className="h-11 w-11 animate-spin rounded-full border-4 border-zinc-300/70 dark:border-zinc-700/90 border-t-emerald-600 dark:border-t-emerald-400" />
+            </div>
             <p className="text-sm font-medium text-foreground">
               {isRw
                 ? "Tegereza gato..."

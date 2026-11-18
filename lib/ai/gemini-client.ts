@@ -41,14 +41,23 @@ export const ai: GoogleGenAI = new Proxy({} as GoogleGenAI, {
 
 const CANDIDATE_MODELS = [
   "gemini-3.1-flash-lite",
-  "gemini-3.8-flash",
-  "gemini-flash-latest",
-  "gemini-3.5-flash-lite",
-  "gemini-3.5-flash",
-  "gemini-3.6-flash",
-  "gemini-3.7-flash",
-  "gemini-4-argon",
+  "gemini-4-hydrogen",
 ];
+
+function sanitizeConfigForModel(model: string, config?: Record<string, any>) {
+  if (!config) return undefined;
+  if (model.startsWith("gemini-4-")) {
+    const {
+      temperature: _t,
+      topP: _tp,
+      topK: _tk,
+      candidateCount: _cc,
+      ...rest
+    } = config;
+    return rest;
+  }
+  return config;
+}
 
 function extractRetryDelayMs(err: any): number {
   try {
@@ -68,23 +77,30 @@ function extractRetryDelayMs(err: any): number {
 export async function generateContentWithFallback(params: {
   contents: string | any;
   config?: any;
+  timeoutMs?: number;
+  maxRetries?: number;
 }) {
   let lastError: any = null;
+  const timeoutMs = Math.max(3000, params.timeoutMs ?? 20000);
+  const maxRetries = Math.max(1, params.maxRetries ?? 2);
 
   for (let modelIdx = 0; modelIdx < CANDIDATE_MODELS.length; modelIdx++) {
     const model = CANDIDATE_MODELS[modelIdx];
+    const safeConfig = sanitizeConfigForModel(model, params.config);
 
-    // For each model, attempt up to 2 retries on short transient 503/429 before moving immediately to next candidate
-    for (let retry = 0; retry < 2; retry++) {
+    for (let retry = 0; retry < maxRetries; retry++) {
       try {
         const response = await Promise.race([
           ai.models.generateContent({
             model,
             contents: params.contents,
-            config: params.config,
+            config: safeConfig,
           }),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(`Model ${model} timed out after 30s`)), 30000)
+            setTimeout(
+              () => reject(new Error(`Model ${model} timed out after ${Math.round(timeoutMs / 1000)}s`)),
+              timeoutMs
+            )
           ),
         ]);
         return response;
@@ -92,7 +108,7 @@ export async function generateContentWithFallback(params: {
         lastError = err;
         const errMsg = String(err?.message || JSON.stringify(err) || "").toLowerCase();
 
-        // If error is model not found (404) or daily quota exhausted or long retryDelay (> 8s), immediately try next candidate model without sleeping!
+        // If error is model not found (404) or daily quota exhausted or long retryDelay (> 4s), switch immediately
         const suggestedDelay = extractRetryDelayMs(err);
         if (
           errMsg.includes("404") ||
@@ -100,10 +116,10 @@ export async function generateContentWithFallback(params: {
           errMsg.includes("no longer available") ||
           errMsg.includes("perday") ||
           errMsg.includes("free_tier_requests") ||
-          suggestedDelay > 8000
+          suggestedDelay > 4000
         ) {
           console.warn(
-            `[Gemini] Model ${model} quota exhausted or unavailable (delay: ${suggestedDelay}ms). Switching to next model immediately...`
+            `[Gemini] Model ${model} quota exhausted or unavailable (delay: ${suggestedDelay}ms). Switching to next model...`
           );
           break;
         }
@@ -119,20 +135,15 @@ export async function generateContentWithFallback(params: {
           errMsg.includes("overloaded") ||
           errMsg.includes("timed out");
 
-        if (isTransient) {
-          if (retry === 0) {
-            const waitMs = Math.min(Math.max(suggestedDelay, 1200), 3000);
-            console.warn(
-              `[Gemini] Model ${model} transient busy (attempt 1/2). Waiting ${waitMs}ms...`
-            );
-            await new Promise((resolve) => setTimeout(resolve, waitMs));
-            continue;
-          }
-          // On second transient failure for this model, immediately switch to next candidate model
-          break;
+        if (isTransient && retry + 1 < maxRetries) {
+          const waitMs = Math.min(Math.max(suggestedDelay, 500), 1500);
+          console.warn(
+            `[Gemini] Model ${model} transient busy (attempt ${retry + 1}/${maxRetries}). Waiting ${waitMs}ms...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+          continue;
         }
 
-        // For any other unexpected error on this model, try next candidate model
         break;
       }
     }

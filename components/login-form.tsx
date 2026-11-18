@@ -269,6 +269,9 @@ export function LoginForm({
         return;
       }
 
+      const isAdminUser = Boolean(authRes.isAdmin);
+      setAdminSessionFlag(isAdminUser);
+
       // Sync browser client session if session is returned
       const supabase = createClient();
       if (authRes.session?.access_token && authRes.session?.refresh_token) {
@@ -283,9 +286,6 @@ export function LoginForm({
       }
 
       if (onSuccess) onSuccess();
-
-      const isAdminUser = Boolean(authRes.isAdmin);
-      setAdminSessionFlag(isAdminUser);
 
       const destination = authRes.destination || (isAdminUser ? "/Admin" : "/dashboard");
       toast.success(authRes.message || (isRw ? "Murakaza neza!" : "Welcome back!"));

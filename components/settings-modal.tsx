@@ -78,7 +78,10 @@ export function SettingsModal() {
       try {
         const supabase = createClient();
         await supabase.auth.updateUser({
-          data: { language: languageToCode[newLanguage] }
+          data: {
+            language: languageToCode[newLanguage],
+            language_user_selected: true,
+          },
         });
       } catch (error) {
         console.error("Failed to save language:", error);

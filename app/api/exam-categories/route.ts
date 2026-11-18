@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     }
 
     const cacheKey = `exam_categories:${userIsAdmin ? "admin" : "public"}`;
-    const categoriesWithSettings = await getCached(cacheKey, 45_000, async () => {
+    const result = await getCached(cacheKey, 45_000, async () => {
       let query = adminSb
         .from("exam_categories")
         .select("*")
@@ -51,11 +51,14 @@ export async function GET(req: NextRequest) {
         query = query.eq("is_published", true);
       }
 
-      const [catRes, settingsRes, allConfigs] = await Promise.all([
+      const [catRes, settingsRes, questionCatRes, allConfigs] = await Promise.all([
         query,
         adminSb
           .from("exam_settings")
           .select("category_id,duration_minutes,question_count"),
+        adminSb
+          .from("exam_questions")
+          .select("category_id"),
         getCached(CACHE_KEYS.SYSTEM_CONFIG_ALL, 60_000, async () => {
           const { data } = await adminSb.from("system_config").select("*").order("key");
           return data || [];
@@ -78,6 +81,13 @@ export async function GET(req: NextRequest) {
         });
       }
 
+      const questionCounts: Record<string, number> = {};
+      for (const row of questionCatRes.data || []) {
+        if (row.category_id) {
+          questionCounts[row.category_id] = (questionCounts[row.category_id] || 0) + 1;
+        }
+      }
+
       const list = (catRes.data || []).map((c: any) => ({
         ...c,
         duration_minutes: settingsMap.get(c.id)?.duration_minutes ?? undefined,
@@ -97,15 +107,19 @@ export async function GET(req: NextRequest) {
         const extQuestions = Number(extMap.get("external_exam_question_count")) || 20;
 
         const existingIdx = list.findIndex((c: any) => c.id === EXTERNAL_EXAM_CATEGORY_ID);
-        if (extPublished) {
+        const savedExtSettings = settingsMap.get(EXTERNAL_EXAM_CATEGORY_ID);
+        if (extPublished || userIsAdmin) {
           const extCategoryObj = {
             id: EXTERNAL_EXAM_CATEGORY_ID,
             name: extTitle,
             description: "Official Traffic Rules & Road Signs Mock Exam from External Question Bank",
-            is_published: true,
-            duration_minutes: extDuration,
-            question_count: extQuestions,
-            created_at: new Date().toISOString(),
+            is_published: extPublished,
+            duration_minutes: savedExtSettings?.duration_minutes ?? extDuration,
+            question_count: savedExtSettings?.question_count ?? extQuestions,
+            created_at:
+              existingIdx >= 0 && list[existingIdx]?.created_at
+                ? list[existingIdx].created_at
+                : new Date().toISOString(),
           };
           if (existingIdx >= 0) {
             list[existingIdx] = {
@@ -114,6 +128,9 @@ export async function GET(req: NextRequest) {
             };
           } else {
             list.unshift(extCategoryObj);
+          }
+          if (!questionCounts[EXTERNAL_EXAM_CATEGORY_ID]) {
+            questionCounts[EXTERNAL_EXAM_CATEGORY_ID] = 451;
           }
         } else if (existingIdx >= 0 && !userIsAdmin) {
           list.splice(existingIdx, 1);
@@ -132,12 +149,15 @@ export async function GET(req: NextRequest) {
           question_count: 20,
           created_at: new Date().toISOString(),
         });
+        if (!questionCounts[EXTERNAL_EXAM_CATEGORY_ID]) {
+          questionCounts[EXTERNAL_EXAM_CATEGORY_ID] = 451;
+        }
       }
 
-      return list;
+      return { categories: list, question_counts: questionCounts };
     });
 
-    return NextResponse.json({ categories: categoriesWithSettings });
+    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch exam categories.";
     return NextResponse.json({ error: message }, { status: 500 });

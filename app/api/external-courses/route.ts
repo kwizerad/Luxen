@@ -796,6 +796,12 @@ export async function POST(req: NextRequest) {
           const qCount = Number(map.get("external_exam_question_count")) || 20;
 
           if (isPub) {
+            const { data: existingSettings } = await adminSb
+              .from("exam_settings")
+              .select("sorting_mode, available_from, available_to")
+              .eq("category_id", EXTERNAL_EXAM_CATEGORY_ID)
+              .maybeSingle();
+
             await adminSb.from("exam_categories").upsert(
               {
                 id: EXTERNAL_EXAM_CATEGORY_ID,
@@ -810,7 +816,9 @@ export async function POST(req: NextRequest) {
                 category_id: EXTERNAL_EXAM_CATEGORY_ID,
                 duration_minutes: dur,
                 question_count: qCount,
-                sorting_mode: "random",
+                sorting_mode: existingSettings?.sorting_mode || "RANDOM",
+                available_from: existingSettings?.available_from ?? null,
+                available_to: existingSettings?.available_to ?? null,
                 updated_at: now,
               },
               { onConflict: "category_id" }
@@ -823,7 +831,13 @@ export async function POST(req: NextRequest) {
           }
         } catch (syncErr) {
           console.warn("Could not sync external exam category row:", syncErr);
+        } finally {
+          invalidateCache(CACHE_KEYS.SYSTEM_CONFIG_ALL);
+          invalidateCachePrefix("exam_categories:");
         }
+      } else if (upserts.length > 0) {
+        invalidateCache(CACHE_KEYS.SYSTEM_CONFIG_ALL);
+        invalidateCachePrefix("exam_categories:");
       }
 
       invalidateCache(CACHE_KEYS.SYSTEM_CONFIG_ALL);

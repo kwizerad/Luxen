@@ -236,7 +236,7 @@ export default function UserSettings({
     setContextLanguage(languageMap[newLanguage]);
 
     // Save to user metadata
-    await saveUserPreferences({ language: newLanguage });
+    await saveUserPreferences({ language: newLanguage, language_user_selected: true });
   };
 
   const handleThemeChange = async (newTheme: string) => {

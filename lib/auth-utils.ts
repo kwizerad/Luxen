@@ -22,7 +22,10 @@ export function resetLandingLanguageForAdminLogout() {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem("navo-language", "Kinyarwanda");
-    localStorage.removeItem("navo-language-code");
+    localStorage.setItem("navo-language-code", "rw");
+    localStorage.setItem("luxen_lang", "rw");
+    localStorage.removeItem("navo-language-user-set");
+    document.cookie = "navo_lang=rw; path=/; max-age=31536000; SameSite=Lax";
     sessionStorage.removeItem("navo-is-admin");
     sessionStorage.removeItem("navo-auth-token");
     localStorage.removeItem("navo-auth-token");

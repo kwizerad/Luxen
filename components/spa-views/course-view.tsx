@@ -424,48 +424,71 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [plainData, setPlainData] = useState<PlainLanguageData | null>(null);
   const [isLoadingPlain, setIsLoadingPlain] = useState(false);
 
-  // AI Cloud Neural Voice Player
+  // AI Cloud Neural Voice Player (fail closed until server verification confirms enabled)
   const [isTTSOpen, setIsTTSOpen] = useState(false);
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
   const [isLoadingTTS, setIsLoadingTTS] = useState(false);
-  const [isTTSDisabled, setIsTTSDisabled] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        return sessionStorage.getItem("luxen_tts_disabled") === "true";
-      } catch {}
-    }
-    return false;
-  });
+  const [isTTSDisabled, setIsTTSDisabled] = useState<boolean>(true);
 
   useEffect(() => {
+    let active = true;
     const handleDisabled = () => {
       setIsTTSDisabled(true);
       setIsTTSOpen(false);
       setIsLoadingTTS(false);
     };
-    const handleEnabled = () => {
-      setIsTTSDisabled(false);
-    };
-    window.addEventListener("luxen-tts-disabled", handleDisabled);
-    window.addEventListener("luxen-tts-enabled", handleEnabled);
 
-    const activeLang = translatedLang || learningLanguage || "English";
-    fetch(`/api/ai/tts?scope=learning&language=${encodeURIComponent(activeLang)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && data.enabled === false) {
-          setIsTTSDisabled(true);
-          setIsTTSOpen(false);
-          markTTSDisabledForSession();
-        } else if (data && data.enabled === true) {
-          setIsTTSDisabled(false);
-        }
+    const checkLearningTTS = () => {
+      const activeLang = translatedLang || learningLanguage || "Kinyarwanda";
+      fetch(`/api/ai/tts?scope=learning&language=${encodeURIComponent(activeLang)}`, {
+        cache: "no-store",
       })
-      .catch(() => {});
+        .then((r) => (r.ok ? r.json() : { enabled: false }))
+        .then((data) => {
+          if (!active || !data) return;
+          if (data.masterEnabled === false || data.quotaExceeded === true) {
+            setIsTTSDisabled(true);
+            setIsTTSOpen(false);
+            markTTSDisabledForSession();
+          } else if (data.enabled !== true) {
+            setIsTTSDisabled(true);
+            setIsTTSOpen(false);
+          } else {
+            try {
+              sessionStorage.removeItem("luxen_tts_disabled");
+            } catch {}
+            setIsTTSDisabled(false);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setIsTTSDisabled(true);
+            setIsTTSOpen(false);
+          }
+        });
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "luxen_tts_updated_at" || e.key === "luxen_tts_disabled") {
+        checkLearningTTS();
+      }
+    };
+
+    window.addEventListener("luxen-tts-disabled", handleDisabled);
+    window.addEventListener("luxen-tts-enabled", checkLearningTTS);
+    window.addEventListener("system-config-updated", checkLearningTTS);
+    window.addEventListener("luxen-tts-config-updated", checkLearningTTS);
+    window.addEventListener("storage", handleStorage);
+
+    checkLearningTTS();
 
     return () => {
+      active = false;
       window.removeEventListener("luxen-tts-disabled", handleDisabled);
-      window.removeEventListener("luxen-tts-enabled", handleEnabled);
+      window.removeEventListener("luxen-tts-enabled", checkLearningTTS);
+      window.removeEventListener("system-config-updated", checkLearningTTS);
+      window.removeEventListener("luxen-tts-config-updated", checkLearningTTS);
+      window.removeEventListener("storage", handleStorage);
     };
   }, [learningLanguage, translatedLang]);
 
@@ -709,15 +732,26 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         .maybeSingle();
       const savedLanguage = profile?.learning_language;
       const storedLocal = typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
-      const effectiveLang = (isLearningLanguage(storedLocal || "") ? storedLocal : null) || (isLearningLanguage(savedLanguage || "") ? savedLanguage : null);
+      const cachedUiLang = typeof window !== "undefined" ? localStorage.getItem("navo-language") : null;
 
-      if (!hasDeepLink && !effectiveLang) {
-        setShowLanguagePicker(true);
-        setLoading(false);
-        return;
+      let effectiveLang: LearningLanguage | null = null;
+      if (storedLocal && isLearningLanguage(storedLocal)) {
+        effectiveLang = storedLocal;
+      } else if (savedLanguage && isLearningLanguage(savedLanguage)) {
+        effectiveLang = savedLanguage;
+        if (typeof window !== "undefined" && savedLanguage !== "Kinyarwanda") {
+          localStorage.setItem("luxen_course_lang", savedLanguage);
+        }
+      } else if (
+        cachedUiLang &&
+        cachedUiLang !== "Kinyarwanda" &&
+        isLearningLanguage(cachedUiLang)
+      ) {
+        effectiveLang = cachedUiLang;
       }
 
-      const selectedLanguage = (effectiveLang as LearningLanguage) || "Kinyarwanda";
+      const selectedLanguage: LearningLanguage = effectiveLang || "Kinyarwanda";
+      setShowLanguagePicker(false);
       setLearningLanguage(selectedLanguage);
       await loadCourse(selectedLanguage);
     };
@@ -924,8 +958,15 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const selectLearningLanguage = async (selectedLanguage: LearningLanguage) => {
     const supabase = createClient();
     setSavingLanguage(true);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("luxen_course_lang", selectedLanguage);
+      } catch {}
+    }
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
+      setLearningLanguage(selectedLanguage);
+      await loadCourse(selectedLanguage);
       setSavingLanguage(false);
       return;
     }
@@ -1413,7 +1454,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     const isExtCourse = course?.id === "00000000-0000-0000-0000-00000000e001";
     const activeBaseLang = isExtCourse
       ? "Kinyarwanda"
-      : ((learningLanguage as "English" | "French" | "Kinyarwanda") || "English");
+      : ((learningLanguage as "English" | "French" | "Kinyarwanda") || "Kinyarwanda");
 
     // Revert to original
     if (targetLang === activeBaseLang) {
@@ -1499,7 +1540,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     const currentKey = currentItem?.type === "topic" ? currentTopic?.id : currentLesson?.id;
     if (!currentKey) return;
 
-    const activeLang = translatedLang || learningLanguage || "English";
+    const activeLang = translatedLang || learningLanguage || "Kinyarwanda";
     const cacheKey = `${currentKey}_${activeLang}`;
 
     if (plainCacheRef.current.has(cacheKey)) {
@@ -1547,7 +1588,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     const currentKey = currentItem?.type === "topic" ? currentTopic?.id : currentLesson?.id;
     if (!currentKey) return;
 
-    const activeLang = translatedLang || learningLanguage || "English";
+    const activeLang = translatedLang || learningLanguage || "Kinyarwanda";
     const cacheKey = `${currentKey}_${activeLang}`;
 
     if (ttsCacheRef.current.has(cacheKey)) {
@@ -1573,11 +1614,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success || data.disabled || data.quotaExceeded || !data.audioUrl) {
-        // Do not show error message inside the course; automatically disable the TTS feature
         setIsTTSOpen(false);
         setTtsAudioUrl(null);
         setIsTTSDisabled(true);
-        markTTSDisabledForSession();
+        if (data.quotaExceeded) {
+          markTTSDisabledForSession();
+        }
         return;
       }
       ttsCacheRef.current.set(cacheKey, data.audioUrl);
@@ -1586,7 +1628,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       setIsTTSOpen(false);
       setTtsAudioUrl(null);
       setIsTTSDisabled(true);
-      markTTSDisabledForSession();
     } finally {
       setIsLoadingTTS(false);
     }
@@ -2049,80 +2090,72 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1 min-w-0">
-              <div className="flex items-center flex-wrap gap-2">
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-foreground dark:text-zinc-100 break-words">
-                  {isRoadSignsFilter ? (t("roadSigns") || "Road Signs") : effectiveCourse.title}
-                </h1>
-                {isRoadSignsFilter && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
-                    <ImageIcon className="h-3 w-3 mr-1" />
-                    <span>{t("coursesWithImages") || "Courses with Images"}</span>
-                  </span>
-                )}
-              </div>
-              <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400">
-                {effectiveCourse.modules.length} {t("modules") || "Modules"} · {formatMinutes(courseTime(effectiveCourse))} {t("totalEstimatedTime") || "total study time"}
-              </p>
+          <div className="space-y-1 min-w-0">
+            <div className="flex items-center flex-wrap gap-x-2.5 gap-y-1">
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-foreground dark:text-zinc-100 break-words">
+                {isRoadSignsFilter ? (t("roadSigns") || "Road Signs") : effectiveCourse.title}
+              </h1>
+              {isRoadSignsFilter && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                  <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+                  <span>{t("coursesWithImages") || "Courses with Images"}</span>
+                </span>
+              )}
             </div>
-
-            {resumeTarget && (
-              <Button
-                onClick={() => {
-                  setCurrentItemIndex(resumeTarget.index);
-                  setSelectedModuleId(resumeTarget.item.moduleId);
-                  setViewMode("study");
-                }}
-                className="font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-none px-4 py-2 w-full sm:w-auto shrink-0"
-              >
-                <Play className="h-3.5 w-3.5 fill-current mr-2" />
-                <span>{t("continueFromLastTopic") || t("resumeLearning") || "Resume Topic"}</span>
-              </Button>
-            )}
+            <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400">
+              {effectiveCourse.modules.length}{" "}
+              {effectiveCourse.modules.length === 1 ? (t("module") || "Module") : (t("modules") || "Modules")} ·{" "}
+              {formatMinutes(courseTime(effectiveCourse))} {t("totalEstimatedTime") || "total study time"}
+            </p>
           </div>
         </div>
 
-        {/* Continue from Last Topic Card */}
-        {resumeTarget && (
-          <div className="rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 p-3.5 sm:p-4 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-none">
-            <div className="space-y-1.5 min-w-0 flex-1">
-              <div className="flex items-center flex-wrap gap-2">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/20 text-primary border border-primary/30 lowercase">
-                  <BookMarked className="w-3 h-3 mr-1.5" />
-                  <span>{t("resumeLearning") || "resume"}</span>
-                </span>
-                {resumeTarget.topicCount > 1 && (
-                  <span className="text-[11px] font-mono text-muted-foreground dark:text-zinc-400 tabular-nums">
-                    {resumeTarget.topicIndex + 1}/{resumeTarget.topicCount}
-                  </span>
-                )}
-              </div>
-              <h2 className="text-sm sm:text-base font-bold tracking-tight text-foreground dark:text-zinc-100 truncate">
-                {resumeTarget.topicTitle}
-              </h2>
-              <p className="text-xs text-muted-foreground dark:text-zinc-400 truncate">
-                <span className="font-semibold text-foreground/80 dark:text-zinc-300">{resumeTarget.moduleTitle}</span>
-                {resumeTarget.lessonTitle && ` · ${resumeTarget.lessonTitle}`}
-              </p>
-            </div>
+        {/* Continue from Last Topic Card (Single unified resume surface) */}
+        {resumeTarget && (() => {
+          const normTopic = resumeTarget.topicTitle.trim().toLowerCase();
+          const normLesson = (resumeTarget.lessonTitle || "").trim().toLowerCase();
+          const showLessonSubtitle = Boolean(resumeTarget.lessonTitle) && normLesson !== normTopic;
 
-            <div className="shrink-0 w-full sm:w-auto">
-              <Button
-                size="sm"
-                onClick={() => {
-                  setCurrentItemIndex(resumeTarget.index);
-                  setSelectedModuleId(resumeTarget.item.moduleId);
-                  setViewMode("study");
-                }}
-                className="w-full sm:w-auto px-4 py-2 rounded-lg font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-none"
-              >
-                <Play className="h-3.5 w-3.5 fill-current mr-2" />
-                <span>{t("continueFromLastTopic") || "Continue Learning"}</span>
-              </Button>
+          return (
+            <div className="rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 p-3 sm:p-4 sm:px-5 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 shadow-none overflow-hidden">
+              <div className="space-y-1.5 min-w-0 flex-1">
+                <div className="flex items-center justify-between sm:justify-start gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary min-w-0">
+                    <BookMarked className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{t("resumeLearning") || "Resume Learning"}</span>
+                  </span>
+                  {resumeTarget.topicCount > 1 && (
+                    <span className="text-[11px] font-mono font-medium text-muted-foreground dark:text-zinc-400 tabular-nums shrink-0">
+                      {resumeTarget.topicIndex + 1}/{resumeTarget.topicCount}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-sm sm:text-base font-bold tracking-tight text-foreground dark:text-zinc-100 leading-snug line-clamp-2 break-words">
+                  {resumeTarget.topicTitle}
+                </h2>
+                <p className="text-xs text-muted-foreground dark:text-zinc-400 leading-relaxed line-clamp-1 break-words">
+                  <span className="font-semibold text-foreground/80 dark:text-zinc-300">{resumeTarget.moduleTitle}</span>
+                  {showLessonSubtitle && ` · ${resumeTarget.lessonTitle}`}
+                </p>
+              </div>
+
+              <div className="shrink-0 w-full sm:w-auto">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setCurrentItemIndex(resumeTarget.index);
+                    setSelectedModuleId(resumeTarget.item.moduleId);
+                    setViewMode("study");
+                  }}
+                  className="w-full sm:w-auto min-h-10 sm:min-h-9 h-auto py-2 px-3.5 sm:px-4 rounded-lg font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-none whitespace-normal text-center leading-tight"
+                >
+                  <Play className="h-3.5 w-3.5 fill-current mr-2 shrink-0" />
+                  <span>{t("continueFromLastTopic") || "Continue Learning"}</span>
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Modules Grid */}
         <div className="space-y-3">
@@ -2171,10 +2204,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                     )}
                   >
                     <div className="space-y-2.5">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-2">
                         <div
                           className={cn(
-                            "flex items-center justify-center h-9 w-9 rounded-lg shrink-0 font-mono text-xs font-bold border mr-3",
+                            "flex items-center justify-center h-9 w-9 rounded-lg shrink-0 font-mono text-xs font-bold border",
                             isComplete || isUnlocked
                               ? "bg-primary/10 border-primary/20 text-primary"
                               : "bg-muted dark:bg-zinc-800/60 border-border dark:border-zinc-700/40 text-muted-foreground dark:text-zinc-500"
@@ -2191,31 +2224,31 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                           )}
                         </div>
 
-                        <div className="flex items-center flex-wrap justify-end">
-                          <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 lowercase px-2 py-0.5 rounded bg-muted dark:bg-zinc-800/80 border border-border dark:border-zinc-700/50 ml-1 mb-1">
+                        <div className="flex items-center flex-wrap justify-end gap-1.5">
+                          <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400 px-2 py-0.5 rounded bg-muted dark:bg-zinc-800/80 border border-border dark:border-zinc-700/50 tabular-nums">
                             {String(modIdx + 1).padStart(2, "0")}
                           </span>
                           {hasVisualLessons && (
                             <span
                               title="Contains visual diagrams / road signs"
-                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 ml-1 mb-1 flex items-center"
+                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center"
                             >
                               <ImageIcon className="h-3 w-3" />
                             </span>
                           )}
                           {isComplete && (
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase ml-1 mb-1">
-                              {t("completed") || "done"}
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold">
+                              {t("completed") || "Done"}
                             </span>
                           )}
                           {!isComplete && isUnlocked && completedLessonsCount > 0 && (
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold lowercase ml-1 mb-1">
-                              {t("inProgress") || "in-progress"}
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-semibold">
+                              {t("inProgress") || "In Progress"}
                             </span>
                           )}
                           {!isUnlocked && (
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted dark:bg-zinc-800/50 text-muted-foreground dark:text-zinc-500 font-semibold flex items-center border border-border dark:border-zinc-700/40 lowercase ml-1 mb-1">
-                              <Lock className="h-2.5 w-2.5 mr-1" /> {t("locked") || "locked"}
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted dark:bg-zinc-800/50 text-muted-foreground dark:text-zinc-500 font-semibold flex items-center border border-border dark:border-zinc-700/40">
+                              <Lock className="h-2.5 w-2.5 mr-1" /> {t("locked") || "Locked"}
                             </span>
                           )}
                         </div>
@@ -3040,7 +3073,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
                 <AINeuralVoicePlayer
                   audioUrl={ttsAudioUrl}
                   isLoading={isLoadingTTS}
-                  language={learningLanguage || "English"}
+                  language={learningLanguage || "Kinyarwanda"}
                   topicTitle={currentTopic?.title || currentLesson?.title || "Lesson Note"}
                   onClose={() => setIsTTSOpen(false)}
                   onRetry={handleToggleTTS}
@@ -3051,7 +3084,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
               {isPlainLanguageOpen && plainData && (
                 <PlainLanguageCard
                   data={plainData}
-                  language={learningLanguage || "English"}
+                  language={learningLanguage || "Kinyarwanda"}
                   onClose={() => setIsPlainLanguageOpen(false)}
                 />
               )}

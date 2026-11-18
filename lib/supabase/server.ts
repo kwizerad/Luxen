@@ -75,12 +75,6 @@ export async function getAuthUserFromRequest(
   request?: NextRequest,
   bodyAccessToken?: string | null
 ) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) return user;
-  } catch {}
-
   const authHeader = request?.headers.get("authorization");
   const headerToken = authHeader?.replace(/^bearer\s+/i, "").trim();
   const candidateTokens = [headerToken, bodyAccessToken?.trim()].filter(
@@ -90,10 +84,20 @@ export async function getAuthUserFromRequest(
   for (const bearerToken of candidateTokens) {
     try {
       const adminSb = createAdminClient();
-      const { data: { user: bearerUser } } = await adminSb.auth.getUser(bearerToken);
+      const {
+        data: { user: bearerUser },
+      } = await adminSb.auth.getUser(bearerToken);
       if (bearerUser) return bearerUser;
     } catch {}
   }
+
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) return user;
+  } catch {}
 
   return null;
 }

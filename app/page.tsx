@@ -30,12 +30,54 @@ export default function Home() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [authStep, setAuthStep] = useState<"initial" | "login" | "register">("initial");
   const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
+  const [guestFreeExamEnabled, setGuestFreeExamEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const authParam = new URLSearchParams(window.location.search).get("auth");
     if (authParam === "login") setAuthStep("login");
     else if (authParam === "register") setAuthStep("register");
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let active = true;
+    const fetchFreeExamFlag = async () => {
+      try {
+        const res = await fetch("/api/system-config?key=guest_free_exam_enabled", {
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          if (active) setGuestFreeExamEnabled(true);
+          return;
+        }
+        const json = await res.json();
+        const rawVal = json?.config?.value;
+        const enabled = rawVal === undefined || rawVal === null ? true : String(rawVal).toLowerCase() !== "false";
+        if (active) setGuestFreeExamEnabled(enabled);
+      } catch {
+        if (active) setGuestFreeExamEnabled(true);
+      }
+    };
+
+    void fetchFreeExamFlag();
+    const handleRefresh = () => {
+      void fetchFreeExamFlag();
+    };
+    window.addEventListener("system-config-updated", handleRefresh);
+    window.addEventListener("focus", handleRefresh);
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "luxen_guest_free_exam_updated") {
+        void fetchFreeExamFlag();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      active = false;
+      window.removeEventListener("system-config-updated", handleRefresh);
+      window.removeEventListener("focus", handleRefresh);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   // Live Clock & Date localized with authentic Kinyarwanda calendar terms
@@ -240,21 +282,23 @@ export default function Home() {
                     <ArrowRight className="w-4 h-4 shrink-0" />
                   </Button>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => router.push("/exam")}
-                    className="w-full px-6 py-2.5 rounded-2xl bg-emerald-600/12 hover:bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 dark:bg-emerald-500/15 dark:hover:bg-emerald-500/25 border border-emerald-600/35 dark:border-emerald-400/30 font-semibold text-xs sm:text-sm transition-all cursor-pointer gap-2 shadow-none focus:ring-0 active:scale-98 whitespace-nowrap"
-                  >
-                    <FileCheck2 className="w-4 h-4 shrink-0" />
-                    <span>
-                      {language === "Kinyarwanda" || language === "rw"
-                        ? "Kora ikizamini"
-                        : language === "French" || language === "fr"
-                        ? "Passer l'examen"
-                        : "Take Exam"}
-                    </span>
-                  </Button>
+                  {guestFreeExamEnabled === true && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => router.push("/exam")}
+                      className="w-full px-6 py-2.5 rounded-2xl bg-emerald-600/12 hover:bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 dark:bg-emerald-500/15 dark:hover:bg-emerald-500/25 border border-emerald-600/35 dark:border-emerald-400/30 font-semibold text-xs sm:text-sm transition-all cursor-pointer gap-2 shadow-none focus:ring-0 active:scale-98 whitespace-nowrap"
+                    >
+                      <FileCheck2 className="w-4 h-4 shrink-0" />
+                      <span>
+                        {language === "Kinyarwanda" || language === "rw"
+                          ? "Kora ikizamini"
+                          : language === "French" || language === "fr"
+                          ? "Passer l'examen"
+                          : "Take Exam"}
+                      </span>
+                    </Button>
+                  )}
                 </div>
               </motion.div>
             )}

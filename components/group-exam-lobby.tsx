@@ -28,6 +28,7 @@ import {
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { canViewUserAvatar } from "@/lib/avatar-helper";
+import { authFetch } from "@/lib/e2e-crypto";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -95,6 +96,7 @@ export function GroupExamLobby({
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [isTransitioningToExam, setIsTransitioningToExam] = useState(false);
   const [joinWindowSeconds, setJoinWindowSeconds] = useState<number>(120);
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const [isExpiredOrCompleted, setIsExpiredOrCompleted] = useState(false);
@@ -102,12 +104,23 @@ export function GroupExamLobby({
   const [showWarningModal, setShowWarningModal] = useState(false);
 
   const hasStartedRef = useRef(false);
+  const countdownActiveRef = useRef(false);
+  countdownActiveRef.current = countdown !== null && countdown > 0;
   const onStartRef = useRef(onStart);
   onStartRef.current = onStart;
   const resolvedLanguageRef = useRef<string>(examLanguage || "Kinyarwanda");
   resolvedLanguageRef.current = challenge?.language || examLanguage || "Kinyarwanda";
   const challengeChannelRef = useRef<any>(null);
   const isFetchingRef = useRef(false);
+
+  const triggerStartOnce = useCallback((resolvedLang?: string) => {
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+    countdownActiveRef.current = false;
+    setCountdown(null);
+    setIsTransitioningToExam(true);
+    onStartRef.current(resolvedLang || resolvedLanguageRef.current);
+  }, []);
 
   // Keep group challenge language scoped to exam session without overwriting global UI language
 
@@ -196,9 +209,8 @@ export function GroupExamLobby({
           if (isExamTimeExpired) {
             setIsExpiredOrCompleted(true);
           } else if (challengeData.status === "active") {
-            if (!hasStartedRef.current) {
-              hasStartedRef.current = true;
-              onStartRef.current(challengeData.language || resolvedLanguageRef.current);
+            if (!hasStartedRef.current && !countdownActiveRef.current) {
+              triggerStartOnce(challengeData.language || resolvedLanguageRef.current);
             }
           }
 
@@ -264,7 +276,7 @@ export function GroupExamLobby({
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [challengeId, durationMinutes, joinWindowSeconds, supabase]);
+  }, [challengeId, durationMinutes, joinWindowSeconds, supabase, triggerStartOnce]);
 
   useEffect(() => {
     if (secondsRemaining === null || secondsRemaining <= 0) return;
@@ -312,18 +324,14 @@ export function GroupExamLobby({
   useEffect(() => {
     if (countdown === null) return;
     if (countdown <= 0) {
-      setCountdown(null);
-      if (!hasStartedRef.current) {
-        hasStartedRef.current = true;
-        onStartRef.current(resolvedLanguageRef.current);
-      }
+      triggerStartOnce(resolvedLanguageRef.current);
       return;
     }
     const timer = setTimeout(() => {
       setCountdown((prev) => (prev !== null ? prev - 1 : null));
     }, 1000);
     return () => clearTimeout(timer);
-  }, [countdown]);
+  }, [countdown, triggerStartOnce]);
 
   useEffect(() => {
     if (!challengeId) return;
@@ -356,9 +364,8 @@ export function GroupExamLobby({
         },
         (payload: any) => {
           if (payload.new?.status === "active") {
-            if (!hasStartedRef.current) {
-              hasStartedRef.current = true;
-              onStartRef.current(payload.new?.language || resolvedLanguageRef.current);
+            if (!hasStartedRef.current && !countdownActiveRef.current) {
+              triggerStartOnce(payload.new?.language || resolvedLanguageRef.current);
             }
           } else if (payload.new?.status === "cancelled") {
             toast.error(
@@ -387,13 +394,13 @@ export function GroupExamLobby({
         onCancel();
       })
       .on("broadcast", { event: "exam_countdown" }, (payload: any) => {
+        if (hasStartedRef.current || isTransitioningToExam) return;
         const count = payload.payload?.count ?? 3;
-        setCountdown(count);
+        setCountdown((prev) => (prev !== null && prev > 0 ? prev : count));
       })
       .on("broadcast", { event: "exam_started" }, () => {
-        if (!hasStartedRef.current) {
-          hasStartedRef.current = true;
-          onStartRef.current(resolvedLanguageRef.current);
+        if (!hasStartedRef.current && !countdownActiveRef.current) {
+          triggerStartOnce(resolvedLanguageRef.current);
         }
       })
       .subscribe();
@@ -406,13 +413,15 @@ export function GroupExamLobby({
       supabase.removeChannel(channel);
       clearInterval(pollTimer);
     };
-  }, [challengeId, supabase, fetchChallengeDetails]);
+  }, [challengeId, supabase, fetchChallengeDetails, triggerStartOnce]);
 
   const handleStartExam = async () => {
-    if (starting || hasStartedRef.current) return;
+    if (starting || hasStartedRef.current || isTransitioningToExam) return;
     setStarting(true);
 
     try {
+      countdownActiveRef.current = true;
+      setCountdown(3);
       if (challengeChannelRef.current) {
         challengeChannelRef.current.send({
           type: "broadcast",
@@ -420,14 +429,17 @@ export function GroupExamLobby({
           payload: { count: 3 },
         });
       }
-      setCountdown(3);
 
-      await fetch(`/api/exam-challenges/${challengeId}/start`, {
+      // Mark challenge active on the server in parallel with countdown
+      const startRes = await authFetch(`/api/exam-challenges/${challengeId}/start`, {
         method: "POST",
       });
+      if (!startRes.ok) {
+        console.warn("[GroupExamLobby] /start returned non-OK status:", startRes.status);
+      }
 
       setTimeout(() => {
-        if (challengeChannelRef.current) {
+        if (challengeChannelRef.current && !hasStartedRef.current) {
           challengeChannelRef.current.send({
             type: "broadcast",
             event: "exam_started",
@@ -438,6 +450,7 @@ export function GroupExamLobby({
     } catch (error) {
       console.error("Failed to start group exam:", error);
       toast.error(t("failedToStartExam") || "Failed to start exam");
+      countdownActiveRef.current = false;
       setStarting(false);
       setCountdown(null);
     }
@@ -559,12 +572,22 @@ export function GroupExamLobby({
     (p) => p.status === "joined" || p.status === "ready" || p.status === "in_progress" || p.status === "completed"
   );
 
-  if (loading) {
+  if (loading || isTransitioningToExam) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[320px] text-center">
-        <Loader2 className="h-7 w-7 animate-spin text-primary mb-3" />
-        <p className="text-xs sm:text-sm text-muted-foreground">
-          {t("loadingGroupExam") || "Loading group exam..."}
+      <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[340px] text-center gap-3.5">
+        <div
+          role="status"
+          aria-label="Loading"
+          className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-300/80 dark:border-zinc-700 border-t-emerald-600 dark:border-t-emerald-400"
+        />
+        <p className="text-xs sm:text-sm font-medium text-foreground">
+          {isTransitioningToExam
+            ? isRw
+              ? "Tegereza gato, ikizamini kirimo gutangira..."
+              : isFr
+              ? "Préparation de l'examen de groupe..."
+              : t("startingExam") || "Preparing group exam..."
+            : t("loadingGroupExam") || "Loading group exam..."}
         </p>
       </div>
     );

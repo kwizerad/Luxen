@@ -153,14 +153,25 @@ function cleanJsonString(raw: string): string {
 export async function translateTextSnippets(
   snippets: TextSnippet[],
   sourceLang: TargetLanguage | string,
-  targetLang: TargetLanguage | string
+  targetLang: TargetLanguage | string,
+  options?: {
+    batchSize?: number;
+    concurrency?: number;
+    timeoutMs?: number;
+    maxRetries?: number;
+    skipRetryMissed?: boolean;
+  }
 ): Promise<Map<number, string>> {
   if (snippets.length === 0) {
     return new Map();
   }
 
-  // Batch process in chunks of 80 to minimize API round-trips and prevent timeouts
-  const BATCH_SIZE = 80;
+  const BATCH_SIZE = Math.max(5, options?.batchSize ?? 80);
+  const CONCURRENCY = Math.max(1, options?.concurrency ?? 2);
+  const timeoutMs = options?.timeoutMs ?? 20000;
+  const maxRetries = options?.maxRetries ?? 2;
+  const skipRetryMissed = Boolean(options?.skipRetryMissed);
+
   const resultMap = new Map<number, string>();
   const chunks: TextSnippet[][] = [];
   for (let i = 0; i < snippets.length; i += BATCH_SIZE) {
@@ -174,6 +185,8 @@ export async function translateTextSnippets(
     try {
       const response = await generateContentWithFallback({
         contents: prompt,
+        timeoutMs,
+        maxRetries,
         config: {
           systemInstruction: getSystemPrompt(sourceLang, targetLang),
           responseMimeType: "application/json",
@@ -243,9 +256,9 @@ export async function translateTextSnippets(
         }
       }
 
-      // Check if any item in the chunk was missed - retry missed items in ONE single fallback batch
+      // Check if any item in the chunk was missed - retry missed items in ONE single fallback batch unless skipped
       const missed = chunk.filter((item) => !resultMap.has(item.id));
-      if (missed.length > 0 && missed.length <= chunk.length) {
+      if (!skipRetryMissed && missed.length > 0 && missed.length <= chunk.length) {
         try {
           await new Promise((resolve) => setTimeout(resolve, 250));
           const retryPrompt =
@@ -253,6 +266,8 @@ export async function translateTextSnippets(
             JSON.stringify(missed, null, 2);
           const retryRes = await generateContentWithFallback({
             contents: retryPrompt,
+            timeoutMs,
+            maxRetries: 1,
             config: {
               systemInstruction: getSystemPrompt(sourceLang, targetLang),
               responseMimeType: "application/json",
@@ -293,8 +308,6 @@ export async function translateTextSnippets(
     }
   };
 
-  // Run up to 2 chunks concurrently to speed up large translations while staying within rate limits
-  const CONCURRENCY = 2;
   for (let i = 0; i < chunks.length; i += CONCURRENCY) {
     const wave = chunks.slice(i, i + CONCURRENCY);
     await Promise.all(wave.map((chunk) => processChunk(chunk)));

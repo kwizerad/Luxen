@@ -343,17 +343,41 @@ export default function ExamManagementPage() {
 
   const saveExamSettings = async () => {
     if (!settingsCategory) return;
+    const safeQuestionCount = Math.min(200, Math.max(1, Math.floor(Number(settingsForm.question_count) || DEFAULT_EXAM_SETTINGS.question_count)));
+    const safeDurationMinutes = Math.min(300, Math.max(1, Math.floor(Number(settingsForm.duration_minutes) || DEFAULT_EXAM_SETTINGS.duration_minutes)));
+    const safePassingPercentage = Math.min(100, Math.max(1, Math.floor(Number(settingsForm.passing_percentage) || DEFAULT_EXAM_SETTINGS.passing_percentage)));
+
+    if (!settingsForm.alwaysAvailable && settingsForm.available_from && settingsForm.available_to) {
+      if (new Date(settingsForm.available_from) >= new Date(settingsForm.available_to)) {
+        toast.error(t("invalidAvailabilityWindow") || "'Available From' must be earlier than 'Available To'");
+        return;
+      }
+    }
+
     setSavingSettings(true);
     try {
       const payload = {
-        question_count: settingsForm.question_count,
-        duration_minutes: settingsForm.duration_minutes,
-        passing_percentage: settingsForm.passing_percentage,
+        question_count: safeQuestionCount,
+        duration_minutes: safeDurationMinutes,
+        passing_percentage: safePassingPercentage,
         sorting_mode: settingsForm.sorting_mode,
         available_from: settingsForm.alwaysAvailable || !settingsForm.available_from ? null : new Date(settingsForm.available_from).toISOString(),
         available_to: settingsForm.alwaysAvailable || !settingsForm.available_to ? null : new Date(settingsForm.available_to).toISOString(),
       };
       await updateExamSettings(settingsCategory.id, payload);
+      setCategories((prev) => {
+        const next = prev.map((c) =>
+          c.id === settingsCategory.id
+            ? {
+                ...c,
+                duration_minutes: payload.duration_minutes,
+                question_count: payload.question_count,
+              }
+            : c
+        );
+        cachedExamCategories = next;
+        return next;
+      });
       toast.success(t("examSettingsSaved"));
       setShowSettingsModal(false);
     } catch (error: any) {
@@ -374,7 +398,11 @@ export default function ExamManagementPage() {
     try {
       const data = await createExamCategory(categoryName);
       toast.success(t("categoryCreatedSuccess"));
-      setCategories([data.category, ...categories]);
+      setCategories((prev) => {
+        const next = [data.category, ...prev];
+        cachedExamCategories = next;
+        return next;
+      });
       setCategoryName("");
     } catch (error: any) {
       toast.error(t("failedToCreateCategory") + ": " + error.message);
@@ -400,7 +428,11 @@ export default function ExamManagementPage() {
     try {
       const data = await updateExamCategory(editingCategory.id, editCategoryName);
       toast.success(t("categoryUpdatedSuccess"));
-      setCategories(categories.map(c => c.id === editingCategory.id ? data.category : c));
+      setCategories((prev) => {
+        const next = prev.map((c) => (c.id === editingCategory.id ? data.category : c));
+        cachedExamCategories = next;
+        return next;
+      });
       setShowEditCategoryModal(false);
       setEditingCategory(null);
       setEditCategoryName("");
@@ -418,7 +450,11 @@ export default function ExamManagementPage() {
     try {
       await deleteExamCategory(categoryId);
       toast.success(t("categoryDeletedSuccess"));
-      setCategories(categories.filter(c => c.id !== categoryId));
+      setCategories((prev) => {
+        const next = prev.filter((c) => c.id !== categoryId);
+        cachedExamCategories = next;
+        return next;
+      });
       if (activeCategory === categoryId) {
         setActiveCategory(null);
         setQuestions([]);
@@ -661,16 +697,20 @@ export default function ExamManagementPage() {
 
   const togglePublishCategory = async (category: ExamCategory, e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     const newStatus = !category.is_published;
-    
+
     try {
       await toggleCategoryPublishStatus(category.id, newStatus);
       toast.success(newStatus ? t("categoryPublished").replace("{name}", category.name) : t("categoryUnpublished").replace("{name}", category.name));
-      // Update local state
-      setCategories(prev => prev.map(c => 
-        c.id === category.id ? { ...c, is_published: newStatus } : c
-      ));
+      // Update local state & cache
+      setCategories((prev) => {
+        const next = prev.map((c) =>
+          c.id === category.id ? { ...c, is_published: newStatus } : c
+        );
+        cachedExamCategories = next;
+        return next;
+      });
     } catch (error: any) {
       toast.error(t("failedToUpdatePublishStatus") + ": " + error.message);
     }
@@ -1316,11 +1356,13 @@ export default function ExamManagementPage() {
                       id="admin-save-indiv"
                       checked={saveIndividualExams}
                       onCheckedChange={async (checked) => {
+                        const prev = saveIndividualExams;
                         setSaveIndividualExams(checked);
                         try {
                           await updateExamSavingConfig({ saveIndividualExams: checked });
                           toast.success(t("examPersistenceSettingsSaved") || "Individual exam saving setting updated");
                         } catch (e: any) {
+                          setSaveIndividualExams(prev);
                           toast.error((t("failedToSaveSettings") || "Failed to save setting: ") + e.message);
                         }
                       }}
@@ -1346,11 +1388,13 @@ export default function ExamManagementPage() {
                       id="admin-save-group"
                       checked={saveGroupExams}
                       onCheckedChange={async (checked) => {
+                        const prev = saveGroupExams;
                         setSaveGroupExams(checked);
                         try {
                           await updateExamSavingConfig({ saveGroupExams: checked });
                           toast.success(t("examPersistenceSettingsSaved") || "Group exam saving setting updated");
                         } catch (e: any) {
+                          setSaveGroupExams(prev);
                           toast.error((t("failedToSaveSettings") || "Failed to save setting: ") + e.message);
                         }
                       }}

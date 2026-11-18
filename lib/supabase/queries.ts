@@ -5,7 +5,8 @@ import { isAdmin, isPrimaryAdmin, canAddQuestions, hasReadWriteQuestionAccess, c
 import { getCurrentUser } from "@/lib/auth-utils";
 import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
 import { EXTERNAL_EXAM_CATEGORY_ID, isExternalExamCategoryId, isExternalModuleId, isExternalLessonId } from "@/lib/supabase/external";
-import { secureApiPost } from "@/lib/e2e-crypto";
+import { secureApiPost, authFetch } from "@/lib/e2e-crypto";
+import { invalidateServicesConfigCache } from "@/lib/feature-flags";
 import { normalizeExamQuestion, getBuiltinFallbackQuestions } from "@/lib/exam-question-utils";
 import { isUUID } from "@/lib/utils";
 import type { ExamCategory, ExamQuestion, ExamAnswer, ExamAttempt, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
@@ -52,14 +53,17 @@ export async function getExamCategories() {
 
   if (typeof window !== "undefined") {
     try {
-      const res = await fetch("/api/exam-categories", { cache: "no-store" });
+      const res = await authFetch("/api/exam-categories", { cache: "no-store" });
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json.categories) && json.categories.length > 0) {
           console.log("[ExamCategories] Loaded categories via /api/exam-categories:", json.categories);
           const questionCounts: Record<string, number> = {};
           for (const c of json.categories) {
-            questionCounts[c.id] = c.question_count || 365;
+            questionCounts[c.id] =
+              typeof json.question_counts?.[c.id] === "number"
+                ? json.question_counts[c.id]
+                : c.question_count || 0;
           }
           return { categories: json.categories, question_counts: questionCounts, is_admin: isUserAdmin };
         }
@@ -1088,6 +1092,30 @@ export async function createExamAttempt(attemptData: {
 // ============================================================================
 
 export async function getExamSettings(categoryId: string) {
+  if (typeof window !== "undefined") {
+    try {
+      const res = await authFetch(
+        `/api/admin/exam-settings?categoryId=${encodeURIComponent(categoryId)}`,
+        { cache: "no-store" }
+      );
+      if (res.ok) {
+        const json = await res.json();
+        return {
+          categoryId,
+          settings: normalizeExamSettings(json.settings),
+        };
+      }
+      if (res.status === 401 || res.status === 403) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Unauthorized");
+      }
+    } catch (err: any) {
+      if (err?.message?.includes("Unauthorized") || err?.message?.includes("Forbidden")) {
+        throw err;
+      }
+    }
+  }
+
   const supabase = createClient();
   const user = await getAuthUser();
 
@@ -1127,13 +1155,6 @@ export async function updateExamSettings(
     available_to?: string | null;
   }
 ) {
-  const supabase = createClient();
-  const user = await getAuthUser();
-
-  if (!user || !canManageExamSettings(user)) {
-    throw new Error("Unauthorized");
-  }
-
   if (!categoryId) {
     throw new Error("categoryId is required");
   }
@@ -1151,6 +1172,44 @@ export async function updateExamSettings(
   }
   if (!["RANDOM", "TEXT_ONLY", "WITH_PICTURE", "MIXED_50"].includes(sorting_mode)) {
     throw new Error("Invalid sorting_mode");
+  }
+
+  if (typeof window !== "undefined") {
+    const res = await authFetch("/api/admin/exam-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        categoryId,
+        question_count,
+        duration_minutes,
+        sorting_mode,
+        passing_percentage,
+        available_from,
+        available_to,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json?.success) {
+      invalidateServicesConfigCache();
+      window.dispatchEvent(new CustomEvent("system-config-updated", { detail: { key: "exam_settings" } }));
+      return {
+        categoryId,
+        settings: normalizeExamSettings(json.settings),
+      };
+    }
+    if (res.status >= 400 && res.status < 500) {
+      throw new Error(json.error || "Failed to update exam settings");
+    }
+    if (json?.error) {
+      throw new Error(json.error);
+    }
+  }
+
+  const supabase = createClient();
+  const user = await getAuthUser();
+
+  if (!user || !canManageExamSettings(user)) {
+    throw new Error("Unauthorized");
   }
 
   const payload: Record<string, any> = {
@@ -2033,8 +2092,10 @@ function isMissingTableError(error: any) {
 export async function getSystemConfig(key?: string) {
   if (typeof window !== "undefined") {
     try {
-      const url = key ? `/api/system-config?key=${encodeURIComponent(key)}` : "/api/system-config";
-      const res = await fetch(url, { cache: "no-store" });
+      const url = key
+        ? `/api/system-config?key=${encodeURIComponent(key)}&fresh=1`
+        : "/api/system-config?fresh=1";
+      const res = await authFetch(url, { cache: "no-store" });
       if (res.ok) {
         const json = await res.json();
         if (key) {
@@ -2089,25 +2150,23 @@ export async function getSystemConfig(key?: string) {
 export async function updateSystemConfig(key: string, value: string, description?: string) {
   if (typeof window !== "undefined") {
     try {
-      const res = await fetch("/api/system-config", {
+      const res = await authFetch("/api/system-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key, value: String(value), description }),
       });
+      const json = await res.json().catch(() => ({}));
       if (res.ok) {
-        const json = await res.json();
+        invalidateServicesConfigCache();
+        window.dispatchEvent(new CustomEvent("system-config-updated", { detail: { key, value: String(value) } }));
         return { config: json.config };
       } else {
-        const errJson = await res.json().catch(() => ({}));
-        if (res.status === 401 || res.status === 403) {
-          throw new Error(errJson.error || "Unauthorized: Admin access required");
-        }
+        throw new Error(json.error || "Failed to update system config");
       }
     } catch (err: any) {
-      if (err?.message?.includes("Unauthorized") || err?.message?.includes("Forbidden")) {
+      if (err?.message) {
         throw err;
       }
-      // Fallback to direct Supabase upsert below
     }
   }
 
@@ -2139,6 +2198,34 @@ export async function updateSystemConfig(key: string, value: string, description
 
   if (error) throw error;
   return { config: data };
+}
+
+export async function updateSystemConfigBatch(
+  items: Array<{ key: string; value: string; description?: string }>
+) {
+  if (!items || items.length === 0) return { configs: [] };
+
+  if (typeof window !== "undefined") {
+    const res = await authFetch("/api/system-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) {
+      invalidateServicesConfigCache();
+      window.dispatchEvent(new CustomEvent("system-config-updated", { detail: { keys: items.map((i) => i.key) } }));
+      return { configs: json.configs || [] };
+    }
+    throw new Error(json.error || "Failed to update system settings");
+  }
+
+  const results = [];
+  for (const item of items) {
+    const { config } = await updateSystemConfig(item.key, item.value, item.description);
+    if (config) results.push(config);
+  }
+  return { configs: results };
 }
 
 // Get universal exam limit for all users

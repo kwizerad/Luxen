@@ -29,8 +29,10 @@ import {
   HelpCircle,
   Layers,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { uploadCourseFile, validateFile } from "@/lib/course-storage";
+import { authFetch } from "@/lib/e2e-crypto";
 import {
   getTTSConfigAction,
   saveTTSConfigAction,
@@ -49,8 +51,11 @@ export function TTSManagementCard() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<"toggles" | "import" | "library">("toggles");
 
-  // TTS Settings
+  // TTS Settings (track latest value in ref to prevent stale-closure overwrites on rapid toggles)
   const [config, setConfig] = useState<TTSConfig>(DEFAULT_TTS_CONFIG);
+  const configRef = useRef<TTSConfig>(DEFAULT_TTS_CONFIG);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingSavesRef = useRef<number>(0);
 
   // Audio Import State
   const [entityType, setEntityType] = useState<"question" | "topic" | "custom">("question");
@@ -91,54 +96,166 @@ export function TTSManagementCard() {
 
   // Load config & initial data
   useEffect(() => {
+    let active = true;
     async function loadData() {
       try {
         setLoading(true);
-        const [configRes, questionsRes, audiosRes] = await Promise.all([
-          getTTSConfigAction(),
-          getExamQuestions(),
-          listImportedTTSAudiosAction(),
+        const [configApiRes, questionsRes, audiosRes] = await Promise.all([
+          authFetch("/api/admin/tts", { cache: "no-store" })
+            .then(async (r) => {
+              if (r.ok) return r.json();
+              if (r.status === 404) return getTTSConfigAction();
+              const errJson = await r.json().catch(() => null);
+              throw new Error(errJson?.error || `Failed to load TTS settings (${r.status})`);
+            })
+            .catch((err) => {
+              console.warn("Primary /api/admin/tts GET failed, falling back:", err);
+              return getTTSConfigAction();
+            }),
+          getExamQuestions().catch(() => ({ questions: [] })),
+          listImportedTTSAudiosAction().catch(() => ({ success: false as const, data: [] as ImportedTTSAudioRecord[] })),
         ]);
 
-        if (configRes.success && configRes.data) {
-          setConfig(configRes.data);
+        if (!active) return;
+
+        if (configApiRes?.success && configApiRes.data) {
+          configRef.current = configApiRes.data;
+          setConfig(configApiRes.data);
+        } else if (configApiRes?.error) {
+          toast.error("Failed to load TTS settings: " + configApiRes.error);
         }
         if (questionsRes?.questions) {
           setQuestions(questionsRes.questions);
         }
-        if (audiosRes.success && audiosRes.data) {
+        if (audiosRes?.success && audiosRes.data) {
           setImportedAudios(audiosRes.data);
         }
       } catch (err: any) {
-        console.error("Error loading TTS admin data:", err);
-        toast.error("Failed to load TTS settings: " + (err.message || String(err)));
+        if (active) {
+          console.error("Error loading TTS admin data:", err);
+          toast.error("Failed to load TTS settings: " + (err.message || String(err)));
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
     loadData();
+    return () => {
+      active = false;
+    };
   }, []);
+
+  const broadcastTTSConfigUpdated = (savedCfg: TTSConfig) => {
+    if (savedCfg.masterEnabled) {
+      clearTTSDisabledForSession();
+    } else {
+      markTTSDisabledForSession();
+    }
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("luxen_tts_updated_at", String(Date.now()));
+      } catch {}
+      window.dispatchEvent(new CustomEvent("system-config-updated", { detail: { key: "tts" } }));
+      window.dispatchEvent(new CustomEvent("luxen-tts-config-updated", { detail: savedCfg }));
+    }
+  };
+
+  const enqueueTTSSave = (payload: Partial<TTSConfig>, isSwitchPatch: boolean): Promise<void> => {
+    const prevSnapshot = configRef.current;
+    const optimisticNext: TTSConfig = { ...prevSnapshot, ...payload };
+    configRef.current = optimisticNext;
+    setConfig(optimisticNext);
+
+    pendingSavesRef.current += 1;
+    setSavingSettings(true);
+
+    const task = saveQueueRef.current.then(async () => {
+      try {
+        let savedData: TTSConfig | null = null;
+        let res: Response | null = null;
+        let json: any = null;
+
+        try {
+          res = await authFetch("/api/admin/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          json = await res.json().catch(() => null);
+        } catch (networkErr: any) {
+          // Only fall back to Server Action on transport failure / missing route
+          const fallbackRes = await saveTTSConfigAction(payload);
+          if (fallbackRes.success && fallbackRes.data) {
+            savedData = fallbackRes.data;
+          } else {
+            const errMsg = !fallbackRes.success ? fallbackRes.error : undefined;
+            throw new Error(errMsg || networkErr?.message || "Network error saving TTS settings");
+          }
+        }
+
+        if (res) {
+          if (res.ok && json?.success) {
+            savedData = json.data || optimisticNext;
+          } else if (res.status === 404) {
+            const fallbackRes = await saveTTSConfigAction(payload);
+            if (fallbackRes.success && fallbackRes.data) {
+              savedData = fallbackRes.data;
+            } else {
+              const errMsg = !fallbackRes.success ? fallbackRes.error : undefined;
+              throw new Error(errMsg || json?.error || "Failed to update TTS settings");
+            }
+          } else {
+            // Do NOT fall back to cookie-only Server Action on 401/403/400/500
+            throw new Error(json?.error || `Failed to update TTS settings (${res.status})`);
+          }
+        }
+
+        if (savedData) {
+          if (pendingSavesRef.current <= 1) {
+            configRef.current = savedData;
+            setConfig(savedData);
+          }
+          broadcastTTSConfigUpdated(savedData);
+          toast.success(isSwitchPatch ? "TTS setting saved" : "TTS settings updated successfully");
+        }
+      } catch (err: any) {
+        // Re-sync from DB (or revert to previous snapshot) if save fails
+        try {
+          const refreshRes = await authFetch("/api/admin/tts", { cache: "no-store" });
+          const refreshJson = await refreshRes.json().catch(() => null);
+          if (refreshRes.ok && refreshJson?.success && refreshJson.data) {
+            configRef.current = refreshJson.data;
+            setConfig(refreshJson.data);
+          } else {
+            configRef.current = prevSnapshot;
+            setConfig(prevSnapshot);
+          }
+        } catch {
+          configRef.current = prevSnapshot;
+          setConfig(prevSnapshot);
+        }
+        toast.error(err?.message || "Failed to update TTS settings");
+      } finally {
+        pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+        if (pendingSavesRef.current === 0) {
+          setSavingSettings(false);
+        }
+      }
+    });
+
+    saveQueueRef.current = task.catch(() => {});
+    return task;
+  };
+
+  const updateAndSaveSwitch = (patch: Partial<TTSConfig>) => {
+    void enqueueTTSSave(patch, true);
+  };
 
   // Save Settings
   const handleSaveConfig = async () => {
-    try {
-      setSavingSettings(true);
-      const res = await saveTTSConfigAction(config);
-      if (res.success) {
-        if (config.masterEnabled && (config.examsEnabled || config.learningEnabled)) {
-          clearTTSDisabledForSession();
-        } else if (!config.masterEnabled) {
-          markTTSDisabledForSession();
-        }
-        toast.success("TTS settings updated successfully");
-      } else {
-        toast.error(res.error || "Failed to update TTS settings");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save settings");
-    } finally {
-      setSavingSettings(false);
-    }
+    await enqueueTTSSave(configRef.current, false);
   };
 
   // Handle Audio File Upload
@@ -353,6 +470,19 @@ export function TTSManagementCard() {
     return item.language.toLowerCase() === libraryFilterLang.toLowerCase();
   });
 
+  if (loading) {
+    return (
+      <Card className="border border-[var(--admin-border)] rounded-2xl bg-[var(--admin-card-bg)]">
+        <CardContent className="flex flex-col items-center justify-center py-14 gap-3">
+          <Loader2 className="h-7 w-7 animate-spin text-indigo-400" />
+          <p className="text-xs font-medium text-[var(--admin-muted)]">
+            Loading Text-to-Speech configuration...
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Sub tabs navigation */}
@@ -434,7 +564,7 @@ export function TTSManagementCard() {
                 <Switch
                   id="master-tts"
                   checked={config.masterEnabled}
-                  onCheckedChange={(checked) => setConfig((prev) => ({ ...prev, masterEnabled: checked }))}
+                  onCheckedChange={(checked) => updateAndSaveSwitch({ masterEnabled: checked })}
                 />
               </div>
 
@@ -465,9 +595,7 @@ export function TTSManagementCard() {
                       id="tts-kinyarwanda"
                       disabled={!config.masterEnabled}
                       checked={config.kinyarwandaEnabled}
-                      onCheckedChange={(checked) =>
-                        setConfig((prev) => ({ ...prev, kinyarwandaEnabled: checked }))
-                      }
+                      onCheckedChange={(checked) => updateAndSaveSwitch({ kinyarwandaEnabled: checked })}
                     />
                   </div>
 
@@ -488,9 +616,7 @@ export function TTSManagementCard() {
                       id="tts-english"
                       disabled={!config.masterEnabled}
                       checked={config.englishEnabled}
-                      onCheckedChange={(checked) =>
-                        setConfig((prev) => ({ ...prev, englishEnabled: checked }))
-                      }
+                      onCheckedChange={(checked) => updateAndSaveSwitch({ englishEnabled: checked })}
                     />
                   </div>
 
@@ -511,9 +637,7 @@ export function TTSManagementCard() {
                       id="tts-french"
                       disabled={!config.masterEnabled}
                       checked={config.frenchEnabled}
-                      onCheckedChange={(checked) =>
-                        setConfig((prev) => ({ ...prev, frenchEnabled: checked }))
-                      }
+                      onCheckedChange={(checked) => updateAndSaveSwitch({ frenchEnabled: checked })}
                     />
                   </div>
                 </div>
@@ -540,9 +664,7 @@ export function TTSManagementCard() {
                       id="tts-learning"
                       disabled={!config.masterEnabled}
                       checked={config.learningEnabled}
-                      onCheckedChange={(checked) =>
-                        setConfig((prev) => ({ ...prev, learningEnabled: checked }))
-                      }
+                      onCheckedChange={(checked) => updateAndSaveSwitch({ learningEnabled: checked })}
                     />
                   </div>
 
@@ -560,9 +682,7 @@ export function TTSManagementCard() {
                       id="tts-exams"
                       disabled={!config.masterEnabled}
                       checked={config.examsEnabled}
-                      onCheckedChange={(checked) =>
-                        setConfig((prev) => ({ ...prev, examsEnabled: checked }))
-                      }
+                      onCheckedChange={(checked) => updateAndSaveSwitch({ examsEnabled: checked })}
                     />
                   </div>
                 </div>
@@ -579,11 +699,100 @@ export function TTSManagementCard() {
                   </div>
                   <Switch
                     id="tts-prefer-imported"
+                    disabled={!config.masterEnabled}
                     checked={config.preferImportedAudio}
-                    onCheckedChange={(checked) =>
-                      setConfig((prev) => ({ ...prev, preferImportedAudio: checked }))
-                    }
+                    onCheckedChange={(checked) => updateAndSaveSwitch({ preferImportedAudio: checked })}
                   />
+                </div>
+              </div>
+
+              {/* Neural AI Voice Controls */}
+              <div className="pt-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)] mb-3">
+                  Neural AI Voice Generation
+                </h4>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)]">
+                    <div className="space-y-0.5 pr-3">
+                      <Label htmlFor="tts-neural-master" className="text-xs font-bold text-[var(--admin-text)] flex items-center gap-1.5">
+                        <Radio className="h-3.5 w-3.5 text-emerald-400" />
+                        Enable Neural AI Speech Generation
+                      </Label>
+                      <p className="text-[11px] text-[var(--admin-muted)]">
+                        Allow real-time AI voice synthesis when no human recording is attached.
+                      </p>
+                    </div>
+                    <Switch
+                      id="tts-neural-master"
+                      disabled={!config.masterEnabled}
+                      checked={config.geminiNeuralEnabled}
+                      onCheckedChange={(checked) => updateAndSaveSwitch({ geminiNeuralEnabled: checked })}
+                    />
+                  </div>
+
+                  <div className="grid sm:grid-cols-3 gap-2.5">
+                    <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)]">
+                      <Label htmlFor="tts-neural-rw" className="text-xs font-semibold text-[var(--admin-text)]">
+                        AI Kinyarwanda
+                      </Label>
+                      <Switch
+                        id="tts-neural-rw"
+                        disabled={!config.masterEnabled || !config.geminiNeuralEnabled}
+                        checked={config.geminiKinyarwandaEnabled}
+                        onCheckedChange={(checked) => updateAndSaveSwitch({ geminiKinyarwandaEnabled: checked })}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)]">
+                      <Label htmlFor="tts-neural-en" className="text-xs font-semibold text-[var(--admin-text)]">
+                        AI English
+                      </Label>
+                      <Switch
+                        id="tts-neural-en"
+                        disabled={!config.masterEnabled || !config.geminiNeuralEnabled}
+                        checked={config.geminiEnglishEnabled}
+                        onCheckedChange={(checked) => updateAndSaveSwitch({ geminiEnglishEnabled: checked })}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)]">
+                      <Label htmlFor="tts-neural-fr" className="text-xs font-semibold text-[var(--admin-text)]">
+                        AI French
+                      </Label>
+                      <Switch
+                        id="tts-neural-fr"
+                        disabled={!config.masterEnabled || !config.geminiNeuralEnabled}
+                        checked={config.geminiFrenchEnabled}
+                        onCheckedChange={(checked) => updateAndSaveSwitch({ geminiFrenchEnabled: checked })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)]">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="tts-voice-select" className="text-xs font-bold text-[var(--admin-text)]">
+                        Default AI Narrator Voice
+                      </Label>
+                      <p className="text-[11px] text-[var(--admin-muted)]">
+                        Select the voice personality used for generated audio narration.
+                      </p>
+                    </div>
+                    <Select
+                      value={config.geminiVoice}
+                      disabled={!config.masterEnabled || !config.geminiNeuralEnabled}
+                      onValueChange={(val: any) => updateAndSaveSwitch({ geminiVoice: val })}
+                    >
+                      <SelectTrigger id="tts-voice-select" className="w-36 h-8 text-xs">
+                        <SelectValue placeholder="Voice" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Kore">Kore</SelectItem>
+                        <SelectItem value="Puck">Puck</SelectItem>
+                        <SelectItem value="Charon">Charon</SelectItem>
+                        <SelectItem value="Fenrir">Fenrir</SelectItem>
+                        <SelectItem value="Zephyr">Zephyr</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 

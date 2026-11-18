@@ -156,6 +156,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     null
   );
 
+  const startingExamRef = useRef(false);
   const submittingExamRef = useRef(false);
   const showResultsRef = useRef(false);
   const handleSubmitExamRef = useRef<
@@ -241,7 +242,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       }
     };
     void fetchChallengeDetails();
-  }, [challengeId, categoryId]);
+  }, [challengeId]);
 
   // Check if student has past exam history for quick navigation button
   useEffect(() => {
@@ -506,47 +507,52 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
   // Direct exam start — opens Question 1 immediately in chosen exam language
   const startExam = async (catId?: string, examLang?: string) => {
+    if (startingExamRef.current) return;
+    startingExamRef.current = true;
+
     const activeLang = normalizeExamLanguage(
       examLang || selectedExamLanguage || language || "Kinyarwanda"
     );
     setSelectedExamLanguage(activeLang);
-
-    if (
-      securitySettings.violationMeasuresEnabled &&
-      securitySettings.fullscreenEnabled
-    ) {
-      await anticheat.enterFullscreen();
-    }
-
-    let targetCategoryId = catId || categoryId;
-
-    if (
-      !targetCategoryId ||
-      targetCategoryId === "fallback-id" ||
-      !isUUID(targetCategoryId)
-    ) {
-      const matched = categories.find((c) => isUUID(c.id));
-      targetCategoryId = matched ? matched.id : EXTERNAL_EXAM_CATEGORY_ID;
-      setCategoryId(targetCategoryId);
-    }
-
-    if (challengeId) {
-      try {
-        await authFetch(`/api/exam-challenges/${challengeId}/start`, {
-          method: "POST",
-        });
-      } catch (err) {
-        console.error("[ExamView] Failed to mark challenge active:", err);
-      }
-    }
-
     setLoadingExam(true);
+
     try {
-      const data = await getExamForTaking(
-        targetCategoryId,
-        challengeId || undefined,
-        activeLang
-      );
+      if (
+        securitySettings.violationMeasuresEnabled &&
+        securitySettings.fullscreenEnabled
+      ) {
+        await anticheat.enterFullscreen();
+      }
+
+      let targetCategoryId = catId || categoryId;
+
+      if (
+        !targetCategoryId ||
+        targetCategoryId === "fallback-id" ||
+        !isUUID(targetCategoryId)
+      ) {
+        const matched = categories.find((c) => isUUID(c.id));
+        targetCategoryId = matched ? matched.id : EXTERNAL_EXAM_CATEGORY_ID;
+        setCategoryId(targetCategoryId);
+      }
+
+      const startChallengePromise = challengeId
+        ? authFetch(`/api/exam-challenges/${challengeId}/start`, {
+            method: "POST",
+          }).catch((err) => {
+            console.error("[ExamView] Failed to mark challenge active:", err);
+            return null;
+          })
+        : Promise.resolve(null);
+
+      const [, data] = await Promise.all([
+        startChallengePromise,
+        getExamForTaking(
+          targetCategoryId,
+          challengeId || undefined,
+          activeLang
+        ),
+      ]);
 
       if (!data?.questions || data.questions.length === 0) {
         toast.error(
@@ -608,6 +614,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         window.dispatchEvent(new CustomEvent("exam-state-change"));
       }
     } finally {
+      startingExamRef.current = false;
       setLoadingExam(false);
     }
   };
@@ -806,6 +813,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     showResultsRef.current = false;
     setExamResult(null);
     setIsSoloGroupAttempt(false);
+    startingExamRef.current = false;
     submittingExamRef.current = false;
     setChallengeId("");
     setExamMode("launcher");
@@ -952,6 +960,30 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           }
         }}
       />
+    );
+  }
+
+  // Fetching questions overlay inside Navo OS window (rendered BEFORE lobby so lobby unmounts cleanly on start)
+  if (loadingExam) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[380px] gap-4 p-6 text-center">
+        <div
+          role="status"
+          aria-label="Loading exam"
+          className="h-11 w-11 animate-spin rounded-full border-4 border-zinc-300/80 dark:border-zinc-700 border-t-emerald-600 dark:border-t-emerald-400"
+        />
+        <p className="text-sm font-semibold text-foreground">
+          {language === "Kinyarwanda" ||
+          language === "rw" ||
+          selectedExamLanguage === "Kinyarwanda"
+            ? "Tegereza gato, ibibazo birimo gutegurwa..."
+            : language === "French" ||
+              language === "fr" ||
+              selectedExamLanguage === "French"
+            ? "Chargement des questions de l'examen..."
+            : t("loadingQuestions") || "Loading exam questions..."}
+        </p>
+      </div>
     );
   }
 
@@ -1114,26 +1146,6 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         onRetake={handleRetake}
         passingPercentage={exam?.settings?.passing_percentage}
       />
-    );
-  }
-
-  // Fetching questions overlay inside Navo OS window
-  if (loadingExam) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[360px] gap-3 p-6">
-        <div className="h-9 w-9 animate-spin rounded-full border-3 border-primary border-t-transparent" />
-        <p className="text-sm font-medium text-foreground">
-          {language === "Kinyarwanda" ||
-          language === "rw" ||
-          selectedExamLanguage === "Kinyarwanda"
-            ? "Tegereza gato, ibibazo birimo gutegurwa..."
-            : language === "French" ||
-              language === "fr" ||
-              selectedExamLanguage === "French"
-            ? "Chargement des questions de l'examen..."
-            : t("loadingQuestions") || "Loading exam questions..."}
-        </p>
-      </div>
     );
   }
 
