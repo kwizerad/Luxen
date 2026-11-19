@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
+import { ChatMessageBubblesSkeleton } from "@/components/skeletons";
 import type { ChatMessage } from "@/lib/database.types";
 
 export interface ChatConversationViewProps {
@@ -167,9 +168,7 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <ChatMessageBubblesSkeleton count={5} />
         ) : messages.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-8">{t("noMessagesYet")}</p>
         ) : (

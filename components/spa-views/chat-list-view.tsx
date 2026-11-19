@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MessageSquare, Loader2, ArrowLeft } from "lucide-react";
+import { MessageSquare, ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
+import { ChatListViewSkeleton } from "@/components/skeletons";
 
 export interface ChatListViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -42,9 +43,7 @@ export function ChatListView({ navigate, embedded = false }: ChatListViewProps) 
       )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
+          <ChatListViewSkeleton embedded />
         ) : conversations.length === 0 ? (
           <div className="text-center py-12">
             <MessageSquare className="mx-auto mb-3 h-12 w-12 text-muted-foreground/50" />
@@ -100,6 +99,10 @@ export function ChatListView({ navigate, embedded = false }: ChatListViewProps) 
 
   if (embedded) {
     return <div className="py-4">{content}</div>;
+  }
+
+  if (loading) {
+    return <ChatListViewSkeleton />;
   }
 
   return (

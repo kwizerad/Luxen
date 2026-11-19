@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { ArrowLeft, Trophy, Plus, Loader2, Users, ShieldAlert, Search, CheckSquare, Square, UserPlus, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,19 +67,34 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
   const [selectedInvitees, setSelectedInvitees] = useState<Set<string>>(new Set());
   const [creatingChallenge, setCreatingChallenge] = useState(false);
   const [modalSearch, setModalSearch] = useState("");
+  const challengesSigRef = useRef<string>("");
 
   const fetchChallenges = useCallback(async () => {
     try {
       const res = await fetch("/api/exam-challenges");
       const data = await res.json();
-      setChallenges(data.challenges || []);
+      const next: ChallengeWithParticipants[] = data.challenges || [];
+      const sig = next
+        .map(
+          (c) =>
+            `${c.id}:${c.status}:${(c.participants || [])
+              .map((p) => `${p.user_id}:${p.status}:${p.exam_attempt_id || ""}`)
+              .join(",")}`
+        )
+        .join("|");
+      if (sig !== challengesSigRef.current || next.length === 0) {
+        challengesSigRef.current = sig;
+        setChallenges(next);
+      }
     } catch {
       // ignore
     }
   }, []);
 
+  const userId = user?.id;
+
   const fetchClassmates = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     try {
       const requestsRes = await fetch("/api/classmate-requests")
         .then((r) => r.json())
@@ -90,7 +105,7 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
       const combinedMap = new Map<string, ClassmateProfile>();
 
       for (const r of allRequests) {
-        if (r.status === "accepted" && r.other_user && r.other_user.id !== user.id) {
+        if (r.status === "accepted" && r.other_user && r.other_user.id !== userId) {
           const u = r.other_user;
           if (!combinedMap.has(u.id)) {
             combinedMap.set(u.id, {
@@ -113,23 +128,30 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
     } catch {
       // ignore
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
+    let active = true;
     isGroupExamEnabled()
       .then((enabled) => {
+        if (!active) return;
         setGroupExamOn(enabled);
         if (enabled) {
           return Promise.all([fetchChallenges(), fetchClassmates()]);
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [fetchChallenges, fetchClassmates]);
 
   // Realtime subscription for challenge updates
   useEffect(() => {
-    if (!user) return;
-    const channelName = `group-exam-changes-${user.id || "anon"}_${Math.random().toString(36).slice(2, 7)}`;
+    if (!userId) return;
+    const channelName = `group-exam-changes-${userId || "anon"}_${Math.random().toString(36).slice(2, 7)}`;
     const channel = supabase
       .channel(channelName)
       .on(
@@ -147,9 +169,9 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase, fetchChallenges]);
+  }, [userId, supabase, fetchChallenges]);
 
-  const openCreateModal = async () => {
+  const openCreateModal = useCallback(async () => {
     setShowCreateModal(true);
     if (examCategories.length === 0) {
       try {
@@ -163,7 +185,7 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
         // ignore
       }
     }
-  };
+  }, [examCategories.length, supabase]);
 
   const handleCreateChallenge = async () => {
     if (!selectedCategory) {
@@ -213,56 +235,82 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
 
   const [now, setNow] = useState<number>(() => Date.now());
 
+  const hasLiveChallenges = useMemo(
+    () => !loading && challenges.some((c) => c.status === "pending" || c.status === "active"),
+    [loading, challenges]
+  );
+
   useEffect(() => {
+    if (!hasLiveChallenges) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [hasLiveChallenges]);
 
-  const isChallengeOngoing = (c: ChallengeWithParticipants) => {
-    if (!c.created_at) return false;
-    if (c.status === "completed" || c.status === "cancelled" || c.status === "expired") return false;
+  const isChallengeOngoing = useCallback(
+    (c: ChallengeWithParticipants) => {
+      if (!c.created_at) return false;
+      if (c.status === "completed" || c.status === "cancelled" || c.status === "expired") return false;
 
-    const myP = c.participants?.find((p) => p.user_id === user?.id);
-    const hasCompleted =
-      myP?.status === "completed" ||
-      myP?.status === "abandoned" ||
-      myP?.status === "rejected" ||
-      myP?.status === "declined" ||
-      myP?.status === "expired" ||
-      Boolean(myP?.exam_attempt_id);
-    if (hasCompleted) return false;
+      const myP = c.participants?.find((p) => p.user_id === userId);
+      const hasCompleted =
+        myP?.status === "completed" ||
+        myP?.status === "abandoned" ||
+        myP?.status === "rejected" ||
+        myP?.status === "declined" ||
+        myP?.status === "expired" ||
+        Boolean(myP?.exam_attempt_id);
+      if (hasCompleted) return false;
 
-    const isCreator = c.creator_id === user?.id;
-    const age = now - new Date(c.created_at).getTime();
+      const isCreator = c.creator_id === userId;
+      const age = now - new Date(c.created_at).getTime();
 
-    if (c.status === "pending") {
-      if (isCreator) return age <= 60 * 1000;
-      if (myP?.status === "pending") return age <= 30 * 1000;
-      if (myP?.status === "joined" || myP?.status === "ready") return age <= 60 * 1000;
+      if (c.status === "pending") {
+        if (isCreator) return age <= 60 * 1000;
+        if (myP?.status === "pending") return age <= 30 * 1000;
+        if (myP?.status === "joined" || myP?.status === "ready") return age <= 60 * 1000;
+        return false;
+      }
+
+      if (c.status === "active") {
+        const isParticipantOrCreator =
+          isCreator || myP?.status === "joined" || myP?.status === "ready" || myP?.status === "in_progress";
+        return isParticipantOrCreator && age <= 30 * 60 * 1000;
+      }
+
       return false;
+    },
+    [now, userId]
+  );
+
+  const { pendingChallenges, activeChallenges, completedChallenges } = useMemo(() => {
+    if (loading) {
+      return {
+        pendingChallenges: [] as ChallengeWithParticipants[],
+        activeChallenges: [] as ChallengeWithParticipants[],
+        completedChallenges: [] as ChallengeWithParticipants[],
+      };
     }
-
-    if (c.status === "active") {
-      const isParticipantOrCreator = isCreator || myP?.status === "joined" || myP?.status === "ready" || myP?.status === "in_progress";
-      return isParticipantOrCreator && age <= 30 * 60 * 1000;
+    const pending: ChallengeWithParticipants[] = [];
+    const active: ChallengeWithParticipants[] = [];
+    const completed: ChallengeWithParticipants[] = [];
+    for (const c of challenges) {
+      if (isChallengeOngoing(c)) {
+        if (c.status === "pending") pending.push(c);
+        else if (c.status === "active") active.push(c);
+      } else {
+        completed.push(c);
+      }
     }
+    return { pendingChallenges: pending, activeChallenges: active, completedChallenges: completed };
+  }, [loading, challenges, isChallengeOngoing]);
 
-    return false;
-  };
-
-  const pendingChallenges = challenges.filter((c) => {
-    if (!isChallengeOngoing(c)) return false;
-    return c.status === "pending";
-  });
-
-  const activeChallenges = challenges.filter((c) => {
-    if (!isChallengeOngoing(c)) return false;
-    return c.status === "active";
-  });
-
-  const completedChallenges = challenges.filter((c) => {
-    return !isChallengeOngoing(c);
-  });
+  const filteredModalClassmates = useMemo(() => {
+    if (!modalSearch) return classmates;
+    const q = modalSearch.toLowerCase();
+    return classmates.filter(
+      (item) => item.full_name?.toLowerCase().includes(q) || item.username?.toLowerCase().includes(q)
+    );
+  }, [classmates, modalSearch]);
 
   if (loading) return <GroupExamViewSkeleton />;
 
@@ -480,65 +528,55 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
               </div>
 
               {/* List */}
-              {(() => {
-                const filtered = classmates.filter((item) => {
-                  if (!modalSearch) return true;
-                  const q = modalSearch.toLowerCase();
-                  return item.full_name?.toLowerCase().includes(q) || item.username?.toLowerCase().includes(q);
-                });
-
-                return (
-                  <div className="max-h-52 overflow-y-auto rounded-lg border divide-y">
-                    {filtered.length === 0 ? (
-                      <p className="text-xs text-muted-foreground p-4 text-center">
-                        {modalSearch ? t("noResults") || "No matching friends found" : t("noFriendsToInvite") || "No friends to invite yet"}
-                      </p>
-                    ) : (
-                      filtered.map((item) => {
-                        const isSelected = selectedInvitees.has(item.id);
-                        return (
-                          <label
-                            key={item.id}
-                            className="flex items-center gap-2.5 p-2 hover:bg-muted/50 cursor-pointer text-xs"
-                          >
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={(checked) => {
-                                setSelectedInvitees((prev) => {
-                                  const next = new Set(prev);
-                                  if (checked) next.add(item.id);
-                                  else next.delete(item.id);
-                                  return next;
-                                });
-                              }}
-                            />
-                            <Avatar className="h-7 w-7 ring-1 ring-border/40 shrink-0">
-                              {item.avatar_url ? (
-                                <AvatarImage src={item.avatar_url} alt="" />
-                              ) : (
-                                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
-                                  {(item.full_name || item.username || "?")[0]?.toUpperCase()}
-                                </AvatarFallback>
-                              )}
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-foreground break-words">
-                                  {item.full_name || item.username}
-                                </span>
-                                <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary px-1 py-0 h-4 shrink-0">
-                                  {t("friend") || "Friend"}
-                                </Badge>
-                              </div>
-                              <span className="text-[11px] text-muted-foreground truncate block">@{item.username || "student"}</span>
-                            </div>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                );
-              })()}
+              <div className="max-h-52 overflow-y-auto rounded-lg border divide-y">
+                {filteredModalClassmates.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-4 text-center">
+                    {modalSearch ? t("noResults") || "No matching friends found" : t("noFriendsToInvite") || "No friends to invite yet"}
+                  </p>
+                ) : (
+                  filteredModalClassmates.map((item) => {
+                    const isSelected = selectedInvitees.has(item.id);
+                    return (
+                      <label
+                        key={item.id}
+                        className="flex items-center gap-2.5 p-2 hover:bg-muted/50 cursor-pointer text-xs"
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => {
+                            setSelectedInvitees((prev) => {
+                              const next = new Set(prev);
+                              if (checked) next.add(item.id);
+                              else next.delete(item.id);
+                              return next;
+                            });
+                          }}
+                        />
+                        <Avatar className="h-7 w-7 ring-1 ring-border/40 shrink-0">
+                          {item.avatar_url ? (
+                            <AvatarImage src={item.avatar_url} alt="" />
+                          ) : (
+                            <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                              {(item.full_name || item.username || "?")[0]?.toUpperCase()}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-foreground break-words">
+                              {item.full_name || item.username}
+                            </span>
+                            <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary px-1 py-0 h-4 shrink-0">
+                              {t("friend") || "Friend"}
+                            </Badge>
+                          </div>
+                          <span className="text-[11px] text-muted-foreground truncate block">@{item.username || "student"}</span>
+                        </div>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
 
@@ -548,7 +586,7 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
             </Button>
             <Button onClick={handleCreateChallenge} disabled={creatingChallenge}>
               {creatingChallenge ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="h-4 w-4 animate-spin mr-2 text-primary-foreground dark:text-zinc-950" />
               ) : (
                 <Trophy className="h-4 w-4 mr-2" />
               )}

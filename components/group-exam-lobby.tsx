@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Users,
   Check,
@@ -70,7 +70,7 @@ interface GroupExamLobbyProps {
     rightClickEnabled: boolean;
     aiDetectionEnabled: boolean;
   };
-  onStart: (examLanguage?: string) => void;
+  onStart: (examLanguage?: string, alreadyStartedOnServer?: boolean) => void;
   onCancel: () => void;
 }
 
@@ -104,22 +104,33 @@ export function GroupExamLobby({
   const [showWarningModal, setShowWarningModal] = useState(false);
 
   const hasStartedRef = useRef(false);
+  const hasMarkedStartedOnServerRef = useRef(false);
   const countdownActiveRef = useRef(false);
   countdownActiveRef.current = countdown !== null && countdown > 0;
   const onStartRef = useRef(onStart);
   onStartRef.current = onStart;
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
+  const durationMinutesRef = useRef(durationMinutes);
+  durationMinutesRef.current = durationMinutes;
+  const joinWindowSecondsRef = useRef(joinWindowSeconds);
+  joinWindowSecondsRef.current = joinWindowSeconds;
   const resolvedLanguageRef = useRef<string>(examLanguage || "Kinyarwanda");
   resolvedLanguageRef.current = challenge?.language || examLanguage || "Kinyarwanda";
   const challengeChannelRef = useRef<any>(null);
   const isFetchingRef = useRef(false);
+  const lastSnapshotSigRef = useRef<string>("");
 
-  const triggerStartOnce = useCallback((resolvedLang?: string) => {
+  const triggerStartOnce = useCallback((resolvedLang?: string, serverStarted?: boolean) => {
     if (hasStartedRef.current) return;
     hasStartedRef.current = true;
     countdownActiveRef.current = false;
     setCountdown(null);
     setIsTransitioningToExam(true);
-    onStartRef.current(resolvedLang || resolvedLanguageRef.current);
+    onStartRef.current(
+      resolvedLang || resolvedLanguageRef.current,
+      Boolean(serverStarted || hasMarkedStartedOnServerRef.current)
+    );
   }, []);
 
   // Keep group challenge language scoped to exam session without overwriting global UI language
@@ -171,6 +182,7 @@ export function GroupExamLobby({
         if (data?.value) {
           const s = parseInt(data.value, 10);
           if (!isNaN(s) && s > 0) {
+            joinWindowSecondsRef.current = s;
             setJoinWindowSeconds(s);
           }
         }
@@ -189,12 +201,15 @@ export function GroupExamLobby({
       if (res.ok) {
         const data = await res.json();
         const challengeData = data.challenge;
-        if (challengeData) {
-          setChallenge(challengeData);
+        const rawParticipants = Array.isArray(data.participants) ? data.participants : null;
+        const snapshotSig = `${challengeData?.status || ""}|${challengeData?.started_at || ""}|${
+          challengeData?.language || ""
+        }|${(rawParticipants || []).map((p: any) => `${p.user_id}:${p.status}`).join(",")}`;
 
+        if (challengeData) {
           const now = Date.now();
           const durationMin =
-            challengeData.category_settings?.duration_minutes || durationMinutes || 20;
+            challengeData.category_settings?.duration_minutes || durationMinutesRef.current || 20;
           const maxDurationMs = (durationMin + 5) * 60 * 1000;
           const startedAtMs = challengeData.started_at
             ? new Date(challengeData.started_at).getTime()
@@ -209,29 +224,38 @@ export function GroupExamLobby({
           if (isExamTimeExpired) {
             setIsExpiredOrCompleted(true);
           } else if (challengeData.status === "active") {
+            hasMarkedStartedOnServerRef.current = true;
             if (!hasStartedRef.current && !countdownActiveRef.current) {
-              triggerStartOnce(challengeData.language || resolvedLanguageRef.current);
+              triggerStartOnce(challengeData.language || resolvedLanguageRef.current, true);
             }
           }
 
           const refTimeStr = challengeData.started_at || challengeData.created_at;
-          if (refTimeStr) {
+          if (refTimeStr && snapshotSig !== lastSnapshotSigRef.current) {
             const refTime = new Date(refTimeStr).getTime();
             const diff = Math.max(
               0,
-              joinWindowSeconds - Math.floor((Date.now() - refTime) / 1000)
+              joinWindowSecondsRef.current - Math.floor((Date.now() - refTime) / 1000)
             );
             setSecondsRemaining(diff);
           }
         }
 
-        if (Array.isArray(data.participants)) {
-          const enriched: Participant[] = data.participants.map((p: any) => ({
-            user_id: p.user_id,
-            status: p.status,
-            profile: p.profile || null,
-          }));
-          setParticipants(enriched);
+        if (snapshotSig !== lastSnapshotSigRef.current) {
+          lastSnapshotSigRef.current = snapshotSig;
+          if (challengeData) {
+            setChallenge(challengeData);
+          }
+          if (rawParticipants) {
+            const enriched: Participant[] = rawParticipants.map((p: any) => ({
+              user_id: p.user_id,
+              status: p.status,
+              profile: p.profile || null,
+            }));
+            setParticipants(enriched);
+          }
+        }
+        if (rawParticipants) {
           return;
         }
       }
@@ -242,14 +266,21 @@ export function GroupExamLobby({
         .eq("id", challengeId)
         .maybeSingle();
 
-      if (challengeData) {
-        setChallenge(challengeData);
-      }
-
       const { data: participantsData } = await supabase
         .from("exam_challenge_participants")
         .select("user_id, status")
         .eq("challenge_id", challengeId);
+
+      const fallbackSig = `${challengeData?.status || ""}|${challengeData?.started_at || ""}|${
+        challengeData?.language || ""
+      }|${(participantsData || []).map((p: any) => `${p.user_id}:${p.status}`).join(",")}`;
+
+      if (fallbackSig === lastSnapshotSigRef.current) return;
+      lastSnapshotSigRef.current = fallbackSig;
+
+      if (challengeData) {
+        setChallenge(challengeData);
+      }
 
       const userIds = (participantsData || []).map((p: any) => p.user_id);
       const profileMap: Record<string, any> = {};
@@ -276,21 +307,22 @@ export function GroupExamLobby({
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [challengeId, durationMinutes, joinWindowSeconds, supabase, triggerStartOnce]);
+  }, [challengeId, supabase, triggerStartOnce]);
+
+  const hasActiveWindow = secondsRemaining !== null && secondsRemaining > 0;
 
   useEffect(() => {
-    if (secondsRemaining === null || secondsRemaining <= 0) return;
+    if (!hasActiveWindow) return;
     const timer = setInterval(() => {
       setSecondsRemaining((prev) => {
         if (prev === null || prev <= 1) {
-          clearInterval(timer);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [secondsRemaining]);
+  }, [hasActiveWindow]);
 
   useEffect(() => {
     if (
@@ -313,13 +345,13 @@ export function GroupExamLobby({
                 t("challengeExpiredDeleted") ||
                   `Group exam was cancelled and removed because no one took the exam${doneAtMsg}.`
               );
-              onCancel();
+              onCancelRef.current();
             }
           })
           .catch((err) => console.error("Error expiring challenge:", err));
       }
     }
-  }, [secondsRemaining, challenge, participants, challengeId, onCancel, t]);
+  }, [secondsRemaining, challenge, participants, challengeId, t]);
 
   useEffect(() => {
     if (countdown === null) return;
@@ -364,8 +396,9 @@ export function GroupExamLobby({
         },
         (payload: any) => {
           if (payload.new?.status === "active") {
+            hasMarkedStartedOnServerRef.current = true;
             if (!hasStartedRef.current && !countdownActiveRef.current) {
-              triggerStartOnce(payload.new?.language || resolvedLanguageRef.current);
+              triggerStartOnce(payload.new?.language || resolvedLanguageRef.current, true);
             }
           } else if (payload.new?.status === "cancelled") {
             toast.error(
@@ -376,7 +409,7 @@ export function GroupExamLobby({
                   ? "L'hôte a annulé cette session d'examen."
                   : "The host has cancelled this exam challenge.")
             );
-            onCancel();
+            onCancelRef.current();
           } else {
             fetchChallengeDetails();
           }
@@ -391,16 +424,17 @@ export function GroupExamLobby({
               ? "L'hôte a annulé cette session d'examen."
               : "The host has cancelled this exam challenge.")
         );
-        onCancel();
+        onCancelRef.current();
       })
       .on("broadcast", { event: "exam_countdown" }, (payload: any) => {
-        if (hasStartedRef.current || isTransitioningToExam) return;
+        if (hasStartedRef.current || countdownActiveRef.current) return;
         const count = payload.payload?.count ?? 3;
         setCountdown((prev) => (prev !== null && prev > 0 ? prev : count));
       })
       .on("broadcast", { event: "exam_started" }, () => {
+        hasMarkedStartedOnServerRef.current = true;
         if (!hasStartedRef.current && !countdownActiveRef.current) {
-          triggerStartOnce(resolvedLanguageRef.current);
+          triggerStartOnce(resolvedLanguageRef.current, true);
         }
       })
       .subscribe();
@@ -413,10 +447,10 @@ export function GroupExamLobby({
       supabase.removeChannel(channel);
       clearInterval(pollTimer);
     };
-  }, [challengeId, supabase, fetchChallengeDetails, triggerStartOnce]);
+  }, [challengeId, supabase, fetchChallengeDetails, triggerStartOnce, language, t]);
 
-  const handleStartExam = async () => {
-    if (starting || hasStartedRef.current || isTransitioningToExam) return;
+  const handleStartExam = useCallback(async () => {
+    if (starting || hasStartedRef.current || countdownActiveRef.current) return;
     setStarting(true);
 
     try {
@@ -430,11 +464,13 @@ export function GroupExamLobby({
         });
       }
 
-      // Mark challenge active on the server in parallel with countdown
+      // Mark challenge active on the server once in parallel with countdown
       const startRes = await authFetch(`/api/exam-challenges/${challengeId}/start`, {
         method: "POST",
       });
-      if (!startRes.ok) {
+      if (startRes.ok) {
+        hasMarkedStartedOnServerRef.current = true;
+      } else {
         console.warn("[GroupExamLobby] /start returned non-OK status:", startRes.status);
       }
 
@@ -454,7 +490,7 @@ export function GroupExamLobby({
       setStarting(false);
       setCountdown(null);
     }
-  };
+  }, [starting, challengeId, t]);
 
   const requestLeaveOrCancel = () => {
     setShowWarningModal(true);
@@ -554,7 +590,7 @@ export function GroupExamLobby({
     }
   };
 
-  const orderedParticipants = [...participants].sort((a, b) => {
+  const orderedParticipants = useMemo(() => {
     const rank = (s: string) =>
       s === "joined" || s === "ready"
         ? 0
@@ -565,22 +601,30 @@ export function GroupExamLobby({
         : s === "pending"
         ? 3
         : 4;
-    return rank(a.status) - rank(b.status);
-  });
+    return [...participants].sort((a, b) => rank(a.status) - rank(b.status));
+  }, [participants]);
 
-  const canStart = participants.some(
-    (p) => p.status === "joined" || p.status === "ready" || p.status === "in_progress" || p.status === "completed"
+  const canStart = useMemo(
+    () =>
+      participants.some(
+        (p) =>
+          p.status === "joined" ||
+          p.status === "ready" ||
+          p.status === "in_progress" ||
+          p.status === "completed"
+      ),
+    [participants]
   );
 
   if (loading || isTransitioningToExam) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[340px] text-center gap-3.5">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[340px] text-center gap-4">
         <div
           role="status"
           aria-label="Loading"
-          className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-300/80 dark:border-zinc-700 border-t-emerald-600 dark:border-t-emerald-400"
+          className="h-11 w-11 animate-spin rounded-full border-4 border-zinc-200 dark:border-zinc-700/80 border-t-emerald-600 dark:border-t-emerald-300 dark:border-r-emerald-300/70 dark:shadow-[0_0_16px_rgba(110,231,183,0.45)]"
         />
-        <p className="text-xs sm:text-sm font-medium text-foreground">
+        <p className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           {isTransitioningToExam
             ? isRw
               ? "Tegereza gato, ikizamini kirimo gutangira..."

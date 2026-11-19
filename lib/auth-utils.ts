@@ -241,8 +241,13 @@ export async function getCurrentUser(retryCount = 0, forceRefresh = false): Prom
       }
     }
 
-    cachedUser = user;
-    cachedUserTimestamp = Date.now();
+    if (user) {
+      cachedUser = user;
+      cachedUserTimestamp = Date.now();
+    } else {
+      cachedUser = undefined;
+      cachedUserTimestamp = 0;
+    }
 
     // Resolve all pending requests with the same result
     const pending = [...pendingAuthRequests];

@@ -60,7 +60,7 @@ export function OSWindow({
 
   return (
     <div
-      className={`flex flex-col select-none transition-all duration-200 ${
+      className={`flex flex-col transition-all duration-200 ${
         isExamSessionActive
           ? `fixed inset-0 z-50 w-screen h-screen h-[100dvh] max-w-none m-0 rounded-none border-0 bg-background dark:bg-zinc-950 overflow-hidden ${className}`
           : isMaximized

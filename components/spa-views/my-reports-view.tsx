@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Flag, Loader2, Plus, X } from "lucide-react";
+import { ArrowLeft, Flag, Plus, X } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { ReportThread } from "@/components/report-thread";
 import { ReportModal } from "@/components/report-modal";
+import { MyReportsViewSkeleton } from "@/components/skeletons";
 
 export interface MyReportsViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -69,9 +70,7 @@ export function MyReportsView({ navigate, embedded = false }: MyReportsViewProps
       </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
+          <MyReportsViewSkeleton embedded />
         ) : (
           <div className="space-y-6">
             {/* Filed by me */}
@@ -161,6 +160,10 @@ export function MyReportsView({ navigate, embedded = false }: MyReportsViewProps
 
   if (embedded) {
     return <div className="py-4">{content}</div>;
+  }
+
+  if (loading) {
+    return <MyReportsViewSkeleton />;
   }
 
   return (

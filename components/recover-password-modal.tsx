@@ -169,7 +169,7 @@ export function RecoverPasswordModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-card/95 dark:bg-zinc-900/95 border-border/80 dark:border-white/15 text-card-foreground dark:text-white backdrop-blur-2xl rounded-3xl p-6 shadow-2xl select-none">
+      <DialogContent className="sm:max-w-md bg-card/95 dark:bg-zinc-900/95 border-border/80 dark:border-white/15 text-card-foreground dark:text-white backdrop-blur-2xl rounded-3xl p-6 shadow-2xl">
         <DialogHeader className="space-y-2 text-center sm:text-left">
           <div className="mx-auto sm:mx-0 w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
             <KeyRound className="h-6 w-6" />

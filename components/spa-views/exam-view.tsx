@@ -506,7 +506,11 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   }, [secondsLeft, showResults, anticheat]);
 
   // Direct exam start — opens Question 1 immediately in chosen exam language
-  const startExam = async (catId?: string, examLang?: string) => {
+  const startExam = async (
+    catId?: string,
+    examLang?: string,
+    skipChallengeStart = false
+  ) => {
     if (startingExamRef.current) return;
     startingExamRef.current = true;
 
@@ -536,14 +540,15 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         setCategoryId(targetCategoryId);
       }
 
-      const startChallengePromise = challengeId
-        ? authFetch(`/api/exam-challenges/${challengeId}/start`, {
-            method: "POST",
-          }).catch((err) => {
-            console.error("[ExamView] Failed to mark challenge active:", err);
-            return null;
-          })
-        : Promise.resolve(null);
+      const startChallengePromise =
+        challengeId && !skipChallengeStart
+          ? authFetch(`/api/exam-challenges/${challengeId}/start`, {
+              method: "POST",
+            }).catch((err) => {
+              console.error("[ExamView] Failed to mark challenge active:", err);
+              return null;
+            })
+          : Promise.resolve(null);
 
       const [, data] = await Promise.all([
         startChallengePromise,
@@ -867,10 +872,122 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     setShowPreSubmitModal(true);
   };
 
+  const startExamRef = useRef(startExam);
+  startExamRef.current = startExam;
+
+  const lobbySecuritySettings = useMemo(
+    () => ({
+      fullscreenEnabled: securitySettings.fullscreenEnabled,
+      tabSwitchEnabled: securitySettings.tabSwitchEnabled,
+      rightClickEnabled: securitySettings.rightClickEnabled,
+      aiDetectionEnabled: securitySettings.aiDetectionEnabled,
+    }),
+    [
+      securitySettings.fullscreenEnabled,
+      securitySettings.tabSwitchEnabled,
+      securitySettings.rightClickEnabled,
+      securitySettings.aiDetectionEnabled,
+    ]
+  );
+
+  const selectedLobbyCategory = useMemo(
+    () => categories.find((c) => c.id === categoryId),
+    [categories, categoryId]
+  );
+
+  const handleGroupBack = useCallback(() => {
+    setExamMode("launcher");
+  }, []);
+
+  const handleGroupCreateStart = useCallback(
+    async (selectedCatId: string, inviteeIds: string[], examLang: string) => {
+      const normalizedLang = normalizeExamLanguage(examLang);
+      setCategoryId(selectedCatId);
+      setSelectedExamLanguage(normalizedLang);
+      const catName =
+        categories.find((c) => c.id === selectedCatId)?.name || "Exam";
+      try {
+        const res = await authFetch("/api/exam-challenges", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category_id: selectedCatId,
+            category_name: catName,
+            invite_user_ids: inviteeIds,
+            language: examLang,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(
+            data?.error ||
+              t("failedToStartExam") ||
+              "Failed to create group exam"
+          );
+          return;
+        }
+        if (data?.challenge?.id) {
+          setChallengeId(data.challenge.id);
+          setExamMode("lobby");
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : String(error);
+        toast.error(
+          `${t("failedToStartExam") || "Failed to create group exam"}: ${message}`
+        );
+      }
+    },
+    [categories, t]
+  );
+
+  const handleLobbyStart = useCallback(
+    (resolvedLang?: string, alreadyStartedOnServer?: boolean) => {
+      void startExamRef.current(
+        categoryId || EXTERNAL_EXAM_CATEGORY_ID,
+        resolvedLang || selectedExamLanguage,
+        Boolean(alreadyStartedOnServer)
+      );
+    },
+    [categoryId, selectedExamLanguage]
+  );
+
+  const handleLobbyCancel = useCallback(() => {
+    if (challengeId) {
+      hasCancelledChallengeRef.current = challengeId;
+    }
+    setChallengeId("");
+    setExamMode("launcher");
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("group-creation-active");
+      sessionStorage.removeItem("waiting-chamber-active");
+      window.dispatchEvent(new CustomEvent("group-creation-state-change"));
+      window.dispatchEvent(new CustomEvent("waiting-chamber-state-change"));
+    }
+    const from =
+      paramFrom ||
+      (typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("from") || ""
+        : "");
+    if (from === "classmates") {
+      navigate("classmates", {}, { replace: true });
+      return;
+    }
+    if (from === "services") {
+      navigate("services/group-exam", {}, { replace: true });
+      return;
+    }
+    if (from === "dashboard") {
+      navigate("home", {}, { replace: true });
+      return;
+    }
+    navigate("exam", {}, { replace: true });
+  }, [challengeId, paramFrom, navigate]);
+
   // Loading gate while verifying flags/auth
   if (!accessChecked || authLoading) {
     return (
-      <div className="p-6 max-w-6xl mx-auto">
+      <div className="w-full max-w-5xl mx-auto">
         {challengeId ? <ExamCategorySkeleton count={3} /> : <ExamChoiceSkeleton />}
       </div>
     );
@@ -920,45 +1037,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       <GroupExamCreation
         initialLanguage={selectedExamLanguage}
         initialCategoryId={categoryId}
-        onBack={() => setExamMode("launcher")}
-        onStartExam={async (selectedCatId, inviteeIds, examLang) => {
-          const normalizedLang = normalizeExamLanguage(examLang);
-          setCategoryId(selectedCatId);
-          setSelectedExamLanguage(normalizedLang);
-          const catName =
-            categories.find((c) => c.id === selectedCatId)?.name || "Exam";
-          try {
-            const res = await authFetch("/api/exam-challenges", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                category_id: selectedCatId,
-                category_name: catName,
-                invite_user_ids: inviteeIds,
-                language: examLang,
-              }),
-            });
-            const data = await res.json();
-            if (!res.ok) {
-              toast.error(
-                data?.error ||
-                  t("failedToStartExam") ||
-                  "Failed to create group exam"
-              );
-              return;
-            }
-            if (data?.challenge?.id) {
-              setChallengeId(data.challenge.id);
-              setExamMode("lobby");
-            }
-          } catch (error) {
-            const message =
-              error instanceof Error ? error.message : String(error);
-            toast.error(
-              `${t("failedToStartExam") || "Failed to create group exam"}: ${message}`
-            );
-          }
-        }}
+        onBack={handleGroupBack}
+        onStartExam={handleGroupCreateStart}
       />
     );
   }
@@ -970,9 +1050,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         <div
           role="status"
           aria-label="Loading exam"
-          className="h-11 w-11 animate-spin rounded-full border-4 border-zinc-300/80 dark:border-zinc-700 border-t-emerald-600 dark:border-t-emerald-400"
+          className="h-11 w-11 animate-spin rounded-full border-4 border-zinc-200 dark:border-zinc-700/80 border-t-emerald-600 dark:border-t-emerald-300 dark:border-r-emerald-300/70 dark:shadow-[0_0_16px_rgba(110,231,183,0.45)]"
         />
-        <p className="text-sm font-semibold text-foreground">
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           {language === "Kinyarwanda" ||
           language === "rw" ||
           selectedExamLanguage === "Kinyarwanda"
@@ -989,55 +1069,17 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
   // Group Exam Lobby (preserved — clicking start enters Question 1 directly)
   if (examMode === "lobby" && !exam) {
-    const selectedCat = categories.find((c) => c.id === categoryId);
-    const categoryName = selectedCat?.name || "Exam";
+    const categoryName = selectedLobbyCategory?.name || "Exam";
     return (
       <GroupExamLobby
         challengeId={challengeId}
         categoryName={categoryName}
-        durationMinutes={selectedCat?.duration_minutes}
-        questionCount={selectedCat?.question_count}
+        durationMinutes={selectedLobbyCategory?.duration_minutes}
+        questionCount={selectedLobbyCategory?.question_count}
         examLanguage={selectedExamLanguage}
-        securitySettings={{
-          fullscreenEnabled: securitySettings.fullscreenEnabled,
-          tabSwitchEnabled: securitySettings.tabSwitchEnabled,
-          rightClickEnabled: securitySettings.rightClickEnabled,
-          aiDetectionEnabled: securitySettings.aiDetectionEnabled,
-        }}
-        onStart={(resolvedLang) => {
-          void startExam(categoryId || EXTERNAL_EXAM_CATEGORY_ID, resolvedLang || selectedExamLanguage);
-        }}
-        onCancel={() => {
-          if (challengeId) {
-            hasCancelledChallengeRef.current = challengeId;
-          }
-          setChallengeId("");
-          setExamMode("launcher");
-          if (typeof window !== "undefined") {
-            sessionStorage.removeItem("group-creation-active");
-            sessionStorage.removeItem("waiting-chamber-active");
-            window.dispatchEvent(new CustomEvent("group-creation-state-change"));
-            window.dispatchEvent(new CustomEvent("waiting-chamber-state-change"));
-          }
-          const from =
-            paramFrom ||
-            (typeof window !== "undefined"
-              ? new URLSearchParams(window.location.search).get("from") || ""
-              : "");
-          if (from === "classmates") {
-            navigate("classmates", {}, { replace: true });
-            return;
-          }
-          if (from === "services") {
-            navigate("services/group-exam", {}, { replace: true });
-            return;
-          }
-          if (from === "dashboard") {
-            navigate("home", {}, { replace: true });
-            return;
-          }
-          navigate("exam", {}, { replace: true });
-        }}
+        securitySettings={lobbySecuritySettings}
+        onStart={handleLobbyStart}
+        onCancel={handleLobbyCancel}
       />
     );
   }

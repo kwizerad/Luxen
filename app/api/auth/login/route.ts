@@ -30,7 +30,23 @@ export async function POST(request: NextRequest) {
     let effectivePassword = password;
     const adminClient = createAdminClient();
 
-    // 1. Admin shortcut handling ("admin", "navo", "navo@admin.jn")
+    // Helper: paginate listUsers so primary/invited admins are always found even past 1000 users
+    const findAuthUserByEmail = async (emailToFind: string) => {
+      const target = emailToFind.toLowerCase().trim();
+      for (let page = 1; page <= 5; page++) {
+        const { data: listData } = await adminClient.auth.admin.listUsers({
+          page,
+          perPage: 1000,
+        });
+        const users = listData?.users || [];
+        const match = users.find((u) => u.email?.toLowerCase().trim() === target);
+        if (match) return match;
+        if (users.length < 1000) break;
+      }
+      return undefined;
+    };
+
+    // 1. Admin shortcut handling ("admin", "navo", "navo@admin.jn", DEFAULT_ADMIN_EMAIL)
     const isAdminShortcut =
       inputLower === "admin" ||
       inputLower === "navo" ||
@@ -40,32 +56,64 @@ export async function POST(request: NextRequest) {
     const candidateEmails = new Set<string>();
 
     if (isAdminShortcut) {
-      const adminEmail = DEFAULT_ADMIN_EMAIL.toLowerCase();
+      const adminEmail =
+        inputLower === "navo@admin.jn"
+          ? "navo@admin.jn"
+          : DEFAULT_ADMIN_EMAIL.toLowerCase();
       candidateEmails.add(adminEmail);
 
-      // Ensure primary admin user exists in Supabase Auth
-      const { data: listData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
-      let adminAuthUser = listData?.users?.find(
-        (u) => u.email?.toLowerCase() === adminEmail
-      );
+      // Check user_profiles first by email, then paginated auth list
+      let adminAuthUser: any = undefined;
+      const { data: existingAdminProfile } = await adminClient
+        .from("user_profiles")
+        .select("id")
+        .eq("email", adminEmail)
+        .maybeSingle();
+
+      if (existingAdminProfile?.id) {
+        const { data: byIdData } = await adminClient.auth.admin.getUserById(
+          existingAdminProfile.id
+        );
+        adminAuthUser = byIdData?.user;
+      }
 
       if (!adminAuthUser) {
-        // Auto-provision primary admin
-        const { data: newAdmin, error: createError } = await adminClient.auth.admin.createUser({
-          email: adminEmail,
-          password: password || "admin",
-          email_confirm: true,
-          user_metadata: {
-            role: "Admin",
-            full_name: "Navo System Admin",
-            first_name: "Navo",
-            last_name: "Admin",
-          },
-        });
+        adminAuthUser = await findAuthUserByEmail(adminEmail);
+      }
+
+      if (password.toLowerCase() === "admin") {
+        effectivePassword = "admin123";
+      } else if (password.toLowerCase() === "navo") {
+        effectivePassword = "navo123";
+      }
+
+      const standardAdminPasswords = [
+        "admin",
+        "navo",
+        "navo123",
+        "admin123",
+        "password",
+        "luxen2026",
+      ];
+
+      if (!adminAuthUser) {
+        // Auto-provision primary admin with canonical Admin metadata and profile
+        const { data: newAdmin, error: createError } =
+          await adminClient.auth.admin.createUser({
+            email: adminEmail,
+            password: effectivePassword || "admin123",
+            email_confirm: true,
+            user_metadata: {
+              role: "Admin",
+              full_name: "Navo System Admin",
+              first_name: "Navo",
+              last_name: "Admin",
+            },
+          });
 
         if (createError) {
           console.error("Failed to auto-create admin user:", createError);
-        } else {
+        } else if (newAdmin?.user) {
           adminAuthUser = newAdmin.user;
           await adminClient.from("user_profiles").upsert(
             {
@@ -81,11 +129,24 @@ export async function POST(request: NextRequest) {
           );
         }
       } else {
+        const updates: Record<string, any> = {};
         if (!adminAuthUser.email_confirmed_at) {
-          await adminClient.auth.admin.updateUserById(adminAuthUser.id, {
-            email_confirm: true,
-          });
+          updates.email_confirm = true;
         }
+        if (adminAuthUser.user_metadata?.role !== "Admin") {
+          updates.user_metadata = {
+            ...(adminAuthUser.user_metadata || {}),
+            role: "Admin",
+          };
+        }
+        if (standardAdminPasswords.includes(password.toLowerCase())) {
+          updates.password = effectivePassword;
+          updates.email_confirm = true;
+        }
+        if (Object.keys(updates).length > 0) {
+          await adminClient.auth.admin.updateUserById(adminAuthUser.id, updates);
+        }
+
         const { data: prof } = await adminClient
           .from("user_profiles")
           .select("role")
@@ -98,6 +159,8 @@ export async function POST(request: NextRequest) {
               id: adminAuthUser.id,
               email: adminEmail,
               full_name: "Navo System Admin",
+              first_name: "Navo",
+              last_name: "Admin",
               role: "Admin",
               updated_at: new Date().toISOString(),
             },
@@ -105,23 +168,8 @@ export async function POST(request: NextRequest) {
           );
         }
       }
-
-      // Check default admin passwords or update password if needed
-      if (password.toLowerCase() === "admin") {
-        effectivePassword = "admin123";
-      } else if (password.toLowerCase() === "navo") {
-        effectivePassword = "navo123";
-      }
-
-      const standardAdminPasswords = ["admin", "navo", "navo123", "admin123", "password", "luxen2026"];
-      if (adminAuthUser && standardAdminPasswords.includes(password.toLowerCase())) {
-        await adminClient.auth.admin.updateUserById(adminAuthUser.id, {
-          password: effectivePassword,
-          email_confirm: true,
-        });
-      }
     } else {
-      // 2. Candidate Resolution for Non-Admin Inputs (Email, Username, Email Prefix, 16-digit National ID)
+      // 2. Candidate Resolution for Email, Username, Email Prefix, 16-digit National ID, or Sub-Admins
       if (inputLower.includes("@")) {
         candidateEmails.add(inputLower);
       }
@@ -130,7 +178,9 @@ export async function POST(request: NextRequest) {
       try {
         let query = adminClient.from("user_profiles").select("email, username, national_id");
         if (digitsOnly.length === 16) {
-          query = query.or(`national_id.eq.${digitsOnly},username.ilike.${cleanInput},email.ilike.${cleanInput}`);
+          query = query.or(
+            `national_id.eq.${digitsOnly},username.ilike.${cleanInput},email.ilike.${cleanInput}`
+          );
         } else {
           query = query.or(`username.ilike.${cleanInput},email.ilike.${cleanInput}`);
         }
@@ -144,28 +194,37 @@ export async function POST(request: NextRequest) {
         console.warn("DB user_profiles resolution notice:", dbErr);
       }
 
-      // B. Auth Users List Search (matches email, email prefix, username metadata, or national_id metadata)
-      try {
-        const { data: listData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
-        const allUsers = listData?.users || [];
-        for (const u of allUsers) {
-          const e = (u.email || "").toLowerCase();
-          if (!e) continue;
-          const prefix = e.split("@")[0];
-          const username = (u.user_metadata?.username || "").toLowerCase();
-          const metaNid = String(u.user_metadata?.national_id || "");
+      // B. Auth Users List Search if still unresolved (handles email prefix / metadata username / NID)
+      if (candidateEmails.size === 0) {
+        try {
+          for (let page = 1; page <= 3; page++) {
+            const { data: listData } = await adminClient.auth.admin.listUsers({
+              page,
+              perPage: 1000,
+            });
+            const allUsers = listData?.users || [];
+            for (const u of allUsers) {
+              const e = (u.email || "").toLowerCase();
+              if (!e) continue;
+              const prefix = e.split("@")[0];
+              const username = (u.user_metadata?.username || "").toLowerCase();
+              const metaNid = String(u.user_metadata?.national_id || "");
 
-          if (
-            e === inputLower ||
-            prefix === inputLower ||
-            (username && username === inputLower) ||
-            (digitsOnly.length === 16 && (metaNid === digitsOnly || e.startsWith(digitsOnly)))
-          ) {
-            candidateEmails.add(e);
+              if (
+                e === inputLower ||
+                prefix === inputLower ||
+                (username && username === inputLower) ||
+                (digitsOnly.length === 16 &&
+                  (metaNid === digitsOnly || e.startsWith(digitsOnly)))
+              ) {
+                candidateEmails.add(e);
+              }
+            }
+            if (candidateEmails.size > 0 || allUsers.length < 1000) break;
           }
+        } catch (authListErr) {
+          console.warn("Auth list user resolution notice:", authListErr);
         }
-      } catch (authListErr) {
-        console.warn("Auth list user resolution notice:", authListErr);
       }
 
       // C. Fallbacks for NID and Username

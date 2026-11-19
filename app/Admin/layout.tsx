@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton, SkeletonStatCard } from "@/components/ui/skeleton";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser, resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
@@ -55,9 +56,18 @@ export default function AdminLayout({
 
     const supabase = createClient();
 
+    let active = true;
+
     const checkAdmin = async () => {
       try {
-        const currentUser = await getCurrentUser();
+        let currentUser = await getCurrentUser(0, true);
+
+        if (!currentUser && active) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          currentUser = await getCurrentUser(0, true);
+        }
+
+        if (!active) return;
 
         // Allow access ONLY if user is primary admin OR has Admin role
         const isPrimary =
@@ -90,7 +100,7 @@ export default function AdminLayout({
         setLoading(false);
       } catch (error) {
         console.error("Check admin error:", error);
-        router.replace("/");
+        if (active) router.replace("/");
       }
     };
 
@@ -103,6 +113,7 @@ export default function AdminLayout({
     });
 
     return () => {
+      active = false;
       subscription.unsubscribe();
     };
   }, [router]);
@@ -164,7 +175,28 @@ export default function AdminLayout({
   };
 
   if (loading) {
-    return null;
+    return (
+      <div className="admin-portal min-h-screen px-4 sm:px-6 py-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex items-center justify-between gap-4">
+            <Skeleton className="h-9 w-48" rounded="xl" />
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-9 w-9" rounded="full" />
+              <Skeleton className="h-9 w-9" rounded="full" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[0, 1, 2, 3].map((idx) => (
+              <SkeletonStatCard key={idx} />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Skeleton className="lg:col-span-2 h-64 w-full" rounded="2xl" />
+            <Skeleton className="h-64 w-full" rounded="2xl" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -18,6 +18,7 @@ import {
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/lib/language-context";
 import type { ExamCategory } from "@/lib/database.types";
 import { EXTERNAL_EXAM_CATEGORY_ID } from "@/lib/supabase/external";
@@ -201,13 +202,22 @@ export function OSExamLauncher({
       {/* Main Content Area: Stage 1 (Select Language) vs Stage 2 (Choose Individual vs Group Exam) */}
       <div className="flex-1 flex flex-col items-center justify-center py-6 sm:py-8">
         {loadingCategories ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-7 w-full max-w-2xl">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="space-y-2.5">
-                <div className="aspect-[3/2] w-full rounded-xl bg-muted/40 animate-pulse" />
-                <div className="h-4 w-24 mx-auto rounded bg-muted/40 animate-pulse" />
-              </div>
-            ))}
+          <div className="w-full max-w-2xl space-y-6">
+            <div className="flex flex-col items-center gap-2">
+              <Skeleton className="h-4 w-44" rounded="md" />
+              <Skeleton className="h-3.5 w-72 max-w-full" rounded="md" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-7">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="p-2">
+                  <Skeleton className="aspect-[3/2] w-full" rounded="xl" />
+                  <div className="flex items-center justify-between px-1 pt-2.5">
+                    <Skeleton className="h-4 w-24" rounded="md" />
+                    <Skeleton className="h-3.5 w-14" rounded="md" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : !selectedLanguageForMode ? (
           /* Stage 1: Select Exam Language */

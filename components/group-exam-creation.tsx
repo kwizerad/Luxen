@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Search,
   Users,
@@ -94,29 +94,12 @@ export function GroupExamCreation({
     }
   }, [initialCategoryId]);
 
-  useEffect(() => {
-    fetchData();
-  }, [user]);
+  const userId = user?.id;
+  const hasFetchedRef = useRef(false);
 
-  // Hide dock nav while in group exam creation flow
-  useEffect(() => {
-    sessionStorage.setItem("group-creation-active", "true");
-    window.dispatchEvent(new CustomEvent("group-creation-state-change"));
-    return () => {
-      sessionStorage.removeItem("group-creation-active");
-      window.dispatchEvent(new CustomEvent("group-creation-state-change"));
-    };
-  }, []);
-
-  // Auto-select category when available
-  useEffect(() => {
-    if (!loading && categories.length >= 1 && !selectedCategory) {
-      setSelectedCategory(categories[0].id);
-    }
-  }, [loading, categories, selectedCategory]);
-
-  const fetchData = async () => {
-    if (!user) return;
+  const fetchData = useCallback(async () => {
+    if (!userId || hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     setLoading(true);
     try {
       const [requestsRes, categoriesData] = await Promise.all([
@@ -139,7 +122,7 @@ export function GroupExamCreation({
       const combinedMap = new Map<string, ClassmateProfile>();
 
       for (const r of allRequests) {
-        if (r.status === "accepted" && r.other_user && r.other_user.id !== user.id) {
+        if (r.status === "accepted" && r.other_user && r.other_user.id !== userId) {
           const u = r.other_user;
           if (!combinedMap.has(u.id)) {
             combinedMap.set(u.id, {
@@ -161,26 +144,52 @@ export function GroupExamCreation({
       setAllUsers(mergedList);
       setCategories(categoriesList);
     } catch (error) {
+      hasFetchedRef.current = false;
       console.error("Failed to fetch data:", error);
       toast.error(t("failedToLoadData") || "Failed to load data");
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, t]);
 
-  const filteredInvitees = allUsers.filter((f) => {
-    if (!searchQuery) return true;
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  // Hide dock nav while in group exam creation flow
+  useEffect(() => {
+    sessionStorage.setItem("group-creation-active", "true");
+    window.dispatchEvent(new CustomEvent("group-creation-state-change"));
+    return () => {
+      sessionStorage.removeItem("group-creation-active");
+      window.dispatchEvent(new CustomEvent("group-creation-state-change"));
+    };
+  }, []);
+
+  // Auto-select category when available
+  useEffect(() => {
+    if (!loading && categories.length >= 1 && !selectedCategory) {
+      setSelectedCategory(categories[0].id);
+    }
+  }, [loading, categories, selectedCategory]);
+
+  const filteredInvitees = useMemo(() => {
+    if (!searchQuery) return allUsers;
     const q = searchQuery.toLowerCase();
-    return f.full_name?.toLowerCase().includes(q) || f.username?.toLowerCase().includes(q);
-  });
+    return allUsers.filter(
+      (f) => f.full_name?.toLowerCase().includes(q) || f.username?.toLowerCase().includes(q)
+    );
+  }, [allUsers, searchQuery]);
 
-  const filteredCategories = categories.filter((c) => {
-    if (!categorySearchQuery) return true;
+  const filteredCategories = useMemo(() => {
+    if (!categorySearchQuery) return categories;
     const q = categorySearchQuery.toLowerCase();
-    return c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q);
-  });
+    return categories.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q)
+    );
+  }, [categories, categorySearchQuery]);
 
-  const toggleInvitee = (id: string) => {
+  const toggleInvitee = useCallback((id: string) => {
     setSelectedInvitees((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -190,9 +199,9 @@ export function GroupExamCreation({
       }
       return next;
     });
-  };
+  }, []);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (filteredInvitees.length === 0) return;
     const allSelected = filteredInvitees.every((f) => selectedInvitees.has(f.id));
     setSelectedInvitees((prev) => {
@@ -204,12 +213,14 @@ export function GroupExamCreation({
       }
       return next;
     });
-  };
+  }, [filteredInvitees, selectedInvitees]);
 
-  const areAllFilteredSelected =
-    filteredInvitees.length > 0 && filteredInvitees.every((f) => selectedInvitees.has(f.id));
+  const areAllFilteredSelected = useMemo(
+    () => filteredInvitees.length > 0 && filteredInvitees.every((f) => selectedInvitees.has(f.id)),
+    [filteredInvitees, selectedInvitees]
+  );
 
-  const getInitials = (name?: string) => {
+  const getInitials = useCallback((name?: string) => {
     if (!name) return "?";
     return name
       .split(" ")
@@ -217,14 +228,14 @@ export function GroupExamCreation({
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
+  }, []);
 
-  const handleStartExam = async () => {
+  const handleStartExam = useCallback(async () => {
     if (!selectedCategory) {
       toast.error(t("selectCategory") || "Please select a category");
       return;
     }
-    const cleanInvitees = Array.from(selectedInvitees).filter((id) => id && id !== user?.id);
+    const cleanInvitees = Array.from(selectedInvitees).filter((id) => id && id !== userId);
     if (cleanInvitees.length === 0) {
       toast.error(t("selectInvitees") || "Please select at least one person to invite");
       return;
@@ -235,19 +246,24 @@ export function GroupExamCreation({
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [selectedCategory, selectedInvitees, userId, onStartExam, selectedExamLanguage, t]);
 
-  const selectedCategoryObj = categories.find((c) => c.id === selectedCategory);
+  const selectedCategoryObj = useMemo(
+    () => categories.find((c) => c.id === selectedCategory),
+    [categories, selectedCategory]
+  );
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[320px] gap-3.5">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[320px] gap-4">
         <div
           role="status"
           aria-label="Loading"
-          className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-300/80 dark:border-zinc-700 border-t-emerald-600 dark:border-t-emerald-400"
+          className="h-11 w-11 animate-spin rounded-full border-4 border-zinc-200 dark:border-zinc-700/80 border-t-emerald-600 dark:border-t-emerald-300 dark:border-r-emerald-300/70 dark:shadow-[0_0_16px_rgba(110,231,183,0.45)]"
         />
-        <p className="text-xs sm:text-sm font-medium text-foreground">{t("loading") || "Loading..."}</p>
+        <p className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          {t("loading") || "Loading..."}
+        </p>
       </div>
     );
   }

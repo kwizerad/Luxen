@@ -2,13 +2,15 @@
 
 import { cn } from "@/lib/utils";
 import { createClient, setAdminSessionFlag } from "@/lib/supabase/client";
+import { clearCurrentUserCache } from "@/lib/auth-utils";
+import { useAuth } from "@/lib/auth-context";
+import { syncClientSessionMirror } from "@/lib/e2e-crypto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { isPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissions";
 import { useLanguage } from "@/lib/language-context";
 import {
   CreditCard,
@@ -33,7 +35,7 @@ import { useAuthModals } from "@/lib/auth-modals-context";
 import { WelcomingCardOverlay } from "@/components/auth/welcoming-card-overlay";
 
 interface LoginFormProps extends React.ComponentPropsWithoutRef<"div"> {
-  onSuccess?: () => void;
+  onSuccess?: (result?: { isAdmin?: boolean; destination?: string }) => void;
   onSwitchToSignUp?: () => void;
   onBack?: () => void;
 }
@@ -62,6 +64,7 @@ export function LoginForm({
   const [idErrorCode, setIdErrorCode] = useState<string | null>(null);
 
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const { t, language } = useLanguage();
   const isRw = language === "Kinyarwanda" || language === "rw";
   const isFr = language === "French" || language === "fr";
@@ -227,8 +230,13 @@ export function LoginForm({
       }
 
       setAdminSessionFlag(false);
+      if (data.session?.access_token) {
+        syncClientSessionMirror(data.session);
+      }
+      clearCurrentUserCache();
+      await refreshUser().catch(() => {});
       setTimeout(() => {
-        if (onSuccess) onSuccess();
+        if (onSuccess) onSuccess({ isAdmin: false, destination: "/dashboard" });
         router.push("/dashboard");
       }, 1600);
     } catch (err: unknown) {
@@ -270,7 +278,13 @@ export function LoginForm({
       }
 
       const isAdminUser = Boolean(authRes.isAdmin);
+      const destination = authRes.destination || (isAdminUser ? "/Admin" : "/dashboard");
+
       setAdminSessionFlag(isAdminUser);
+      if (authRes.session?.access_token && authRes.session?.refresh_token) {
+        syncClientSessionMirror(authRes.session);
+      }
+      clearCurrentUserCache();
 
       // Sync browser client session if session is returned
       const supabase = createClient();
@@ -281,16 +295,27 @@ export function LoginForm({
             refresh_token: authRes.session.refresh_token,
           });
         } catch {
-          // If browser client lock occurs, server session cookie is already active
+          // If browser client lock occurs, mirrored session + server cookie are already active
         }
       }
 
-      if (onSuccess) onSuccess();
+      await refreshUser().catch(() => {});
 
-      const destination = authRes.destination || (isAdminUser ? "/Admin" : "/dashboard");
+      if (onSuccess) {
+        onSuccess({ isAdmin: isAdminUser, destination });
+      }
+
       toast.success(authRes.message || (isRw ? "Murakaza neza!" : "Welcome back!"));
       router.prefetch(destination);
-      router.push(destination);
+      router.replace(destination);
+
+      if (isAdminUser && typeof window !== "undefined") {
+        setTimeout(() => {
+          if (window.location.pathname !== "/Admin") {
+            window.location.assign(destination);
+          }
+        }, 250);
+      }
     } catch (error: unknown) {
       console.error("Login error:", error);
       if (error instanceof Error && error.message) {
@@ -346,7 +371,7 @@ export function LoginForm({
   };
 
   return (
-    <div className={cn("relative flex flex-col items-center max-w-[300px] mx-auto w-full gap-2 select-none bg-transparent shadow-none border-0", className)} {...props}>
+    <div className={cn("relative flex flex-col items-center max-w-[300px] mx-auto w-full gap-2 bg-transparent shadow-none border-0", className)} {...props}>
       {/* Top Bar with Back Action */}
       <div className="w-full flex items-center justify-between min-h-[20px]">
         {onBack ? (

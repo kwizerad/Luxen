@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy,
@@ -69,7 +69,8 @@ export function GroupExamResults({
   const [loading, setLoading] = useState(true);
   const [showReview, setShowReview] = useState(false);
   const confettiFiredRef = useRef(false);
-  const supabase = createClient();
+  const leaderboardSigRef = useRef<string>("");
+  const supabase = useMemo(() => createClient(), []);
 
   const fetchResults = useCallback(async () => {
     try {
@@ -77,7 +78,19 @@ export function GroupExamResults({
       if (!res.ok) return;
       const data = await res.json();
       if (data.leaderboard) {
-        setLeaderboard(data.leaderboard);
+        const sig = JSON.stringify(
+          (data.leaderboard as LeaderboardEntry[]).map((e) => [
+            e.user_id,
+            e.status,
+            e.score,
+            e.completed,
+            e.duration_seconds,
+          ])
+        );
+        if (sig !== leaderboardSigRef.current) {
+          leaderboardSigRef.current = sig;
+          setLeaderboard(data.leaderboard);
+        }
       }
       if (typeof data.is_solo_attempt === "boolean") {
         setIsSoloAttempt(data.is_solo_attempt);
@@ -161,17 +174,24 @@ export function GroupExamResults({
     return `${s}s`;
   };
 
-  const completedEntries = leaderboard.filter((e) => e.completed && e.score !== null);
-  const scoreGroups: Record<number, LeaderboardEntry[]> = {};
-  completedEntries.forEach((e) => {
-    if (e.score !== null) {
-      scoreGroups[e.score] = scoreGroups[e.score] || [];
-      scoreGroups[e.score].push(e);
-    }
-  });
+  const completedEntries = useMemo(
+    () => leaderboard.filter((e) => e.completed && e.score !== null),
+    [leaderboard]
+  );
+
+  const scoreGroups = useMemo(() => {
+    const groups: Record<number, LeaderboardEntry[]> = {};
+    completedEntries.forEach((e) => {
+      if (e.score !== null) {
+        groups[e.score] = groups[e.score] || [];
+        groups[e.score].push(e);
+      }
+    });
+    return groups;
+  }, [completedEntries]);
 
   const winner = completedEntries.length > 0 ? completedEntries[0] : null;
-  const isWinner = winner && winner.user_id === examResult.user_id;
+  const isWinner = Boolean(winner && winner.user_id === examResult.user_id);
   const isWinnerPassed = winner
     ? winner.score_percentage !== undefined && winner.score_percentage !== null
       ? Number(winner.score_percentage) >= 50
@@ -295,13 +315,13 @@ export function GroupExamResults({
         <div className="border border-border/60 rounded-xl overflow-hidden bg-card/40 dark:bg-zinc-900/30">
           {loading ? (
             <div className="p-5 space-y-3">
-              <div className="flex items-center justify-center gap-2.5 py-2">
+              <div className="flex items-center justify-center gap-3 py-2">
                 <div
                   role="status"
                   aria-label="Loading results"
-                  className="h-7 w-7 animate-spin rounded-full border-3 border-zinc-300/80 dark:border-zinc-700 border-t-emerald-600 dark:border-t-emerald-400"
+                  className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 dark:border-zinc-700/80 border-t-emerald-600 dark:border-t-emerald-300 dark:border-r-emerald-300/70 dark:shadow-[0_0_16px_rgba(110,231,183,0.45)]"
                 />
-                <span className="text-xs sm:text-sm font-medium text-foreground">
+                <span className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   {t("loading") || "Loading..."}
                 </span>
               </div>
@@ -430,7 +450,7 @@ export function GroupExamResults({
                               <span className="inline-flex items-center gap-1">
                                 {entry.status === "in_progress" || entry.status === "active" ? (
                                   <>
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-600 dark:text-amber-400" />
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-600 dark:text-amber-300" />
                                     <span>{t("takingExamNow") || "In exam..."}</span>
                                   </>
                                 ) : entry.status === "joined" ? (

@@ -40,6 +40,8 @@
     /* Dynamic glow & border accents */
     --hover-border-color: #22C55E;
     --glow-intensity: 24px;
+    --skeleton-base: 215 20% 91%;
+    --skeleton-highlight: 210 30% 97%;
   }
 
   .dark {
@@ -65,6 +67,8 @@
     --warning-foreground: 0 0% 100%;
     --border: 240 4% 14%; /* #222228 */
     --input: 240 4% 14%;
+    --skeleton-base: 240 5% 16%;
+    --skeleton-highlight: 240 5% 23%;
   }
 }
 
@@ -72,6 +76,16 @@
   * {
     box-sizing: border-box;
     border-color: hsl(var(--border));
+  }
+  input,
+  textarea,
+  select,
+  [contenteditable="true"],
+  [contenteditable=""] {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    pointer-events: auto;
   }
   html {
     scroll-behavior: smooth;
@@ -557,6 +571,56 @@ iframe[src*="accounts.google.com/gsi/button"] {
   @keyframes shimmer {
     100% {
       transform: translateX(100%);
+    }
+  }
+
+  /* Modern Skeleton Shimmer Surface (light/dark adaptive + reduced-motion compliant) */
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: hsl(var(--skeleton-base));
+  }
+
+  .skeleton-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--skeleton-highlight) / 0.85) 50%,
+      transparent 100%
+    );
+    animation: skeleton-shimmer-sweep 1.65s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    pointer-events: none;
+  }
+
+  .dark .skeleton-shimmer::after {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--skeleton-highlight) / 0.9) 50%,
+      transparent 100%
+    );
+  }
+
+  @keyframes skeleton-shimmer-sweep {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-shimmer::after {
+      animation: none;
+      display: none;
+    }
+    .skeleton-shimmer {
+      animation: pulse 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
   }
 

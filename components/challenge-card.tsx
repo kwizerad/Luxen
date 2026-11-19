@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
 import { Trophy, Users, Check, X, Play, Clock, Loader2, Bell, Medal, Timer, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,18 +18,24 @@ interface ChallengeCardProps {
   navigate?: (view: string, params?: Record<string, string>) => void;
 }
 
-export function ChallengeCard({ challenge, currentUserId, onActionComplete, navigate }: ChallengeCardProps) {
+export const ChallengeCard = memo(function ChallengeCard({ challenge, currentUserId, onActionComplete, navigate }: ChallengeCardProps) {
   const { t, language } = useLanguage();
   const [participants, setParticipants] = useState(challenge.participants || []);
   const [acting, setActing] = useState(false);
   const onActionCompleteRef = useRef(onActionComplete);
   onActionCompleteRef.current = onActionComplete;
+  const participantsSigRef = useRef("");
 
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
 
   useEffect(() => {
-    setParticipants(challenge.participants || []);
+    const incoming = challenge.participants || [];
+    const nextSig = incoming.map((p) => `${p.user_id}:${p.status}:${p.exam_attempt_id || ""}`).join("|");
+    if (nextSig !== participantsSigRef.current) {
+      participantsSigRef.current = nextSig;
+      setParticipants(incoming);
+    }
   }, [challenge.participants]);
 
   useEffect(() => {
@@ -90,17 +96,32 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
     };
   }, [challenge.id, supabase]);
 
-  const myParticipation = participants.find((p) => p.user_id === currentUserId);
-  const isCreator = challenge.creator_id === currentUserId;
-  const hasUserCompleted =
-    myParticipation?.status === "completed" ||
-    Boolean(myParticipation?.exam_attempt_id);
-
-  const inProgressCount = participants.filter((p) => p.status === "in_progress").length;
-  const completedCount = participants.filter((p) => p.status === "completed" || Boolean(p.exam_attempt_id) || Boolean((p as any).exam_attempt)).length;
-  const joinedCount = participants.filter((p) => ["joined", "ready", "in_progress", "completed"].includes(p.status)).length;
-  const pendingCount = participants.filter((p) => p.status === "pending").length;
-  const totalParticipants = participants.length;
+  const {
+    myParticipation,
+    isCreator,
+    hasUserCompleted,
+    inProgressCount,
+    completedCount,
+    joinedCount,
+    pendingCount,
+    totalParticipants,
+  } = useMemo(() => {
+    const myP = participants.find((p) => p.user_id === currentUserId);
+    const creator = challenge.creator_id === currentUserId;
+    const completed =
+      myP?.status === "completed" ||
+      Boolean(myP?.exam_attempt_id);
+    return {
+      myParticipation: myP,
+      isCreator: creator,
+      hasUserCompleted: completed,
+      inProgressCount: participants.filter((p) => p.status === "in_progress").length,
+      completedCount: participants.filter((p) => p.status === "completed" || Boolean(p.exam_attempt_id) || Boolean((p as any).exam_attempt)).length,
+      joinedCount: participants.filter((p) => ["joined", "ready", "in_progress", "completed"].includes(p.status)).length,
+      pendingCount: participants.filter((p) => p.status === "pending").length,
+      totalParticipants: participants.length,
+    };
+  }, [participants, currentUserId, challenge.creator_id]);
 
   const sortedCompletedParticipants = useMemo(() => {
     return participants
@@ -526,4 +547,5 @@ export function ChallengeCard({ challenge, currentUserId, onActionComplete, navi
       )}
     </div>
   );
-}
+});
+

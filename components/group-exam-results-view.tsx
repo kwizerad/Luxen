@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Medal, Clock, CheckCircle, XCircle, Loader2, ArrowLeft, Crown, Users, Award, Flame, TrendingUp, TrendingDown } from "lucide-react";
 import confetti from "canvas-confetti";
@@ -60,7 +60,7 @@ interface RankedParticipant {
 export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const challengeId = params.get("id") || "";
 
   const [loading, setLoading] = useState(true);
@@ -72,10 +72,13 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
   const [questionFilter, setQuestionFilter] = useState<"all" | "correct" | "incorrect" | "unanswered">("all");
   const confettiFiredRef = useRef(false);
+  const hasLoadedOnceRef = useRef(false);
 
   const fetchData = useCallback(async () => {
     if (!challengeId) return;
-    setLoading(true);
+    if (!hasLoadedOnceRef.current) {
+      setLoading(true);
+    }
     try {
       const res = await fetch(`/api/exam-challenges/${challengeId}`);
       const data = await res.json();
@@ -130,6 +133,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
     } catch (error) {
       console.error("Failed to fetch challenge results:", error);
     } finally {
+      hasLoadedOnceRef.current = true;
       setLoading(false);
     }
   }, [challengeId, supabase]);
@@ -160,74 +164,87 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
     };
   }, [challengeId, supabase, fetchData]);
 
-  const completedParticipants = participants.filter((p) => p.status === "completed" && p.exam_attempt);
-  const incompleteParticipants = participants.filter((p) => p.status !== "completed" && p.status !== "rejected");
-  const joinedParticipants = participants.filter((p) => ["joined", "ready", "completed"].includes(p.status));
-  const allCompleted = joinedParticipants.length > 0 && joinedParticipants.every((p) => p.status === "completed");
+  const completedParticipants = useMemo(
+    () => participants.filter((p) => p.status === "completed" && p.exam_attempt),
+    [participants]
+  );
+  const incompleteParticipants = useMemo(
+    () => participants.filter((p) => p.status !== "completed" && p.status !== "rejected"),
+    [participants]
+  );
+  const joinedParticipants = useMemo(
+    () => participants.filter((p) => ["joined", "ready", "completed"].includes(p.status)),
+    [participants]
+  );
+  const allCompleted =
+    joinedParticipants.length > 0 && joinedParticipants.every((p) => p.status === "completed");
 
   // Format interval helper
-  const formatInterval = (seconds: number) => {
+  const formatInterval = useCallback((seconds: number) => {
     if (seconds <= 0) return "0s";
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     if (m > 0 && s > 0) return `${m}m ${s}s`;
     if (m > 0) return `${m}m`;
     return `${s}s`;
-  };
+  }, []);
 
-  // Sort strictly by:
-  // 1. Score percentage descending
-  // 2. Correct answers descending
-  // 3. Duration seconds ascending (fastest wins tie)
-  // 4. Completed at timestamp ascending
-  const rawSorted = [...completedParticipants]
-    .map((p) => ({
-      participant: p,
-      scorePercentage: p.exam_attempt?.score_percentage || 0,
-      correctAnswers: p.exam_attempt?.correct_answers || 0,
-      totalQuestions: p.exam_attempt?.total_questions || 0,
-      durationSeconds: p.exam_attempt?.duration_seconds || 0,
-      completedAt: p.completed_at || p.exam_attempt?.completed_at || "",
-      trend: p.trend,
-      trendDiff: p.trend_diff,
-      averageScore: p.average_score,
-      totalAttempts: p.total_attempts,
-    }))
-    .sort((a, b) => {
-      if (b.scorePercentage !== a.scorePercentage) return b.scorePercentage - a.scorePercentage;
-      if (b.correctAnswers !== a.correctAnswers) return b.correctAnswers - a.correctAnswers;
-      if (a.durationSeconds !== b.durationSeconds) return a.durationSeconds - b.durationSeconds;
-      return new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime();
+  const ranked = useMemo<RankedParticipant[]>(() => {
+    // Sort strictly by:
+    // 1. Score percentage descending
+    // 2. Correct answers descending
+    // 3. Duration seconds ascending (fastest wins tie)
+    // 4. Completed at timestamp ascending
+    const rawSorted = [...completedParticipants]
+      .map((p) => ({
+        participant: p,
+        scorePercentage: p.exam_attempt?.score_percentage || 0,
+        correctAnswers: p.exam_attempt?.correct_answers || 0,
+        totalQuestions: p.exam_attempt?.total_questions || 0,
+        durationSeconds: p.exam_attempt?.duration_seconds || 0,
+        completedAt: p.completed_at || p.exam_attempt?.completed_at || "",
+        trend: p.trend,
+        trendDiff: p.trend_diff,
+        averageScore: p.average_score,
+        totalAttempts: p.total_attempts,
+      }))
+      .sort((a, b) => {
+        if (b.scorePercentage !== a.scorePercentage) return b.scorePercentage - a.scorePercentage;
+        if (b.correctAnswers !== a.correctAnswers) return b.correctAnswers - a.correctAnswers;
+        if (a.durationSeconds !== b.durationSeconds) return a.durationSeconds - b.durationSeconds;
+        return new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime();
+      });
+
+    const scoreGroups: Record<number, typeof rawSorted> = {};
+    rawSorted.forEach((item) => {
+      scoreGroups[item.correctAnswers] = scoreGroups[item.correctAnswers] || [];
+      scoreGroups[item.correctAnswers].push(item);
     });
 
-  // Calculate tie intervals
-  const scoreGroups: Record<number, typeof rawSorted> = {};
-  rawSorted.forEach((item) => {
-    scoreGroups[item.correctAnswers] = scoreGroups[item.correctAnswers] || [];
-    scoreGroups[item.correctAnswers].push(item);
-  });
+    return rawSorted.map((item, idx) => {
+      const group = scoreGroups[item.correctAnswers] || [];
+      const isTiedScore = group.length > 1;
+      const fastestInTie = group[0];
+      const isTiedLeader = item.participant.user_id === fastestInTie.participant.user_id;
+      const intervalSeconds = Math.max(0, item.durationSeconds - fastestInTie.durationSeconds);
+      const intervalFormatted = isTiedLeader
+        ? t("fastestInTie") || "Fastest"
+        : `+${formatInterval(intervalSeconds)}`;
 
-  const ranked: RankedParticipant[] = rawSorted.map((item, idx) => {
-    const group = scoreGroups[item.correctAnswers] || [];
-    const isTiedScore = group.length > 1;
-    const fastestInTie = group[0];
-    const isTiedLeader = item.participant.user_id === fastestInTie.participant.user_id;
-    const intervalSeconds = Math.max(0, item.durationSeconds - fastestInTie.durationSeconds);
-    const intervalFormatted = isTiedLeader ? (t("fastestInTie") || "Fastest") : `+${formatInterval(intervalSeconds)}`;
-
-    return {
-      ...item,
-      rank: idx + 1,
-      isTiedScore,
-      isTiedLeader,
-      intervalSeconds,
-      intervalFormatted,
-    };
-  });
+      return {
+        ...item,
+        rank: idx + 1,
+        isTiedScore,
+        isTiedLeader,
+        intervalSeconds,
+        intervalFormatted,
+      };
+    });
+  }, [completedParticipants, formatInterval, t]);
 
   const winner = ranked.length > 0 ? ranked[0] : null;
-  const isWinner = winner && user && winner.participant.user_id === user.id;
-  const isWinnerPassed = winner ? (winner.scorePercentage >= 50) : false;
+  const isWinner = Boolean(winner && user && winner.participant.user_id === user.id);
+  const isWinnerPassed = winner ? winner.scorePercentage >= 50 : false;
 
   // Trigger celebration confetti for winner ONLY if the winner passed the exam and it's not a solo attempt
   useEffect(() => {
@@ -465,7 +482,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
               animate={{ rotate: 360 }}
               transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
             >
-              <Loader2 className="h-6 w-6 text-primary" />
+              <Loader2 className="h-6 w-6 text-emerald-600 dark:text-emerald-300" />
             </motion.div>
             <div>
               <p className="font-medium text-sm">
@@ -709,7 +726,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
                       ) : isReady ? (
                         <CheckCircle className="h-4 w-4 text-emerald-500" />
                       ) : isInProgress ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+                        <Loader2 className="h-4 w-4 animate-spin text-amber-600 dark:text-amber-300" />
                       ) : isDeclined || isLeft ? (
                         <XCircle className="h-4 w-4 text-rose-500" />
                       ) : (

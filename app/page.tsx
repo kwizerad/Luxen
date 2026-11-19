@@ -16,9 +16,7 @@ import { useLanguage } from "@/lib/language-context";
 import { formatLocalizedDate } from "@/lib/date-utils";
 import { LoginForm } from "@/components/login-form";
 import { SignUpForm } from "@/components/sign-up-form";
-import { AuthModalsContainer } from "@/components/auth-modals-container";
 import { useAuth } from "@/lib/auth-context";
-import { GoogleOneTap } from "@/components/google-one-tap";
 import { claimPendingGuestExamIfAny } from "@/lib/guest-exam-client";
 import { toast } from "sonner";
 
@@ -209,9 +207,7 @@ export default function Home() {
   // Windows 11 Lock Screen & Authentic Navo OS Auth Options
   if (!isAuthenticated) {
     return (
-      <div className="relative min-h-screen min-h-[100dvh] w-full flex flex-col items-center justify-between select-none overflow-x-hidden px-4 sm:px-6 py-8 sm:py-12 bg-slate-50 dark:bg-zinc-950 transition-colors">
-        <AuthModalsContainer />
-        <GoogleOneTap alwaysPrompt />
+      <div className="relative min-h-screen min-h-[100dvh] w-full flex flex-col items-center justify-between overflow-x-hidden px-4 sm:px-6 py-8 sm:py-12 bg-slate-50 dark:bg-zinc-950 transition-colors">
 
         {/* Immersive Wallpaper Background (Adapts to Light / Dark Theme) */}
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.18),rgba(241,245,249,0.98))] dark:bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.2),rgba(9,9,11,0.97))] bg-cover bg-center" />
@@ -313,7 +309,11 @@ export default function Home() {
                 className="w-full rounded-3xl border border-border/80 dark:border-white/15 bg-card/95 dark:bg-zinc-900/95 text-card-foreground dark:text-white backdrop-blur-2xl p-5 sm:p-7 shadow-none"
               >
                 <LoginForm
-                  onSuccess={() => triggerLoginSuccess()}
+                  onSuccess={(res) => {
+                    if (!res?.isAdmin) {
+                      triggerLoginSuccess();
+                    }
+                  }}
                   onSwitchToSignUp={() => setAuthStep("register")}
                   onBack={() => setAuthStep("initial")}
                 />
@@ -403,7 +403,6 @@ export default function Home() {
   return (
     <OSContextMenu navigate={handleNavigate} onOpenSpotlight={() => setIsSpotlightOpen(true)}>
       <div className="relative min-h-screen w-full flex flex-col bg-cover bg-center bg-no-repeat text-foreground overflow-x-hidden selection:bg-emerald-500/30">
-        <AuthModalsContainer />
 
         {/* OS Top Global Menu Bar */}
         <OSSystemBar

@@ -1,5 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -24,6 +24,18 @@ import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from "@/lib/supabase/
 export async function createClient() {
   const cookieStore = await cookies();
 
+  let isHttps = process.env.NODE_ENV === "production";
+  try {
+    const headerStore = await headers();
+    const proto = headerStore.get("x-forwarded-proto") || "";
+    const origin = headerStore.get("origin") || headerStore.get("referer") || "";
+    if (proto.includes("https") || origin.startsWith("https://")) {
+      isHttps = true;
+    }
+  } catch {
+    // Ignore when called outside a request context
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
   const supabaseKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
@@ -36,8 +48,8 @@ export async function createClient() {
     {
       cookieOptions: {
         name: "navo-auth-token",
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
+        sameSite: isHttps ? "none" : "lax",
+        secure: isHttps,
       },
       cookies: {
         getAll() {
@@ -46,7 +58,11 @@ export async function createClient() {
         setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options),
+              cookieStore.set(name, value, {
+                ...options,
+                sameSite: isHttps ? "none" : (options?.sameSite || "lax"),
+                secure: isHttps ? true : Boolean(options?.secure),
+              }),
             );
           } catch {
             // The `setAll` method was called from a Server Component.

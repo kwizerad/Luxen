@@ -18,7 +18,11 @@ import {
   isGroupExamEnabled,
   getCachedGroupExamEnabled,
 } from "@/lib/feature-flags";
-import { ClassmatesViewSkeleton } from "@/components/skeletons";
+import {
+  ChallengeCardSkeleton,
+  ChatMessageBubblesSkeleton,
+  ClassmatesViewSkeleton,
+} from "@/components/skeletons";
 import { spaCache } from "@/lib/spa-cache";
 import type { ChatMessage, ExamChallenge, ExamChallengeParticipant } from "@/lib/database.types";
 import { toast } from "sonner";
@@ -481,9 +485,19 @@ function ExamInvitationsContent({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
-        <Loader2 className="h-7 w-7 animate-spin text-primary" />
-        <p className="text-xs font-medium">{t("loading") || "Birimo gushakishwa..."}</p>
+      <div className="flex flex-col h-full bg-background/50">
+        <div className="p-3 border-b bg-card/60 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            <Play className="h-3.5 w-3.5 fill-current text-blue-600 dark:text-blue-400" />
+            <span>{t("ongoing") || "Biri Gukorwa"}</span>
+          </div>
+          <div className="h-5 w-7 rounded-full skeleton-shimmer" />
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3.5">
+          {[0, 1, 2].map((i) => (
+            <ChallengeCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -2645,9 +2659,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
               )}
 
               {loadingChat ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
+                <ChatMessageBubblesSkeleton count={5} />
               ) : messages.length === 0 ? (
                 <p className="text-center text-sm text-muted-foreground py-8">{t("noMessagesYet")}</p>
               ) : (
