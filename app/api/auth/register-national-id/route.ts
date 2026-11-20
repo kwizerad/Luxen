@@ -3,6 +3,7 @@ import { fetchCitizenFullDetails, type CitizenFullProfile } from "@/lib/live-exa
 import { saveNationalIdRecord } from "@/lib/live-exam/save-record";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
+import { isPrimaryAdmin } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -349,6 +350,24 @@ export async function POST(request: NextRequest) {
       avatarUrl && !avatarUrl.startsWith("data:")
         ? avatarUrl
         : null;
+
+    const existingIsAdmin =
+      (existingProfile?.role && existingProfile.role.toLowerCase() === "admin") ||
+      (existingProfile?.email && isPrimaryAdmin({ email: existingProfile.email })) ||
+      (existingAuthUser &&
+        (isPrimaryAdmin(existingAuthUser as any) ||
+          String(existingAuthUser.user_metadata?.role || "").toLowerCase() === "admin"));
+
+    if (existingIsAdmin) {
+      return NextResponse.json(
+        {
+          status: "error",
+          code: "admin_password_required",
+          message: "Administrator accounts must sign in with their email and password.",
+        },
+        { status: 403 }
+      );
+    }
 
     if (existingAuthUser) {
       userId = existingAuthUser.id;

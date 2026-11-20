@@ -477,9 +477,9 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           }
           setLanguageToggles(langToggles);
 
-          // Load interface language toggles (default to enabled if not set)
+          // Load interface language toggles (Kinyarwanda is primary and always enabled)
           const ifaceLangToggles: Record<string, boolean> = { english: true, french: true, kinyarwanda: true };
-          for (const lang of ["english", "french", "kinyarwanda"]) {
+          for (const lang of ["english", "french"]) {
             const configKey = `interface_language_${lang}_enabled`;
             if (configMap[configKey]) {
               ifaceLangToggles[lang] = configMap[configKey].value === "true";
@@ -871,10 +871,13 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
       await updateSystemConfigBatch(
         INTERFACE_LANGUAGES.map((lang) => ({
           key: `interface_language_${lang.key}_enabled`,
-          value: (interfaceLanguageToggles[lang.key] ?? true).toString(),
+          value: lang.key === "kinyarwanda" ? "true" : (interfaceLanguageToggles[lang.key] ?? true).toString(),
           description: t("interfaceLanguageToggleDesc") || `Enable or disable ${lang.label} as an interface language`,
         }))
       );
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("system-config-updated"));
+      }
       toast.success(t("interfaceLanguagesSaved") || "Interface language settings saved");
     } catch (error: any) {
       toast.error((t("failedToUpdateInterfaceLanguages") || "Failed to save interface language settings: ") + error.message);
@@ -1633,24 +1636,32 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
         <CardContent className="space-y-5">
           <div className="space-y-3">
             {INTERFACE_LANGUAGES.map((lang) => {
-              const isLastEnabled = Object.entries(interfaceLanguageToggles).filter(([k, v]) => v && k !== lang.key).length === 0 && interfaceLanguageToggles[lang.key];
+              const isPrimary = lang.key === "kinyarwanda";
+              const isLastEnabled =
+                isPrimary ||
+                (Object.entries(interfaceLanguageToggles).filter(([k, v]) => v && k !== lang.key).length === 0 &&
+                  interfaceLanguageToggles[lang.key]);
               return (
                 <div key={lang.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
                   <div className="space-y-0.5 pr-3">
                     <Label htmlFor={`iface-lang-${lang.key}-toggle`} className="text-sm font-medium">
                       {lang.nativeLabel}
+                      {isPrimary ? " (Primary)" : ""}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      {t("interfaceLanguageToggleDesc") || `Allow users to use ${lang.label} as the app interface language`}
+                      {isPrimary
+                        ? "Primary landing language for new users (always enabled)."
+                        : t("interfaceLanguageToggleDesc") || `Allow users to use ${lang.label} as the app interface language`}
                     </p>
                   </div>
                   <Switch
                     id={`iface-lang-${lang.key}-toggle`}
-                    checked={interfaceLanguageToggles[lang.key] ?? true}
+                    checked={isPrimary ? true : (interfaceLanguageToggles[lang.key] ?? true)}
                     disabled={isLastEnabled}
-                    onCheckedChange={(checked) =>
-                      setInterfaceLanguageToggles((prev) => ({ ...prev, [lang.key]: checked }))
-                    }
+                    onCheckedChange={(checked) => {
+                      if (isPrimary) return;
+                      setInterfaceLanguageToggles((prev) => ({ ...prev, [lang.key]: checked }));
+                    }}
                   />
                 </div>
               );

@@ -74,6 +74,11 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { loadCourseByLanguage } from "@/app/dashboard/actions/course";
 import { spaCache } from "@/lib/spa-cache";
+import {
+  invalidateStudentDashboardCache,
+  invalidateStudentExamHistoryCache,
+  studentCache,
+} from "@/lib/student-cache";
 import { SmartImage, preloadImages } from "@/components/smart-image";
 import { extractContentImageUrls } from "@/lib/image-compression";
 import { extractCourseMediaAndCleanContent, getLessonThumbnail } from "@/lib/course-media";
@@ -321,6 +326,17 @@ interface LessonProgress {
   completed: boolean;
 }
 
+interface CourseCatalogCache {
+  course: CourseWithModules;
+  sequentialUnlockEnabled: boolean;
+}
+
+interface CourseProgressCache {
+  moduleProgress: [string, ModuleProgress][];
+  lessonProgress: [string, LessonProgress][];
+  completedKeys: string[];
+}
+
 export interface CourseViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
   params: URLSearchParams;
@@ -363,10 +379,31 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const { t, language: interfaceLanguage } = useLanguage();
   const { user: authUser, loading: authLoading } = useAuth();
   const { enabledLanguages } = useLearningLanguages();
-  const [course, setCourse] = useState<CourseWithModules | null>(null);
-  const [sequentialUnlockEnabled, setSequentialUnlockEnabled] = useState(true);
-  const [learningLanguage, setLearningLanguage] = useState<LearningLanguage | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initialStoredLang =
+    typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
+  const initialLangGuess: LearningLanguage | null =
+    initialStoredLang && isLearningLanguage(initialStoredLang) ? initialStoredLang : null;
+  const initialHotCatalog = initialLangGuess
+    ? studentCache.getHot<CourseCatalogCache>(`course_catalog_${initialLangGuess}`, {
+        tier: "public",
+      })
+    : null;
+  const initialHotProgress =
+    initialLangGuess && authUser?.id
+      ? studentCache.getHot<CourseProgressCache>(`course_progress_${initialLangGuess}`, {
+          tier: "private",
+          userId: authUser.id,
+        })
+      : null;
+
+  const [course, setCourse] = useState<CourseWithModules | null>(initialHotCatalog?.course ?? null);
+  const [sequentialUnlockEnabled, setSequentialUnlockEnabled] = useState(
+    initialHotCatalog?.sequentialUnlockEnabled ?? true
+  );
+  const [learningLanguage, setLearningLanguage] = useState<LearningLanguage | null>(
+    initialHotCatalog ? initialLangGuess : null
+  );
+  const [loading, setLoading] = useState(!initialHotCatalog?.course);
   const [savingLanguage, setSavingLanguage] = useState(false);
 
   // View state: "modules" (Course overview) | "module-lessons" (Selected module's lesson list) | "study" (Active reader) | "reading"
@@ -374,7 +411,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
-  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+  const [completedItems, setCompletedItems] = useState<Set<string>>(
+    () => new Set(initialHotProgress?.completedKeys || [])
+  );
   const [showCelebration, setShowCelebration] = useState(false);
   const [showLessonCompleteModal, setShowLessonCompleteModal] = useState(false);
   const [completedLessonMeta, setCompletedLessonMeta] = useState<{
@@ -387,8 +426,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   // Exam state
   const [activeExam, setActiveExam] = useState<{ type: ExamType; moduleId?: string; moduleTitle?: string } | null>(null);
-  const [moduleProgress, setModuleProgress] = useState<Map<string, ModuleProgress>>(new Map());
-  const [lessonProgress, setLessonProgress] = useState<Map<string, LessonProgress>>(new Map());
+  const [moduleProgress, setModuleProgress] = useState<Map<string, ModuleProgress>>(
+    () => new Map(initialHotProgress?.moduleProgress || [])
+  );
+  const [lessonProgress, setLessonProgress] = useState<Map<string, LessonProgress>>(
+    () => new Map(initialHotProgress?.lessonProgress || [])
+  );
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -525,8 +568,10 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   useEffect(() => {
     if (prevRoadSignsFilterRef.current !== isRoadSignsFilter) {
       prevRoadSignsFilterRef.current = isRoadSignsFilter;
-      setViewMode("modules");
-      setSelectedModuleId(null);
+      if (!isRoadSignsFilter) {
+        setViewMode("modules");
+        setSelectedModuleId(null);
+      }
     }
   }, [isRoadSignsFilter]);
 
@@ -560,17 +605,55 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   const currentItem = flatList[currentItemIndex] || null;
 
+  // Automatically enter the grid list of signs when opening Road Signs (?module=signs / ?filter=images)
+  useEffect(() => {
+    if (!isRoadSignsFilter || !effectiveCourse || effectiveCourse.modules.length === 0) return;
+
+    const hasDirectStudyLink = Boolean(
+      params.get("lesson") ||
+      params.get("lessonId") ||
+      params.get("topic") ||
+      params.get("topicId")
+    );
+    if (hasDirectStudyLink) return;
+
+    const hasValidSelected = selectedModuleId
+      ? effectiveCourse.modules.some((m) => m.id === selectedModuleId)
+      : false;
+
+    if (!hasValidSelected) {
+      const preferredMod =
+        effectiveCourse.modules.find((m) => /byapa|sign|panneau/i.test(m.title)) ||
+        effectiveCourse.modules[0];
+      if (preferredMod) {
+        setSelectedModuleId(preferredMod.id);
+      }
+    }
+
+    if (viewMode === "modules") {
+      setViewMode("module-lessons");
+    }
+  }, [isRoadSignsFilter, effectiveCourse, selectedModuleId, viewMode, params]);
+
   // Selected module object
   const currentModule = useMemo(() => {
     if (!effectiveCourse) return null;
     if (selectedModuleId) {
-      return effectiveCourse.modules.find((m) => m.id === selectedModuleId) || effectiveCourse.modules[0] || null;
+      const matched = effectiveCourse.modules.find((m) => m.id === selectedModuleId);
+      if (matched) return matched;
+    }
+    if (isRoadSignsFilter) {
+      return (
+        effectiveCourse.modules.find((m) => /byapa|sign|panneau/i.test(m.title)) ||
+        effectiveCourse.modules[0] ||
+        null
+      );
     }
     if (currentItem) {
       return effectiveCourse.modules.find((m) => m.id === currentItem.moduleId) || effectiveCourse.modules[0] || null;
     }
     return effectiveCourse.modules[0] || null;
-  }, [effectiveCourse, selectedModuleId, currentItem]);
+  }, [effectiveCourse, selectedModuleId, currentItem, isRoadSignsFilter]);
 
   const filteredLessons = useMemo(() => {
     if (!currentModule) return [];
@@ -618,7 +701,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     });
   };
 
-  const loadProgress = useCallback(async (courseData: CourseWithModules) => {
+  const loadProgress = useCallback(async (courseData: CourseWithModules, langOverride?: LearningLanguage | null) => {
     const moduleIds = courseData.modules.map((m) => m.id);
     if (moduleIds.length === 0) return;
 
@@ -657,7 +740,20 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       }
     }
     setCompletedItems(completed);
-  }, []);
+
+    const targetLang = langOverride || courseData.language;
+    if (authUser?.id && targetLang) {
+      void studentCache.write<CourseProgressCache>(
+        `course_progress_${targetLang}`,
+        {
+          moduleProgress: Array.from(modMap.entries()),
+          lessonProgress: Array.from(lesMap.entries()),
+          completedKeys: Array.from(completed),
+        },
+        { tier: "private", userId: authUser.id, category: "course_progress" }
+      );
+    }
+  }, [authUser?.id]);
 
   const loadCourse = useCallback(async (selectedLanguage: LearningLanguage | null) => {
     if (!selectedLanguage) {
@@ -666,41 +762,92 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       return;
     }
 
-    const cachedCourse = spaCache.get<CourseWithModules>(`spa_course_${selectedLanguage}`);
-    const cachedSeq = spaCache.get<boolean>(`spa_course_seq_${selectedLanguage}`);
-    if (cachedSeq !== null && cachedSeq !== undefined) {
-      setSequentialUnlockEnabled(cachedSeq);
-    }
-    if (cachedCourse) {
-      setCourse(cachedCourse);
-      if (cachedCourse.modules.length > 0 && !selectedModuleId) {
-        setSelectedModuleId(cachedCourse.modules[0].id);
+    const catalogKey = `course_catalog_${selectedLanguage}`;
+    const progressKey = `course_progress_${selectedLanguage}`;
+
+    let hasCachedCatalog = false;
+    const hotCatalog =
+      studentCache.getHot<CourseCatalogCache>(catalogKey, { tier: "public" }) ||
+      (spaCache.get<CourseWithModules>(`spa_course_${selectedLanguage}`)
+        ? {
+            course: spaCache.get<CourseWithModules>(`spa_course_${selectedLanguage}`)!,
+            sequentialUnlockEnabled:
+              spaCache.get<boolean>(`spa_course_seq_${selectedLanguage}`) ?? true,
+          }
+        : null);
+
+    if (hotCatalog?.course) {
+      hasCachedCatalog = true;
+      setSequentialUnlockEnabled(hotCatalog.sequentialUnlockEnabled);
+      setCourse(hotCatalog.course);
+      if (hotCatalog.course.modules.length > 0 && !selectedModuleId) {
+        setSelectedModuleId(hotCatalog.course.modules[0].id);
       }
       setLoading(false);
-      void loadProgress(cachedCourse);
     } else {
+      const persistedCatalog = await studentCache.read<CourseCatalogCache>(catalogKey, {
+        tier: "public",
+        maxAgeMs: 30 * 60 * 1000,
+      });
+      if (persistedCatalog?.data?.course) {
+        hasCachedCatalog = true;
+        setSequentialUnlockEnabled(persistedCatalog.data.sequentialUnlockEnabled);
+        setCourse(persistedCatalog.data.course);
+        if (persistedCatalog.data.course.modules.length > 0 && !selectedModuleId) {
+          setSelectedModuleId(persistedCatalog.data.course.modules[0].id);
+        }
+        setLoading(false);
+      }
+    }
+
+    if (authUser?.id) {
+      const persistedProgress = await studentCache.read<CourseProgressCache>(progressKey, {
+        tier: "private",
+        userId: authUser.id,
+        maxAgeMs: 5 * 60 * 1000,
+      });
+      if (persistedProgress?.data) {
+        setModuleProgress(new Map(persistedProgress.data.moduleProgress || []));
+        setLessonProgress(new Map(persistedProgress.data.lessonProgress || []));
+        setCompletedItems(new Set(persistedProgress.data.completedKeys || []));
+      }
+    }
+
+    if (!hasCachedCatalog) {
       setLoading(true);
     }
 
-    const { course, sequentialUnlockEnabled: seqUnlock } = await loadCourseByLanguage(selectedLanguage);
-    const resolvedSeq = seqUnlock !== false;
-    setSequentialUnlockEnabled(resolvedSeq);
-    spaCache.set(`spa_course_seq_${selectedLanguage}`, resolvedSeq);
-    if (!course) {
-      spaCache.delete(`spa_course_${selectedLanguage}`);
-      setCourse(null);
-      setLoading(false);
-      return;
-    }
+    try {
+      const { course, sequentialUnlockEnabled: seqUnlock } = await loadCourseByLanguage(selectedLanguage);
+      const resolvedSeq = seqUnlock !== false;
+      setSequentialUnlockEnabled(resolvedSeq);
+      spaCache.set(`spa_course_seq_${selectedLanguage}`, resolvedSeq);
+      if (!course) {
+        if (!hasCachedCatalog) {
+          spaCache.delete(`spa_course_${selectedLanguage}`);
+          setCourse(null);
+        }
+        setLoading(false);
+        return;
+      }
 
-    spaCache.set(`spa_course_${selectedLanguage}`, course);
-    setCourse(course);
-    if (course.modules.length > 0 && !selectedModuleId) {
-      setSelectedModuleId(course.modules[0].id);
+      spaCache.set(`spa_course_${selectedLanguage}`, course);
+      void studentCache.write<CourseCatalogCache>(
+        catalogKey,
+        { course, sequentialUnlockEnabled: resolvedSeq },
+        { tier: "public", category: "course_catalog" }
+      );
+      setCourse(course);
+      if (course.modules.length > 0 && !selectedModuleId) {
+        setSelectedModuleId(course.modules[0].id);
+      }
+      setLoading(false);
+      await loadProgress(course, selectedLanguage);
+    } catch (err) {
+      console.error("Failed to revalidate course in background:", err);
+      setLoading(false);
     }
-    setLoading(false);
-    await loadProgress(course);
-  }, [loadProgress, selectedModuleId]);
+  }, [authUser?.id, loadProgress, selectedModuleId]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -710,14 +857,34 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
 
     const loadLearningLanguage = async () => {
-      const hasDeepLink = Boolean(
-        params.get("lesson") ||
-        params.get("lessonId") ||
-        params.get("topic") ||
-        params.get("topicId") ||
-        params.get("module") ||
-        params.get("moduleId")
-      );
+      const storedLocal = typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
+      const cachedUiLang = typeof window !== "undefined" ? localStorage.getItem("navo-language") : null;
+      const persistedLangRec = authUser?.id
+        ? await studentCache.read<LearningLanguage>("course_learning_language", {
+            tier: "private",
+            userId: authUser.id,
+            maxAgeMs: 24 * 60 * 60 * 1000,
+          })
+        : null;
+
+      let quickLang: LearningLanguage | null = null;
+      if (persistedLangRec?.data && isLearningLanguage(persistedLangRec.data)) {
+        quickLang = persistedLangRec.data;
+      } else if (storedLocal && isLearningLanguage(storedLocal)) {
+        quickLang = storedLocal;
+      } else if (
+        cachedUiLang &&
+        cachedUiLang !== "Kinyarwanda" &&
+        isLearningLanguage(cachedUiLang)
+      ) {
+        quickLang = cachedUiLang;
+      }
+
+      if (quickLang) {
+        setShowLanguagePicker(false);
+        setLearningLanguage(quickLang);
+        void loadCourse(quickLang);
+      }
 
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -731,8 +898,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         .eq("id", user.id)
         .maybeSingle();
       const savedLanguage = profile?.learning_language;
-      const storedLocal = typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
-      const cachedUiLang = typeof window !== "undefined" ? localStorage.getItem("navo-language") : null;
 
       let effectiveLang: LearningLanguage | null = null;
       if (storedLocal && isLearningLanguage(storedLocal)) {
@@ -751,9 +916,16 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       }
 
       const selectedLanguage: LearningLanguage = effectiveLang || "Kinyarwanda";
+      void studentCache.write("course_learning_language", selectedLanguage, {
+        tier: "private",
+        userId: user.id,
+        category: "course_progress",
+      });
       setShowLanguagePicker(false);
       setLearningLanguage(selectedLanguage);
-      await loadCourse(selectedLanguage);
+      if (selectedLanguage !== quickLang) {
+        await loadCourse(selectedLanguage);
+      }
     };
 
     void loadLearningLanguage();
@@ -775,7 +947,8 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   useEffect(() => {
     const lessonId = params.get("lesson") || params.get("lessonId");
     const topicId = params.get("topic") || params.get("topicId");
-    const moduleId = params.get("module") || params.get("moduleId");
+    const rawModuleParam = params.get("module") || params.get("moduleId");
+    const moduleId = rawModuleParam && rawModuleParam.toLowerCase() !== "signs" ? rawModuleParam : null;
 
     if ((!lessonId && !topicId && !moduleId) || flatList.length === 0) return;
 
@@ -976,6 +1149,12 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       .update({ learning_language: selectedLanguage })
       .eq("id", user.id);
     if (!error) {
+      void studentCache.write("course_learning_language", selectedLanguage, {
+        tier: "private",
+        userId: user.id,
+        category: "course_progress",
+      });
+      void invalidateStudentDashboardCache(user.id);
       setLearningLanguage(selectedLanguage);
       await loadCourse(selectedLanguage);
     }
@@ -1083,13 +1262,27 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         setLessonProgress((prev) => {
           const next = new Map(prev);
           next.set(item.lessonId, { lesson_id: item.lessonId, module_id: item.moduleId, completed: true });
+          if (authUser?.id && learningLanguage) {
+            const nextCompleted = new Set(completedItems);
+            nextCompleted.add(itemKey(item));
+            void studentCache.write<CourseProgressCache>(
+              `course_progress_${learningLanguage}`,
+              {
+                moduleProgress: Array.from(moduleProgress.entries()),
+                lessonProgress: Array.from(next.entries()),
+                completedKeys: Array.from(nextCompleted),
+              },
+              { tier: "private", userId: authUser.id, category: "course_progress" }
+            );
+          }
           return next;
         });
+        void invalidateStudentDashboardCache(authUser?.id);
       }
     } catch (error) {
       console.error("Failed to save lesson progress:", error);
     }
-  }, [effectiveCourse, lessonElapsedSeconds]);
+  }, [effectiveCourse, lessonElapsedSeconds, authUser?.id, learningLanguage, moduleProgress, completedItems]);
 
   /**
    * Mark current topic / lesson complete and advance.
@@ -1375,7 +1568,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
   const handleExamComplete = async (result: { passed: boolean; score: number; taken: boolean }) => {
     if (!activeExam || !course) return;
-    await loadProgress(course);
+    await loadProgress(course, learningLanguage);
+    void invalidateStudentDashboardCache(authUser?.id);
+    void invalidateStudentExamHistoryCache(authUser?.id);
 
     if (activeExam.type === "module" && activeExam.moduleId) {
       const examItem = flatList.find((f) => f.type === "exam" && f.moduleId === activeExam.moduleId);
@@ -2020,10 +2215,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     </div>
   ) : null;
 
+  const shouldSkipModulesOverview =
+    isRoadSignsFilter && effectiveCourse.modules.length > 0 && viewMode === "modules";
+
   // ─────────────────────────────────────────────────────────────────────────────
   // VIEW 1: MODULES LIST (Course Level)
   // ─────────────────────────────────────────────────────────────────────────────
-  if (viewMode === "modules") {
+  if (viewMode === "modules" && !shouldSkipModulesOverview) {
     return (
       <div
         className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-4 sm:space-y-5 animate-in fade-in duration-200 select-none overflow-x-hidden"
@@ -2333,9 +2531,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // VIEW 2: MODULE LESSONS (Selected Module Detail)
+  // VIEW 2: MODULE LESSONS (Selected Module Detail / Direct Road Signs Grid)
   // ─────────────────────────────────────────────────────────────────────────────
-  if (viewMode === "module-lessons" && currentModule) {
+  if ((viewMode === "module-lessons" || shouldSkipModulesOverview) && currentModule) {
     const totalLessons = currentModule.lessons.length;
     const completedLessonsCount = currentModule.lessons.filter((l) => isLessonCompleted(l.id)).length;
     const modulePct = totalLessons > 0 ? Math.round((completedLessonsCount / totalLessons) * 100) : 0;
@@ -2354,31 +2552,107 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
         {/* Navigation Breadcrumb */}
         <div className="space-y-3 border-b border-border dark:border-zinc-800 pb-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setViewMode("modules")}
-              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
-              <span>{t("allModules") || "All Modules"}</span>
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isRoadSignsFilter) {
+                    navigate("back", { fallback: "home" });
+                  } else {
+                    setViewMode("modules");
+                  }
+                }}
+                className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+                <span>
+                  {isRoadSignsFilter
+                    ? t("back") || t("backToHome") || "Back"
+                    : t("allModules") || "All Modules"}
+                </span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setIsMobileSidebarOpen(true)}
-              className="lg:hidden inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 border border-primary/25 transition-colors cursor-pointer"
-            >
-              <PanelLeftOpen className="h-3.5 w-3.5 mr-1.5" />
-              <span>{t("courseTree") !== "courseTree" ? t("courseTree") : "Course Tree"}</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="lg:hidden inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 border border-primary/25 transition-colors cursor-pointer"
+              >
+                <PanelLeftOpen className="h-3.5 w-3.5 mr-1.5" />
+                <span>{t("courseTree") !== "courseTree" ? t("courseTree") : "Course Tree"}</span>
+              </button>
+
+              {isRoadSignsFilter && (
+                <button
+                  type="button"
+                  onClick={() => navigate("course")}
+                  className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 bg-primary/5 border border-primary/20 transition-colors cursor-pointer"
+                >
+                  <BookOpen className="h-3.5 w-3.5 mr-1.5" />
+                  <span>{t("allCourses") || "All Courses"}</span>
+                </button>
+              )}
+            </div>
+
+            {isRoadSignsFilter && (
+              <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-card border border-border dark:border-zinc-800 rounded-xl p-1 shadow-xs w-full sm:w-auto">
+                {(["English", "French", "Kinyarwanda"] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => void handleChooseCourseLanguage(lang)}
+                    className={cn(
+                      "px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center justify-center min-w-0",
+                      learningLanguage === lang
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <span className="mr-1 sm:mr-1.5 shrink-0">{lang === "French" ? "🇫🇷" : lang === "Kinyarwanda" ? "🇷🇼" : "🇬🇧"}</span>
+                    <span className="sm:hidden">{lang === "French" ? "FR" : lang === "Kinyarwanda" ? "RW" : "EN"}</span>
+                    <span className="hidden sm:inline">{lang}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-1 min-w-0">
-            <h1 className="text-base sm:text-xl font-bold tracking-tight text-foreground dark:text-zinc-100 break-words">
-              {currentModule.title}
-            </h1>
+            <div className="flex items-center flex-wrap gap-x-2.5 gap-y-1">
+              <h1 className="text-base sm:text-xl font-bold tracking-tight text-foreground dark:text-zinc-100 break-words">
+                {isRoadSignsFilter ? (t("roadSigns") || "Road Signs") : currentModule.title}
+              </h1>
+              {isRoadSignsFilter && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                  <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+                  <span>{currentModule.title}</span>
+                </span>
+              )}
+            </div>
           </div>
+
+          {isRoadSignsFilter && effectiveCourse.modules.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+              {effectiveCourse.modules.map((mod) => {
+                const isActive = mod.id === currentModule.id;
+                return (
+                  <button
+                    key={mod.id}
+                    type="button"
+                    onClick={() => setSelectedModuleId(mod.id)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-medium border whitespace-nowrap shrink-0 transition-colors cursor-pointer",
+                      isActive
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted/60"
+                    )}
+                  >
+                    {mod.title}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {currentModule.description && (
             <p className="text-xs sm:text-sm text-muted-foreground dark:text-zinc-400 max-w-2xl break-words">
@@ -2763,7 +3037,13 @@ export function CourseView({ navigate, params }: CourseViewProps) {
 
               <button
                 type="button"
-                onClick={() => setViewMode("modules")}
+                onClick={() => {
+                  if (isRoadSignsFilter) {
+                    navigate("course");
+                  } else {
+                    setViewMode("modules");
+                  }
+                }}
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium shrink-0 hidden sm:inline cursor-pointer"
               >
                 {t("course") || "Course"}

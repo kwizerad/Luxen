@@ -169,10 +169,12 @@ export function ChatConversationView({ navigate, params }: ChatConversationViewP
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {loading ? (
           <ChatMessageBubblesSkeleton count={5} />
-        ) : messages.length === 0 ? (
+        ) : messages.filter((msg) => !(msg.message?.startsWith("🏆 ") && msg.message?.includes("exam together"))).length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-8">{t("noMessagesYet")}</p>
         ) : (
-          messages.map((msg) => {
+          messages
+            .filter((msg) => !(msg.message?.startsWith("🏆 ") && msg.message?.includes("exam together")))
+            .map((msg) => {
             const isOwn = msg.sender_id === user?.id;
             return (
               <div

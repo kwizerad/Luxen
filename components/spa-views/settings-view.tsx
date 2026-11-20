@@ -11,6 +11,8 @@ import { useAuth } from "@/lib/auth-context";
 import { ArrowLeft, Sliders } from "lucide-react";
 import { spaCache } from "@/lib/spa-cache";
 
+import { studentCache } from "@/lib/student-cache";
+
 export interface SettingsViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
 }
@@ -19,27 +21,54 @@ export function SettingsView({ navigate }: SettingsViewProps) {
   const { config } = useBrandingConfig();
   const { t } = useLanguage();
   const { user: authUser } = useAuth();
-  
-  const cachedUser = spaCache.get<any>("spa_settings_user") || authUser;
+
+  const cacheKey = authUser?.id ? `settings_user_${authUser.id}` : "spa_settings_user";
+  const cachedUser =
+    (authUser?.id
+      ? studentCache.getHot<any>(cacheKey, { tier: "private", userId: authUser.id })
+      : null) ||
+    spaCache.get<any>(cacheKey) ||
+    authUser;
   const [user, setUser] = useState<any>(cachedUser);
   const [loading, setLoading] = useState(!cachedUser);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    let active = true;
 
     const loadUser = async () => {
+      if (authUser?.id) {
+        const persisted = await studentCache.read<any>(cacheKey, {
+          tier: "private",
+          userId: authUser.id,
+          maxAgeMs: 10 * 60 * 1000,
+        });
+        if (active && persisted?.data) {
+          setUser(persisted.data);
+          setLoading(false);
+        }
+      }
+
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user: freshUser } } = await supabase.auth.getUser();
 
-      if (!user) return;
+      if (!active || !freshUser) return;
 
-      setUser(user);
-      spaCache.set("spa_settings_user", user);
+      setUser(freshUser);
+      spaCache.set(`settings_user_${freshUser.id}`, freshUser);
+      void studentCache.write(`settings_user_${freshUser.id}`, freshUser, {
+        tier: "private",
+        userId: freshUser.id,
+        category: "profile",
+      });
       setLoading(false);
     };
 
     loadUser();
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [authUser?.id, cacheKey]);
 
   if (loading) {
     return <SettingsViewSkeleton />;
@@ -83,7 +112,15 @@ export function SettingsView({ navigate }: SettingsViewProps) {
           user={user}
           onUserUpdate={(updatedUser) => {
             setUser(updatedUser);
-            spaCache.set("spa_settings_user", updatedUser);
+            const targetId = updatedUser?.id || authUser?.id;
+            spaCache.set(targetId ? `settings_user_${targetId}` : "spa_settings_user", updatedUser);
+            if (targetId) {
+              void studentCache.write(`settings_user_${targetId}`, updatedUser, {
+                tier: "private",
+                userId: targetId,
+                category: "profile",
+              });
+            }
           }}
         />
       </div>

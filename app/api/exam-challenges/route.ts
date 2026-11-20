@@ -358,40 +358,6 @@ export async function POST(request: NextRequest) {
       } catch (notifError) {
         console.error("Failed to insert notification for", inviteeId, notifError);
       }
-
-      try {
-        const { data: existingConv } = await adminClient
-          .from("chat_conversations")
-          .select("id")
-          .or(`and(driver_id.eq.${user.id},student_id.eq.${inviteeId}),and(driver_id.eq.${inviteeId},student_id.eq.${user.id})`)
-          .maybeSingle();
-
-        let conversationId = existingConv?.id;
-
-        if (!conversationId) {
-          const { data: newConv } = await adminClient
-            .from("chat_conversations")
-            .insert([{ driver_id: user.id, student_id: inviteeId }])
-            .select()
-            .single();
-          conversationId = newConv?.id;
-        }
-
-        if (conversationId) {
-          await adminClient.from("chat_messages").insert({
-            conversation_id: conversationId,
-            sender_id: user.id,
-            message: `🏆 ${creatorName} invited you to take the "${category_name}" exam together (${examLanguage}).`,
-          });
-
-          await adminClient
-            .from("chat_conversations")
-            .update({ last_message_at: new Date().toISOString() })
-            .eq("id", conversationId);
-        }
-      } catch (chatError) {
-        console.error("Failed to send chat message to", inviteeId, chatError);
-      }
     }
 
     return NextResponse.json({ challenge: { ...challenge, language: challenge?.language || examLanguage }, status: "success" });

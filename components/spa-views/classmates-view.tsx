@@ -115,63 +115,71 @@ function ChatExamInviteBanner({
     }
 
     return (
-      <div className="mb-2 rounded-2xl border-2 border-primary/40 bg-primary/10 p-3 shadow-md animate-in fade-in duration-300">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Trophy className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className="text-xs font-bold text-foreground truncate">
-                  {inviterName} {t("invitedYouToExam") ? t("invitedYouToExam").replace("{username}", "") : "invited you to a Group Exam"}
-                </p>
-                <Badge variant="outline" className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 px-1.5 py-0.5">
-                  <Clock className="h-2.5 w-2.5 mr-1 animate-spin" />
-                  {secondsRemaining}s
-                </Badge>
-              </div>
-              {challenge.category_name && (
-                <p className="text-xs text-muted-foreground truncate font-medium">{challenge.category_name}</p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-            <Button
-              size="sm"
-              disabled={acting || isExpired}
-              onClick={async () => {
-                setActing(true);
-                try {
-                  await onRespond(challenge.id, true);
-                  const langParam = (challenge as any).language ? `&language=${encodeURIComponent((challenge as any).language)}` : "";
-                  window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}${langParam}&from=classmates`;
-                  window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
-                } finally {
-                  setActing(false);
-                }
-              }}
-              className="h-8 px-3.5 text-xs font-bold bg-primary text-primary-foreground shadow-sm"
-            >
-              {acting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : `${t("join") || "Join"} (${secondsRemaining}s)`}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={acting}
-              onClick={async () => {
-                setActing(true);
-                try {
-                  await onRespond(challenge.id, false);
-                } finally {
-                  setActing(false);
-                }
-              }}
-              className="h-8 px-2.5 text-xs text-destructive hover:bg-destructive/10 border-destructive/30"
-            >
-              {t("reject") || "Reject"}
-            </Button>
-          </div>
+      <div className="mb-2 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-b from-amber-500/10 via-primary/5 to-card p-4 shadow-md animate-in fade-in duration-300 flex flex-col items-center text-center">
+        <div className="w-full flex items-center justify-between gap-2 mb-2">
+          <span className="text-[11px] font-semibold text-muted-foreground truncate">
+            {inviterName}
+          </span>
+          <Badge variant="outline" className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 px-1.5 py-0.5 shrink-0 tabular-nums">
+            <Clock className="h-2.5 w-2.5 mr-1 animate-spin" />
+            {secondsRemaining}s
+          </Badge>
+        </div>
+
+        <div className="mb-2.5 flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400/25 via-amber-500/15 to-primary/15 border-2 border-amber-500/40 text-amber-500 dark:text-amber-400 shadow-md">
+          <Trophy className="h-9 w-9 sm:h-10 sm:w-10" />
+        </div>
+
+        <p className="text-xs sm:text-sm font-bold text-foreground">
+          {t("groupExam") || "Group Exam"}
+        </p>
+        {challenge.category_name && (
+          <p className="text-xs text-muted-foreground truncate max-w-full mt-0.5 font-medium">
+            {challenge.category_name}
+          </p>
+        )}
+
+        <div className="mt-3 w-full max-w-xs grid grid-cols-2 gap-2">
+          <Button
+            size="sm"
+            disabled={acting || isExpired}
+            onClick={async () => {
+              setActing(true);
+              try {
+                await onRespond(challenge.id, true);
+                const langParam = (challenge as any).language ? `&language=${encodeURIComponent((challenge as any).language)}` : "";
+                window.location.hash = `#exam?challenge_id=${encodeURIComponent(challenge.id)}&category_id=${encodeURIComponent(challenge.category_id || "")}${langParam}&from=classmates`;
+                window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
+              } finally {
+                setActing(false);
+              }
+            }}
+            className="h-9 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer"
+          >
+            {acting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            ) : (
+              <Check className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            {t("accept") || "Accept"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={acting}
+            onClick={async () => {
+              setActing(true);
+              try {
+                await onRespond(challenge.id, false);
+              } finally {
+                setActing(false);
+              }
+            }}
+            className="h-9 text-xs font-bold rounded-xl text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer"
+          >
+            <X className="h-3.5 w-3.5 mr-1.5" />
+            {t("reject") || "Reject"}
+          </Button>
         </div>
       </div>
     );
@@ -2660,10 +2668,12 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
 
               {loadingChat ? (
                 <ChatMessageBubblesSkeleton count={5} />
-              ) : messages.length === 0 ? (
+              ) : messages.filter((msg) => !(msg.message?.startsWith("🏆 ") && msg.message?.includes("exam together"))).length === 0 ? (
                 <p className="text-center text-sm text-muted-foreground py-8">{t("noMessagesYet")}</p>
               ) : (
-                messages.map((msg) => {
+                messages
+                  .filter((msg) => !(msg.message?.startsWith("🏆 ") && msg.message?.includes("exam together")))
+                  .map((msg) => {
                   const isOwn = msg.sender_id === user?.id;
                   const reactionsOnMsg = messageReactions[msg.id] || {};
                   const hasReactions = Object.keys(reactionsOnMsg).length > 0;

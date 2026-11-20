@@ -57,34 +57,22 @@ export async function POST(
 
     if (remindError) throw remindError;
 
-    const { data: existingConv } = await adminClient
-      .from("chat_conversations")
-      .select("id")
-      .or(`and(driver_id.eq.${user.id},student_id.eq.${participant.user_id}),and(driver_id.eq.${participant.user_id},student_id.eq.${user.id})`)
-      .maybeSingle();
-
-    let conversationId = existingConv?.id;
-
-    if (!conversationId) {
-      const { data: newConv } = await adminClient
-        .from("chat_conversations")
-        .insert([{ driver_id: user.id, student_id: participant.user_id }])
-        .select()
-        .single();
-      conversationId = newConv?.id;
-    }
-
-    if (conversationId) {
-      await adminClient.from("chat_messages").insert({
-        conversation_id: conversationId,
+    try {
+      await adminClient.from("notifications").insert({
+        target_user_id: participant.user_id,
+        type: "exam_challenge_invite",
+        title: "Group Exam Reminder",
+        message: `Your classmate is waiting for you in the "${challenge.category_name}" group exam.`,
+        data: {
+          sender_id: user.id,
+          challenge_id: challenge.id,
+          category_name: challenge.category_name,
+        },
         sender_id: user.id,
-        message: `Reminder: Please get ready for the group exam challenge: ${challenge.category_name}`,
+        action_url: `/dashboard#exam?challenge_id=${encodeURIComponent(challenge.id)}`,
       });
-
-      await adminClient
-        .from("chat_conversations")
-        .update({ last_message_at: new Date().toISOString() })
-        .eq("id", conversationId);
+    } catch (notifErr) {
+      console.error("Failed to insert remind notification:", notifErr);
     }
 
     return NextResponse.json({ status: "success" });

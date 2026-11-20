@@ -51,8 +51,30 @@ import type {
   ExamCategory,
   ExamQuestion,
 } from "@/lib/database.types";
+import {
+  invalidateStudentDashboardCache,
+  invalidateStudentExamHistoryCache,
+  studentCache,
+} from "@/lib/student-cache";
 import { isUUID } from "@/lib/utils";
 import { toast } from "sonner";
+
+interface ExamMetaCache {
+  hasExamHistory: boolean;
+  standaloneEnabled: boolean;
+  groupExamEnabled: boolean;
+  securitySettings: SecuritySettings;
+}
+
+interface ActiveExamSessionCache {
+  exam: TakeExamResponse;
+  categoryId: string;
+  selectedExamLanguage: string;
+  currentIndex: number;
+  examStartTime: number;
+  expiresAt: number;
+  userAnswers: Record<string, UserAnswer>;
+}
 
 export interface ExamViewProps {
   navigate: (
@@ -98,18 +120,24 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const paramFrom = params?.get("from") || "";
   const paramLanguage = params?.get("language") || "";
 
-  const [categories, setCategories] = useState<ExamCategory[]>([]);
+  const catCacheKey = `exam_categories_${language || "Kinyarwanda"}`;
+  const hotCategories = studentCache.getHot<ExamCategory[]>(catCacheKey, { tier: "public" });
+  const hotMeta = user?.id
+    ? studentCache.getHot<ExamMetaCache>("exam_meta", { tier: "private", userId: user.id })
+    : null;
+
+  const [categories, setCategories] = useState<ExamCategory[]>(hotCategories || []);
   const [categoryId, setCategoryId] = useState<string>(paramCategoryId);
   const [challengeId, setChallengeId] = useState<string>(paramChallengeId);
-  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(!hotCategories);
 
   const cachedGroup = getCachedGroupExamEnabled();
-  const [accessChecked, setAccessChecked] = useState(false);
-  const [standaloneEnabled, setStandaloneEnabled] = useState(true);
+  const [accessChecked, setAccessChecked] = useState(Boolean(hotMeta));
+  const [standaloneEnabled, setStandaloneEnabled] = useState(hotMeta?.standaloneEnabled ?? true);
   const [groupExamEnabled, setGroupExamEnabled] = useState(
-    cachedGroup !== null ? cachedGroup : true
+    hotMeta?.groupExamEnabled ?? (cachedGroup !== null ? cachedGroup : true)
   );
-  const [hasExamHistory, setHasExamHistory] = useState(false);
+  const [hasExamHistory, setHasExamHistory] = useState(hotMeta?.hasExamHistory ?? false);
 
   const [examMode, setExamMode] = useState<"launcher" | "group" | "lobby">(
     paramChallengeId ? "lobby" : paramMode === "group" ? "group" : "launcher"
@@ -138,7 +166,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const [examResult, setExamResult] = useState<ExamAttempt | null>(null);
   const [isSoloGroupAttempt, setIsSoloGroupAttempt] = useState(false);
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(
-    DEFAULT_SECURITY_SETTINGS
+    hotMeta?.securitySettings || DEFAULT_SECURITY_SETTINGS
   );
 
   // Dialog states
@@ -177,19 +205,58 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   activeExamRef.current = Boolean(exam);
   const hasCancelledChallengeRef = useRef<string | null>(null);
 
-  // Sync URL/hash route parameters and check Admin feature flags
+  // Hydrate encrypted exam metadata & flags immediately, then sync in background
   useEffect(() => {
     if (typeof window === "undefined" || authLoading) return;
+    let active = true;
 
-    Promise.all([isStandaloneExamEnabled(), isGroupExamEnabled()])
-      .then(([standalone, group]) => {
-        setStandaloneEnabled(standalone);
-        setGroupExamEnabled(group);
-        setAccessChecked(true);
-      })
-      .catch(() => {
-        setAccessChecked(true);
-      });
+    const hydrateAndSyncAccess = async () => {
+      if (user?.id) {
+        const persistedMeta = await studentCache.read<ExamMetaCache>("exam_meta", {
+          tier: "private",
+          userId: user.id,
+          maxAgeMs: 5 * 60 * 1000,
+        });
+        if (active && persistedMeta?.data) {
+          setStandaloneEnabled(persistedMeta.data.standaloneEnabled);
+          setGroupExamEnabled(persistedMeta.data.groupExamEnabled);
+          setHasExamHistory(persistedMeta.data.hasExamHistory);
+          if (persistedMeta.data.securitySettings) {
+            setSecuritySettings(persistedMeta.data.securitySettings);
+          }
+          setAccessChecked(true);
+        }
+      }
+
+      Promise.all([isStandaloneExamEnabled(), isGroupExamEnabled()])
+        .then(([standalone, group]) => {
+          if (!active) return;
+          setStandaloneEnabled(standalone);
+          setGroupExamEnabled(group);
+          setAccessChecked(true);
+          if (user?.id) {
+            const prev = studentCache.getHot<ExamMetaCache>("exam_meta", {
+              tier: "private",
+              userId: user.id,
+            });
+            void studentCache.write<ExamMetaCache>(
+              "exam_meta",
+              {
+                hasExamHistory: prev?.hasExamHistory ?? hasExamHistory,
+                standaloneEnabled: standalone,
+                groupExamEnabled: group,
+                securitySettings: prev?.securitySettings ?? securitySettings,
+              },
+              { tier: "private", userId: user.id, category: "exam_meta" }
+            );
+          }
+        })
+        .catch(() => {
+          if (active) setAccessChecked(true);
+        });
+    };
+
+    void hydrateAndSyncAccess();
 
     // Never disrupt or reset an active exam when auth or URL ticks update
     if (activeExamRef.current) return;
@@ -221,7 +288,11 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       const normalized = normalizeExamLanguage(resolvedLanguage);
       setSelectedExamLanguage(normalized);
     }
-  }, [authLoading, paramChallengeId, paramCategoryId, paramMode, paramLanguage]);
+
+    return () => {
+      active = false;
+    };
+  }, [authLoading, user?.id, paramChallengeId, paramCategoryId, paramMode, paramLanguage]);
 
   // If arriving with challengeId, resolve category & language from challenge row
   useEffect(() => {
@@ -261,45 +332,176 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       ]);
       const count1 = res1.status === "fulfilled" ? (res1.value.count ?? 0) : 0;
       const count2 = res2.status === "fulfilled" ? (res2.value.count ?? 0) : 0;
-      setHasExamHistory(count1 + count2 > 0);
+      const hasHistory = count1 + count2 > 0;
+      setHasExamHistory(hasHistory);
+      const prev = studentCache.getHot<ExamMetaCache>("exam_meta", {
+        tier: "private",
+        userId: user.id,
+      });
+      void studentCache.write<ExamMetaCache>(
+        "exam_meta",
+        {
+          hasExamHistory: hasHistory,
+          standaloneEnabled: prev?.standaloneEnabled ?? standaloneEnabled,
+          groupExamEnabled: prev?.groupExamEnabled ?? groupExamEnabled,
+          securitySettings: prev?.securitySettings ?? securitySettings,
+        },
+        { tier: "private", userId: user.id, category: "exam_meta" }
+      );
     };
     void checkExamHistory();
   }, [user]);
 
-  // Load published exam categories
+  // Load published exam categories (public unencrypted catalog with SWR)
   useEffect(() => {
     if (typeof window === "undefined" || !accessChecked) return;
+    let active = true;
 
     const loadInitialData = async () => {
-      setLoadingCategories(true);
+      const cached = await studentCache.read<ExamCategory[]>(catCacheKey, {
+        tier: "public",
+        maxAgeMs: 15 * 60 * 1000,
+      });
+
+      if (active && cached?.data?.length) {
+        setCategories(cached.data);
+        setLoadingCategories(false);
+      } else if (active && categories.length === 0) {
+        setLoadingCategories(true);
+      }
+
       try {
         const data = await getExamCategories();
         const cats = data.categories || [];
-        if (cats.length === 0) {
-          setCategories([buildFallbackCategory(language)]);
-        } else {
-          setCategories(cats);
+        const resolved = cats.length === 0 ? [buildFallbackCategory(language)] : cats;
+        if (active) {
+          setCategories(resolved);
+          setLoadingCategories(false);
         }
+        void studentCache.write(catCacheKey, resolved, {
+          tier: "public",
+          category: "exam_categories",
+        });
       } catch (error) {
         console.error("[ExamView] Error loading exam categories:", error);
-        setCategories([buildFallbackCategory(language)]);
+        if (active && categories.length === 0) {
+          setCategories([buildFallbackCategory(language)]);
+        }
       } finally {
-        setLoadingCategories(false);
+        if (active) {
+          setLoadingCategories(false);
+        }
       }
     };
 
     void loadInitialData();
-  }, [accessChecked, language]);
+    return () => {
+      active = false;
+    };
+  }, [accessChecked, language, catCacheKey]);
 
   // Load official exam security settings once when access is verified
   useEffect(() => {
     if (typeof window === "undefined" || !accessChecked) return;
     getSecuritySettings("official")
-      .then(setSecuritySettings)
+      .then((settings) => {
+        setSecuritySettings(settings);
+        if (user?.id) {
+          const prev = studentCache.getHot<ExamMetaCache>("exam_meta", {
+            tier: "private",
+            userId: user.id,
+          });
+          void studentCache.write<ExamMetaCache>(
+            "exam_meta",
+            {
+              hasExamHistory: prev?.hasExamHistory ?? hasExamHistory,
+              standaloneEnabled: prev?.standaloneEnabled ?? standaloneEnabled,
+              groupExamEnabled: prev?.groupExamEnabled ?? groupExamEnabled,
+              securitySettings: settings,
+            },
+            { tier: "private", userId: user.id, category: "exam_meta" }
+          );
+        }
+      })
       .catch((error) => {
         console.error("[ExamView] Failed to load security settings:", error);
       });
-  }, [accessChecked]);
+  }, [accessChecked, user?.id]);
+
+  // Restore resumable solo active exam session across unintended browser refresh
+  const restoredSessionRef = useRef(false);
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !accessChecked ||
+      !user?.id ||
+      restoredSessionRef.current ||
+      exam ||
+      showResults ||
+      challengeId ||
+      paramChallengeId ||
+      paramMode === "group"
+    ) {
+      return;
+    }
+    restoredSessionRef.current = true;
+    let active = true;
+
+    const restoreSession = async () => {
+      const snapshot = await studentCache.read<ActiveExamSessionCache>("exam_active_session", {
+        tier: "private",
+        userId: user.id,
+        maxAgeMs: 60 * 60 * 1000,
+      });
+      if (!active || !snapshot?.data) return;
+      const saved = snapshot.data;
+      const remainingSeconds = Math.floor((saved.expiresAt - Date.now()) / 1000);
+      if (remainingSeconds <= 15 || !saved.exam?.questions?.length) {
+        void studentCache.remove("exam_active_session", { tier: "private", userId: user.id });
+        return;
+      }
+
+      setCategoryId(saved.categoryId);
+      setSelectedExamLanguage(saved.selectedExamLanguage);
+      setExam(saved.exam);
+      setCurrentIndex(saved.currentIndex || 0);
+      setExamStartTime(saved.examStartTime);
+      setSecondsLeft(remainingSeconds);
+      setUserAnswers(saved.userAnswers || {});
+      setShowResults(false);
+      showResultsRef.current = false;
+      setExamResult(null);
+      sessionStorage.setItem("exam-active", "true");
+      window.dispatchEvent(new CustomEvent("exam-state-change"));
+    };
+
+    void restoreSession();
+    return () => {
+      active = false;
+    };
+  }, [accessChecked, user?.id, exam, showResults, challengeId, paramChallengeId, paramMode]);
+
+  // Persist encrypted snapshot of active solo mock exam answers/position
+  useEffect(() => {
+    if (!user?.id || !exam || showResults || challengeId || !examStartTime) return;
+    const durationSec = (exam.settings?.duration_minutes ?? 20) * 60;
+    const expiresAt = examStartTime + durationSec * 1000;
+    if (expiresAt <= Date.now()) return;
+
+    void studentCache.write<ActiveExamSessionCache>(
+      "exam_active_session",
+      {
+        exam,
+        categoryId: exam.categoryId,
+        selectedExamLanguage,
+        currentIndex,
+        examStartTime,
+        expiresAt,
+        userAnswers,
+      },
+      { tier: "private", userId: user.id, category: "exam_session" }
+    );
+  }, [user?.id, exam, showResults, challengeId, examStartTime, selectedExamLanguage, currentIndex, userAnswers]);
 
   // Auto-select first category if none selected yet
   useEffect(() => {
@@ -766,6 +968,11 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         console.error("[ExamView] Failed to notify admins:", notifErr);
       }
 
+      if (user?.id) {
+        void studentCache.remove("exam_active_session", { tier: "private", userId: user.id });
+        void invalidateStudentExamHistoryCache(user.id);
+        void invalidateStudentDashboardCache(user.id);
+      }
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("exam-active");
         window.dispatchEvent(new CustomEvent("exam-state-change"));
@@ -828,6 +1035,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     setShowConfirm(false);
     setConfirmCallback(null);
     anticheat.resetSecurity();
+    if (user?.id) {
+      void studentCache.remove("exam_active_session", { tier: "private", userId: user.id });
+    }
 
     if (
       typeof window !== "undefined" &&

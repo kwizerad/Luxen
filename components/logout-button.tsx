@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/lib/language-context";
 import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
+import { purgePrivateStudentCache } from "@/lib/student-cache";
+import { spaCache } from "@/lib/spa-cache";
 
 export function LogoutButton() {
   const { t } = useLanguage();
@@ -23,6 +25,8 @@ export function LogoutButton() {
       localStorage.removeItem("navo-auth-token");
     }
 
+    spaCache.clear();
+    await purgePrivateStudentCache().catch(() => {});
     const supabase = createClient();
     await supabase.auth.signOut();
     if (typeof window !== "undefined") {

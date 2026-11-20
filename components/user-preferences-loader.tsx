@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
@@ -10,6 +10,7 @@ export function UserPreferencesLoader() {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const { setLanguage } = useLanguage();
+  const loadedUserIdRef = useRef<string | null>(null);
 
   // Immediately restore saved text size on mount before auth/network resolves
   useEffect(() => {
@@ -33,7 +34,12 @@ export function UserPreferencesLoader() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) {
+      loadedUserIdRef.current = null;
+      return;
+    }
+    if (loadedUserIdRef.current === user.id) return;
+    loadedUserIdRef.current = user.id;
 
     const loadUserPreferences = async () => {
       try {
@@ -49,16 +55,20 @@ export function UserPreferencesLoader() {
             setTheme(metadata.theme);
           }
 
-          // Only restore a non-Kinyarwanda language from metadata if the user explicitly chose it and local cache wasn't already set
+          // Only restore language from metadata if the user has not explicitly confirmed a language in this browser
           const hasExplicitLocal =
-            localStorage.getItem("navo-language-user-set") === "true" ||
-            (localStorage.getItem("navo-language") &&
-              localStorage.getItem("navo-language") !== "Kinyarwanda");
+            localStorage.getItem("navo-language-user-confirmed") === "1" ||
+            document.cookie.includes("navo_lang_user_set=1");
 
           if (
             !hasExplicitLocal &&
             metadata.language_user_selected === true &&
-            (metadata.language === "en" || metadata.language === "English" || metadata.language === "fr" || metadata.language === "French")
+            (metadata.language === "en" ||
+              metadata.language === "English" ||
+              metadata.language === "fr" ||
+              metadata.language === "French" ||
+              metadata.language === "rw" ||
+              metadata.language === "Kinyarwanda")
           ) {
             setLanguage(metadata.language);
           }
@@ -90,7 +100,7 @@ export function UserPreferencesLoader() {
     };
 
     loadUserPreferences();
-  }, [user, theme, setTheme]);
+  }, [user?.id, theme, setTheme, setLanguage]);
 
   return null;
 }

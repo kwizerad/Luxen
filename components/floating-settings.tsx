@@ -24,6 +24,8 @@ import { useLanguage } from "@/lib/language-context";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { isAdmin } from "@/lib/permissions";
 import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
+import { purgePrivateStudentCache } from "@/lib/student-cache";
+import { spaCache } from "@/lib/spa-cache";
 
 type Language = "English" | "Kinyarwanda" | "French";
 type LanguageCode = "en" | "rw" | "fr";
@@ -81,6 +83,8 @@ export function FloatingSettings() {
         resetLandingLanguageForAdminLogout();
         fetch("/api/admin-signout", { method: "POST" }).catch(() => {});
       }
+      spaCache.clear();
+      await purgePrivateStudentCache(user?.id).catch(() => {});
       const supabase = createClient();
       await supabase.auth.signOut();
       window.location.href = "/";

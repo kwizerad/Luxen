@@ -28,6 +28,8 @@ import { useNavigationVisibility } from "@/hooks/use-navigation-visibility";
 import { useAdminSpa } from "@/lib/admin-spa-router";
 import { createClient } from "@/lib/supabase/client";
 import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
+import { purgePrivateStudentCache } from "@/lib/student-cache";
+import { spaCache } from "@/lib/spa-cache";
 
 interface NavItem {
   id: string;
@@ -143,6 +145,8 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   const handleMobileAdminLogout = useCallback(async () => {
     try {
       resetLandingLanguageForAdminLogout();
+      spaCache.clear();
+      await purgePrivateStudentCache().catch(() => {});
       const supabase = createClient();
       await supabase.auth.signOut();
       fetch("/api/admin-signout", { method: "POST" }).catch(() => {});

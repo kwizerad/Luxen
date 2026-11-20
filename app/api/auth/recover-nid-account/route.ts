@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchCitizenFullDetails, verifyCitizenMatch } from "@/lib/irembo-citizen";
+import { isPrimaryAdmin } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +43,20 @@ export async function POST(request: NextRequest) {
     // 1. Fetch user profile from database
     const { data: profile } = await adminSb
       .from("user_profiles")
-      .select("id, email, full_name, first_name, last_name, birthdate, security_question, security_answer_clean")
+      .select("id, email, role, full_name, first_name, last_name, birthdate, security_question, security_answer_clean")
       .eq("national_id", cleanId)
       .maybeSingle();
+
+    if (
+      profile &&
+      (profile.role?.toLowerCase() === "admin" ||
+        (profile.email && isPrimaryAdmin({ email: profile.email })))
+    ) {
+      return NextResponse.json(
+        { error: "Administrator passwords cannot be reset through National ID recovery." },
+        { status: 403 }
+      );
+    }
 
     // 2. Fetch citizen record from Irembo
     const citizenDoc = await fetchCitizenFullDetails(cleanId);

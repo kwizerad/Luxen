@@ -133,10 +133,13 @@ export function isNewGoogleUser(user: User | null): boolean {
 }
 
 /**
- * Build a stable language code from localStorage or fallback to English.
+ * Build a stable language code from confirmed user preference or default to Kinyarwanda.
  */
 function resolveLanguagePreference(): string {
   if (typeof window === "undefined") return "rw";
+
+  const userConfirmed = window.localStorage.getItem("navo-language-user-confirmed") === "1";
+  if (!userConfirmed) return "rw";
 
   const stored = window.localStorage.getItem("navo-language") as SupportedLanguage | null;
   if (stored && LANGUAGE_CODE_MAP[stored]) {
@@ -194,8 +197,7 @@ export async function syncGoogleUserProfile(user: User): Promise<{
     const theme = resolveThemePreference();
     const userExplicitlySelectedLang =
       typeof window !== "undefined" &&
-      (window.localStorage.getItem("navo-language-user-set") === "true" ||
-        languageCode !== "rw");
+      window.localStorage.getItem("navo-language-user-confirmed") === "1";
 
     const role = isPrimaryAdmin(user) ? "Admin" : "Student";
 

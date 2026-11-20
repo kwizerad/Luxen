@@ -54,6 +54,7 @@ import { isStandaloneExamEnabled } from "@/lib/supabase/queries";
 import { getCachedServicesConfig } from "@/lib/feature-flags";
 import { createClient } from "@/lib/supabase/client";
 import { HomeViewSkeleton } from "@/components/skeletons";
+import { studentCache } from "@/lib/student-cache";
 import { formatDistanceToNow } from "date-fns";
 import type { UserProfile } from "@/lib/database.types";
 import { VerifyIdModal } from "@/components/verify-id-modal";
@@ -178,6 +179,17 @@ const DRIVING_TIPS_BY_LANG: Record<string, Array<{ title: string; desc: string; 
   ],
 };
 
+interface DashboardCacheBundle {
+  continueData: ContinueLearningData | null;
+  stats: DashboardStats | null;
+  allAttempts: FullExamAttempt[];
+  standaloneExamEnabled: boolean;
+  servicesPageEnabled: boolean;
+  userProfile: UserProfile | null;
+  battleStats: { totalBattles: number; wins: number };
+  groupChallenges: any[];
+}
+
 export function HomeView({ navigate }: HomeViewProps) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -185,19 +197,26 @@ export function HomeView({ navigate }: HomeViewProps) {
   const { config } = useBrandingConfig();
   const { isCourseVisible, isNavItemVisible } = useNavigationVisibility(false);
 
-  const [continueData, setContinueData] = useState<ContinueLearningData | null>(null);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [allAttempts, setAllAttempts] = useState<FullExamAttempt[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
-  const [standaloneExamEnabled, setStandaloneExamEnabled] = useState<boolean>(true);
-  const [servicesPageEnabled, setServicesPageEnabled] = useState<boolean>(true);
+  const dashCacheKey = `dashboard_bundle_${interfaceLanguage || "Kinyarwanda"}`;
+  const hotDash = user?.id
+    ? studentCache.getHot<DashboardCacheBundle>(dashCacheKey, { tier: "private", userId: user.id })
+    : null;
+
+  const [continueData, setContinueData] = useState<ContinueLearningData | null>(hotDash?.continueData ?? null);
+  const [stats, setStats] = useState<DashboardStats | null>(hotDash?.stats ?? null);
+  const [allAttempts, setAllAttempts] = useState<FullExamAttempt[]>(hotDash?.allAttempts ?? []);
+  const [loadingData, setLoadingData] = useState(!hotDash);
+  const [standaloneExamEnabled, setStandaloneExamEnabled] = useState<boolean>(hotDash?.standaloneExamEnabled ?? true);
+  const [servicesPageEnabled, setServicesPageEnabled] = useState<boolean>(hotDash?.servicesPageEnabled ?? true);
   const [tipIndex, setTipIndex] = useState(0);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [groupChallenges, setGroupChallenges] = useState<any[]>([]);
-  const [battleStats, setBattleStats] = useState<{ totalBattles: number; wins: number }>({
-    totalBattles: 0,
-    wins: 0,
-  });
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(hotDash?.userProfile ?? null);
+  const [groupChallenges, setGroupChallenges] = useState<any[]>(hotDash?.groupChallenges ?? []);
+  const [battleStats, setBattleStats] = useState<{ totalBattles: number; wins: number }>(
+    hotDash?.battleStats ?? {
+      totalBattles: 0,
+      wins: 0,
+    }
+  );
   const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
   const [showVerifyIdModal, setShowVerifyIdModal] = useState(false);
   const [showSetPasswordModal, setShowSetPasswordModal] = useState(false);
@@ -254,11 +273,13 @@ export function HomeView({ navigate }: HomeViewProps) {
   const fetchGroupChallenges = useCallback(async () => {
     try {
       const res = await fetch("/api/exam-challenges");
-      if (!res.ok) return;
+      if (!res.ok) return null;
       const data = await res.json();
-      setGroupChallenges(data.challenges || []);
+      const list = data.challenges || [];
+      setGroupChallenges(list);
+      return list as any[];
     } catch {
-      // ignore
+      return null;
     }
   }, []);
 
@@ -568,7 +589,16 @@ export function HomeView({ navigate }: HomeViewProps) {
         }
       };
 
-      const [dashResult, attemptsData, examEnabledResult, servicesConfigResult, profileData, battlesData] = await Promise.allSettled([
+      const [
+        challengesList,
+        dashResult,
+        attemptsData,
+        examEnabledResult,
+        servicesConfigResult,
+        profileData,
+        battlesData,
+      ] = await Promise.allSettled([
+        fetchGroupChallenges(),
         Promise.race([
           getDashboardData(interfaceLanguage),
           new Promise<never>((_, reject) =>
@@ -582,21 +612,44 @@ export function HomeView({ navigate }: HomeViewProps) {
         fetchBattleStats(),
       ]);
 
+      const existingBundle = studentCache.getHot<DashboardCacheBundle>(dashCacheKey, {
+        tier: "private",
+        userId: user.id,
+      });
+
+      let nextContinue = existingBundle?.continueData ?? null;
+      let nextStats = existingBundle?.stats ?? null;
+      let nextAttempts = existingBundle?.allAttempts ?? [];
+      let nextStandalone = existingBundle?.standaloneExamEnabled ?? true;
+      let nextServicesEnabled = existingBundle?.servicesPageEnabled ?? true;
+      let nextProfile = existingBundle?.userProfile ?? null;
+      let nextBattles = existingBundle?.battleStats ?? { totalBattles: 0, wins: 0 };
+      let nextChallenges = existingBundle?.groupChallenges ?? [];
+
+      if (challengesList.status === "fulfilled" && Array.isArray(challengesList.value)) {
+        nextChallenges = challengesList.value;
+      }
       if (dashResult.status === "fulfilled" && dashResult.value) {
-        setContinueData(dashResult.value.continueLearning);
-        setStats(dashResult.value.stats);
+        nextContinue = dashResult.value.continueLearning;
+        nextStats = dashResult.value.stats;
+        setContinueData(nextContinue);
+        setStats(nextStats);
       }
       if (attemptsData.status === "fulfilled") {
-        setAllAttempts(attemptsData.value as unknown as FullExamAttempt[]);
+        nextAttempts = attemptsData.value as unknown as FullExamAttempt[];
+        setAllAttempts(nextAttempts);
       }
       if (examEnabledResult.status === "fulfilled") {
-        setStandaloneExamEnabled(examEnabledResult.value);
+        nextStandalone = examEnabledResult.value;
+        setStandaloneExamEnabled(nextStandalone);
       }
       if (servicesConfigResult.status === "fulfilled") {
-        setServicesPageEnabled(servicesConfigResult.value.pageEnabled);
+        nextServicesEnabled = servicesConfigResult.value.pageEnabled;
+        setServicesPageEnabled(nextServicesEnabled);
       }
       if (profileData.status === "fulfilled" && profileData.value) {
         const prof = profileData.value as unknown as UserProfile;
+        nextProfile = prof;
         setUserProfile(prof);
 
         // Check if hash requests set password modal
@@ -612,23 +665,81 @@ export function HomeView({ navigate }: HomeViewProps) {
         }
       }
       if (battlesData.status === "fulfilled") {
-        setBattleStats(battlesData.value);
+        nextBattles = battlesData.value;
+        setBattleStats(nextBattles);
+      }
+
+      if (nextStats) {
+        void studentCache.write<DashboardCacheBundle>(
+          dashCacheKey,
+          {
+            continueData: nextContinue,
+            stats: nextStats,
+            allAttempts: nextAttempts,
+            standaloneExamEnabled: nextStandalone,
+            servicesPageEnabled: nextServicesEnabled,
+            userProfile: nextProfile,
+            battleStats: nextBattles,
+            groupChallenges: nextChallenges,
+          },
+          { tier: "private", userId: user.id, category: "dashboard" }
+        );
       }
     } catch (err) {
       console.error("Failed to load student dashboard data:", err);
     } finally {
       setLoadingData(false);
     }
-  }, [user, interfaceLanguage, fetchGroupChallenges]);
+  }, [user, interfaceLanguage, dashCacheKey, fetchGroupChallenges]);
 
   useEffect(() => {
     if (authLoading || !user) return;
     let mounted = true;
-    loadData();
+
+    const hydrateAndSync = async () => {
+      const persisted = await studentCache.read<DashboardCacheBundle>(dashCacheKey, {
+        tier: "private",
+        userId: user.id,
+        maxAgeMs: 5 * 60 * 1000,
+      });
+
+      if (mounted && persisted?.data) {
+        const d = persisted.data;
+        setContinueData(d.continueData);
+        setStats(d.stats);
+        setAllAttempts(d.allAttempts || []);
+        setStandaloneExamEnabled(d.standaloneExamEnabled ?? true);
+        setServicesPageEnabled(d.servicesPageEnabled ?? true);
+        if (d.userProfile) setUserProfile(d.userProfile);
+        if (d.battleStats) setBattleStats(d.battleStats);
+        if (Array.isArray(d.groupChallenges)) setGroupChallenges(d.groupChallenges);
+        setLoadingData(false);
+      }
+
+      if (mounted) {
+        void loadData();
+      }
+    };
+
+    void hydrateAndSync();
+
+    const handleCacheInvalidated = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (
+        detail?.scope === "dashboard" ||
+        detail?.scope === "exam_history" ||
+        detail?.scope === "course_progress"
+      ) {
+        void loadData();
+      }
+    };
+
+    window.addEventListener("navo-cache-invalidated", handleCacheInvalidated);
     return () => {
       mounted = false;
+      window.removeEventListener("navo-cache-invalidated", handleCacheInvalidated);
     };
-  }, [authLoading, user, loadData]);
+  }, [authLoading, user, dashCacheKey, loadData]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();

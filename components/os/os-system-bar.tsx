@@ -56,6 +56,8 @@ import { useDesktopWidgets } from "@/lib/desktop-widgets";
 import { formatLocalizedDate } from "@/lib/date-utils";
 import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
 import { isAdmin } from "@/lib/permissions";
+import { purgePrivateStudentCache } from "@/lib/student-cache";
+import { spaCache } from "@/lib/spa-cache";
 
 interface OSSystemBarProps {
   activeView: string;
@@ -65,7 +67,7 @@ interface OSSystemBarProps {
 
 export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemBarProps) {
   const { user } = useAuth();
-  const { t, language, setLanguage } = useLanguage();
+  const { t, language, setLanguage, availableLanguages } = useLanguage();
   const isRw = language === "Kinyarwanda" || language === "rw";
   const isFr = language === "French" || language === "fr";
   const loc = (rw: string, fr: string, en: string) => (isRw ? rw : isFr ? fr : en);
@@ -103,6 +105,8 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
         resetLandingLanguageForAdminLogout();
         fetch("/api/admin-signout", { method: "POST" }).catch(() => {});
       }
+      spaCache.clear();
+      await purgePrivateStudentCache(user?.id).catch(() => {});
       const supabase = createClient();
       await supabase.auth.signOut();
     } catch {}
@@ -706,34 +710,38 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
               </div>
               {language === "Kinyarwanda" && <Check className="w-3.5 h-3.5 text-emerald-500" />}
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => setLanguage("English")}
-              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
-            >
-              <div className="flex items-center gap-2">
-                <img
-                  src="/assets/aistudio/Flag_of_the_United_Kingdom__3-5_.svg_d8e9d47e.webp"
-                  alt="EN"
-                  className="w-4 h-3 rounded-[2px] object-cover shrink-0 border border-border/30"
-                />
-                <span>English</span>
-              </div>
-              {language === "English" && <Check className="w-3.5 h-3.5 text-emerald-500" />}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => setLanguage("French")}
-              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
-            >
-              <div className="flex items-center gap-2">
-                <img
-                  src="/assets/aistudio/Flag_of_France__1974_2020__241dac7d.svg"
-                  alt="FR"
-                  className="w-4 h-3 rounded-[2px] object-cover shrink-0 border border-border/30"
-                />
-                <span>Français</span>
-              </div>
-              {language === "French" && <Check className="w-3.5 h-3.5 text-emerald-500" />}
-            </DropdownMenuItem>
+            {availableLanguages.some((l) => l.value === "English") && (
+              <DropdownMenuItem
+                onClick={() => setLanguage("English")}
+                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
+              >
+                <div className="flex items-center gap-2">
+                  <img
+                    src="/assets/aistudio/Flag_of_the_United_Kingdom__3-5_.svg_d8e9d47e.webp"
+                    alt="EN"
+                    className="w-4 h-3 rounded-[2px] object-cover shrink-0 border border-border/30"
+                  />
+                  <span>English</span>
+                </div>
+                {language === "English" && <Check className="w-3.5 h-3.5 text-emerald-500" />}
+              </DropdownMenuItem>
+            )}
+            {availableLanguages.some((l) => l.value === "French") && (
+              <DropdownMenuItem
+                onClick={() => setLanguage("French")}
+                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
+              >
+                <div className="flex items-center gap-2">
+                  <img
+                    src="/assets/aistudio/Flag_of_France__1974_2020__241dac7d.svg"
+                    alt="FR"
+                    className="w-4 h-3 rounded-[2px] object-cover shrink-0 border border-border/30"
+                  />
+                  <span>Français</span>
+                </div>
+                {language === "French" && <Check className="w-3.5 h-3.5 text-emerald-500" />}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 

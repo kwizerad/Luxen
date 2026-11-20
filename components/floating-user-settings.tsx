@@ -19,6 +19,8 @@ import { useLanguage } from "@/lib/language-context";
 import { isAdmin } from "@/lib/permissions";
 import { dispatchAdminSpaNavigate } from "@/lib/admin-spa-router";
 import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
+import { purgePrivateStudentCache } from "@/lib/student-cache";
+import { spaCache } from "@/lib/spa-cache";
 
 type Language = "English" | "Kinyarwanda" | "French";
 type LanguageCode = "en" | "rw" | "fr";
@@ -182,6 +184,8 @@ export function FloatingUserSettings({ user, onMobile = false, adminMode = false
       localStorage.removeItem("navo-auth-token");
     }
 
+    spaCache.clear();
+    await purgePrivateStudentCache(user?.id).catch(() => {});
     const supabase = createClient();
     await supabase.auth.signOut();
     if (typeof window !== "undefined") {

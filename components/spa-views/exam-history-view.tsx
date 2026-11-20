@@ -42,6 +42,7 @@ import { ExamReview } from "@/components/exam-review";
 import { ExamHistorySkeleton } from "@/components/skeletons";
 import { cn } from "@/lib/utils";
 import { spaCache } from "@/lib/spa-cache";
+import { studentCache } from "@/lib/student-cache";
 import type { ExamAttempt, ExamQuestion, ExamAnswer } from "@/lib/database.types";
 
 export interface ExamHistoryViewProps {
@@ -67,7 +68,11 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   const { user } = useAuth();
 
   const cached = user
-    ? spaCache.get<{ attempts: ExamAttemptWithAnswers[]; ongoingChallenges: any[] }>(`spa_exam_history_${user.id}`)
+    ? studentCache.getHot<{ attempts: ExamAttemptWithAnswers[]; ongoingChallenges: any[] }>(
+        "exam_history",
+        { tier: "private", userId: user.id }
+      ) ||
+      spaCache.get<{ attempts: ExamAttemptWithAnswers[]; ongoingChallenges: any[] }>(`spa_exam_history_${user.id}`)
     : null;
 
   const [loading, setLoading] = useState(!cached);
@@ -91,7 +96,24 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
   useEffect(() => {
     if (!user) return;
+    let active = true;
     const supabase = createClient();
+
+    const hydratePersistentHistory = async () => {
+      const persisted = await studentCache.read<{
+        attempts: ExamAttemptWithAnswers[];
+        ongoingChallenges: any[];
+      }>("exam_history", {
+        tier: "private",
+        userId: user.id,
+        maxAgeMs: 5 * 60 * 1000,
+      });
+      if (active && persisted?.data) {
+        setAttempts(persisted.data.attempts || []);
+        setOngoingChallenges(persisted.data.ongoingChallenges || []);
+        setLoading(false);
+      }
+    };
 
     const fetchData = async () => {
       try {
@@ -307,19 +329,48 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           return dateB - dateA;
         });
 
+        if (!active) return;
         setAttempts(combined);
-        spaCache.set(`spa_exam_history_${user.id}`, {
+        const historyPayload = {
           attempts: combined,
           ongoingChallenges: activeList,
+        };
+        spaCache.set(`spa_exam_history_${user.id}`, historyPayload);
+        void studentCache.write("exam_history", historyPayload, {
+          tier: "private",
+          userId: user.id,
+          category: "exam_history",
         });
       } catch (err) {
         console.error("Failed to fetch exam history:", err);
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchData();
+    const runSync = async () => {
+      await hydratePersistentHistory();
+      if (active) {
+        void fetchData();
+      }
+    };
+
+    void runSync();
+
+    const handleCacheInvalidated = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (detail?.scope === "exam_history" || detail?.scope === "all_private") {
+        void fetchData();
+      }
+    };
+    window.addEventListener("navo-cache-invalidated", handleCacheInvalidated);
+
+    return () => {
+      active = false;
+      window.removeEventListener("navo-cache-invalidated", handleCacheInvalidated);
+    };
   }, [user, t]);
 
   const handleReview = async (attempt: ExamAttemptWithAnswers) => {
@@ -333,6 +384,18 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
     const answeredCount = (attempt.answers || []).filter((a) => Boolean(a.selected_answer)).length;
     if (!user || answeredCount === 0) return;
+
+    const reviewKey = `exam_review_${attempt.id}`;
+    const cachedReview = await studentCache.read<ExamQuestion[]>(reviewKey, {
+      tier: "private",
+      userId: user.id,
+      maxAgeMs: 24 * 60 * 60 * 1000,
+    });
+    if (cachedReview?.data?.length) {
+      setQuestions(cachedReview.data);
+      if (!cachedReview.isStale) return;
+    }
+
     const supabase = createClient();
 
     try {
@@ -349,6 +412,11 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           return 0;
         });
         setQuestions(ordered);
+        void studentCache.write(reviewKey, ordered, {
+          tier: "private",
+          userId: user.id,
+          category: "exam_review",
+        });
       }
     } catch (err) {
       console.error("Failed to fetch questions for review:", err);

@@ -21,11 +21,15 @@ export function clearCurrentUserCache() {
 export function resetLandingLanguageForAdminLogout() {
   if (typeof window === "undefined") return;
   try {
+    const isHttps = window.location.protocol === "https:";
+    const sameSiteAttr = isHttps ? "SameSite=None; Secure" : "SameSite=Lax";
     localStorage.setItem("navo-language", "Kinyarwanda");
     localStorage.setItem("navo-language-code", "rw");
     localStorage.setItem("luxen_lang", "rw");
     localStorage.removeItem("navo-language-user-set");
-    document.cookie = "navo_lang=rw; path=/; max-age=31536000; SameSite=Lax";
+    localStorage.removeItem("navo-language-user-confirmed");
+    document.cookie = `navo_lang=rw; path=/; max-age=31536000; ${sameSiteAttr}`;
+    document.cookie = `navo_lang_user_set=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; ${sameSiteAttr}`;
     sessionStorage.removeItem("navo-is-admin");
     sessionStorage.removeItem("navo-auth-token");
     localStorage.removeItem("navo-auth-token");

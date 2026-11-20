@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
@@ -183,13 +184,30 @@ export const viewport: Viewport = {
 // Font configuration for static export (no Google Fonts network dependency)
 // Using system font stack via CSS
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let initialLanguage: "Kinyarwanda" | "English" | "French" = "Kinyarwanda";
+  let initialLangCode: "rw" | "en" | "fr" = "rw";
+  try {
+    const cookieStore = await cookies();
+    const userConfirmed = cookieStore.get("navo_lang_user_set")?.value === "1";
+    const rawCookieLang = cookieStore.get("navo_lang")?.value?.toLowerCase();
+    if (userConfirmed && rawCookieLang === "en") {
+      initialLanguage = "English";
+      initialLangCode = "en";
+    } else if (userConfirmed && rawCookieLang === "fr") {
+      initialLanguage = "French";
+      initialLangCode = "fr";
+    }
+  } catch {
+    // Keep Kinyarwanda primary landing default
+  }
+
   return (
-    <html lang="rw" suppressHydrationWarning className={inter.variable}>
+    <html lang={initialLangCode} suppressHydrationWarning className={inter.variable}>
       <head>
         <script src="https://accounts.google.com/gsi/client" async defer></script>
       </head>
@@ -237,7 +255,7 @@ export default function RootLayout({
               <ParticlesBackground />
               <BrandingConfigProvider>
                 <SystemWatermark />
-                <LanguageProvider>
+                <LanguageProvider initialLanguage={initialLanguage}>
                   <MetaDescriptionManager />
                   <AuthProvider>
                     <GoogleAuthProvider>

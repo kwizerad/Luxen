@@ -56,30 +56,58 @@ const LANGUAGE_STORAGE_KEY = "navo-language";
 const LANGUAGE_CODE_STORAGE_KEY = "navo-language-code";
 const LEGACY_LANG_CACHE_KEY = "luxen_lang";
 const EXPLICIT_LANG_FLAG_KEY = "navo-language-user-set";
+const USER_CONFIRMED_LANG_KEY = "navo-language-user-confirmed";
 const LANGUAGE_COOKIE_NAME = "navo_lang";
+const LANGUAGE_USER_SET_COOKIE_NAME = "navo_lang_user_set";
 
 function languageToCode(lang: string): "rw" | "en" | "fr" {
   const raw = String(lang || "").trim().toLowerCase();
   if (raw === "en" || raw === "english") return "en";
-  if (raw === "fr" || raw === "french" || raw === "français") return "fr";
+  if (raw === "fr" || raw === "french" || raw === "français" || raw === "francais") return "fr";
   return "rw";
 }
 
-function readLangCookie(): string | null {
+function normalizeLanguageValue(lang?: string | null): Language {
+  const raw = String(lang || "").trim().toLowerCase();
+  if (raw === "en" || raw === "english") return "English";
+  if (raw === "fr" || raw === "french" || raw === "français" || raw === "francais") return "French";
+  return "Kinyarwanda";
+}
+
+function readCookieByName(name: string): string | null {
   if (typeof document === "undefined") return null;
   try {
-    const match = document.cookie.match(new RegExp(`(?:^|; )${LANGUAGE_COOKIE_NAME}=([^;]*)`));
+    const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
     return match ? decodeURIComponent(match[1]) : null;
   } catch {
     return null;
   }
 }
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("Kinyarwanda");
+function writeCookie(name: string, value: string) {
+  if (typeof document === "undefined" || typeof window === "undefined") return;
+  try {
+    const isHttps = window.location.protocol === "https:";
+    const sameSiteAttr = isHttps ? "SameSite=None; Secure" : "SameSite=Lax";
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000; ${sameSiteAttr}`;
+  } catch {}
+}
+
+export function LanguageProvider({
+  children,
+  initialLanguage,
+}: {
+  children: ReactNode;
+  initialLanguage?: Language;
+}) {
+  const [language, setLanguageState] = useState<Language>(() =>
+    normalizeLanguageValue(initialLanguage)
+  );
   const [systemName, setSystemName] = useState<string>("Navo");
   const [mounted, setMounted] = useState(false);
-  const [availableLanguages, setAvailableLanguages] = useState(ALL_LANGUAGES.map(l => ({ value: l.value, label: l.label, flag: l.flag })));
+  const [availableLanguages, setAvailableLanguages] = useState(
+    ALL_LANGUAGES.map((l) => ({ value: l.value, label: l.label, flag: l.flag }))
+  );
 
   const pathname = usePathname();
   const isAdminRoute = typeof pathname === "string" && pathname.toLowerCase().startsWith("/admin");
@@ -89,33 +117,34 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const effectiveIsRTL = false;
 
   const normalizeLanguage = useCallback((lang?: string | null): Language => {
-    const raw = String(lang || "").trim().toLowerCase();
-    if (raw === "en" || raw === "english") return "English";
-    if (raw === "fr" || raw === "french" || raw === "français") return "French";
-    return "Kinyarwanda";
+    return normalizeLanguageValue(lang);
   }, []);
 
-  const readCachedUserLanguage = useCallback((): Language => {
-    if (typeof window === "undefined") return "Kinyarwanda";
+  const readCachedUserLanguage = useCallback((): { language: Language; isExplicit: boolean } => {
+    if (typeof window === "undefined") {
+      return { language: normalizeLanguageValue(initialLanguage), isExplicit: false };
+    }
     try {
-      const primary = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-      if (primary && primary.trim()) {
-        return normalizeLanguage(primary);
-      }
-      // Restore from secondary caches only if the user explicitly chose a non-Kinyarwanda language
-      const fallbackRaw =
-        localStorage.getItem(LANGUAGE_CODE_STORAGE_KEY) ||
-        localStorage.getItem(LEGACY_LANG_CACHE_KEY) ||
-        readLangCookie();
-      if (fallbackRaw && fallbackRaw.trim()) {
-        const normalized = normalizeLanguage(fallbackRaw);
-        if (normalized !== "Kinyarwanda") {
-          return normalized;
+      const userConfirmed =
+        localStorage.getItem(USER_CONFIRMED_LANG_KEY) === "1" ||
+        readCookieByName(LANGUAGE_USER_SET_COOKIE_NAME) === "1";
+
+      if (userConfirmed) {
+        const primary = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+        if (primary && primary.trim()) {
+          return { language: normalizeLanguage(primary), isExplicit: true };
+        }
+        const fallbackRaw =
+          localStorage.getItem(LANGUAGE_CODE_STORAGE_KEY) ||
+          localStorage.getItem(LEGACY_LANG_CACHE_KEY) ||
+          readCookieByName(LANGUAGE_COOKIE_NAME);
+        if (fallbackRaw && fallbackRaw.trim()) {
+          return { language: normalizeLanguage(fallbackRaw), isExplicit: true };
         }
       }
     } catch {}
-    return "Kinyarwanda";
-  }, [normalizeLanguage]);
+    return { language: "Kinyarwanda", isExplicit: false };
+  }, [initialLanguage, normalizeLanguage]);
 
   const applyLanguage = useCallback((lang?: string | null, markExplicit = false) => {
     const normalized = normalizeLanguage(lang);
@@ -126,62 +155,73 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(LANGUAGE_STORAGE_KEY, normalized);
         localStorage.setItem(LANGUAGE_CODE_STORAGE_KEY, code);
         localStorage.setItem(LEGACY_LANG_CACHE_KEY, code);
-        if (markExplicit || normalized !== "Kinyarwanda") {
+        if (markExplicit) {
           localStorage.setItem(EXPLICIT_LANG_FLAG_KEY, "true");
+          localStorage.setItem(USER_CONFIRMED_LANG_KEY, "1");
         }
       } catch {}
-      try {
-        document.cookie = `${LANGUAGE_COOKIE_NAME}=${code}; path=/; max-age=31536000; SameSite=Lax`;
-      } catch {}
+      writeCookie(LANGUAGE_COOKIE_NAME, code);
+      if (markExplicit) {
+        writeCookie(LANGUAGE_USER_SET_COOKIE_NAME, "1");
+      }
     }
   }, [normalizeLanguage]);
 
-  // Fetch interface language toggles from system_config
+  // Fetch optional secondary interface language toggles from system_config.
+  // Kinyarwanda is the primary landing language and is always kept enabled.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const supabase = createClient();
     const configKeys = ALL_LANGUAGES.map((l) => `interface_language_${l.configKey}_enabled`);
 
     const fetchEnabled = async () => {
-      const { data } = await supabase
-        .from("system_config")
-        .select("key, value")
-        .in("key", configKeys);
+      try {
+        const { data } = await supabase
+          .from("system_config")
+          .select("key, value")
+          .in("key", configKeys);
 
-      const disabledSet = new Set<string>();
-      for (const row of data || []) {
-        if (row.value === "false") {
-          const match = row.key.match(/^interface_language_(.+)_enabled$/);
-          if (match) disabledSet.add(match[1]);
+        const disabledSet = new Set<string>();
+        for (const row of data || []) {
+          if (row.value === "false") {
+            const match = row.key.match(/^interface_language_(.+)_enabled$/);
+            if (match && match[1] !== "kinyarwanda") {
+              disabledSet.add(match[1]);
+            }
+          }
         }
-      }
 
-      const enabled = ALL_LANGUAGES
-        .filter((l) => !disabledSet.has(l.configKey))
-        .map((l) => ({ value: l.value, label: l.label, flag: l.flag }));
+        const enabled = ALL_LANGUAGES
+          .filter((l) => l.configKey === "kinyarwanda" || !disabledSet.has(l.configKey))
+          .map((l) => ({ value: l.value, label: l.label, flag: l.flag }));
 
-      setAvailableLanguages(enabled.length > 0 ? enabled : ALL_LANGUAGES.map(l => ({ value: l.value, label: l.label, flag: l.flag })));
+        setAvailableLanguages(
+          enabled.length > 0
+            ? enabled
+            : ALL_LANGUAGES.map((l) => ({ value: l.value, label: l.label, flag: l.flag }))
+        );
 
-      // Only switch if current language was explicitly disabled by Admin, preferring Kinyarwanda first
-      const currentLang = readCachedUserLanguage();
-      const currentConfigKey = ALL_LANGUAGES.find((l) => l.value === currentLang)?.configKey;
-      if (currentConfigKey && disabledSet.has(currentConfigKey)) {
-        const fallback =
-          !disabledSet.has("kinyarwanda")
-            ? "Kinyarwanda"
-            : enabled[0]?.value || "Kinyarwanda";
-        applyLanguage(fallback, false);
+        // Only revert to Kinyarwanda if an optional secondary language was explicitly disabled by Admin
+        const { language: currentLang } = readCachedUserLanguage();
+        const currentConfigKey = ALL_LANGUAGES.find((l) => l.value === currentLang)?.configKey;
+        if (currentConfigKey && currentConfigKey !== "kinyarwanda" && disabledSet.has(currentConfigKey)) {
+          applyLanguage("Kinyarwanda", false);
+        }
+      } catch {
+        // Keep current language intact on network/config fetch failure
       }
     };
 
-    fetchEnabled();
+    void fetchEnabled();
+    window.addEventListener("system-config-updated", fetchEnabled);
+    return () => window.removeEventListener("system-config-updated", fetchEnabled);
   }, [applyLanguage, readCachedUserLanguage]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const resolved = readCachedUserLanguage();
-    applyLanguage(resolved, resolved !== "Kinyarwanda");
+    const { language: resolved, isExplicit } = readCachedUserLanguage();
+    applyLanguage(resolved, isExplicit);
 
     setSystemName(getDefaultSystemName());
     setMounted(true);
@@ -203,13 +243,41 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     document.documentElement.dir = effectiveIsRTL ? "rtl" : "ltr";
-    document.documentElement.lang = effectiveLanguage === "English" ? "en" : effectiveLanguage === "French" ? "fr" : "rw";
+    document.documentElement.lang =
+      effectiveLanguage === "English" ? "en" : effectiveLanguage === "French" ? "fr" : "rw";
   }, [effectiveLanguage, effectiveIsRTL]);
 
-  const setLanguage = useCallback((lang: Language) => {
-    if (isAdminRoute) return;
-    applyLanguage(lang, true);
-  }, [isAdminRoute, applyLanguage]);
+  const setLanguage = useCallback(
+    (lang: Language) => {
+      if (isAdminRoute) return;
+      const normalized = normalizeLanguage(lang);
+      applyLanguage(normalized, true);
+
+      // Persist explicit user language choice to authenticated Supabase user metadata as well
+      if (typeof window !== "undefined") {
+        const code = languageToCode(normalized);
+        const supabase = createClient();
+        supabase.auth
+          .getSession()
+          .then(({ data: { session } }) => {
+            const meta = session?.user?.user_metadata;
+            if (
+              session?.user &&
+              (meta?.language !== code || meta?.language_user_selected !== true)
+            ) {
+              return supabase.auth.updateUser({
+                data: {
+                  language: code,
+                  language_user_selected: true,
+                },
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    },
+    [isAdminRoute, applyLanguage, normalizeLanguage]
+  );
 
   const t = useCallback((key: string): string => {
     if (key === "navo") {

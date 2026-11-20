@@ -7,6 +7,8 @@ import { isAdmin, isPrimaryAdmin, isStrictlyStudentEmail } from "@/lib/permissio
 import { clearOneTapDismissal } from "@/lib/auth/google";
 import { secureApiPost, syncClientSessionMirror } from "@/lib/e2e-crypto";
 import { claimPendingGuestExamIfAny } from "@/lib/guest-exam-client";
+import { purgePrivateStudentCache, syncActiveStudentCacheUser } from "@/lib/student-cache";
+import { spaCache } from "@/lib/spa-cache";
 import { toast } from "sonner";
 
 interface User {
@@ -46,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.auth.getSession().catch(() => ({ data: { session: null }, error: null })),
       ]);
       setUser(userResult as User | null);
+      syncActiveStudentCacheUser((userResult as User | null)?.id || null);
       const nextSession = (sessionResult?.data?.session || null) as Session | null;
       setSession(nextSession);
       if (nextSession?.access_token) {
@@ -110,6 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === "SIGNED_OUT" || !session) {
         syncClientSessionMirror(null);
         clearOneTapDismissal();
+        spaCache.clear();
+        syncActiveStudentCacheUser(null);
+        void purgePrivateStudentCache();
         if (typeof window !== "undefined") {
           try {
             document.cookie = "g_state=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
@@ -215,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(sessionUser);
+      syncActiveStudentCacheUser(sessionUser?.id || null);
       setSession(session ? {
         access_token: session.access_token,
         refresh_token: session.refresh_token,

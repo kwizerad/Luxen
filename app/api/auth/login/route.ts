@@ -81,27 +81,16 @@ export async function POST(request: NextRequest) {
         adminAuthUser = await findAuthUserByEmail(adminEmail);
       }
 
-      if (password.toLowerCase() === "admin") {
-        effectivePassword = "admin123";
-      } else if (password.toLowerCase() === "navo") {
-        effectivePassword = "navo123";
-      }
-
-      const standardAdminPasswords = [
-        "admin",
-        "navo",
-        "navo123",
-        "admin123",
-        "password",
-        "luxen2026",
-      ];
-
       if (!adminAuthUser) {
-        // Auto-provision primary admin with canonical Admin metadata and profile
+        // Auto-provision primary admin ONLY when the account does not exist yet
+        const bootstrapPassword =
+          process.env.INITIAL_ADMIN_PASSWORD ||
+          (effectivePassword.length >= 6 ? effectivePassword : "admin123");
+
         const { data: newAdmin, error: createError } =
           await adminClient.auth.admin.createUser({
             email: adminEmail,
-            password: effectivePassword || "admin123",
+            password: bootstrapPassword,
             email_confirm: true,
             user_metadata: {
               role: "Admin",
@@ -129,6 +118,7 @@ export async function POST(request: NextRequest) {
           );
         }
       } else {
+        // Never overwrite an existing primary admin's password during login
         const updates: Record<string, any> = {};
         if (!adminAuthUser.email_confirmed_at) {
           updates.email_confirm = true;
@@ -138,10 +128,6 @@ export async function POST(request: NextRequest) {
             ...(adminAuthUser.user_metadata || {}),
             role: "Admin",
           };
-        }
-        if (standardAdminPasswords.includes(password.toLowerCase())) {
-          updates.password = effectivePassword;
-          updates.email_confirm = true;
         }
         if (Object.keys(updates).length > 0) {
           await adminClient.auth.admin.updateUserById(adminAuthUser.id, updates);

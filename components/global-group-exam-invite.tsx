@@ -8,7 +8,7 @@ import { canViewUserAvatar } from "@/lib/avatar-helper";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Clock, X, Check, Loader2, Zap } from "lucide-react";
+import { Trophy, Clock, X, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface PendingInvite {
@@ -239,7 +239,7 @@ export function GlobalGroupExamInvite() {
 
   return (
     <div className="fixed top-4 inset-x-0 z-[100] flex justify-center px-4 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
-      <div className="pointer-events-auto w-full max-w-md rounded-2xl border-2 border-primary/40 bg-background/95 backdrop-blur-xl shadow-2xl overflow-hidden ring-4 ring-primary/10 transition-all">
+      <div className="pointer-events-auto w-full max-w-sm rounded-3xl border-2 border-amber-500/40 bg-background/95 backdrop-blur-xl shadow-2xl overflow-hidden ring-4 ring-amber-500/10 transition-all">
         {/* Animated Progress Bar */}
         <div className="h-1.5 w-full bg-muted overflow-hidden">
           <div
@@ -250,72 +250,68 @@ export function GlobalGroupExamInvite() {
           />
         </div>
 
-        <div className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="relative">
-              <Avatar className="h-11 w-11 ring-2 ring-primary/20">
+        <div className="p-5 flex flex-col items-center text-center">
+          {/* Top Bar: Sender & Countdown */}
+          <div className="w-full flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Avatar className="h-7 w-7 ring-1 ring-border shrink-0">
                 {canViewUserAvatar(activeInvite.creator_profile?.avatar_url, activeInvite.creator_id, user?.id, user?.user_metadata?.role) && activeInvite.creator_profile?.avatar_url ? (
                   <AvatarImage src={activeInvite.creator_profile.avatar_url} />
                 ) : (
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-[11px]">
                     {getInitials(inviterName)}
                   </AvatarFallback>
                 )}
               </Avatar>
-              <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
-                <Trophy className="h-3 w-3" />
-              </span>
+              <span className="text-xs font-semibold text-foreground truncate">{inviterName}</span>
             </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                  <Zap className="h-3.5 w-3.5" />
-                  <span>{t("groupExamInvite") || "Group Exam Request"}</span>
-                </div>
-                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                  <Clock className="h-3 w-3 animate-spin text-amber-500" />
-                  <span>{secondsRemaining}s</span>
-                </div>
-              </div>
-
-              <p className="text-sm font-bold text-foreground truncate mt-0.5">
-                {inviterName}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {t("category") || "Category"}: <span className="font-semibold text-foreground">{activeInvite.category_name}</span>
-                {activeInvite.language ? (
-                  <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
-                    {activeInvite.language}
-                  </span>
-                ) : null}
-              </p>
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0 tabular-nums">
+              <Clock className="h-3 w-3 animate-spin text-amber-500" />
+              <span>{secondsRemaining}s</span>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="mt-3.5 flex items-center gap-2">
+          {/* Big Trophy Icon */}
+          <div className="relative mb-3 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400/25 via-amber-500/15 to-primary/15 border-2 border-amber-500/40 text-amber-500 dark:text-amber-400 shadow-lg">
+            <Trophy className="h-11 w-11 drop-shadow-sm" />
+          </div>
+
+          <h3 className="text-sm font-bold text-foreground tracking-tight">
+            {t("groupExam") || "Group Exam"}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-full">
+            <span className="font-semibold text-foreground">{activeInvite.category_name}</span>
+            {activeInvite.language ? (
+              <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
+                {activeInvite.language}
+              </span>
+            ) : null}
+          </p>
+
+          {/* Accept & Reject Buttons directly under the Big Trophy */}
+          <div className="mt-4 w-full grid grid-cols-2 gap-2.5">
             <Button
               onClick={handleJoin}
               disabled={acting || secondsRemaining <= 0}
               size="sm"
-              className="flex-1 h-9 rounded-xl font-bold bg-primary text-primary-foreground shadow-sm hover:opacity-90"
+              className="h-10 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer"
             >
               {acting ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
               ) : (
                 <Check className="h-4 w-4 mr-1.5" />
               )}
-              {t("joinNow") || "Join"} ({secondsRemaining}s)
+              {t("accept") || "Accept"}
             </Button>
             <Button
               onClick={handleReject}
               disabled={acting}
               variant="outline"
               size="sm"
-              className="h-9 px-4 rounded-xl text-xs font-medium text-destructive hover:bg-destructive/10 border-destructive/30"
+              className="h-10 rounded-xl font-bold text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer"
             >
-              <X className="h-3.5 w-3.5 mr-1" />
+              <X className="h-4 w-4 mr-1.5" />
               {t("reject") || "Reject"}
             </Button>
           </div>

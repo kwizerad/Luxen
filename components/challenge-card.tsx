@@ -427,16 +427,32 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge, currentUse
 
                 {/* Participant view - pending */}
                 {!isCreator && myParticipation?.status === "pending" && (
-                  <>
-                    <Button size="sm" onClick={handleJoin} disabled={acting} className="text-xs">
-                      <Check className="h-3 w-3 mr-1" />
-                      {t("joinChallenge") || "Join Exam"}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleDeny} disabled={acting} className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive">
-                      <X className="h-3 w-3 mr-1" />
-                      {t("denyChallenge") || "Decline"}
-                    </Button>
-                  </>
+                  <div className="w-full rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 flex flex-col items-center text-center gap-2.5">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400/25 to-amber-500/15 border border-amber-500/40 text-amber-500 dark:text-amber-400 shadow-xs">
+                      <Trophy className="h-6 w-6" />
+                    </div>
+                    <div className="w-full max-w-xs grid grid-cols-2 gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleJoin}
+                        disabled={acting}
+                        className="h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1" />
+                        {t("accept") || "Accept"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleDeny}
+                        disabled={acting}
+                        className="h-8 text-xs font-bold text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <X className="h-3.5 w-3.5 mr-1" />
+                        {t("reject") || "Reject"}
+                      </Button>
+                    </div>
+                  </div>
                 )}
 
                 {/* Participant view - joined */}
