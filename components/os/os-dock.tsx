@@ -15,6 +15,7 @@ import {
 import { useLanguage } from "@/lib/language-context";
 import { AgoraIcon } from "@/components/ui/agora-icon";
 import { useServiceVisibilityManager } from "@/hooks/useServiceVisibilityManager";
+import { usePendingFriendRequests } from "@/hooks/usePendingFriendRequests";
 
 export interface OSDockProps {
   activeView: string;
@@ -34,6 +35,7 @@ interface DockItem {
 export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
   const { t } = useLanguage();
   const { isServicesPageEnabled } = useServiceVisibilityManager();
+  const pendingFriendRequests = usePendingFriendRequests();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [isExamActive, setIsExamActive] = useState<boolean>(false);
   const [isSmallScreen, setIsSmallScreen] = useState<boolean>(false);
@@ -105,6 +107,12 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
       title: "Agora",
       icon: AgoraIcon,
       color: "from-indigo-600 via-purple-600 to-cyan-600",
+      badge:
+        pendingFriendRequests > 0
+          ? pendingFriendRequests > 99
+            ? "99+"
+            : pendingFriendRequests
+          : undefined,
     },
     {
       id: "services",
@@ -199,8 +207,8 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
                 <div className="absolute inset-0 rounded-xl bg-white/10 opacity-0 hover:opacity-100 transition-opacity" />
                 <Icon className="w-[18px] h-[18px] sm:w-[19px] sm:h-[19px] drop-shadow-sm" />
 
-                {item.badge && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center border border-background shadow-none">
+                {item.badge !== undefined && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-rose-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center border border-background shadow-sm tabular-nums">
                     {item.badge}
                   </span>
                 )}

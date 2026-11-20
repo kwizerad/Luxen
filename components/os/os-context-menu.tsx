@@ -13,13 +13,11 @@ import {
   Settings,
   Maximize,
   Minimize,
-  Eye,
   Check,
   Compass,
 } from "lucide-react";
 import { AgoraIcon } from "@/components/ui/agora-icon";
 import { useLanguage } from "@/lib/language-context";
-import { useDesktopWidgets } from "@/lib/desktop-widgets";
 import { toast } from "sonner";
 
 interface OSContextMenuProps {
@@ -33,7 +31,6 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
   const isRw = language === "Kinyarwanda" || language === "rw";
   const isFr = language === "French" || language === "fr";
   const loc = (rw: string, fr: string, en: string) => (isRw ? rw : isFr ? fr : en);
-  const { restoreAll, dismissed } = useDesktopWidgets();
 
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -240,23 +237,6 @@ export function OSContextMenu({ children, navigate, onOpenSpotlight }: OSContext
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground">⌘K</span>
               </button>
-
-              {dismissed.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    restoreAll();
-                    setIsOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer text-left"
-                >
-                  <div className="flex items-center gap-2">
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>{loc("Garura Amakarita Yahishwe", "Restaurer les cartes masquées", "Restore Hidden Cards")}</span>
-                  </div>
-                  <span className="font-mono text-[10px] font-bold">{dismissed.length}</span>
-                </button>
-              )}
             </div>
 
             <div className="h-px bg-border/60 dark:bg-white/10 my-1" />

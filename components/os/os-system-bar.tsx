@@ -21,11 +21,6 @@ import {
   Languages,
   Check,
   ChevronDown,
-  LayoutGrid,
-  Eye,
-  EyeOff,
-  RotateCcw,
-  CloudSun,
   Battery,
   BatteryCharging,
   SlidersHorizontal,
@@ -52,7 +47,6 @@ import { useBrandingConfig } from "@/lib/branding-config";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
-import { useDesktopWidgets } from "@/lib/desktop-widgets";
 import { formatLocalizedDate } from "@/lib/date-utils";
 import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
 import { isAdmin } from "@/lib/permissions";
@@ -73,7 +67,6 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
   const loc = (rw: string, fr: string, en: string) => (isRw ? rw : isFr ? fr : en);
   const { config } = useBrandingConfig();
   const { theme, setTheme } = useTheme();
-  const { dismissed, hide, restore, restoreAll, isHidden, availableWidgets } = useDesktopWidgets();
 
   const [isExamActive, setIsExamActive] = useState<boolean>(false);
 
@@ -447,104 +440,6 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
                   ? loc("Va muri Ecran Yose", "Quitter le plein écran", "Exit Fullscreen")
                   : loc("Ecran Yose", "Plein écran", "Toggle Fullscreen")}
               </DropdownMenuItem>
-              {dismissed.length > 0 && (
-                <>
-                  <DropdownMenuSeparator className="bg-border/60 dark:bg-white/10" />
-                  <DropdownMenuItem
-                    onClick={() => {
-                      restoreAll();
-                      if (activeView !== "home") navigate("home");
-                    }}
-                    className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 cursor-pointer"
-                  >
-                    <span>{loc("Garura Amakarita Yahishwe", "Tout restaurer", "Restore All Hidden Cards")}</span>
-                    <span className="font-mono text-[10px]">{dismissed.length}</span>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* OS-Bar Widgets Menu (Allows user to selectively restore dismissed cards) */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex items-center gap-1.5 px-2 py-0.5 rounded hover:bg-muted/70 dark:hover:bg-white/10 cursor-pointer outline-hidden transition-colors shadow-none text-muted-foreground dark:text-zinc-300 hover:text-foreground dark:hover:text-white"
-              >
-                <span>{loc("Utudirishya", "Widgets", "Widgets")}</span>
-                {dismissed.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-[9px] font-mono leading-none">
-                    {dismissed.length} {t("hidden") || "hidden"}
-                  </span>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-64 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-1.5 z-[150]">
-              <div className="flex items-center justify-between px-2 py-1">
-                <DropdownMenuLabel className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground dark:text-zinc-400 p-0">
-                  <span className="sm:hidden">{loc("Utudirishya twa nPhone", "Widgets nPhone", "nPhone Widgets")}</span>
-                  <span className="hidden sm:inline">{loc("Utudirishya tw'Ahabanza", "Widgets du bureau", "Desktop Widgets")}</span>
-                </DropdownMenuLabel>
-                {dismissed.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={restoreAll}
-                    className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1 shadow-none"
-                  >
-                    <RotateCcw className="w-2.5 h-2.5" />
-                    <span>{loc("Garura Byose", "Tout restaurer", "Restore All")}</span>
-                  </button>
-                )}
-              </div>
-              <DropdownMenuSeparator className="bg-border/60 dark:bg-white/10 my-1" />
-
-              {availableWidgets.map((w) => {
-                const hidden = isHidden(w.id);
-                return (
-                  <DropdownMenuItem
-                    key={w.id}
-                    onClick={() => {
-                      if (hidden) {
-                        restore(w.id);
-                      } else {
-                        hide(w.id);
-                      }
-                    }}
-                    className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-white/10 dark:hover:text-white"
-                  >
-                    <div className="flex items-center gap-2 truncate pr-2">
-                      {hidden ? (
-                        <EyeOff className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      ) : (
-                        <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      )}
-                      <span className={hidden ? "text-muted-foreground line-through truncate text-[11px]" : "text-foreground dark:text-zinc-200 truncate text-[11px]"}>
-                        {w.title}
-                      </span>
-                    </div>
-
-                    <span
-                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
-                        hidden
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {hidden ? loc("Garura", "Afficher", "Restore") : loc("Biragaragara", "Visible", "Visible")}
-                    </span>
-                  </DropdownMenuItem>
-                );
-              })}
-
-              <DropdownMenuSeparator className="bg-border/60 dark:bg-white/10 my-1" />
-              <div className="px-2 py-1 text-[10px] text-muted-foreground dark:text-zinc-400 leading-tight">
-                {loc(
-                  "Amakarita wasibye ukanda 'x' ntagaruka ako kanya keretse uyagaruye hano.",
-                  "Les cartes fermées avec 'x' ne reviennent que si vous les restaurez ici.",
-                  "Cards removed with 'x' are never restored automatically unless you decide here."
-                )}
-              </div>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -573,45 +468,8 @@ export function OSSystemBar({ activeView, navigate, onOpenSpotlight }: OSSystemB
         </div>
       </div>
 
-      {/* Right: Realistic OS System Tray (Weather, Connectivity, Battery, Control Center, Clock, User) */}
+      {/* Right: Realistic OS System Tray (Connectivity, Battery, Control Center, Clock, User) */}
       <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
-        {/* Kigali Live Weather Widget */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              title={loc("Ikirere i Kigali, Rwanda", "Météo Kigali, Rwanda", "Kigali, Rwanda Weather")}
-              className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded-md hover:bg-muted/70 dark:hover:bg-white/10 text-muted-foreground dark:text-zinc-300 hover:text-foreground dark:hover:text-white transition-colors cursor-pointer text-[11px] shadow-none"
-            >
-              <CloudSun className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-              <span className="font-medium">24°C</span>
-              <span className="text-[10px] text-muted-foreground hidden xl:inline">Kigali</span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-56 bg-popover dark:bg-zinc-900/95 backdrop-blur-2xl border-border/80 dark:border-white/10 text-popover-foreground dark:text-zinc-200 rounded-xl shadow-none p-2.5 z-[150]"
-          >
-            <div className="flex items-center justify-between pb-2 border-b border-border/60 dark:border-white/10">
-              <span className="font-semibold text-xs text-foreground dark:text-white">Kigali, Rwanda</span>
-              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">{loc("Ako kanya", "En direct", "Live")}</span>
-            </div>
-            <div className="flex items-center justify-between pt-2">
-              <div className="flex items-center gap-2">
-                <CloudSun className="w-6 h-6 text-amber-500" />
-                <div>
-                  <div className="text-base font-bold text-foreground dark:text-white">24°C</div>
-                  <div className="text-[10px] text-muted-foreground">{loc("Izuba riringaniye", "Éclaircies", "Sunny Intervals")}</div>
-                </div>
-              </div>
-              <div className="text-right text-[10px] text-muted-foreground space-y-0.5">
-                <div>{loc("Ubuhehere: 62%", "Humidité : 62%", "Humidity: 62%")}</div>
-                <div>{loc("Umuyaga: 8 km/h", "Vent : 8 km/h", "Wind: 8 km/h")}</div>
-              </div>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         {/* Real Network & Wi-Fi Status Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

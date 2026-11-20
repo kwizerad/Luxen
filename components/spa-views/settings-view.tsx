@@ -4,21 +4,17 @@ import { useEffect, useState } from "react";
 import { SettingsViewSkeleton } from "@/components/skeletons";
 import { createClient } from "@/lib/supabase/client";
 import UserSettings from "@/components/user-settings";
-import { useBrandingConfig } from "@/lib/branding-config";
-import Image from "next/image";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
-import { ArrowLeft, Sliders } from "lucide-react";
 import { spaCache } from "@/lib/spa-cache";
 
 import { studentCache } from "@/lib/student-cache";
 
 export interface SettingsViewProps {
-  navigate: (view: string, params?: Record<string, string>) => void;
+  navigate?: (view: string, params?: Record<string, string>) => void;
 }
 
-export function SettingsView({ navigate }: SettingsViewProps) {
-  const { config } = useBrandingConfig();
+export function SettingsView(_props: SettingsViewProps) {
   const { t } = useLanguage();
   const { user: authUser } = useAuth();
 
@@ -77,31 +73,16 @@ export function SettingsView({ navigate }: SettingsViewProps) {
   return (
     <div className="min-h-[calc(100vh-80px)] w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 pb-24 animate-in fade-in duration-200">
       {/* Top Bar Header */}
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => navigate("back", { fallback: "home" })}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 dark:bg-zinc-900/60 dark:hover:bg-zinc-800/80 border border-border dark:border-zinc-800 transition-colors shadow-xs"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>{t("back") || t("backToHome") || "Back"}</span>
-          </button>
-          <span className="text-[11px] font-mono tracking-wider text-muted-foreground dark:text-zinc-400 lowercase hidden sm:inline-block">
-            telemetry · preferences &amp; security
-          </span>
+      <div>
+        <div className="text-[11px] font-mono tracking-wider text-muted-foreground dark:text-zinc-400 lowercase">
+          system preferences · account configuration
         </div>
-
-        <div>
-          <div className="text-[11px] font-mono tracking-wider text-muted-foreground dark:text-zinc-400 lowercase">
-            system preferences · account configuration
-          </div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground dark:text-zinc-100">
-            {t("personalSettings") || "Personal Settings"}
-          </h1>
-          <p className="mt-1 text-xs text-muted-foreground dark:text-zinc-400 font-mono">
-            {t("updateProfileDesc") || "Manage your account profile, security credentials, appearance, and language options."}
-          </p>
-        </div>
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground dark:text-zinc-100">
+          {t("personalSettings") || "Personal Settings"}
+        </h1>
+        <p className="mt-1 text-xs text-muted-foreground dark:text-zinc-400 font-mono">
+          {t("updateProfileDesc") || "Manage your account profile, security credentials, appearance, and language options."}
+        </p>
       </div>
 
       {/* Bento Container for Settings */}

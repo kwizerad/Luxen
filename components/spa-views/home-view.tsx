@@ -60,6 +60,7 @@ import type { UserProfile } from "@/lib/database.types";
 import { VerifyIdModal } from "@/components/verify-id-modal";
 import { SetPasswordModal } from "@/components/set-password-modal";
 import { checkAndDispatchPasswordReminder } from "@/lib/password-reminder-service";
+import { usePendingFriendRequests } from "@/hooks/usePendingFriendRequests";
 
 interface HomeViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -220,6 +221,7 @@ export function HomeView({ navigate }: HomeViewProps) {
   const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
   const [showVerifyIdModal, setShowVerifyIdModal] = useState(false);
   const [showSetPasswordModal, setShowSetPasswordModal] = useState(false);
+  const pendingFriendRequests = usePendingFriendRequests();
   const [now, setNow] = useState(Date.now());
   const [localLastTopic, setLocalLastTopic] = useState<{
     moduleId?: string;
@@ -1483,8 +1485,13 @@ export function HomeView({ navigate }: HomeViewProps) {
           <button
             type="button"
             onClick={() => navigate("classmates")}
-            className="flex flex-col items-start p-4 rounded-2xl border border-border/60 bg-card hover:border-primary/50 hover:shadow-md transition-all text-left group"
+            className="relative flex flex-col items-start p-4 rounded-2xl border border-border/60 bg-card hover:border-primary/50 hover:shadow-md transition-all text-left group"
           >
+            {pendingFriendRequests > 0 && (
+              <span className="absolute top-3 right-3 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none shadow-xs tabular-nums">
+                {pendingFriendRequests > 99 ? "99+" : pendingFriendRequests}
+              </span>
+            )}
             <div className="p-2.5 rounded-xl bg-primary/10 text-primary mb-2.5 group-hover:scale-105 transition-transform">
               <Users className="w-5 h-5" />
             </div>

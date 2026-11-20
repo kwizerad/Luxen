@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CourseViewSkeleton } from "@/components/skeletons";
+import { CourseViewSkeleton, RoadSignsSkeleton } from "@/components/skeletons";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { useLearningLanguages } from "@/hooks/use-learning-languages";
@@ -1967,7 +1967,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   }, [nextModuleForActiveExam]);
 
   if (authLoading || loading) {
-    return <CourseViewSkeleton />;
+    return isRoadSignsFilter ? <RoadSignsSkeleton /> : <CourseViewSkeleton />;
   }
 
   if (!authUser) {
@@ -2011,16 +2011,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
   if (showLanguagePicker || !learningLanguage) {
     return (
       <div className="flex-1 w-full max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-5 sm:space-y-6 animate-in fade-in duration-200 select-none overflow-x-hidden">
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => navigate("home")}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 border border-border transition-colors shadow-xs cursor-pointer"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>{t("backToHome") || "Back to Home"}</span>
-          </button>
-        </div>
 
         <div className="text-center max-w-2xl mx-auto space-y-2 px-1">
           <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2">
@@ -2130,13 +2120,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
             >
               {t("changeLanguage") || "Change Language"}
             </Button>
-            <Button
-              size="sm"
-              onClick={() => navigate("home")}
-              className="rounded-xl text-xs cursor-pointer"
-            >
-              {t("backToHome") || "Back"}
-            </Button>
           </div>
         </div>
       </div>
@@ -2236,15 +2219,6 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => navigate("back", { fallback: "home" })}
-                className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
-              >
-                <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
-                <span>{t("back") || t("backToHome") || "Back"}</span>
-              </button>
-
               <button
                 type="button"
                 onClick={() => setIsMobileSidebarOpen(true)}
@@ -2554,24 +2528,16 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         <div className="space-y-3 border-b border-border dark:border-zinc-800 pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (isRoadSignsFilter) {
-                    navigate("back", { fallback: "home" });
-                  } else {
-                    setViewMode("modules");
-                  }
-                }}
-                className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
-              >
-                <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
-                <span>
-                  {isRoadSignsFilter
-                    ? t("back") || t("backToHome") || "Back"
-                    : t("allModules") || "All Modules"}
-                </span>
-              </button>
+              {!isRoadSignsFilter && (
+                <button
+                  type="button"
+                  onClick={() => setViewMode("modules")}
+                  className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground bg-card hover:bg-muted dark:bg-[rgb(15,15,16)] dark:hover:bg-zinc-900 border border-border dark:border-zinc-800 transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+                  <span>{t("allModules") || "All Modules"}</span>
+                </button>
+              )}
 
               <button
                 type="button"

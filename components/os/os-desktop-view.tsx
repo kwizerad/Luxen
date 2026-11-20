@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Compass,
   BookOpen,
@@ -9,21 +9,15 @@ import {
   Car,
   BarChart3,
   Settings,
-  ShieldCheck,
-  X,
-  Bell,
-  Megaphone,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
-import { getDashboardData, type ContinueLearningData, type DashboardStats } from "@/app/dashboard/actions/course";
+import { getDashboardData, type ContinueLearningData } from "@/app/dashboard/actions/course";
 import { OSWallpaper } from "./os-wallpaper";
 import { AgoraIcon } from "@/components/ui/agora-icon";
 import { OSContextMenu } from "./os-context-menu";
-import { getNotifications, markNotificationAsRead, type Notification } from "@/lib/notifications";
 import { useServiceVisibilityManager } from "@/hooks/useServiceVisibilityManager";
-import { AdminAnnouncementWidget } from "@/components/admin-announcement-widget";
+import { usePendingFriendRequests } from "@/hooks/usePendingFriendRequests";
 
 interface OSDesktopViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
@@ -36,13 +30,8 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
   const isRw = language === "Kinyarwanda" || language === "rw";
   const isFr = language === "French" || language === "fr";
   const { isServicesPageEnabled } = useServiceVisibilityManager();
-  const [loading, setLoading] = useState(true);
+  const pendingFriendRequests = usePendingFriendRequests();
   const [continueData, setContinueData] = useState<ContinueLearningData | null>(null);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  
-  // Single Admin Notice Widget state
-  const [adminNotification, setAdminNotification] = useState<Notification | null>(null);
-  const [dismissedNotifId, setDismissedNotifId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -51,48 +40,14 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
         const data = await getDashboardData(user?.id);
         if (isMounted) {
           setContinueData(data.continueLearning);
-          setStats(data.stats);
         }
       } catch (err) {
         console.error("Failed to load OS dashboard data:", err);
-      } finally {
-        if (isMounted) setLoading(false);
       }
     }
     loadData();
     return () => {
       isMounted = false;
-    };
-  }, [user?.id]);
-
-  // Fetch written admin announcements for student
-  useEffect(() => {
-    let isMounted = true;
-    async function fetchAdminAnnouncements() {
-      try {
-        const { notifications } = await getNotifications(false, 20);
-        if (isMounted && notifications && notifications.length > 0) {
-          // Look specifically for written announcements published by admin
-          const activeAnnouncement = notifications.find(
-            (n) =>
-              n.type === "announcement" ||
-              n.type === "admin_broadcast" ||
-              n.related_entity_type === "announcement" ||
-              (n.title && n.title.toLowerCase().includes("announcement")) ||
-              (n.title && n.title.toLowerCase().includes("itangazo"))
-          );
-          setAdminNotification(activeAnnouncement || null);
-        }
-      } catch (err) {
-        console.error("Failed to fetch admin announcements:", err);
-      }
-    }
-
-    fetchAdminAnnouncements();
-    window.addEventListener("notifications-updated", fetchAdminAnnouncements);
-    return () => {
-      isMounted = false;
-      window.removeEventListener("notifications-updated", fetchAdminAnnouncements);
     };
   }, [user?.id]);
 
@@ -123,6 +78,12 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
       icon: AgoraIcon,
       action: () => navigate("classmates"),
       gradient: "from-indigo-600 via-purple-600 to-cyan-600",
+      counterBadge:
+        pendingFriendRequests > 0
+          ? pendingFriendRequests > 99
+            ? "99+"
+            : String(pendingFriendRequests)
+          : undefined,
     },
     {
       id: "signs",
@@ -160,22 +121,14 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
     return true;
   });
 
-  const hasActiveAnnouncement = Boolean(
-    adminNotification && dismissedNotifId !== adminNotification.id
-  );
-
   return (
     <OSContextMenu navigate={navigate} onOpenSpotlight={onOpenSpotlight}>
       <div className="relative w-full h-full flex-1 p-3 sm:p-5 lg:p-6 flex flex-col justify-start select-none overflow-hidden min-h-0">
         {/* High-Aesthetic Luminous OS Wallpaper */}
         <OSWallpaper />
 
-        <div
-          className={`grid grid-cols-1 ${
-            hasActiveAnnouncement ? "lg:grid-cols-[1fr_360px]" : "max-w-5xl"
-          } gap-8 max-w-7xl mx-auto w-full items-start transition-all duration-300 pt-2 sm:pt-4`}
-        >
-          {/* Left: Desktop Applications Grid */}
+        <div className="max-w-5xl mx-auto w-full pt-2 sm:pt-4">
+          {/* Desktop Applications Grid */}
           <div className="space-y-4 sm:space-y-6">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-3 sm:gap-6 p-0.5 sm:p-1">
               {desktopIcons.map((app) => {
@@ -195,11 +148,15 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
                         <Icon className="w-6 h-6 sm:w-7 sm:h-7" />
                       </div>
 
-                      {app.badge && (
+                      {"counterBadge" in app && app.counterBadge ? (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1.5 text-[10px] font-bold font-mono rounded-full bg-rose-500 text-white shadow-sm ring-2 ring-background flex items-center justify-center tabular-nums">
+                          {app.counterBadge}
+                        </span>
+                      ) : app.badge ? (
                         <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[9px] font-bold font-mono rounded-full bg-emerald-500 text-white shadow-sm">
                           {app.badge}
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
                     <span className="font-semibold text-[11px] sm:text-sm text-foreground tracking-tight group-hover:text-primary transition-colors drop-shadow-xs leading-tight">
@@ -209,11 +166,6 @@ export function OSDesktopView({ navigate, onOpenSpotlight }: OSDesktopViewProps)
                 );
               })}
             </div>
-          </div>
-
-          {/* Right Panel: Render ONLY when an active Admin Announcement exists */}
-          <div className="space-y-4">
-            <AdminAnnouncementWidget />
           </div>
         </div>
       </div>

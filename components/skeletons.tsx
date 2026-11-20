@@ -171,13 +171,12 @@ export function CourseViewSkeleton() {
       {/* Course Header */}
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div className="flex items-center flex-wrap gap-2">
-            <Skeleton rounded="lg" className="h-8 w-20" />
-            <Skeleton rounded="lg" tone="accent" className="lg:hidden h-8 w-28" />
+          <div className="flex items-center flex-wrap gap-2 lg:hidden">
+            <Skeleton rounded="lg" tone="accent" className="h-8 w-28" />
           </div>
 
           {/* Language Switcher Bar */}
-          <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-card dark:bg-zinc-900/70 border border-border dark:border-zinc-800 rounded-xl p-1 w-full sm:w-auto">
+          <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-card dark:bg-zinc-900/70 border border-border dark:border-zinc-800 rounded-xl p-1 w-full sm:w-auto sm:ml-auto">
             {[0, 1, 2].map((i) => (
               <Skeleton key={i} rounded="lg" tone={i === 0 ? "default" : "subtle"} className="h-7 sm:w-24" />
             ))}
@@ -253,52 +252,168 @@ export function CourseViewSkeleton() {
 }
 
 // ============================================================================
+// ROAD SIGNS VIEW SKELETON (Matches Road Signs direct grid view in CourseView)
+// ============================================================================
+
+export function RoadSignsSkeleton({ count = 10 }: { count?: number }) {
+  return (
+    <div className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-4 sm:space-y-5 animate-in fade-in duration-200 overflow-x-hidden">
+      {/* Navigation Header & Language Bar */}
+      <div className="space-y-3 border-b border-border dark:border-zinc-800 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center flex-wrap gap-2">
+            <Skeleton rounded="lg" tone="accent" className="lg:hidden h-8 w-28" />
+            <Skeleton rounded="lg" tone="accent" className="h-8 w-28" />
+          </div>
+
+          {/* Language Switcher Bar */}
+          <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-card border border-border dark:border-zinc-800 rounded-xl p-1 shadow-xs w-full sm:w-auto">
+            {[0, 1, 2].map((i) => (
+              <Skeleton
+                key={i}
+                rounded="lg"
+                tone={i === 2 ? "accent" : "subtle"}
+                className="h-7 sm:w-24"
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Road Signs Heading + Active Module Tag */}
+        <div className="space-y-1.5 min-w-0">
+          <div className="flex items-center flex-wrap gap-x-2.5 gap-y-1">
+            <Skeleton rounded="lg" className="h-6 sm:h-7 w-28 sm:w-36" />
+            <div className="flex items-center gap-1.5">
+              <Skeleton rounded="sm" tone="accent" className="h-3.5 w-3.5 shrink-0" />
+              <Skeleton tone="accent" className="h-3.5 w-32 sm:w-44" />
+            </div>
+          </div>
+          <Skeleton tone="subtle" className="h-3.5 sm:h-4 w-72 sm:w-96 max-w-full" />
+        </div>
+
+        {/* Module Progress Overview Card */}
+        <div className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-[rgb(15,15,16)] p-3 sm:p-3.5 space-y-2 mt-2 shadow-xs">
+          <div className="flex items-center justify-between flex-wrap gap-1.5">
+            <Skeleton tone="subtle" className="h-3 w-16" />
+            <Skeleton tone="accent" className="h-3 w-36" />
+          </div>
+          <Skeleton rounded="full" className="h-1.5 w-full" />
+        </div>
+      </div>
+
+      {/* File Explorer Grid for Road Signs */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-1.5">
+          <div className="flex items-center gap-2">
+            <Skeleton rounded="sm" tone="accent" className="h-3.5 w-3.5 shrink-0" />
+            <Skeleton className="h-3.5 w-32" />
+          </div>
+          <Skeleton tone="subtle" className="h-3 w-20" />
+        </div>
+
+        <div className="grid grid-cols-1 min-[340px]:grid-cols-2 min-[500px]:grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
+          {Array.from({ length: count }).map((_, i) => (
+            <div
+              key={i}
+              className="relative flex flex-col items-center text-center rounded-2xl border border-slate-200 dark:border-zinc-800 bg-card dark:bg-zinc-900 p-3 sm:p-4"
+            >
+              {/* Status indicator top corner */}
+              <div className="absolute top-2.5 right-2.5">
+                <Skeleton rounded="full" tone="subtle" className="h-3.5 w-3.5" />
+              </div>
+
+              {/* Road Sign Visual Thumbnail Box */}
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white/80 dark:bg-zinc-950 border border-border/60 dark:border-zinc-800 p-2 my-1.5 flex items-center justify-center">
+                <Skeleton
+                  rounded={i % 2 === 0 ? "full" : "lg"}
+                  tone="strong"
+                  className="h-9 w-9 sm:h-10 sm:w-10"
+                />
+              </div>
+
+              {/* Item # Index */}
+              <Skeleton tone="subtle" className="h-2.5 w-12 mt-1" />
+
+              {/* 2-line Sign Title */}
+              <div className="mt-1.5 space-y-1.5 w-full flex flex-col items-center">
+                <Skeleton className="h-3.5 w-4/5" />
+                <Skeleton tone="subtle" className="h-3 w-3/5" />
+              </div>
+
+              {/* Bottom Duration Footer */}
+              <div className="mt-2.5 pt-2 border-t border-border/40 dark:border-zinc-800/70 w-full flex items-center justify-center">
+                <Skeleton tone="subtle" className="h-2.5 w-12" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // SETTINGS VIEW SKELETON
 // ============================================================================
 
 export function SettingsViewSkeleton() {
+  const columns = [
+    { headingWidth: "w-20", cardCount: 2 },
+    { headingWidth: "w-20", cardCount: 2 },
+    { headingWidth: "w-24", cardCount: 1 },
+  ];
+
   return (
     <div className="min-h-[calc(100vh-80px)] w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 pb-24 animate-in fade-in duration-200">
-      {/* Top Bar Header */}
-      <div className="space-y-2.5">
-        <SkeletonNavBar />
-        <div className="space-y-1.5">
-          <Skeleton tone="subtle" className="h-3 w-36" />
-          <Skeleton rounded="lg" className="h-7 sm:h-9 w-48 sm:w-64" />
-          <Skeleton tone="subtle" className="h-3.5 sm:h-4 w-72 sm:w-96 max-w-full" />
-        </div>
+      {/* Top Bar Header (No Back button) */}
+      <div className="space-y-1.5">
+        <Skeleton tone="subtle" className="h-3.5 w-52 max-w-full" />
+        <Skeleton rounded="lg" className="h-7 sm:h-8 lg:h-9 w-48 sm:w-64" />
+        <Skeleton tone="subtle" className="h-3.5 w-80 sm:w-[28rem] max-w-full" />
       </div>
 
       {/* Bento Container for Settings */}
-      <div className="rounded-2xl border border-border dark:border-zinc-800 bg-card dark:bg-zinc-900/40 p-4 sm:p-6 space-y-5">
-        {/* User Profile Header Card */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/80 dark:border-zinc-800/80 bg-card dark:bg-zinc-900/60">
-          <div className="flex items-center gap-3.5">
-            <SkeletonAvatar size="xl" />
-            <div className="space-y-2">
-              <Skeleton className="h-5 w-36" />
-              <Skeleton tone="subtle" className="h-3.5 w-48" />
-              <SkeletonBadge width="w-20" height="h-4" />
+      <div className="rounded-2xl border border-border dark:border-zinc-800 bg-card dark:bg-zinc-900/40 p-4 sm:p-6 space-y-6 shadow-xs">
+        {/* Profile Summary Card */}
+        <div className="rounded-xl border border-border/40 dark:border-zinc-800/80 bg-primary/5 p-6">
+          <div className="flex items-center gap-6">
+            <Skeleton rounded="full" tone="strong" className="h-20 w-20 shrink-0" />
+            <div className="flex-1 min-w-0 space-y-2">
+              <Skeleton rounded="lg" className="h-7 w-40 sm:w-52 max-w-full" />
+              <Skeleton tone="subtle" className="h-4 w-48 sm:w-60 max-w-full" />
+              <div className="flex items-center gap-2 pt-0.5">
+                <SkeletonBadge width="w-16" height="h-5" />
+                <SkeletonBadge width="w-28" height="h-5" />
+              </div>
             </div>
+            <Skeleton rounded="md" className="h-9 w-9 shrink-0" />
           </div>
-          <SkeletonButton size="md" className="w-28 shrink-0" />
         </div>
 
-        {/* Section Cards */}
-        <div className="space-y-3">
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-border/80 dark:border-zinc-800/80 bg-card dark:bg-zinc-900/50 p-4 flex items-center justify-between gap-3"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <Skeleton rounded="lg" className="h-9 w-9 shrink-0" />
-                <div className="space-y-1.5 min-w-0">
-                  <Skeleton className="h-4 w-36 max-w-full" />
-                  <Skeleton tone="subtle" className="h-3 w-56 max-w-full" />
-                </div>
+        {/* Search Settings Bar */}
+        <Skeleton rounded="md" className="h-9 w-full" />
+
+        {/* 3-Column Section Grid: Account (2) | Security (2) | Preferences (1) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {columns.map((col, colIdx) => (
+            <div key={colIdx} className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Skeleton rounded="md" tone="accent" className="h-5 w-5 shrink-0" />
+                <Skeleton className={`h-5 ${col.headingWidth}`} />
               </div>
-              <Skeleton rounded="lg" tone="subtle" className="h-7 w-7 shrink-0" />
+
+              {Array.from({ length: col.cardCount }).map((_, cardIdx) => (
+                <div
+                  key={cardIdx}
+                  className="rounded-xl border border-border/40 dark:border-zinc-800/80 bg-card dark:bg-zinc-900/60 p-6 space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <Skeleton className="h-4 w-32 sm:w-36" />
+                    <Skeleton rounded="md" tone="subtle" className="h-6 w-6 shrink-0" />
+                  </div>
+                  <Skeleton tone="subtle" className="h-3 w-48 max-w-full" />
+                </div>
+              ))}
             </div>
           ))}
         </div>
@@ -416,25 +531,15 @@ export function DashboardLayoutSkeleton() {
         </div>
       </div>
 
-      {/* Desktop App Launcher Grid + Announcement Widget Matching OSDesktopView */}
-      <div className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-5 lg:px-6 pt-10 sm:pt-12 pb-28">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-6 p-1">
-            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="flex flex-col items-center gap-2 p-2">
-                <Skeleton rounded="2xl" className="h-12 w-12 sm:h-14 sm:w-14" />
-                <Skeleton tone="subtle" className="h-3 w-14 sm:w-16" />
-              </div>
-            ))}
-          </div>
-
-          <div className="hidden lg:block rounded-2xl border border-border/70 dark:border-zinc-800 bg-card/80 dark:bg-zinc-900/50 p-5 space-y-3">
-            <div className="flex items-center gap-2.5">
-              <Skeleton rounded="lg" tone="accent" className="h-8 w-8" />
-              <Skeleton className="h-4 w-36" />
+      {/* Desktop App Launcher Grid Matching OSDesktopView */}
+      <div className="flex-1 w-full max-w-5xl mx-auto px-3 sm:px-5 lg:px-6 pt-10 sm:pt-12 pb-28">
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-6 p-1">
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="flex flex-col items-center gap-2 p-2">
+              <Skeleton rounded="2xl" className="h-12 w-12 sm:h-14 sm:w-14" />
+              <Skeleton tone="subtle" className="h-3 w-14 sm:w-16" />
             </div>
-            <SkeletonText lines={3} lineHeight="sm" />
-          </div>
+          ))}
         </div>
       </div>
 
@@ -727,11 +832,9 @@ export function RequestCodeViewSkeleton({ embedded = false }: { embedded?: boole
 
 export function ExamHistorySkeleton() {
   return (
-    <div className="min-h-[calc(100vh-80px)] max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6 pb-24 animate-in fade-in duration-200">
+    <div className="min-h-[calc(100vh-80px)] max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-5 pb-24 animate-in fade-in duration-200">
       {/* Top Bar Header */}
-      <div className="space-y-2.5">
-        <SkeletonNavBar />
-
+      <div className="space-y-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1.5">
             <Skeleton tone="subtle" className="h-3 w-32" />
@@ -785,39 +888,17 @@ export function ExamHistorySkeleton() {
         ))}
       </div>
 
-      {/* 5-Column Dossier Grid Skeleton */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3">
-        {Array.from({ length: 10 }).map((_, i) => (
+      {/* PC File Explorer Icon Grid Skeleton */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-x-2 gap-y-4 sm:gap-x-3 sm:gap-y-5 p-1 sm:p-2">
+        {Array.from({ length: 14 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-xl border border-border dark:border-zinc-800 bg-card dark:bg-zinc-900/50 p-3 sm:p-3.5 flex flex-col justify-between space-y-3 min-h-[178px]"
+            className="flex flex-col items-center text-center p-2 sm:p-2.5 space-y-1.5"
           >
-            <div className="space-y-2.5">
-              {/* Top Row: File Icon & Score Pill */}
-              <div className="flex items-start justify-between gap-2">
-                <Skeleton rounded="lg" className="h-8 w-8 shrink-0" />
-                <SkeletonBadge width="w-11" height="h-5" />
-              </div>
-
-              {/* Title & Tag */}
-              <div className="space-y-1.5">
-                <Skeleton className="h-3.5 w-4/5" />
-                <Skeleton tone="subtle" className="h-2.5 w-1/2" />
-              </div>
-            </div>
-
-            {/* Bottom Progress Meter + Timestamp/Score + Footer Timer Bar */}
-            <div className="space-y-2 pt-2">
-              <Skeleton rounded="full" className="h-1 w-full" />
-              <div className="pt-1.5 border-t border-border/40 dark:border-zinc-800/70 flex items-center justify-between">
-                <Skeleton tone="subtle" className="h-2.5 w-16" />
-                <Skeleton className="h-2.5 w-8" />
-              </div>
-              <div className="pt-1.5 border-t border-border/60 dark:border-zinc-800/80 flex items-center justify-between">
-                <Skeleton tone="subtle" className="h-2.5 w-12" />
-                <Skeleton rounded="sm" tone="subtle" className="h-3 w-3" />
-              </div>
-            </div>
+            <Skeleton rounded="lg" className="h-12 w-10 sm:h-14 sm:w-11" />
+            <Skeleton className="h-3 w-20" />
+            <Skeleton tone="accent" className="h-2.5 w-14" />
+            <Skeleton tone="subtle" className="h-2 w-12" />
           </div>
         ))}
       </div>

@@ -10,15 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Lock, Loader2, Globe, Moon, Sun, Type, User, Camera, Upload, X, RefreshCw, MoreVertical, Eye, ChevronDown, ChevronUp, Shield, Bell, Smartphone, History, Download, Trash2, CheckCircle, AlertCircle, Info, Mail, Search, Laptop } from "lucide-react";
+import { Loader2, Moon, Sun, User, Upload, X, RefreshCw, MoreVertical, Eye, ChevronDown, Shield, Smartphone, Download, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import { UserDevicesList } from "@/components/user-devices-list";
 import { VerifyIdModal } from "@/components/verify-id-modal";
-import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
-import { isAdmin } from "@/lib/permissions";
 import { compressImageFile } from "@/lib/image-compression";
 
 type TextSize = "sm" | "md" | "lg";
@@ -31,8 +29,7 @@ interface UserSettingsProps {
   showUsernameChange?: boolean;
   showPasswordChange?: boolean;
   /**
-   * "admin" hides student-only or non-functioning settings (course language,
-   * notification toggles, active sessions, delete account).
+   * "admin" hides student-only settings (course language, linked devices, classmates visibility).
    */
   mode?: "admin" | "user";
 }
@@ -51,7 +48,7 @@ export default function UserSettings({
   const [language, setLanguage] = useState<LanguageCode>(
     contextLanguage === "English" ? "en" : contextLanguage === "French" ? "fr" : "rw"
   );
-  const [cardHoverClass, setCardHoverClass] = useState("transition-all duration-200 shadow-none border-border/40");
+  const cardHoverClass = "transition-all duration-200 shadow-none border-border/40";
 
   // Profile state
   const [firstName, setFirstName] = useState(user?.user_metadata?.first_name || "");
@@ -90,17 +87,11 @@ export default function UserSettings({
   const [appearanceLanguageOpen, setAppearanceLanguageOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
 
-  // Additional state for new features
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(false);
-  const [notificationPreferences, setNotificationPreferences] = useState({
-    exams: true,
-    announcements: true,
-    grades: true,
-  });
+  // Classmates visibility state
+  const [isPublicProfile, setIsPublicProfile] = useState<boolean>(true);
+  const [updatingVisibility, setUpdatingVisibility] = useState(false);
 
   // Load user preferences from metadata
   useEffect(() => {
@@ -123,11 +114,6 @@ export default function UserSettings({
 
     if (user?.user_metadata) {
       const metadata = user.user_metadata;
-      
-      // Load notification preferences
-      if (metadata.notification_preferences) {
-        setNotificationPreferences(metadata.notification_preferences);
-      }
 
       // Load theme preference
       if (!localStorage.getItem("navo-theme") && (metadata.theme === "light" || metadata.theme === "dark")) {
@@ -143,7 +129,6 @@ export default function UserSettings({
         setTextSize(metadata.text_size);
         applyTextSize(metadata.text_size);
       }
-      
     }
     const activeLangCode: LanguageCode =
       contextLanguage === "English"
@@ -152,7 +137,26 @@ export default function UserSettings({
         ? "fr"
         : "rw";
     setLanguage(activeLangCode);
-  }, [user, contextLanguage]);
+  }, [user, contextLanguage, setTheme]);
+
+  useEffect(() => {
+    if (isAdminMode || !user?.id) return;
+    let active = true;
+    const supabase = createClient();
+    supabase
+      .from("user_profiles")
+      .select("is_public")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active && typeof data?.is_public === "boolean") {
+          setIsPublicProfile(data.is_public);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [isAdminMode, user?.id]);
 
   const applyTextSize = (size: TextSize) => {
     const root = document.documentElement;
@@ -193,13 +197,7 @@ export default function UserSettings({
     }
   };
 
-  const [showNotificationDialog, setShowNotificationDialog] = useState(false);
-  const [loginHistory, setLoginHistory] = useState<any[]>([]);
-  const [activeSessions, setActiveSessions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const textSizes = [
     { value: "sm", label: t("small") },
@@ -253,7 +251,6 @@ export default function UserSettings({
       securityOpen: setSecurityOpen,
       changePasswordOpen: setChangePasswordOpen,
       appearanceLanguageOpen: setAppearanceLanguageOpen,
-      notificationsOpen: setNotificationsOpen,
     };
 
     // Close all cards first
@@ -396,10 +393,12 @@ export default function UserSettings({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setShowViewDialog(true)}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  {t("userSettings.viewProfile")}
-                </DropdownMenuItem>
+                {displayAvatarUrl && (
+                  <DropdownMenuItem onClick={() => setShowViewDialog(true)}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    {t("userSettings.viewProfile")}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => setShowUploadDialog(true)}>
                   <Upload className="mr-2 h-4 w-4" />
                   {t("userSettings.changePhoto")}
@@ -430,16 +429,119 @@ export default function UserSettings({
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder={t("userSettings.searchPlaceholder")}
-          className="pl-10"
+          className="pl-10 pr-9"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery("")}
+            aria-label={t("clear") || "Clear search"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Settings Grid */}
+      {(() => {
+        const q = searchQuery.trim().toLowerCase();
+        const matches = (...terms: Array<string | undefined>) =>
+          !q || terms.some((term) => term && term.toLowerCase().includes(q));
+
+        const showProfileCard = matches(
+          t("userSettings.account"),
+          t("userSettings.profileSettings"),
+          t("userSettings.manageProfileInformation"),
+          t("nationalId"),
+          t("userSettings.editProfile"),
+          t("profilePicture"),
+          "profile",
+          "avatar",
+          "name",
+          "national id",
+          "username"
+        );
+        const showPrivacyCard = matches(
+          t("userSettings.account"),
+          t("userSettings.privacyData"),
+          t("userSettings.privacyDataDescription"),
+          t("classmatesVisibility"),
+          t("userSettings.downloadData"),
+          "privacy",
+          "data",
+          "export",
+          "download",
+          "visibility",
+          "classmates"
+        );
+        const showSecurityCard =
+          !isAdminMode &&
+          matches(
+            t("security"),
+            t("userSettings.securitySettings"),
+            t("userSettings.loginHistorySessions"),
+            t("linkedDevices"),
+            t("manageLinkedDevices"),
+            "security",
+            "devices",
+            "sessions"
+          );
+        const showPasswordCard =
+          showPasswordChange &&
+          matches(
+            t("security"),
+            t("changePassword"),
+            t("userSettings.updateYourPassword"),
+            "password",
+            "security",
+            "credentials"
+          );
+        const showAppearanceCard = matches(
+          t("preferences"),
+          t("userSettings.appearanceLanguage"),
+          t("userSettings.appearanceLanguageDescription"),
+          t("theme"),
+          t("textSize"),
+          t("language"),
+          "theme",
+          "dark",
+          "light",
+          "text size",
+          "font",
+          "language",
+          "preferences"
+        );
+
+        const hasAccountMatches = showProfileCard || showPrivacyCard;
+        const hasSecurityMatches = showSecurityCard || showPasswordCard;
+        const hasPreferencesMatches = showAppearanceCard;
+        const hasAnyMatches = hasAccountMatches || hasSecurityMatches || hasPreferencesMatches;
+
+        if (!hasAnyMatches) {
+          return (
+            <div className="rounded-xl border border-dashed border-border p-8 text-center space-y-3">
+              <Search className="h-8 w-8 text-muted-foreground/50 mx-auto" />
+              <div className="space-y-1">
+                <p className="text-sm font-semibold">{t("noResults") || "No matching settings found"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("tryDifferentSearch") || "Try another keyword or clear your search filter."}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setSearchQuery("")}>
+                {t("clearSearch") || "Clear Search"}
+              </Button>
+            </div>
+          );
+        }
+
+        return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
         {/* Account Section */}
+        {hasAccountMatches && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2 text-blue-600">
             <User className="h-5 w-5" />
@@ -447,6 +549,7 @@ export default function UserSettings({
           </h3>
           
           {/* Profile Settings */}
+          {showProfileCard && (
           <Card 
             className={`${cardHoverClass} hover:border-blue-500/50 cursor-pointer transition-all duration-300 ease-in-out`}
             onClick={() => handleCardToggle('profileSettingsOpen')}
@@ -518,8 +621,10 @@ export default function UserSettings({
             </CardContent>
             )}
           </Card>
+          )}
 
           {/* Privacy & Data */}
+          {showPrivacyCard && (
           <Card 
             className={`${cardHoverClass} hover:border-blue-500/50 cursor-pointer transition-all duration-300 ease-in-out`}
             onClick={() => handleCardToggle('privacyOpen')}
@@ -543,25 +648,20 @@ export default function UserSettings({
             </CardHeader>
             {privacyOpen && (
             <CardContent className="pt-0 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden transition-all duration-300 ease-in-out max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
+              {!isAdminMode && (
+              <div className="flex items-center justify-between gap-2">
                 <div>
                   <span className="text-sm font-medium">{t("classmatesVisibility")}</span>
                   <p className="text-xs text-muted-foreground mt-0.5">{t("classmatesVisibilityDesc")}</p>
                 </div>
                 <Button
-                  variant="outline"
+                  variant={isPublicProfile ? "default" : "outline"}
                   size="sm"
+                  disabled={updatingVisibility}
                   onClick={async () => {
+                    setUpdatingVisibility(true);
                     try {
-                      const supabase = createClient();
-                      const { data: { user: currentUser } } = await supabase.auth.getUser();
-                      if (!currentUser) return;
-                      const { data: profile } = await supabase
-                        .from("user_profiles")
-                        .select("is_public")
-                        .eq("id", currentUser.id)
-                        .maybeSingle();
-                      const newValue = !(profile?.is_public ?? true);
+                      const newValue = !isPublicProfile;
                       const res = await fetch("/api/classmate-requests/visibility", {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },
@@ -571,15 +671,25 @@ export default function UserSettings({
                         const data = await res.json();
                         throw new Error(data.error || "Failed");
                       }
+                      setIsPublicProfile(newValue);
                       toast.success(t("visibilityUpdated"));
                     } catch (error: any) {
                       toast.error(`${t("failedToUpdateVisibility")}: ${error.message}`);
+                    } finally {
+                      setUpdatingVisibility(false);
                     }
                   }}
                 >
-                  {t("toggle")}
+                  {updatingVisibility ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : isPublicProfile ? (
+                    t("on") || "Public"
+                  ) : (
+                    t("off") || "Hidden"
+                  )}
                 </Button>
               </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-sm">{t("userSettings.downloadData")}</span>
                 <Button 
@@ -623,21 +733,6 @@ export default function UserSettings({
                   {t("download")}
                 </Button>
               </div>
-              {!isAdminMode && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-red-600">{t("userSettings.deleteAccount")}</span>
-                <Button 
-                  variant="destructive" 
-                  size="sm"
-                  onClick={() => {
-                    setShowDeleteDialog(true);
-                  }}
-                >
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  {t("delete")}
-                </Button>
-              </div>
-              )}
               <div className="p-3 bg-secondary/50 rounded-lg">
                 <p className="text-xs text-muted-foreground">
                   {t("userSettings.dataRetention")}
@@ -646,17 +741,20 @@ export default function UserSettings({
             </CardContent>
             )}
           </Card>
+          )}
         </div>
+        )}
 
         {/* Security Section */}
+        {hasSecurityMatches && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2 text-red-600">
             <Shield className="h-5 w-5" />
-            Security
+            {t("security") || "Security"}
           </h3>
           
           {/* Security Settings */}
-          {!isAdminMode && (
+          {showSecurityCard && (
           <Card 
             className={`${cardHoverClass} hover:border-red-500/50 cursor-pointer transition-all duration-300 ease-in-out`}
             onClick={() => handleCardToggle('securityOpen')}
@@ -704,7 +802,7 @@ export default function UserSettings({
           )}
 
           {/* Change Password */}
-          {showPasswordChange && (
+          {showPasswordCard && (
           <Card 
             className={`${cardHoverClass} hover:border-red-500/50 cursor-pointer transition-all duration-300 ease-in-out`}
             onClick={() => handleCardToggle('changePasswordOpen')}
@@ -762,15 +860,18 @@ export default function UserSettings({
           </Card>
           )}
         </div>
+        )}
 
         {/* Preferences Section */}
+        {hasPreferencesMatches && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2 text-purple-600">
             <Moon className="h-5 w-5" />
-            Preferences
+            {t("preferences") || "Preferences"}
           </h3>
           
           {/* Appearance & Language */}
+          {showAppearanceCard && (
           <Card 
             className={`${cardHoverClass} hover:border-purple-500/50 cursor-pointer transition-all duration-300 ease-in-out`}
             onClick={() => handleCardToggle('appearanceLanguageOpen')}
@@ -851,67 +952,13 @@ export default function UserSettings({
             </CardContent>
             )}
           </Card>
-
-          {/* Notifications */}
-          {!isAdminMode && (
-          <Card 
-            className={`${cardHoverClass} hover:border-purple-500/50 cursor-pointer transition-all duration-300 ease-in-out`}
-            onClick={() => handleCardToggle('notificationsOpen')}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{t("notifications")}</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCardToggle('notificationsOpen');
-                  }}
-                >
-                  <ChevronDown className={`h-4 w-4 transition-transform ${notificationsOpen ? 'rotate-180' : ''}`} />
-                </Button>
-              </div>
-              <CardDescription className="text-xs">{t("userSettings.notificationsDescription")}</CardDescription>
-            </CardHeader>
-            {notificationsOpen && (
-            <CardContent className="pt-0 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300 overflow-hidden transition-all duration-300 ease-in-out max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">{t("userSettings.emailAlerts")}</span>
-                <Button
-                  variant={emailNotifications ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setEmailNotifications(!emailNotifications)}
-                >
-                  {emailNotifications ? t("on") : t("off")}
-                </Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">{t("userSettings.browserAlerts")}</span>
-                <Button
-                  variant={pushNotifications ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPushNotifications(!pushNotifications)}
-                >
-                  {pushNotifications ? t("on") : t("off")}
-                </Button>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full"
-                onClick={() => setShowNotificationDialog(true)}
-              >
-                {t("userSettings.chooseNotifications")}
-              </Button>
-            </CardContent>
-            )}
-          </Card>
           )}
         </div>
+        )}
 
       </div>
+        );
+      })()}
 
       {/* Dialogs */}
       {/* Remove Profile Picture Confirmation Dialog */}
@@ -1008,11 +1055,13 @@ export default function UserSettings({
             <DialogTitle>{t("profilePicture")}</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center">
-            <img
-              src={avatarUrl}
-              alt={t("userSettings.profile")}
-              className="max-w-full max-h-96 rounded-lg"
-            />
+            {displayAvatarUrl && (
+              <img
+                src={displayAvatarUrl}
+                alt={t("userSettings.profile")}
+                className="max-w-full max-h-96 rounded-lg"
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -1186,153 +1235,6 @@ export default function UserSettings({
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Notification Preferences Dialog */}
-      <Dialog open={showNotificationDialog} onOpenChange={setShowNotificationDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("userSettings.chooseNotifications")}</DialogTitle>
-            <DialogDescription>
-              {t("userSettings.notificationPreferencesDescription")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-            </div>
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="exams"
-                  checked={notificationPreferences.exams}
-                  onChange={(e) => setNotificationPreferences({...notificationPreferences, exams: e.target.checked})}
-                  className="rounded"
-                />
-                <label htmlFor="exams" className="text-sm cursor-pointer">{t("userSettings.examResultsReminders")}</label>
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="announcements"
-                  checked={notificationPreferences.announcements}
-                  onChange={(e) => setNotificationPreferences({...notificationPreferences, announcements: e.target.checked})}
-                  className="rounded"
-                />
-                <label htmlFor="announcements" className="text-sm cursor-pointer">{t("userSettings.systemMessages")}</label>
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="grades"
-                  checked={notificationPreferences.grades}
-                  onChange={(e) => setNotificationPreferences({...notificationPreferences, grades: e.target.checked})}
-                  className="rounded"
-                />
-                <label htmlFor="grades" className="text-sm cursor-pointer">{t("userSettings.gradeUpdates")}</label>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowNotificationDialog(false)}>
-                {t("cancel")}
-              </Button>
-              <Button onClick={async () => {
-                try {
-                  const supabase = createClient();
-                  const { error } = await supabase.auth.updateUser({
-                    data: { notification_preferences: notificationPreferences }
-                  });
-
-                  if (error) throw error;
-
-                  toast.success(t("userSettings.alertChoicesSaved"));
-                  setShowNotificationDialog(false);
-
-                  if (onUserUpdate) {
-                    const { data: { user: updatedUser } } = await supabase.auth.getUser();
-                    if (updatedUser) onUserUpdate(updatedUser);
-                  }
-                } catch (error: any) {
-                  toast.error(`${t("userSettings.failedToSave")}: ${error.message}`);
-                }
-              }}>
-                Save Choices
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Account Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("userSettings.deleteAccount")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="deleteConfirm">{t("userSettings.typeDeleteToConfirm")}</Label>
-              <Input
-                id="deleteConfirm"
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder="DELETE"
-              />
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={async () => {
-                  if (deleteConfirmText !== "DELETE") {
-                    toast.error(t("userSettings.typeDeleteToConfirm"));
-                    return;
-                  }
-
-                  setDeletingAccount(true);
-                  try {
-                    const supabase = createClient();
-                    const { error } = await supabase.auth.admin.deleteUser(
-                      user?.id
-                    );
-
-                    if (error) throw error;
-
-                    toast.success(t("userSettings.accountDeleted"));
-                    if (isAdmin(user) || isAdminMode) {
-                      resetLandingLanguageForAdminLogout();
-                    }
-                    await supabase.auth.signOut();
-                    window.location.href = "/";
-                  } catch (error: any) {
-                    toast.error("Failed to delete account: " + error.message);
-                  } finally {
-                    setDeletingAccount(false);
-                    setShowDeleteDialog(false);
-                    setDeleteConfirmText("");
-                  }
-                }}
-                disabled={deletingAccount || deleteConfirmText !== "DELETE"}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {deletingAccount ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  t("userSettings.deleteAccount")
-                )}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* ID Verification Modal */}
       <VerifyIdModal

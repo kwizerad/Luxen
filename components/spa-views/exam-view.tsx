@@ -1249,6 +1249,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         initialCategoryId={categoryId}
         onBack={handleGroupBack}
         onStartExam={handleGroupCreateStart}
+        onFindFriends={() => navigate("classmates", { tab: "classmates" })}
       />
     );
   }

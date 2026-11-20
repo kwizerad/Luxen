@@ -34,6 +34,10 @@ import {
   X,
   ArrowUpDown,
   Tag,
+  File,
+  FileText,
+  Folder,
+  AlertTriangle,
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
@@ -60,6 +64,94 @@ type OutcomeFilter = "all" | "passed" | "failed" | "void" | "cheating";
 type DateFilter = "all" | "today" | "week" | "month" | "older";
 type SortOption = "date_desc" | "date_asc" | "score_desc" | "score_asc" | "duration_desc" | "duration_asc";
 type GroupByOption = "none" | "date" | "category" | "outcome" | "type";
+
+function PCFileIcon({
+  isCheating,
+  isAbandoned,
+  isGroup,
+  isModule,
+  isPassed,
+  size = "lg",
+}: {
+  isCheating: boolean;
+  isAbandoned: boolean;
+  isGroup: boolean;
+  isModule: boolean;
+  isPassed: boolean;
+  size?: "lg" | "sm";
+}) {
+  const isLarge = size === "lg";
+  const docClass = isLarge
+    ? "w-12 h-12 sm:w-14 sm:h-14 fill-white text-slate-300 dark:fill-zinc-100 dark:text-zinc-400 stroke-[1.35] drop-shadow-[0_2px_4px_rgba(15,23,42,0.14)] dark:drop-shadow-[0_3px_6px_rgba(0,0,0,0.5)] transition-transform duration-150 group-hover:scale-105"
+    : "w-7 h-7 fill-white text-slate-300 dark:fill-zinc-100 dark:text-zinc-400 stroke-[1.5] drop-shadow-[0_1px_2px_rgba(15,23,42,0.12)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.45)]";
+  const badgePos = isLarge ? "-bottom-0.5 -right-0.5" : "-bottom-0.5 -right-0.5";
+  const badgeSize = isLarge ? "w-5 h-5 sm:w-5.5 sm:h-5.5" : "w-3.5 h-3.5";
+
+  return (
+    <div
+      className={cn(
+        "relative inline-flex items-center justify-center shrink-0 select-none bg-transparent",
+        isLarge ? "w-14 h-14 sm:w-16 sm:h-16" : "w-8 h-8"
+      )}
+    >
+      {isCheating || isAbandoned ? (
+        <File className={docClass} />
+      ) : (
+        <FileText className={docClass} />
+      )}
+
+      {isCheating ? (
+        <ShieldAlert
+          className={cn(
+            "absolute drop-shadow-xs text-orange-500 fill-orange-500/20",
+            badgePos,
+            badgeSize
+          )}
+        />
+      ) : isAbandoned ? (
+        <AlertTriangle
+          className={cn(
+            "absolute drop-shadow-xs text-amber-500 fill-amber-500/20",
+            badgePos,
+            badgeSize
+          )}
+        />
+      ) : isGroup ? (
+        <Users
+          className={cn(
+            "absolute drop-shadow-xs text-indigo-600 dark:text-indigo-500",
+            badgePos,
+            badgeSize
+          )}
+        />
+      ) : isModule ? (
+        <BookOpen
+          className={cn(
+            "absolute drop-shadow-xs text-sky-600 dark:text-sky-500",
+            badgePos,
+            badgeSize
+          )}
+        />
+      ) : isPassed ? (
+        <CheckCircle2
+          className={cn(
+            "absolute drop-shadow-xs fill-emerald-500 text-white",
+            badgePos,
+            badgeSize
+          )}
+        />
+      ) : (
+        <XCircle
+          className={cn(
+            "absolute drop-shadow-xs fill-rose-500 text-white",
+            badgePos,
+            badgeSize
+          )}
+        />
+      )}
+    </div>
+  );
+}
 
 export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   const { t, language } = useLanguage();
@@ -768,19 +860,6 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
     <div className="min-h-[calc(100vh-80px)] max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-5 pb-24 animate-in fade-in duration-200">
       {/* Top Bar Header */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => navigate("back", { fallback: "home" })}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.2 rounded-lg text-xs font-medium text-foreground hover:text-foreground/80 bg-card hover:bg-muted/80 dark:bg-card dark:bg-zinc-900/60 dark:hover:bg-muted dark:bg-zinc-800/80 border border-border dark:border-border dark:border-zinc-800 transition-colors shadow-xs"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>{t("back") || t("backToHome") || "Back"}</span>
-          </button>
-          <span className="text-[11px] font-mono tracking-wider text-muted-foreground dark:text-zinc-400 lowercase hidden sm:inline-block">
-            {isRw ? "isesengura · ububiko bw'ibizamini" : isFr ? "archives · relevés d'examens" : "telemetry · exam archive"}
-          </span>
-        </div>
-
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="text-[11px] font-mono tracking-wider text-muted-foreground dark:text-zinc-400 lowercase flex items-center gap-1.5">
@@ -1390,17 +1469,17 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
               return (
                 <div key={group.id} className="space-y-2.5">
-                  {/* Sleek, Compact Group Header (only when groupBy is enabled) */}
+                  {/* Sleek, Compact Folder-Style Group Header (only when groupBy is enabled) */}
                   {groupBy !== "none" && (
                     <div
                       onClick={() => toggleGroupCollapse(group.id)}
-                      className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-card dark:bg-zinc-900/70 border border-border dark:border-zinc-800/80 cursor-pointer hover:border-border dark:hover:border-zinc-700 hover:bg-muted/40 dark:hover:bg-zinc-800/50 transition-colors select-none"
+                      className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/40 dark:bg-white/[0.04] hover:bg-muted/70 dark:hover:bg-white/[0.08] cursor-pointer transition-colors select-none"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <GroupIcon className="h-3.5 w-3.5 text-primary shrink-0" />
-                        <span className="text-xs font-bold text-foreground dark:text-zinc-200 truncate">{group.label}</span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 text-muted-foreground dark:text-zinc-400 border border-border dark:border-zinc-700/60 shrink-0">
-                          {group.items.length}{" "}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Folder className="h-4 w-4 fill-amber-400 text-amber-500 shrink-0" />
+                        <span className="text-xs font-bold text-foreground dark:text-zinc-100 truncate">{group.label}</span>
+                        <span className="text-[11px] font-mono text-muted-foreground dark:text-zinc-400 tabular-nums shrink-0">
+                          ({group.items.length}{" "}
                           {isRw
                             ? group.items.length === 1
                               ? "dosiye"
@@ -1412,12 +1491,13 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                             : group.items.length === 1
                             ? "file"
                             : "files"}
+                          )
                         </span>
                       </div>
 
                       <div className="flex items-center gap-3 shrink-0">
                         {group.avgScore > 0 && (
-                          <span className="text-[10px] font-mono text-primary font-bold hidden sm:inline-block">
+                          <span className="text-[11px] font-mono text-primary font-bold tabular-nums hidden sm:inline-block">
                             {isRw ? "impuz." : isFr ? "moy." : "avg"} {group.avgScore}%
                           </span>
                         )}
@@ -1430,11 +1510,11 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                     </div>
                   )}
 
-                  {/* Group Items (Grid / List) */}
+                  {/* Group Items (PC File Explorer Grid / List) */}
                   {!isCollapsed && (
                     <>
                       {viewMode === "grid" ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-x-2 gap-y-4 sm:gap-x-3 sm:gap-y-5 p-1 sm:p-2">
                           {group.items.map((attempt) => {
                             const isPassed = (attempt.score_percentage || 0) >= 50;
                             const answeredCount = (attempt.answers || []).filter(
@@ -1447,163 +1527,145 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                             const scorePct = isAbandoned
                               ? 0
                               : Math.max(0, Math.min(100, attempt.score_percentage || 0));
+                            const rawDate = attempt.completed_at || attempt.started_at || attempt.created_at;
+                            const shortDate = (() => {
+                              if (!rawDate) return "";
+                              const d = new Date(rawDate);
+                              if (isNaN(d.getTime())) return "";
+                              return d.toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                                year: "2-digit",
+                              });
+                            })();
 
-                              const getZeroAnswerCause = () => {
-                                if (isCheating) {
-                                  const sum = (attempt.violation_summary || "").toLowerCase();
-                                  if (sum.includes("tab"))
-                                    return isRw ? "Cyoherejwe: Guhindura paji" : isFr ? "Soumis : Changement d'onglet" : "Submitted by violation: Tab switch";
-                                  if (sum.includes("fullscreen"))
-                                    return isRw ? "Cyoherejwe: Kuvamo ecran yose" : isFr ? "Soumis : Sortie du plein écran" : "Submitted by violation: Fullscreen exited";
-                                  if (sum.includes("dev_tools") || sum.includes("inspect"))
-                                    return isRw ? "Cyoherejwe: Ibikoresho by'ikoranabuhanga" : isFr ? "Soumis : Outils développeur" : "Submitted by violation: DevTools detected";
-                                  if (sum.includes("copy") || sum.includes("paste"))
-                                    return isRw ? "Cyoherejwe: Gukoporora" : isFr ? "Soumis : Copier/Coller" : "Submitted by violation: Copy/Paste";
-                                  return isRw ? "Cyoherejwe kubera ikosa ry'umutekano" : isFr ? "Soumis pour violation de sécurité" : "Submitted by exam security violation";
-                                }
-                                if (attempt.submission_reason === "page_closed")
-                                  return isRw ? "0 byasubijwe: Idirishya ryafunzwe" : isFr ? "0 réponse : Fenêtre fermée" : "0 answered: Exam window/tab closed";
-                                if (attempt.submission_reason === "time_expired")
-                                  return isRw ? "0 byasubijwe: Igihe cyarangiye" : isFr ? "0 réponse : Temps écoulé" : "0 answered: Exam timer expired";
-                                return isRw ? "0 byasubijwe: Cyahagaritswe hakiri kare" : isFr ? "0 réponse : Quitté prématurément" : "0 answered: Incomplete / exited early";
-                              };
+                            const getZeroAnswerCause = () => {
+                              if (isCheating) {
+                                const sum = (attempt.violation_summary || "").toLowerCase();
+                                if (sum.includes("tab"))
+                                  return isRw ? "Cyoherejwe: Guhindura paji" : isFr ? "Soumis : Changement d'onglet" : "Submitted by violation: Tab switch";
+                                if (sum.includes("fullscreen"))
+                                  return isRw ? "Cyoherejwe: Kuvamo ecran yose" : isFr ? "Soumis : Sortie du plein écran" : "Submitted by violation: Fullscreen exited";
+                                if (sum.includes("dev_tools") || sum.includes("inspect"))
+                                  return isRw ? "Cyoherejwe: Ibikoresho by'ikoranabuhanga" : isFr ? "Soumis : Outils développeur" : "Submitted by violation: DevTools detected";
+                                if (sum.includes("copy") || sum.includes("paste"))
+                                  return isRw ? "Cyoherejwe: Gukoporora" : isFr ? "Soumis : Copier/Coller" : "Submitted by violation: Copy/Paste";
+                                return isRw ? "Cyoherejwe kubera ikosa ry'umutekano" : isFr ? "Soumis pour violation de sécurité" : "Submitted by exam security violation";
+                              }
+                              if (attempt.submission_reason === "page_closed")
+                                return isRw ? "0 byasubijwe: Idirishya ryafunzwe" : isFr ? "0 réponse : Fenêtre fermée" : "0 answered: Exam window/tab closed";
+                              if (attempt.submission_reason === "time_expired")
+                                return isRw ? "0 byasubijwe: Igihe cyarangiye" : isFr ? "0 réponse : Temps écoulé" : "0 answered: Exam timer expired";
+                              return isRw ? "0 byasubijwe: Cyahagaritswe hakiri kare" : isFr ? "0 réponse : Quitté prématurément" : "0 answered: Incomplete / exited early";
+                            };
 
-                              return (
-                                <div
-                                  key={attempt.id}
-                                  onClick={() => handleReview(attempt)}
+                            const fileName =
+                              attempt.category_name ||
+                              (isRw ? "Ikizamini cy'Amategeko" : isFr ? "Examen de conduite" : "Official Driving Exam");
+                            const fractionLabel = isAbandoned
+                              ? `${answeredCount}/${attempt.total_questions || 20}`
+                              : `${attempt.correct_answers ?? 0}/${attempt.total_questions || 20}`;
+                            const modeLabel = isGroup
+                              ? isRw
+                                ? "itsinda"
+                                : isFr
+                                ? "groupe"
+                                : "group"
+                              : isModule
+                              ? isRw
+                                ? "modire"
+                                : "module"
+                              : isRw
+                              ? "wenyine"
+                              : isFr
+                              ? "solo"
+                              : "solo";
+
+                            return (
+                              <button
+                                key={attempt.id}
+                                type="button"
+                                onClick={() => handleReview(attempt)}
+                                className="group relative flex flex-col items-center text-center rounded-xl p-2 sm:p-2.5 bg-transparent border border-transparent hover:bg-slate-200/70 dark:hover:bg-white/[0.08] hover:border-slate-300/70 dark:hover:border-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary transition-colors cursor-pointer"
+                              >
+                                <PCFileIcon
+                                  isCheating={isCheating}
+                                  isAbandoned={isAbandoned}
+                                  isGroup={isGroup}
+                                  isModule={isModule}
+                                  isPassed={isPassed}
+                                  size="lg"
+                                />
+
+                                <span className="mt-1.5 text-xs font-medium text-foreground dark:text-zinc-100 leading-snug line-clamp-2 break-words w-full">
+                                  {fileName}
+                                </span>
+
+                                <span
                                   className={cn(
-                                    "group relative flex flex-col justify-between rounded-xl border bg-white dark:bg-[#111116] border-zinc-200 dark:border-zinc-800 shadow-xs hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 p-3.5 sm:p-4 text-left transition-all duration-150 cursor-pointer overflow-hidden",
-                                    answeredCount === 0 && isCheating
-                                      ? "border-orange-500/50 hover:border-orange-500/80"
-                                      : answeredCount === 0
-                                      ? "border-amber-500/40 hover:border-amber-500/70"
-                                      : "border-zinc-200 dark:border-zinc-800/90 hover:border-primary/50"
+                                    "mt-0.5 text-[11px] font-mono tabular-nums font-semibold leading-tight",
+                                    isCheating && answeredCount === 0
+                                      ? "text-orange-600 dark:text-orange-400"
+                                      : isAbandoned
+                                      ? "text-amber-600 dark:text-amber-400"
+                                      : isPassed
+                                      ? "text-emerald-600 dark:text-emerald-400"
+                                      : "text-rose-600 dark:text-rose-400"
                                   )}
                                 >
-                                  {/* Header: File Icon + Score Badge */}
-                                  <div className="flex items-start justify-between gap-1.5 mb-2">
-                                    <div
-                                      className={cn(
-                                        "flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg border transition-colors",
-                                        isCheating
-                                          ? "bg-orange-500/15 border-orange-500/30 text-orange-500 group-hover:bg-orange-500 group-hover:text-white"
-                                          : isAbandoned
-                                          ? "bg-amber-500/15 border-amber-500/30 text-amber-500 group-hover:bg-amber-500 group-hover:text-white"
-                                          : "bg-muted dark:bg-zinc-800/80 border-zinc-700/60 text-primary group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary"
-                                      )}
-                                    >
-                                      {isCheating ? (
-                                        <ShieldAlert className="h-3.5 w-3.5" />
-                                      ) : isAbandoned ? (
-                                        <FileWarning className="h-3.5 w-3.5" />
-                                      ) : isGroup ? (
-                                        <Users className="h-3.5 w-3.5" />
-                                      ) : isModule ? (
-                                        <BookOpen className="h-3.5 w-3.5" />
-                                      ) : (
-                                        <FolderCheck className="h-3.5 w-3.5" />
-                                      )}
-                                    </div>
+                                  {isCheating && answeredCount === 0
+                                    ? isRw
+                                      ? "IKOSA"
+                                      : isFr
+                                      ? "INFRACTION"
+                                      : "VIOLATION"
+                                    : isAbandoned
+                                    ? fractionLabel
+                                    : `${scorePct}% · ${fractionLabel}`}
+                                </span>
 
-                                    <div className="shrink-0 text-right">
-                                      <span
-                                        className={cn(
-                                          "font-mono font-bold text-[11px] px-1.5 py-0.5 rounded border leading-none inline-block",
-                                          isCheating && answeredCount === 0
-                                            ? "bg-orange-500/15 border-orange-500/30 text-orange-600 dark:text-orange-400"
-                                            : isAbandoned
-                                            ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
-                                            : isPassed
-                                            ? "bg-primary/10 border-primary/20 text-primary font-extrabold"
-                                            : "bg-muted dark:bg-zinc-800/90 border-zinc-700/80 text-foreground/80 dark:text-zinc-300"
-                                        )}
-                                      >
-                                        {isCheating && answeredCount === 0
-                                          ? (isRw ? "IKOSA" : isFr ? "INFRACTION" : "VIOLATION")
-                                          : isAbandoned
-                                          ? (isRw ? "0 BYASUBIJWE" : isFr ? "0 RÉPONSE" : "0 ANSWERED")
-                                          : `${attempt.score_percentage}%`}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  {/* Body: Title & Meta Info */}
-                                  <div className="space-y-1.5 flex-1 flex flex-col justify-between">
-                                    <div>
-                                      <h3 className="text-xs font-bold text-foreground dark:text-zinc-200 group-hover:text-foreground dark:text-zinc-100 transition-colors line-clamp-2 leading-snug">
-                                        {attempt.category_name || (isRw ? "Ikizamini cy'Amategeko" : isFr ? "Examen de conduite" : "Official Driving Exam")}
-                                      </h3>
-                                      <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-muted-foreground dark:text-zinc-400">
-                                        <span>{isGroup ? (isRw ? "itsinda" : isFr ? "groupe" : "group") : isModule ? (isRw ? "modire" : "module") : (isRw ? "wenyine" : isFr ? "solo" : "solo")}</span>
-                                        <span>•</span>
-                                        <span>
-                                          {isCheating
-                                            ? (isRw ? "umutekano" : isFr ? "sécurité" : "violation")
-                                            : isAbandoned
-                                            ? (isRw ? "nticyarangiye" : isFr ? "incomplet" : "incomplete")
-                                            : isPassed
-                                            ? (isRw ? "watsinze" : isFr ? "réussi" : "passed")
-                                            : (isRw ? "watsinzwe" : isFr ? "échoué" : "failed")}
-                                        </span>
-                                      </div>
-                                      {answeredCount === 0 && (
-                                        <p
-                                          className={cn(
-                                            "mt-1.5 text-[10px] leading-tight font-medium line-clamp-2 rounded px-1.5 py-1 border",
-                                            isCheating
-                                              ? "bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-300"
-                                              : "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-300"
-                                          )}
-                                        >
-                                          {getZeroAnswerCause()}
-                                        </p>
-                                      )}
-                                    </div>
-
-                                  {/* Sleek Minimal Progress Meter */}
-                                  <div className="space-y-1 pt-1">
-                                    <div className="h-1 w-full rounded-full bg-muted dark:bg-zinc-800 overflow-hidden">
-                                      <div
-                                        className={cn(
-                                          "h-full rounded-full transition-all duration-300",
-                                          isPassed ? "bg-primary" : "bg-muted-foreground/40 dark:bg-zinc-500"
-                                        )}
-                                        style={{ width: `${scorePct}%` }}
-                                      />
-                                    </div>
-                                    <div className="pt-1.5 mt-1 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between gap-1 text-[10px] font-mono text-zinc-600 dark:text-zinc-400">
-                                      <div className="flex items-center gap-1 min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-300">
-                                        <Clock className="h-3 w-3 shrink-0 text-primary" />
-                                        <span className="truncate">{formatDate(attempt.completed_at || attempt.started_at || attempt.created_at)}</span>
-                                      </div>
-                                      <span className="shrink-0 font-bold text-zinc-800 dark:text-zinc-200">
-                                        {isAbandoned
-                                          ? `${answeredCount}/${attempt.total_questions || 20}`
-                                          : `${attempt.correct_answers ?? 0}/${attempt.total_questions || 20}`}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Footer Bar */}
-                                <div className="mt-2.5 pt-2 border-t border-border dark:border-zinc-800/80 flex items-center justify-between text-[10px] font-mono text-muted-foreground dark:text-zinc-400 group-hover:text-foreground/80 dark:text-zinc-300 transition-colors">
-                                  <span className="flex items-center gap-1 truncate">
-                                    <Timer className="h-2.5 w-2.5 shrink-0" />
-                                    <span>
-                                      {attempt.duration_seconds != null
-                                        ? formatDuration(attempt.duration_seconds)
-                                        : "15m"}
-                                    </span>
+                                {shortDate && (
+                                  <span className="mt-0.5 text-[10px] text-muted-foreground dark:text-zinc-400 truncate max-w-full leading-tight">
+                                    {shortDate}
                                   </span>
-                                  <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 group-hover:text-primary transition-all shrink-0" />
+                                )}
+
+                                {/* Windows Explorer-style Hover Details Tooltip */}
+                                <div className="hidden sm:group-hover:block pointer-events-none absolute left-1/2 -translate-x-1/2 top-[calc(100%+4px)] z-30 w-56 rounded-lg border border-border/90 dark:border-zinc-700/80 bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-md p-2.5 text-left shadow-xl text-[11px] leading-relaxed text-popover-foreground dark:text-zinc-200">
+                                  <div className="font-semibold text-foreground dark:text-white truncate mb-1">
+                                    {fileName}
+                                  </div>
+                                  <div className="space-y-0.5 text-[10px] font-mono text-muted-foreground dark:text-zinc-400">
+                                    <div>
+                                      {isRw ? "Itariki:" : isFr ? "Date :" : "Date:"}{" "}
+                                      <span className="text-foreground dark:text-zinc-200">{formatDate(rawDate)}</span>
+                                    </div>
+                                    <div>
+                                      {isRw ? "Amanota:" : isFr ? "Score :" : "Score:"}{" "}
+                                      <span className="text-foreground dark:text-zinc-200 tabular-nums">
+                                        {fractionLabel} ({scorePct}%)
+                                      </span>
+                                    </div>
+                                    <div>
+                                      {isRw ? "Ubwoko:" : isFr ? "Type :" : "Type:"}{" "}
+                                      <span className="text-foreground dark:text-zinc-200">
+                                        {modeLabel}
+                                        {attempt.duration_seconds != null ? ` · ${formatDuration(attempt.duration_seconds)}` : ""}
+                                      </span>
+                                    </div>
+                                    {answeredCount === 0 && (
+                                      <div className="text-amber-600 dark:text-amber-400 pt-0.5 leading-snug">
+                                        {getZeroAnswerCause()}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
                       ) : (
-                        <div className="space-y-2">
+                        <div className="divide-y divide-border/50 dark:divide-zinc-800/70">
                           {group.items.map((attempt) => {
                             const isPassed = (attempt.score_percentage || 0) >= 50;
                             const answeredCount = (attempt.answers || []).filter(
@@ -1638,51 +1700,25 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                               <button
                                 key={attempt.id}
                                 onClick={() => handleReview(attempt)}
-                                className={cn(
-                                  "group w-full flex items-center gap-3 rounded-xl border bg-card dark:bg-zinc-900/50 hover:bg-muted/40 dark:hover:bg-zinc-800/60 p-3 text-left transition-colors",
-                                  answeredCount === 0 && isCheating
-                                    ? "border-orange-500/40 hover:border-orange-500/70"
-                                    : answeredCount === 0
-                                    ? "border-amber-500/30 hover:border-amber-500/60"
-                                    : "border-border dark:border-zinc-800 hover:border-primary/40"
-                                )}
+                                className="group w-full flex items-center gap-3 rounded-lg bg-transparent hover:bg-slate-200/60 dark:hover:bg-white/[0.06] px-2.5 py-2.5 text-left transition-colors cursor-pointer"
                               >
-                                <div
-                                  className={cn(
-                                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors",
-                                    isCheating
-                                      ? "bg-orange-500/15 border-orange-500/30 text-orange-500"
-                                      : isAbandoned
-                                      ? "bg-amber-500/15 border-amber-500/30 text-amber-500"
-                                      : "bg-muted dark:bg-zinc-800/80 border-border dark:border-zinc-700 text-primary group-hover:bg-primary/10 group-hover:border-primary/30"
-                                  )}
-                                >
-                                  {isCheating ? (
-                                    <ShieldAlert className="h-4 w-4" />
-                                  ) : isAbandoned ? (
-                                    <FileWarning className="h-4 w-4" />
-                                  ) : isGroup ? (
-                                    <Users className="h-4 w-4" />
-                                  ) : isModule ? (
-                                    <BookOpen className="h-4 w-4" />
-                                  ) : (
-                                    <FolderCheck className="h-4 w-4" />
-                                  )}
-                                </div>
+                                <PCFileIcon
+                                  isCheating={isCheating}
+                                  isAbandoned={isAbandoned}
+                                  isGroup={isGroup}
+                                  isModule={isModule}
+                                  isPassed={isPassed}
+                                  size="sm"
+                                />
 
                                 <div className="min-w-0 flex-1 space-y-0.5">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="text-xs font-bold text-foreground dark:text-zinc-100 truncate">
+                                    <p className="text-xs font-semibold text-foreground dark:text-zinc-100 truncate">
                                       {attempt.category_name}
                                     </p>
-                                    {isGroup && (
-                                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 border border-border dark:border-zinc-700 text-muted-foreground dark:text-zinc-300">
-                                        {isRw ? "itsinda" : isFr ? "groupe" : "group"}
-                                      </span>
-                                    )}
-                                    {isModule && (
-                                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 border border-border dark:border-zinc-700 text-muted-foreground dark:text-zinc-300">
-                                        {isRw ? "modire" : "module"}
+                                    {(isGroup || isModule) && (
+                                      <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400">
+                                        · {isGroup ? (isRw ? "itsinda" : isFr ? "groupe" : "group") : (isRw ? "modire" : "module")}
                                       </span>
                                     )}
                                   </div>
@@ -1700,24 +1736,31 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                     </p>
                                   )}
 
-                                  <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground dark:text-zinc-400 font-mono flex-wrap">
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      <span>{formatDate(attempt.started_at || attempt.completed_at)}</span>
-                                    </span>
+                                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground dark:text-zinc-400 font-mono flex-wrap">
+                                    <span>{formatDate(attempt.started_at || attempt.completed_at)}</span>
                                     {attempt.duration_seconds != null && (
-                                      <span className="px-1.5 py-0.2 rounded bg-muted dark:bg-zinc-800 border border-border/60 dark:border-zinc-700 text-muted-foreground dark:text-zinc-400">
-                                        {formatDuration(attempt.duration_seconds)}
-                                      </span>
+                                      <>
+                                        <span aria-hidden="true">·</span>
+                                        <span>{formatDuration(attempt.duration_seconds)}</span>
+                                      </>
                                     )}
                                   </div>
                                 </div>
 
                                 <div className="text-right shrink-0">
-                                  <p className="text-sm font-mono font-bold text-foreground dark:text-zinc-100">
+                                  <p
+                                    className={cn(
+                                      "text-sm font-mono font-bold tabular-nums",
+                                      isAbandoned
+                                        ? "text-amber-600 dark:text-amber-400"
+                                        : isPassed
+                                        ? "text-emerald-600 dark:text-emerald-400"
+                                        : "text-rose-600 dark:text-rose-400"
+                                    )}
+                                  >
                                     {isAbandoned ? "—" : `${attempt.score_percentage}%`}
                                   </p>
-                                  <p className="text-[11px] font-mono text-muted-foreground dark:text-zinc-400">
+                                  <p className="text-[11px] font-mono tabular-nums text-muted-foreground dark:text-zinc-400">
                                     {isAbandoned
                                       ? `${answeredCount}/${attempt.total_questions}`
                                       : `${attempt.correct_answers ?? 0}/${attempt.total_questions || 20}`}

@@ -35,6 +35,7 @@ interface ClassmateProfile {
 interface GroupExamCreationProps {
   onBack: () => void;
   onStartExam: (categoryId: string, inviteeIds: string[], examLanguage: string) => void;
+  onFindFriends?: () => void;
   initialLanguage?: string;
   initialCategoryId?: string;
 }
@@ -55,6 +56,7 @@ function resolveDefaultExamLang(lang?: string): "Kinyarwanda" | "English" | "Fre
 export function GroupExamCreation({
   onBack,
   onStartExam,
+  onFindFriends,
   initialLanguage,
   initialCategoryId,
 }: GroupExamCreationProps) {
@@ -253,6 +255,17 @@ export function GroupExamCreation({
     [categories, selectedCategory]
   );
 
+  const handleGoFindFriends = useCallback(() => {
+    if (onFindFriends) {
+      onFindFriends();
+      return;
+    }
+    if (typeof window !== "undefined") {
+      window.location.hash = "#classmates?tab=classmates";
+      window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
+    }
+  }, [onFindFriends]);
+
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[320px] gap-4">
@@ -264,6 +277,67 @@ export function GroupExamCreation({
         <p className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           {t("loading") || "Loading..."}
         </p>
+      </div>
+    );
+  }
+
+  if (allUsers.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto px-3.5 sm:px-6 pt-4 sm:pt-6 pb-8">
+        <div className="border-b border-border/50 pb-4">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mb-1 cursor-pointer"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>{t("back") || "Back"}</span>
+          </button>
+          <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">
+            {t("createGroupExam") || "Create Group Exam"}
+          </h1>
+        </div>
+
+        <div className="flex-1 flex items-center justify-center py-10">
+          <div className="w-full max-w-md rounded-2xl border border-border/70 bg-card/70 dark:bg-zinc-900/50 p-6 sm:p-8 text-center space-y-5 shadow-xs">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 text-primary">
+              <UserPlus className="h-7 w-7" />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground">
+                {t("noFriendsGroupExamTitle") !== "noFriendsGroupExamTitle"
+                  ? t("noFriendsGroupExamTitle")
+                  : "Find Friends to Take a Group Exam"}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                {t("noFriendsGroupExamDesc") !== "noFriendsGroupExamDesc"
+                  ? t("noFriendsGroupExamDesc")
+                  : "You don't have any friends yet. Please find and add classmates as friends first so you have someone to take the group exam with."}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onBack}
+                className="w-full sm:w-auto rounded-xl h-10 px-4 text-xs sm:text-sm cursor-pointer"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                {t("back") || "Back"}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleGoFindFriends}
+                className="w-full sm:w-auto rounded-xl h-10 px-5 text-xs sm:text-sm font-semibold cursor-pointer"
+              >
+                <Users className="h-4 w-4 mr-1.5" />
+                {t("findFriends") !== "findFriends" ? t("findFriends") : "Find Friends"}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

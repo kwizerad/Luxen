@@ -22,6 +22,7 @@ import {
 import nextDynamic from "next/dynamic";
 import {
   CourseViewSkeleton,
+  RoadSignsSkeleton,
   ServicesViewSkeleton,
   LiveExamViewSkeleton,
   SettingsViewSkeleton,
@@ -35,7 +36,18 @@ import {
   ChatConversationViewSkeleton,
 } from "@/components/skeletons";
 import { ExamView } from "@/components/spa-views/exam-view";
-const CourseView = nextDynamic(() => import("@/components/spa-views/course-view").then(m => m.CourseView), { loading: () => <CourseViewSkeleton /> });
+
+function CourseDynamicSkeleton() {
+  const isSignsRoute =
+    typeof window !== "undefined" &&
+    (window.location.hash.includes("module=signs") ||
+      window.location.hash.includes("filter=images") ||
+      window.location.search.includes("module=signs") ||
+      window.location.search.includes("filter=images"));
+  return isSignsRoute ? <RoadSignsSkeleton /> : <CourseViewSkeleton />;
+}
+
+const CourseView = nextDynamic(() => import("@/components/spa-views/course-view").then(m => m.CourseView), { loading: () => <CourseDynamicSkeleton /> });
 const ServicesView = nextDynamic(() => import("@/components/spa-views/services-view").then(m => m.ServicesView), { loading: () => <ServicesViewSkeleton /> });
 const LiveExamView = nextDynamic(() => import("@/components/spa-views/live-exam-view").then(m => m.LiveExamView), { loading: () => <LiveExamViewSkeleton /> });
 const SettingsView = nextDynamic(() => import("@/components/spa-views/settings-view").then(m => m.SettingsView), { loading: () => <SettingsViewSkeleton /> });
@@ -229,7 +241,7 @@ export default function DashboardPage() {
             onMinimize={() => navigate("home")}
             onClose={() => navigate("home")}
           >
-            <ClassmatesView navigate={navigate} />
+            <ClassmatesView navigate={navigate} params={params} />
           </OSWindow>
         );
 

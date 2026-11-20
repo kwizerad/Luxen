@@ -2846,6 +2846,28 @@ html.dark .admin-portal .prose th,
   100% { opacity: 0; transform: translateY(100vh) rotate(360deg); }
 }
 
+@keyframes bell-shake {
+  0%, 100% { transform: rotate(0deg); }
+  4% { transform: rotate(15deg); }
+  8% { transform: rotate(-14deg); }
+  12% { transform: rotate(12deg); }
+  16% { transform: rotate(-10deg); }
+  20% { transform: rotate(6deg); }
+  24% { transform: rotate(-3deg); }
+  28%, 100% { transform: rotate(0deg); }
+}
+
+.animate-bell-shake {
+  transform-origin: 50% 10%;
+  animation: bell-shake 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-bell-shake {
+    animation: none;
+  }
+}
+
 /* ===========================================
    Dark UI Overrides for shadcn Components
    =========================================== */

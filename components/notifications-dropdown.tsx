@@ -227,6 +227,9 @@ export function NotificationsDropdown() {
             setUnreadCount((prev) => prev + 1);
 
             playNotificationSound();
+            if (newNotification.type?.startsWith("friend_request")) {
+              window.dispatchEvent(new CustomEvent("friend-request-updated"));
+            }
             toast.success(newNotification.title, {
               description: newNotification.message,
             });
@@ -447,7 +450,13 @@ export function NotificationsDropdown() {
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative overflow-visible">
-          <Bell className="h-5 w-5" />
+          <Bell
+            className={`h-5 w-5 transition-colors ${
+              unreadCount > 0 && !open
+                ? "animate-bell-shake text-amber-500 dark:text-amber-400"
+                : ""
+            }`}
+          />
           {unreadCount > 0 && (
             <span
               className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-[20px] px-1 rounded-full bg-red-600 text-white text-[11px] font-black leading-none ring-2 ring-background shadow-md z-20 animate-in zoom-in-50 duration-200"

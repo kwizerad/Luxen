@@ -30,6 +30,7 @@ import { createClient } from "@/lib/supabase/client";
 import { resetLandingLanguageForAdminLogout } from "@/lib/auth-utils";
 import { purgePrivateStudentCache } from "@/lib/student-cache";
 import { spaCache } from "@/lib/spa-cache";
+import { usePendingFriendRequests } from "@/hooks/usePendingFriendRequests";
 
 interface NavItem {
   id: string;
@@ -38,6 +39,7 @@ interface NavItem {
   href?: string;
   view?: string;
   isActive: boolean;
+  badge?: number;
 }
 
 export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = {}) {
@@ -48,6 +50,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
   const { config } = useBrandingConfig();
   const { filterNavItems } = useNavigationVisibility(adminMode);
   const { view: adminSpaView, pathname: adminSpaPathname, navigateAdmin } = useAdminSpa();
+  const pendingFriendRequests = usePendingFriendRequests();
 
   const [isExamActive, setIsExamActive] = useState(false);
   const [isChatActive, setIsChatActive] = useState(false);
@@ -185,6 +188,7 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
       label: t("chat") || "Chat",
       icon: Users,
       view: "classmates",
+      badge: pendingFriendRequests,
       isActive:
         pathname === "/dashboard" &&
         (currentView === "classmates" ||
@@ -412,6 +416,11 @@ export function FloatingHeader({ adminMode = false }: { adminMode?: boolean } = 
                   >
                     {item.label}
                   </span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className="relative z-10 ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none tabular-nums">
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </span>
+                  )}
                 </>
               );
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { ArrowLeft, Trophy, Plus, Loader2, Users, ShieldAlert, Search, CheckSquare, Square, UserPlus, Globe } from "lucide-react";
+import { ArrowLeft, Trophy, Plus, Loader2, Users, ShieldAlert, Search, UserPlus, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -173,7 +173,7 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
 
   const openCreateModal = useCallback(async () => {
     setShowCreateModal(true);
-    if (examCategories.length === 0) {
+    if (classmates.length > 0 && examCategories.length === 0) {
       try {
         const { data } = await supabase
           .from("exam_categories")
@@ -185,7 +185,7 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
         // ignore
       }
     }
-  }, [examCategories.length, supabase]);
+  }, [classmates.length, examCategories.length, supabase]);
 
   const handleCreateChallenge = async () => {
     if (!selectedCategory) {
@@ -429,16 +429,37 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
         {challenges.length === 0 && (
           <div className="text-center py-16">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <Trophy className="h-8 w-8 text-primary" />
+              {classmates.length === 0 ? (
+                <UserPlus className="h-8 w-8 text-primary" />
+              ) : (
+                <Trophy className="h-8 w-8 text-primary" />
+              )}
             </div>
-            <h3 className="font-semibold text-lg mb-1">{t("noGroupExamsYet")}</h3>
-            <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
-              {t("noGroupExamsDesc")}
+            <h3 className="font-semibold text-lg mb-1">
+              {classmates.length === 0
+                ? t("noFriendsGroupExamTitle") !== "noFriendsGroupExamTitle"
+                  ? t("noFriendsGroupExamTitle")
+                  : "Find Friends to Take a Group Exam"
+                : t("noGroupExamsYet")}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto leading-relaxed">
+              {classmates.length === 0
+                ? t("noFriendsGroupExamDesc") !== "noFriendsGroupExamDesc"
+                  ? t("noFriendsGroupExamDesc")
+                  : "You don't have any friends yet. Please find and add classmates as friends first so you have someone to take the group exam with."
+                : t("noGroupExamsDesc")}
             </p>
-            <Button onClick={openCreateModal}>
-              <Plus className="h-4 w-4 mr-1" />
-              {t("createGroupExam")}
-            </Button>
+            {classmates.length === 0 ? (
+              <Button onClick={() => navigate("classmates", { tab: "classmates" })}>
+                <Users className="h-4 w-4 mr-1.5" />
+                {t("findFriends") !== "findFriends" ? t("findFriends") : "Find Friends"}
+              </Button>
+            ) : (
+              <Button onClick={openCreateModal}>
+                <Plus className="h-4 w-4 mr-1" />
+                {t("createGroupExam")}
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -446,153 +467,194 @@ export function GroupExamView({ navigate }: GroupExamViewProps) {
       {/* Create Group Exam Modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-primary" />
-              {t("inviteToGroupExam")}
-            </DialogTitle>
-          </DialogHeader>
+          {classmates.length === 0 ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5 text-primary" />
+                  {t("noFriendsGroupExamTitle") !== "noFriendsGroupExamTitle"
+                    ? t("noFriendsGroupExamTitle")
+                    : "Find Friends to Take a Group Exam"}
+                </DialogTitle>
+              </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            {/* Category Select */}
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">{t("selectExamCategory")}</label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              >
-                <option value="">—</option>
-                {examCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Exam Language Select */}
-            <div>
-              <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
-                <Globe className="h-3.5 w-3.5 text-primary" />
-                <span>
-                  {language === "Kinyarwanda" || language === "rw"
-                    ? "Ururimi rw'Ikizamini"
-                    : language === "French" || language === "fr"
-                    ? "Langue de l'examen"
-                    : "Exam Language"}
-                </span>
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {EXAM_LANGUAGES.map((opt) => {
-                  const isSelected = selectedExamLanguage === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setSelectedExamLanguage(opt.value)}
-                      className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-                        isSelected
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-foreground border-border hover:bg-muted/50"
-                      }`}
-                    >
-                      <span aria-hidden="true">{opt.flag}</span>
-                      <span className="truncate">{opt.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Friends Multi-Select */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">{t("selectFriends") || "Select Friends"}</label>
-                {selectedInvitees.size > 0 && (
-                  <Badge variant="secondary" className="text-[10px] font-bold">
-                    {selectedInvitees.size} {t("selected") || "selected"}
-                  </Badge>
-                )}
+              <div className="py-4 text-center space-y-3">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 text-primary">
+                  <Users className="h-6 w-6" />
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {t("noFriendsGroupExamDesc") !== "noFriendsGroupExamDesc"
+                    ? t("noFriendsGroupExamDesc")
+                    : "You don't have any friends yet. Please find and add classmates as friends first so you have someone to take the group exam with."}
+                </p>
               </div>
 
-              {/* Search bar */}
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder={t("searchFriends") || "Search friends by name or username..."}
-                  value={modalSearch}
-                  onChange={(e) => setModalSearch(e.target.value)}
-                  className="pl-8 h-8 text-xs rounded-lg"
-                />
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button variant="outline" onClick={() => setShowCreateModal(false)}>
+                  {t("cancel") || "Cancel"}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    navigate("classmates", { tab: "classmates" });
+                  }}
+                >
+                  <Users className="h-4 w-4 mr-1.5" />
+                  {t("findFriends") !== "findFriends" ? t("findFriends") : "Find Friends"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-primary" />
+                  {t("inviteToGroupExam")}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                {/* Category Select */}
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">{t("selectExamCategory")}</label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="">—</option>
+                    {examCategories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Exam Language Select */}
+                <div>
+                  <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
+                    <Globe className="h-3.5 w-3.5 text-primary" />
+                    <span>
+                      {language === "Kinyarwanda" || language === "rw"
+                        ? "Ururimi rw'Ikizamini"
+                        : language === "French" || language === "fr"
+                        ? "Langue de l'examen"
+                        : "Exam Language"}
+                    </span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {EXAM_LANGUAGES.map((opt) => {
+                      const isSelected = selectedExamLanguage === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setSelectedExamLanguage(opt.value)}
+                          className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background text-foreground border-border hover:bg-muted/50"
+                          }`}
+                        >
+                          <span aria-hidden="true">{opt.flag}</span>
+                          <span className="truncate">{opt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Friends Multi-Select */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">{t("selectFriends") || "Select Friends"}</label>
+                    {selectedInvitees.size > 0 && (
+                      <Badge variant="secondary" className="text-[10px] font-bold">
+                        {selectedInvitees.size} {t("selected") || "selected"}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Search bar */}
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder={t("searchFriends") || "Search friends by name or username..."}
+                      value={modalSearch}
+                      onChange={(e) => setModalSearch(e.target.value)}
+                      className="pl-8 h-8 text-xs rounded-lg"
+                    />
+                  </div>
+
+                  {/* List */}
+                  <div className="max-h-52 overflow-y-auto rounded-lg border divide-y">
+                    {filteredModalClassmates.length === 0 ? (
+                      <p className="text-xs text-muted-foreground p-4 text-center">
+                        {modalSearch ? t("noResults") || "No matching friends found" : t("noFriendsToInvite") || "You don't have any friends yet. Find and add classmates as friends to invite them."}
+                      </p>
+                    ) : (
+                      filteredModalClassmates.map((item) => {
+                        const isSelected = selectedInvitees.has(item.id);
+                        return (
+                          <label
+                            key={item.id}
+                            className="flex items-center gap-2.5 p-2 hover:bg-muted/50 cursor-pointer text-xs"
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => {
+                                setSelectedInvitees((prev) => {
+                                  const next = new Set(prev);
+                                  if (checked) next.add(item.id);
+                                  else next.delete(item.id);
+                                  return next;
+                                });
+                              }}
+                            />
+                            <Avatar className="h-7 w-7 ring-1 ring-border/40 shrink-0">
+                              {item.avatar_url ? (
+                                <AvatarImage src={item.avatar_url} alt="" />
+                              ) : (
+                                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                                  {(item.full_name || item.username || "?")[0]?.toUpperCase()}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-foreground break-words">
+                                  {item.full_name || item.username}
+                                </span>
+                                <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary px-1 py-0 h-4 shrink-0">
+                                  {t("friend") || "Friend"}
+                                </Badge>
+                              </div>
+                              <span className="text-[11px] text-muted-foreground truncate block">@{item.username || "student"}</span>
+                            </div>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* List */}
-              <div className="max-h-52 overflow-y-auto rounded-lg border divide-y">
-                {filteredModalClassmates.length === 0 ? (
-                  <p className="text-xs text-muted-foreground p-4 text-center">
-                    {modalSearch ? t("noResults") || "No matching friends found" : t("noFriendsToInvite") || "No friends to invite yet"}
-                  </p>
-                ) : (
-                  filteredModalClassmates.map((item) => {
-                    const isSelected = selectedInvitees.has(item.id);
-                    return (
-                      <label
-                        key={item.id}
-                        className="flex items-center gap-2.5 p-2 hover:bg-muted/50 cursor-pointer text-xs"
-                      >
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={(checked) => {
-                            setSelectedInvitees((prev) => {
-                              const next = new Set(prev);
-                              if (checked) next.add(item.id);
-                              else next.delete(item.id);
-                              return next;
-                            });
-                          }}
-                        />
-                        <Avatar className="h-7 w-7 ring-1 ring-border/40 shrink-0">
-                          {item.avatar_url ? (
-                            <AvatarImage src={item.avatar_url} alt="" />
-                          ) : (
-                            <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
-                              {(item.full_name || item.username || "?")[0]?.toUpperCase()}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-foreground break-words">
-                              {item.full_name || item.username}
-                            </span>
-                            <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary px-1 py-0 h-4 shrink-0">
-                              {t("friend") || "Friend"}
-                            </Badge>
-                          </div>
-                          <span className="text-[11px] text-muted-foreground truncate block">@{item.username || "student"}</span>
-                        </div>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateModal(false)}>
-              {t("cancel")}
-            </Button>
-            <Button onClick={handleCreateChallenge} disabled={creatingChallenge}>
-              {creatingChallenge ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2 text-primary-foreground dark:text-zinc-950" />
-              ) : (
-                <Trophy className="h-4 w-4 mr-2" />
-              )}
-              {t("createChallenge")}
-            </Button>
-          </DialogFooter>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowCreateModal(false)}>
+                  {t("cancel")}
+                </Button>
+                <Button onClick={handleCreateChallenge} disabled={creatingChallenge}>
+                  {creatingChallenge ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2 text-primary-foreground dark:text-zinc-950" />
+                  ) : (
+                    <Trophy className="h-4 w-4 mr-2" />
+                  )}
+                  {t("createChallenge")}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

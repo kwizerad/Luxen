@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Send, Loader2, Users, UserPlus, MessageCircle, Trophy, X, Check, CheckCheck, ArrowLeft, Eye, EyeOff, Bell, Clock, Play, Smile, Heart, Sparkles, CheckCircle2, Globe } from "lucide-react";
+import { Search, Send, Loader2, Users, UserPlus, MessageCircle, Trophy, X, Check, CheckCheck, ArrowLeft, ChevronRight, Eye, EyeOff, Bell, Clock, Play, Smile, Heart, Sparkles, CheckCircle2, Globe } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "👏"] as const;
@@ -29,6 +29,7 @@ import { toast } from "sonner";
 
 interface ClassmatesViewProps {
   navigate: (view: string, params?: Record<string, string>) => void;
+  params?: URLSearchParams;
 }
 
 interface FriendProfile {
@@ -1012,10 +1013,12 @@ function ExamInvitationsContent({
   );
 }
 
-export function ClassmatesView({ navigate }: ClassmatesViewProps) {
+export function ClassmatesView({ navigate, params }: ClassmatesViewProps) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const supabase = createClient();
+
+  const requestedTab = params?.get("tab");
 
   const cachedData = user ? spaCache.get<{
     friends: FriendProfile[];
@@ -1025,7 +1028,9 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
     isPublic: boolean;
   }>(`spa_classmates_${user.id}`) : null;
 
-  const [activeTab, setActiveTab] = useState<"friends" | "classmates" | "invitations">("friends");
+  const [activeTab, setActiveTab] = useState<"friends" | "classmates" | "invitations">(
+    requestedTab === "classmates" || requestedTab === "invitations" ? requestedTab : "friends"
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(!cachedData);
   const [friends, setFriends] = useState<FriendProfile[]>(cachedData?.friends || []);
@@ -1037,6 +1042,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const [isPublic, setIsPublic] = useState(cachedData?.isPublic ?? true);
 
   const [selectedFriend, setSelectedFriend] = useState<FriendProfile | null>(null);
+  const [showRequestsPanel, setShowRequestsPanel] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -1101,11 +1107,16 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         setChallenges([]);
         return;
       }
+      if (showRequestsPanel) {
+        e.preventDefault();
+        setShowRequestsPanel(false);
+        return;
+      }
     };
 
     window.addEventListener("app:request-back", handleAppBack);
     return () => window.removeEventListener("app:request-back", handleAppBack);
-  }, [pictureViewer, showInviteModal, selectedFriend]);
+  }, [pictureViewer, showInviteModal, selectedFriend, showRequestsPanel]);
 
   // Handle browser popstate on mobile/desktop when chat is open
   useEffect(() => {
@@ -1131,6 +1142,18 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   selectedFriendRef.current = selectedFriend;
   const conversationIdRef = useRef<string | null>(conversationId);
   conversationIdRef.current = conversationId;
+
+  // Respond to explicit tab deep link (e.g. from "Find Friends" CTA in Group Exam)
+  useEffect(() => {
+    if (requestedTab === "classmates" || requestedTab === "invitations" || requestedTab === "friends") {
+      setActiveTab(requestedTab);
+      if (requestedTab === "classmates") {
+        setSelectedFriend(null);
+        setShowRequestsPanel(false);
+      }
+      hasAutoSwitchedRef.current = true;
+    }
+  }, [requestedTab]);
 
   // Auto-switch to classmates tab if friends tab is hidden (only once on initial load to prevent flickering)
   useEffect(() => {
@@ -1307,11 +1330,15 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
 
   useEffect(() => {
     const hasFriendsNow = friends.length > 0;
-    const hasPendingNow = requests.some((r) => r.direction === "received" || r.direction === "sent");
+    const hasReceivedNow = requests.some((r) => r.direction === "received");
+    const hasPendingNow = hasReceivedNow || requests.some((r) => r.direction === "sent");
+    if (!hasReceivedNow && showRequestsPanel) {
+      setShowRequestsPanel(false);
+    }
     if (activeTab === "invitations" && pendingExamInvites === 0) {
       setActiveTab(hasFriendsNow || hasPendingNow ? "friends" : "classmates");
     }
-  }, [activeTab, pendingExamInvites, friends.length, requests]);
+  }, [activeTab, pendingExamInvites, friends.length, requests, showRequestsPanel]);
 
   useEffect(() => {
     void isGroupExamEnabled().then(setGroupExamEnabled);
@@ -1619,6 +1646,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   const openChat = async (friend: FriendProfile) => {
     if (!user) return;
     setLoadingChat(true);
+    setShowRequestsPanel(false);
     setSelectedFriend(friend);
     // Clear unread counter when opening chat
     setFriendLastMessages((prev) => {
@@ -2157,7 +2185,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
   return (
     <div className="flex w-full h-[calc(100dvh-3.5rem-4rem-max(0.25rem,env(safe-area-inset-bottom,0px)))] sm:h-[calc(100dvh-4rem-4rem-max(0.25rem,env(safe-area-inset-bottom,0px)))] lg:h-[calc(100dvh-4rem)] overflow-hidden bg-background">
       {/* Left Sidebar */}
-      <div className={`${selectedFriend ? 'hidden sm:flex' : 'flex'} w-full sm:w-96 md:w-[400px] border-r flex flex-col bg-background h-full`}>
+      <div className={`${selectedFriend || showRequestsPanel ? 'hidden sm:flex' : 'flex'} w-full sm:w-96 md:w-[400px] border-r flex flex-col bg-background h-full`}>
         {/* Tab Switcher + Visibility */}
         <div className="px-3 py-2 border-b space-y-2">
           <div className="flex items-center justify-between gap-1">
@@ -2179,7 +2207,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                 >
                   {t("friends")}
                   {pendingReceivedRequests.length > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold tabular-nums">
                       {pendingReceivedRequests.length}
                     </span>
                   )}
@@ -2195,7 +2223,10 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
               </button>
               {groupExamEnabled && pendingExamInvites > 0 && (
               <button
-                onClick={() => setActiveTab("invitations")}
+                onClick={() => {
+                  setShowRequestsPanel(false);
+                  setActiveTab("invitations");
+                }}
                 className={`whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors shrink-0 ${
                   activeTab === "invitations" ? "bg-background text-foreground shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
                 }`}
@@ -2247,70 +2278,59 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                     setSelectedInvitees(new Set());
                     openInviteModal();
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 border-b bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 border-b bg-primary/5 hover:bg-primary/10 transition-colors text-left"
                 >
-                  <Trophy className="h-4 w-4 text-primary" />
+                  <Trophy className="h-4 w-4 text-primary shrink-0" />
                   <span className="text-sm font-medium text-primary">{t("inviteToGroupExam")}</span>
                 </button>
               )}
 
-              {/* Pending Requests */}
+              {/* Compact trigger to open Friend Requests on mobile or when viewing a chat on desktop */}
               {pendingReceivedRequests.length > 0 && (
-                <div className="border-b">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase px-3 py-2 block">
-                    {t("pendingRequests")} ({pendingReceivedRequests.length})
-                  </span>
-                  {pendingReceivedRequests.map((req) => (
-                    <div key={req.id} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/50">
-                      <ProfileAvatar profile={req.other_user} size="h-9 w-9" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-snug break-words">
-                          {req.other_user.full_name || req.other_user.username}
-                        </p>
-                        {req.other_user.username && (
-                          <p className="text-xs text-muted-foreground break-words">@{req.other_user.username}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleAcceptRequest(req.id)}
-                        className="group/btn inline-flex items-center justify-center rounded-lg bg-green-100 text-green-600 hover:bg-green-200 h-8 px-2 transition-all duration-200 shrink-0"
-                        title={t("accept") || "Accept"}
-                      >
-                        <Check className="h-3.5 w-3.5 shrink-0" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap text-xs font-medium">
-                          {t("accept") || "Accept"}
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => handleRejectRequest(req.id)}
-                        className="group/btn inline-flex items-center justify-center rounded-lg bg-red-100 text-red-600 hover:bg-red-200 h-8 px-2 transition-all duration-200 shrink-0"
-                        title={t("deny") || "Reject"}
-                      >
-                        <X className="h-3.5 w-3.5 shrink-0" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap text-xs font-medium">
-                          {t("deny") || "Reject"}
-                        </span>
-                      </button>
+                <button
+                  onClick={() => {
+                    setSelectedFriend(null);
+                    setConversationId(null);
+                    setMessages([]);
+                    setChallenges([]);
+                    setShowRequestsPanel(true);
+                  }}
+                  className={`${
+                    selectedFriend ? "flex" : "flex sm:hidden"
+                  } w-full items-center justify-between gap-3 px-3 py-2.5 border-b border-indigo-200/70 dark:border-indigo-500/20 bg-indigo-50/80 dark:bg-indigo-950/35 hover:bg-indigo-100/80 dark:hover:bg-indigo-950/55 transition-colors text-left`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-8 w-8 rounded-lg bg-indigo-500/15 dark:bg-indigo-400/15 text-indigo-600 dark:text-indigo-300 flex items-center justify-center shrink-0">
+                      <UserPlus className="h-4 w-4" />
                     </div>
-                  ))}
-                </div>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                      {t("pendingRequests")}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-bold tabular-nums">
+                      {pendingReceivedRequests.length}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-indigo-600 dark:text-indigo-300" />
+                  </div>
+                </button>
               )}
 
               {/* Sent Requests */}
               {pendingSentRequests.length > 0 && (
-                <div className="border-b">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase px-3 py-2 block">
+                <div className="border-b px-2 py-2 space-y-1">
+                  <span className="text-[11px] font-semibold text-muted-foreground tracking-wide px-2 py-1 block">
                     {t("requestSent")} ({pendingSentRequests.length})
                   </span>
                   {pendingSentRequests.map((req) => (
-                    <div key={req.id} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/50">
+                    <div key={req.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-muted/50 transition-colors">
                       <ProfileAvatar profile={req.other_user} size="h-9 w-9" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium leading-snug break-words">
-                          {req.other_user.full_name || req.other_user.username}
+                          {req.other_user.full_name || req.other_user.username || t("student")}
                         </p>
-                        {req.other_user.username && (
-                          <p className="text-xs text-muted-foreground break-words">@{req.other_user.username}</p>
+                        {req.other_user.username?.trim() && (
+                          <p className="text-xs text-muted-foreground break-words">@{req.other_user.username.trim()}</p>
                         )}
                       </div>
                       <button
@@ -2330,52 +2350,70 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
 
               {/* Friends List */}
               {filteredFriends.length === 0 ? (
-                <div className="text-center py-8 px-4">
-                  <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                  <p className="text-sm text-muted-foreground">{t("noFriendsYet")}</p>
+                <div className="text-center py-10 px-5">
+                  <div className="h-12 w-12 rounded-2xl bg-muted/70 text-muted-foreground flex items-center justify-center mx-auto mb-3">
+                    <Users className="h-6 w-6 opacity-70" />
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{t("noFriendsYet")}</p>
+                  {!searchQuery && friends.length === 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setActiveTab("classmates")}
+                      className="mt-4 rounded-xl text-xs font-medium gap-1.5"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      <span>{t("classmatesList")}</span>
+                    </Button>
+                  )}
                 </div>
               ) : (
-                filteredFriends.map((friend) => {
-                  const lastMessageData = friendLastMessages.get(friend.id);
-                  return (
-                    <button
-                      key={friend.id}
-                      onClick={() => openChat(friend)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left ${
-                        selectedFriend?.id === friend.id ? "bg-muted" : ""
-                      }`}
-                    >
-                      <div className="relative shrink-0">
-                        <ProfileAvatar profile={friend} size="h-10 w-10" />
-                        {isOnline(friend.last_seen) && (
-                          <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-medium leading-snug break-words">
-                            {friend.full_name || friend.username}
-                          </p>
-                          {lastMessageData?.time && (
-                            <span className="text-[10px] text-muted-foreground shrink-0 mt-0.5">
-                              {new Date(lastMessageData.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                            </span>
+                <div className="p-2 space-y-1">
+                  {filteredFriends.map((friend) => {
+                    const lastMessageData = friendLastMessages.get(friend.id);
+                    const cleanUsername = friend.username?.trim();
+                    return (
+                      <button
+                        key={friend.id}
+                        onClick={() => openChat(friend)}
+                        className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl border transition-colors text-left ${
+                          selectedFriend?.id === friend.id
+                            ? "bg-primary/10 border-primary/20 shadow-xs"
+                            : "border-transparent hover:bg-muted/60"
+                        }`}
+                      >
+                        <div className="relative shrink-0">
+                          <ProfileAvatar profile={friend} size="h-10 w-10" />
+                          {isOnline(friend.last_seen) && (
+                            <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
                           )}
                         </div>
-                        <div className="flex items-center justify-between gap-2 mt-0.5">
-                          <p className="text-xs text-muted-foreground truncate flex-1">
-                            {lastMessageData?.message || (isOnline(friend.last_seen) ? t("online") : (formatLastSeen(friend.last_seen) || (friend.username ? `@${friend.username}` : "")))}
-                          </p>
-                          {lastMessageData?.unread && lastMessageData.unread > 0 && (
-                            <span className="ml-2 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1 shrink-0">
-                              {lastMessageData.unread > 9 ? "9+" : lastMessageData.unread}
-                            </span>
-                          )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-medium leading-snug break-words">
+                              {friend.full_name || cleanUsername || t("student")}
+                            </p>
+                            {lastMessageData?.time && (
+                              <span className="text-[10px] text-muted-foreground shrink-0 mt-0.5 tabular-nums">
+                                {new Date(lastMessageData.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between gap-2 mt-0.5">
+                            <p className="text-xs text-muted-foreground truncate flex-1">
+                              {lastMessageData?.message || (isOnline(friend.last_seen) ? t("online") : (formatLastSeen(friend.last_seen) || (cleanUsername ? `@${cleanUsername}` : "")))}
+                            </p>
+                            {lastMessageData?.unread && lastMessageData.unread > 0 && (
+                              <span className="ml-2 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1 shrink-0 tabular-nums">
+                                {lastMessageData.unread > 9 ? "9+" : lastMessageData.unread}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  );
-                })
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </>
           ) : activeTab === "invitations" ? (
@@ -2417,7 +2455,7 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {isOnline(classmate.last_seen)
                           ? t("online")
-                          : (formatLastSeen(classmate.last_seen) || (classmate.username ? `@${classmate.username}` : ""))}
+                          : (formatLastSeen(classmate.last_seen) || (classmate.username?.trim() ? `@${classmate.username.trim()}` : ""))}
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -2497,108 +2535,167 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
         </div>
       </div>
 
-      {/* Right Panel — Chat */}
-      <div className={`${selectedFriend ? 'flex' : 'hidden sm:flex'} flex-1 flex-col bg-background h-full overflow-hidden`}>
+      {/* Right Panel — Chat & Friend Requests */}
+      <div className={`${selectedFriend || showRequestsPanel ? 'flex' : 'hidden sm:flex'} flex-1 flex-col bg-background h-full overflow-hidden`}>
         {!selectedFriend ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground overflow-y-auto">
-            {pendingReceivedRequests.length > 0 ? (
-              <div className="w-full max-w-md px-4 py-6">
-                <div className="flex items-center gap-2 mb-4 justify-center">
-                  <UserPlus className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-bold text-foreground">{t("pendingRequests")}</h2>
-                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
-                    {pendingReceivedRequests.length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {pendingReceivedRequests.map((req) => (
-                    <div key={req.id} className="flex items-center gap-3 rounded-xl border bg-card p-3">
-                      <ProfileAvatar profile={req.other_user} size="h-12 w-12" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold leading-snug break-words text-foreground">
-                          {req.other_user.full_name || req.other_user.username}
-                        </p>
-                        <p className="text-xs text-muted-foreground break-words">@{req.other_user.username}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleAcceptRequest(req.id)}
-                        className="group/btn h-8 px-2.5 rounded-full bg-green-600 hover:bg-green-700 text-white transition-all duration-200 shrink-0"
-                        title={t("accept") || "Accept"}
-                      >
-                        <Check className="h-4 w-4 shrink-0" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap text-xs font-medium">
-                          {t("accept")}
-                        </span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRejectRequest(req.id)}
-                        className="group/btn h-8 px-2.5 rounded-full text-red-600 border-red-200 hover:bg-red-50 transition-all duration-200 shrink-0"
-                        title={t("deny") || "Reject"}
-                      >
-                        <X className="h-4 w-4 shrink-0" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5 transition-all duration-200 whitespace-nowrap text-xs font-medium">
-                          {t("deny")}
-                        </span>
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : activeTab === "invitations" ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 max-w-md mx-auto text-center">
-                <div className="h-16 w-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center mb-4 shadow-sm ring-1 ring-primary/20">
-                  <Trophy className="h-8 w-8" />
-                </div>
-                <h3 className="text-lg font-bold text-foreground mb-1.5">
-                  {t("examInvitations") || "Exam Invitations"}
-                </h3>
-                <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
-                  {t("examInvitationsDesc") || "Set up a group exam and invite your classmates to compete together in real-time."}
-                </p>
-
-                <div className="grid grid-cols-2 gap-3 w-full mb-6 text-left">
-                  <div className="p-3 rounded-xl border bg-card/60">
-                    <div className="flex items-center gap-1.5 font-bold text-xs text-foreground mb-1">
-                      <Clock className="h-3.5 w-3.5 text-amber-500" />
-                      <span>{t("thirtySeconds") || "30 Seconds"}</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-tight">
-                      {t("invitationsLast30Seconds") || "Invitations last only 30 seconds for classmates to accept."}
-                    </p>
-                  </div>
-
-                  <div className="p-3 rounded-xl border bg-card/60">
-                    <div className="flex items-center gap-1.5 font-bold text-xs text-foreground mb-1">
-                      <Trophy className="h-3.5 w-3.5 text-emerald-500" />
-                      <span>{t("realTimeScores") || "Real-Time Scores"}</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-tight">
-                      {t("realTimeScoresDesc") || "See live comparative rankings and scores as classmates start and complete."}
-                    </p>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={() => {
-                    setSelectedInvitees(new Set());
-                    openInviteModal();
-                  }}
-                  className="gap-2 rounded-xl text-xs font-bold shadow-md px-5 h-9"
+          pendingReceivedRequests.length > 0 ? (
+            <div className="flex-1 flex flex-col overflow-y-auto bg-gradient-to-br from-indigo-50/95 via-sky-50/70 to-slate-100 dark:from-[#0e192d] dark:via-[#12203b] dark:to-[#0b1323]">
+              {/* Mobile Top Bar for Friend Requests */}
+              <div className="sm:hidden sticky top-0 z-10 flex items-center gap-2.5 px-4 py-3 border-b border-indigo-200/70 dark:border-indigo-400/20 bg-white/80 dark:bg-[#0e192d]/90 backdrop-blur-md">
+                <button
+                  onClick={() => setShowRequestsPanel(false)}
+                  className="p-1.5 rounded-lg hover:bg-indigo-100/70 dark:hover:bg-indigo-900/40 text-slate-700 dark:text-slate-200 transition-colors"
+                  title={t("back") || "Back"}
                 >
-                  <Trophy className="h-4 w-4" />
-                  <span>{t("prepareNewGroupExam") || "Prepare New Group Exam"}</span>
-                </Button>
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-50 truncate">
+                  {t("pendingRequests")}
+                </span>
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-xs font-bold tabular-nums">
+                  {pendingReceivedRequests.length}
+                </span>
               </div>
-            ) : (
-              <>
-                <MessageCircle className="h-12 w-12 mb-3 opacity-30" />
-                <p className="text-sm">{t("selectFriendToChat")}</p>
-              </>
-            )}
-          </div>
+
+              <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
+                <div className="w-full max-w-xl">
+                  {/* Section Header */}
+                  <div className="flex items-center justify-between gap-4 mb-5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-11 w-11 rounded-2xl bg-indigo-500/15 dark:bg-indigo-400/15 border border-indigo-500/25 dark:border-indigo-400/30 text-indigo-600 dark:text-indigo-300 flex items-center justify-center shrink-0">
+                        <UserPlus className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2.5">
+                          <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-slate-50 truncate">
+                            {t("pendingRequests")}
+                          </h2>
+                          <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full bg-rose-500 text-white text-xs font-bold tabular-nums shadow-xs shrink-0">
+                            {pendingReceivedRequests.length}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-300/80 mt-0.5 truncate">
+                          {t("wantsToBeYourFriend")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Request Cards */}
+                  <div className="space-y-3">
+                    {pendingReceivedRequests.map((req) => {
+                      const cleanUsername = req.other_user.username?.trim();
+                      const reqTime = formatLastSeen(req.created_at);
+                      const senderOnline = isOnline(req.other_user.last_seen);
+                      return (
+                        <div
+                          key={req.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 rounded-2xl border border-indigo-200/80 dark:border-indigo-400/20 bg-white/95 dark:bg-[#192846]/95 hover:border-indigo-400 dark:hover:border-indigo-400/45 p-4 shadow-sm dark:shadow-lg dark:shadow-black/25 transition-all duration-200"
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            <div className="relative shrink-0">
+                              <ProfileAvatar profile={req.other_user} size="h-12 w-12" />
+                              {senderOnline && (
+                                <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#192846]" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm sm:text-base font-semibold leading-snug break-words text-slate-900 dark:text-slate-50">
+                                {req.other_user.full_name || cleanUsername || t("student")}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 dark:text-slate-300/75 mt-0.5">
+                                {cleanUsername ? (
+                                  <span>@{cleanUsername}</span>
+                                ) : (
+                                  <span>{t("wantsToBeYourFriend")}</span>
+                                )}
+                                {reqTime && (
+                                  <>
+                                    <span aria-hidden="true">·</span>
+                                    <span>{reqTime}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 sm:pl-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleAcceptRequest(req.id)}
+                              className="h-10 sm:h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xs transition-colors flex-1 sm:flex-initial gap-1.5 whitespace-nowrap shrink-0"
+                            >
+                              <Check className="h-4 w-4 shrink-0" />
+                              <span>{t("accept") || "Accept"}</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRejectRequest(req.id)}
+                              className="h-10 sm:h-9 px-4 rounded-xl border-rose-300/80 dark:border-rose-400/30 bg-rose-50/80 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold text-xs transition-colors flex-1 sm:flex-initial gap-1.5 whitespace-nowrap shrink-0"
+                            >
+                              <X className="h-4 w-4 shrink-0" />
+                              <span>{t("deny") || "Reject"}</span>
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : activeTab === "invitations" ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 max-w-md mx-auto text-center text-muted-foreground">
+              <div className="h-16 w-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center mb-4 shadow-sm ring-1 ring-primary/20">
+                <Trophy className="h-8 w-8" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground mb-1.5">
+                {t("examInvitations") || "Exam Invitations"}
+              </h3>
+              <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
+                {t("examInvitationsDesc") || "Set up a group exam and invite your classmates to compete together in real-time."}
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 w-full mb-6 text-left">
+                <div className="p-3 rounded-xl border bg-card/60">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-foreground mb-1">
+                    <Clock className="h-3.5 w-3.5 text-amber-500" />
+                    <span>{t("thirtySeconds") || "30 Seconds"}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    {t("invitationsLast30Seconds") || "Invitations last only 30 seconds for classmates to accept."}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl border bg-card/60">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-foreground mb-1">
+                    <Trophy className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>{t("realTimeScores") || "Real-Time Scores"}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    {t("realTimeScoresDesc") || "See live comparative rankings and scores as classmates start and complete."}
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => {
+                  setSelectedInvitees(new Set());
+                  openInviteModal();
+                }}
+                className="gap-2 rounded-xl text-xs font-bold shadow-md px-5 h-9"
+              >
+                <Trophy className="h-4 w-4" />
+                <span>{t("prepareNewGroupExam") || "Prepare New Group Exam"}</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-6 text-center">
+              <MessageCircle className="h-12 w-12 mb-3 opacity-30" />
+              <p className="text-sm">{t("selectFriendToChat")}</p>
+            </div>
+          )
         ) : (
           <>
             {/* Chat Header */}
@@ -2832,211 +2929,251 @@ export function ClassmatesView({ navigate }: ClassmatesViewProps) {
       {groupExamEnabled && (
       <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-primary" />
-              {t("inviteToGroupExam")}
-            </DialogTitle>
-          </DialogHeader>
+          {friends.length === 0 ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5 text-primary" />
+                  {t("noFriendsGroupExamTitle") !== "noFriendsGroupExamTitle"
+                    ? t("noFriendsGroupExamTitle")
+                    : "Find Friends to Take a Group Exam"}
+                </DialogTitle>
+              </DialogHeader>
 
-          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
-            {/* 1. Category */}
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">{t("selectExamCategory")}</label>
-              {examCategories.length === 1 ? (
-                <div className="p-2.5 rounded-lg border border-primary bg-primary/5">
-                  <p className="text-sm font-medium">{examCategories[0].name}</p>
+              <div className="py-4 text-center space-y-3">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 text-primary">
+                  <Users className="h-6 w-6" />
                 </div>
-              ) : (
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {t("noFriendsGroupExamDesc") !== "noFriendsGroupExamDesc"
+                    ? t("noFriendsGroupExamDesc")
+                    : "You don't have any friends yet. Please find and add classmates as friends first so you have someone to take the group exam with."}
+                </p>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button variant="outline" onClick={() => setShowInviteModal(false)} className="rounded-xl h-10 text-xs sm:text-sm">
+                  {t("cancel") || "Cancel"}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    setActiveTab("classmates");
+                    setSelectedFriend(null);
+                    setShowRequestsPanel(false);
+                  }}
+                  className="rounded-xl h-10 text-xs sm:text-sm font-semibold"
                 >
-                  <option value="">—</option>
-                  {examCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+                  <Users className="h-4 w-4 mr-1.5" />
+                  {t("findFriends") !== "findFriends" ? t("findFriends") : "Find Friends"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-primary" />
+                  {t("inviteToGroupExam")}
+                </DialogTitle>
+              </DialogHeader>
 
-            {/* 1b. Exam Language */}
-            <div>
-              <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
-                <Globe className="h-3.5 w-3.5 text-primary" />
-                <span>
-                  {language === "Kinyarwanda" || language === "rw"
-                    ? "Ururimi rw'Ikizamini"
-                    : language === "French" || language === "fr"
-                    ? "Langue de l'examen"
-                    : "Exam Language"}
-                </span>
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { value: "Kinyarwanda", label: "Kinyarwanda", flag: "🇷🇼" },
-                  { value: "English", label: "English", flag: "🇬🇧" },
-                  { value: "French", label: "Français", flag: "🇫🇷" },
-                ] as const).map((opt) => {
-                  const isSelected = selectedExamLanguage === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setSelectedExamLanguage(opt.value)}
-                      className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-                        isSelected
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-foreground border-border hover:bg-muted/50"
-                      }`}
-                    >
-                      <span aria-hidden="true">{opt.flag}</span>
-                      <span className="truncate">{opt.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 2. Search bar */}
-            <div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={inviteSearchQuery}
-                  onChange={(e) => setInviteSearchQuery(e.target.value)}
-                  placeholder={t("searchFriends") || "Search friends..."}
-                  className="w-full rounded-lg border bg-background pl-9 pr-3 py-2 text-sm outline-none focus:border-primary"
-                />
-              </div>
-            </div>
-
-            {/* 3. Friends Header and Bulk Selection */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs sm:text-sm font-semibold text-foreground">
-                  {t("friends") || "Friends"} ({friends.length})
-                </span>
-                {(() => {
-                  const filtered = friends.filter((item) => {
-                    if (!inviteSearchQuery) return true;
-                    const q = inviteSearchQuery.toLowerCase();
-                    return item.full_name?.toLowerCase().includes(q) || item.username?.toLowerCase().includes(q);
-                  });
-                  if (filtered.length === 0) return null;
-                  const allSelected = filtered.every((i) => selectedInvitees.has(i.id));
-
-                  return (
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>
-                        {selectedInvitees.size} {t("selected") || "selected"}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedInvitees((prev) => {
-                            const next = new Set(prev);
-                            if (allSelected) {
-                              filtered.forEach((i) => next.delete(i.id));
-                            } else {
-                              filtered.forEach((i) => next.add(i.id));
-                            }
-                            return next;
-                          });
-                        }}
-                        className="text-xs font-semibold text-primary hover:underline"
-                      >
-                        {allSelected ? t("deselectAll") || "Deselect All" : t("selectAll") || "Select All"}
-                      </button>
+              <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+                {/* 1. Category */}
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">{t("selectExamCategory")}</label>
+                  {examCategories.length === 1 ? (
+                    <div className="p-2.5 rounded-lg border border-primary bg-primary/5">
+                      <p className="text-sm font-medium">{examCategories[0].name}</p>
                     </div>
-                  );
-                })()}
-              </div>
-            </div>
+                  ) : (
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    >
+                      <option value="">—</option>
+                      {examCategories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
 
-            {/* 4. Friends list */}
-            <div>
-              <div className="max-h-52 overflow-y-auto rounded-xl border divide-y divide-border/60">
-                {friends.length === 0 ? (
-                  <p className="text-xs text-muted-foreground p-4 text-center">{t("noFriendsToInvite") || "No friends to invite yet"}</p>
-                ) : (
-                  friends
-                    .filter((f) => {
-                      if (!inviteSearchQuery) return true;
-                      const q = inviteSearchQuery.toLowerCase();
-                      return f.full_name?.toLowerCase().includes(q) || f.username?.toLowerCase().includes(q);
-                    })
-                    .map((friend) => {
-                      const isSelected = selectedInvitees.has(friend.id);
+                {/* 1b. Exam Language */}
+                <div>
+                  <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
+                    <Globe className="h-3.5 w-3.5 text-primary" />
+                    <span>
+                      {language === "Kinyarwanda" || language === "rw"
+                        ? "Ururimi rw'Ikizamini"
+                        : language === "French" || language === "fr"
+                        ? "Langue de l'examen"
+                        : "Exam Language"}
+                    </span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { value: "Kinyarwanda", label: "Kinyarwanda", flag: "🇷🇼" },
+                      { value: "English", label: "English", flag: "🇬🇧" },
+                      { value: "French", label: "Français", flag: "🇫🇷" },
+                    ] as const).map((opt) => {
+                      const isSelected = selectedExamLanguage === opt.value;
                       return (
-                        <div
-                          key={friend.id}
-                          onClick={() => {
-                            setSelectedInvitees((prev) => {
-                              const next = new Set(prev);
-                              if (isSelected) next.delete(friend.id);
-                              else next.add(friend.id);
-                              return next;
-                            });
-                          }}
-                          className={`flex items-center gap-3 p-2.5 hover:bg-muted/50 cursor-pointer select-none transition-colors ${
-                            isSelected ? "bg-primary/5" : ""
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setSelectedExamLanguage(opt.value)}
+                          className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background text-foreground border-border hover:bg-muted/50"
                           }`}
                         >
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) => {
+                          <span aria-hidden="true">{opt.flag}</span>
+                          <span className="truncate">{opt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Search bar */}
+                <div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={inviteSearchQuery}
+                      onChange={(e) => setInviteSearchQuery(e.target.value)}
+                      placeholder={t("searchFriends") || "Search friends..."}
+                      className="w-full rounded-lg border bg-background pl-9 pr-3 py-2 text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Friends Header and Bulk Selection */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs sm:text-sm font-semibold text-foreground">
+                      {t("friends") || "Friends"} ({friends.length})
+                    </span>
+                    {(() => {
+                      const filtered = friends.filter((item) => {
+                        if (!inviteSearchQuery) return true;
+                        const q = inviteSearchQuery.toLowerCase();
+                        return item.full_name?.toLowerCase().includes(q) || item.username?.toLowerCase().includes(q);
+                      });
+                      if (filtered.length === 0) return null;
+                      const allSelected = filtered.every((i) => selectedInvitees.has(i.id));
+
+                      return (
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span>
+                            {selectedInvitees.size} {t("selected") || "selected"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
                               setSelectedInvitees((prev) => {
                                 const next = new Set(prev);
-                                if (checked) next.add(friend.id);
-                                else next.delete(friend.id);
+                                if (allSelected) {
+                                  filtered.forEach((i) => next.delete(i.id));
+                                } else {
+                                  filtered.forEach((i) => next.add(i.id));
+                                }
                                 return next;
                               });
                             }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <ProfileAvatar profile={friend} size="h-8 w-8" />
-                          <div className="min-w-0 flex-1">
-                            <span className="text-xs sm:text-sm font-medium block leading-snug break-words">
-                              {friend.full_name || friend.username}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground break-words block">
-                              @{friend.username || "student"}
-                            </span>
-                          </div>
+                            className="text-xs font-semibold text-primary hover:underline"
+                          >
+                            {allSelected ? t("deselectAll") || "Deselect All" : t("selectAll") || "Select All"}
+                          </button>
                         </div>
                       );
-                    })
-                )}
-              </div>
-            </div>
-          </div>
+                    })()}
+                  </div>
+                </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t">
-            <Button variant="outline" onClick={() => setShowInviteModal(false)} className="rounded-xl h-10 text-xs sm:text-sm">
-              {t("cancel") || "Cancel"}
-            </Button>
-            <Button
-              onClick={handleCreateChallenge}
-              disabled={creatingChallenge || !selectedCategory || selectedInvitees.size === 0}
-              className="rounded-xl h-10 text-xs sm:text-sm font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm gap-2"
-            >
-              {creatingChallenge ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trophy className="h-4 w-4" />
-              )}
-              <span>
-                {selectedInvitees.size > 0
-                  ? `${t("createChallenge") || "Create Challenge"} (${selectedInvitees.size})`
-                  : t("createChallenge") || "Create Challenge"}
-              </span>
-            </Button>
-          </DialogFooter>
+                {/* 4. Friends list */}
+                <div>
+                  <div className="max-h-52 overflow-y-auto rounded-xl border divide-y divide-border/60">
+                    {friends
+                      .filter((f) => {
+                        if (!inviteSearchQuery) return true;
+                        const q = inviteSearchQuery.toLowerCase();
+                        return f.full_name?.toLowerCase().includes(q) || f.username?.toLowerCase().includes(q);
+                      })
+                      .map((friend) => {
+                        const isSelected = selectedInvitees.has(friend.id);
+                        return (
+                          <div
+                            key={friend.id}
+                            onClick={() => {
+                              setSelectedInvitees((prev) => {
+                                const next = new Set(prev);
+                                if (isSelected) next.delete(friend.id);
+                                else next.add(friend.id);
+                                return next;
+                              });
+                            }}
+                            className={`flex items-center gap-3 p-2.5 hover:bg-muted/50 cursor-pointer select-none transition-colors ${
+                              isSelected ? "bg-primary/5" : ""
+                            }`}
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => {
+                                setSelectedInvitees((prev) => {
+                                  const next = new Set(prev);
+                                  if (checked) next.add(friend.id);
+                                  else next.delete(friend.id);
+                                  return next;
+                                });
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <ProfileAvatar profile={friend} size="h-8 w-8" />
+                            <div className="min-w-0 flex-1">
+                              <span className="text-xs sm:text-sm font-medium block leading-snug break-words">
+                                {friend.full_name || friend.username}
+                              </span>
+                              <span className="text-[11px] text-muted-foreground break-words block">
+                                @{friend.username || "student"}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t">
+                <Button variant="outline" onClick={() => setShowInviteModal(false)} className="rounded-xl h-10 text-xs sm:text-sm">
+                  {t("cancel") || "Cancel"}
+                </Button>
+                <Button
+                  onClick={handleCreateChallenge}
+                  disabled={creatingChallenge || !selectedCategory || selectedInvitees.size === 0}
+                  className="rounded-xl h-10 text-xs sm:text-sm font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm gap-2"
+                >
+                  {creatingChallenge ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trophy className="h-4 w-4" />
+                  )}
+                  <span>
+                    {selectedInvitees.size > 0
+                      ? `${t("createChallenge") || "Create Challenge"} (${selectedInvitees.size})`
+                      : t("createChallenge") || "Create Challenge"}
+                  </span>
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
       )}
