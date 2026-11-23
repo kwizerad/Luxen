@@ -76,7 +76,7 @@ export default function AdminLayout({
         const hasAdminRole = isAdmin(currentUser);
 
         if (!currentUser) {
-          router.replace("/");
+          window.location.replace("/");
           return;
         }
 
@@ -100,14 +100,18 @@ export default function AdminLayout({
         setLoading(false);
       } catch (error) {
         console.error("Check admin error:", error);
-        if (active) router.replace("/");
+        if (active) window.location.replace("/");
       }
     };
 
     checkAdmin();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT" || event === "USER_UPDATED") {
+      if (event === "SIGNED_OUT") {
+        window.location.replace("/");
+        return;
+      }
+      if (event === "USER_UPDATED") {
         checkAdmin();
       }
     });

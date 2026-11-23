@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getChallengeSharePreferences } from "@/lib/group-exam-privacy";
 
 export async function GET(
   request: NextRequest,
@@ -40,6 +41,22 @@ export async function GET(
       }
     }
     const participants = Array.from(participantsMap.values());
+
+    const isAdminRole =
+      user.user_metadata?.role === "admin" || user.app_metadata?.role === "admin";
+    const isMember =
+      challenge.creator_id === user.id ||
+      participants.some((p) => p.user_id === user.id);
+
+    if (!isMember && !isAdminRole) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const sharePrefs = await getChallengeSharePreferences(
+      adminClient,
+      params.id,
+      participants
+    );
 
     const allUserIds = new Set<string>();
     for (const p of participants || []) allUserIds.add(p.user_id);
@@ -135,25 +152,47 @@ export async function GET(
           ? Math.round((attempt.correct_answers / attempt.total_questions) * 100)
           : null;
 
+      const shareResults = sharePrefs[p.user_id] !== false;
+      const isSelf = p.user_id === user.id;
+      const resultsHidden = !shareResults && !isSelf;
+
       let trend: "up" | "down" | "neutral" | null = null;
       let trendDiff = 0;
       let averageScore: number | null = null;
 
-      if (totalAttempts > 1 && currentScorePct !== null) {
-        const sumScores = history.reduce((acc, h) => acc + (h.score_percentage ?? 0), 0);
-        averageScore = Math.round(sumScores / totalAttempts);
-        trendDiff = currentScorePct - averageScore;
-        if (trendDiff > 0) trend = "up";
-        else if (trendDiff < 0) trend = "down";
-        else trend = "neutral";
-      } else if (totalAttempts === 1 && currentScorePct !== null) {
-        averageScore = currentScorePct;
+      if (!resultsHidden) {
+        if (totalAttempts > 1 && currentScorePct !== null) {
+          const sumScores = history.reduce((acc, h) => acc + (h.score_percentage ?? 0), 0);
+          averageScore = Math.round(sumScores / totalAttempts);
+          trendDiff = currentScorePct - averageScore;
+          if (trendDiff > 0) trend = "up";
+          else if (trendDiff < 0) trend = "down";
+          else trend = "neutral";
+        } else if (totalAttempts === 1 && currentScorePct !== null) {
+          averageScore = currentScorePct;
+        }
       }
+
+      const safeAttempt = resultsHidden
+        ? attempt || p.exam_attempt_id
+          ? {
+              id: attempt?.id || p.exam_attempt_id,
+              user_id: p.user_id,
+              total_questions: attempt?.total_questions ?? 20,
+              status: attempt?.status || "completed",
+              completed_at: attempt?.completed_at || p.completed_at || null,
+              answers: [],
+              results_hidden: true,
+            }
+          : null
+        : attempt;
 
       return {
         ...p,
+        share_results: shareResults,
+        results_hidden: resultsHidden,
         profile,
-        exam_attempt: attempt,
+        exam_attempt: safeAttempt,
         trend,
         trend_diff: trendDiff,
         average_score: averageScore,

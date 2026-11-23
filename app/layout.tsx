@@ -42,11 +42,16 @@ export async function generateMetadata(): Promise<Metadata> {
 
   try {
     const adminSupabase = createAdminClient();
-    const { data: brandData } = await adminSupabase
+    const queryPromise = adminSupabase
       .from("system_config")
       .select("value")
       .eq("key", "branding_config")
       .single();
+    const timeoutPromise = new Promise<{ data: null }>((resolve) =>
+      setTimeout(() => resolve({ data: null }), 1200)
+    );
+    const result = await Promise.race([queryPromise, timeoutPromise]);
+    const brandData = result?.data;
 
     if (brandData?.value) {
       const parsed = JSON.parse(brandData.value);

@@ -16,8 +16,12 @@ import {
   TrendingUp,
   TrendingDown,
   Loader2,
+  Eye,
+  EyeOff,
+  Lock,
 } from "lucide-react";
 import confetti from "canvas-confetti";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/lib/language-context";
@@ -41,6 +45,8 @@ interface LeaderboardEntry {
   duration_seconds: number | null;
   completed: boolean;
   completed_at?: string | null;
+  share_results?: boolean;
+  results_hidden?: boolean;
   trend?: "up" | "down" | "neutral" | null;
   trend_diff?: number;
   average_score?: number | null;
@@ -68,6 +74,7 @@ export function GroupExamResults({
   const [isSoloAttempt, setIsSoloAttempt] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showReview, setShowReview] = useState(false);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
   const confettiFiredRef = useRef(false);
   const leaderboardSigRef = useRef<string>("");
   const supabase = useMemo(() => createClient(), []);
@@ -85,6 +92,8 @@ export function GroupExamResults({
             e.score,
             e.completed,
             e.duration_seconds,
+            e.share_results,
+            e.results_hidden,
           ])
         );
         if (sig !== leaderboardSigRef.current) {
@@ -175,7 +184,7 @@ export function GroupExamResults({
   };
 
   const completedEntries = useMemo(
-    () => leaderboard.filter((e) => e.completed && e.score !== null),
+    () => leaderboard.filter((e) => e.completed && !e.results_hidden && e.score !== null),
     [leaderboard]
   );
 
@@ -246,11 +255,50 @@ export function GroupExamResults({
     );
   }
 
-  const completedCount = completedEntries.length;
+  const completedCount = leaderboard.filter((e) => e.completed).length;
   const myEntry = leaderboard.find((e) => e.user_id === examResult.user_id);
-  const myRank = myEntry
-    ? leaderboard.findIndex((e) => e.user_id === examResult.user_id) + 1
-    : null;
+  const myRankIndex = completedEntries.findIndex((e) => e.user_id === examResult.user_id);
+  const myRank = myRankIndex >= 0 ? myRankIndex + 1 : null;
+  const myShareResults = myEntry ? myEntry.share_results !== false : true;
+
+  const handleToggleShareResults = async () => {
+    if (togglingVisibility) return;
+    const nextShare = !myShareResults;
+    setTogglingVisibility(true);
+    setLeaderboard((prev) =>
+      prev.map((e) =>
+        e.user_id === examResult.user_id ? { ...e, share_results: nextShare } : e
+      )
+    );
+    try {
+      const res = await fetch(`/api/exam-challenges/${challengeId}/visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ share_results: nextShare }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || "Failed to update visibility");
+      }
+      toast.success(
+        nextShare
+          ? t("resultsNowShared") || "Your results are now shared with group members"
+          : t("resultsNowPrivate") || "Your results are now hidden from other members"
+      );
+      await fetchResults();
+    } catch (error) {
+      setLeaderboard((prev) =>
+        prev.map((e) =>
+          e.user_id === examResult.user_id ? { ...e, share_results: !nextShare } : e
+        )
+      );
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update visibility"
+      );
+    } finally {
+      setTogglingVisibility(false);
+    }
+  };
 
   return (
     <div className="flex-1 w-full max-w-4xl mx-auto px-3.5 sm:px-6 py-4 sm:py-6 space-y-5 pb-20">
@@ -303,6 +351,51 @@ export function GroupExamResults({
         )}
       </div>
 
+      {/* Result Sharing Preference Bar (Changeable Anytime) */}
+      {myEntry && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-border/60 bg-card/50 dark:bg-zinc-900/40 px-3.5 py-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {myShareResults ? (
+              <Eye className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            ) : (
+              <EyeOff className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground">
+                {myShareResults
+                  ? t("sharingResultsWithGroup") || "Sharing your results with group"
+                  : t("hidingResultsFromGroup") || "Your results are hidden from others"}
+              </p>
+              <p className="text-[11px] text-muted-foreground truncate">
+                {t("shareGroupResultsCanChangeLater") ||
+                  "You can change this choice anytime."}
+              </p>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleToggleShareResults}
+            disabled={togglingVisibility}
+            className="h-8 rounded-lg text-xs font-semibold shrink-0"
+          >
+            {myShareResults ? (
+              <>
+                <EyeOff className="h-3.5 w-3.5 mr-1.5" />
+                <span>{t("hideMyResults") || "Hide Results"}</span>
+              </>
+            ) : (
+              <>
+                <Eye className="h-3.5 w-3.5 mr-1.5" />
+                <span>{t("shareMyResults") || "Share Results"}</span>
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
       {/* Single Hairline Leaderboard List */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -333,11 +426,15 @@ export function GroupExamResults({
             <motion.div layout className="divide-y divide-border/50">
               <AnimatePresence initial={false}>
                 {leaderboard.map((entry, idx) => {
-                  const rank = idx + 1;
+                  const isHidden = Boolean(entry.results_hidden);
+                  const visibleRankIndex = completedEntries.findIndex(
+                    (c) => c.user_id === entry.user_id
+                  );
+                  const rank = !isHidden && visibleRankIndex >= 0 ? visibleRankIndex + 1 : idx + 1;
                   const isCurrentUser = entry.user_id === examResult.user_id;
 
                   const group =
-                    (entry.score !== null && scoreGroups[entry.score]) || [];
+                    (!isHidden && entry.score !== null && scoreGroups[entry.score]) || [];
                   const isTiedScore = group.length > 1;
                   const fastestInTie = group[0];
                   const isTiedLeader = entry.user_id === fastestInTie?.user_id;
@@ -368,7 +465,11 @@ export function GroupExamResults({
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className="w-7 flex items-center justify-center shrink-0">
-                          {rank === 1 ? (
+                          {isHidden ? (
+                            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                          ) : !entry.completed ? (
+                            <span className="text-xs font-mono text-muted-foreground">—</span>
+                          ) : rank === 1 ? (
                             <Crown className="h-4 w-4 text-amber-500" />
                           ) : rank === 2 ? (
                             <Medal className="h-4 w-4 text-slate-400" />
@@ -400,52 +501,64 @@ export function GroupExamResults({
                             {isCurrentUser && (
                               <span className="ml-1.5 text-xs text-primary font-semibold">
                                 ({t("you") || "You"})
+                                {entry.share_results === false && (
+                                  <span className="ml-1.5 text-[11px] font-normal text-amber-600 dark:text-amber-400">
+                                    · {t("resultsPrivateLabel") || "Private"}
+                                  </span>
+                                )}
                               </span>
                             )}
                           </p>
                           <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground tabular-nums">
                             {entry.completed ? (
-                              <>
-                                <span>
-                                  {entry.score}/{entry.total_questions}
+                              isHidden ? (
+                                <span className="inline-flex items-center gap-1 text-muted-foreground">
+                                  <EyeOff className="h-3 w-3" />
+                                  <span>{t("resultsHiddenByParticipant") || "Completed · Results private"}</span>
                                 </span>
-                                <span aria-hidden="true">·</span>
-                                <span>{formatDuration(entry.duration_seconds)}</span>
-                                {isTiedScore && (
-                                  <>
-                                    <span aria-hidden="true">·</span>
-                                    <span>{intervalFormatted}</span>
-                                  </>
-                                )}
-                                {entry.total_attempts !== undefined &&
-                                  entry.total_attempts > 1 &&
-                                  entry.trend && (
+                              ) : (
+                                <>
+                                  <span>
+                                    {entry.score}/{entry.total_questions}
+                                  </span>
+                                  <span aria-hidden="true">·</span>
+                                  <span>{formatDuration(entry.duration_seconds)}</span>
+                                  {isTiedScore && (
                                     <>
                                       <span aria-hidden="true">·</span>
-                                      <span
-                                        className={cn(
-                                          "inline-flex items-center gap-0.5 font-medium",
-                                          entry.trend === "up"
-                                            ? "text-emerald-600 dark:text-emerald-400"
-                                            : entry.trend === "down"
-                                            ? "text-rose-600 dark:text-rose-400"
-                                            : ""
-                                        )}
-                                      >
-                                        {entry.trend === "up" ? (
-                                          <TrendingUp className="h-3 w-3" />
-                                        ) : entry.trend === "down" ? (
-                                          <TrendingDown className="h-3 w-3" />
-                                        ) : null}
-                                        {entry.trend === "up"
-                                          ? `+${entry.trend_diff}%`
-                                          : entry.trend === "down"
-                                          ? `${entry.trend_diff}%`
-                                          : "="}
-                                      </span>
+                                      <span>{intervalFormatted}</span>
                                     </>
                                   )}
-                              </>
+                                  {entry.total_attempts !== undefined &&
+                                    entry.total_attempts > 1 &&
+                                    entry.trend && (
+                                      <>
+                                        <span aria-hidden="true">·</span>
+                                        <span
+                                          className={cn(
+                                            "inline-flex items-center gap-0.5 font-medium",
+                                            entry.trend === "up"
+                                              ? "text-emerald-600 dark:text-emerald-400"
+                                              : entry.trend === "down"
+                                              ? "text-rose-600 dark:text-rose-400"
+                                              : ""
+                                          )}
+                                        >
+                                          {entry.trend === "up" ? (
+                                            <TrendingUp className="h-3 w-3" />
+                                          ) : entry.trend === "down" ? (
+                                            <TrendingDown className="h-3 w-3" />
+                                          ) : null}
+                                          {entry.trend === "up"
+                                            ? `+${entry.trend_diff}%`
+                                            : entry.trend === "down"
+                                            ? `${entry.trend_diff}%`
+                                            : "="}
+                                        </span>
+                                      </>
+                                    )}
+                                </>
+                              )
                             ) : (
                               <span className="inline-flex items-center gap-1">
                                 {entry.status === "in_progress" || entry.status === "active" ? (
@@ -488,18 +601,25 @@ export function GroupExamResults({
                       </div>
 
                       {entry.completed && (
-                        <span
-                          className={cn(
-                            "font-mono text-sm font-bold tabular-nums shrink-0",
-                            pct >= 80
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : pct >= 60
-                              ? "text-amber-600 dark:text-amber-400"
-                              : "text-rose-600 dark:text-rose-400"
-                          )}
-                        >
-                          {pct}%
-                        </span>
+                        isHidden ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground shrink-0">
+                            <Lock className="h-3 w-3" />
+                            <span>{t("resultsPrivateLabel") || "Private"}</span>
+                          </span>
+                        ) : (
+                          <span
+                            className={cn(
+                              "font-mono text-sm font-bold tabular-nums shrink-0",
+                              pct >= 80
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : pct >= 60
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-rose-600 dark:text-rose-400"
+                            )}
+                          >
+                            {pct}%
+                          </span>
+                        )
                       )}
                     </motion.div>
                   );

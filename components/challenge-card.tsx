@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
-import { Trophy, Users, Check, X, Play, Clock, Loader2, Bell, Medal, Timer, CheckCircle2 } from "lucide-react";
+import { Trophy, Users, Check, X, Play, Clock, Loader2, Bell, Medal, Timer, CheckCircle2, Eye, EyeOff, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,6 +22,7 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge, currentUse
   const { t, language } = useLanguage();
   const [participants, setParticipants] = useState(challenge.participants || []);
   const [acting, setActing] = useState(false);
+  const [togglingShare, setTogglingShare] = useState(false);
   const onActionCompleteRef = useRef(onActionComplete);
   onActionCompleteRef.current = onActionComplete;
   const participantsSigRef = useRef("");
@@ -31,7 +32,9 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge, currentUse
 
   useEffect(() => {
     const incoming = challenge.participants || [];
-    const nextSig = incoming.map((p) => `${p.user_id}:${p.status}:${p.exam_attempt_id || ""}`).join("|");
+    const nextSig = incoming
+      .map((p) => `${p.user_id}:${p.status}:${p.exam_attempt_id || ""}:${p.share_results ?? true}:${p.results_hidden ?? false}`)
+      .join("|");
     if (nextSig !== participantsSigRef.current) {
       participantsSigRef.current = nextSig;
       setParticipants(incoming);
@@ -128,15 +131,21 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge, currentUse
       .filter((p) => p.status === "completed" || Boolean(p.exam_attempt_id) || Boolean((p as any).exam_attempt))
       .slice()
       .sort((a, b) => {
+        const aHidden = Boolean(a.results_hidden);
+        const bHidden = Boolean(b.results_hidden);
+        if (!aHidden && bHidden) return -1;
+        if (aHidden && !bHidden) return 1;
+        if (aHidden && bHidden) return 0;
+
         const aAttempt = (a as any).exam_attempt;
         const bAttempt = (b as any).exam_attempt;
 
-        const aScore = aAttempt?.score !== undefined ? Number(aAttempt.score) : -1;
-        const bScore = bAttempt?.score !== undefined ? Number(bAttempt.score) : -1;
+        const aScore = aAttempt?.score !== undefined && aAttempt?.score !== null ? Number(aAttempt.score) : -1;
+        const bScore = bAttempt?.score !== undefined && bAttempt?.score !== null ? Number(bAttempt.score) : -1;
         const aTotal = aAttempt?.total_questions ? Number(aAttempt.total_questions) : 20;
         const bTotal = bAttempt?.total_questions ? Number(bAttempt.total_questions) : 20;
-        const aPct = aAttempt?.percentage !== undefined ? Number(aAttempt.percentage) : (aScore >= 0 ? Math.round((aScore / aTotal) * 100) : -1);
-        const bPct = bAttempt?.percentage !== undefined ? Number(bAttempt.percentage) : (bScore >= 0 ? Math.round((bScore / bTotal) * 100) : -1);
+        const aPct = aAttempt?.percentage !== undefined && aAttempt?.percentage !== null ? Number(aAttempt.percentage) : (aScore >= 0 ? Math.round((aScore / aTotal) * 100) : -1);
+        const bPct = bAttempt?.percentage !== undefined && bAttempt?.percentage !== null ? Number(bAttempt.percentage) : (bScore >= 0 ? Math.round((bScore / bTotal) * 100) : -1);
 
         // 1. Primary: Score percentage (highest first)
         if (bPct !== aPct) return bPct - aPct;
@@ -155,6 +164,45 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge, currentUse
         return aTime - bTime;
       });
   }, [participants]);
+
+  const myShareResults = myParticipation ? myParticipation.share_results !== false : true;
+
+  const handleToggleShare = async () => {
+    if (togglingShare) return;
+    const nextShare = !myShareResults;
+    setTogglingShare(true);
+    setParticipants((prev) =>
+      prev.map((p) =>
+        p.user_id === currentUserId ? { ...p, share_results: nextShare } : p
+      )
+    );
+    try {
+      const res = await fetch(`/api/exam-challenges/${challenge.id}/visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ share_results: nextShare }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || "Action failed");
+      }
+      toast.success(
+        nextShare
+          ? t("resultsNowShared") || "Results shared with group"
+          : t("resultsNowPrivate") || "Results hidden from others"
+      );
+      onActionCompleteRef.current?.();
+    } catch (error) {
+      setParticipants((prev) =>
+        prev.map((p) =>
+          p.user_id === currentUserId ? { ...p, share_results: !nextShare } : p
+        )
+      );
+      toast.error(error instanceof Error ? error.message : "Failed to update visibility");
+    } finally {
+      setTogglingShare(false);
+    }
+  };
 
   const callApi = async (endpoint: string, body?: any) => {
     setActing(true);
@@ -386,11 +434,32 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge, currentUse
       {/* Action buttons */}
       <div className="flex flex-wrap items-center gap-2">
         {hasUserCompleted ? (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" onClick={handleViewResults} className="text-xs font-semibold">
               <Trophy className="h-3.5 w-3.5 mr-1 text-amber-500" />
               {t("viewDetails") || "View Details"}
             </Button>
+            {totalParticipants > 1 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleToggleShare}
+                disabled={togglingShare}
+                className="text-xs font-medium"
+              >
+                {myShareResults ? (
+                  <>
+                    <Eye className="h-3.5 w-3.5 mr-1 text-emerald-600 dark:text-emerald-400" />
+                    <span>{t("sharingResultsShort") || "Shared"}</span>
+                  </>
+                ) : (
+                  <>
+                    <EyeOff className="h-3.5 w-3.5 mr-1 text-amber-600 dark:text-amber-400" />
+                    <span>{t("privateResultsShort") || "Private"}</span>
+                  </>
+                )}
+              </Button>
+            )}
             <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
               <CheckCircle2 className="h-3.5 w-3.5" />
               {t("youCompletedThisExam") || "You completed this exam"}
@@ -515,6 +584,7 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge, currentUse
             <span className="text-[10px] text-muted-foreground/70 font-normal">{t("tiesBrokenByTime") || "Ties broken by fastest time"}</span>
           </div>
           {sortedCompletedParticipants.slice(0, 3).map((p, idx) => {
+            const isHidden = Boolean(p.results_hidden);
             const attempt = (p as any).exam_attempt;
             const score = attempt?.score;
             const total = attempt?.total_questions || 20;
@@ -529,32 +599,48 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge, currentUse
               <div
                 key={p.id}
                 className={`flex items-center justify-between text-xs py-1 px-2 rounded-lg ${
-                  idx === 0
+                  !isHidden && idx === 0
                     ? "bg-amber-500/10 border border-amber-500/20"
                     : "bg-muted/30 border border-border/30"
                 }`}
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="text-sm shrink-0">
-                    {idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉"}
+                    {isHidden ? (
+                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                    ) : idx === 0 ? (
+                      "🥇"
+                    ) : idx === 1 ? (
+                      "🥈"
+                    ) : (
+                      "🥉"
+                    )}
                   </span>
                   <span className="font-medium truncate text-foreground text-[11px]">
                     {p.profile?.full_name || p.profile?.username || "Classmate"}
                     {p.user_id === currentUserId ? ` (${t("you") || "You"})` : ""}
                   </span>
-                  {idx === 0 && (
+                  {!isHidden && idx === 0 && (
                     <Badge className="bg-amber-500 text-amber-950 font-bold text-[9px] px-1.5 py-0 h-4 border-none">
                       {t("winner") || "Winner"}
                     </Badge>
                   )}
                 </div>
-                {score !== undefined && score !== null && (
-                  <div className="flex items-center gap-2 text-[11px] font-semibold shrink-0 text-foreground">
-                    <span>{score}/{total} ({pct}%)</span>
-                    {formattedDuration && (
-                      <span className="text-[10px] text-muted-foreground font-normal">⏱ {formattedDuration}</span>
-                    )}
-                  </div>
+                {isHidden ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
+                    <EyeOff className="h-3 w-3" />
+                    <span>{t("resultsPrivateLabel") || "Private"}</span>
+                  </span>
+                ) : (
+                  score !== undefined &&
+                  score !== null && (
+                    <div className="flex items-center gap-2 text-[11px] font-semibold shrink-0 text-foreground">
+                      <span>{score}/{total} ({pct}%)</span>
+                      {formattedDuration && (
+                        <span className="text-[10px] text-muted-foreground font-normal">⏱ {formattedDuration}</span>
+                      )}
+                    </div>
+                  )
                 )}
               </div>
             );

@@ -15,12 +15,14 @@ export function SiteFooter() {
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <Link
             href="/"
+            prefetch={false}
             className="hover:text-foreground transition-colors"
           >
             {t("home")}
           </Link>
           <Link
             href="/"
+            prefetch={false}
             className="hover:text-foreground transition-colors"
           >
             {t("login")}

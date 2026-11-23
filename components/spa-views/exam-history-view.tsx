@@ -34,8 +34,6 @@ import {
   X,
   ArrowUpDown,
   Tag,
-  File,
-  FileText,
   Folder,
   AlertTriangle,
 } from "lucide-react";
@@ -47,6 +45,10 @@ import { ExamHistorySkeleton } from "@/components/skeletons";
 import { cn } from "@/lib/utils";
 import { spaCache } from "@/lib/spa-cache";
 import { studentCache } from "@/lib/student-cache";
+import {
+  getBrowserExamAttemptsAsync,
+  getBrowserExamQuestions,
+} from "@/lib/browser-exam-history";
 import type { ExamAttempt, ExamQuestion, ExamAnswer } from "@/lib/database.types";
 
 export interface ExamHistoryViewProps {
@@ -81,73 +83,122 @@ function PCFileIcon({
   size?: "lg" | "sm";
 }) {
   const isLarge = size === "lg";
-  const docClass = isLarge
-    ? "w-12 h-12 sm:w-14 sm:h-14 fill-white text-slate-300 dark:fill-zinc-100 dark:text-zinc-400 stroke-[1.35] drop-shadow-[0_2px_4px_rgba(15,23,42,0.14)] dark:drop-shadow-[0_3px_6px_rgba(0,0,0,0.5)] transition-transform duration-150 group-hover:scale-105"
-    : "w-7 h-7 fill-white text-slate-300 dark:fill-zinc-100 dark:text-zinc-400 stroke-[1.5] drop-shadow-[0_1px_2px_rgba(15,23,42,0.12)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.45)]";
-  const badgePos = isLarge ? "-bottom-0.5 -right-0.5" : "-bottom-0.5 -right-0.5";
-  const badgeSize = isLarge ? "w-5 h-5 sm:w-5.5 sm:h-5.5" : "w-3.5 h-3.5";
+
+  const theme = isCheating
+    ? {
+        surface:
+          "bg-gradient-to-br from-orange-500 via-red-500 to-rose-700 ring-1 ring-orange-300/60 dark:ring-orange-400/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_8px_18px_-6px_rgba(249,115,22,0.55)]",
+        fold: "bg-orange-200/55 dark:bg-orange-200/40 border-b border-l border-white/45",
+      }
+    : isAbandoned
+    ? {
+        surface:
+          "bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 ring-1 ring-amber-200/70 dark:ring-amber-400/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_18px_-6px_rgba(245,158,11,0.5)]",
+        fold: "bg-amber-100/60 dark:bg-amber-200/40 border-b border-l border-white/45",
+      }
+    : isPassed
+    ? {
+        surface:
+          "bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 ring-1 ring-emerald-200/70 dark:ring-emerald-400/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_18px_-6px_rgba(16,185,129,0.5)]",
+        fold: "bg-emerald-100/60 dark:bg-emerald-200/40 border-b border-l border-white/45",
+      }
+    : {
+        surface:
+          "bg-gradient-to-br from-rose-400 via-rose-500 to-red-600 ring-1 ring-rose-200/70 dark:ring-rose-400/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_8px_18px_-6px_rgba(244,63,94,0.5)]",
+        fold: "bg-rose-100/60 dark:bg-rose-200/40 border-b border-l border-white/45",
+      };
+
+  const glyph = isCheating ? (
+    <ShieldAlert
+      className={cn(
+        "text-white drop-shadow-xs stroke-[2.25]",
+        isLarge ? "w-5 h-5 sm:w-6 sm:h-6" : "w-3.5 h-3.5"
+      )}
+    />
+  ) : isAbandoned ? (
+    <AlertTriangle
+      className={cn(
+        "text-white drop-shadow-xs stroke-[2.25]",
+        isLarge ? "w-5 h-5 sm:w-6 sm:h-6" : "w-3.5 h-3.5"
+      )}
+    />
+  ) : isPassed ? (
+    <Check
+      className={cn(
+        "text-white drop-shadow-xs stroke-[2.75]",
+        isLarge ? "w-5 h-5 sm:w-6 sm:h-6" : "w-3.5 h-3.5"
+      )}
+    />
+  ) : (
+    <X
+      className={cn(
+        "text-white drop-shadow-xs stroke-[2.75]",
+        isLarge ? "w-5 h-5 sm:w-6 sm:h-6" : "w-3.5 h-3.5"
+      )}
+    />
+  );
 
   return (
     <div
       className={cn(
-        "relative inline-flex items-center justify-center shrink-0 select-none bg-transparent",
-        isLarge ? "w-14 h-14 sm:w-16 sm:h-16" : "w-8 h-8"
+        "relative inline-flex items-center justify-center shrink-0 select-none overflow-hidden transition-transform duration-200 group-hover:scale-105 group-hover:-translate-y-0.5",
+        isLarge
+          ? "w-14 h-[68px] sm:w-16 sm:h-[76px] rounded-xl rounded-tr-[4px] [clip-path:polygon(0_0,calc(100%-15px)_0,100%_15px,100%_100%,0_100%)]"
+          : "w-8 h-9 rounded-md rounded-tr-[2px] [clip-path:polygon(0_0,calc(100%-8px)_0,100%_8px,100%_100%,0_100%)]",
+        theme.surface
       )}
     >
-      {isCheating || isAbandoned ? (
-        <File className={docClass} />
-      ) : (
-        <FileText className={docClass} />
+      {/* Top-right folded corner notch */}
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute top-0 right-0 pointer-events-none backdrop-blur-xs",
+          isLarge
+            ? "w-[15px] h-[15px] rounded-bl-md"
+            : "w-[8px] h-[8px] rounded-bl-[3px]",
+          theme.fold
+        )}
+      />
+
+      {/* Subtle glass sheen */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/25 to-transparent"
+      />
+
+      {/* Top-left subtle exam mode indicator (never hides result color/sign) */}
+      {isLarge && (isGroup || isModule) && (
+        <span
+          aria-hidden="true"
+          className="absolute top-2 left-2 text-white/90 drop-shadow-2xs"
+        >
+          {isGroup ? (
+            <Users className="w-3 h-3" />
+          ) : (
+            <BookOpen className="w-3 h-3" />
+          )}
+        </span>
       )}
 
-      {isCheating ? (
-        <ShieldAlert
-          className={cn(
-            "absolute drop-shadow-xs text-orange-500 fill-orange-500/20",
-            badgePos,
-            badgeSize
-          )}
-        />
-      ) : isAbandoned ? (
-        <AlertTriangle
-          className={cn(
-            "absolute drop-shadow-xs text-amber-500 fill-amber-500/20",
-            badgePos,
-            badgeSize
-          )}
-        />
-      ) : isGroup ? (
-        <Users
-          className={cn(
-            "absolute drop-shadow-xs text-indigo-600 dark:text-indigo-500",
-            badgePos,
-            badgeSize
-          )}
-        />
-      ) : isModule ? (
-        <BookOpen
-          className={cn(
-            "absolute drop-shadow-xs text-sky-600 dark:text-sky-500",
-            badgePos,
-            badgeSize
-          )}
-        />
-      ) : isPassed ? (
-        <CheckCircle2
-          className={cn(
-            "absolute drop-shadow-xs fill-emerald-500 text-white",
-            badgePos,
-            badgeSize
-          )}
-        />
-      ) : (
-        <XCircle
-          className={cn(
-            "absolute drop-shadow-xs fill-rose-500 text-white",
-            badgePos,
-            badgeSize
-          )}
-        />
+      {/* Centered Result Sign INSIDE the Colored File */}
+      <div
+        className={cn(
+          "relative z-10 flex items-center justify-center bg-white/18 backdrop-blur-xs border border-white/30",
+          isLarge ? "w-9 h-9 sm:w-10 sm:h-10 rounded-xl" : "w-5 h-5 rounded-md"
+        )}
+      >
+        {glyph}
+      </div>
+
+      {/* Bottom futuristic file accent bars */}
+      {isLarge && (
+        <div
+          aria-hidden="true"
+          className="absolute bottom-2 inset-x-3 flex flex-col gap-0.5 pointer-events-none"
+        >
+          <span className="h-[2px] w-full rounded-full bg-white/35" />
+          <span className="h-[2px] w-2/3 rounded-full bg-white/20" />
+        </div>
       )}
     </div>
   );
@@ -415,7 +466,24 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
               })
             : [];
 
-        const combined = [...standardAttempts, ...moduleAttempts].sort((a, b) => {
+        const browserRecords = await getBrowserExamAttemptsAsync(user.id).catch(() => []);
+        const browserAttempts: ExamAttemptWithAnswers[] = (browserRecords || []).map((att) => ({
+          ...(att as ExamAttemptWithAnswers),
+          answers: Array.isArray(att.answers) ? att.answers : [],
+          correct_answers: att.correct_answers ?? 0,
+          score_percentage: att.score_percentage ?? 0,
+          challenge_id: att.challenge_id || null,
+          is_module: Boolean(att.is_module),
+        }));
+
+        const dedupedMap = new Map<string, ExamAttemptWithAnswers>();
+        for (const item of [...browserAttempts, ...standardAttempts, ...moduleAttempts]) {
+          if (!dedupedMap.has(item.id)) {
+            dedupedMap.set(item.id, item);
+          }
+        }
+
+        const combined = Array.from(dedupedMap.values()).sort((a, b) => {
           const dateA = new Date(a.created_at || a.started_at || 0).getTime();
           const dateB = new Date(b.created_at || b.started_at || 0).getTime();
           return dateB - dateA;
@@ -476,6 +544,12 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
     const answeredCount = (attempt.answers || []).filter((a) => Boolean(a.selected_answer)).length;
     if (!user || answeredCount === 0) return;
+
+    const browserQuestions = await getBrowserExamQuestions(user.id, attempt.id);
+    if (browserQuestions?.length) {
+      setQuestions(browserQuestions);
+      return;
+    }
 
     const reviewKey = `exam_review_${attempt.id}`;
     const cachedReview = await studentCache.read<ExamQuestion[]>(reviewKey, {
@@ -1580,6 +1654,36 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                               : isFr
                               ? "solo"
                               : "solo";
+                            const statusLabel = isCheating
+                              ? isRw
+                                ? "Ikosa"
+                                : isFr
+                                ? "Infraction"
+                                : "Violation"
+                              : isAbandoned
+                              ? isRw
+                                ? "Ntiryarangiye"
+                                : isFr
+                                ? "Incomplet"
+                                : "Incomplete"
+                              : isPassed
+                              ? isRw
+                                ? "Yatsinze"
+                                : isFr
+                                ? "Réussi"
+                                : "Passed"
+                              : isRw
+                              ? "Yatsinzwe"
+                              : isFr
+                              ? "Échoué"
+                              : "Failed";
+                            const statusColorClass = isCheating
+                              ? "text-orange-600 dark:text-orange-400"
+                              : isAbandoned
+                              ? "text-amber-600 dark:text-amber-400"
+                              : isPassed
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-rose-600 dark:text-rose-400";
 
                             return (
                               <button
@@ -1597,54 +1701,56 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                   size="lg"
                                 />
 
-                                <span className="mt-1.5 text-xs font-medium text-foreground dark:text-zinc-100 leading-snug line-clamp-2 break-words w-full">
+                                <span className="mt-2 text-xs font-semibold text-foreground dark:text-zinc-100 leading-snug line-clamp-2 break-words w-full">
                                   {fileName}
                                 </span>
 
                                 <span
                                   className={cn(
-                                    "mt-0.5 text-[11px] font-mono tabular-nums font-semibold leading-tight",
-                                    isCheating && answeredCount === 0
-                                      ? "text-orange-600 dark:text-orange-400"
-                                      : isAbandoned
-                                      ? "text-amber-600 dark:text-amber-400"
-                                      : isPassed
-                                      ? "text-emerald-600 dark:text-emerald-400"
-                                      : "text-rose-600 dark:text-rose-400"
+                                    "mt-1 text-[11px] font-semibold leading-tight",
+                                    statusColorClass
                                   )}
                                 >
-                                  {isCheating && answeredCount === 0
-                                    ? isRw
-                                      ? "IKOSA"
-                                      : isFr
-                                      ? "INFRACTION"
-                                      : "VIOLATION"
-                                    : isAbandoned
-                                    ? fractionLabel
-                                    : `${scorePct}% · ${fractionLabel}`}
+                                  {statusLabel}
+                                </span>
+
+                                <span className="mt-0.5 text-[11px] font-mono tabular-nums font-medium text-foreground/85 dark:text-zinc-200 leading-tight">
+                                  {fractionLabel} · {scorePct}%
                                 </span>
 
                                 {shortDate && (
-                                  <span className="mt-0.5 text-[10px] text-muted-foreground dark:text-zinc-400 truncate max-w-full leading-tight">
+                                  <span className="mt-0.5 text-[10px] font-mono tabular-nums text-muted-foreground dark:text-zinc-400 truncate max-w-full leading-tight">
                                     {shortDate}
                                   </span>
                                 )}
 
                                 {/* Windows Explorer-style Hover Details Tooltip */}
-                                <div className="hidden sm:group-hover:block pointer-events-none absolute left-1/2 -translate-x-1/2 top-[calc(100%+4px)] z-30 w-56 rounded-lg border border-border/90 dark:border-zinc-700/80 bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-md p-2.5 text-left shadow-xl text-[11px] leading-relaxed text-popover-foreground dark:text-zinc-200">
+                                <div className="hidden sm:group-hover:block pointer-events-none absolute left-1/2 -translate-x-1/2 top-[calc(100%+4px)] z-30 w-60 rounded-lg border border-border/90 dark:border-zinc-700/80 bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-md p-2.5 text-left shadow-xl text-[11px] leading-relaxed text-popover-foreground dark:text-zinc-200">
                                   <div className="font-semibold text-foreground dark:text-white truncate mb-1">
                                     {fileName}
                                   </div>
                                   <div className="space-y-0.5 text-[10px] font-mono text-muted-foreground dark:text-zinc-400">
                                     <div>
-                                      {isRw ? "Itariki:" : isFr ? "Date :" : "Date:"}{" "}
-                                      <span className="text-foreground dark:text-zinc-200">{formatDate(rawDate)}</span>
+                                      {isRw ? "Imiterere:" : isFr ? "Statut :" : "Status:"}{" "}
+                                      <span className={cn("font-semibold", statusColorClass)}>
+                                        {statusLabel}
+                                      </span>
                                     </div>
                                     <div>
-                                      {isRw ? "Amanota:" : isFr ? "Score :" : "Score:"}{" "}
+                                      {isRw ? "Amanota:" : isFr ? "Points :" : "Marks:"}{" "}
                                       <span className="text-foreground dark:text-zinc-200 tabular-nums">
-                                        {fractionLabel} ({scorePct}%)
+                                        {fractionLabel}
                                       </span>
+                                    </div>
+                                    <div>
+                                      {isRw ? "Ijanisha:" : isFr ? "Pourcentage :" : "Percentage:"}{" "}
+                                      <span className="text-foreground dark:text-zinc-200 tabular-nums">
+                                        {scorePct}%
+                                      </span>
+                                    </div>
+                                    <div>
+                                      {isRw ? "Itariki:" : isFr ? "Date :" : "Date:"}{" "}
+                                      <span className="text-foreground dark:text-zinc-200 tabular-nums">{formatDate(rawDate)}</span>
                                     </div>
                                     <div>
                                       {isRw ? "Ubwoko:" : isFr ? "Type :" : "Type:"}{" "}
@@ -1675,6 +1781,39 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                             const isCheating = attempt.submission_reason === "cheating_violation";
                             const isGroup = !!attempt.challenge_id;
                             const isModule = !!attempt.is_module;
+                            const listScorePct = isAbandoned
+                              ? 0
+                              : Math.max(0, Math.min(100, attempt.score_percentage || 0));
+                            const listStatusLabel = isCheating
+                              ? isRw
+                                ? "Ikosa"
+                                : isFr
+                                ? "Infraction"
+                                : "Violation"
+                              : isAbandoned
+                              ? isRw
+                                ? "Ntiryarangiye"
+                                : isFr
+                                ? "Incomplet"
+                                : "Incomplete"
+                              : isPassed
+                              ? isRw
+                                ? "Yatsinze"
+                                : isFr
+                                ? "Réussi"
+                                : "Passed"
+                              : isRw
+                              ? "Yatsinzwe"
+                              : isFr
+                              ? "Échoué"
+                              : "Failed";
+                            const listStatusColorClass = isCheating
+                              ? "text-orange-600 dark:text-orange-400"
+                              : isAbandoned
+                              ? "text-amber-600 dark:text-amber-400"
+                              : isPassed
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-rose-600 dark:text-rose-400";
 
                             const getZeroAnswerListCause = () => {
                               if (isCheating) {
@@ -1716,6 +1855,9 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                     <p className="text-xs font-semibold text-foreground dark:text-zinc-100 truncate">
                                       {attempt.category_name}
                                     </p>
+                                    <span className={cn("text-[11px] font-semibold", listStatusColorClass)}>
+                                      · {listStatusLabel}
+                                    </span>
                                     {(isGroup || isModule) && (
                                       <span className="text-[10px] font-mono text-muted-foreground dark:text-zinc-400">
                                         · {isGroup ? (isRw ? "itsinda" : isFr ? "groupe" : "group") : (isRw ? "modire" : "module")}
@@ -1736,8 +1878,8 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                     </p>
                                   )}
 
-                                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground dark:text-zinc-400 font-mono flex-wrap">
-                                    <span>{formatDate(attempt.started_at || attempt.completed_at)}</span>
+                                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground dark:text-zinc-400 font-mono flex-wrap tabular-nums">
+                                    <span>{formatDate(attempt.completed_at || attempt.started_at || attempt.created_at)}</span>
                                     {attempt.duration_seconds != null && (
                                       <>
                                         <span aria-hidden="true">·</span>
@@ -1751,18 +1893,14 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                   <p
                                     className={cn(
                                       "text-sm font-mono font-bold tabular-nums",
-                                      isAbandoned
-                                        ? "text-amber-600 dark:text-amber-400"
-                                        : isPassed
-                                        ? "text-emerald-600 dark:text-emerald-400"
-                                        : "text-rose-600 dark:text-rose-400"
+                                      listStatusColorClass
                                     )}
                                   >
-                                    {isAbandoned ? "—" : `${attempt.score_percentage}%`}
+                                    {listScorePct}%
                                   </p>
                                   <p className="text-[11px] font-mono tabular-nums text-muted-foreground dark:text-zinc-400">
                                     {isAbandoned
-                                      ? `${answeredCount}/${attempt.total_questions}`
+                                      ? `${answeredCount}/${attempt.total_questions || 20}`
                                       : `${attempt.correct_answers ?? 0}/${attempt.total_questions || 20}`}
                                   </p>
                                 </div>

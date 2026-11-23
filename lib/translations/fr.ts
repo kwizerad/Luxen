@@ -2956,7 +2956,22 @@ const fr: Record<string, string> = {
   "coursesWithImages": "Cours avec images",
   "noCoursesWithImages": "Aucun cours avec images trouvé",
   "noCoursesWithImagesDesc": "Aucune leçon sur les panneaux avec images n'est encore disponible dans cette langue.",
-  "roadSigns": "Panneaux routiers"
+  "roadSigns": "Panneaux routiers",
+  "shareGroupResultsQuestion": "Partager vos résultats avec les membres du groupe ?",
+  "shareGroupResultsHint": "Choisissez si les autres participants peuvent voir votre score et vos réponses. Vous pourrez modifier ce choix à tout moment.",
+  "shareGroupResultsCanChangeLater": "Vous pouvez modifier ce choix à tout moment.",
+  "shareResultsYes": "Partager",
+  "shareResultsNo": "Garder privé",
+  "sharingResultsWithGroup": "Vos résultats sont partagés avec le groupe",
+  "hidingResultsFromGroup": "Vos résultats sont masqués aux autres",
+  "shareMyResults": "Partager mes résultats",
+  "hideMyResults": "Masquer mes résultats",
+  "resultsNowShared": "Vos résultats sont désormais partagés avec le groupe",
+  "resultsNowPrivate": "Vos résultats sont désormais masqués aux autres membres",
+  "resultsHiddenByParticipant": "Terminé · Résultats privés",
+  "resultsPrivateLabel": "Privé",
+  "sharingResultsShort": "Partagés",
+  "privateResultsShort": "Privés"
 };
 
 export default fr;

@@ -93,7 +93,7 @@ export default function QuestionManagementPage() {
       const user = await getCurrentUser();
       
       if (!user || !isAdmin(user)) {
-        router.push("/");
+        window.location.replace("/");
         return;
       }
 

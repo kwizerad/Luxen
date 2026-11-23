@@ -45,7 +45,10 @@ import {
   createExamAttempt,
   getExamCategories,
   getExamForTaking,
+  getExamSavingConfig,
 } from "@/lib/supabase/queries";
+import { pickDefaultExamCategory, prioritizeRwandaPvsCategories } from "@/lib/exam-settings";
+import { hasBrowserExamHistory, saveBrowserExamAttempt } from "@/lib/browser-exam-history";
 import type {
   ExamAttempt,
   ExamCategory,
@@ -91,11 +94,7 @@ function buildFallbackCategory(language: string): ExamCategory {
   const isEn = language === "English" || language === "en";
   return {
     id: EXTERNAL_EXAM_CATEGORY_ID,
-    name: isFr
-      ? "Examen Blanc Officiel du Code de la Route"
-      : isEn
-      ? "Official Traffic Rules & Road Signs Mock Exam"
-      : "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda",
+    name: "Rwanda PVS Exam",
     description: isFr
       ? "Examen blanc officiel sur le code de la route et la signalisation au Rwanda"
       : isEn
@@ -165,6 +164,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const [translatingPostExamLang, setTranslatingPostExamLang] = useState<string | null>(null);
   const [examResult, setExamResult] = useState<ExamAttempt | null>(null);
   const [isSoloGroupAttempt, setIsSoloGroupAttempt] = useState(false);
+  const [shareGroupResults, setShareGroupResults] = useState(true);
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(
     hotMeta?.securitySettings || DEFAULT_SECURITY_SETTINGS
   );
@@ -320,7 +320,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     if (typeof window === "undefined" || !user) return;
     const checkExamHistory = async () => {
       const supabase = createClient();
-      const [res1, res2] = await Promise.allSettled([
+      const [res1, res2, browserHas] = await Promise.allSettled([
         supabase
           .from("exam_attempts")
           .select("*", { count: "exact", head: true })
@@ -329,10 +329,12 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           .from("module_exam_attempts")
           .select("*", { count: "exact", head: true })
           .eq("user_id", user.id),
+        hasBrowserExamHistory(user.id),
       ]);
       const count1 = res1.status === "fulfilled" ? (res1.value.count ?? 0) : 0;
       const count2 = res2.status === "fulfilled" ? (res2.value.count ?? 0) : 0;
-      const hasHistory = count1 + count2 > 0;
+      const hasLocal = browserHas.status === "fulfilled" ? Boolean(browserHas.value) : false;
+      const hasHistory = hasLocal || count1 + count2 > 0;
       setHasExamHistory(hasHistory);
       const prev = studentCache.getHot<ExamMetaCache>("exam_meta", {
         tier: "private",
@@ -364,7 +366,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       });
 
       if (active && cached?.data?.length) {
-        setCategories(cached.data);
+        setCategories(prioritizeRwandaPvsCategories(cached.data));
         setLoadingCategories(false);
       } else if (active && categories.length === 0) {
         setLoadingCategories(true);
@@ -373,7 +375,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       try {
         const data = await getExamCategories();
         const cats = data.categories || [];
-        const resolved = cats.length === 0 ? [buildFallbackCategory(language)] : cats;
+        const resolved = prioritizeRwandaPvsCategories(
+          cats.length === 0 ? [buildFallbackCategory(language)] : cats
+        );
         if (active) {
           setCategories(resolved);
           setLoadingCategories(false);
@@ -503,12 +507,13 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     );
   }, [user?.id, exam, showResults, challengeId, examStartTime, selectedExamLanguage, currentIndex, userAnswers]);
 
-  // Auto-select first category if none selected yet
+  // Auto-select Rwanda PVS Exam category by default when none selected yet
   useEffect(() => {
     if (!loadingCategories && categories.length > 0 && !categoryId && !exam) {
-      const firstValid =
-        categories.find((c) => isUUID(c.id))?.id || categories[0].id;
-      setCategoryId(firstValid);
+      const def = pickDefaultExamCategory(categories);
+      if (def?.id) {
+        setCategoryId(def.id);
+      }
     }
   }, [loadingCategories, categories, categoryId, exam]);
 
@@ -795,6 +800,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       showResultsRef.current = false;
       setExamResult(null);
       setIsSoloGroupAttempt(false);
+      setShareGroupResults(true);
       submittingExamRef.current = false;
       setShowPreSubmitModal(false);
 
@@ -895,20 +901,44 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         { correct_answer: string; explanation?: string }
       > = data.questionDetails || {};
 
+      const hydratedQuestions = exam.questions.map((q) => ({
+        ...q,
+        correct_answer: (questionDetails[q.id]?.correct_answer ??
+          q.correct_answer) as ExamQuestion["correct_answer"],
+        explanation: questionDetails[q.id]?.explanation ?? q.explanation,
+      }));
+
       setExam((prev) =>
         prev
           ? {
               ...prev,
-              questions: prev.questions.map((q) => ({
-                ...q,
-                correct_answer: (questionDetails[q.id]?.correct_answer ??
-                  q.correct_answer) as ExamQuestion["correct_answer"],
-                explanation:
-                  questionDetails[q.id]?.explanation ?? q.explanation,
-              })),
+              questions: hydratedQuestions,
             }
           : prev
       );
+
+      // Save to user's browser storage (instead of database) when enabled
+      try {
+        const savingCfg = await getExamSavingConfig();
+        const shouldSaveToBrowser = challengeId
+          ? savingCfg.saveGroupExams
+          : savingCfg.saveIndividualExams;
+        if (shouldSaveToBrowser && user?.id) {
+          await saveBrowserExamAttempt(
+            user.id,
+            {
+              ...attempt,
+              challenge_id: challengeId || null,
+              exam_language: selectedExamLanguage,
+            },
+            hydratedQuestions as unknown as ExamQuestion[],
+            questionDetails
+          );
+          setHasExamHistory(true);
+        }
+      } catch (saveErr) {
+        console.warn("[ExamView] Browser exam history save warning:", saveErr);
+      }
 
       setExamResult(attempt);
       setPostExamLangConfirmed(false);
@@ -923,6 +953,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
             await authFetch(`/api/exam-challenges/${challengeId}/abandon`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ share_results: shareGroupResults }),
             });
           } else {
             const completeRes = await authFetch(
@@ -930,7 +961,17 @@ export function ExamView({ navigate, params }: ExamViewProps) {
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ exam_attempt_id: attempt.id }),
+                body: JSON.stringify({
+                  exam_attempt_id: attempt.id,
+                  share_results: shareGroupResults,
+                  score_summary: {
+                    correct_answers: attempt.correct_answers,
+                    total_questions: attempt.total_questions,
+                    score_percentage: attempt.score_percentage,
+                    duration_seconds: attempt.duration_seconds,
+                    status,
+                  },
+                }),
               }
             );
             if (completeRes.ok) {
@@ -1025,6 +1066,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     showResultsRef.current = false;
     setExamResult(null);
     setIsSoloGroupAttempt(false);
+    setShareGroupResults(true);
     startingExamRef.current = false;
     submittingExamRef.current = false;
     setChallengeId("");
@@ -1443,6 +1485,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           setShowPreSubmitModal={setShowPreSubmitModal}
           challengeId={challengeId || undefined}
           currentUserId={user?.id}
+          shareGroupResults={shareGroupResults}
+          onChangeShareGroupResults={setShareGroupResults}
           securitySettings={securitySettings}
           totalViolations={anticheat.totalViolations}
           cheatingAttempts={anticheat.cheatingAttempts}

@@ -9,8 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, BookOpen, ShieldCheck, ClipboardList, FileText, LayoutList, Globe, Users, Trophy, Database, Volume2, Clock } from "lucide-react";
-import { getSystemConfig, updateSystemConfig, updateSystemConfigBatch, getServicesConfig } from "@/lib/supabase/queries";
+import { getSystemConfig, updateSystemConfig, updateSystemConfigBatch, getServicesConfig, updateExamSavingConfig } from "@/lib/supabase/queries";
 import { invalidateServicesConfigCache } from "@/lib/feature-flags";
+import { getBrowserExamSavingConfig, saveBrowserExamSavingConfig } from "@/lib/browser-exam-history";
 import { useLanguage } from "@/lib/language-context";
 import type { SystemConfig } from "@/lib/database.types";
 import {
@@ -310,32 +311,42 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   const handleToggleSaveIndividualExams = async (checked: boolean) => {
     const prev = saveIndividualExamsEnabled;
     setSaveIndividualExamsEnabled(checked);
+    saveBrowserExamSavingConfig({ saveIndividualExams: checked });
     try {
-      await updateSystemConfig(
-        "save_individual_exams_enabled",
-        checked.toString(),
-        "Allow or disallow saving individual exam attempts to database and user history"
+      await updateExamSavingConfig({ saveIndividualExams: checked });
+      toast.success(
+        checked
+          ? "Individual exam history saving enabled (saved to browser storage)"
+          : "Individual exams set to Practice Only (not saved)"
       );
-      toast.success(t("examPersistenceSettingsSaved") || "Individual exam saving setting updated");
     } catch (error: any) {
       setSaveIndividualExamsEnabled(prev);
-      toast.error((t("failedToUpdateExamPersistence") || "Failed to update exam saving setting: ") + error.message);
+      saveBrowserExamSavingConfig({ saveIndividualExams: prev });
+      toast.error(
+        (t("failedToUpdateExamPersistence") || "Failed to update exam saving setting: ") +
+          (error?.message || "Unknown error")
+      );
     }
   };
 
   const handleToggleSaveGroupExams = async (checked: boolean) => {
     const prev = saveGroupExamsEnabled;
     setSaveGroupExamsEnabled(checked);
+    saveBrowserExamSavingConfig({ saveGroupExams: checked });
     try {
-      await updateSystemConfig(
-        "save_group_exams_enabled",
-        checked.toString(),
-        "Allow or disallow saving group exam challenges and results to database and history"
+      await updateExamSavingConfig({ saveGroupExams: checked });
+      toast.success(
+        checked
+          ? "Group exam history saving enabled (saved to browser storage)"
+          : "Group exams set to Practice Only (not saved)"
       );
-      toast.success(t("examPersistenceSettingsSaved") || "Group exam saving setting updated");
     } catch (error: any) {
       setSaveGroupExamsEnabled(prev);
-      toast.error((t("failedToUpdateExamPersistence") || "Failed to update exam saving setting: ") + error.message);
+      saveBrowserExamSavingConfig({ saveGroupExams: prev });
+      toast.error(
+        (t("failedToUpdateExamPersistence") || "Failed to update exam saving setting: ") +
+          (error?.message || "Unknown error")
+      );
     }
   };
 
@@ -459,12 +470,19 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           if (configMap["group_exam_join_window_seconds"]) {
             setGroupExamJoinWindow(parseInt(configMap["group_exam_join_window_seconds"].value, 10) || 120);
           }
-          if (configMap["save_individual_exams_enabled"]) {
-            setSaveIndividualExamsEnabled(configMap["save_individual_exams_enabled"].value !== "false");
-          }
-          if (configMap["save_group_exams_enabled"]) {
-            setSaveGroupExamsEnabled(configMap["save_group_exams_enabled"].value !== "false");
-          }
+          const localSavingCfg = getBrowserExamSavingConfig();
+          const indivVal = configMap["save_individual_exams_enabled"]
+            ? configMap["save_individual_exams_enabled"].value !== "false"
+            : localSavingCfg.saveIndividualExams;
+          const groupVal = configMap["save_group_exams_enabled"]
+            ? configMap["save_group_exams_enabled"].value !== "false"
+            : localSavingCfg.saveGroupExams;
+          setSaveIndividualExamsEnabled(indivVal);
+          setSaveGroupExamsEnabled(groupVal);
+          saveBrowserExamSavingConfig({
+            saveIndividualExams: indivVal,
+            saveGroupExams: groupVal,
+          });
           setScopedSecurity(parseAllScopedSecuritySettings(configMap));
 
           // Load learning language toggles (default to enabled if not set)
@@ -779,21 +797,16 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
   const handleSaveExamPersistence = async () => {
     try {
       setSaving(true);
-      await updateSystemConfigBatch([
-        {
-          key: "save_individual_exams_enabled",
-          value: saveIndividualExamsEnabled.toString(),
-          description: "Allow or disallow saving individual exam attempts to database and user history",
-        },
-        {
-          key: "save_group_exams_enabled",
-          value: saveGroupExamsEnabled.toString(),
-          description: "Allow or disallow saving group exam challenges and results to database and history",
-        },
-      ]);
-      toast.success(t("examPersistenceSettingsSaved") || "Exam saving and persistence settings saved successfully");
+      await updateExamSavingConfig({
+        saveIndividualExams: saveIndividualExamsEnabled,
+        saveGroupExams: saveGroupExamsEnabled,
+      });
+      toast.success("Exam saving and browser storage settings saved");
     } catch (error: any) {
-      toast.error((t("failedToUpdateExamPersistence") || "Failed to save exam saving settings: ") + error.message);
+      toast.error(
+        (t("failedToUpdateExamPersistence") || "Failed to save exam saving settings: ") +
+          (error?.message || "Unknown error")
+      );
     } finally {
       setSaving(false);
     }
@@ -1348,14 +1361,14 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
             {t("examSavingPersistence") || "Exam Saving & History Persistence"}
           </CardTitle>
           <CardDescription>
-            {t("examSavingPersistenceDesc") || "Decide whether completed individual exams and multiplayer group exams are permanently recorded to Supabase database and student history."}
+            Decide whether completed individual exams and group exams are saved in the user&apos;s browser storage and Exam History (never written to the database).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Individual Exams Saving Toggle */}
           <div className="flex items-start justify-between gap-4 p-4 rounded-xl border border-border bg-muted/20">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <FileText className="h-4 w-4 text-primary" />
                 <Label htmlFor="save-individual-exams-toggle" className="text-base font-semibold cursor-pointer">
                   {t("saveIndividualExams") || "Save Individual Exams"}
@@ -1365,7 +1378,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                {t("saveIndividualExamsHint") || "When enabled, individual exam attempts, answers, correct answers, time duration, and scores are saved in Supabase and shown in user Exam History. When disabled, exams run in practice mode and are not saved."}
+                When enabled, individual exam attempts, answers, correct answers, duration, and scores are saved in the user&apos;s browser storage and shown in Exam History. When disabled, exams run in practice mode and are not saved.
               </p>
             </div>
             <Switch
@@ -1378,7 +1391,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           {/* Group Exams Saving Toggle */}
           <div className="flex items-start justify-between gap-4 p-4 rounded-xl border border-border bg-muted/20">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Users className="h-4 w-4 text-primary" />
                 <Label htmlFor="save-group-exams-toggle" className="text-base font-semibold cursor-pointer">
                   {t("saveGroupExams") || "Save Group Exams & Battle History"}
@@ -1388,7 +1401,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                {t("saveGroupExamsHint") || "When enabled, multiplayer group challenges, participant scores, battle results, and leaderboards are saved permanently in Supabase. When disabled, group exam results are temporary."}
+                When enabled, completed group exam attempts and review answers are stored in the user&apos;s browser storage and Exam History. When disabled, group exam results are temporary.
               </p>
             </div>
             <Switch
@@ -1399,6 +1412,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
           </div>
 
           <Button
+            type="button"
             onClick={handleSaveExamPersistence}
             disabled={saving}
             className="w-full sm:w-auto"

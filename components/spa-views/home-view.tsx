@@ -55,6 +55,7 @@ import { getCachedServicesConfig } from "@/lib/feature-flags";
 import { createClient } from "@/lib/supabase/client";
 import { HomeViewSkeleton } from "@/components/skeletons";
 import { studentCache } from "@/lib/student-cache";
+import { getBrowserExamAttemptsAsync } from "@/lib/browser-exam-history";
 import { formatDistanceToNow } from "date-fns";
 import type { UserProfile } from "@/lib/database.types";
 import { VerifyIdModal } from "@/components/verify-id-modal";
@@ -548,8 +549,39 @@ export function HomeView({ navigate }: HomeViewProps) {
                 })
               : [];
 
+          const browserRaw = await getBrowserExamAttemptsAsync(user.id).catch(() => []);
+          const browserMapped: FullExamAttempt[] = (browserRaw || []).map((att) => {
+            const pct = att.score_percentage ?? 0;
+            const isMod = Boolean(att.is_module);
+            return {
+              id: att.id,
+              category_id: att.category_id,
+              category_name: att.category_name,
+              total_questions: att.total_questions || 20,
+              correct_answers: att.correct_answers ?? 0,
+              score_percentage: pct,
+              duration_seconds: att.duration_seconds || 0,
+              status: att.status || "completed",
+              started_at: att.started_at,
+              completed_at: att.completed_at || att.created_at || att.started_at,
+              created_at: att.created_at,
+              passed: att.passed,
+              is_passed: att.passed !== undefined ? att.passed : pct >= (isMod ? 60 : 50),
+              answers: att.answers,
+              submission_reason: att.submission_reason || undefined,
+              exam_type: isMod ? (att.exam_type || "module") : "mock",
+            };
+          });
+
+          const dedupedById = new Map<string, FullExamAttempt>();
+          for (const item of [...browserMapped, ...standardAttempts, ...moduleAttempts]) {
+            if (!dedupedById.has(item.id)) {
+              dedupedById.set(item.id, item);
+            }
+          }
+
           // Combine and sort by date descending (most recent first)
-          const all = [...standardAttempts, ...moduleAttempts].sort((a, b) => {
+          const all = Array.from(dedupedById.values()).sort((a, b) => {
             const dateA = new Date(a.completed_at || a.created_at || a.started_at || 0).getTime();
             const dateB = new Date(b.completed_at || b.created_at || b.started_at || 0).getTime();
             return dateB - dateA;

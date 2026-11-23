@@ -1,8 +1,7 @@
-const CACHE_NAME = "navo-lite-v1";
+const CACHE_NAME = "navo-lite-v2";
 const OFFLINE_URL = "/offline";
 
 const PRECACHE_URLS = [
-  "/",
   "/offline",
   "/manifest.json",
   "/icons/icon-192x192.png",
@@ -34,24 +33,41 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Never cache auth requests or Supabase API calls
-  if (url.pathname.startsWith("/auth/") || url.hostname.includes("supabase")) {
+  // Only handle same-origin GET requests
+  if (request.method !== "GET" || url.origin !== self.location.origin) {
     return;
   }
 
-  // Only handle GET requests
-  if (request.method !== "GET") return;
+  // Never intercept Next.js App Router RSC payloads, auth routes, APIs, or HMR endpoints
+  if (
+    request.headers.get("RSC") === "1" ||
+    request.headers.get("Next-Router-State-Tree") ||
+    request.headers.get("Next-Router-Prefetch") === "1" ||
+    url.searchParams.has("_rsc") ||
+    url.pathname.startsWith("/auth/") ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/_next/webpack-hmr")
+  ) {
+    return;
+  }
 
   // Navigation requests: network first, fallback to offline page
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match(OFFLINE_URL)))
+        .catch(() =>
+          caches
+            .match(request)
+            .then((cached) => cached || caches.match(OFFLINE_URL))
+            .then((fallback) => fallback || Response.error())
+        )
     );
     return;
   }
@@ -66,8 +82,10 @@ self.addEventListener("fetch", (event) => {
       caches.match(request).then((cached) =>
         cached ||
         fetch(request).then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
           return response;
         })
       )
@@ -75,17 +93,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Everything else: stale-while-revalidate
+  // Everything else: stale-while-revalidate with safe fallback
   event.respondWith(
     caches.match(request).then((cached) => {
-      const fetchPromise = fetch(request)
-        .then((response) => {
+      const fetchPromise = fetch(request).then((response) => {
+        if (response && response.ok) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(() => cached);
-      return cached || fetchPromise;
+        }
+        return response;
+      });
+      return cached ? fetchPromise.catch(() => cached) : fetchPromise;
     })
   );
 });

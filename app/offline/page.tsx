@@ -32,7 +32,7 @@ export default function OfflinePage() {
             <RefreshCw className="w-4 h-4" />
             Try Again
           </Button>
-          <Link href="/">
+          <Link href="/" prefetch={false}>
             <Button variant="outline" className="w-full sm:w-auto">
               Go Home
             </Button>

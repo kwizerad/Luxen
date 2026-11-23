@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getChallengeParticipantScores, getChallengeSharePreferences } from "@/lib/group-exam-privacy";
 
 export async function GET(
   request: NextRequest,
@@ -48,6 +49,21 @@ export async function GET(
       }
     }
     const participants = Array.from(participantsMap.values());
+
+    const isAdminRole =
+      user.user_metadata?.role === "admin" || user.app_metadata?.role === "admin";
+    const isMember =
+      challenge.creator_id === user.id ||
+      participants.some((p) => p.user_id === user.id);
+
+    if (!isMember && !isAdminRole) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const [sharePrefs, challengeScoreSummaries] = await Promise.all([
+      getChallengeSharePreferences(adminClient, params.id, participants),
+      getChallengeParticipantScores(adminClient, params.id),
+    ]);
 
     // Get profiles
     const userIds = Array.from(new Set([
@@ -140,7 +156,8 @@ export async function GET(
     // 4. Completed at timestamp ascending
     const leaderboard = (participants || [])
       .map((p) => {
-        const attempt = p.exam_attempt_id ? attemptMap[p.exam_attempt_id] : null;
+        const summaryFallback = challengeScoreSummaries[p.user_id] || null;
+        const attempt = (p.exam_attempt_id ? attemptMap[p.exam_attempt_id] : null) || summaryFallback;
         const profile = profileMap[p.user_id] || null;
         const totalQuestions = attempt?.total_questions ?? 20;
         const correctAnswers = attempt?.correct_answers ?? null;
@@ -152,6 +169,10 @@ export async function GET(
             : null;
 
         const isCompleted = p.status === "completed" || attempt?.status === "completed";
+        const shareResults = sharePrefs[p.user_id] !== false;
+        const isSelf = p.user_id === user.id;
+        const resultsHidden = !shareResults && !isSelf;
+
         const history = userAttemptsMap[p.user_id] || [];
         const totalAttempts = history.length;
 
@@ -159,15 +180,17 @@ export async function GET(
         let trendDiff = 0;
         let averageScore: number | null = null;
 
-        if (totalAttempts > 1 && calculatedPct !== null) {
-          const sumScores = history.reduce((acc, h) => acc + (h.score_percentage ?? 0), 0);
-          averageScore = Math.round(sumScores / totalAttempts);
-          trendDiff = calculatedPct - averageScore;
-          if (trendDiff > 0) trend = "up";
-          else if (trendDiff < 0) trend = "down";
-          else trend = "neutral";
-        } else if (totalAttempts === 1 && calculatedPct !== null) {
-          averageScore = calculatedPct;
+        if (!resultsHidden) {
+          if (totalAttempts > 1 && calculatedPct !== null) {
+            const sumScores = history.reduce((acc, h) => acc + (h.score_percentage ?? 0), 0);
+            averageScore = Math.round(sumScores / totalAttempts);
+            trendDiff = calculatedPct - averageScore;
+            if (trendDiff > 0) trend = "up";
+            else if (trendDiff < 0) trend = "down";
+            else trend = "neutral";
+          } else if (totalAttempts === 1 && calculatedPct !== null) {
+            averageScore = calculatedPct;
+          }
         }
 
         return {
@@ -177,13 +200,15 @@ export async function GET(
           username: profile?.username || "",
           avatar_url: profile?.avatar_url || null,
           status: isCompleted ? "completed" : p.status,
-          score: correctAnswers,
-          score_percentage: calculatedPct,
+          score: resultsHidden ? null : correctAnswers,
+          score_percentage: resultsHidden ? null : calculatedPct,
           total_questions: totalQuestions,
-          duration_seconds: attempt?.duration_seconds ?? null,
-          answers: attempt?.answers ?? [],
+          duration_seconds: resultsHidden ? null : (attempt?.duration_seconds ?? null),
+          answers: resultsHidden ? [] : (attempt?.answers ?? []),
           completed: isCompleted,
           completed_at: p.completed_at || attempt?.completed_at || null,
+          share_results: shareResults,
+          results_hidden: resultsHidden,
           trend,
           trend_diff: trendDiff,
           average_score: averageScore,
@@ -191,38 +216,32 @@ export async function GET(
         };
       })
       .sort((a, b) => {
-        // Participants with a finished score vs those without
-        const aHasScore = a.score !== null && a.score_percentage !== null;
-        const bHasScore = b.score !== null && b.score_percentage !== null;
+        const aHasVisibleScore = !a.results_hidden && a.score !== null && a.score_percentage !== null;
+        const bHasVisibleScore = !b.results_hidden && b.score !== null && b.score_percentage !== null;
 
-        if (aHasScore && !bHasScore) return -1;
-        if (!aHasScore && bHasScore) return 1;
+        if (aHasVisibleScore && !bHasVisibleScore) return -1;
+        if (!aHasVisibleScore && bHasVisibleScore) return 1;
 
-        if (aHasScore && bHasScore) {
-          // 1. Higher score/percentage wins
+        if (aHasVisibleScore && bHasVisibleScore) {
           const aScore = a.score_percentage ?? a.score ?? 0;
           const bScore = b.score_percentage ?? b.score ?? 0;
           if (bScore !== aScore) return bScore - aScore;
 
-          // Also check raw marks count
           if (b.score !== null && a.score !== null && b.score !== a.score) {
             return b.score - a.score;
           }
 
-          // 2. Tie-break by fastest duration (smaller duration is better)
           if (a.duration_seconds !== null && b.duration_seconds !== null) {
             if (a.duration_seconds !== b.duration_seconds) {
               return a.duration_seconds - b.duration_seconds;
             }
           }
 
-          // 3. Tie-break by earlier completion timestamp
           if (a.completed_at && b.completed_at) {
             return new Date(a.completed_at).getTime() - new Date(b.completed_at).getTime();
           }
         }
 
-        // Completed vs not completed
         if (a.completed && !b.completed) return -1;
         if (!a.completed && b.completed) return 1;
 
@@ -234,7 +253,8 @@ export async function GET(
         e.completed ||
         e.status === "in_progress" ||
         e.score !== null ||
-        e.score_percentage !== null
+        e.score_percentage !== null ||
+        e.results_hidden
     ).length;
     const activeJoinedCount = leaderboard.filter((e) =>
       ["joined", "ready", "in_progress", "completed"].includes(e.status)

@@ -1333,7 +1333,7 @@ export default function ExamManagementPage() {
                 {t("examSavingPersistence") || "Exam Saving Controls"}
               </DialogTitle>
               <DialogDescription>
-                {t("examSavingPersistenceDesc") || "Configure whether completed individual exams and multiplayer group exams are permanently stored in the database and user history."}
+                Configure whether completed individual exams and group exams are saved in the user&apos;s browser storage and Exam History (never written to the database).
               </DialogDescription>
             </DialogHeader>
 
@@ -1360,7 +1360,7 @@ export default function ExamManagementPage() {
                         setSaveIndividualExams(checked);
                         try {
                           await updateExamSavingConfig({ saveIndividualExams: checked });
-                          toast.success(t("examPersistenceSettingsSaved") || "Individual exam saving setting updated");
+                          toast.success("Individual exam saving setting updated");
                         } catch (e: any) {
                           setSaveIndividualExams(prev);
                           toast.error((t("failedToSaveSettings") || "Failed to save setting: ") + e.message);
@@ -1370,8 +1370,8 @@ export default function ExamManagementPage() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {saveIndividualExams
-                      ? (t("individualExamsSavedHint") || "Active: Individual exam attempts, answers, scores, and timestamps are saved to Supabase database.")
-                      : (t("individualExamsNotSavedHint") || "Disabled: Individual exams run in practice mode and are NOT saved to the database.")}
+                      ? "Active: Individual exam attempts, answers, and scores are saved to the user's browser storage."
+                      : "Disabled: Individual exams run in practice mode and are NOT saved to browser history."}
                   </p>
                 </div>
 
@@ -1392,7 +1392,7 @@ export default function ExamManagementPage() {
                         setSaveGroupExams(checked);
                         try {
                           await updateExamSavingConfig({ saveGroupExams: checked });
-                          toast.success(t("examPersistenceSettingsSaved") || "Group exam saving setting updated");
+                          toast.success("Group exam saving setting updated");
                         } catch (e: any) {
                           setSaveGroupExams(prev);
                           toast.error((t("failedToSaveSettings") || "Failed to save setting: ") + e.message);
@@ -1402,8 +1402,8 @@ export default function ExamManagementPage() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {saveGroupExams
-                      ? (t("groupExamsSavedHint") || "Active: Group challenges, participant scores, battle leaderboards, and attempts are permanently saved.")
-                      : (t("groupExamsNotSavedHint") || "Disabled: Group challenges are temporary sessions and are not stored in permanent history.")}
+                      ? "Active: Group exam attempts and review answers are saved in the user's browser storage."
+                      : "Disabled: Group exam sessions are temporary and not saved to browser history."}
                   </p>
                 </div>
 

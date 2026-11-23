@@ -9,19 +9,18 @@ import {
   Lock,
   BookOpen,
   Home,
-  FileText,
+  UserCheck,
   Trophy,
-  CheckCircle2,
-  Zap,
-  Globe,
+  Clock,
+  HelpCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/lib/language-context";
 import type { ExamCategory } from "@/lib/database.types";
 import { EXTERNAL_EXAM_CATEGORY_ID } from "@/lib/supabase/external";
+import { pickDefaultExamCategory } from "@/lib/exam-settings";
 import { isUUID, cn } from "@/lib/utils";
 
 interface OSExamLauncherProps {
@@ -129,7 +128,7 @@ export function OSExamLauncher({
 
   const activeCategory =
     categories.find((c) => c.id === selectedCategoryId) ||
-    categories.find((c) => isUUID(c.id)) ||
+    pickDefaultExamCategory(categories) ||
     categories[0];
 
   const targetCategoryId =
@@ -138,6 +137,8 @@ export function OSExamLauncher({
     EXTERNAL_EXAM_CATEGORY_ID;
 
   const chosenTrack = FLAG_TRACKS.find((f) => f.key === selectedLanguageForMode);
+  const categoryQuestionsCount = activeCategory?.question_count ?? 20;
+  const categoryDurationMinutes = activeCategory?.duration_minutes ?? 20;
 
   return (
     <div className="flex-1 flex flex-col justify-between p-4 sm:p-8 max-w-4xl mx-auto w-full min-h-0">
@@ -199,7 +200,7 @@ export function OSExamLauncher({
         </div>
       )}
 
-      {/* Main Content Area: Stage 1 (Select Language) vs Stage 2 (Choose Individual vs Group Exam) */}
+      {/* Main Content Area: Stage 1 (Select Language) vs Stage 2 (File-style Mode Chooser) */}
       <div className="flex-1 flex flex-col items-center justify-center py-6 sm:py-8">
         {loadingCategories ? (
           <div className="w-full max-w-2xl space-y-6">
@@ -257,7 +258,6 @@ export function OSExamLauncher({
                       "hover:bg-muted/40 dark:hover:bg-white/[0.04]"
                     )}
                   >
-                    {/* Crisp Framed Flag */}
                     <div className="relative aspect-[3/2] w-full rounded-xl overflow-hidden border border-border/60 dark:border-white/10 shadow-sm bg-muted/30">
                       {!imgFailed ? (
                         <img
@@ -284,7 +284,6 @@ export function OSExamLauncher({
                       )}
                     </div>
 
-                    {/* Language Label + Select Action */}
                     <div className="flex items-center justify-between px-1 pt-2.5">
                       <span className="text-sm sm:text-base font-semibold text-foreground group-hover:text-primary transition-colors">
                         {track.label}
@@ -300,203 +299,240 @@ export function OSExamLauncher({
             </div>
           </div>
         ) : (
-          /* Stage 2: Individual Exam vs Group Exam in Selected Language */
-          <div className="w-full max-w-2xl space-y-6 animate-in fade-in zoom-in-95 duration-200">
-            {/* Active Language Chip Banner */}
-            <div className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-primary/20 bg-primary/5">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <Globe className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-xs text-muted-foreground truncate">
-                  {isRw ? "Ururimi rwahiswemo:" : isFr ? "Langue sélectionnée :" : "Exam Language:"}
-                </span>
-                <Badge variant="default" className="text-xs font-semibold shrink-0">
-                  {chosenTrack?.label || selectedLanguageForMode}
-                </Badge>
+          /* Stage 2: Tactile Exam File Chooser (Individual Solo File vs Group Room File) */
+          <div className="w-full max-w-2xl space-y-6 animate-in fade-in duration-200">
+            {/* Quiet Editorial Header */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border/50 pb-4">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  {activeCategory?.name || "Rwanda PVS Exam"} · {chosenTrack?.label || selectedLanguageForMode}
+                </p>
+                <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">
+                  {isRw
+                    ? "Hitamo Dosiye y'Ikizamini"
+                    : isFr
+                    ? "Choisissez votre dossier d'examen"
+                    : "Choose Your Exam File"}
+                </h2>
               </div>
 
-              <Button
-                variant="ghost"
-                size="sm"
+              <button
+                type="button"
                 onClick={() => setSelectedLanguageForMode(null)}
-                className="h-7 text-xs text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors self-start sm:self-auto cursor-pointer"
               >
-                <ArrowLeft className="w-3 h-3 mr-1" />
-                {isRw ? "Guhindura" : isFr ? "Changer" : "Change"}
-              </Button>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>{isRw ? "Hindura ururimi" : isFr ? "Changer de langue" : "Change language"}</span>
+              </button>
             </div>
 
-            {/* Title / Guidance */}
-            <div className="text-center space-y-1">
-              <h2 className="text-base sm:text-lg font-bold text-foreground">
-                {isRw
-                  ? "Hitamo Uburyo bw'Ikizamini"
-                  : isFr
-                  ? "Choisissez le Mode d'Examen"
-                  : "Choose Your Exam Mode"}
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {isRw
-                  ? "Hitamo gukora wenyine cyangwa guhatana mu itsinda n'abandi banyeshuri muri uru rurimi."
-                  : isFr
-                  ? "Choisissez entre une session individuelle ou un défi multijoueur dans cette langue."
-                  : `Select individual solo practice or compete in a multiplayer group exam in ${selectedLanguageForMode}.`}
-              </p>
-            </div>
-
-            {/* Individual vs Group Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Option 1: Individual Exam */}
-              <div
+            {/* File Tiles: Individual (.exam) vs Group (.room) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* File 1: Individual Solo Exam File */}
+              <motion.button
+                type="button"
+                disabled={loadingExam}
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.99 }}
+                transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
                 onClick={() => {
                   if (!loadingExam) {
                     onStartExam(targetCategoryId, selectedLanguageForMode);
                   }
                 }}
                 className={cn(
-                  "flex flex-col justify-between rounded-2xl border border-border/80 bg-card hover:border-primary/50 hover:bg-muted/30 p-5 transition-all duration-200 cursor-pointer group shadow-sm",
+                  "group relative text-left flex flex-col justify-between p-5 pt-6 min-h-[245px]",
+                  "rounded-2xl rounded-tr-[4px] [clip-path:polygon(0_0,calc(100%-24px)_0,100%_24px,100%_100%,0_100%)]",
+                  "bg-emerald-500/[0.06] dark:bg-emerald-500/[0.08] border border-emerald-500/25 hover:border-emerald-500/55 hover:bg-emerald-500/[0.1] transition-colors shadow-sm cursor-pointer",
                   loadingExam && "opacity-60 cursor-not-allowed"
                 )}
               >
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors">
-                        {isRw ? "Ikizamini Cyawe Wenyine" : isFr ? "Examen Individuel" : "Individual Exam"}
-                      </h3>
-                      <span className="inline-block text-[11px] font-semibold text-primary">
-                        {isRw ? "Kora Wenyine (Solo)" : isFr ? "Mode Solo" : "Solo Practice"}
-                      </span>
-                    </div>
+                {/* Dog-ear folded corner */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-0 right-0 w-6 h-6 bg-emerald-500/20 dark:bg-emerald-400/20 border-b border-l border-emerald-500/35 rounded-bl-md"
+                />
 
-                    <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
-                      <FileText className="h-5 w-5" />
+                <div className="space-y-4">
+                  {/* File icon + extension tag */}
+                  <div className="flex items-start justify-between gap-3 pr-4">
+                    <div className="w-11 h-11 rounded-xl bg-emerald-600 dark:bg-emerald-500 text-white flex items-center justify-center shadow-sm shrink-0">
+                      <UserCheck className="w-5 h-5" />
                     </div>
+                    <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-300 pt-1">
+                      SOLO.EXAM
+                    </span>
                   </div>
 
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {isRw
-                      ? `Kora ikizamini cy'imyitozo mu ${chosenTrack?.label || selectedLanguageForMode} ku muvuduko wawe ufite ibibazo 20 n'iminota 20.`
-                      : isFr
-                      ? `Passez un examen d'entraînement officiel en ${chosenTrack?.label || selectedLanguageForMode} à votre propre rythme.`
-                      : `Take an official 20-question practice mock exam in ${selectedLanguageForMode} with instant result review.`}
-                  </p>
-
-                  <div className="pt-2 border-t border-border/60 space-y-1.5 text-xs text-foreground/85">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span>{isRw ? "Ibibazo 20 mu minota 20" : isFr ? "20 questions en 20 min" : "20 questions in 20 minutes"}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span>{isRw ? "Ibisobanuro birambuye" : isFr ? "Explications détaillées" : "Detailed explanation review"}</span>
-                    </div>
+                  <div className="space-y-1.5">
+                    <h3 className="text-base font-semibold text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
+                      {isRw ? "Ikizamini Cyawe Wenyine" : isFr ? "Examen Individuel" : "Individual Exam"}
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {isRw
+                        ? `Kora ikizamini wenyine mu ${chosenTrack?.label || selectedLanguageForMode} urebe amanota n'ibisobanuro ako kanya.`
+                        : isFr
+                        ? `Passez l'épreuve individuellement en ${chosenTrack?.label || selectedLanguageForMode} avec correction détaillée.`
+                        : `Practice on your own in ${chosenTrack?.label || selectedLanguageForMode} with full answer review afterward.`}
+                    </p>
                   </div>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-border/60">
-                  <Button
-                    type="button"
-                    disabled={loadingExam}
-                    className="w-full h-9 rounded-xl text-xs font-semibold justify-between px-3.5 cursor-pointer"
-                  >
+                {/* File metadata footer */}
+                <div className="mt-5 pt-3 border-t border-emerald-500/20 flex items-center justify-between gap-2 text-xs">
+                  <span className="inline-flex items-center gap-2 text-muted-foreground tabular-nums">
+                    <span className="inline-flex items-center gap-1">
+                      <HelpCircle className="w-3.5 h-3.5" />
+                      {categoryQuestionsCount}
+                    </span>
+                    <span>·</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {categoryDurationMinutes}m
+                    </span>
+                  </span>
+
+                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300">
                     <span>
                       {loadingExam
                         ? isRw
                           ? "Birategurwa..."
+                          : isFr
+                          ? "Préparation..."
                           : "Preparing..."
                         : isRw
-                        ? "Tangira Ikizamini"
+                        ? "Fungura"
                         : isFr
-                        ? "Commencer en Solo"
-                        : "Start Individual Exam"}
+                        ? "Ouvrir"
+                        : "Open File"}
                     </span>
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                  </Button>
+                    <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </span>
                 </div>
-              </div>
+              </motion.button>
 
-              {/* Option 2: Group Exam */}
-              <div
+              {/* File 2: Group Multiplayer Exam File */}
+              <motion.button
+                type="button"
+                disabled={!groupExamEnabled || loadingExam}
+                whileHover={groupExamEnabled ? { y: -3 } : undefined}
+                whileTap={groupExamEnabled ? { scale: 0.99 } : undefined}
+                transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
                 onClick={() => {
                   if (groupExamEnabled && !loadingExam) {
                     onOpenGroupChallenge(targetCategoryId, selectedLanguageForMode);
                   }
                 }}
                 className={cn(
-                  "flex flex-col justify-between rounded-2xl border p-5 transition-all duration-200 shadow-sm",
+                  "group relative text-left flex flex-col justify-between p-5 pt-6 min-h-[245px]",
+                  "rounded-2xl rounded-tr-[4px] [clip-path:polygon(0_0,calc(100%-24px)_0,100%_24px,100%_100%,0_100%)] transition-colors shadow-sm",
                   groupExamEnabled
-                    ? "border-border/80 bg-card hover:border-primary/50 hover:bg-muted/30 cursor-pointer group"
-                    : "border-border/40 bg-muted/20 opacity-70 cursor-not-allowed"
+                    ? "bg-sky-500/[0.06] dark:bg-sky-500/[0.08] border border-sky-500/25 hover:border-sky-500/55 hover:bg-sky-500/[0.1] cursor-pointer"
+                    : "bg-muted/30 border border-border/50 opacity-65 cursor-not-allowed"
                 )}
               >
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors">
-                        {isRw ? "Ikizamini cy'Itsinda" : isFr ? "Examen en Groupe" : "Group Exam"}
-                      </h3>
-                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                        <span>{isRw ? "Itsinda (Multiplayer)" : isFr ? "Multijoueur" : "Multiplayer"}</span>
-                      </span>
-                    </div>
+                {/* Dog-ear folded corner */}
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "pointer-events-none absolute top-0 right-0 w-6 h-6 border-b border-l rounded-bl-md",
+                    groupExamEnabled
+                      ? "bg-sky-500/20 dark:bg-sky-400/20 border-sky-500/35"
+                      : "bg-muted border-border/50"
+                  )}
+                />
 
-                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                      <Users className="h-5 w-5" />
+                <div className="space-y-4">
+                  {/* File icon + extension tag */}
+                  <div className="flex items-start justify-between gap-3 pr-4">
+                    <div
+                      className={cn(
+                        "w-11 h-11 rounded-xl flex items-center justify-center shadow-sm shrink-0",
+                        groupExamEnabled
+                          ? "bg-sky-600 dark:bg-sky-500 text-white"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      <Users className="w-5 h-5" />
                     </div>
+                    <span
+                      className={cn(
+                        "text-[11px] font-mono pt-1",
+                        groupExamEnabled
+                          ? "text-sky-700 dark:text-sky-300"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      GROUP.ROOM
+                    </span>
                   </div>
 
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {isRw
-                      ? `Tumira abanyeshuri mukorere hamwe ikizamini mu ${chosenTrack?.label || selectedLanguageForMode} mu gihe kimwe n'amanota ako kanya.`
-                      : isFr
-                      ? `Défiez vos camarades en direct en ${chosenTrack?.label || selectedLanguageForMode} avec un classement synchronisé.`
-                      : `Compete live with classmates in ${selectedLanguageForMode} with a synchronized timer and leaderboard.`}
-                  </p>
-
-                  <div className="pt-2 border-t border-border/60 space-y-1.5 text-xs text-foreground/85">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <span>{isRw ? "Igihe cy'itsinda gikomatanyije" : isFr ? "Chrono synchronisé en direct" : "Synchronized live countdown"}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Trophy className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                      <span>{isRw ? `Kizakorwa mu ${chosenTrack?.label || selectedLanguageForMode}` : isFr ? `Session en ${chosenTrack?.label || selectedLanguageForMode}` : `Taken in ${selectedLanguageForMode}`}</span>
-                    </div>
+                  <div className="space-y-1.5">
+                    <h3
+                      className={cn(
+                        "text-base font-semibold text-foreground transition-colors",
+                        groupExamEnabled && "group-hover:text-sky-700 dark:group-hover:text-sky-300"
+                      )}
+                    >
+                      {isRw ? "Ikizamini cy'Itsinda" : isFr ? "Examen en Groupe" : "Group Exam"}
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {isRw
+                        ? `Tumira inshuti mukorere hamwe mu ${chosenTrack?.label || selectedLanguageForMode} ku gihe kimwe n'urutonde rw'amanota.`
+                        : isFr
+                        ? `Invitez vos amis en ${chosenTrack?.label || selectedLanguageForMode} avec chronomètre partagé et classement.`
+                        : `Invite friends to compete side-by-side in ${chosenTrack?.label || selectedLanguageForMode} with a shared timer and live rankings.`}
+                    </p>
                   </div>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-border/60">
-                  <Button
-                    type="button"
-                    variant={groupExamEnabled ? "outline" : "ghost"}
-                    disabled={!groupExamEnabled || loadingExam}
+                {/* File metadata footer */}
+                <div
+                  className={cn(
+                    "mt-5 pt-3 border-t flex items-center justify-between gap-2 text-xs",
+                    groupExamEnabled ? "border-sky-500/20" : "border-border/50"
+                  )}
+                >
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground tabular-nums">
+                    <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>
+                      {isRw ? "Urutonde rw'itsinda" : isFr ? "Classement en direct" : "Live leaderboard"}
+                    </span>
+                  </span>
+
+                  <span
                     className={cn(
-                      "w-full h-9 rounded-xl text-xs font-semibold justify-between px-3.5",
-                      groupExamEnabled && "group-hover:bg-primary group-hover:text-primary-foreground border-primary/40 cursor-pointer"
+                      "inline-flex items-center gap-1 font-semibold",
+                      groupExamEnabled
+                        ? "text-sky-700 dark:text-sky-300"
+                        : "text-muted-foreground"
                     )}
                   >
                     <span>
                       {groupExamEnabled
                         ? isRw
-                          ? "Kora mu Itsinda"
+                          ? "Fungura"
                           : isFr
-                          ? "Lancer en Groupe"
-                          : "Start Group Exam"
+                          ? "Ouvrir"
+                          : "Open File"
                         : isRw
-                        ? "Itsinda ryahagaritswe"
-                        : "Group paused"}
+                        ? "Byahagaritswe"
+                        : isFr
+                        ? "Suspendu"
+                        : "Paused"}
                     </span>
-                    <Trophy className="h-3.5 w-3.5 shrink-0 text-amber-500 group-hover:text-current transition-transform" />
-                  </Button>
+                    {groupExamEnabled && (
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                    )}
+                  </span>
                 </div>
-              </div>
+              </motion.button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Quiet bottom hairline spacer */}
+      {/* Quiet bottom hairline footer */}
       <div className="pt-2 text-center text-[11px] text-muted-foreground/80 tabular-nums">
         {footerNote || activeCategory?.name || t("exams") || "Exam Center"}
       </div>

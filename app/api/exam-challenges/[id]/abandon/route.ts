@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { setParticipantSharePreference } from "@/lib/group-exam-privacy";
 
 export async function POST(
   request: NextRequest,
@@ -13,7 +14,12 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const body = await request.json().catch(() => ({}));
     const adminClient = createAdminClient();
+
+    if (body && typeof body.share_results === "boolean") {
+      await setParticipantSharePreference(adminClient, params.id, user.id, body.share_results);
+    }
 
     // Mark user participation as abandoned
     const { data: updated, error } = await adminClient

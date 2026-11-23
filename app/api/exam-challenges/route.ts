@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { triggerOpportunisticExamCleanup } from "@/lib/exam-cleanup";
+import { getChallengesSharePreferences } from "@/lib/group-exam-privacy";
 
 export async function GET(request: NextRequest) {
   try {
@@ -135,12 +136,36 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const sharePrefsMap = await getChallengesSharePreferences(
+      adminClient,
+      (challenges || []).map((c) => c.id),
+      participants || []
+    );
+
     const participantMap: Record<string, any[]> = {};
     for (const p of participants || []) {
       if (!participantMap[p.challenge_id]) participantMap[p.challenge_id] = [];
+      const shareResults = sharePrefsMap[p.challenge_id]?.[p.user_id] !== false;
+      const isSelf = p.user_id === user.id;
+      const resultsHidden = !shareResults && !isSelf;
+      const rawAttempt = p.exam_attempt_id ? attemptMap[p.exam_attempt_id] || null : null;
+
       participantMap[p.challenge_id].push({
         ...p,
-        exam_attempt: p.exam_attempt_id ? attemptMap[p.exam_attempt_id] || null : null,
+        share_results: shareResults,
+        results_hidden: resultsHidden,
+        exam_attempt: resultsHidden
+          ? rawAttempt || p.exam_attempt_id
+            ? {
+                id: rawAttempt?.id || p.exam_attempt_id,
+                total_questions: rawAttempt?.total_questions ?? 20,
+                status: rawAttempt?.status || "completed",
+                created_at: rawAttempt?.created_at || p.created_at || null,
+                completed_at: rawAttempt?.completed_at || p.completed_at || null,
+                results_hidden: true,
+              }
+            : null
+          : rawAttempt,
       });
     }
 

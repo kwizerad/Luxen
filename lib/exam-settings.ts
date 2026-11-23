@@ -64,3 +64,43 @@ export function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+export const RWANDA_PVS_CATEGORY_ID = "00000000-0000-4000-8000-000000000e01";
+
+export function isRwandaPvsCategory(category: {
+  id?: string | null;
+  name?: string | null;
+} | null | undefined): boolean {
+  if (!category) return false;
+  if (category.id === RWANDA_PVS_CATEGORY_ID) return true;
+  const name = String(category.name || "").trim();
+  return /rwanda\s*pvs/i.test(name);
+}
+
+export function prioritizeRwandaPvsCategories<
+  T extends { id?: string | null; name?: string | null }
+>(categories: T[]): T[] {
+  if (!Array.isArray(categories) || categories.length <= 1) {
+    return Array.isArray(categories) ? categories : [];
+  }
+  const pvs: T[] = [];
+  const rest: T[] = [];
+  for (const cat of categories) {
+    if (isRwandaPvsCategory(cat)) {
+      pvs.push(cat);
+    } else {
+      rest.push(cat);
+    }
+  }
+  return [...pvs, ...rest];
+}
+
+export function pickDefaultExamCategory<
+  T extends { id?: string | null; name?: string | null }
+>(categories: T[]): T | undefined {
+  if (!Array.isArray(categories) || categories.length === 0) return undefined;
+  const pvs = categories.find((c) => isRwandaPvsCategory(c));
+  if (pvs) return pvs;
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return categories.find((c) => c.id && uuidRegex.test(c.id)) || categories[0];
+}

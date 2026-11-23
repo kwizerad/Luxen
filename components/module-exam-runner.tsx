@@ -40,10 +40,12 @@ import {
   getFinalExamForTaking,
   createModuleExamAttempt,
   canRetakeExam,
+  getExamSavingConfig,
   requestExamRetake,
 } from "@/lib/supabase/queries";
+import { saveBrowserExamAttempt } from "@/lib/browser-exam-history";
 import { getSecuritySettings, DEFAULT_SECURITY_SETTINGS, type SecuritySettings } from "@/lib/security-config";
-import type { ModuleExamQuestion, ModuleExamSettings, ModuleExamAttempt, ModuleExamAnswer } from "@/lib/database.types";
+import type { ModuleExamQuestion, ModuleExamSettings, ModuleExamAttempt, ModuleExamAnswer, ExamQuestion } from "@/lib/database.types";
 
 export type ExamType = "module" | "midterm" | "final";
 
@@ -425,6 +427,29 @@ export function ModuleExamRunner({
         answers,
         status: answeredCount > 0 ? "completed" : "abandoned",
       });
+
+      try {
+        const savingCfg = await getExamSavingConfig();
+        const targetUid = attempt?.user_id && attempt.user_id !== "guest" ? attempt.user_id : null;
+        if (savingCfg.saveIndividualExams && targetUid) {
+          await saveBrowserExamAttempt(
+            targetUid,
+            {
+              ...attempt,
+              category_id: moduleId || "module",
+              category_name: moduleTitle || attempt.module_title || "Module Exam",
+              is_module: true,
+              module_id: moduleId || null,
+              module_title: moduleTitle || attempt.module_title || null,
+              exam_type: examType,
+              passed,
+            },
+            questions as unknown as ExamQuestion[]
+          );
+        }
+      } catch (saveErr) {
+        console.warn("[ModuleExamRunner] Browser history save warning:", saveErr);
+      }
 
       setExamResult(attempt);
       setShowResults(true);

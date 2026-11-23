@@ -45,7 +45,7 @@ export default function AdminSettingsPage() {
       const user = await (await import("@/lib/auth-utils")).getCurrentUser();
 
       if (!user) {
-        router.replace("/");
+        window.location.replace("/");
         return;
       }
 

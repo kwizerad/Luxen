@@ -149,6 +149,7 @@ export function ForgotPasswordForm({
                   {t("alreadyHaveAccount")}{" "}
                   <Link
                     href="/"
+                    prefetch={false}
                     className="underline underline-offset-4"
                   >
                     {t("login")}

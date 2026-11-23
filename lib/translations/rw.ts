@@ -2956,7 +2956,22 @@ const rw: Record<string, string> = {
   "coursesWithImages": "Amasomo afite Amafoto",
   "noCoursesWithImages": "Nta masomo afite amafoto abonetse",
   "noCoursesWithImagesDesc": "Nta masomo y'ibyapa by'umuhanda afite amafoto araboneka muri uru rurimi kugeza ubu.",
-  "roadSigns": "Ibyapa by'Umuhanda"
+  "roadSigns": "Ibyapa by'Umuhanda",
+  "shareGroupResultsQuestion": "Urashaka gusangiza bagenzi bawe amanota yawe?",
+  "shareGroupResultsHint": "Hitamo niba abandi mwakoranye bashobora kubona amanota n'ibisubizo byawe. Ushobora guhindura icyemezo igihe cyose.",
+  "shareGroupResultsCanChangeLater": "Ushobora guhindura iki cyemezo igihe cyose nyuma.",
+  "shareResultsYes": "Sangiza Amanota",
+  "shareResultsNo": "Bika mu Ibanga",
+  "sharingResultsWithGroup": "Amanota yawe agaragarira itsinda",
+  "hidingResultsFromGroup": "Amanota yawe ahishwe abandi",
+  "shareMyResults": "Garagaza Amanota",
+  "hideMyResults": "Hisha Amanota",
+  "resultsNowShared": "Amanota yawe ubu aragaragarira abo mwakoranye",
+  "resultsNowPrivate": "Amanota yawe ubu yahishwe abo mwakoranye",
+  "resultsHiddenByParticipant": "Yararangiye · Amanota yahishwe",
+  "resultsPrivateLabel": "Bihishwe",
+  "sharingResultsShort": "Biragaragara",
+  "privateResultsShort": "Bihishwe"
 };
 
 export default rw;

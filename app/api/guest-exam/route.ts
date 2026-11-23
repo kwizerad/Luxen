@@ -960,7 +960,7 @@ export async function POST(req: NextRequest) {
       }
 
       const questionIds = rawAnswers.map((a) => a.question_id).filter(Boolean);
-      const { gradedAnswers } = await gradeAnswersServerSide(
+      const { gradedAnswers, questionDetails } = await gradeAnswersServerSide(
         adminSb,
         questionIds,
         rawAnswers
@@ -975,55 +975,41 @@ export async function POST(req: NextRequest) {
           : 0;
       const durationSeconds = Number(attemptData?.duration_seconds) || 0;
       const catId = attemptData?.category_id || EXTERNAL_EXAM_CATEGORY_ID;
+      const configuredTitle = configMap.get("external_exam_title");
       const catName =
         attemptData?.category_name ||
-        configMap.get("external_exam_title") ||
-        "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda";
-
-      await adminSb.from("exam_categories").upsert(
-        {
-          id: catId,
-          name: catName,
-          is_published: configMap.get("external_exam_published") === "true",
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      );
+        (!configuredTitle || configuredTitle.startsWith("Navo's Mock Exam")
+          ? "Rwanda PVS Exam"
+          : configuredTitle);
 
       const now = new Date().toISOString();
-      const { data: insertedAttempt, error: insertErr } = await adminSb
-        .from("exam_attempts")
-        .insert({
-          user_id: user.id,
-          category_id: catId,
-          category_name: catName,
-          started_at: new Date(
-            Date.now() - durationSeconds * 1000
-          ).toISOString(),
-          completed_at: attemptData?.status === "abandoned" ? null : now,
-          duration_seconds: durationSeconds,
-          total_questions: totalQuestions,
-          correct_answers: correctAnswers,
-          score_percentage: scorePercentage,
-          answers: gradedAnswers,
-          status: attemptData?.status || "completed",
-          submission_reason: attemptData?.submission_reason || "manual",
-          violation_summary: attemptData?.violation_summary || null,
-        })
-        .select("*")
-        .single();
-
-      if (insertErr) {
-        return secureJsonResponse(
-          { error: insertErr.message || "Failed to save exam attempt" },
-          500
-        );
-      }
+      const browserAttempt = {
+        id: `browser-guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        user_id: user.id,
+        category_id: catId,
+        category_name: catName,
+        started_at: new Date(
+          Date.now() - durationSeconds * 1000
+        ).toISOString(),
+        completed_at: attemptData?.status === "abandoned" ? null : now,
+        duration_seconds: durationSeconds,
+        total_questions: totalQuestions,
+        correct_answers: correctAnswers,
+        score_percentage: scorePercentage,
+        answers: gradedAnswers,
+        status: attemptData?.status || "completed",
+        submission_reason: attemptData?.submission_reason || "manual",
+        violation_summary: attemptData?.violation_summary || null,
+        created_at: now,
+      };
 
       return secureJsonResponse({
         success: true,
-        is_saved: true,
-        attempt: insertedAttempt,
+        is_saved: false,
+        should_save: saveIndividualEnabled,
+        storage: "browser",
+        attempt: browserAttempt,
+        questionDetails,
       });
     }
 

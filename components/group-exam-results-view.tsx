@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Medal, Clock, CheckCircle, XCircle, Loader2, ArrowLeft, Crown, Users, Award, Flame, TrendingUp, TrendingDown } from "lucide-react";
+import { Trophy, Medal, Clock, CheckCircle, XCircle, Loader2, ArrowLeft, Crown, Users, Award, Flame, TrendingUp, TrendingDown, Eye, EyeOff, Lock } from "lucide-react";
 import confetti from "canvas-confetti";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -71,6 +72,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
   const [viewMode, setViewMode] = useState<"all" | "group" | "individual">("all");
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
   const [questionFilter, setQuestionFilter] = useState<"all" | "correct" | "incorrect" | "unanswered">("all");
+  const [togglingShare, setTogglingShare] = useState(false);
   const confettiFiredRef = useRef(false);
   const hasLoadedOnceRef = useRef(false);
 
@@ -123,11 +125,11 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
           setQuestions([]);
         }
 
-        const firstCompleted = enrichedParticipants.find(
-          (p: ParticipantWithProfile) => p.status === "completed"
+        const firstVisibleCompleted = enrichedParticipants.find(
+          (p: ParticipantWithProfile) => p.status === "completed" && !p.results_hidden
         );
-        if (firstCompleted) {
-          setSelectedParticipantId(firstCompleted.user_id);
+        if (firstVisibleCompleted) {
+          setSelectedParticipantId((prev) => prev || firstVisibleCompleted.user_id);
         }
       }
     } catch (error) {
@@ -168,6 +170,14 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
     () => participants.filter((p) => p.status === "completed" && p.exam_attempt),
     [participants]
   );
+  const visibleCompletedParticipants = useMemo(
+    () => completedParticipants.filter((p) => !p.results_hidden),
+    [completedParticipants]
+  );
+  const hiddenCompletedParticipants = useMemo(
+    () => completedParticipants.filter((p) => Boolean(p.results_hidden)),
+    [completedParticipants]
+  );
   const incompleteParticipants = useMemo(
     () => participants.filter((p) => p.status !== "completed" && p.status !== "rejected"),
     [participants]
@@ -176,8 +186,50 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
     () => participants.filter((p) => ["joined", "ready", "completed"].includes(p.status)),
     [participants]
   );
+  const myParticipant = useMemo(
+    () => participants.find((p) => p.user_id === user?.id),
+    [participants, user?.id]
+  );
+  const myShareResults = myParticipant ? myParticipant.share_results !== false : true;
   const allCompleted =
     joinedParticipants.length > 0 && joinedParticipants.every((p) => p.status === "completed");
+
+  const handleToggleShare = async () => {
+    if (!challengeId || togglingShare) return;
+    const nextShare = !myShareResults;
+    setTogglingShare(true);
+    setParticipants((prev) =>
+      prev.map((p) =>
+        p.user_id === user?.id ? { ...p, share_results: nextShare } : p
+      )
+    );
+    try {
+      const res = await fetch(`/api/exam-challenges/${challengeId}/visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ share_results: nextShare }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || "Failed to update visibility");
+      }
+      toast.success(
+        nextShare
+          ? t("resultsNowShared") || "Your results are now shared with group members"
+          : t("resultsNowPrivate") || "Your results are now hidden from other members"
+      );
+      await fetchData();
+    } catch (error) {
+      setParticipants((prev) =>
+        prev.map((p) =>
+          p.user_id === user?.id ? { ...p, share_results: !nextShare } : p
+        )
+      );
+      toast.error(error instanceof Error ? error.message : "Failed to update visibility");
+    } finally {
+      setTogglingShare(false);
+    }
+  };
 
   // Format interval helper
   const formatInterval = useCallback((seconds: number) => {
@@ -195,7 +247,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
     // 2. Correct answers descending
     // 3. Duration seconds ascending (fastest wins tie)
     // 4. Completed at timestamp ascending
-    const rawSorted = [...completedParticipants]
+    const rawSorted = [...visibleCompletedParticipants]
       .map((p) => ({
         participant: p,
         scorePercentage: p.exam_attempt?.score_percentage || 0,
@@ -240,7 +292,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
         intervalFormatted,
       };
     });
-  }, [completedParticipants, formatInterval, t]);
+  }, [visibleCompletedParticipants, formatInterval, t]);
 
   const winner = ranked.length > 0 ? ranked[0] : null;
   const isWinner = Boolean(winner && user && winner.participant.user_id === user.id);
@@ -296,6 +348,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
 
   const getParticipantsForOption = (questionId: string, option: string) => {
     return participants.filter((p) => {
+      if (p.results_hidden) return false;
       if (!p.exam_attempt?.answers) return false;
       const answer = (p.exam_attempt.answers as any[]).find((a: any) => a.question_id === questionId);
       return answer?.selected_answer === option;
@@ -367,7 +420,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
     <div className="min-h-[calc(100vh-80px)] pb-20 sm:pb-24">
       <div className="container mx-auto max-w-4xl px-4 py-5 sm:py-8">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
           <button
             onClick={() => navigate("back", { fallback: "classmates" })}
             className="rounded-lg p-2 hover:bg-muted"
@@ -375,15 +428,41 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <div className="flex-1">
-            <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
-              <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" />
-              {challenge.category_name}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2 truncate">
+              <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 shrink-0" />
+              <span className="truncate">{challenge.category_name}</span>
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
               {completedParticipants.length} {t("xOfYCompleted") || "completed out of"} {joinedParticipants.length} {t("participants") || "participants"}
             </p>
           </div>
+          {!isSoloAttempt && myParticipant && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleToggleShare}
+              disabled={togglingShare}
+              className="rounded-xl text-xs font-semibold shrink-0"
+              title={
+                t("shareGroupResultsCanChangeLater") ||
+                "You can change whether others see your results anytime"
+              }
+            >
+              {myShareResults ? (
+                <>
+                  <Eye className="h-3.5 w-3.5 mr-1.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{t("sharingResultsShort") || "Results Shared"}</span>
+                </>
+              ) : (
+                <>
+                  <EyeOff className="h-3.5 w-3.5 mr-1.5 text-amber-600 dark:text-amber-400" />
+                  <span>{t("privateResultsShort") || "Results Private"}</span>
+                </>
+              )}
+            </Button>
+          )}
         </div>
 
         {/* Winner Completion Animation Banner (Only shown if winner passed the exam) */}
@@ -700,6 +779,39 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
               })}
             </AnimatePresence>
 
+            {/* Completed Participants Whose Results Are Private */}
+            {hiddenCompletedParticipants.map((p) => {
+              const name = p.profile?.full_name || p.profile?.username || "Student";
+              return (
+                <motion.div
+                  layout
+                  key={p.id}
+                  className="flex items-center justify-between gap-3 px-4 py-3 border-b last:border-b-0 bg-muted/15"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground shrink-0">
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <ProfileAvatar profile={p.profile} size="h-9 w-9" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{name}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <EyeOff className="h-3 w-3 shrink-0" />
+                        <span>{t("resultsHiddenByParticipant") || "Completed · Results private"}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="text-xs font-semibold px-2 py-0.5 text-muted-foreground bg-muted/40 border-border/60 shrink-0"
+                  >
+                    <Lock className="h-3 w-3 mr-1" />
+                    <span>{t("resultsPrivateLabel") || "Private"}</span>
+                  </Badge>
+                </motion.div>
+              );
+            })}
+
             {/* Incomplete Participants */}
             {incompleteParticipants.map((p) => {
               const statusStr = (p.status as string) || "";
@@ -958,7 +1070,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
         )}
 
         {/* Individual Results Review */}
-        {(viewMode === "all" || viewMode === "individual") && completedParticipants.length > 0 && (
+        {(viewMode === "all" || viewMode === "individual") && visibleCompletedParticipants.length > 0 && (
           <div>
             <h2 className="font-semibold text-sm mb-3 flex items-center gap-2">
               <Trophy className="h-4 w-4 text-primary" />
@@ -967,7 +1079,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
 
             {/* Participant tabs */}
             <div className="flex gap-1.5 overflow-x-auto mb-3 pb-1">
-              {completedParticipants.map((p) => (
+              {visibleCompletedParticipants.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setSelectedParticipantId(p.user_id)}
@@ -985,7 +1097,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
             </div>
 
             {/* Selected participant's review */}
-            {selectedParticipantAttempt && (() => {
+            {selectedParticipant && !selectedParticipant.results_hidden && selectedParticipantAttempt && (() => {
               const partAnsweredCount = (selectedParticipantAttempt.answers || []).filter(
                 (a) => Boolean(a?.selected_answer)
               ).length;

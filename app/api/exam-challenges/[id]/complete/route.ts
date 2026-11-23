@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { setParticipantChallengeScore, setParticipantSharePreference } from "@/lib/group-exam-privacy";
 
 export async function POST(
   request: NextRequest,
@@ -14,20 +15,37 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { exam_attempt_id } = body;
+    const { exam_attempt_id, share_results, score_summary } = body;
 
     if (!exam_attempt_id) {
       return NextResponse.json({ error: "Exam attempt ID is required" }, { status: 400 });
     }
 
     const adminClient = createAdminClient();
-    const isTransientAttempt = typeof exam_attempt_id === "string" && exam_attempt_id.startsWith("temp-");
+    const isBrowserOnlyAttempt =
+      typeof exam_attempt_id === "string" &&
+      (exam_attempt_id.startsWith("temp-") || exam_attempt_id.startsWith("browser-"));
+
+    if (typeof share_results === "boolean") {
+      await setParticipantSharePreference(adminClient, params.id, user.id, share_results);
+    }
+
+    if (score_summary && typeof score_summary === "object") {
+      await setParticipantChallengeScore(adminClient, params.id, user.id, {
+        correct_answers: Number(score_summary.correct_answers) || 0,
+        total_questions: Number(score_summary.total_questions) || 20,
+        score_percentage: Number(score_summary.score_percentage) || 0,
+        duration_seconds: Number(score_summary.duration_seconds) || 0,
+        status: String(score_summary.status || "completed"),
+        completed_at: new Date().toISOString(),
+      });
+    }
 
     const { data: updated, error } = await adminClient
       .from("exam_challenge_participants")
       .update({
         status: "completed",
-        ...(isTransientAttempt ? {} : { exam_attempt_id }),
+        ...(isBrowserOnlyAttempt ? {} : { exam_attempt_id }),
         completed_at: new Date().toISOString(),
       })
       .eq("challenge_id", params.id)

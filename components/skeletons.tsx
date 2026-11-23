@@ -895,9 +895,10 @@ export function ExamHistorySkeleton() {
             key={i}
             className="flex flex-col items-center text-center p-2 sm:p-2.5 space-y-1.5"
           >
-            <Skeleton rounded="lg" className="h-12 w-10 sm:h-14 sm:w-11" />
+            <Skeleton rounded="xl" className="h-[68px] w-14 sm:h-[76px] sm:w-16" />
             <Skeleton className="h-3 w-20" />
-            <Skeleton tone="accent" className="h-2.5 w-14" />
+            <Skeleton tone="accent" className="h-2.5 w-12" />
+            <Skeleton tone="subtle" className="h-2.5 w-16" />
             <Skeleton tone="subtle" className="h-2 w-12" />
           </div>
         ))}

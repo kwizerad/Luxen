@@ -3,10 +3,11 @@
 import { createClient } from "./client";
 import { isAdmin, isPrimaryAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
 import { getCurrentUser } from "@/lib/auth-utils";
-import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle } from "@/lib/exam-settings";
+import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle, prioritizeRwandaPvsCategories } from "@/lib/exam-settings";
 import { EXTERNAL_EXAM_CATEGORY_ID, isExternalExamCategoryId, isExternalModuleId, isExternalLessonId } from "@/lib/supabase/external";
 import { secureApiPost, authFetch } from "@/lib/e2e-crypto";
 import { invalidateServicesConfigCache } from "@/lib/feature-flags";
+import { getBrowserExamSavingConfig, saveBrowserExamSavingConfig } from "@/lib/browser-exam-history";
 import { normalizeExamQuestion, getBuiltinFallbackQuestions } from "@/lib/exam-question-utils";
 import { isUUID } from "@/lib/utils";
 import type { ExamCategory, ExamQuestion, ExamAnswer, ExamAttempt, ExamQuestionSortingMode, ModuleExamSettings, ModuleExamQuestion, ModuleExamAttempt, ModuleExamAnswer, ExamRetakeRequest, ExamRetakeType, ExamRetakeStatus } from "@/lib/database.types";
@@ -45,7 +46,11 @@ async function getAuthUser() {
 // EXAM CATEGORIES QUERIES
 // ============================================================================
 
-export async function getExamCategories() {
+export async function getExamCategories(): Promise<{
+  categories: ExamCategory[];
+  question_counts: Record<string, number>;
+  is_admin: boolean;
+}> {
   const user = await getAuthUser().catch(() => null);
   const isUserAdmin = Boolean(user && isAdmin(user));
 
@@ -65,7 +70,11 @@ export async function getExamCategories() {
                 ? json.question_counts[c.id]
                 : c.question_count || 0;
           }
-          return { categories: json.categories, question_counts: questionCounts, is_admin: isUserAdmin };
+          return {
+            categories: prioritizeRwandaPvsCategories<ExamCategory>(json.categories as ExamCategory[]),
+            question_counts: questionCounts,
+            is_admin: isUserAdmin,
+          };
         }
       }
     } catch (apiCatErr) {
@@ -179,18 +188,12 @@ export async function getExamCategories() {
       }
     }
     const extPublished = extMap.get("external_exam_published") === "true";
-    const rawExtTitle = extMap.get("external_exam_title") || "Navo's Mock Exam (External DB)";
-    const activeUiLang = typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || "rw" : "rw";
+    const rawExtTitle = extMap.get("external_exam_title") || "Rwanda PVS Exam";
     const isDefaultExtTitle =
       rawExtTitle === "Navo's Mock Exam (External DB)" ||
       rawExtTitle === "Navo's Mock Exam (External Question Bank)";
-    const extTitle = isDefaultExtTitle
-      ? activeUiLang === "fr"
-        ? "Examen Blanc Officiel du Code de la Route"
-        : activeUiLang === "en"
-        ? "Official Traffic Rules & Road Signs Mock Exam"
-        : "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda"
-      : rawExtTitle;
+    const extTitle = isDefaultExtTitle ? "Rwanda PVS Exam" : rawExtTitle;
+    const activeUiLang = typeof window !== "undefined" ? localStorage.getItem("luxen_lang") || "rw" : "rw";
     const extDesc =
       activeUiLang === "fr"
         ? "Examen blanc officiel des règles de circulation et des panneaux routiers"
@@ -235,7 +238,7 @@ export async function getExamCategories() {
   if (categoriesWithSettings.length === 0) {
     const fallbackCategory: ExamCategory = {
       id: EXTERNAL_EXAM_CATEGORY_ID,
-      name: "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda (Official Mock Exam)",
+      name: "Rwanda PVS Exam",
       description: "Ikizamini cyuzuye cy'ibibazo 20 by'amategeko y'umuhanda n'ibyapa mu Kinyarwanda cyimbitse.",
       created_by: "system",
       is_published: true,
@@ -248,7 +251,11 @@ export async function getExamCategories() {
     questionCounts[EXTERNAL_EXAM_CATEGORY_ID] = 451;
   }
 
-  return { categories: categoriesWithSettings, question_counts: questionCounts, is_admin: isUserAdmin };
+  return {
+    categories: prioritizeRwandaPvsCategories<ExamCategory>(categoriesWithSettings),
+    question_counts: questionCounts,
+    is_admin: isUserAdmin,
+  };
 }
 
 export async function createExamCategory(name: string, is_published = false) {
@@ -784,14 +791,16 @@ export async function getExamSavingConfig(): Promise<{
   saveIndividualExams: boolean;
   saveGroupExams: boolean;
 }> {
+  const localMirror = getBrowserExamSavingConfig();
   try {
-    let rows: Array<{ key: string; value: string }> | null = null;
+    let rows: Array<{ key: string; value: string; updated_at?: string }> | null = null;
 
     if (typeof window !== "undefined") {
       try {
-        const res = await fetch("/api/system-config?keys=save_individual_exams_enabled,save_group_exams_enabled", {
-          cache: "no-store",
-        });
+        const res = await fetch(
+          "/api/system-config?keys=save_individual_exams_enabled,save_group_exams_enabled&fresh=1",
+          { cache: "no-store" }
+        );
         if (res.ok) {
           const json = await res.json();
           if (Array.isArray(json.configs)) {
@@ -799,7 +808,7 @@ export async function getExamSavingConfig(): Promise<{
           }
         }
       } catch {
-        // Fallback to direct Supabase query below
+        // Fallback below
       }
     }
 
@@ -807,7 +816,7 @@ export async function getExamSavingConfig(): Promise<{
       const supabase = createClient();
       const { data, error } = await supabase
         .from("system_config")
-        .select("key, value")
+        .select("key, value, updated_at")
         .in("key", ["save_individual_exams_enabled", "save_group_exams_enabled"]);
 
       if (!error && data) {
@@ -815,12 +824,15 @@ export async function getExamSavingConfig(): Promise<{
       }
     }
 
-    if (!rows) {
-      return { saveIndividualExams: true, saveGroupExams: true };
+    if (!rows || rows.length === 0) {
+      return {
+        saveIndividualExams: localMirror.saveIndividualExams,
+        saveGroupExams: localMirror.saveGroupExams,
+      };
     }
 
-    let saveIndividualExams = true;
-    let saveGroupExams = true;
+    let saveIndividualExams = localMirror.saveIndividualExams;
+    let saveGroupExams = localMirror.saveGroupExams;
 
     for (const row of rows) {
       if (row.key === "save_individual_exams_enabled") {
@@ -830,9 +842,32 @@ export async function getExamSavingConfig(): Promise<{
       }
     }
 
+    // Keep local browser mirror aligned when server returns authoritative config
+    if (typeof window !== "undefined") {
+      try {
+        if (
+          localMirror.saveIndividualExams !== saveIndividualExams ||
+          localMirror.saveGroupExams !== saveGroupExams ||
+          !localStorage.getItem("exam_saving_config_v1")
+        ) {
+          localStorage.setItem(
+            "exam_saving_config_v1",
+            JSON.stringify({
+              saveIndividualExams,
+              saveGroupExams,
+              updatedAt: new Date().toISOString(),
+            })
+          );
+        }
+      } catch {}
+    }
+
     return { saveIndividualExams, saveGroupExams };
   } catch {
-    return { saveIndividualExams: true, saveGroupExams: true };
+    return {
+      saveIndividualExams: localMirror.saveIndividualExams,
+      saveGroupExams: localMirror.saveGroupExams,
+    };
   }
 }
 
@@ -840,26 +875,30 @@ export async function updateExamSavingConfig(config: {
   saveIndividualExams?: boolean;
   saveGroupExams?: boolean;
 }): Promise<void> {
-  const updates: Promise<any>[] = [];
+  // Always persist immediately to browser storage so settings respond reliably
+  saveBrowserExamSavingConfig(config);
+
+  const items: Array<{ key: string; value: string; description: string }> = [];
   if (config.saveIndividualExams !== undefined) {
-    updates.push(
-      updateSystemConfig(
-        "save_individual_exams_enabled",
-        config.saveIndividualExams.toString(),
-        "Allow or disallow saving individual exam attempts to database and user history"
-      )
-    );
+    items.push({
+      key: "save_individual_exams_enabled",
+      value: String(Boolean(config.saveIndividualExams)),
+      description:
+        "Allow or disallow saving individual exam attempts to browser storage and user history",
+    });
   }
   if (config.saveGroupExams !== undefined) {
-    updates.push(
-      updateSystemConfig(
-        "save_group_exams_enabled",
-        config.saveGroupExams.toString(),
-        "Allow or disallow saving group exam challenges and results to database and history"
-      )
-    );
+    items.push({
+      key: "save_group_exams_enabled",
+      value: String(Boolean(config.saveGroupExams)),
+      description:
+        "Allow or disallow saving group exam challenges and results to browser storage and history",
+    });
   }
-  await Promise.all(updates);
+
+  if (items.length > 0) {
+    await updateSystemConfigBatch(items);
+  }
 }
 
 export async function createExamAttempt(attemptData: {
@@ -900,7 +939,12 @@ export async function createExamAttempt(attemptData: {
     throw new Error("Missing required fields");
   }
 
-  // Handle External DB Exam grading and persistence via server route
+  const savingConfig = await getExamSavingConfig();
+  const shouldSave = is_group_challenge
+    ? savingConfig.saveGroupExams
+    : savingConfig.saveIndividualExams;
+
+  // Handle External DB Exam grading via server route (results saved in user's browser storage, not database)
   if (isExternalExamCategoryId(category_id)) {
     const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
       action: "submit_exam",
@@ -912,14 +956,10 @@ export async function createExamAttempt(attemptData: {
     return {
       attempt: json.attempt,
       questionDetails: json.questionDetails || {},
+      should_save: shouldSave,
+      is_saved: false,
     };
   }
-
-  // Check admin saving settings
-  const savingConfig = await getExamSavingConfig();
-  const shouldSave = is_group_challenge
-    ? savingConfig.saveGroupExams
-    : savingConfig.saveIndividualExams;
 
   // Never trust client-supplied is_correct — look up the real answer key
   // server-side so a tampered request can't fake a passing score.
@@ -981,14 +1021,15 @@ export async function createExamAttempt(attemptData: {
 
   const hasValidUser = Boolean(user?.id && isUUID(user.id));
   const attemptUserId = hasValidUser ? user!.id : null;
+  const nowIso = new Date().toISOString();
 
-  const transientAttempt: ExamAttempt = {
-    id: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  const browserAttempt: ExamAttempt = {
+    id: `browser-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     user_id: attemptUserId || "guest",
     category_id,
     category_name,
-    started_at: new Date().toISOString(),
-    completed_at: new Date().toISOString(),
+    started_at: new Date(Date.now() - duration_seconds * 1000).toISOString(),
+    completed_at: status === "abandoned" ? null : nowIso,
     duration_seconds,
     total_questions,
     correct_answers: correctAnswers,
@@ -997,94 +1038,16 @@ export async function createExamAttempt(attemptData: {
     status,
     submission_reason: attemptData.submission_reason || 'manual',
     violation_summary: attemptData.violation_summary || null,
+    created_at: nowIso,
   };
 
-  // If exam saving is disabled by Admin or user is guest/transient, return transient result without database insertion
-  if (!shouldSave || !hasValidUser || !attemptUserId) {
-    return {
-      attempt: transientAttempt,
-      questionDetails,
-      is_saved: false,
-    };
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("exam_attempts")
-      .insert([{
-        user_id: attemptUserId,
-        category_id,
-        category_name,
-        started_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-        duration_seconds,
-        total_questions,
-        correct_answers: correctAnswers,
-        score_percentage: scorePercentage,
-        answers: answersToPersist,
-        status,
-        submission_reason: attemptData.submission_reason || 'manual',
-        violation_summary: attemptData.violation_summary || null,
-      }])
-      .select()
-      .single();
-
-    if (error) {
-      console.warn("Could not persist attempt to db, returning transient:", error.message);
-      return {
-        attempt: transientAttempt,
-        questionDetails,
-        is_saved: false,
-      };
-    }
-
-    // If the student passed (score >= 50), auto-verify provision (category P)
-    if (scorePercentage >= 50 && attemptUserId) {
-      try {
-        await supabase
-          .from("user_profiles")
-          .update({
-            provision_verified: true,
-            provision_category: "P",
-            provision_verified_at: new Date().toISOString(),
-          })
-          .eq("id", attemptUserId);
-      } catch (provError) {
-        console.error("Failed to auto-verify provision:", provError);
-      }
-    }
-
-    // Notify the student that their exam result is available
-    if (attemptUserId) {
-      try {
-        await createNotification({
-          type: "exam_result",
-          title: "Exam Result Available",
-          message: `Your ${category_name} exam result is now available. Score: ${scorePercentage}%`,
-          priority: scorePercentage >= 50 ? "normal" : "urgent",
-          target_user_id: attemptUserId,
-          related_entity_type: "exam_attempt",
-          related_entity_id: data.id,
-          action_url: "/dashboard",
-        });
-      } catch (notifyError) {
-        console.warn("Failed to send exam result notification:", notifyError);
-      }
-    }
-
-    return {
-      attempt: data,
-      questionDetails,
-      is_saved: true,
-    };
-  } catch (err: any) {
-    console.warn("Error inserting exam attempt, returning transient result:", err);
-    return {
-      attempt: transientAttempt,
-      questionDetails,
-      is_saved: false,
-    };
-  }
+  // Exam history is stored in user browser storage (never in exam_attempts database)
+  return {
+    attempt: browserAttempt,
+    questionDetails,
+    should_save: shouldSave,
+    is_saved: false,
+  };
 }
 
 // ============================================================================
@@ -2816,15 +2779,15 @@ export async function createModuleExamAttempt(
   }
 
   const hasValidUser = Boolean(user?.id && isUUID(user.id));
-  const savingConfig = await getExamSavingConfig();
-  const transientAttempt: ModuleExamAttempt = {
-    id: `temp-mod-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  const nowIso = new Date().toISOString();
+  const browserModAttempt: ModuleExamAttempt = {
+    id: `browser-mod-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     user_id: hasValidUser && user?.id ? user.id : "guest",
     module_id: attemptData.module_id,
     module_title: attemptData.module_title,
     exam_type: attemptData.exam_type,
     started_at: new Date(Date.now() - attemptData.duration_seconds * 1000).toISOString(),
-    completed_at: new Date().toISOString(),
+    completed_at: nowIso,
     duration_seconds: attemptData.duration_seconds,
     total_questions: attemptData.total_questions,
     correct_answers: attemptData.correct_answers,
@@ -2832,49 +2795,19 @@ export async function createModuleExamAttempt(
     passed: attemptData.passed,
     answers: answersToPersist,
     status: attemptData.status,
-    created_at: new Date().toISOString(),
+    created_at: nowIso,
   } as ModuleExamAttempt;
 
-  if (!hasValidUser || !user?.id || !savingConfig.saveIndividualExams) {
-    return transientAttempt;
+  // Keep course module progression tracking updated without storing exam attempt history in DB
+  if (hasValidUser && user?.id && attemptData.exam_type === "module" && attemptData.module_id) {
+    await updateModuleProgressAfterExam(
+      attemptData.module_id,
+      attemptData.passed,
+      attemptData.score_percentage
+    ).catch(() => {});
   }
 
-  try {
-    const { data, error } = await supabase
-      .from("module_exam_attempts")
-      .insert({
-        user_id: user.id,
-        module_id: attemptData.module_id,
-        module_title: attemptData.module_title,
-        exam_type: attemptData.exam_type,
-        started_at: new Date(Date.now() - attemptData.duration_seconds * 1000).toISOString(),
-        completed_at: new Date().toISOString(),
-        duration_seconds: attemptData.duration_seconds,
-        total_questions: attemptData.total_questions,
-        correct_answers: attemptData.correct_answers,
-        score_percentage: attemptData.score_percentage,
-        passed: attemptData.passed,
-        answers: answersToPersist,
-        status: attemptData.status,
-      })
-      .select("*")
-      .single();
-
-    if (error) {
-      console.warn("Could not persist module exam attempt, returning transient:", error.message);
-      return transientAttempt;
-    }
-
-    // Update student_module_progress for module exams
-    if (attemptData.exam_type === "module" && attemptData.module_id) {
-      await updateModuleProgressAfterExam(attemptData.module_id, attemptData.passed, attemptData.score_percentage).catch(() => {});
-    }
-
-    return data as ModuleExamAttempt;
-  } catch (err) {
-    console.warn("Exception inserting module exam attempt, returning transient:", err);
-    return transientAttempt;
-  }
+  return browserModAttempt;
 }
 
 async function updateModuleProgressAfterExam(

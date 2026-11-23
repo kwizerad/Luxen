@@ -6,29 +6,20 @@ import { SettingsModal } from "@/components/settings-modal";
 import { AuthButton } from "@/components/auth-button";
 import { useBrandingConfig } from "@/lib/branding-config";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 export function SiteHeader() {
   const { config } = useBrandingConfig();
-  const router = useRouter();
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     setImgError(false);
   }, [config.logoUrl]);
 
-  useEffect(() => {
-    // Prefetch frequently visited pages
-    router.prefetch("/dashboard");
-    router.prefetch("/Admin");
-    router.prefetch("/dashboard/settings");
-  }, [router]);
-
   return (
     <header className="premium-glass-panel sticky top-0 z-50 w-full border-b">
       <div className="container flex h-16 items-center justify-between pl-6 pr-6">
         <div className="flex items-center">
-          <Link href="/" prefetch={true} className="flex items-center space-x-2">
+          <Link href="/" prefetch={false} className="flex items-center space-x-2">
             <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-primary rounded-full flex items-center justify-center overflow-hidden shadow-md shadow-primary/25 relative shrink-0">
               {config.logoUrl && !imgError ? (
                 <Image 

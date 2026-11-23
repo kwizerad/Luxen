@@ -20,6 +20,7 @@ import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { canViewUserAvatar } from "@/lib/avatar-helper";
 import { getExamCategories } from "@/lib/supabase/queries";
+import { pickDefaultExamCategory, prioritizeRwandaPvsCategories } from "@/lib/exam-settings";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -143,8 +144,9 @@ export function GroupExamCreation({
         (a.full_name || "").localeCompare(b.full_name || "")
       );
 
+      const prioritized = prioritizeRwandaPvsCategories(categoriesList);
       setAllUsers(mergedList);
-      setCategories(categoriesList);
+      setCategories(prioritized);
     } catch (error) {
       hasFetchedRef.current = false;
       console.error("Failed to fetch data:", error);
@@ -168,10 +170,13 @@ export function GroupExamCreation({
     };
   }, []);
 
-  // Auto-select category when available
+  // Auto-select Rwanda PVS Exam by default when available
   useEffect(() => {
     if (!loading && categories.length >= 1 && !selectedCategory) {
-      setSelectedCategory(categories[0].id);
+      const def = pickDefaultExamCategory(categories);
+      if (def?.id) {
+        setSelectedCategory(def.id);
+      }
     }
   }, [loading, categories, selectedCategory]);
 

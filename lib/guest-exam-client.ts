@@ -1,6 +1,8 @@
 "use client";
 
 import { secureApiPost } from "@/lib/e2e-crypto";
+import { getBrowserExamSavingConfig, saveBrowserExamAttempt } from "@/lib/browser-exam-history";
+import { createClient } from "@/lib/supabase/client";
 
 const DEVICE_STORAGE_KEY = "navo_device_fp";
 const DEVICE_COOKIE_NAME = "navo_device_fp";
@@ -134,13 +136,35 @@ export async function claimPendingGuestExamIfAny(): Promise<{
 
   isClaimingInFlight = true;
   try {
+    const localCfg = getBrowserExamSavingConfig();
     const { ok, data } = await secureApiPost("/api/guest-exam", {
       action: "claim",
       attemptData: pending,
     });
     if (ok && data?.success) {
       clearPendingGuestExam();
-      return { claimed: true, is_saved: Boolean(data.is_saved) };
+      const shouldSave =
+        localCfg.saveIndividualExams && data?.should_save !== false;
+      if (shouldSave && data?.attempt) {
+        let userId: string | null = data.attempt.user_id || null;
+        if (!userId || userId === "guest") {
+          try {
+            const supabase = createClient();
+            const { data: userData } = await supabase.auth.getUser();
+            userId = userData?.user?.id || null;
+          } catch {}
+        }
+        if (userId && userId !== "guest") {
+          await saveBrowserExamAttempt(
+            userId,
+            data.attempt,
+            undefined,
+            data.questionDetails
+          );
+          return { claimed: true, is_saved: true };
+        }
+      }
+      return { claimed: true, is_saved: false };
     }
     return { claimed: false };
   } catch {

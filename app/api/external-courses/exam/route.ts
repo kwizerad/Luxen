@@ -793,29 +793,22 @@ export async function POST(req: NextRequest) {
       const correctAnswers = gradedAnswers.filter((a) => a.is_correct).length;
       const scorePercentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
 
-      // Ensure external exam category row exists in exam_categories so FK constraint passes
       const catId = attemptData.category_id || EXTERNAL_EXAM_CATEGORY_ID;
+      const configuredTitle = configMap.get("external_exam_title");
       const catName =
         attemptData.category_name ||
-        configMap.get("external_exam_title") ||
-        "Navo's Mock Exam (External Question Bank)";
-
-      await adminSb.from("exam_categories").upsert(
-        {
-          id: catId,
-          name: catName,
-          is_published: configMap.get("external_exam_published") === "true",
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      );
+        (!configuredTitle ||
+        configuredTitle === "Navo's Mock Exam (External DB)" ||
+        configuredTitle === "Navo's Mock Exam (External Question Bank)"
+          ? "Rwanda PVS Exam"
+          : configuredTitle);
 
       const now = new Date().toISOString();
       const userId = user?.id;
       const isValidUser = Boolean(userId && isUUID(userId));
 
-      const transientAttempt = {
-        id: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      const browserAttempt = {
+        id: `browser-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         user_id: isValidUser ? userId : "guest",
         category_id: catId,
         category_name: catName,
@@ -829,63 +822,36 @@ export async function POST(req: NextRequest) {
         status: attemptData.status || "completed",
         submission_reason: attemptData.submission_reason || "manual",
         violation_summary: attemptData.violation_summary || null,
+        created_at: now,
       };
 
-      const saveIndividual = configMap.get("save_individual_exams_enabled") !== "false";
-      const saveGroup = configMap.get("save_group_exams_enabled") !== "false";
+      // Query fresh persistence toggle directly (bypassing 60s cache)
+      let saveIndividual = configMap.get("save_individual_exams_enabled") !== "false";
+      let saveGroup = configMap.get("save_group_exams_enabled") !== "false";
+      try {
+        const { data: freshRows } = await adminSb
+          .from("system_config")
+          .select("key, value")
+          .in("key", ["save_individual_exams_enabled", "save_group_exams_enabled"]);
+        for (const r of freshRows || []) {
+          if (r.key === "save_individual_exams_enabled") {
+            saveIndividual = String(r.value).toLowerCase() !== "false";
+          } else if (r.key === "save_group_exams_enabled") {
+            saveGroup = String(r.value).toLowerCase() !== "false";
+          }
+        }
+      } catch {}
+
       const shouldSave = attemptData?.is_group_challenge ? saveGroup : saveIndividual;
 
-      if (!shouldSave || !isValidUser || !userId) {
-        return secureJsonResponse({
-          success: true,
-          attempt: transientAttempt,
-          questionDetails,
-        });
-      }
-
-      try {
-        const { data: insertedAttempt, error: insertErr } = await adminSb
-          .from("exam_attempts")
-          .insert({
-            user_id: userId,
-            category_id: catId,
-            category_name: catName,
-            started_at: new Date(Date.now() - (Number(attemptData.duration_seconds) || 0) * 1000).toISOString(),
-            completed_at: attemptData.status === "abandoned" ? null : now,
-            duration_seconds: Number(attemptData.duration_seconds) || 0,
-            total_questions: totalQuestions,
-            correct_answers: correctAnswers,
-            score_percentage: scorePercentage,
-            answers: gradedAnswers,
-            status: attemptData.status || "completed",
-            submission_reason: attemptData.submission_reason || "manual",
-            violation_summary: attemptData.violation_summary || null,
-          })
-          .select("*")
-          .single();
-
-        if (insertErr) {
-          console.warn("Could not insert external exam attempt, returning transient:", insertErr.message);
-          return secureJsonResponse({
-            success: true,
-            attempt: transientAttempt,
-            questionDetails,
-          });
-        }
-
-        return secureJsonResponse({
-          success: true,
-          attempt: insertedAttempt,
-          questionDetails,
-        });
-      } catch (insertEx) {
-        console.warn("Exception inserting external exam attempt, returning transient:", insertEx);
-        return secureJsonResponse({
-          success: true,
-          attempt: transientAttempt,
-          questionDetails,
-        });
-      }
+      return secureJsonResponse({
+        success: true,
+        attempt: browserAttempt,
+        questionDetails,
+        should_save: shouldSave,
+        is_saved: false,
+        storage: "browser",
+      });
     }
 
     // ------------------------------------------------------------------------
@@ -989,21 +955,18 @@ export async function POST(req: NextRequest) {
     }
 
     // ------------------------------------------------------------------------
-    // 4. SUBMIT MODULE QUIZ FOR EXTERNAL COURSE
+    // 4. SUBMIT MODULE QUIZ FOR EXTERNAL COURSE (BROWSER STORAGE)
     // ------------------------------------------------------------------------
     if (action === "submit_module_exam") {
       const { attemptData } = body;
       const now = new Date().toISOString();
 
-      // Note: module_exam_attempts has a foreign key to course_modules(id) when module_id is non-null.
-      // For external course modules, we store module_id: null and preserve the external module ID inside module_title or metadata,
-      // AND we also record completion in user_profiles/system_config or return the attempt cleanly.
       const isExtMod = isExternalModuleId(attemptData?.module_id);
       const userId = user?.id;
       const isValidUser = Boolean(userId && isUUID(userId));
 
-      const transientModAttempt = {
-        id: `mod-temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      const browserModAttempt = {
+        id: `browser-mod-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         user_id: isValidUser ? userId : "guest",
         module_id: attemptData.module_id,
         module_title: attemptData.module_title || (isExtMod ? `External Module (${attemptData.module_id})` : null),
@@ -1017,58 +980,15 @@ export async function POST(req: NextRequest) {
         passed: Boolean(attemptData.passed),
         answers: Array.isArray(attemptData.answers) ? attemptData.answers : [],
         status: attemptData.status || "completed",
+        created_at: now,
       };
 
-      if (!isValidUser || !userId) {
-        return secureJsonResponse({
-          success: true,
-          attempt: transientModAttempt,
-        });
-      }
-
-      try {
-        const { data: inserted, error: insErr } = await adminSb
-          .from("module_exam_attempts")
-          .insert({
-            user_id: userId,
-            module_id: isExtMod ? null : attemptData.module_id,
-            module_title: attemptData.module_title || (isExtMod ? `External Module (${attemptData.module_id})` : null),
-            exam_type: attemptData.exam_type || "module",
-            started_at: new Date(Date.now() - (Number(attemptData.duration_seconds) || 0) * 1000).toISOString(),
-            completed_at: now,
-            duration_seconds: Number(attemptData.duration_seconds) || 0,
-            total_questions: Number(attemptData.total_questions) || 0,
-            correct_answers: Number(attemptData.correct_answers) || 0,
-            score_percentage: Number(attemptData.score_percentage) || 0,
-            passed: Boolean(attemptData.passed),
-            answers: Array.isArray(attemptData.answers) ? attemptData.answers : [],
-            status: attemptData.status || "completed",
-          })
-          .select("*")
-          .single();
-
-        if (insErr) {
-          console.warn("Could not insert module attempt, returning transient:", insErr.message);
-          return secureJsonResponse({
-            success: true,
-            attempt: transientModAttempt,
-          });
-        }
-
-        return secureJsonResponse({
-          success: true,
-          attempt: {
-            ...inserted,
-            module_id: attemptData.module_id,
-          },
-        });
-      } catch (modEx) {
-        console.warn("Exception inserting module attempt, returning transient:", modEx);
-        return secureJsonResponse({
-          success: true,
-          attempt: transientModAttempt,
-        });
-      }
+      return secureJsonResponse({
+        success: true,
+        attempt: browserModAttempt,
+        is_saved: false,
+        storage: "browser",
+      });
     }
 
     return secureJsonResponse({ error: "Unsupported action" }, 400);

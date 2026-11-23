@@ -2956,7 +2956,22 @@ const en: Record<string, string> = {
   "coursesWithImages": "Courses with Images",
   "noCoursesWithImages": "No courses with images found",
   "noCoursesWithImagesDesc": "No road sign lessons with images are available in this language yet.",
-  "roadSigns": "Road Signs"
+  "roadSigns": "Road Signs",
+  "shareGroupResultsQuestion": "Share your results with group members?",
+  "shareGroupResultsHint": "Choose whether other participants can see your score and answers. You can change this anytime later.",
+  "shareGroupResultsCanChangeLater": "You can change this choice anytime later.",
+  "shareResultsYes": "Share Results",
+  "shareResultsNo": "Keep Private",
+  "sharingResultsWithGroup": "Sharing your results with group",
+  "hidingResultsFromGroup": "Your results are hidden from others",
+  "shareMyResults": "Share Results",
+  "hideMyResults": "Hide Results",
+  "resultsNowShared": "Your results are now shared with group members",
+  "resultsNowPrivate": "Your results are now hidden from other members",
+  "resultsHiddenByParticipant": "Completed · Results private",
+  "resultsPrivateLabel": "Private",
+  "sharingResultsShort": "Results Shared",
+  "privateResultsShort": "Results Private"
 };
 
 export default en;

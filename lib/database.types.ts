@@ -529,6 +529,8 @@ export interface ExamChallengeParticipant {
   user_id: string;
   status: ChallengeParticipantStatus;
   exam_attempt_id?: string | null;
+  share_results?: boolean;
+  results_hidden?: boolean;
   reminded_at?: string | null;
   ready_at?: string | null;
   invited_at: string;

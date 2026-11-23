@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/permissions";
 import { EXTERNAL_EXAM_CATEGORY_ID } from "@/lib/supabase/external";
 import { CACHE_KEYS, getCached } from "@/lib/server-cache";
+import { prioritizeRwandaPvsCategories } from "@/lib/exam-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -102,7 +103,13 @@ export async function GET(req: NextRequest) {
           }
         }
         const extPublished = extMap.get("external_exam_published") === "true";
-        const extTitle = extMap.get("external_exam_title") || "Navo's Mock Exam (External DB)";
+        const configuredExtTitle = extMap.get("external_exam_title");
+        const extTitle =
+          !configuredExtTitle ||
+          configuredExtTitle === "Navo's Mock Exam (External DB)" ||
+          configuredExtTitle === "Navo's Mock Exam (External Question Bank)"
+            ? "Rwanda PVS Exam"
+            : configuredExtTitle;
         const extDuration = Number(extMap.get("external_exam_duration_minutes")) || 20;
         const extQuestions = Number(extMap.get("external_exam_question_count")) || 20;
 
@@ -154,7 +161,7 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      return { categories: list, question_counts: questionCounts };
+      return { categories: prioritizeRwandaPvsCategories(list), question_counts: questionCounts };
     });
 
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
