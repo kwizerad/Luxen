@@ -1677,7 +1677,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                   return isRw ? "Cyoherejwe: Ibikoresho by'ikoranabuhanga" : isFr ? "Soumis : Outils développeur" : "Submitted by violation: DevTools detected";
                                 if (sum.includes("copy") || sum.includes("paste"))
                                   return isRw ? "Cyoherejwe: Gukoporora" : isFr ? "Soumis : Copier/Coller" : "Submitted by violation: Copy/Paste";
-                                return isRw ? "Cyoherejwe kubera ikosa ry'umutekano" : isFr ? "Soumis pour violation de sécurité" : "Submitted by exam security violation";
+                                return isRw ? "Cyoherejwe kubera gukopera" : isFr ? "Soumis pour violation de sécurité" : "Submitted by exam security violation";
                               }
                               if (attempt.submission_reason === "page_closed")
                                 return isRw ? "0 byasubijwe: Idirishya ryafunzwe" : isFr ? "0 réponse : Fenêtre fermée" : "0 answered: Exam window/tab closed";
@@ -1877,7 +1877,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                   return isRw ? "Cyoherejwe: Ibikoresho by'ikoranabuhanga" : isFr ? "Soumis : Outils développeur détectés" : "Submitted by exam violation: Developer tools detected";
                                 if (sum.includes("copy") || sum.includes("paste"))
                                   return isRw ? "Cyoherejwe: Gukoporora byatahuwe" : isFr ? "Soumis : Copier/coller détecté" : "Submitted by exam violation: Copy/paste detected";
-                                return isRw ? "Cyoherejwe kubera ikosa ry'umutekano" : isFr ? "Soumis pour violation de sécurité" : "Submitted by exam security violation";
+                                return isRw ? "Cyoherejwe kubera gukopera" : isFr ? "Soumis pour violation de sécurité" : "Submitted by exam security violation";
                               }
                               if (attempt.submission_reason === "page_closed")
                                 return isRw ? "0 byasubijwe: Urupapuro rwafunzwe hakiri kare" : isFr ? "0 réponse : Page fermée prématurément" : "0 answered questions: Exam page was closed or left early";

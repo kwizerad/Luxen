@@ -507,7 +507,7 @@ export function ExamReview({
               <h2 className="text-sm sm:text-base font-bold text-foreground">
                 {isCheating
                   ? isRw
-                    ? "Ikizamini cyahagaritswe kubera amakosa y'umutekano"
+                    ? "Ikizamini cyahagaritswe kubera gukopera"
                     : isFr
                     ? "Examen interrompu pour violations de sécurité"
                     : "Exam Terminated Due to Security Violations"
@@ -520,7 +520,7 @@ export function ExamReview({
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                 {isCheating
                   ? isRw
-                    ? "Iki kizamini cyoherejwe ako kanya na sisitemu yo kurinda amakosa kubera kurenga ku mabwiriza y'umutekano mbere y'uko hagira ikibazo gisubizwa."
+                    ? "Iki kizamini cyoherejwe ako kanya na sisitemu yo kurinda gukopera kubera kurenga ku mabwiriza y'umutekano mbere y'uko hagira ikibazo gisubizwa."
                     : isFr
                     ? "Cet examen a été automatiquement soumis par le système de surveillance en raison d'un dépassement des limites de sécurité."
                     : "This exam was terminated by the proctoring engine because security thresholds were exceeded before questions were answered."
