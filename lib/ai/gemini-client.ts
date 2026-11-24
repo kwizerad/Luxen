@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 
 export function getGeminiApiKey(): string {
   const key =
@@ -52,9 +52,25 @@ function sanitizeConfigForModel(model: string, config?: Record<string, any>) {
       topP: _tp,
       topK: _tk,
       candidateCount: _cc,
+      thinkingConfig,
       ...rest
     } = config;
-    return rest;
+
+    // gemini-4-* does not support ThinkingLevel.MINIMAL (returns 400); upgrade MINIMAL -> LOW
+    const normalizedThinking = thinkingConfig
+      ? {
+          ...thinkingConfig,
+          thinkingLevel:
+            thinkingConfig.thinkingLevel === ThinkingLevel.MINIMAL
+              ? ThinkingLevel.LOW
+              : thinkingConfig.thinkingLevel,
+        }
+      : { thinkingLevel: ThinkingLevel.LOW };
+
+    return {
+      ...rest,
+      thinkingConfig: normalizedThinking,
+    };
   }
   return config;
 }

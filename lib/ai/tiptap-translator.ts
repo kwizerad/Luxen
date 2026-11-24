@@ -1,3 +1,4 @@
+import { ThinkingLevel, Type } from "@google/genai";
 import { generateContentWithFallback } from "./gemini-client";
 
 export type TargetLanguage = "French" | "Kinyarwanda" | "English";
@@ -147,6 +148,24 @@ function cleanJsonString(raw: string): string {
   return cleaned;
 }
 
+const TRANSLATION_RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    translations: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.INTEGER },
+          translatedText: { type: Type.STRING },
+        },
+        required: ["id", "translatedText"],
+      },
+    },
+  },
+  required: ["translations"],
+};
+
 /**
  * Translates an array of text snippets using Gemini with fallback.
  */
@@ -160,6 +179,8 @@ export async function translateTextSnippets(
     timeoutMs?: number;
     maxRetries?: number;
     skipRetryMissed?: boolean;
+    omitUnmappedFallback?: boolean;
+    bestEffort?: boolean;
   }
 ): Promise<Map<number, string>> {
   if (snippets.length === 0) {
@@ -171,6 +192,8 @@ export async function translateTextSnippets(
   const timeoutMs = options?.timeoutMs ?? 20000;
   const maxRetries = options?.maxRetries ?? 2;
   const skipRetryMissed = Boolean(options?.skipRetryMissed);
+  const omitUnmappedFallback = Boolean(options?.omitUnmappedFallback);
+  const bestEffort = Boolean(options?.bestEffort);
 
   const resultMap = new Map<number, string>();
   const chunks: TextSnippet[][] = [];
@@ -180,7 +203,7 @@ export async function translateTextSnippets(
 
   const processChunk = async (chunk: TextSnippet[]) => {
     const prompt = `Translate the following text items from ${sourceLang} to ${targetLang}. Ensure every output translatedText is completely written in ${targetLang}:\n` +
-      JSON.stringify(chunk, null, 2);
+      JSON.stringify(chunk);
 
     try {
       const response = await generateContentWithFallback({
@@ -190,6 +213,8 @@ export async function translateTextSnippets(
         config: {
           systemInstruction: getSystemPrompt(sourceLang, targetLang),
           responseMimeType: "application/json",
+          responseSchema: TRANSLATION_RESPONSE_SCHEMA,
+          thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
           temperature: 0.1,
         },
       });
@@ -263,7 +288,7 @@ export async function translateTextSnippets(
           await new Promise((resolve) => setTimeout(resolve, 250));
           const retryPrompt =
             `Translate the following remaining text snippets from ${sourceLang} to ${targetLang}:\n` +
-            JSON.stringify(missed, null, 2);
+            JSON.stringify(missed);
           const retryRes = await generateContentWithFallback({
             contents: retryPrompt,
             timeoutMs,
@@ -271,6 +296,8 @@ export async function translateTextSnippets(
             config: {
               systemInstruction: getSystemPrompt(sourceLang, targetLang),
               responseMimeType: "application/json",
+              responseSchema: TRANSLATION_RESPONSE_SCHEMA,
+              thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
               temperature: 0.1,
             },
           });
@@ -296,14 +323,19 @@ export async function translateTextSnippets(
         }
       }
 
-      // Fill any remaining unmapped items with original text to preserve document structure
-      for (const item of chunk) {
-        if (!resultMap.has(item.id)) {
-          resultMap.set(item.id, item.text);
+      if (!omitUnmappedFallback) {
+        // Fill any remaining unmapped items with original text to preserve document structure
+        for (const item of chunk) {
+          if (!resultMap.has(item.id)) {
+            resultMap.set(item.id, item.text);
+          }
         }
       }
     } catch (err: any) {
       console.error("Translation batch failed:", err);
+      if (bestEffort) {
+        return;
+      }
       throw new Error(`AI translation error: ${err?.message || "Failed to generate translated text. Please retry."}`);
     }
   };

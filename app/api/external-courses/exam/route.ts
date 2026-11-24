@@ -9,7 +9,8 @@ function isExternalExamCategoryId(categoryId?: string | null): boolean {
   if (!categoryId) return false;
   return categoryId === EXTERNAL_EXAM_CATEGORY_ID || categoryId.startsWith("ext-exam-");
 }
-import { translateTextSnippets, type TargetLanguage } from "@/lib/ai/tiptap-translator";
+import type { TargetLanguage } from "@/lib/ai/tiptap-translator";
+import { resolveTargetLang, translateQuestionBatch } from "@/lib/ai/exam-translator";
 import { decryptPayload, encryptPayload, isEncryptedEnvelope } from "@/lib/e2e-crypto";
 import { CACHE_KEYS, getCached } from "@/lib/server-cache";
 import { isWithinAvailabilityWindow, normalizeCanonicalExamLanguage } from "@/lib/exam-settings";
@@ -19,7 +20,6 @@ import {
   sanitizeImageUrl,
   seededShuffleArray,
 } from "@/lib/exam-question-utils";
-import crypto from "crypto";
 import { isUUID } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -29,173 +29,7 @@ async function secureJsonResponse(data: unknown, status = 200) {
   return NextResponse.json(encrypted, { status });
 }
 
-function resolveTargetLang(language?: string | null): TargetLanguage {
-  const l = String(language || "").toLowerCase();
-  if (l === "en" || l === "english") return "English";
-  if (l === "fr" || l === "french" || l === "français") return "French";
-  return "Kinyarwanda";
-}
 
-async function translateQuestionBatch<
-  T extends {
-    id: string;
-    question?: string | null;
-    option_a?: string | null;
-    option_b?: string | null;
-    option_c?: string | null;
-    option_d?: string | null;
-    explanation?: string | null;
-  }
->(
-  adminSb: ReturnType<typeof createAdminClient>,
-  questions: T[],
-  language?: string | null,
-  sourceLanguage?: string | null
-): Promise<T[]> {
-  const targetLang = resolveTargetLang(language);
-  const srcLang = sourceLanguage ? resolveTargetLang(sourceLanguage) : "Kinyarwanda";
-  if ((targetLang === srcLang && !sourceLanguage) || questions.length === 0) {
-    return questions;
-  }
-  if (targetLang === srcLang) {
-    return questions;
-  }
-
-  try {
-    const entityIds = questions.map((q) => `q_trans_${q.id}`);
-    const { data: cachedRows } = await adminSb
-      .from("course_ai_cache")
-      .select("entity_id, content_hash, cached_data")
-      .in("entity_id", entityIds)
-      .eq("target_language", targetLang)
-      .eq("feature_type", "question_translation");
-
-    const cachedMap = new Map<string, { hash: string; data: any }>();
-    for (const row of cachedRows || []) {
-      if (row.cached_data) {
-        cachedMap.set(row.entity_id, { hash: row.content_hash, data: row.cached_data });
-      }
-    }
-
-    const toTranslate: {
-      qIdx: number;
-      qId: string;
-      hash: string;
-      qText: string;
-      optA: string;
-      optB: string;
-      optC: string;
-      optD: string;
-      expl: string;
-    }[] = [];
-
-    const result = questions.map((q) => ({ ...q }));
-
-    for (let i = 0; i < result.length; i++) {
-      const q = result[i];
-      const qText = String(q.question || "").trim();
-      const optA = String(q.option_a || "").trim();
-      const optB = String(q.option_b || "").trim();
-      const optC = String(q.option_c || "").trim();
-      const optD = String(q.option_d || "").trim();
-      const expl = String(q.explanation || "").trim();
-      const combined = `${qText}||${optA}||${optB}||${optC}||${optD}||${expl}`;
-      const hash = crypto.createHash("md5").update(combined).digest("hex");
-      const cached = cachedMap.get(`q_trans_${q.id}`);
-
-      if (cached && cached.hash === hash && cached.data) {
-        if (cached.data.question) q.question = cached.data.question;
-        if (cached.data.option_a) q.option_a = cached.data.option_a;
-        if (cached.data.option_b) q.option_b = cached.data.option_b;
-        if (cached.data.option_c) q.option_c = cached.data.option_c;
-        if (cached.data.option_d) q.option_d = cached.data.option_d;
-        if (cached.data.explanation) q.explanation = cached.data.explanation;
-      } else {
-        toTranslate.push({ qIdx: i, qId: q.id, hash, qText, optA, optB, optC, optD, expl });
-      }
-    }
-
-    if (toTranslate.length > 0) {
-      const snippets: { id: number; text: string }[] = [];
-      for (let idx = 0; idx < toTranslate.length; idx++) {
-        const item = toTranslate[idx];
-        const base = idx * 6;
-        if (item.qText) snippets.push({ id: base + 0, text: item.qText });
-        if (item.optA) snippets.push({ id: base + 1, text: item.optA });
-        if (item.optB) snippets.push({ id: base + 2, text: item.optB });
-        if (item.optC) snippets.push({ id: base + 3, text: item.optC });
-        if (item.optD) snippets.push({ id: base + 4, text: item.optD });
-        if (item.expl) snippets.push({ id: base + 5, text: item.expl });
-      }
-
-      const translatedMap = await Promise.race([
-        translateTextSnippets(snippets, srcLang, targetLang, {
-          batchSize: 30,
-          concurrency: 3,
-          timeoutMs: 10000,
-          maxRetries: 1,
-          skipRetryMissed: true,
-        }),
-        new Promise<Map<number, string>>((resolve) =>
-          setTimeout(() => resolve(new Map()), 11000)
-        ),
-      ]).catch(() => new Map<number, string>());
-      const nowStr = new Date().toISOString();
-      const upserts = [];
-
-      for (let idx = 0; idx < toTranslate.length; idx++) {
-        const item = toTranslate[idx];
-        const base = idx * 6;
-        const tQ = translatedMap.get(base + 0) || item.qText;
-        const tA = translatedMap.get(base + 1) || item.optA;
-        const tB = translatedMap.get(base + 2) || item.optB;
-        const tC = translatedMap.get(base + 3) || item.optC;
-        const tD = translatedMap.get(base + 4) || item.optD;
-        const tE = translatedMap.get(base + 5) || item.expl;
-
-        const targetObj = result[item.qIdx];
-        if (tQ) targetObj.question = tQ;
-        if (tA) targetObj.option_a = tA;
-        if (tB) targetObj.option_b = tB;
-        if (tC) targetObj.option_c = tC;
-        if (tD) targetObj.option_d = tD;
-        if (tE) targetObj.explanation = tE;
-
-        // Only cache translations generated from the canonical Kinyarwanda source
-        if (srcLang === "Kinyarwanda") {
-          upserts.push({
-            entity_id: `q_trans_${item.qId}`,
-            target_language: targetLang,
-            feature_type: "question_translation",
-            content_hash: item.hash,
-            cached_data: {
-              question: tQ,
-              option_a: tA,
-              option_b: tB,
-              option_c: tC,
-              option_d: tD,
-              explanation: tE || undefined,
-              updatedAt: nowStr,
-            },
-            updated_at: nowStr,
-          });
-        }
-      }
-
-      if (upserts.length > 0) {
-        await adminSb
-          .from("course_ai_cache")
-          .upsert(upserts, { onConflict: "entity_id,target_language,feature_type" })
-          .then(() => {}, () => {});
-      }
-    }
-
-    return result;
-  } catch (err) {
-    console.warn("Question translation fallback:", err);
-    return questions;
-  }
-}
 
 const DEFAULT_EXAM_SETTINGS = {
   question_count: 20,
@@ -249,7 +83,7 @@ export async function POST(req: NextRequest) {
     if (action === "translate_questions" && Array.isArray(body.questions)) {
       const inputQuestions = body.questions as Array<Record<string, any>>;
       const questionIds = inputQuestions.map((q) => String(q.id || "")).filter(Boolean);
-      const canonicalById = new Map<string, { item: Record<string, any>; sourceLang: TargetLanguage }>();
+      const canonicalById = new Map<string, { item: Record<string, any>; sourceLang: TargetLanguage | "auto" }>();
 
       if (extSb && questionIds.length > 0) {
         try {
@@ -283,7 +117,7 @@ export async function POST(req: NextRequest) {
             .in("id", uuidIds);
           for (const row of primaryRows || []) {
             canonicalById.set(String(row.id), {
-              sourceLang: "Kinyarwanda",
+              sourceLang: "auto",
               item: {
                 question: row.question,
                 option_a: row.option_a,
@@ -307,6 +141,7 @@ export async function POST(req: NextRequest) {
       }
 
       const dbSourced: any[] = [];
+      const primaryAutoSourced: any[] = [];
       const fallbackSourced: any[] = [];
       const builtinEnglishSourced: any[] = [];
       const orderIndex = new Map<string, number>();
@@ -327,6 +162,8 @@ export async function POST(req: NextRequest) {
           };
           if (canonical.sourceLang === "English") {
             builtinEnglishSourced.push(merged);
+          } else if (canonical.sourceLang === "auto") {
+            primaryAutoSourced.push(merged);
           } else {
             dbSourced.push(merged);
           }
@@ -335,9 +172,12 @@ export async function POST(req: NextRequest) {
         }
       });
 
-      const [tDb, tBuiltin, tFallback] = await Promise.all([
+      const [tDb, tPrimary, tBuiltin, tFallback] = await Promise.all([
         dbSourced.length > 0
           ? translateQuestionBatch(adminSb, dbSourced, language, "Kinyarwanda")
+          : Promise.resolve([]),
+        primaryAutoSourced.length > 0
+          ? translateQuestionBatch(adminSb, primaryAutoSourced, language, "auto")
           : Promise.resolve([]),
         builtinEnglishSourced.length > 0
           ? translateQuestionBatch(adminSb, builtinEnglishSourced, language, "English")
@@ -347,12 +187,12 @@ export async function POST(req: NextRequest) {
               adminSb,
               fallbackSourced,
               language,
-              body.sourceLanguage || "Kinyarwanda"
+              body.sourceLanguage || "auto"
             )
           : Promise.resolve([]),
       ]);
 
-      const mergedOut = [...tDb, ...tBuiltin, ...tFallback].sort(
+      const mergedOut = [...tDb, ...tPrimary, ...tBuiltin, ...tFallback].sort(
         (a, b) => (orderIndex.get(String(a.id)) ?? 0) - (orderIndex.get(String(b.id)) ?? 0)
       );
       return secureJsonResponse({ questions: mergedOut });
@@ -541,8 +381,26 @@ export async function POST(req: NextRequest) {
       }
 
       let formattedPool: any[] = [];
+      let sourceOrigin: "external" | "auto" = "external";
 
-      if (allExtQuestions.length > 0) {
+      // If student selected a specific non-external category (e.g. Test Mock), check its own exam_questions first
+      if (!isExternalExamCategoryId(targetCatId) && isUUID(targetCatId)) {
+        const { data: catQ } = await adminSb
+          .from("exam_questions")
+          .select("*")
+          .eq("category_id", targetCatId)
+          .order("id", { ascending: true });
+
+        if (catQ && catQ.length > 0) {
+          sourceOrigin = "auto";
+          formattedPool = catQ.map((q: any, idx: number) =>
+            normalizeExamQuestion({ ...q, category_id: targetCatId }, idx, targetCatId)
+          );
+        }
+      }
+
+      if (formattedPool.length === 0 && allExtQuestions.length > 0) {
+        sourceOrigin = "external";
         formattedPool = allExtQuestions.map((q: any, idx: number) => {
           const choices = parseExternalChoices(q.choice);
           const ansIdx = typeof q.choice_answer === "number" ? q.choice_answer : Number(q.choice_answer) || 0;
@@ -568,14 +426,17 @@ export async function POST(req: NextRequest) {
             targetCatId
           );
         });
-      } else {
-        // Fallback to primary database exam_questions table
+      }
+
+      if (formattedPool.length === 0) {
+        // Fallback to any primary database exam_questions rows
         const { data: primaryQ } = await adminSb
           .from("exam_questions")
           .select("*")
           .order("id", { ascending: true });
 
         if (primaryQ && primaryQ.length > 0) {
+          sourceOrigin = "auto";
           formattedPool = primaryQ.map((q: any, idx: number) =>
             normalizeExamQuestion({ ...q, category_id: targetCatId }, idx, targetCatId)
           );
@@ -583,6 +444,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (formattedPool.length === 0) {
+        sourceOrigin = "auto";
         formattedPool = getBuiltinFallbackQuestions(targetCatId, questionCount);
       }
 
@@ -687,7 +549,12 @@ export async function POST(req: NextRequest) {
       }
 
       // Translate questions into requested UI/challenge language if needed
-      const translatedSelected = await translateQuestionBatch(adminSb, selectedQuestions, effectiveLanguage);
+      const translatedSelected = await translateQuestionBatch(
+        adminSb,
+        selectedQuestions,
+        effectiveLanguage,
+        sourceOrigin === "external" ? "Kinyarwanda" : "auto"
+      );
 
       // Strip correct_answer before sending to client and enforce strict shape
       const safeQuestions = translatedSelected.map((item, idx) => {
@@ -926,9 +793,9 @@ export async function POST(req: NextRequest) {
 
       const shuffled = [...formatted].sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, Math.min(questionCount, shuffled.length));
-      const translatedSelected = (await translateQuestionBatch(adminSb, selected, language)).map(
-        (q, idx) => normalizeExamQuestion(q, idx)
-      );
+      const translatedSelected = (
+        await translateQuestionBatch(adminSb, selected, language, "auto")
+      ).map((q, idx) => normalizeExamQuestion(q, idx));
 
       return secureJsonResponse({
         settings: {

@@ -1682,12 +1682,13 @@ export async function getExamForTaking(categoryId: string, challengeId?: string,
   // otherwise anyone can read the answer key straight from the network tab.
   let sanitizedQuestions = picked.map(({ correct_answer, explanation, ...rest }) => rest);
 
-  if (activeLang && activeLang !== "rw" && activeLang !== "Kinyarwanda") {
+  if (activeLang) {
     try {
       const { ok, data: tJson } = await secureApiPost("/api/external-courses/exam", {
         action: "translate_questions",
         questions: sanitizedQuestions,
         language: activeLang,
+        sourceLanguage: "auto",
       });
       if (ok && Array.isArray(tJson?.questions)) {
         sanitizedQuestions = tJson.questions;
