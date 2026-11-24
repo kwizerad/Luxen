@@ -9,6 +9,7 @@ import { Clock, CheckCircle, XCircle, Trophy, Eye, EyeOff, ChevronLeft, ChevronR
 import type { ExamAttempt, ExamAnswer, ExamQuestion } from "@/lib/database.types";
 import { SmartImage } from "@/components/smart-image";
 import { useLanguage } from "@/lib/language-context";
+import { getExamResultLanguageName } from "@/lib/exam-settings";
 
 interface ExamDetailsModalProps {
   attempt: ExamAttempt | null;
@@ -106,7 +107,7 @@ export function ExamDetailsModal({ attempt, open, onClose }: ExamDetailsModalPro
         <DialogHeader className="px-3 py-3 sm:px-6 sm:py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-sm sm:text-base">
             <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-primary-readable" />
-            {t("examDetails")} - {attempt.category_name}
+            {t("examDetails")} - {getExamResultLanguageName(attempt)}
           </DialogTitle>
         </DialogHeader>
 

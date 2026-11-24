@@ -18,6 +18,7 @@ import { ExamPodium } from "@/components/exam-podium";
 import { ExamReview } from "@/components/exam-review";
 import { SmartImage } from "@/components/smart-image";
 import { cn } from "@/lib/utils";
+import { getExamResultLanguageName } from "@/lib/exam-settings";
 import type { ExamChallenge, ExamChallengeParticipant, ExamQuestion, ExamAttempt } from "@/lib/database.types";
 
 interface GroupExamResultsViewProps {
@@ -380,6 +381,11 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
 
   if (isSoloAttempt && completedParticipants.length === 1 && completedParticipants[0].exam_attempt) {
     const soloAttempt = completedParticipants[0].exam_attempt;
+    const resolvedSoloLang = getExamResultLanguageName({
+      exam_language: (soloAttempt as any).exam_language,
+      language: (challenge as any).language,
+      category_name: soloAttempt.category_name || challenge.category_name,
+    });
     return (
       <div className="student-page pb-24">
         <div className="mb-4">
@@ -392,7 +398,11 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
           </button>
         </div>
         <ExamReview
-          examResult={soloAttempt}
+          examResult={{
+            ...soloAttempt,
+            category_name: resolvedSoloLang,
+            exam_language: resolvedSoloLang,
+          }}
           questions={questions}
           onReset={() => navigate("results")}
           onRetake={() => navigate("exam", { category_id: challenge.category_id, mode: "individual" })}
@@ -431,7 +441,12 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
           <div className="flex-1 min-w-0">
             <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2 truncate">
               <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 shrink-0" />
-              <span className="truncate">{challenge.category_name}</span>
+              <span className="truncate">
+                {getExamResultLanguageName({
+                  language: (challenge as any).language,
+                  category_name: challenge.category_name,
+                })}
+              </span>
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
               {completedParticipants.length} {t("xOfYCompleted") || "completed out of"} {joinedParticipants.length} {t("participants") || "participants"}

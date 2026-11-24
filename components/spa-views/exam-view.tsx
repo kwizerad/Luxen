@@ -47,7 +47,7 @@ import {
   getExamForTaking,
   getExamSavingConfig,
 } from "@/lib/supabase/queries";
-import { pickDefaultExamCategory, prioritizeRwandaPvsCategories } from "@/lib/exam-settings";
+import { pickDefaultExamCategory, prioritizeRwandaPvsCategories, normalizeCanonicalExamLanguage } from "@/lib/exam-settings";
 import { hasBrowserExamHistory, saveBrowserExamAttempt } from "@/lib/browser-exam-history";
 import type {
   ExamAttempt,
@@ -882,6 +882,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           ? anticheat.violationMessagesRef.current.join("; ")
           : undefined;
 
+      const examLangName = normalizeCanonicalExamLanguage(selectedExamLanguage || language);
       const data = await createExamAttempt({
         category_id: exam.categoryId,
         category_name: categoryName,
@@ -893,9 +894,15 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         violation_summary: violationSummary,
         is_group_challenge: !!challengeId,
         challenge_id: challengeId || undefined,
+        exam_language: examLangName,
       });
 
-      const attempt = data.attempt as ExamAttempt;
+      const rawAttempt = data.attempt as ExamAttempt;
+      const attempt: ExamAttempt = {
+        ...rawAttempt,
+        category_name: examLangName,
+        exam_language: examLangName,
+      };
       const questionDetails: Record<
         string,
         { correct_answer: string; explanation?: string }
@@ -928,8 +935,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
             user.id,
             {
               ...attempt,
+              category_name: examLangName,
               challenge_id: challengeId || null,
-              exam_language: selectedExamLanguage,
+              exam_language: examLangName,
             },
             hydratedQuestions as unknown as ExamQuestion[],
             questionDetails

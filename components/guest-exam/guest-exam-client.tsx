@@ -522,9 +522,11 @@ export function GuestExamClient() {
           : undefined;
 
       const deviceId = getGuestDeviceId();
+      const examLang = normalizeExamLanguage(selectedExamLanguage || language);
       const attemptPayload = {
         category_id: exam.categoryId,
-        category_name: categoryName,
+        category_name: examLang,
+        exam_language: examLang,
         total_questions: exam.questions.length,
         answers,
         duration_seconds: durationSeconds,
@@ -535,7 +537,7 @@ export function GuestExamClient() {
 
       const { ok, data } = await secureApiPost("/api/guest-exam", {
         action: "submit",
-        language: selectedExamLanguage || language,
+        language: examLang,
         deviceId,
         attemptData: attemptPayload,
       });
@@ -544,7 +546,12 @@ export function GuestExamClient() {
         throw new Error(data?.error || "Failed to grade exam");
       }
 
-      const attempt = data.attempt as ExamAttempt;
+      const rawAttempt = data.attempt as ExamAttempt;
+      const attempt: ExamAttempt = {
+        ...rawAttempt,
+        category_name: examLang,
+        exam_language: examLang,
+      };
       const questionDetails: Record<
         string,
         { correct_answer: string; explanation?: string }

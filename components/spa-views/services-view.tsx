@@ -22,6 +22,7 @@ import {
   getCachedGroupExamEnabled,
 } from "@/lib/feature-flags";
 import { spaCache } from "@/lib/spa-cache";
+import { getExamResultLanguageName } from "@/lib/exam-settings";
 import { ServicesViewSkeleton } from "@/components/skeletons";
 
 export interface ServicesViewProps {
@@ -309,7 +310,12 @@ export function ServicesView({ navigate }: ServicesViewProps) {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground dark:text-zinc-400 truncate">
-                  {ongoingExam?.category_name ? `${ongoingExam.category_name} · ` : ""}
+                  {ongoingExam
+                    ? `${getExamResultLanguageName({
+                        language: (ongoingExam as any).language,
+                        category_name: ongoingExam.category_name,
+                      })} · `
+                    : ""}
                   {tr("viewOngoingOrJoin", "Kanda winjire mu kizamini cy'itsinda.")}
                 </p>
               </div>

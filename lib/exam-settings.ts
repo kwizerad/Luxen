@@ -104,3 +104,85 @@ export function pickDefaultExamCategory<
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return categories.find((c) => c.id && uuidRegex.test(c.id)) || categories[0];
 }
+
+export type CanonicalExamLanguage = "Kinyarwanda" | "English" | "French";
+
+export function normalizeCanonicalExamLanguage(
+  lang?: string | null
+): CanonicalExamLanguage {
+  const lower = String(lang || "").trim().toLowerCase();
+  if (lower === "en" || lower === "english" || lower.includes("english")) {
+    return "English";
+  }
+  if (
+    lower === "fr" ||
+    lower === "french" ||
+    lower === "français" ||
+    lower === "francais" ||
+    lower.includes("french") ||
+    lower.includes("français")
+  ) {
+    return "French";
+  }
+  return "Kinyarwanda";
+}
+
+export function getExamResultLanguageName(
+  source:
+    | {
+        exam_language?: string | null;
+        language?: string | null;
+        category_name?: string | null;
+        is_module?: boolean;
+      }
+    | null
+    | undefined,
+  fallbackLanguage: string = "Kinyarwanda"
+): string {
+  if (!source) return normalizeCanonicalExamLanguage(fallbackLanguage);
+  if (source.is_module && source.category_name) {
+    return source.category_name;
+  }
+  const explicitLang = source.exam_language || source.language;
+  if (explicitLang && String(explicitLang).trim()) {
+    return normalizeCanonicalExamLanguage(explicitLang);
+  }
+  const rawName = String(source.category_name || "").trim();
+  const lower = rawName.toLowerCase();
+  if (
+    lower === "english" ||
+    lower === "en" ||
+    lower.includes("official traffic rules")
+  ) {
+    return "English";
+  }
+  if (
+    lower === "french" ||
+    lower === "français" ||
+    lower === "francais" ||
+    lower === "fr" ||
+    lower.includes("examen blanc officiel")
+  ) {
+    return "French";
+  }
+  if (
+    lower === "kinyarwanda" ||
+    lower === "rw" ||
+    lower.includes("ikizamini cy'imyitozo")
+  ) {
+    return "Kinyarwanda";
+  }
+  if (
+    !rawName ||
+    /rwanda\s*pvs/i.test(rawName) ||
+    /navo'?s?\s*(mock\s*)?exam/i.test(rawName) ||
+    /test\s*mock/i.test(rawName) ||
+    /official\s*driving\s*exam/i.test(rawName) ||
+    /ikizamini\s*cy'?amategeko/i.test(rawName) ||
+    /general\s*(driving|exam)/i.test(rawName)
+  ) {
+    return normalizeCanonicalExamLanguage(fallbackLanguage);
+  }
+  return normalizeCanonicalExamLanguage(fallbackLanguage);
+}
+

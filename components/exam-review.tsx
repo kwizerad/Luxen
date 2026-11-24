@@ -35,6 +35,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import type { ExamAttempt, ExamAnswer, ExamQuestion } from "@/lib/database.types";
+import { getExamResultLanguageName } from "@/lib/exam-settings";
 import { cn } from "@/lib/utils";
 
 export interface ExamReviewProps {
@@ -99,6 +100,7 @@ export function ExamReview({
 
   const isRw = language === "Kinyarwanda" || language === "rw";
   const isFr = language === "French" || language === "fr";
+  const resultDisplayName = getExamResultLanguageName(examResult);
 
   const [filter, setFilter] = useState<FilterType>("all");
   const [groupData, setGroupData] = useState<{
@@ -283,7 +285,7 @@ export function ExamReview({
             </span>
           </div>
           <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground truncate">
-            {examResult.category_name || t("examResults") || "Exam Results"}
+            {resultDisplayName || t("examResults") || "Exam Results"}
           </h1>
         </div>
 
@@ -410,7 +412,7 @@ export function ExamReview({
           }
           badges={
             <>
-              <span className="font-mono text-xs">{examResult.category_name}</span>
+              <span className="font-mono text-xs">{resultDisplayName}</span>
               <span aria-hidden="true">·</span>
               <span className="font-mono text-xs">{formatTime(examResult.duration_seconds)}</span>
               <span aria-hidden="true">·</span>
@@ -873,7 +875,7 @@ export function ExamReview({
               </span>
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              {examResult.category_name}
+              {resultDisplayName}
             </DialogDescription>
           </DialogHeader>
 

@@ -22,6 +22,7 @@ export interface PendingGuestExamPayload {
   submission_reason?: string;
   violation_summary?: string;
   score_percentage?: number;
+  exam_language?: string;
   savedAt: number;
 }
 

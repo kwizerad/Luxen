@@ -62,6 +62,7 @@ export interface ExamAttempt {
   submission_reason?: 'manual' | 'page_closed' | 'cheating_violation' | 'time_expired';
   violation_summary?: string | null;
   challenge_id?: string | null;
+  exam_language?: string | null;
   hidden_from_user?: boolean;
 }
 

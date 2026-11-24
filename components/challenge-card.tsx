@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/lib/language-context";
 import { canViewUserAvatar } from "@/lib/avatar-helper";
+import { getExamResultLanguageName } from "@/lib/exam-settings";
 import { createClient } from "@/lib/supabase/client";
 import type { ExamChallenge, ExamChallengeParticipant } from "@/lib/database.types";
 import { toast } from "sonner";
@@ -326,9 +327,15 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge, currentUse
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold text-sm truncate">
-            {challenge.status === "completed" && ((challenge as any).is_solo_attempt || completedCount <= 1)
-              ? `${t("individualExam") || "Individual Exam"}: ${challenge.category_name}`
-              : `${t("groupExam")}: ${challenge.category_name}`}
+            {(() => {
+              const resultLangName = getExamResultLanguageName({
+                language: (challenge as any).language,
+                category_name: challenge.category_name,
+              });
+              return challenge.status === "completed" && ((challenge as any).is_solo_attempt || completedCount <= 1)
+                ? `${t("individualExam") || "Individual Exam"}: ${resultLangName}`
+                : `${t("groupExam")}: ${resultLangName}`;
+            })()}
           </h4>
           <p className="text-xs text-muted-foreground">
             {challenge.status === "pending" && (t("waitingForOthers") || "Waiting for classmates")}
@@ -338,11 +345,6 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge, currentUse
           </p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          {(challenge as any).language && (
-            <Badge variant="outline" className="text-[11px] font-medium">
-              {(challenge as any).language}
-            </Badge>
-          )}
           <Badge variant="secondary" className="text-xs capitalize">
             {challenge.status === "completed" && ((challenge as any).is_solo_attempt || completedCount <= 1)
               ? t("individualExam") || "Individual"

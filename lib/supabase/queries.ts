@@ -3,7 +3,7 @@
 import { createClient } from "./client";
 import { isAdmin, isPrimaryAdmin, canAddQuestions, hasReadWriteQuestionAccess, canManageExamSettings, PRIMARY_ADMIN_EMAIL } from "@/lib/permissions";
 import { getCurrentUser } from "@/lib/auth-utils";
-import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle, prioritizeRwandaPvsCategories } from "@/lib/exam-settings";
+import { normalizeExamSettings, isWithinAvailabilityWindow, questionHasAnyImage, shuffle, prioritizeRwandaPvsCategories, normalizeCanonicalExamLanguage } from "@/lib/exam-settings";
 import { EXTERNAL_EXAM_CATEGORY_ID, isExternalExamCategoryId, isExternalModuleId, isExternalLessonId } from "@/lib/supabase/external";
 import { secureApiPost, authFetch } from "@/lib/e2e-crypto";
 import { invalidateServicesConfigCache } from "@/lib/feature-flags";
@@ -912,6 +912,7 @@ export async function createExamAttempt(attemptData: {
   violation_summary?: string;
   is_group_challenge?: boolean;
   challenge_id?: string;
+  exam_language?: string;
 }) {
   const supabase = createClient();
   let user = await getAuthUser().catch(() => null);
@@ -933,12 +934,13 @@ export async function createExamAttempt(attemptData: {
     } catch {}
   }
 
-  const { category_id, category_name, total_questions, answers, duration_seconds, status = 'completed', is_group_challenge } = attemptData;
+  const { category_id, category_name, total_questions, answers, duration_seconds, status = 'completed', is_group_challenge, exam_language } = attemptData;
 
   if (!category_id || !category_name || !total_questions || !answers) {
     throw new Error("Missing required fields");
   }
 
+  const resolvedExamLang = normalizeCanonicalExamLanguage(exam_language);
   const savingConfig = await getExamSavingConfig();
   const shouldSave = is_group_challenge
     ? savingConfig.saveGroupExams
@@ -948,7 +950,11 @@ export async function createExamAttempt(attemptData: {
   if (isExternalExamCategoryId(category_id)) {
     const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
       action: "submit_exam",
-      attemptData,
+      language: resolvedExamLang,
+      attemptData: {
+        ...attemptData,
+        exam_language: resolvedExamLang,
+      },
     });
     if (!ok) {
       throw new Error(json?.error || "Failed to submit external exam");
@@ -1027,7 +1033,8 @@ export async function createExamAttempt(attemptData: {
     id: `browser-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     user_id: attemptUserId || "guest",
     category_id,
-    category_name,
+    category_name: resolvedExamLang,
+    exam_language: resolvedExamLang,
     started_at: new Date(Date.now() - duration_seconds * 1000).toISOString(),
     completed_at: status === "abandoned" ? null : nowIso,
     duration_seconds,

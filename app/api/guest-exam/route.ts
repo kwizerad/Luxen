@@ -21,7 +21,7 @@ import {
   incrementGuestExamQuota,
 } from "@/lib/guest-exam-limit";
 import { CACHE_KEYS, getCached } from "@/lib/server-cache";
-import { isWithinAvailabilityWindow } from "@/lib/exam-settings";
+import { isWithinAvailabilityWindow, normalizeCanonicalExamLanguage } from "@/lib/exam-settings";
 import {
   getBuiltinFallbackQuestions,
   normalizeExamQuestion,
@@ -842,32 +842,18 @@ export async function POST(req: NextRequest) {
       const durationSeconds = Number(attemptData?.duration_seconds) || 0;
 
       const targetLang = resolveTargetLang(language);
-      const localizedDefaultCat =
-        targetLang === "French"
-          ? "Examen Blanc Officiel du Code de la Route"
-          : targetLang === "English"
-          ? "Official Traffic Rules & Road Signs Mock Exam"
-          : "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda";
+      const examLanguage = normalizeCanonicalExamLanguage(
+        attemptData?.exam_language || targetLang || language
+      );
       const catId = attemptData?.category_id || EXTERNAL_EXAM_CATEGORY_ID;
-      const configuredTitle = configMap.get("external_exam_title") || "";
-      const effectiveConfiguredTitle =
-        !configuredTitle ||
-        configuredTitle === "Rwanda PVS Exam" ||
-        configuredTitle.startsWith("Navo's Mock Exam") ||
-        configuredTitle === "Ikizamini cy'Imyitozo cy'Amategeko y'Umuhanda"
-          ? localizedDefaultCat
-          : configuredTitle;
-      const catName =
-        attemptData?.category_name && attemptData.category_name !== "Rwanda PVS Exam"
-          ? attemptData.category_name
-          : effectiveConfiguredTitle;
 
       const now = new Date().toISOString();
       const transientAttempt = {
         id: `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         user_id: "guest",
         category_id: catId,
-        category_name: catName,
+        category_name: examLanguage,
+        exam_language: examLanguage,
         started_at: new Date(Date.now() - durationSeconds * 1000).toISOString(),
         completed_at: attemptData?.status === "abandoned" ? null : now,
         duration_seconds: durationSeconds,
@@ -975,19 +961,17 @@ export async function POST(req: NextRequest) {
           : 0;
       const durationSeconds = Number(attemptData?.duration_seconds) || 0;
       const catId = attemptData?.category_id || EXTERNAL_EXAM_CATEGORY_ID;
-      const configuredTitle = configMap.get("external_exam_title");
-      const catName =
-        attemptData?.category_name ||
-        (!configuredTitle || configuredTitle.startsWith("Navo's Mock Exam")
-          ? "Rwanda PVS Exam"
-          : configuredTitle);
+      const examLanguage = normalizeCanonicalExamLanguage(
+        attemptData?.exam_language || body?.language
+      );
 
       const now = new Date().toISOString();
       const browserAttempt = {
         id: `browser-guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         user_id: user.id,
         category_id: catId,
-        category_name: catName,
+        category_name: examLanguage,
+        exam_language: examLanguage,
         started_at: new Date(
           Date.now() - durationSeconds * 1000
         ).toISOString(),

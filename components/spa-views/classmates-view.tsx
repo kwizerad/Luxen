@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLanguage } from "@/lib/language-context";
+import { getExamResultLanguageName } from "@/lib/exam-settings";
 import { canViewUserAvatar, getDisplayAvatarUrl } from "@/lib/avatar-helper";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -134,11 +135,12 @@ function ChatExamInviteBanner({
         <p className="text-xs sm:text-sm font-bold text-foreground">
           {t("groupExam") || "Group Exam"}
         </p>
-        {challenge.category_name && (
-          <p className="text-xs text-muted-foreground truncate max-w-full mt-0.5 font-medium">
-            {challenge.category_name}
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground truncate max-w-full mt-0.5 font-medium">
+          {getExamResultLanguageName({
+            language: (challenge as any).language,
+            category_name: challenge.category_name,
+          })}
+        </p>
 
         <div className="mt-3 w-full max-w-xs grid grid-cols-2 gap-2">
           <Button
@@ -214,7 +216,10 @@ function ChatExamInviteBanner({
               )}
             </div>
             <p className="text-[11px] text-muted-foreground truncate">
-              {challenge.category_name} • {selectedFriend.full_name || selectedFriend.username}
+              {getExamResultLanguageName({
+                language: (challenge as any).language,
+                category_name: challenge.category_name,
+              })} • {selectedFriend.full_name || selectedFriend.username}
             </p>
           </div>
         </div>
@@ -253,7 +258,10 @@ function ChatExamInviteBanner({
         <div className="flex items-center gap-2 min-w-0">
           <Trophy className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
           <p className="text-xs font-bold truncate text-foreground">
-            {t("examInProgress") || "Group Exam Active"}: {challenge.category_name}
+            {t("examInProgress") || "Group Exam Active"}: {getExamResultLanguageName({
+              language: (challenge as any).language,
+              category_name: challenge.category_name,
+            })}
           </p>
         </div>
         <Button
@@ -482,9 +490,13 @@ function ExamInvitationsContent({
     .filter((challenge) => {
       if (!searchQuery?.trim()) return true;
       const q = searchQuery.toLowerCase().trim();
+      const langName = getExamResultLanguageName({
+        language: (challenge as any).language,
+        category_name: challenge.category_name,
+      }).toLowerCase();
       const catName = (challenge.category_name || "").toLowerCase();
       const creatorName = (challenge.creator_profile?.full_name || challenge.creator_profile?.username || "").toLowerCase();
-      return catName.includes(q) || creatorName.includes(q);
+      return langName.includes(q) || catName.includes(q) || creatorName.includes(q);
     })
     .sort((a, b) => {
       const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -608,7 +620,10 @@ function ExamInvitationsContent({
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-bold text-sm text-foreground truncate leading-tight">
-                        {challenge.category_name || t("trafficSchoolCourse") || "Traffic Regulations Exam"}
+                        {getExamResultLanguageName({
+                          language: (challenge as any).language,
+                          category_name: challenge.category_name,
+                        })}
                       </h3>
                       <p className="text-[11px] text-muted-foreground truncate mt-0.5">
                         {challenge.created_at ? formatDistanceToNow(new Date(challenge.created_at), { addSuffix: true }) : ""}

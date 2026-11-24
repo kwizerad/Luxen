@@ -49,6 +49,7 @@ import {
   getBrowserExamAttemptsAsync,
   getBrowserExamQuestions,
 } from "@/lib/browser-exam-history";
+import { getExamResultLanguageName } from "@/lib/exam-settings";
 import type { ExamAttempt, ExamQuestion, ExamAnswer } from "@/lib/database.types";
 
 export interface ExamHistoryViewProps {
@@ -218,8 +219,28 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
       spaCache.get<{ attempts: ExamAttemptWithAnswers[]; ongoingChallenges: any[] }>(`spa_exam_history_${user.id}`)
     : null;
 
+  const normalizeAttemptsForDisplay = (
+    list: ExamAttemptWithAnswers[],
+    challengeLangs?: Map<string, string>
+  ): ExamAttemptWithAnswers[] =>
+    (list || []).map((att) => {
+      if (att.is_module) return att;
+      const chLang = att.challenge_id ? challengeLangs?.get(att.challenge_id) : undefined;
+      return {
+        ...att,
+        category_name: getExamResultLanguageName({
+          exam_language: (att as any).exam_language,
+          language: chLang,
+          category_name: att.category_name,
+          is_module: att.is_module,
+        }),
+      };
+    });
+
   const [loading, setLoading] = useState(!cached);
-  const [attempts, setAttempts] = useState<ExamAttemptWithAnswers[]>(cached?.attempts || []);
+  const [attempts, setAttempts] = useState<ExamAttemptWithAnswers[]>(
+    normalizeAttemptsForDisplay(cached?.attempts || [])
+  );
   const [ongoingChallenges, setOngoingChallenges] = useState<any[]>(cached?.ongoingChallenges || []);
   
   // Filter States
@@ -252,7 +273,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
         maxAgeMs: 5 * 60 * 1000,
       });
       if (active && persisted?.data) {
-        setAttempts(persisted.data.attempts || []);
+        setAttempts(normalizeAttemptsForDisplay(persisted.data.attempts || []));
         setOngoingChallenges(persisted.data.ongoingChallenges || []);
         setLoading(false);
       }
@@ -294,9 +315,13 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
         ]);
 
         const soloChallengeIds = new Set<string>();
+        const challengeLangMap = new Map<string, string>();
         const allChallengesList =
           ongoingRes.status === "fulfilled" ? (ongoingRes.value as any)?.challenges || [] : [];
         allChallengesList.forEach((c: any) => {
+          if (c?.id && c?.language) {
+            challengeLangMap.set(c.id, String(c.language));
+          }
           if (c?.is_solo_attempt) {
             soloChallengeIds.add(c.id);
           } else if (Array.isArray(c?.participants)) {
@@ -398,12 +423,23 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                   const rawAnswers = Array.isArray(att.answers) ? att.answers : [];
                   const hasAnsweredAny = rawAnswers.some((a: any) => Boolean(a?.selected_answer));
 
+                  const chId = groupAttemptIdMap.get(att.id) || null;
+                  const chLang = chId ? challengeLangMap.get(chId) : undefined;
+                  const displayLangName = getExamResultLanguageName({
+                    exam_language: att.exam_language,
+                    language: chLang,
+                    category_name: att.category_name,
+                    is_module: false,
+                  });
+
                   return {
                     ...(att as ExamAttemptWithAnswers),
+                    category_name: displayLangName,
+                    exam_language: att.exam_language || chLang || displayLangName,
                     answers: hasAnsweredAny ? rawAnswers : [],
                     correct_answers: correct ?? 0,
                     score_percentage: scorePct ?? 0,
-                    challenge_id: groupAttemptIdMap.get(att.id) || null,
+                    challenge_id: chId,
                     is_module: false,
                   };
                 })
@@ -467,14 +503,27 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             : [];
 
         const browserRecords = await getBrowserExamAttemptsAsync(user.id).catch(() => []);
-        const browserAttempts: ExamAttemptWithAnswers[] = (browserRecords || []).map((att) => ({
-          ...(att as ExamAttemptWithAnswers),
-          answers: Array.isArray(att.answers) ? att.answers : [],
-          correct_answers: att.correct_answers ?? 0,
-          score_percentage: att.score_percentage ?? 0,
-          challenge_id: att.challenge_id || null,
-          is_module: Boolean(att.is_module),
-        }));
+        const browserAttempts: ExamAttemptWithAnswers[] = (browserRecords || []).map((att) => {
+          const isMod = Boolean(att.is_module);
+          const chLang = att.challenge_id ? challengeLangMap.get(att.challenge_id) : undefined;
+          const displayName = isMod
+            ? att.category_name
+            : getExamResultLanguageName({
+                exam_language: att.exam_language,
+                language: chLang,
+                category_name: att.category_name,
+                is_module: isMod,
+              });
+          return {
+            ...(att as ExamAttemptWithAnswers),
+            category_name: displayName,
+            answers: Array.isArray(att.answers) ? att.answers : [],
+            correct_answers: att.correct_answers ?? 0,
+            score_percentage: att.score_percentage ?? 0,
+            challenge_id: att.challenge_id || null,
+            is_module: isMod,
+          };
+        });
 
         const dedupedMap = new Map<string, ExamAttemptWithAnswers>();
         for (const item of [...browserAttempts, ...standardAttempts, ...moduleAttempts]) {
@@ -820,7 +869,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
         if (isCheating) {
           key = "cheating";
-          label = loc("Amakosa y'Umutekano", "Violations de sécurité", "Security Violations");
+          label = loc("Gukopera", "Violations de sécurité", "Security Violations");
           icon = ShieldAlert;
         } else if (isAbandoned) {
           key = "void";
@@ -1263,7 +1312,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                 <option value="passed">{isRw ? "Watsinze (≥50%)" : isFr ? "Réussi (≥50%)" : "Passed (≥50%)"}</option>
                 <option value="failed">{isRw ? "Watsinzwe (<50%)" : isFr ? "Échoué (<50%)" : "Failed (<50%)"}</option>
                 <option value="void">{isRw ? "Ibitarangiye" : isFr ? "Incomplet" : "Void / Incomplete"}</option>
-                <option value="cheating">{isRw ? "Amakosa y'Umutekano" : isFr ? "Violations de sécurité" : "Security Violations"}</option>
+                <option value="cheating">{isRw ? "Gukopera" : isFr ? "Violations de sécurité" : "Security Violations"}</option>
               </select>
             </div>
 
@@ -1429,7 +1478,10 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-xs font-bold text-foreground dark:text-zinc-100 truncate">
-                        {challenge.category_name || "Exam Challenge"}
+                        {getExamResultLanguageName({
+                          language: challenge.language,
+                          category_name: challenge.category_name,
+                        })}
                       </h3>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary font-bold lowercase">
                         {challenge.status === "active" ? t("inProgress") || "in-progress" : t("pending") || "pending"}
@@ -1468,6 +1520,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                       navigate("exam", {
                         challenge_id: challenge.id,
                         category_id: challenge.category_id || "",
+                        ...(challenge.language ? { language: challenge.language } : {}),
                       });
                     }}
                     className="w-full sm:w-auto px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity shrink-0 flex items-center justify-center gap-1.5"
@@ -1633,9 +1686,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                               return isRw ? "0 byasubijwe: Cyahagaritswe hakiri kare" : isFr ? "0 réponse : Quitté prématurément" : "0 answered: Incomplete / exited early";
                             };
 
-                            const fileName =
-                              attempt.category_name ||
-                              (isRw ? "Ikizamini cy'Amategeko" : isFr ? "Examen de conduite" : "Official Driving Exam");
+                            const fileName = getExamResultLanguageName(attempt);
                             const fractionLabel = isAbandoned
                               ? `${answeredCount}/${attempt.total_questions || 20}`
                               : `${attempt.correct_answers ?? 0}/${attempt.total_questions || 20}`;
@@ -1656,7 +1707,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                               : "solo";
                             const statusLabel = isCheating
                               ? isRw
-                                ? "Ikosa"
+                                ? "Gukopera"
                                 : isFr
                                 ? "Infraction"
                                 : "Violation"
@@ -1786,7 +1837,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                               : Math.max(0, Math.min(100, attempt.score_percentage || 0));
                             const listStatusLabel = isCheating
                               ? isRw
-                                ? "Ikosa"
+                                ? "Gukopera"
                                 : isFr
                                 ? "Infraction"
                                 : "Violation"
@@ -1853,7 +1904,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                 <div className="min-w-0 flex-1 space-y-0.5">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <p className="text-xs font-semibold text-foreground dark:text-zinc-100 truncate">
-                                      {attempt.category_name}
+                                      {getExamResultLanguageName(attempt)}
                                     </p>
                                     <span className={cn("text-[11px] font-semibold", listStatusColorClass)}>
                                       · {listStatusLabel}

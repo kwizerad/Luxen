@@ -9,6 +9,7 @@ import { TrendingUp, TrendingDown, Clock, Trophy, Target, Calendar, ChevronRight
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import type { ExamAttempt } from "@/lib/database.types";
+import { getExamResultLanguageName } from "@/lib/exam-settings";
 
 interface UserPerformanceModalProps {
   open: boolean;
@@ -300,7 +301,7 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
                       >
                         <div className="flex items-center gap-3">
                           <div className="text-sm">
-                            <p className="font-medium">{attempt.category_name}</p>
+                            <p className="font-medium">{getExamResultLanguageName(attempt)}</p>
                             <p className="text-muted-foreground">
                               {new Date(attempt.started_at).toLocaleDateString()} • {formatTime(attempt.duration_seconds)}
                             </p>
@@ -430,7 +431,7 @@ export function UserPerformanceModal({ open, onOpenChange, user }: UserPerforman
               <DialogHeader>
                 <DialogTitle>Exam Details</DialogTitle>
                 <DialogDescription>
-                  {selectedAttempt.category_name} - {new Date(selectedAttempt.started_at).toLocaleDateString()}
+                  {getExamResultLanguageName(selectedAttempt)} - {new Date(selectedAttempt.started_at).toLocaleDateString()}
                 </DialogDescription>
               </DialogHeader>
               

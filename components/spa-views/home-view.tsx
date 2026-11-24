@@ -56,6 +56,7 @@ import { createClient } from "@/lib/supabase/client";
 import { HomeViewSkeleton } from "@/components/skeletons";
 import { studentCache } from "@/lib/student-cache";
 import { getBrowserExamAttemptsAsync } from "@/lib/browser-exam-history";
+import { getExamResultLanguageName } from "@/lib/exam-settings";
 import { formatDistanceToNow } from "date-fns";
 import type { UserProfile } from "@/lib/database.types";
 import { VerifyIdModal } from "@/components/verify-id-modal";
@@ -71,6 +72,7 @@ interface FullExamAttempt {
   id: string;
   category_id?: string;
   category_name?: string;
+  exam_language?: string | null;
   score?: number;
   correct_answers?: number;
   total_questions?: number;
@@ -85,6 +87,26 @@ interface FullExamAttempt {
   answers?: any[];
   exam_type?: string;
   submission_reason?: string;
+}
+
+function normalizeHomeAttempts(list: FullExamAttempt[]): FullExamAttempt[] {
+  return (list || []).map((att) => {
+    const isMod =
+      att.exam_type === "module" ||
+      att.exam_type === "midterm" ||
+      att.exam_type === "final";
+    if (isMod) return att;
+    const langName = getExamResultLanguageName({
+      exam_language: att.exam_language,
+      category_name: att.category_name,
+      is_module: false,
+    });
+    return {
+      ...att,
+      category_name: langName,
+      exam_language: att.exam_language || langName,
+    };
+  });
 }
 
 interface CategoryPerformance {
@@ -206,7 +228,9 @@ export function HomeView({ navigate }: HomeViewProps) {
 
   const [continueData, setContinueData] = useState<ContinueLearningData | null>(hotDash?.continueData ?? null);
   const [stats, setStats] = useState<DashboardStats | null>(hotDash?.stats ?? null);
-  const [allAttempts, setAllAttempts] = useState<FullExamAttempt[]>(hotDash?.allAttempts ?? []);
+  const [allAttempts, setAllAttempts] = useState<FullExamAttempt[]>(
+    normalizeHomeAttempts(hotDash?.allAttempts ?? [])
+  );
   const [loadingData, setLoadingData] = useState(!hotDash);
   const [standaloneExamEnabled, setStandaloneExamEnabled] = useState<boolean>(hotDash?.standaloneExamEnabled ?? true);
   const [servicesPageEnabled, setServicesPageEnabled] = useState<boolean>(hotDash?.servicesPageEnabled ?? true);
@@ -462,10 +486,17 @@ export function HomeView({ navigate }: HomeViewProps) {
 
                   const isPassed = scorePct >= 50;
 
+                  const resolvedLangName = getExamResultLanguageName({
+                    exam_language: att.exam_language,
+                    category_name: att.category_name,
+                    is_module: false,
+                  });
+
                   return {
                     id: att.id,
                     category_id: att.category_id,
-                    category_name: att.category_name,
+                    category_name: resolvedLangName,
+                    exam_language: att.exam_language || resolvedLangName,
                     total_questions: total,
                     correct_answers: correct ?? 0,
                     score_percentage: scorePct ?? 0,
@@ -553,10 +584,18 @@ export function HomeView({ navigate }: HomeViewProps) {
           const browserMapped: FullExamAttempt[] = (browserRaw || []).map((att) => {
             const pct = att.score_percentage ?? 0;
             const isMod = Boolean(att.is_module);
+            const resolvedLangName = isMod
+              ? att.category_name
+              : getExamResultLanguageName({
+                  exam_language: att.exam_language,
+                  category_name: att.category_name,
+                  is_module: isMod,
+                });
             return {
               id: att.id,
               category_id: att.category_id,
-              category_name: att.category_name,
+              category_name: resolvedLangName,
+              exam_language: isMod ? null : att.exam_language || resolvedLangName,
               total_questions: att.total_questions || 20,
               correct_answers: att.correct_answers ?? 0,
               score_percentage: pct,
@@ -653,7 +692,7 @@ export function HomeView({ navigate }: HomeViewProps) {
 
       let nextContinue = existingBundle?.continueData ?? null;
       let nextStats = existingBundle?.stats ?? null;
-      let nextAttempts = existingBundle?.allAttempts ?? [];
+      let nextAttempts = normalizeHomeAttempts(existingBundle?.allAttempts ?? []);
       let nextStandalone = existingBundle?.standaloneExamEnabled ?? true;
       let nextServicesEnabled = existingBundle?.servicesPageEnabled ?? true;
       let nextProfile = existingBundle?.userProfile ?? null;
@@ -741,7 +780,7 @@ export function HomeView({ navigate }: HomeViewProps) {
         const d = persisted.data;
         setContinueData(d.continueData);
         setStats(d.stats);
-        setAllAttempts(d.allAttempts || []);
+        setAllAttempts(normalizeHomeAttempts(d.allAttempts || []));
         setStandaloneExamEnabled(d.standaloneExamEnabled ?? true);
         setServicesPageEnabled(d.servicesPageEnabled ?? true);
         if (d.userProfile) setUserProfile(d.userProfile);
@@ -939,8 +978,18 @@ export function HomeView({ navigate }: HomeViewProps) {
     >();
 
     for (const att of allAttempts) {
-      const catId = att.category_id || "general";
-      const catName = att.category_name || t("trafficSchoolCourse") || "General Traffic Regulations";
+      const isMod =
+        att.exam_type === "module" ||
+        att.exam_type === "midterm" ||
+        att.exam_type === "final";
+      const catName = isMod
+        ? att.category_name || t("moduleExam") || "Module Exam"
+        : getExamResultLanguageName({
+            exam_language: att.exam_language,
+            category_name: att.category_name,
+            is_module: false,
+          });
+      const catId = isMod ? att.category_id || `mod:${catName}` : `lang:${catName}`;
       const qCount = att.total_questions || 20;
       let score = att.correct_answers ?? att.score ?? 0;
       let pct = att.score_percentage;
@@ -1116,7 +1165,10 @@ export function HomeView({ navigate }: HomeViewProps) {
                       </div>
 
                       <h3 className="text-sm sm:text-base font-semibold tracking-tight text-foreground truncate">
-                        {challenge.category_name || "Official Road Rules Assessment"}
+                        {getExamResultLanguageName({
+                          language: (challenge as any).language,
+                          category_name: challenge.category_name,
+                        })}
                       </h3>
 
                       <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
@@ -1601,7 +1653,13 @@ export function HomeView({ navigate }: HomeViewProps) {
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-foreground truncate">
-                        {attempt.category_name || (attempt.exam_type === "module" ? t("moduleExam") || "Module Exam" : t("mockExam") || "Practice Exam")}
+                        {attempt.exam_type === "module"
+                          ? attempt.category_name || t("moduleExam") || "Module Exam"
+                          : getExamResultLanguageName({
+                              exam_language: attempt.exam_language,
+                              category_name: attempt.category_name,
+                              is_module: false,
+                            })}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {attemptDate ? formatDistanceToNow(new Date(attemptDate), { addSuffix: true }) : t("completed")}

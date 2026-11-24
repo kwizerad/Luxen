@@ -12,7 +12,7 @@ function isExternalExamCategoryId(categoryId?: string | null): boolean {
 import { translateTextSnippets, type TargetLanguage } from "@/lib/ai/tiptap-translator";
 import { decryptPayload, encryptPayload, isEncryptedEnvelope } from "@/lib/e2e-crypto";
 import { CACHE_KEYS, getCached } from "@/lib/server-cache";
-import { isWithinAvailabilityWindow } from "@/lib/exam-settings";
+import { isWithinAvailabilityWindow, normalizeCanonicalExamLanguage } from "@/lib/exam-settings";
 import {
   getBuiltinFallbackQuestions,
   normalizeExamQuestion,
@@ -794,14 +794,9 @@ export async function POST(req: NextRequest) {
       const scorePercentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
 
       const catId = attemptData.category_id || EXTERNAL_EXAM_CATEGORY_ID;
-      const configuredTitle = configMap.get("external_exam_title");
-      const catName =
-        attemptData.category_name ||
-        (!configuredTitle ||
-        configuredTitle === "Navo's Mock Exam (External DB)" ||
-        configuredTitle === "Navo's Mock Exam (External Question Bank)"
-          ? "Rwanda PVS Exam"
-          : configuredTitle);
+      const examLanguage = normalizeCanonicalExamLanguage(
+        attemptData?.exam_language || body?.language
+      );
 
       const now = new Date().toISOString();
       const userId = user?.id;
@@ -811,7 +806,8 @@ export async function POST(req: NextRequest) {
         id: `browser-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         user_id: isValidUser ? userId : "guest",
         category_id: catId,
-        category_name: catName,
+        category_name: examLanguage,
+        exam_language: examLanguage,
         started_at: new Date(Date.now() - (Number(attemptData.duration_seconds) || 0) * 1000).toISOString(),
         completed_at: attemptData.status === "abandoned" ? null : now,
         duration_seconds: Number(attemptData.duration_seconds) || 0,

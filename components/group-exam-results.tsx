@@ -29,6 +29,7 @@ import { useAuth } from "@/lib/auth-context";
 import { canViewUserAvatar } from "@/lib/avatar-helper";
 import { ExamReview } from "@/components/exam-review";
 import { createClient } from "@/lib/supabase/client";
+import { getExamResultLanguageName } from "@/lib/exam-settings";
 import { cn } from "@/lib/utils";
 import type { ExamAttempt, ExamQuestion } from "@/lib/database.types";
 
@@ -71,6 +72,7 @@ export function GroupExamResults({
   const { user } = useAuth();
   const { t } = useLanguage();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [challengeInfo, setChallengeInfo] = useState<{ language?: string | null; category_name?: string | null } | null>(null);
   const [isSoloAttempt, setIsSoloAttempt] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showReview, setShowReview] = useState(false);
@@ -84,6 +86,12 @@ export function GroupExamResults({
       const res = await fetch(`/api/exam-challenges/${challengeId}/results`);
       if (!res.ok) return;
       const data = await res.json();
+      if (data.challenge) {
+        setChallengeInfo({
+          language: data.challenge.language ?? null,
+          category_name: data.challenge.category_name ?? null,
+        });
+      }
       if (data.leaderboard) {
         const sig = JSON.stringify(
           (data.leaderboard as LeaderboardEntry[]).map((e) => [
@@ -219,10 +227,22 @@ export function GroupExamResults({
     }
   }, [isSoloAttempt, winner, isWinnerPassed]);
 
+  const resultLangName = getExamResultLanguageName({
+    exam_language: examResult.exam_language,
+    language: challengeInfo?.language,
+    category_name: examResult.category_name || challengeInfo?.category_name,
+  });
+
+  const resolvedExamResult: ExamAttempt = {
+    ...examResult,
+    category_name: resultLangName,
+    exam_language: resultLangName,
+  };
+
   if (!loading && isSoloAttempt) {
     return (
       <ExamReview
-        examResult={examResult}
+        examResult={resolvedExamResult}
         questions={questions}
         onReset={onReset}
         onRetake={onRetake}
@@ -246,7 +266,7 @@ export function GroupExamResults({
         </div>
         <ExamReview
           challengeId={challengeId}
-          examResult={{ ...examResult, challenge_id: challengeId }}
+          examResult={{ ...resolvedExamResult, challenge_id: challengeId }}
           questions={questions}
           onReset={onReset}
           onRetake={onRetake}
@@ -305,8 +325,10 @@ export function GroupExamResults({
       {/* Unified Primary Top Summary (Replaces 3 separate stacked boxes) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
         <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums flex-wrap">
             <Trophy className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <span className="font-semibold text-foreground">{resultLangName}</span>
+            <span aria-hidden="true">·</span>
             <span>{t("groupExamResults") || "Group Exam Results"}</span>
             <span aria-hidden="true">·</span>
             <span>

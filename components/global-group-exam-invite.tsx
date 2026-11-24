@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { canViewUserAvatar } from "@/lib/avatar-helper";
+import { getExamResultLanguageName } from "@/lib/exam-settings";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -281,12 +282,12 @@ export function GlobalGroupExamInvite() {
             {t("groupExam") || "Group Exam"}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-full">
-            <span className="font-semibold text-foreground">{activeInvite.category_name}</span>
-            {activeInvite.language ? (
-              <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">
-                {activeInvite.language}
-              </span>
-            ) : null}
+            <span className="font-semibold text-foreground">
+              {getExamResultLanguageName({
+                language: activeInvite.language,
+                category_name: activeInvite.category_name,
+              })}
+            </span>
           </p>
 
           {/* Accept & Reject Buttons directly under the Big Trophy */}

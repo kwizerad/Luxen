@@ -1,6 +1,7 @@
 "use client";
 
 import type { ExamAnswer, ExamAttempt, ExamQuestion } from "@/lib/database.types";
+import { getExamResultLanguageName, normalizeCanonicalExamLanguage } from "@/lib/exam-settings";
 import { invalidateStudentExamHistoryCache, studentCache } from "@/lib/student-cache";
 
 const SAVING_CONFIG_STORAGE_KEY = "exam_saving_config_v1";
@@ -203,11 +204,22 @@ export async function saveBrowserExamAttempt(
   questionDetails?: Record<string, { correct_answer: string; explanation?: string }>
 ): Promise<BrowserExamRecord> {
   const now = new Date().toISOString();
+  const resolvedLang = attempt.exam_language
+    ? normalizeCanonicalExamLanguage(attempt.exam_language)
+    : undefined;
+  const resolvedCategoryName = attempt.is_module
+    ? attempt.category_name || "Module Exam"
+    : getExamResultLanguageName({
+        exam_language: resolvedLang,
+        category_name: attempt.category_name,
+        is_module: attempt.is_module,
+      });
+
   const normalizedAttempt: BrowserExamAttempt = {
     id: attempt.id,
     user_id: attempt.user_id || userId,
     category_id: attempt.category_id || "unknown",
-    category_name: attempt.category_name || "Rwanda PVS Exam",
+    category_name: resolvedCategoryName,
     started_at: attempt.started_at || now,
     completed_at: attempt.completed_at ?? now,
     duration_seconds: attempt.duration_seconds ?? 0,
@@ -225,7 +237,7 @@ export async function saveBrowserExamAttempt(
     module_title: attempt.module_title ?? null,
     exam_type: attempt.exam_type ?? null,
     passed: attempt.passed,
-    exam_language: attempt.exam_language ?? null,
+    exam_language: resolvedLang ?? (attempt.is_module ? null : resolvedCategoryName),
     storage_source: "browser",
   };
 
