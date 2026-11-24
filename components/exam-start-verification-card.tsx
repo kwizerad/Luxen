@@ -49,7 +49,7 @@ export function ExamStartVerificationCard({
         "Kora ikizamini utavuye muri iyi paji kugeza ugisoje.",
       ],
       startBtn: "Yego, Tangira Ikizamini",
-      startingBtn: "Gutegura...",
+      startingBtn: "Turimo gutegura mu Kinyarwanda...",
       cancelBtn: "Subira inyuma",
     },
     fr: {
@@ -66,7 +66,7 @@ export function ExamStartVerificationCard({
         "Restez dans la fenêtre d'examen jusqu'à la soumission finale.",
       ],
       startBtn: "Commencer l'examen",
-      startingBtn: "Démarrage...",
+      startingBtn: "Préparation et traduction en français...",
       cancelBtn: "Retour",
     },
     en: {
@@ -83,7 +83,7 @@ export function ExamStartVerificationCard({
         "Complete the session in one sitting without leaving the exam window.",
       ],
       startBtn: "Start Exam",
-      startingBtn: "Preparing...",
+      startingBtn: "Preparing & translating into English...",
       cancelBtn: "Go Back",
     },
   }[langCode];

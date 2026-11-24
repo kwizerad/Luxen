@@ -201,7 +201,7 @@ function isGenuineTranslationForCache(
   return true;
 }
 
-export async function translateQuestionBatch<
+async function runQuestionTranslation<
   T extends {
     id: string;
     question?: string | null;
@@ -215,10 +215,11 @@ export async function translateQuestionBatch<
   adminSb: SupabaseClient,
   questions: T[],
   language?: string | null,
-  sourceLanguage?: string | null
-): Promise<T[]> {
+  sourceLanguage?: string | null,
+  maxUncachedSync?: number
+): Promise<{ questions: T[]; pendingIds: string[] }> {
   if (!Array.isArray(questions) || questions.length === 0) {
-    return questions;
+    return { questions, pendingIds: [] };
   }
 
   const targetLang = resolveTargetLang(language);
@@ -228,7 +229,7 @@ export async function translateQuestionBatch<
       : null;
 
   if (explicitSourceLang && explicitSourceLang === targetLang) {
-    return questions;
+    return { questions, pendingIds: [] };
   }
 
   try {
@@ -250,7 +251,7 @@ export async function translateQuestionBatch<
       }
     }
 
-    const toTranslateBySource = new Map<TargetLanguage, QuestionTextItem[]>();
+    const uncachedItems: QuestionTextItem[] = [];
     const result = questions.map((q) => ({ ...q }));
 
     for (let i = 0; i < result.length; i++) {
@@ -287,8 +288,7 @@ export async function translateQuestionBatch<
         if (cached.data.option_d) q.option_d = cached.data.option_d;
         if (cached.data.explanation) q.explanation = cached.data.explanation;
       } else {
-        const list = toTranslateBySource.get(srcLang) || [];
-        list.push({
+        uncachedItems.push({
           qIdx: i,
           qId: q.id,
           srcLang,
@@ -300,8 +300,22 @@ export async function translateQuestionBatch<
           optD,
           expl,
         });
-        toTranslateBySource.set(srcLang, list);
       }
+    }
+
+    const syncLimit =
+      typeof maxUncachedSync === "number" && maxUncachedSync > 0
+        ? maxUncachedSync
+        : uncachedItems.length;
+
+    const syncItems = uncachedItems.slice(0, syncLimit);
+    const pendingIds = uncachedItems.slice(syncLimit).map((item) => String(item.qId));
+
+    const toTranslateBySource = new Map<TargetLanguage, QuestionTextItem[]>();
+    for (const item of syncItems) {
+      const list = toTranslateBySource.get(item.srcLang) || [];
+      list.push(item);
+      toTranslateBySource.set(item.srcLang, list);
     }
 
     const nowStr = new Date().toISOString();
@@ -390,9 +404,49 @@ export async function translateQuestionBatch<
         .then(() => {}, () => {});
     }
 
-    return result;
+    return { questions: result, pendingIds };
   } catch (err) {
     console.warn("[ExamTranslator] Question translation fallback:", err);
-    return questions;
+    return { questions, pendingIds: [] };
   }
+}
+
+export async function translateQuestionBatch<
+  T extends {
+    id: string;
+    question?: string | null;
+    option_a?: string | null;
+    option_b?: string | null;
+    option_c?: string | null;
+    option_d?: string | null;
+    explanation?: string | null;
+  }
+>(
+  adminSb: SupabaseClient,
+  questions: T[],
+  language?: string | null,
+  sourceLanguage?: string | null
+): Promise<T[]> {
+  const res = await runQuestionTranslation(adminSb, questions, language, sourceLanguage);
+  return res.questions;
+}
+
+export async function translateQuestionBatchProgressive<
+  T extends {
+    id: string;
+    question?: string | null;
+    option_a?: string | null;
+    option_b?: string | null;
+    option_c?: string | null;
+    option_d?: string | null;
+    explanation?: string | null;
+  }
+>(
+  adminSb: SupabaseClient,
+  questions: T[],
+  language?: string | null,
+  sourceLanguage?: string | null,
+  maxUncachedSync = 4
+): Promise<{ questions: T[]; pendingIds: string[] }> {
+  return runQuestionTranslation(adminSb, questions, language, sourceLanguage, maxUncachedSync);
 }

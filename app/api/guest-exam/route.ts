@@ -6,7 +6,11 @@ import {
   EXTERNAL_EXAM_CATEGORY_ID,
 } from "@/lib/supabase/external";
 import type { TargetLanguage } from "@/lib/ai/tiptap-translator";
-import { resolveTargetLang, translateQuestionBatch } from "@/lib/ai/exam-translator";
+import {
+  resolveTargetLang,
+  translateQuestionBatch,
+  translateQuestionBatchProgressive,
+} from "@/lib/ai/exam-translator";
 import {
   decryptPayload,
   encryptPayload,
@@ -609,12 +613,28 @@ export async function POST(req: NextRequest) {
         picked = doShuffle(formattedPool).slice(0, questionCount);
       }
 
-      const translatedSelected = await translateQuestionBatch(
-        adminSb,
-        picked,
-        language,
-        sourceOrigin === "external" ? "Kinyarwanda" : "auto"
-      );
+      const srcOriginLang = sourceOrigin === "external" ? "Kinyarwanda" : "auto";
+      let translatedSelected = picked;
+      let pendingTranslationIds: string[] = [];
+
+      if (Boolean(body?.progressive)) {
+        const progRes = await translateQuestionBatchProgressive(
+          adminSb,
+          picked,
+          language,
+          srcOriginLang,
+          4
+        );
+        translatedSelected = progRes.questions;
+        pendingTranslationIds = progRes.pendingIds;
+      } else {
+        translatedSelected = await translateQuestionBatch(
+          adminSb,
+          picked,
+          language,
+          srcOriginLang
+        );
+      }
 
       // Strip correct answers before sending to guest client and normalize shape
       const safeQuestions = translatedSelected.map((item, idx) => {
@@ -640,6 +660,7 @@ export async function POST(req: NextRequest) {
           available_to: availableTo,
         },
         questions: safeQuestions,
+        pendingTranslationIds,
         quota: {
           usedCount: updatedQuota.usedCount,
           remainingCount: updatedQuota.remainingCount,

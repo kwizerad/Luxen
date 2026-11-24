@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ImageOff } from "lucide-react";
+import { ImageOff, RefreshCw } from "lucide-react";
 import { getOptimizedImageUrl, type OptimizerWidth } from "@/lib/image-compression";
 
 interface SmartImageProps {
@@ -14,6 +14,7 @@ interface SmartImageProps {
   sizes?: string;
   priority?: boolean;
   onClick?: () => void;
+  retryLabel?: string;
 }
 
 const preloadedUrlSet = new Set<string>();
@@ -22,7 +23,7 @@ const preloadedUrlSet = new Set<string>();
  * Optimized exam/course image renderer:
  * - Rewrites external HTTP(S) URLs to `/_next/image` (WebP resized & compressed by sharp)
  * - Falls back automatically to raw `src` if optimizer errors
- * - Renders a clean static placeholder on broken images (never stuck pulsing)
+ * - Renders a clean retryable placeholder on broken images (never stuck pulsing)
  * - Always passes `referrerPolicy="no-referrer"` for external CDNs (e.g. wixstatic)
  */
 export function SmartImage({
@@ -35,10 +36,12 @@ export function SmartImage({
   unoptimized = false,
   priority = false,
   onClick,
+  retryLabel = "Tap to reload image",
 }: SmartImageProps) {
   const [loaded, setLoaded] = useState(false);
   const [fallbackToRaw, setFallbackToRaw] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const imgRef = useRef<HTMLImageElement>(null);
 
   const targetWidth: OptimizerWidth =
@@ -46,12 +49,17 @@ export function SmartImage({
   const optimizedSrc = unoptimized
     ? src
     : getOptimizedImageUrl(src, targetWidth, 75) || src;
-  const activeSrc = fallbackToRaw ? src : optimizedSrc;
+  const baseSrc = fallbackToRaw ? src : optimizedSrc;
+  const activeSrc =
+    retryCount > 0
+      ? `${baseSrc}${baseSrc.includes("?") ? "&" : "?"}_r=${retryCount}`
+      : baseSrc;
 
   useEffect(() => {
     setFallbackToRaw(false);
     setHasError(false);
     setLoaded(false);
+    setRetryCount(0);
   }, [src]);
 
   useEffect(() => {
@@ -60,11 +68,19 @@ export function SmartImage({
     }
   }, [activeSrc]);
 
+  const handleRetry = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHasError(false);
+    setFallbackToRaw(false);
+    setLoaded(false);
+    setRetryCount((c) => c + 1);
+  };
+
   if (!src) return null;
 
   return (
     <div
-      key={src}
+      key={`${src}-${retryCount}`}
       onClick={onClick}
       className={`relative overflow-hidden flex items-center justify-center ${className ?? ""}`}
       style={width && height ? { aspectRatio: `${width} / ${height}` } : undefined}
@@ -73,8 +89,16 @@ export function SmartImage({
         <div className="absolute inset-0 animate-pulse bg-muted/40 rounded-[inherit]" />
       )}
       {hasError ? (
-        <div className="w-full h-full min-h-[120px] flex items-center justify-center bg-muted/20 text-muted-foreground/60 p-4">
-          <ImageOff className="w-6 h-6" />
+        <div className="w-full h-full min-h-[120px] flex flex-col items-center justify-center gap-2.5 bg-muted/25 text-muted-foreground p-4 rounded-[inherit] text-center">
+          <ImageOff className="w-6 h-6 opacity-60" />
+          <button
+            type="button"
+            onClick={handleRetry}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/70 bg-background/90 hover:bg-muted text-xs font-medium text-foreground transition-colors cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>{retryLabel}</span>
+          </button>
         </div>
       ) : (
         <img
@@ -89,7 +113,7 @@ export function SmartImage({
           fetchPriority={priority ? "high" : "auto"}
           onLoad={() => setLoaded(true)}
           onError={() => {
-            if (!fallbackToRaw && activeSrc !== src) {
+            if (!fallbackToRaw && baseSrc !== src) {
               setFallbackToRaw(true);
             } else {
               setHasError(true);

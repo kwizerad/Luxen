@@ -168,8 +168,11 @@ export function GuestExamClient() {
     null
   );
 
+  const [pendingTranslationIds, setPendingTranslationIds] = useState<string[]>([]);
+
   const submittingExamRef = useRef(false);
   const showResultsRef = useRef(false);
+  const examSessionTokenRef = useRef(0);
   const handleSubmitExamRef = useRef<
     ((isAutoSubmit?: boolean, reason?: SubmissionReason) => Promise<void>) | null
   >(null);
@@ -363,15 +366,86 @@ export function GuestExamClient() {
     return () => clearInterval(id);
   }, [secondsLeft, showResults, anticheat]);
 
+  const runProgressiveTranslationInBackground = useCallback(
+    async (
+      sessionToken: number,
+      questions: TakeExamQuestion[],
+      pendingIds: string[],
+      targetLanguage: string,
+      deviceId: string
+    ) => {
+      if (!pendingIds.length) return;
+      const pendingSet = new Set(pendingIds.map(String));
+      const pendingQuestions = questions.filter((q) => pendingSet.has(String(q.id)));
+      if (!pendingQuestions.length) {
+        setPendingTranslationIds([]);
+        return;
+      }
+
+      const CHUNK_SIZE = 6;
+      for (let i = 0; i < pendingQuestions.length; i += CHUNK_SIZE) {
+        if (examSessionTokenRef.current !== sessionToken) return;
+        const chunk = pendingQuestions.slice(i, i + CHUNK_SIZE);
+        const chunkIds = chunk.map((q) => String(q.id));
+        try {
+          const { ok, data } = await secureApiPost("/api/guest-exam", {
+            action: "translate_questions",
+            deviceId,
+            questions: chunk,
+            language: targetLanguage,
+            sourceLanguage: "auto",
+          });
+          if (examSessionTokenRef.current !== sessionToken) return;
+          if (ok && Array.isArray(data?.questions)) {
+            const byId = new Map<string, any>();
+            for (const tq of data.questions) {
+              if (tq?.id) byId.set(String(tq.id), tq);
+            }
+            setExam((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    questions: prev.questions.map((q) => {
+                      const matched = byId.get(String(q.id));
+                      if (!matched) return q;
+                      return {
+                        ...q,
+                        question: matched.question || q.question,
+                        option_a: matched.option_a || q.option_a,
+                        option_b: matched.option_b || q.option_b,
+                        option_c: matched.option_c || q.option_c,
+                        option_d: matched.option_d || q.option_d,
+                        explanation: matched.explanation ?? q.explanation,
+                      };
+                    }),
+                  }
+                : prev
+            );
+          }
+        } catch (bgErr) {
+          console.warn("[GuestExam] Background translation chunk error:", bgErr);
+        } finally {
+          if (examSessionTokenRef.current === sessionToken) {
+            const doneSet = new Set(chunkIds);
+            setPendingTranslationIds((prev) => prev.filter((id) => !doneSet.has(id)));
+          }
+        }
+      }
+    },
+    []
+  );
+
   const startGuestExam = async (catId?: string, examLang?: string) => {
     if (quota.exhausted) {
       return;
     }
 
+    const sessionToken = ++examSessionTokenRef.current;
     const activeLang = normalizeExamLanguage(
       examLang || selectedExamLanguage || language || "Kinyarwanda"
     );
     setSelectedExamLanguage(activeLang);
+    setPendingTranslationIds([]);
 
     if (
       securitySettings.violationMeasuresEnabled &&
@@ -388,6 +462,7 @@ export function GuestExamClient() {
         categoryId: catId || selectedCategoryId || EXTERNAL_EXAM_CATEGORY_ID,
         language: activeLang,
         deviceId,
+        progressive: true,
       });
 
       if (status === 403 && data?.error === "FREE_EXAM_DISABLED") {
@@ -440,8 +515,13 @@ export function GuestExamClient() {
         .filter(Boolean) as string[];
       preloadImages(imageUrls);
 
+      const pendingIds: string[] = Array.isArray(data.pendingTranslationIds)
+        ? data.pendingTranslationIds.map(String)
+        : [];
+
       anticheat.resetSecurity();
       setExam(data as TakeExamResponse);
+      setPendingTranslationIds(pendingIds);
       setCurrentIndex(0);
       setSecondsLeft((data.settings?.duration_minutes ?? 20) * 60);
       setExamStartTime(Date.now());
@@ -455,6 +535,16 @@ export function GuestExamClient() {
       setSavePromptDismissed(false);
       submittingExamRef.current = false;
       setShowPreSubmitModal(false);
+
+      if (pendingIds.length > 0) {
+        void runProgressiveTranslationInBackground(
+          sessionToken,
+          data.questions as TakeExamQuestion[],
+          pendingIds,
+          activeLang,
+          deviceId
+        );
+      }
 
       if (typeof window !== "undefined") {
         sessionStorage.setItem("exam-active", "true");
@@ -609,7 +699,9 @@ export function GuestExamClient() {
   handleSubmitExamRef.current = handleSubmitExam;
 
   const reset = () => {
+    examSessionTokenRef.current += 1;
     setExam(null);
+    setPendingTranslationIds([]);
     setCurrentIndex(0);
     setSecondsLeft(null);
     setExamStartTime(null);
@@ -894,10 +986,10 @@ export function GuestExamClient() {
             </div>
             <p className="text-sm font-medium text-foreground">
               {isRw
-                ? "Tegereza gato..."
+                ? `Turimo gutegura no gusemura ibibazo mu ${selectedExamLanguage}...`
                 : isFr
-                ? "Préparation de l'examen..."
-                : t("starting") || "Loading exam..."}
+                ? `Préparation et traduction de l'examen en ${selectedExamLanguage}...`
+                : `Preparing & translating your exam into ${selectedExamLanguage}...`}
             </p>
           </div>
         ) : exam ? (
@@ -918,6 +1010,10 @@ export function GuestExamClient() {
             userAnswers={userAnswers}
             onSelectAnswer={handleSelectAnswer}
             submittingExam={submittingExam}
+            translatingRemainingCount={pendingTranslationIds.length}
+            isActiveQuestionPending={Boolean(
+              activeQuestion && pendingTranslationIds.includes(String(activeQuestion.id))
+            )}
             onRequestQuit={() => {
               setConfirmTitle(t("quitExamTitle") || "Quit Exam?");
               setConfirmMessage(

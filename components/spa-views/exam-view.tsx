@@ -1,7 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Lock, ArrowRight, Search } from "lucide-react";
+import { Lock, ArrowRight, Search, Clock, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { preloadImages } from "@/components/smart-image";
 import { Watermark } from "@/components/watermark";
 import { ExamReview } from "@/components/exam-review";
@@ -49,6 +58,7 @@ import {
 } from "@/lib/supabase/queries";
 import { pickDefaultExamCategory, prioritizeRwandaPvsCategories, normalizeCanonicalExamLanguage } from "@/lib/exam-settings";
 import { hasBrowserExamHistory, saveBrowserExamAttempt } from "@/lib/browser-exam-history";
+import { collectMissedQuestionsForUser } from "@/lib/missed-questions-practice";
 import type {
   ExamAttempt,
   ExamCategory,
@@ -150,6 +160,12 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     language: string;
   } | null>(null);
 
+  const [pendingResumeSession, setPendingResumeSession] =
+    useState<ActiveExamSessionCache | null>(null);
+  const [pendingTranslationIds, setPendingTranslationIds] = useState<string[]>([]);
+  const [missedQuestionsCount, setMissedQuestionsCount] = useState(0);
+  const [isMissedPractice, setIsMissedPractice] = useState(false);
+
   const [loadingExam, setLoadingExam] = useState(false);
   const [submittingExam, setSubmittingExam] = useState(false);
   const [exam, setExam] = useState<TakeExamResponse | null>(null);
@@ -204,6 +220,9 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   const activeExamRef = useRef(false);
   activeExamRef.current = Boolean(exam);
   const hasCancelledChallengeRef = useRef<string | null>(null);
+  const examSessionTokenRef = useRef(0);
+  const joinedChallengeRef = useRef<string>("");
+  const missedAutoStartedRef = useRef(false);
 
   // Hydrate encrypted exam metadata & flags immediately, then sync in background
   useEffect(() => {
@@ -294,16 +313,25 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     };
   }, [authLoading, user?.id, paramChallengeId, paramCategoryId, paramMode, paramLanguage]);
 
-  // If arriving with challengeId, resolve category & language from challenge row
+  // If arriving with challengeId via invite link, auto-join and resolve category & language
   useEffect(() => {
     if (!challengeId) return;
-    const fetchChallengeDetails = async () => {
+    let active = true;
+    const ensureJoinedAndFetchDetails = async () => {
+      if (user?.id && joinedChallengeRef.current !== challengeId) {
+        joinedChallengeRef.current = challengeId;
+        await authFetch(`/api/exam-challenges/${challengeId}/join`, {
+          method: "POST",
+        }).catch(() => null);
+      }
+
       const supabase = createClient();
       const { data } = await supabase
         .from("exam_challenges")
         .select("*")
         .eq("id", challengeId)
         .maybeSingle();
+      if (!active) return;
       if (data?.category_id && !categoryId) {
         setCategoryId(data.category_id);
       }
@@ -312,15 +340,18 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         setSelectedExamLanguage(normalized);
       }
     };
-    void fetchChallengeDetails();
-  }, [challengeId]);
+    void ensureJoinedAndFetchDetails();
+    return () => {
+      active = false;
+    };
+  }, [challengeId, user?.id]);
 
-  // Check if student has past exam history for quick navigation button
+  // Check if student has past exam history and locally saved missed questions
   useEffect(() => {
     if (typeof window === "undefined" || !user) return;
     const checkExamHistory = async () => {
       const supabase = createClient();
-      const [res1, res2, browserHas] = await Promise.allSettled([
+      const [res1, res2, browserHas, missedPool] = await Promise.allSettled([
         supabase
           .from("exam_attempts")
           .select("*", { count: "exact", head: true })
@@ -330,10 +361,14 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           .select("*", { count: "exact", head: true })
           .eq("user_id", user.id),
         hasBrowserExamHistory(user.id),
+        collectMissedQuestionsForUser(user.id, 50),
       ]);
       const count1 = res1.status === "fulfilled" ? (res1.value.count ?? 0) : 0;
       const count2 = res2.status === "fulfilled" ? (res2.value.count ?? 0) : 0;
       const hasLocal = browserHas.status === "fulfilled" ? Boolean(browserHas.value) : false;
+      const missedTotal =
+        missedPool.status === "fulfilled" ? missedPool.value.totalMissedCount : 0;
+      setMissedQuestionsCount(missedTotal);
       const hasHistory = hasLocal || count1 + count2 > 0;
       setHasExamHistory(hasHistory);
       const prev = studentCache.getHot<ExamMetaCache>("exam_meta", {
@@ -432,7 +467,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       });
   }, [accessChecked, user?.id]);
 
-  // Restore resumable solo active exam session across unintended browser refresh
+  // Check for resumable solo active exam session and prompt user cleanly instead of hijacking language switcher
   const restoredSessionRef = useRef(false);
   useEffect(() => {
     if (
@@ -444,7 +479,8 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       showResults ||
       challengeId ||
       paramChallengeId ||
-      paramMode === "group"
+      paramMode === "group" ||
+      paramMode === "missed"
     ) {
       return;
     }
@@ -465,18 +501,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         return;
       }
 
-      setCategoryId(saved.categoryId);
-      setSelectedExamLanguage(saved.selectedExamLanguage);
-      setExam(saved.exam);
-      setCurrentIndex(saved.currentIndex || 0);
-      setExamStartTime(saved.examStartTime);
-      setSecondsLeft(remainingSeconds);
-      setUserAnswers(saved.userAnswers || {});
-      setShowResults(false);
-      showResultsRef.current = false;
-      setExamResult(null);
-      sessionStorage.setItem("exam-active", "true");
-      window.dispatchEvent(new CustomEvent("exam-state-change"));
+      setPendingResumeSession(saved);
     };
 
     void restoreSession();
@@ -487,7 +512,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
   // Persist encrypted snapshot of active solo mock exam answers/position
   useEffect(() => {
-    if (!user?.id || !exam || showResults || challengeId || !examStartTime) return;
+    if (!user?.id || !exam || showResults || challengeId || isMissedPractice || !examStartTime) return;
     const durationSec = (exam.settings?.duration_minutes ?? 20) * 60;
     const expiresAt = examStartTime + durationSec * 1000;
     if (expiresAt <= Date.now()) return;
@@ -505,7 +530,7 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       },
       { tier: "private", userId: user.id, category: "exam_session" }
     );
-  }, [user?.id, exam, showResults, challengeId, examStartTime, selectedExamLanguage, currentIndex, userAnswers]);
+  }, [user?.id, exam, showResults, challengeId, isMissedPractice, examStartTime, selectedExamLanguage, currentIndex, userAnswers]);
 
   // Auto-select Rwanda PVS Exam category by default when none selected yet
   useEffect(() => {
@@ -712,6 +737,73 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     return () => clearInterval(id);
   }, [secondsLeft, showResults, anticheat]);
 
+  const runProgressiveTranslationInBackground = useCallback(
+    async (
+      sessionToken: number,
+      questions: TakeExamQuestion[],
+      pendingIds: string[],
+      targetLanguage: string
+    ) => {
+      if (!pendingIds.length) return;
+      const pendingSet = new Set(pendingIds.map(String));
+      const pendingQuestions = questions.filter((q) => pendingSet.has(String(q.id)));
+      if (!pendingQuestions.length) {
+        setPendingTranslationIds([]);
+        return;
+      }
+
+      const CHUNK_SIZE = 6;
+      for (let i = 0; i < pendingQuestions.length; i += CHUNK_SIZE) {
+        if (examSessionTokenRef.current !== sessionToken) return;
+        const chunk = pendingQuestions.slice(i, i + CHUNK_SIZE);
+        const chunkIds = chunk.map((q) => String(q.id));
+        try {
+          const { ok, data } = await secureApiPost("/api/external-courses/exam", {
+            action: "translate_questions",
+            questions: chunk,
+            language: targetLanguage,
+            sourceLanguage: "auto",
+          });
+          if (examSessionTokenRef.current !== sessionToken) return;
+          if (ok && Array.isArray(data?.questions)) {
+            const byId = new Map<string, any>();
+            for (const tq of data.questions) {
+              if (tq?.id) byId.set(String(tq.id), tq);
+            }
+            setExam((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    questions: prev.questions.map((q) => {
+                      const matched = byId.get(String(q.id));
+                      if (!matched) return q;
+                      return {
+                        ...q,
+                        question: matched.question || q.question,
+                        option_a: matched.option_a || q.option_a,
+                        option_b: matched.option_b || q.option_b,
+                        option_c: matched.option_c || q.option_c,
+                        option_d: matched.option_d || q.option_d,
+                        explanation: matched.explanation ?? q.explanation,
+                      };
+                    }),
+                  }
+                : prev
+            );
+          }
+        } catch (bgErr) {
+          console.warn("[ExamView] Background translation chunk error:", bgErr);
+        } finally {
+          if (examSessionTokenRef.current === sessionToken) {
+            const doneSet = new Set(chunkIds);
+            setPendingTranslationIds((prev) => prev.filter((id) => !doneSet.has(id)));
+          }
+        }
+      }
+    },
+    []
+  );
+
   // Direct exam start — opens Question 1 immediately in chosen exam language
   const startExam = async (
     catId?: string,
@@ -720,11 +812,15 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   ) => {
     if (startingExamRef.current) return;
     startingExamRef.current = true;
+    const sessionToken = ++examSessionTokenRef.current;
 
     const activeLang = normalizeExamLanguage(
       examLang || selectedExamLanguage || language || "Kinyarwanda"
     );
     setSelectedExamLanguage(activeLang);
+    setPendingResumeSession(null);
+    setIsMissedPractice(false);
+    setPendingTranslationIds([]);
     setLoadingExam(true);
 
     try {
@@ -788,8 +884,13 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         .filter(Boolean) as string[];
       preloadImages(imageUrls);
 
+      const pendingIds: string[] = Array.isArray((data as TakeExamResponse).pendingTranslationIds)
+        ? ((data as TakeExamResponse).pendingTranslationIds || []).map(String)
+        : [];
+
       anticheat.resetSecurity();
       setExam(data as TakeExamResponse);
+      setPendingTranslationIds(pendingIds);
       setCurrentIndex(0);
       setSecondsLeft((data.settings?.duration_minutes ?? 20) * 60);
       setExamStartTime(Date.now());
@@ -803,6 +904,15 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       setShareGroupResults(true);
       submittingExamRef.current = false;
       setShowPreSubmitModal(false);
+
+      if (pendingIds.length > 0) {
+        void runProgressiveTranslationInBackground(
+          sessionToken,
+          data.questions as TakeExamQuestion[],
+          pendingIds,
+          activeLang
+        );
+      }
 
       if (typeof window !== "undefined") {
         sessionStorage.setItem("exam-active", "true");
@@ -831,6 +941,102 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       setLoadingExam(false);
     }
   };
+
+  // Practice Missed Questions Mode (local review practice, never touches official daily quota)
+  const startMissedPracticeExam = useCallback(async () => {
+    if (!user?.id || startingExamRef.current) return;
+    startingExamRef.current = true;
+    examSessionTokenRef.current += 1;
+    setLoadingExam(true);
+
+    try {
+      const pool = await collectMissedQuestionsForUser(user.id, 20);
+      if (!pool.questions.length) {
+        toast.info(
+          language === "Kinyarwanda" || language === "rw"
+            ? "Nta bibazo byakugoye biraboneka mu mateka yawe."
+            : language === "French" || language === "fr"
+            ? "Aucune question manquée trouvée dans votre historique pour le moment."
+            : "No missed questions found in your saved history yet."
+        );
+        return;
+      }
+
+      const imageUrls = pool.questions
+        .flatMap((q) => [
+          q.question_image,
+          q.option_a_image,
+          q.option_b_image,
+          q.option_c_image,
+          q.option_d_image,
+        ])
+        .filter((u): u is string => Boolean(u));
+      preloadImages(imageUrls);
+
+      const durationMin = Math.max(10, pool.questions.length);
+      const localExam: TakeExamResponse = {
+        categoryId: "missed-practice",
+        settings: {
+          question_count: pool.questions.length,
+          duration_minutes: durationMin,
+          sorting_mode: "sequential",
+          passing_percentage: 50,
+          available_from: null,
+          available_to: null,
+        },
+        questions: pool.questions,
+        serverTime: new Date().toISOString(),
+      };
+
+      const activeLang = normalizeExamLanguage(selectedExamLanguage || language || "Kinyarwanda");
+      anticheat.resetSecurity();
+      setIsMissedPractice(true);
+      setPendingResumeSession(null);
+      setPendingStartExam(null);
+      setPendingTranslationIds([]);
+      setChallengeId("");
+      setExamMode("launcher");
+      setSelectedExamLanguage(activeLang);
+      setExam(localExam);
+      setCurrentIndex(0);
+      setSecondsLeft(durationMin * 60);
+      setExamStartTime(Date.now());
+      setUserAnswers({});
+      setShowResults(false);
+      setPostExamLangConfirmed(true);
+      setTranslatingPostExamLang(null);
+      showResultsRef.current = false;
+      setExamResult(null);
+      setIsSoloGroupAttempt(false);
+      submittingExamRef.current = false;
+      setShowPreSubmitModal(false);
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("exam-active", "true");
+        window.dispatchEvent(new CustomEvent("exam-state-change"));
+      }
+    } catch (err) {
+      console.error("[ExamView] Failed starting missed questions practice:", err);
+      toast.error(t("failedToStartExam") || "Failed to start practice session");
+    } finally {
+      startingExamRef.current = false;
+      setLoadingExam(false);
+    }
+  }, [user?.id, language, selectedExamLanguage, anticheat, t]);
+
+  useEffect(() => {
+    if (
+      paramMode === "missed" &&
+      accessChecked &&
+      user?.id &&
+      !exam &&
+      !showResults &&
+      !missedAutoStartedRef.current
+    ) {
+      missedAutoStartedRef.current = true;
+      void startMissedPracticeExam();
+    }
+  }, [paramMode, accessChecked, user?.id, exam, showResults, startMissedPracticeExam]);
 
   const handleSubmitExam = async (
     isAutoSubmit = false,
@@ -861,6 +1067,62 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     let submitSuccess = false;
     try {
       const durationSeconds = Math.floor((Date.now() - examStartTime) / 1000);
+      const status: "completed" | "abandoned" =
+        answeredCount > 0 ? "completed" : "abandoned";
+
+      if (isMissedPractice) {
+        let correctCount = 0;
+        const gradedAnswers = exam.questions.map((q) => {
+          const ua = userAnswers[q.id];
+          const selected = ua?.selectedAnswer || null;
+          const isCorrect = Boolean(selected && q.correct_answer && selected === q.correct_answer);
+          if (isCorrect) correctCount++;
+          return {
+            question_id: q.id,
+            selected_answer: selected,
+            is_correct: isCorrect,
+            time_spent_seconds: ua ? Math.floor((Date.now() - ua.timeStarted) / 1000) : 0,
+          };
+        });
+        const totalQ = exam.questions.length || 1;
+        const scorePct = Math.round((correctCount / totalQ) * 100);
+        const practiceName =
+          language === "Kinyarwanda" || language === "rw"
+            ? "Imyitozo y'Ibyakugoye"
+            : language === "French" || language === "fr"
+            ? "Révision des Erreurs"
+            : "Missed Questions Practice";
+        const nowIso = new Date().toISOString();
+        const localAttempt: ExamAttempt = {
+          id: `missed-practice-${Date.now()}`,
+          user_id: user?.id || "local",
+          category_id: "missed-practice",
+          category_name: practiceName,
+          score_percentage: scorePct,
+          total_questions: exam.questions.length,
+          correct_answers: correctCount,
+          answers: gradedAnswers,
+          duration_seconds: durationSeconds,
+          started_at: new Date(examStartTime).toISOString(),
+          completed_at: nowIso,
+          status,
+          submission_reason: anticheat.submissionReasonRef.current,
+          created_at: nowIso,
+        };
+        setExamResult(localAttempt);
+        setPostExamLangConfirmed(true);
+        setShowResults(true);
+        showResultsRef.current = true;
+        submitSuccess = true;
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("exam-active");
+          window.dispatchEvent(new CustomEvent("exam-state-change"));
+        }
+        await anticheat.exitFullscreenSafe();
+        toast.success(t("examSubmittedSuccess"));
+        return;
+      }
+
       const answers = exam.questions.map((q) => {
         const userAnswer = userAnswers[q.id];
         return {
@@ -875,8 +1137,6 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
       const categoryName =
         categories.find((c) => c.id === exam.categoryId)?.name || t("unknown");
-      const status: "completed" | "abandoned" =
-        answeredCount > 0 ? "completed" : "abandoned";
       const violationSummary =
         anticheat.violationMessagesRef.current.length > 0
           ? anticheat.violationMessagesRef.current.join("; ")
@@ -1063,7 +1323,11 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   handleSubmitExamRef.current = handleSubmitExam;
 
   const reset = () => {
+    examSessionTokenRef.current += 1;
     setExam(null);
+    setPendingTranslationIds([]);
+    setIsMissedPractice(false);
+    setPendingResumeSession(null);
     setCurrentIndex(0);
     setSecondsLeft(null);
     setExamStartTime(null);
@@ -1109,9 +1373,12 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   resetRef.current = reset;
 
   const handleRetake = () => {
+    const wasMissedPractice = isMissedPractice;
     const prevCatId = categoryId || exam?.categoryId;
     reset();
-    if (prevCatId) {
+    if (wasMissedPractice) {
+      void startMissedPracticeExam();
+    } else if (prevCatId) {
       void startExam(prevCatId, selectedExamLanguage);
     }
   };
@@ -1300,6 +1567,12 @@ export function ExamView({ navigate, params }: ExamViewProps) {
         onBack={handleGroupBack}
         onStartExam={handleGroupCreateStart}
         onFindFriends={() => navigate("classmates", { tab: "classmates" })}
+        onJoinByCode={(joinedId, joinedCatId, joinedLang) => {
+          if (joinedCatId) setCategoryId(joinedCatId);
+          if (joinedLang) setSelectedExamLanguage(normalizeExamLanguage(joinedLang));
+          setChallengeId(joinedId);
+          setExamMode("lobby");
+        }}
       />
     );
   }
@@ -1314,15 +1587,11 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           className="h-11 w-11 animate-spin rounded-full border-4 border-zinc-200 dark:border-zinc-700/80 border-t-emerald-600 dark:border-t-emerald-300 dark:border-r-emerald-300/70 dark:shadow-[0_0_16px_rgba(110,231,183,0.45)]"
         />
         <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          {language === "Kinyarwanda" ||
-          language === "rw" ||
-          selectedExamLanguage === "Kinyarwanda"
-            ? "Tegereza gato, ibibazo birimo gutegurwa..."
-            : language === "French" ||
-              language === "fr" ||
-              selectedExamLanguage === "French"
-            ? "Chargement des questions de l'examen..."
-            : t("loadingQuestions") || "Loading exam questions..."}
+          {language === "Kinyarwanda" || language === "rw"
+            ? `Turimo gutegura no gusemura ibibazo mu ${selectedExamLanguage}...`
+            : language === "French" || language === "fr"
+            ? `Préparation et traduction de l'examen en ${selectedExamLanguage}...`
+            : `Preparing & translating your exam into ${selectedExamLanguage}...`}
         </p>
       </div>
     );
@@ -1454,11 +1723,16 @@ export function ExamView({ navigate, params }: ExamViewProps) {
 
   // Active Exam Workspace inside Navo OS window (no pre-exam instructions)
   if (exam) {
-    const categoryTitle =
-      categories.find((c) => c.id === exam.categoryId)?.name ||
-      categories[0]?.name ||
-      t("exams") ||
-      "Exam";
+    const categoryTitle = isMissedPractice
+      ? language === "Kinyarwanda" || language === "rw"
+        ? "Imyitozo y'Ibyakugoye"
+        : language === "French" || language === "fr"
+        ? "Révision des Erreurs"
+        : "Missed Questions Practice"
+      : categories.find((c) => c.id === exam.categoryId)?.name ||
+        categories[0]?.name ||
+        t("exams") ||
+        "Exam";
 
     return (
       <>
@@ -1495,6 +1769,10 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           currentUserId={user?.id}
           shareGroupResults={shareGroupResults}
           onChangeShareGroupResults={setShareGroupResults}
+          translatingRemainingCount={pendingTranslationIds.length}
+          isActiveQuestionPending={Boolean(
+            activeQuestion && pendingTranslationIds.includes(String(activeQuestion.id))
+          )}
           securitySettings={securitySettings}
           totalViolations={anticheat.totalViolations}
           cheatingAttempts={anticheat.cheatingAttempts}
@@ -1557,33 +1835,151 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     );
   }
 
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
+  const resumeAnsweredCount = pendingResumeSession
+    ? Object.values(pendingResumeSession.userAnswers || {}).filter((a) => Boolean(a?.selectedAnswer)).length
+    : 0;
+  const resumeRemainingMin = pendingResumeSession
+    ? Math.max(1, Math.ceil((pendingResumeSession.expiresAt - Date.now()) / 60000))
+    : 0;
+
   // Default: Native Navo OS Exam Center Launcher
   return (
-    <OSExamLauncher
-      standaloneEnabled={standaloneEnabled}
-      groupExamEnabled={groupExamEnabled}
-      hasExamHistory={hasExamHistory}
-      categories={categories}
-      selectedCategoryId={categoryId}
-      onSelectCategory={setCategoryId}
-      loadingCategories={loadingCategories}
-      loadingExam={loadingExam}
-      selectedExamLanguage={selectedExamLanguage}
-      onStartExam={(catId, lang) => {
-        const normalizedLang = normalizeExamLanguage(lang);
-        setCategoryId(catId);
-        setSelectedExamLanguage(normalizedLang);
-        setPendingStartExam({ categoryId: catId, language: normalizedLang });
-      }}
-      onOpenGroupChallenge={(catId, lang) => {
-        if (catId) setCategoryId(catId);
-        if (lang) {
-          const norm = normalizeExamLanguage(lang);
-          setSelectedExamLanguage(norm);
-        }
-        setExamMode("group");
-      }}
-      navigate={navigate}
-    />
+    <>
+      <OSExamLauncher
+        standaloneEnabled={standaloneEnabled}
+        groupExamEnabled={groupExamEnabled}
+        hasExamHistory={hasExamHistory}
+        categories={categories}
+        selectedCategoryId={categoryId}
+        onSelectCategory={setCategoryId}
+        loadingCategories={loadingCategories}
+        loadingExam={loadingExam}
+        selectedExamLanguage={selectedExamLanguage}
+        missedQuestionsCount={missedQuestionsCount}
+        onStartMissedPractice={() => void startMissedPracticeExam()}
+        onStartExam={(catId, lang) => {
+          const normalizedLang = normalizeExamLanguage(lang);
+          setCategoryId(catId);
+          setSelectedExamLanguage(normalizedLang);
+          setPendingStartExam({ categoryId: catId, language: normalizedLang });
+        }}
+        onOpenGroupChallenge={(catId, lang) => {
+          if (catId) setCategoryId(catId);
+          if (lang) {
+            const norm = normalizeExamLanguage(lang);
+            setSelectedExamLanguage(norm);
+          }
+          setPendingResumeSession(null);
+          setExamMode("group");
+        }}
+        navigate={navigate}
+      />
+
+      <Dialog
+        open={Boolean(pendingResumeSession)}
+        onOpenChange={(open) => {
+          if (!open) setPendingResumeSession(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Clock className="w-5 h-5 text-primary shrink-0" />
+              <span>
+                {isRw
+                  ? "Usubukure ikizamini utarangije?"
+                  : isFr
+                  ? "Reprendre votre examen en cours ?"
+                  : "Resume Unfinished Exam?"}
+              </span>
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm pt-2 leading-relaxed text-muted-foreground">
+              {pendingResumeSession &&
+                (isRw
+                  ? `Ufite ikizamini utarangije mu ${pendingResumeSession.selectedExamLanguage} (${resumeAnsweredCount}/${pendingResumeSession.exam.questions.length} byasubijwe, hasigaye iminota ~${resumeRemainingMin}). Urashaka kugikomeza cyangwa gutangira gishya?`
+                  : isFr
+                  ? `Vous avez un examen en cours en ${pendingResumeSession.selectedExamLanguage} (${resumeAnsweredCount}/${pendingResumeSession.exam.questions.length} répondues, ~${resumeRemainingMin} min restantes). Voulez-vous le reprendre ou recommencer ?`
+                  : `You have an unfinished exam in ${pendingResumeSession.selectedExamLanguage} (${resumeAnsweredCount}/${pendingResumeSession.exam.questions.length} answered, ~${resumeRemainingMin} min left). Resume it or start fresh?`)}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2 pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (user?.id) {
+                  void studentCache.remove("exam_active_session", {
+                    tier: "private",
+                    userId: user.id,
+                  });
+                }
+                setPendingResumeSession(null);
+              }}
+              className="w-full sm:w-auto text-xs"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+              <span>
+                {isRw ? "Tangira Gishya" : isFr ? "Nouvel examen" : "Start Fresh"}
+              </span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                const saved = pendingResumeSession;
+                if (!saved) return;
+                const remainingSeconds = Math.floor((saved.expiresAt - Date.now()) / 1000);
+                if (remainingSeconds <= 15) {
+                  if (user?.id) {
+                    void studentCache.remove("exam_active_session", {
+                      tier: "private",
+                      userId: user.id,
+                    });
+                  }
+                  setPendingResumeSession(null);
+                  return;
+                }
+                setPendingResumeSession(null);
+                setIsMissedPractice(false);
+                setPendingTranslationIds([]);
+                setCategoryId(saved.categoryId);
+                setSelectedExamLanguage(saved.selectedExamLanguage);
+                setExam(saved.exam);
+                setCurrentIndex(saved.currentIndex || 0);
+                setExamStartTime(saved.examStartTime);
+                setSecondsLeft(remainingSeconds);
+                setUserAnswers(saved.userAnswers || {});
+                setShowResults(false);
+                showResultsRef.current = false;
+                setExamResult(null);
+                const urls = saved.exam.questions
+                  .flatMap((q) => [
+                    q.question_image,
+                    q.option_a_image,
+                    q.option_b_image,
+                    q.option_c_image,
+                    q.option_d_image,
+                  ])
+                  .filter((u): u is string => Boolean(u));
+                preloadImages(urls);
+                if (typeof window !== "undefined") {
+                  sessionStorage.setItem("exam-active", "true");
+                  window.dispatchEvent(new CustomEvent("exam-state-change"));
+                }
+              }}
+              className="w-full sm:w-auto text-xs font-semibold"
+            >
+              <span>
+                {isRw ? "Komeza Ikizamini" : isFr ? "Reprendre l'examen" : "Resume Exam"}
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -14,6 +14,8 @@ import {
   AlertTriangle,
   Crown,
   Globe,
+  Copy,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -102,6 +104,7 @@ export function GroupExamLobby({
   const [isExpiredOrCompleted, setIsExpiredOrCompleted] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
+  const [copiedType, setCopiedType] = useState<"code" | "link" | null>(null);
 
   const hasStartedRef = useRef(false);
   const hasMarkedStartedOnServerRef = useRef(false);
@@ -737,6 +740,82 @@ export function GroupExamLobby({
             </div>
           )}
         </div>
+
+        {/* Shareable Room Code & Invite Link */}
+        {(() => {
+          const roomCode = String(challengeId || "")
+            .replace(/-/g, "")
+            .slice(0, 8)
+            .toUpperCase();
+          const resolvedLang = challenge?.language || examLanguage || "Kinyarwanda";
+          const handleCopy = async (kind: "code" | "link") => {
+            try {
+              const origin = typeof window !== "undefined" ? window.location.origin : "";
+              const inviteUrl = `${origin}/dashboard#exam?challenge_id=${encodeURIComponent(
+                challengeId
+              )}&category_id=${encodeURIComponent(
+                challenge?.category_id || ""
+              )}&language=${encodeURIComponent(resolvedLang)}`;
+              await navigator.clipboard.writeText(kind === "code" ? roomCode : inviteUrl);
+              setCopiedType(kind);
+              toast.success(
+                kind === "code"
+                  ? isRw
+                    ? "Kode y'icyumba yakopiwe!"
+                    : isFr
+                    ? "Code de la salle copié !"
+                    : "Room code copied!"
+                  : isRw
+                  ? "Ihuza ryo gutumira ryakopiwe!"
+                  : isFr
+                  ? "Lien d'invitation copié !"
+                  : "Invite link copied!"
+              );
+              setTimeout(() => setCopiedType(null), 2000);
+            } catch {
+              toast.error(isRw ? "Gukoporora byanze" : "Copy failed");
+            }
+          };
+
+          return (
+            <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-border/60 bg-muted/25 dark:bg-zinc-900/40 px-3.5 py-2.5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
+                <span className="truncate">
+                  {isRw ? "Kode y'icyumba:" : isFr ? "Code salle :" : "Room Code:"}
+                </span>
+                <span className="font-mono font-bold tracking-wider text-foreground tabular-nums">
+                  {roomCode}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => void handleCopy("code")}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 bg-background/80 hover:bg-muted text-xs font-medium text-foreground transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  {copiedType === "code" ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                  <span>{copiedType === "code" ? (isRw ? "Byakopiwe" : "Copied") : (isRw ? "Koporora kode" : isFr ? "Copier code" : "Copy Code")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleCopy("link")}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 bg-background/80 hover:bg-muted text-xs font-medium text-foreground transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  {copiedType === "link" ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  ) : (
+                    <Link2 className="h-3.5 w-3.5 text-primary" />
+                  )}
+                  <span>{copiedType === "link" ? (isRw ? "Byakopiwe" : "Copied") : (isRw ? "Koporora ihuza" : isFr ? "Copier lien" : "Copy Link")}</span>
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Single Unified Participants Roster (No nested cards per status) */}
         <div className="space-y-2.5">

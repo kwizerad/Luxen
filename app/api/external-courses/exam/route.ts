@@ -10,7 +10,11 @@ function isExternalExamCategoryId(categoryId?: string | null): boolean {
   return categoryId === EXTERNAL_EXAM_CATEGORY_ID || categoryId.startsWith("ext-exam-");
 }
 import type { TargetLanguage } from "@/lib/ai/tiptap-translator";
-import { resolveTargetLang, translateQuestionBatch } from "@/lib/ai/exam-translator";
+import {
+  resolveTargetLang,
+  translateQuestionBatch,
+  translateQuestionBatchProgressive,
+} from "@/lib/ai/exam-translator";
 import { decryptPayload, encryptPayload, isEncryptedEnvelope } from "@/lib/e2e-crypto";
 import { CACHE_KEYS, getCached } from "@/lib/server-cache";
 import { isWithinAvailabilityWindow, normalizeCanonicalExamLanguage } from "@/lib/exam-settings";
@@ -549,12 +553,28 @@ export async function POST(req: NextRequest) {
       }
 
       // Translate questions into requested UI/challenge language if needed
-      const translatedSelected = await translateQuestionBatch(
-        adminSb,
-        selectedQuestions,
-        effectiveLanguage,
-        sourceOrigin === "external" ? "Kinyarwanda" : "auto"
-      );
+      const srcOriginLang = sourceOrigin === "external" ? "Kinyarwanda" : "auto";
+      let translatedSelected = selectedQuestions;
+      let pendingTranslationIds: string[] = [];
+
+      if (Boolean(body?.progressive)) {
+        const progRes = await translateQuestionBatchProgressive(
+          adminSb,
+          selectedQuestions,
+          effectiveLanguage,
+          srcOriginLang,
+          4
+        );
+        translatedSelected = progRes.questions;
+        pendingTranslationIds = progRes.pendingIds;
+      } else {
+        translatedSelected = await translateQuestionBatch(
+          adminSb,
+          selectedQuestions,
+          effectiveLanguage,
+          srcOriginLang
+        );
+      }
 
       // Strip correct_answer before sending to client and enforce strict shape
       const safeQuestions = translatedSelected.map((item, idx) => {
@@ -573,6 +593,7 @@ export async function POST(req: NextRequest) {
           available_to: availableTo,
         },
         questions: safeQuestions,
+        pendingTranslationIds,
         serverTime: new Date().toISOString(),
       });
     }

@@ -11,6 +11,8 @@ import {
   CheckSquare,
   Square,
   Globe,
+  KeyRound,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
+import { authFetch } from "@/lib/e2e-crypto";
 import { canViewUserAvatar } from "@/lib/avatar-helper";
 import { getExamCategories } from "@/lib/supabase/queries";
 import { pickDefaultExamCategory, prioritizeRwandaPvsCategories } from "@/lib/exam-settings";
@@ -37,6 +40,7 @@ interface GroupExamCreationProps {
   onBack: () => void;
   onStartExam: (categoryId: string, inviteeIds: string[], examLanguage: string) => void;
   onFindFriends?: () => void;
+  onJoinByCode?: (challengeId: string, categoryId?: string, examLanguage?: string) => void;
   initialLanguage?: string;
   initialCategoryId?: string;
 }
@@ -58,11 +62,14 @@ export function GroupExamCreation({
   onBack,
   onStartExam,
   onFindFriends,
+  onJoinByCode,
   initialLanguage,
   initialCategoryId,
 }: GroupExamCreationProps) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
 
   const [allUsers, setAllUsers] = useState<ClassmateProfile[]>([]);
   const [categories, setCategories] = useState<
@@ -76,6 +83,8 @@ export function GroupExamCreation({
   >([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [roomCodeInput, setRoomCodeInput] = useState("");
+  const [joiningByCode, setJoiningByCode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categorySearchQuery, setCategorySearchQuery] = useState("");
   const [selectedInvitees, setSelectedInvitees] = useState<Set<string>>(new Set());
@@ -271,6 +280,41 @@ export function GroupExamCreation({
     }
   }, [onFindFriends]);
 
+  const handleJoinRoomByCode = useCallback(async () => {
+    const trimmed = roomCodeInput.trim();
+    if (!trimmed) {
+      toast.error(isRw ? "Andika kode y'icyumba." : isFr ? "Entrez un code de salle." : "Please enter a room code.");
+      return;
+    }
+    setJoiningByCode(true);
+    try {
+      const res = await authFetch("/api/exam-challenges/join-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: trimmed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.challenge?.id) {
+        toast.error(
+          data?.error ||
+            (isRw ? "Icyumba nticyabonetse." : isFr ? "Salle introuvable." : "Could not join room.")
+        );
+        return;
+      }
+      toast.success(isRw ? "Winjiye mu cyumba!" : isFr ? "Salle rejointe !" : "Joined group exam room!");
+      if (onJoinByCode) {
+        onJoinByCode(data.challenge.id, data.challenge.category_id, data.challenge.language);
+      } else if (typeof window !== "undefined") {
+        window.location.hash = `#exam?challenge_id=${encodeURIComponent(data.challenge.id)}`;
+        window.dispatchEvent(new CustomEvent("navo-hash-route-change"));
+      }
+    } catch {
+      toast.error(isRw ? "Kwinjira byanze." : "Failed to join room.");
+    } finally {
+      setJoiningByCode(false);
+    }
+  }, [roomCodeInput, isRw, isFr, onJoinByCode]);
+
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[320px] gap-4">
@@ -341,6 +385,43 @@ export function GroupExamCreation({
                 {t("findFriends") !== "findFriends" ? t("findFriends") : "Find Friends"}
               </Button>
             </div>
+
+            <div className="pt-4 border-t border-border/50 space-y-2 text-left">
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <KeyRound className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span>
+                  {isRw
+                    ? "Ufite kode y'icyumba wahawe n'inshuti?"
+                    : isFr
+                    ? "Vous avez déjà un code de salle ?"
+                    : "Already have a friend's room code?"}
+                </span>
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={roomCodeInput}
+                  onChange={(e) => setRoomCodeInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void handleJoinRoomByCode();
+                    }
+                  }}
+                  placeholder={isRw ? "Andika kode (urugero: A1B2C3D4)" : isFr ? "Code (ex: A1B2C3D4)" : "Enter room code (e.g. A1B2C3D4)"}
+                  className="h-9 text-xs font-mono uppercase rounded-lg"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={joiningByCode || !roomCodeInput.trim()}
+                  onClick={() => void handleJoinRoomByCode()}
+                  className="h-9 px-3 rounded-lg text-xs font-semibold shrink-0 cursor-pointer"
+                >
+                  {joiningByCode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (isRw ? "Injira" : isFr ? "Rejoindre" : "Join")}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -352,7 +433,7 @@ export function GroupExamCreation({
       {/* Scrollable Main Canvas */}
       <div className="flex-1 overflow-y-auto px-3.5 sm:px-6 pt-4 sm:pt-6 pb-6 space-y-5">
         {/* Unified Top Header (No nested boxes) */}
-        <div className="flex items-start justify-between gap-3 border-b border-border/50 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border/50 pb-4">
           <div className="space-y-1 min-w-0">
             <button
               type="button"
@@ -365,6 +446,42 @@ export function GroupExamCreation({
             <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">
               {t("createGroupExam") || "Create Group Exam"}
             </h1>
+          </div>
+
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-44">
+              <KeyRound className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={roomCodeInput}
+                onChange={(e) => setRoomCodeInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleJoinRoomByCode();
+                  }
+                }}
+                placeholder={isRw ? "Kode y'icyumba..." : isFr ? "Code salle..." : "Room code..."}
+                className="pl-8 h-8 text-xs font-mono uppercase rounded-lg"
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={joiningByCode || !roomCodeInput.trim()}
+              onClick={() => void handleJoinRoomByCode()}
+              className="h-8 px-3 rounded-lg text-xs font-semibold shrink-0 cursor-pointer"
+            >
+              {joiningByCode ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : isRw ? (
+                "Injira"
+              ) : isFr ? (
+                "Rejoindre"
+              ) : (
+                "Join Room"
+              )}
+            </Button>
           </div>
         </div>
 

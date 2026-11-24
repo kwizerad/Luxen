@@ -1573,6 +1573,7 @@ export async function getExamForTaking(categoryId: string, challengeId?: string,
       categoryId: resolvedCategoryId,
       challengeId,
       language: activeLang,
+      progressive: true,
     });
 
     if (ok && json && Array.isArray(json.questions) && json.questions.length > 0) {

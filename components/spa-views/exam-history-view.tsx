@@ -49,6 +49,7 @@ import {
   getBrowserExamAttemptsAsync,
   getBrowserExamQuestions,
 } from "@/lib/browser-exam-history";
+import { collectMissedQuestionsForUser } from "@/lib/missed-questions-practice";
 import { getExamResultLanguageName } from "@/lib/exam-settings";
 import type { ExamAttempt, ExamQuestion, ExamAnswer } from "@/lib/database.types";
 
@@ -257,6 +258,20 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   const [selectedAttempt, setSelectedAttempt] = useState<ExamAttemptWithAnswers | null>(null);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
+  const [missedQuestionsCount, setMissedQuestionsCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    void collectMissedQuestionsForUser(user.id, 50)
+      .then((pool) => {
+        if (active) setMissedQuestionsCount(pool.totalMissedCount);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [user?.id, attempts.length]);
 
   useEffect(() => {
     if (!user) return;
@@ -1002,6 +1017,22 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
           {/* Quick Search, Grouping Selector, Filter & Grid/List Switcher */}
           <div className="flex items-center gap-2 self-start sm:self-auto w-full sm:w-auto flex-wrap sm:flex-nowrap">
+            {missedQuestionsCount > 0 && (
+              <button
+                type="button"
+                onClick={() => navigate("exam", { mode: "missed" })}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500/35 bg-amber-500/10 hover:bg-amber-500/15 text-xs font-semibold text-amber-700 dark:text-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <RotateCcw className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {isRw
+                    ? `Subiramo Ibyakugoye (${missedQuestionsCount})`
+                    : isFr
+                    ? `Revoir les erreurs (${missedQuestionsCount})`
+                    : `Practice Missed (${missedQuestionsCount})`}
+                </span>
+              </button>
+            )}
             <div className="relative flex-1 sm:w-48">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground dark:text-zinc-400" />
               <input

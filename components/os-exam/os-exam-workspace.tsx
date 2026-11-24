@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -13,6 +14,7 @@ import {
   EyeOff,
   FileText,
   HelpCircle,
+  Loader2,
   LogOut,
   Monitor,
   Shield,
@@ -28,7 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SmartImage } from "@/components/smart-image";
+import { SmartImage, preloadImages } from "@/components/smart-image";
 import { QuestionTTSButton } from "@/components/course/question-tts-button";
 import { GroupExamLiveHUD } from "@/components/group-exam-live-hud";
 import { useLanguage } from "@/lib/language-context";
@@ -52,6 +54,7 @@ export type TakeExamResponse = {
   };
   questions: TakeExamQuestion[];
   serverTime: string;
+  pendingTranslationIds?: string[];
 };
 
 export type UserAnswer = {
@@ -79,6 +82,8 @@ interface OSExamWorkspaceProps {
   currentUserId?: string;
   shareGroupResults?: boolean;
   onChangeShareGroupResults?: (share: boolean) => void;
+  translatingRemainingCount?: number;
+  isActiveQuestionPending?: boolean;
   // Security props
   securitySettings: SecuritySettings;
   totalViolations: number;
@@ -132,6 +137,8 @@ export function OSExamWorkspace({
   currentUserId,
   shareGroupResults = true,
   onChangeShareGroupResults,
+  translatingRemainingCount = 0,
+  isActiveQuestionPending = false,
   securitySettings,
   totalViolations,
   cheatingAttempts,
@@ -164,6 +171,32 @@ export function OSExamWorkspace({
   const answeredCount = Object.keys(userAnswers).length;
   const unansweredCount = Math.max(0, totalQuestions - answeredCount);
   const progress = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0;
+
+  const isRw = language === "Kinyarwanda" || language === "rw";
+  const isFr = language === "French" || language === "fr";
+  const imageRetryLabel = isRw
+    ? "Kanda wongere ufungure ifoto"
+    : isFr
+    ? "Appuyer pour recharger l'image"
+    : "Tap to reload image";
+
+  // Preload the next 3 upcoming questions' images on mobile/slow connections
+  useEffect(() => {
+    if (!exam?.questions?.length) return;
+    const upcoming = exam.questions.slice(safeIndex + 1, safeIndex + 4);
+    const urls = upcoming
+      .flatMap((q) => [
+        q.question_image,
+        q.option_a_image,
+        q.option_b_image,
+        q.option_c_image,
+        q.option_d_image,
+      ])
+      .filter((u): u is string => typeof u === "string" && u.trim().length > 0);
+    if (urls.length > 0) {
+      preloadImages(urls);
+    }
+  }, [exam?.questions, safeIndex]);
 
   const getViolationLabel = (type: ViolationType) => {
     switch (type) {
@@ -273,6 +306,27 @@ export function OSExamWorkspace({
         </div>
       </header>
 
+      {(isActiveQuestionPending || translatingRemainingCount > 0) && (
+        <div className="bg-primary/[0.06] border-b border-primary/15 px-3 sm:px-6 py-1.5">
+          <div className="max-w-5xl mx-auto flex items-center justify-center gap-2 text-xs text-primary font-medium">
+            <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+            <span>
+              {isActiveQuestionPending
+                ? isRw
+                  ? `Turimo gusemura iki kibazo mu ${examLanguage}...`
+                  : isFr
+                  ? `Traduction de cette question en ${examLanguage}...`
+                  : `Translating this question into ${examLanguage}...`
+                : isRw
+                ? `Turimo gutegura ibibazo ${translatingRemainingCount} bisigaye mu ${examLanguage}...`
+                : isFr
+                ? `Préparation des ${translatingRemainingCount} questions restantes en ${examLanguage}...`
+                : `Translating ${translatingRemainingCount} remaining question(s) into ${examLanguage}...`}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Live Group Challenge HUD */}
       {challengeId && currentUserId && (
         <div className="max-w-5xl w-full mx-auto px-3 sm:px-6 pt-3">
@@ -306,6 +360,7 @@ export function OSExamWorkspace({
                     src={activeQuestion.question_image}
                     alt={t("question") || "Question diagram"}
                     priority
+                    retryLabel={imageRetryLabel}
                     className="w-full h-[270px] sm:h-[380px] lg:h-[460px] object-contain rounded-lg"
                   />
                 </div>
@@ -373,6 +428,7 @@ export function OSExamWorkspace({
                                 <SmartImage
                                   src={img}
                                   alt={`${t("option") || "Option"} ${opt}`}
+                                  retryLabel={imageRetryLabel}
                                   className="w-full h-44 sm:h-56 object-contain rounded-lg bg-muted/20"
                                 />
                               )}

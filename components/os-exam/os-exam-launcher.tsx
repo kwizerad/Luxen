@@ -13,6 +13,7 @@ import {
   Trophy,
   Clock,
   HelpCircle,
+  RotateCcw,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,8 @@ interface OSExamLauncherProps {
   onOpenGroupChallenge: (categoryId?: string, examLanguage?: string) => void;
   navigate: (view: string, params?: Record<string, string>) => void;
   footerNote?: string;
+  missedQuestionsCount?: number;
+  onStartMissedPractice?: () => void;
 }
 
 const FLAG_TRACKS = [
@@ -77,6 +80,8 @@ export function OSExamLauncher({
   onOpenGroupChallenge,
   navigate,
   footerNote,
+  missedQuestionsCount = 0,
+  onStartMissedPractice,
 }: OSExamLauncherProps) {
   const { t, language } = useLanguage();
   const [failedFlags, setFailedFlags] = useState<Record<string, boolean>>({});
@@ -163,6 +168,23 @@ export function OSExamLauncher({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {missedQuestionsCount > 0 && onStartMissedPractice && (
+            <button
+              type="button"
+              disabled={loadingExam}
+              onClick={onStartMissedPractice}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500/35 bg-amber-500/10 hover:bg-amber-500/15 text-xs font-medium text-amber-700 dark:text-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60"
+            >
+              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                {isRw
+                  ? `Subiramo Ibyakugoye (${missedQuestionsCount})`
+                  : isFr
+                  ? `Revoir les erreurs (${missedQuestionsCount})`
+                  : `Practice Missed (${missedQuestionsCount})`}
+              </span>
+            </button>
+          )}
           {hasExamHistory && (
             <button
               type="button"

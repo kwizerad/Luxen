@@ -13,6 +13,7 @@ import { getSystemConfig, updateSystemConfig, updateSystemConfigBatch, getServic
 import { invalidateServicesConfigCache } from "@/lib/feature-flags";
 import { getBrowserExamSavingConfig, saveBrowserExamSavingConfig } from "@/lib/browser-exam-history";
 import { useLanguage } from "@/lib/language-context";
+import { authFetch } from "@/lib/e2e-crypto";
 import type { SystemConfig } from "@/lib/database.types";
 import {
   parseAllScopedSecuritySettings,
@@ -812,6 +813,42 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
     }
   };
 
+  const [prePopulatingTranslations, setPrePopulatingTranslations] = useState(false);
+  const [translationWarmSummary, setTranslationWarmSummary] = useState<string | null>(null);
+
+  const handlePrePopulateTranslations = async () => {
+    try {
+      setPrePopulatingTranslations(true);
+      setTranslationWarmSummary(null);
+      const res = await authFetch("/api/admin/pre-populate-translations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          languages: ["English", "French"],
+          limit: 150,
+          offset: 0,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to pre-populate translations");
+      }
+      const newlyCached =
+        Number(data?.totalNewlyCached || 0) ||
+        Number(data?.primaryNewlyCached || 0) + Number(data?.externalNewlyCached || 0);
+      const summary =
+        newlyCached > 0
+          ? `Pre-warmed ${newlyCached} translations across ${data?.totalQuestionsProcessed || 0} exam questions.`
+          : `Checked ${data?.totalQuestionsProcessed || 0} exam questions — all EN/FR translations are already cached.`;
+      setTranslationWarmSummary(summary);
+      toast.success(summary);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to pre-populate exam translations");
+    } finally {
+      setPrePopulatingTranslations(false);
+    }
+  };
+
   const handleSaveServices = async () => {
     try {
       setSaving(true);
@@ -1424,6 +1461,44 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
               </>
             ) : (
               t("savePersistenceSettings") || "Save Persistence Settings"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Exam Translation Cache Warming */}
+      <Card className="border border-border rounded-[24px] bg-card shadow-sm transition-shadow duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            Exam Translation Cache Warming
+          </CardTitle>
+          <CardDescription>
+            Pre-populate English and French translations for published &amp; Rwanda PVS questions so students open translated exams instantly without waiting.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {translationWarmSummary && (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              {translationWarmSummary}
+            </div>
+          )}
+          <Button
+            type="button"
+            onClick={handlePrePopulateTranslations}
+            disabled={prePopulatingTranslations}
+            className="w-full sm:w-auto"
+          >
+            {prePopulatingTranslations ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Warming Translations...
+              </>
+            ) : (
+              <>
+                <Globe className="h-4 w-4 mr-2" />
+                Pre-Populate Exam Translations (EN / FR)
+              </>
             )}
           </Button>
         </CardContent>
