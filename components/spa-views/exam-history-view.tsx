@@ -44,7 +44,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ExamReview } from "@/components/exam-review";
 import { ExamHistorySkeleton } from "@/components/skeletons";
 import { cn, isUUID } from "@/lib/utils";
-import { secureApiPost } from "@/lib/e2e-crypto";
+import { authFetch, secureApiPost } from "@/lib/e2e-crypto";
 import { spaCache } from "@/lib/spa-cache";
 import { studentCache } from "@/lib/student-cache";
 import {
@@ -222,10 +222,10 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
 
   const cached = user
     ? studentCache.getHot<{ attempts: ExamAttemptWithAnswers[]; ongoingChallenges: any[] }>(
-        "exam_history",
+        "exam_history_v2",
         { tier: "private", userId: user.id }
       ) ||
-      spaCache.get<{ attempts: ExamAttemptWithAnswers[]; ongoingChallenges: any[] }>(`spa_exam_history_${user.id}`)
+      spaCache.get<{ attempts: ExamAttemptWithAnswers[]; ongoingChallenges: any[] }>(`spa_exam_history_v2_${user.id}`)
     : null;
 
   const normalizeAttemptsForDisplay = (
@@ -278,6 +278,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   const [hoveredAttemptCard, setHoveredAttemptCard] = useState<{
     attemptId: string;
     rect: { left: number; top: number; right: number; bottom: number; width: number; height: number };
+    containerBottom?: number | null;
     cursorX: number;
     cursorY: number;
     fileName: string;
@@ -291,17 +292,21 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   } | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const [measuredTooltipHeight, setMeasuredTooltipHeight] = useState<number>(0);
+  const hoveredId = hoveredAttemptCard?.attemptId ?? null;
+  const hoveredZeroCause = hoveredAttemptCard?.zeroCause ?? null;
 
   useLayoutEffect(() => {
-    if (!hoveredAttemptCard || !tooltipRef.current) {
-      setMeasuredTooltipHeight(0);
+    if (!hoveredId || !tooltipRef.current) {
+      if (measuredTooltipHeight !== 0) {
+        setMeasuredTooltipHeight(0);
+      }
       return;
     }
     const h = Math.ceil(tooltipRef.current.getBoundingClientRect().height);
-    if (h > 0 && Math.abs(h - measuredTooltipHeight) > 2) {
+    if (h > 0 && h !== measuredTooltipHeight) {
       setMeasuredTooltipHeight(h);
     }
-  }, [hoveredAttemptCard, measuredTooltipHeight]);
+  }, [hoveredId, hoveredZeroCause, measuredTooltipHeight]);
 
   useEffect(() => {
     setHoveredAttemptCard(null);
@@ -336,16 +341,18 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
     let active = true;
     const supabase = createClient();
 
+    let freshLoaded = false;
+
     const hydratePersistentHistory = async () => {
       const persisted = await studentCache.read<{
         attempts: ExamAttemptWithAnswers[];
         ongoingChallenges: any[];
-      }>("exam_history", {
+      }>("exam_history_v2", {
         tier: "private",
         userId: user.id,
         maxAgeMs: 5 * 60 * 1000,
       });
-      if (active && persisted?.data) {
+      if (active && !freshLoaded && persisted?.data) {
         setAttempts(normalizeAttemptsForDisplay(persisted.data.attempts || []));
         setOngoingChallenges(persisted.data.ongoingChallenges || []);
         setLoading(false);
@@ -375,9 +382,9 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           .eq("user_id", user.id)
           .not("exam_attempt_id", "is", null);
 
-        // 4. Fetch ongoing challenges
-        const ongoingPromise = fetch("/api/exam-challenges")
-          .then((r) => r.json())
+        // 4. Fetch ongoing challenges & challenge metadata with user auth token
+        const ongoingPromise = authFetch("/api/exam-challenges", { cache: "no-store" })
+          .then((r) => (r.ok ? r.json() : { challenges: [] }))
           .catch(() => ({ challenges: [] }));
 
         const [examRes, moduleRes, challengeRes, ongoingRes] = await Promise.allSettled([
@@ -484,58 +491,88 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             ? examRes.value.data.filter((att: any) => att.hidden_from_user !== true)
             : [];
 
-        // Enrich older DB attempts that lack explicit language via cached review questions or DB exam_questions
+        // Enrich attempts with exact translation language across challenge metadata, browser records, cached review questions, and DB exam_questions
         const resolvedAttemptLangMap = new Map<string, string>();
-        const unresolvedAttempts: any[] = [];
+        const attemptsToInspectQuestions: Array<{ id: string; answers?: any[]; needsConfirmation: boolean }> = [];
+        const seenInspectIds = new Set<string>();
 
         for (const att of rawStandardRows) {
           const anyChId = allChallengeAttemptMap.get(att.id) || att.challenge_id || null;
-          const chLang = anyChId ? challengeLangMap.get(anyChId) : undefined;
+          const rawChLang = anyChId ? challengeLangMap.get(anyChId) : undefined;
+          const chLang = rawChLang ? normalizeCanonicalExamLanguage(rawChLang) : null;
           const bRec = browserRecordById.get(att.id);
-          const bExplicit = bRec
-            ? resolveExplicitExamLanguage(bRec.attempt) ||
-              inferCanonicalLanguageFromQuestions(bRec.questions)
-            : null;
+          const bInferred = bRec ? inferCanonicalLanguageFromQuestions(bRec.questions) : null;
+          const bAttemptExplicit = bRec ? resolveExplicitExamLanguage(bRec.attempt) : null;
           const dbExplicit = resolveExplicitExamLanguage({
             exam_language: att.exam_language,
-            language: chLang,
             category_name: att.category_name,
             is_module: false,
           });
 
-          const chosen =
-            (chLang ? normalizeCanonicalExamLanguage(chLang) : null) ||
-            (bExplicit && (bExplicit !== "Kinyarwanda" || !dbExplicit) ? bExplicit : null) ||
-            dbExplicit;
+          // Prefer verified non-Kinyarwanda translation languages (e.g. English/French from saved questions,
+          // user's post-exam language choice, DB column, or challenge language) before falling back to Kinyarwanda
+          const nonRwCandidate =
+            (bInferred && bInferred !== "Kinyarwanda" ? bInferred : null) ||
+            (bAttemptExplicit && bAttemptExplicit !== "Kinyarwanda" ? bAttemptExplicit : null) ||
+            (dbExplicit && dbExplicit !== "Kinyarwanda" ? dbExplicit : null) ||
+            (chLang && chLang !== "Kinyarwanda" ? chLang : null);
+
+          const chosen = nonRwCandidate || bInferred || chLang || bAttemptExplicit || dbExplicit;
 
           if (chosen) {
             resolvedAttemptLangMap.set(att.id, chosen);
-          } else {
-            unresolvedAttempts.push(att);
+          }
+
+          // Even if an older record says "Kinyarwanda", inspect cached review or DB questions if we haven't
+          // confirmed the language directly from saved questions or a non-Kinyarwanda challenge/record
+          if (!nonRwCandidate && !bInferred) {
+            seenInspectIds.add(att.id);
+            attemptsToInspectQuestions.push({
+              id: att.id,
+              answers: att.answers,
+              needsConfirmation: Boolean(chosen),
+            });
           }
         }
 
-        if (unresolvedAttempts.length > 0) {
-          // Step 1: Check private encrypted review question caches for unresolved attempts
+        // Also inspect browser-only attempts that lack saved questions & explicit English/French
+        for (const rec of browserRecords) {
+          const bAtt = rec?.attempt;
+          if (!bAtt?.id || bAtt.is_module || seenInspectIds.has(bAtt.id)) continue;
+          const bInferred = inferCanonicalLanguageFromQuestions(rec.questions);
+          const bExplicit = resolveExplicitExamLanguage(bAtt);
+          if (!bInferred && (!bExplicit || bExplicit === "Kinyarwanda")) {
+            seenInspectIds.add(bAtt.id);
+            attemptsToInspectQuestions.push({
+              id: bAtt.id,
+              answers: bAtt.answers,
+              needsConfirmation: Boolean(bExplicit),
+            });
+          }
+        }
+
+        if (attemptsToInspectQuestions.length > 0) {
+          // Step 1: Check private encrypted review question caches
           await Promise.all(
-            unresolvedAttempts.map(async (att) => {
+            attemptsToInspectQuestions.map(async (att) => {
               try {
                 const cachedReview = await studentCache.read<ExamQuestion[]>(
                   `exam_review_${att.id}`,
                   { tier: "private", userId: user.id, maxAgeMs: 14 * 24 * 60 * 60 * 1000 }
                 );
                 const inferred = inferCanonicalLanguageFromQuestions(cachedReview?.data);
-                if (inferred) {
+                if (inferred && (inferred !== "Kinyarwanda" || !resolvedAttemptLangMap.has(att.id))) {
                   resolvedAttemptLangMap.set(att.id, inferred);
                 }
               } catch {}
             })
           );
 
-          // Step 2: For remaining unresolved DB attempts with UUID question IDs, batch-query exam_questions
-          const stillUnresolved = unresolvedAttempts.filter(
-            (att) => !resolvedAttemptLangMap.has(att.id)
-          );
+          // Step 2: For attempts still without a confirmed non-Kinyarwanda match, batch-query UUID exam_questions
+          const stillUnresolved = attemptsToInspectQuestions.filter((att) => {
+            const cur = resolvedAttemptLangMap.get(att.id);
+            return !cur || cur === "Kinyarwanda";
+          });
           const sampleIdsByAttempt = new Map<string, string[]>();
           const allSampleUuids = new Set<string>();
 
@@ -566,7 +603,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
               for (const [attId, ids] of sampleIdsByAttempt.entries()) {
                 const qs = ids.map((id) => qById.get(id)).filter(Boolean);
                 const inferred = inferCanonicalLanguageFromQuestions(qs);
-                if (inferred) {
+                if (inferred && (inferred !== "Kinyarwanda" || !resolvedAttemptLangMap.has(attId))) {
                   resolvedAttemptLangMap.set(attId, inferred);
                 }
               }
@@ -688,11 +725,16 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           const chLang = rawChId ? challengeLangMap.get(rawChId) : undefined;
           const inferredQ = !isMod ? inferCanonicalLanguageFromQuestions(rec.questions) : null;
           const resolvedDbLang = resolvedAttemptLangMap.get(att.id);
+          const bExplicit = !isMod ? resolveExplicitExamLanguage(att) : null;
+          const chNorm = chLang ? normalizeCanonicalExamLanguage(chLang) : null;
           const effectiveLang =
-            (inferredQ && (!att.exam_language || att.exam_language === "Kinyarwanda")
-              ? inferredQ
-              : att.exam_language) ||
-            chLang ||
+            (inferredQ && inferredQ !== "Kinyarwanda" ? inferredQ : null) ||
+            (resolvedDbLang && resolvedDbLang !== "Kinyarwanda" ? resolvedDbLang : null) ||
+            (bExplicit && bExplicit !== "Kinyarwanda" ? bExplicit : null) ||
+            (chNorm && chNorm !== "Kinyarwanda" ? chNorm : null) ||
+            inferredQ ||
+            bExplicit ||
+            chNorm ||
             resolvedDbLang;
 
           const displayName = isMod
@@ -752,13 +794,14 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
         });
 
         if (!active) return;
+        freshLoaded = true;
         setAttempts(combined);
         const historyPayload = {
           attempts: combined,
           ongoingChallenges: activeList,
         };
-        spaCache.set(`spa_exam_history_${user.id}`, historyPayload);
-        void studentCache.write("exam_history", historyPayload, {
+        spaCache.set(`spa_exam_history_v2_${user.id}`, historyPayload);
+        void studentCache.write("exam_history_v2", historyPayload, {
           tier: "private",
           userId: user.id,
           category: "exam_history",
@@ -772,14 +815,8 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
       }
     };
 
-    const runSync = async () => {
-      await hydratePersistentHistory();
-      if (active) {
-        void fetchData();
-      }
-    };
-
-    void runSync();
+    void hydratePersistentHistory();
+    void fetchData();
 
     const handleCacheInvalidated = (e: Event) => {
       const detail = (e as CustomEvent)?.detail;
@@ -2038,6 +2075,8 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                 onMouseEnter={(e) => {
                                   if (typeof window === "undefined" || window.innerWidth < 640) return;
                                   const r = e.currentTarget.getBoundingClientRect();
+                                  const scrollBox = e.currentTarget.closest('[class*="overflow-y-auto"]');
+                                  const cBottom = scrollBox ? scrollBox.getBoundingClientRect().bottom : null;
                                   setHoveredAttemptCard({
                                     attemptId: attempt.id,
                                     rect: {
@@ -2048,6 +2087,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                       width: r.width,
                                       height: r.height,
                                     },
+                                    containerBottom: cBottom,
                                     cursorX: e.clientX,
                                     cursorY: e.clientY,
                                     fileName,
@@ -2065,6 +2105,8 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                   const cx = e.clientX;
                                   const cy = e.clientY;
                                   const r = e.currentTarget.getBoundingClientRect();
+                                  const scrollBox = e.currentTarget.closest('[class*="overflow-y-auto"]');
+                                  const cBottom = scrollBox ? scrollBox.getBoundingClientRect().bottom : null;
                                   setHoveredAttemptCard((prev) => {
                                     if (!prev || prev.attemptId !== attempt.id) {
                                       return {
@@ -2077,6 +2119,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                           width: r.width,
                                           height: r.height,
                                         },
+                                        containerBottom: cBottom,
                                         cursorX: cx,
                                         cursorY: cy,
                                         fileName,
@@ -2094,6 +2137,15 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                     }
                                     return {
                                       ...prev,
+                                      rect: {
+                                        left: r.left,
+                                        top: r.top,
+                                        right: r.right,
+                                        bottom: r.bottom,
+                                        width: r.width,
+                                        height: r.height,
+                                      },
+                                      containerBottom: cBottom,
                                       cursorX: cx,
                                       cursorY: cy,
                                     };
@@ -2240,6 +2292,8 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                 onMouseEnter={(e) => {
                                   if (typeof window === "undefined" || window.innerWidth < 640) return;
                                   const r = e.currentTarget.getBoundingClientRect();
+                                  const scrollBox = e.currentTarget.closest('[class*="overflow-y-auto"]');
+                                  const cBottom = scrollBox ? scrollBox.getBoundingClientRect().bottom : null;
                                   setHoveredAttemptCard({
                                     attemptId: attempt.id,
                                     rect: {
@@ -2250,6 +2304,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                       width: r.width,
                                       height: r.height,
                                     },
+                                    containerBottom: cBottom,
                                     cursorX: e.clientX,
                                     cursorY: e.clientY,
                                     fileName: listFileName,
@@ -2267,6 +2322,8 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                   const cx = e.clientX;
                                   const cy = e.clientY;
                                   const r = e.currentTarget.getBoundingClientRect();
+                                  const scrollBox = e.currentTarget.closest('[class*="overflow-y-auto"]');
+                                  const cBottom = scrollBox ? scrollBox.getBoundingClientRect().bottom : null;
                                   setHoveredAttemptCard((prev) => {
                                     if (!prev || prev.attemptId !== attempt.id) {
                                       return {
@@ -2279,6 +2336,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                           width: r.width,
                                           height: r.height,
                                         },
+                                        containerBottom: cBottom,
                                         cursorX: cx,
                                         cursorY: cy,
                                         fileName: listFileName,
@@ -2296,6 +2354,15 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                     }
                                     return {
                                       ...prev,
+                                      rect: {
+                                        left: r.left,
+                                        top: r.top,
+                                        right: r.right,
+                                        bottom: r.bottom,
+                                        width: r.width,
+                                        height: r.height,
+                                      },
+                                      containerBottom: cBottom,
                                       cursorX: cx,
                                       cursorY: cy,
                                     };
@@ -2390,7 +2457,9 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
         createPortal(
           (() => {
             const {
+              attemptId,
               rect,
+              containerBottom,
               cursorX,
               cursorY,
               fileName,
@@ -2408,41 +2477,58 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
             const dockEl = document.querySelector('[data-os-dock="true"]');
             const dockRect = dockEl ? dockEl.getBoundingClientRect() : null;
             const dockTop =
-              dockRect && dockRect.height > 0 ? dockRect.top : viewportHeight - 88;
-            const safeBottom = Math.min(viewportHeight - 16, dockTop - 12);
-            const safeTop = 48;
+              dockRect && dockRect.height > 0 ? dockRect.top : viewportHeight - 96;
+            const effectiveBottomLimit =
+              containerBottom && containerBottom > 200
+                ? Math.min(viewportHeight - 16, dockTop - 14, containerBottom - 8)
+                : Math.min(viewportHeight - 16, dockTop - 14);
+            const safeBottom = Math.max(160, Math.min(viewportHeight - 16, dockTop - 14));
+            const safeTop = 44;
             const tooltipWidth = 248;
-            const fallbackHeight = zeroCause ? 215 : 175;
-            const tooltipHeight = Math.max(measuredTooltipHeight, fallbackHeight);
+            const fallbackHeight = zeroCause ? 225 : 185;
+            const tooltipHeight =
+              measuredTooltipHeight > 0
+                ? Math.max(measuredTooltipHeight, fallbackHeight)
+                : fallbackHeight;
 
             const belowCursorTop = cursorY + 14;
             const nearBottomOrDock =
-              belowCursorTop + tooltipHeight > safeBottom ||
-              rect.bottom + 8 + tooltipHeight > safeBottom;
+              belowCursorTop + tooltipHeight > effectiveBottomLimit ||
+              rect.bottom + 12 + tooltipHeight > effectiveBottomLimit ||
+              belowCursorTop + tooltipHeight > safeBottom;
 
-            const spaceAboveCursor = Math.min(cursorY - 12, safeBottom) - safeTop;
+            const anchorBottomY = Math.min(cursorY - 12, safeBottom);
+            const spaceAboveCursor = anchorBottomY - safeTop;
             const spaceBelowCursor = safeBottom - belowCursorTop;
             const openAbove =
               nearBottomOrDock &&
-              (spaceAboveCursor >= tooltipHeight || spaceAboveCursor >= spaceBelowCursor);
+              (spaceAboveCursor >= Math.min(tooltipHeight, 120) ||
+                spaceAboveCursor >= spaceBelowCursor);
 
             const clampedLeft = Math.max(
               12,
               Math.min(viewportWidth - tooltipWidth - 12, cursorX - tooltipWidth / 2)
             );
 
-            const posStyle = openAbove
+            // When opening above the cursor, anchor strictly by CSS `bottom` so even on the first
+            // unmeasured render frame, the bottom edge can never extend below cursorY or into OSDock.
+            const posStyle: React.CSSProperties = openAbove
               ? {
                   left: clampedLeft,
-                  top: Math.max(12, Math.min(cursorY - 12, safeBottom) - tooltipHeight),
+                  bottom: Math.max(viewportHeight - safeBottom, viewportHeight - anchorBottomY),
+                  maxHeight: Math.max(120, anchorBottomY - safeTop),
+                  overflowY: "auto",
                 }
               : {
                   left: clampedLeft,
-                  top: Math.max(12, Math.min(belowCursorTop, safeBottom - tooltipHeight)),
+                  top: Math.max(safeTop, Math.min(belowCursorTop, safeBottom - tooltipHeight)),
+                  maxHeight: Math.max(120, safeBottom - Math.max(safeTop, belowCursorTop)),
+                  overflowY: "auto",
                 };
 
             return (
               <div
+                key={attemptId}
                 ref={tooltipRef}
                 style={posStyle}
                 className="fixed z-[9999] pointer-events-none w-[248px] rounded-lg border border-border/90 dark:border-zinc-700/80 bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-md p-2.5 text-left shadow-2xl text-[11px] leading-relaxed text-popover-foreground dark:text-zinc-200"

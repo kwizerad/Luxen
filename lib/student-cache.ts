@@ -14,6 +14,8 @@
  *                    cryptographically bound to the authenticated userId so other accounts cannot decrypt it.
  */
 
+import { spaCache } from "@/lib/spa-cache";
+
 const DB_NAME = "navo-student-cache";
 const DB_VERSION = 1;
 const STORE_PUBLIC = "public_catalog";
@@ -609,8 +611,11 @@ export async function invalidateStudentDashboardCache(userId?: string | null): P
 
 export async function invalidateStudentExamHistoryCache(userId?: string | null): Promise<void> {
   if (!userId) return;
+  spaCache.delete(`spa_exam_history_${userId}`);
+  spaCache.delete(`spa_exam_history_v2_${userId}`);
   await Promise.all([
     studentCache.remove("exam_history", { tier: "private", userId }),
+    studentCache.remove("exam_history_v2", { tier: "private", userId }),
     studentCache.remove("exam_meta", { tier: "private", userId }),
   ]);
   emitCacheInvalidation("exam_history", userId);
