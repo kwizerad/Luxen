@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useLayoutEffect, useState, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   Clock,
@@ -42,15 +43,22 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { ExamReview } from "@/components/exam-review";
 import { ExamHistorySkeleton } from "@/components/skeletons";
-import { cn } from "@/lib/utils";
+import { cn, isUUID } from "@/lib/utils";
+import { secureApiPost } from "@/lib/e2e-crypto";
 import { spaCache } from "@/lib/spa-cache";
 import { studentCache } from "@/lib/student-cache";
 import {
-  getBrowserExamAttemptsAsync,
+  getBrowserExamRecordsAsync,
   getBrowserExamQuestions,
+  type BrowserExamRecord,
 } from "@/lib/browser-exam-history";
 import { collectMissedQuestionsForUser } from "@/lib/missed-questions-practice";
-import { getExamResultLanguageName } from "@/lib/exam-settings";
+import {
+  getExamResultLanguageName,
+  inferCanonicalLanguageFromQuestions,
+  normalizeCanonicalExamLanguage,
+  resolveExplicitExamLanguage,
+} from "@/lib/exam-settings";
 import type { ExamAttempt, ExamQuestion, ExamAnswer } from "@/lib/database.types";
 
 export interface ExamHistoryViewProps {
@@ -227,9 +235,16 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
     (list || []).map((att) => {
       if (att.is_module) return att;
       const chLang = att.challenge_id ? challengeLangs?.get(att.challenge_id) : undefined;
+      const explicitLang = resolveExplicitExamLanguage({
+        exam_language: (att as any).exam_language,
+        language: chLang,
+        category_name: att.category_name,
+        is_module: att.is_module,
+      });
       return {
         ...att,
-        category_name: getExamResultLanguageName({
+        ...(explicitLang ? { exam_language: explicitLang } : {}),
+        category_name: explicitLang || getExamResultLanguageName({
           exam_language: (att as any).exam_language,
           language: chLang,
           category_name: att.category_name,
@@ -258,7 +273,50 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   const [selectedAttempt, setSelectedAttempt] = useState<ExamAttemptWithAnswers | null>(null);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
+  const [loadingReviewQuestions, setLoadingReviewQuestions] = useState(false);
   const [missedQuestionsCount, setMissedQuestionsCount] = useState(0);
+  const [hoveredAttemptCard, setHoveredAttemptCard] = useState<{
+    attemptId: string;
+    rect: { left: number; top: number; right: number; bottom: number; width: number; height: number };
+    cursorX: number;
+    cursorY: number;
+    fileName: string;
+    statusLabel: string;
+    statusColorClass: string;
+    fractionLabel: string;
+    scorePct: number;
+    dateStr: string;
+    typeStr: string;
+    zeroCause: string | null;
+  } | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const [measuredTooltipHeight, setMeasuredTooltipHeight] = useState<number>(0);
+
+  useLayoutEffect(() => {
+    if (!hoveredAttemptCard || !tooltipRef.current) {
+      setMeasuredTooltipHeight(0);
+      return;
+    }
+    const h = Math.ceil(tooltipRef.current.getBoundingClientRect().height);
+    if (h > 0 && Math.abs(h - measuredTooltipHeight) > 2) {
+      setMeasuredTooltipHeight(h);
+    }
+  }, [hoveredAttemptCard, measuredTooltipHeight]);
+
+  useEffect(() => {
+    setHoveredAttemptCard(null);
+  }, [selectedAttempt, viewMode, activeTab]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const clearHover = () => setHoveredAttemptCard(null);
+    window.addEventListener("scroll", clearHover, true);
+    window.addEventListener("resize", clearHover);
+    return () => {
+      window.removeEventListener("scroll", clearHover, true);
+      window.removeEventListener("resize", clearHover);
+    };
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -362,10 +420,14 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
         });
 
         const groupAttemptIdMap = new Map<string, string>();
+        const allChallengeAttemptMap = new Map<string, string>();
         if (challengeRes.status === "fulfilled" && challengeRes.value.data) {
           challengeRes.value.data.forEach((p: any) => {
-            if (p.exam_attempt_id && p.challenge_id && !soloChallengeIds.has(p.challenge_id)) {
-              groupAttemptIdMap.set(p.exam_attempt_id, p.challenge_id);
+            if (p.exam_attempt_id && p.challenge_id) {
+              allChallengeAttemptMap.set(p.exam_attempt_id, p.challenge_id);
+              if (!soloChallengeIds.has(p.challenge_id)) {
+                groupAttemptIdMap.set(p.exam_attempt_id, p.challenge_id);
+              }
             }
           });
         }
@@ -409,56 +471,156 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           setOngoingChallenges(activeList);
         }
 
-        const standardAttempts: ExamAttemptWithAnswers[] =
+        const browserRecords: BrowserExamRecord[] = await getBrowserExamRecordsAsync(user.id).catch(() => []);
+        const browserRecordById = new Map<string, BrowserExamRecord>();
+        for (const rec of browserRecords) {
+          if (rec?.attempt?.id) {
+            browserRecordById.set(rec.attempt.id, rec);
+          }
+        }
+
+        const rawStandardRows =
           examRes.status === "fulfilled" && examRes.value.data
-            ? examRes.value.data
-                .filter((att: any) => att.hidden_from_user !== true)
-                .map((att: any) => {
-                  let correct = att.correct_answers;
-                  let scorePct = att.score_percentage;
-                  const total = att.total_questions || 20;
-
-                  if (
-                    (correct === null || correct === undefined || correct === 0) &&
-                    Array.isArray(att.answers) &&
-                    att.answers.length > 0
-                  ) {
-                    const count = att.answers.filter((a: any) => a.is_correct).length;
-                    if (count > 0) {
-                      correct = count;
-                    }
-                  }
-
-                  if (scorePct === null || scorePct === undefined) {
-                    scorePct = correct !== null && correct !== undefined ? Math.round((correct / total) * 100) : 0;
-                  } else if ((correct === null || correct === undefined || correct === 0) && scorePct > 0) {
-                    correct = Math.round((scorePct / 100) * total);
-                  }
-
-                  const rawAnswers = Array.isArray(att.answers) ? att.answers : [];
-                  const hasAnsweredAny = rawAnswers.some((a: any) => Boolean(a?.selected_answer));
-
-                  const chId = groupAttemptIdMap.get(att.id) || null;
-                  const chLang = chId ? challengeLangMap.get(chId) : undefined;
-                  const displayLangName = getExamResultLanguageName({
-                    exam_language: att.exam_language,
-                    language: chLang,
-                    category_name: att.category_name,
-                    is_module: false,
-                  });
-
-                  return {
-                    ...(att as ExamAttemptWithAnswers),
-                    category_name: displayLangName,
-                    exam_language: att.exam_language || chLang || displayLangName,
-                    answers: hasAnsweredAny ? rawAnswers : [],
-                    correct_answers: correct ?? 0,
-                    score_percentage: scorePct ?? 0,
-                    challenge_id: chId,
-                    is_module: false,
-                  };
-                })
+            ? examRes.value.data.filter((att: any) => att.hidden_from_user !== true)
             : [];
+
+        // Enrich older DB attempts that lack explicit language via cached review questions or DB exam_questions
+        const resolvedAttemptLangMap = new Map<string, string>();
+        const unresolvedAttempts: any[] = [];
+
+        for (const att of rawStandardRows) {
+          const anyChId = allChallengeAttemptMap.get(att.id) || att.challenge_id || null;
+          const chLang = anyChId ? challengeLangMap.get(anyChId) : undefined;
+          const bRec = browserRecordById.get(att.id);
+          const bExplicit = bRec
+            ? resolveExplicitExamLanguage(bRec.attempt) ||
+              inferCanonicalLanguageFromQuestions(bRec.questions)
+            : null;
+          const dbExplicit = resolveExplicitExamLanguage({
+            exam_language: att.exam_language,
+            language: chLang,
+            category_name: att.category_name,
+            is_module: false,
+          });
+
+          const chosen =
+            (chLang ? normalizeCanonicalExamLanguage(chLang) : null) ||
+            (bExplicit && (bExplicit !== "Kinyarwanda" || !dbExplicit) ? bExplicit : null) ||
+            dbExplicit;
+
+          if (chosen) {
+            resolvedAttemptLangMap.set(att.id, chosen);
+          } else {
+            unresolvedAttempts.push(att);
+          }
+        }
+
+        if (unresolvedAttempts.length > 0) {
+          // Step 1: Check private encrypted review question caches for unresolved attempts
+          await Promise.all(
+            unresolvedAttempts.map(async (att) => {
+              try {
+                const cachedReview = await studentCache.read<ExamQuestion[]>(
+                  `exam_review_${att.id}`,
+                  { tier: "private", userId: user.id, maxAgeMs: 14 * 24 * 60 * 60 * 1000 }
+                );
+                const inferred = inferCanonicalLanguageFromQuestions(cachedReview?.data);
+                if (inferred) {
+                  resolvedAttemptLangMap.set(att.id, inferred);
+                }
+              } catch {}
+            })
+          );
+
+          // Step 2: For remaining unresolved DB attempts with UUID question IDs, batch-query exam_questions
+          const stillUnresolved = unresolvedAttempts.filter(
+            (att) => !resolvedAttemptLangMap.has(att.id)
+          );
+          const sampleIdsByAttempt = new Map<string, string[]>();
+          const allSampleUuids = new Set<string>();
+
+          for (const att of stillUnresolved) {
+            const rawAnswers = Array.isArray(att.answers) ? att.answers : [];
+            const uuids = rawAnswers
+              .map((a: any) => String(a?.question_id || ""))
+              .filter((id: string) => isUUID(id))
+              .slice(0, 3);
+            if (uuids.length > 0) {
+              sampleIdsByAttempt.set(att.id, uuids);
+              uuids.forEach((id: string) => allSampleUuids.add(id));
+            }
+          }
+
+          if (allSampleUuids.size > 0) {
+            try {
+              const { data: qSamples } = await supabase
+                .from("exam_questions")
+                .select("id, question, option_a, option_b, option_c, option_d")
+                .in("id", Array.from(allSampleUuids).slice(0, 120));
+
+              const qById = new Map<string, any>();
+              for (const q of qSamples || []) {
+                if (q?.id) qById.set(String(q.id), q);
+              }
+
+              for (const [attId, ids] of sampleIdsByAttempt.entries()) {
+                const qs = ids.map((id) => qById.get(id)).filter(Boolean);
+                const inferred = inferCanonicalLanguageFromQuestions(qs);
+                if (inferred) {
+                  resolvedAttemptLangMap.set(attId, inferred);
+                }
+              }
+            } catch {}
+          }
+        }
+
+        const standardAttempts: ExamAttemptWithAnswers[] = rawStandardRows.map((att: any) => {
+          let correct = att.correct_answers;
+          let scorePct = att.score_percentage;
+          const total = att.total_questions || 20;
+
+          if (
+            (correct === null || correct === undefined || correct === 0) &&
+            Array.isArray(att.answers) &&
+            att.answers.length > 0
+          ) {
+            const count = att.answers.filter((a: any) => a.is_correct).length;
+            if (count > 0) {
+              correct = count;
+            }
+          }
+
+          if (scorePct === null || scorePct === undefined) {
+            scorePct = correct !== null && correct !== undefined ? Math.round((correct / total) * 100) : 0;
+          } else if ((correct === null || correct === undefined || correct === 0) && scorePct > 0) {
+            correct = Math.round((scorePct / 100) * total);
+          }
+
+          const rawAnswers = Array.isArray(att.answers) ? att.answers : [];
+          const hasAnsweredAny = rawAnswers.some((a: any) => Boolean(a?.selected_answer));
+
+          const chId = groupAttemptIdMap.get(att.id) || null;
+          const anyChId = allChallengeAttemptMap.get(att.id) || chId;
+          const chLang = anyChId ? challengeLangMap.get(anyChId) : undefined;
+          const resolvedLang = resolvedAttemptLangMap.get(att.id);
+          const displayLangName = getExamResultLanguageName({
+            exam_language: resolvedLang || att.exam_language,
+            language: chLang,
+            category_name: att.category_name,
+            is_module: false,
+          });
+
+          return {
+            ...(att as ExamAttemptWithAnswers),
+            category_name: displayLangName,
+            exam_language: resolvedLang || att.exam_language || chLang || displayLangName,
+            answers: hasAnsweredAny ? rawAnswers : [],
+            correct_answers: correct ?? 0,
+            score_percentage: scorePct ?? 0,
+            challenge_id: chId,
+            is_module: false,
+          };
+        });
 
         const moduleAttempts: ExamAttemptWithAnswers[] =
           moduleRes.status === "fulfilled" && moduleRes.value.data
@@ -517,14 +679,26 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
               })
             : [];
 
-        const browserRecords = await getBrowserExamAttemptsAsync(user.id).catch(() => []);
-        const browserAttempts: ExamAttemptWithAnswers[] = (browserRecords || []).map((att) => {
+        const browserAttempts: ExamAttemptWithAnswers[] = browserRecords.map((rec) => {
+          const att = rec.attempt;
           const isMod = Boolean(att.is_module);
-          const chLang = att.challenge_id ? challengeLangMap.get(att.challenge_id) : undefined;
+          const rawChId = att.challenge_id || allChallengeAttemptMap.get(att.id) || null;
+          const isSoloCh = Boolean(rawChId && soloChallengeIds.has(rawChId));
+          const effectiveGroupChallengeId = isSoloCh ? null : rawChId;
+          const chLang = rawChId ? challengeLangMap.get(rawChId) : undefined;
+          const inferredQ = !isMod ? inferCanonicalLanguageFromQuestions(rec.questions) : null;
+          const resolvedDbLang = resolvedAttemptLangMap.get(att.id);
+          const effectiveLang =
+            (inferredQ && (!att.exam_language || att.exam_language === "Kinyarwanda")
+              ? inferredQ
+              : att.exam_language) ||
+            chLang ||
+            resolvedDbLang;
+
           const displayName = isMod
             ? att.category_name
             : getExamResultLanguageName({
-                exam_language: att.exam_language,
+                exam_language: effectiveLang,
                 language: chLang,
                 category_name: att.category_name,
                 is_module: isMod,
@@ -532,18 +706,42 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           return {
             ...(att as ExamAttemptWithAnswers),
             category_name: displayName,
+            exam_language: isMod ? null : effectiveLang || displayName,
             answers: Array.isArray(att.answers) ? att.answers : [],
             correct_answers: att.correct_answers ?? 0,
             score_percentage: att.score_percentage ?? 0,
-            challenge_id: att.challenge_id || null,
+            challenge_id: effectiveGroupChallengeId,
             is_module: isMod,
           };
         });
 
         const dedupedMap = new Map<string, ExamAttemptWithAnswers>();
         for (const item of [...browserAttempts, ...standardAttempts, ...moduleAttempts]) {
-          if (!dedupedMap.has(item.id)) {
+          const existing = dedupedMap.get(item.id);
+          if (!existing) {
             dedupedMap.set(item.id, item);
+          } else {
+            const existingExplicit = resolveExplicitExamLanguage(existing);
+            const nextExplicit = resolveExplicitExamLanguage(item);
+            const shouldUpgradeLang =
+              !existing.is_module &&
+              nextExplicit &&
+              (!existingExplicit ||
+                (existingExplicit === "Kinyarwanda" &&
+                  (nextExplicit === "English" || nextExplicit === "French")));
+
+            if ((!existing.challenge_id && item.challenge_id) || shouldUpgradeLang) {
+              dedupedMap.set(item.id, {
+                ...existing,
+                challenge_id: existing.challenge_id || item.challenge_id,
+                ...(shouldUpgradeLang
+                  ? {
+                      category_name: item.category_name,
+                      exam_language: item.exam_language,
+                    }
+                  : {}),
+              });
+            }
           }
         }
 
@@ -598,6 +796,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
   }, [user, t]);
 
   const handleReview = async (attempt: ExamAttemptWithAnswers) => {
+    setHoveredAttemptCard(null);
     if (attempt.challenge_id) {
       navigate("classmates/group-results", { id: attempt.challenge_id });
       return;
@@ -609,39 +808,92 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
     const answeredCount = (attempt.answers || []).filter((a) => Boolean(a.selected_answer)).length;
     if (!user || answeredCount === 0) return;
 
-    const browserQuestions = await getBrowserExamQuestions(user.id, attempt.id);
-    if (browserQuestions?.length) {
-      setQuestions(browserQuestions);
-      return;
-    }
+    const questionIds = Array.from(
+      new Set((attempt.answers || []).map((a) => String(a.question_id || "")).filter(Boolean))
+    );
+    if (questionIds.length === 0) return;
 
-    const reviewKey = `exam_review_${attempt.id}`;
-    const cachedReview = await studentCache.read<ExamQuestion[]>(reviewKey, {
-      tier: "private",
-      userId: user.id,
-      maxAgeMs: 24 * 60 * 60 * 1000,
-    });
-    if (cachedReview?.data?.length) {
-      setQuestions(cachedReview.data);
-      if (!cachedReview.isStale) return;
-    }
-
-    const supabase = createClient();
-
+    setLoadingReviewQuestions(true);
     try {
-      const questionIds = (attempt.answers || []).map((a) => a.question_id).filter(Boolean);
-      if (questionIds.length === 0) return;
+      const resolvedMap = new Map<string, ExamQuestion>();
 
-      const { data: questionData } = await supabase.from("exam_questions").select("*").in("id", questionIds);
+      const browserQuestions = await getBrowserExamQuestions(user.id, attempt.id);
+      for (const bq of browserQuestions || []) {
+        if (bq?.id) resolvedMap.set(String(bq.id), bq);
+      }
 
-      if (questionData) {
-        const ordered = (questionData as ExamQuestion[]).slice().sort((a, b) => {
-          const idxA = (attempt.answers || []).findIndex((ans) => ans.question_id === a.id);
-          const idxB = (attempt.answers || []).findIndex((ans) => ans.question_id === b.id);
-          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-          return 0;
+      const reviewKey = `exam_review_${attempt.id}`;
+      const missingAfterBrowser = questionIds.filter((id) => !resolvedMap.has(id));
+      if (missingAfterBrowser.length > 0) {
+        const cachedReview = await studentCache.read<ExamQuestion[]>(reviewKey, {
+          tier: "private",
+          userId: user.id,
+          maxAgeMs: 24 * 60 * 60 * 1000,
         });
+        for (const cq of cachedReview?.data || []) {
+          if (cq?.id) resolvedMap.set(String(cq.id), cq);
+        }
+      }
+
+      const missingAfterCache = questionIds.filter((id) => !resolvedMap.has(id));
+      if (missingAfterCache.length > 0) {
+        const uuidIds = missingAfterCache.filter((id) => isUUID(id));
+        if (uuidIds.length > 0) {
+          const supabase = createClient();
+          const { data: questionData } = await supabase
+            .from("exam_questions")
+            .select("*")
+            .in("id", uuidIds);
+          for (const sq of questionData || []) {
+            if (sq?.id) resolvedMap.set(String(sq.id), sq as ExamQuestion);
+          }
+        }
+      }
+
+      const missingForServer = questionIds.filter((id) => !resolvedMap.has(id));
+      if (missingForServer.length > 0) {
+        const { ok, data } = await secureApiPost("/api/external-courses/exam", {
+          action: "get_questions_by_ids",
+          questionIds: missingForServer,
+          language: getExamResultLanguageName(attempt),
+        });
+        if (ok && Array.isArray(data?.questions)) {
+          for (const eq of data.questions) {
+            if (eq?.id) resolvedMap.set(String(eq.id), eq as ExamQuestion);
+          }
+        }
+      }
+
+      if (resolvedMap.size > 0) {
+        const orderIndex = new Map<string, number>();
+        (attempt.answers || []).forEach((ans, idx) => {
+          const idStr = String(ans.question_id || "");
+          if (idStr && !orderIndex.has(idStr)) orderIndex.set(idStr, idx);
+        });
+        const ordered = Array.from(resolvedMap.values()).sort(
+          (a, b) =>
+            (orderIndex.get(String(a.id)) ?? 9999) -
+            (orderIndex.get(String(b.id)) ?? 9999)
+        );
         setQuestions(ordered);
+        if (!attempt.is_module) {
+          const inferredReviewLang = inferCanonicalLanguageFromQuestions(ordered);
+          if (
+            inferredReviewLang &&
+            inferredReviewLang !== attempt.exam_language &&
+            (inferredReviewLang === "English" || inferredReviewLang === "French")
+          ) {
+            const updatedAtt = {
+              ...attempt,
+              category_name: inferredReviewLang,
+              exam_language: inferredReviewLang,
+            };
+            setSelectedAttempt(updatedAtt);
+            setAttempts((prev) =>
+              prev.map((a) => (a.id === attempt.id ? updatedAtt : a))
+            );
+          }
+        }
         void studentCache.write(reviewKey, ordered, {
           tier: "private",
           userId: user.id,
@@ -650,6 +902,8 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
       }
     } catch (err) {
       console.error("Failed to fetch questions for review:", err);
+    } finally {
+      setLoadingReviewQuestions(false);
     }
   };
 
@@ -970,6 +1224,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           <ExamReview
             examResult={selectedAttempt}
             questions={questions}
+            loadingQuestions={loadingReviewQuestions}
             onReset={() => setSelectedAttempt(null)}
             onRetake={() => {
               setSelectedAttempt(null);
@@ -1767,11 +2022,88 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                               ? "text-emerald-600 dark:text-emerald-400"
                               : "text-rose-600 dark:text-rose-400";
 
+                            const dateStr = formatDate(rawDate);
+                            const typeStr = `${modeLabel}${
+                              attempt.duration_seconds != null
+                                ? ` · ${formatDuration(attempt.duration_seconds)}`
+                                : ""
+                            }`;
+                            const zeroCause = answeredCount === 0 ? getZeroAnswerCause() : null;
+
                             return (
                               <button
                                 key={attempt.id}
                                 type="button"
                                 onClick={() => handleReview(attempt)}
+                                onMouseEnter={(e) => {
+                                  if (typeof window === "undefined" || window.innerWidth < 640) return;
+                                  const r = e.currentTarget.getBoundingClientRect();
+                                  setHoveredAttemptCard({
+                                    attemptId: attempt.id,
+                                    rect: {
+                                      left: r.left,
+                                      top: r.top,
+                                      right: r.right,
+                                      bottom: r.bottom,
+                                      width: r.width,
+                                      height: r.height,
+                                    },
+                                    cursorX: e.clientX,
+                                    cursorY: e.clientY,
+                                    fileName,
+                                    statusLabel,
+                                    statusColorClass,
+                                    fractionLabel,
+                                    scorePct,
+                                    dateStr,
+                                    typeStr,
+                                    zeroCause,
+                                  });
+                                }}
+                                onMouseMove={(e) => {
+                                  if (typeof window === "undefined" || window.innerWidth < 640) return;
+                                  const cx = e.clientX;
+                                  const cy = e.clientY;
+                                  const r = e.currentTarget.getBoundingClientRect();
+                                  setHoveredAttemptCard((prev) => {
+                                    if (!prev || prev.attemptId !== attempt.id) {
+                                      return {
+                                        attemptId: attempt.id,
+                                        rect: {
+                                          left: r.left,
+                                          top: r.top,
+                                          right: r.right,
+                                          bottom: r.bottom,
+                                          width: r.width,
+                                          height: r.height,
+                                        },
+                                        cursorX: cx,
+                                        cursorY: cy,
+                                        fileName,
+                                        statusLabel,
+                                        statusColorClass,
+                                        fractionLabel,
+                                        scorePct,
+                                        dateStr,
+                                        typeStr,
+                                        zeroCause,
+                                      };
+                                    }
+                                    if (Math.abs(prev.cursorX - cx) < 2 && Math.abs(prev.cursorY - cy) < 2) {
+                                      return prev;
+                                    }
+                                    return {
+                                      ...prev,
+                                      cursorX: cx,
+                                      cursorY: cy,
+                                    };
+                                  });
+                                }}
+                                onMouseLeave={() =>
+                                  setHoveredAttemptCard((prev) =>
+                                    prev?.attemptId === attempt.id ? null : prev
+                                  )
+                                }
                                 className="group relative flex flex-col items-center text-center rounded-xl p-2 sm:p-2.5 bg-transparent border border-transparent hover:bg-slate-200/70 dark:hover:bg-white/[0.08] hover:border-slate-300/70 dark:hover:border-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary transition-colors cursor-pointer"
                               >
                                 <PCFileIcon
@@ -1805,49 +2137,6 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                     {shortDate}
                                   </span>
                                 )}
-
-                                {/* Windows Explorer-style Hover Details Tooltip */}
-                                <div className="hidden sm:group-hover:block pointer-events-none absolute left-1/2 -translate-x-1/2 top-[calc(100%+4px)] z-30 w-60 rounded-lg border border-border/90 dark:border-zinc-700/80 bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-md p-2.5 text-left shadow-xl text-[11px] leading-relaxed text-popover-foreground dark:text-zinc-200">
-                                  <div className="font-semibold text-foreground dark:text-white truncate mb-1">
-                                    {fileName}
-                                  </div>
-                                  <div className="space-y-0.5 text-[10px] font-mono text-muted-foreground dark:text-zinc-400">
-                                    <div>
-                                      {isRw ? "Imiterere:" : isFr ? "Statut :" : "Status:"}{" "}
-                                      <span className={cn("font-semibold", statusColorClass)}>
-                                        {statusLabel}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      {isRw ? "Amanota:" : isFr ? "Points :" : "Marks:"}{" "}
-                                      <span className="text-foreground dark:text-zinc-200 tabular-nums">
-                                        {fractionLabel}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      {isRw ? "Ijanisha:" : isFr ? "Pourcentage :" : "Percentage:"}{" "}
-                                      <span className="text-foreground dark:text-zinc-200 tabular-nums">
-                                        {scorePct}%
-                                      </span>
-                                    </div>
-                                    <div>
-                                      {isRw ? "Itariki:" : isFr ? "Date :" : "Date:"}{" "}
-                                      <span className="text-foreground dark:text-zinc-200 tabular-nums">{formatDate(rawDate)}</span>
-                                    </div>
-                                    <div>
-                                      {isRw ? "Ubwoko:" : isFr ? "Type :" : "Type:"}{" "}
-                                      <span className="text-foreground dark:text-zinc-200">
-                                        {modeLabel}
-                                        {attempt.duration_seconds != null ? ` · ${formatDuration(attempt.duration_seconds)}` : ""}
-                                      </span>
-                                    </div>
-                                    {answeredCount === 0 && (
-                                      <div className="text-amber-600 dark:text-amber-400 pt-0.5 leading-snug">
-                                        {getZeroAnswerCause()}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
                               </button>
                             );
                           })}
@@ -1866,6 +2155,30 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                             const listScorePct = isAbandoned
                               ? 0
                               : Math.max(0, Math.min(100, attempt.score_percentage || 0));
+                            const listFileName = getExamResultLanguageName(attempt);
+                            const listFractionLabel = isAbandoned
+                              ? `${answeredCount}/${attempt.total_questions || 20}`
+                              : `${attempt.correct_answers ?? 0}/${attempt.total_questions || 20}`;
+                            const listModeLabel = isGroup
+                              ? isRw
+                                ? "itsinda"
+                                : isFr
+                                ? "groupe"
+                                : "group"
+                              : isModule
+                              ? isRw
+                                ? "modire"
+                                : "module"
+                              : isRw
+                              ? "wenyine"
+                              : "solo";
+                            const listRawDate = attempt.completed_at || attempt.started_at || attempt.created_at;
+                            const listDateStr = formatDate(listRawDate);
+                            const listTypeStr = `${listModeLabel}${
+                              attempt.duration_seconds != null
+                                ? ` · ${formatDuration(attempt.duration_seconds)}`
+                                : ""
+                            }`;
                             const listStatusLabel = isCheating
                               ? isRw
                                 ? "Gukopera"
@@ -1917,10 +2230,82 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                               return isRw ? "0 byasubijwe: Wasohotse mbere yo gusubiza" : isFr ? "0 réponse : Quitté avant de répondre" : "0 answered questions: Exam exited before answering";
                             };
 
+                            const listZeroCause = answeredCount === 0 ? getZeroAnswerListCause() : null;
+
                             return (
                               <button
                                 key={attempt.id}
+                                type="button"
                                 onClick={() => handleReview(attempt)}
+                                onMouseEnter={(e) => {
+                                  if (typeof window === "undefined" || window.innerWidth < 640) return;
+                                  const r = e.currentTarget.getBoundingClientRect();
+                                  setHoveredAttemptCard({
+                                    attemptId: attempt.id,
+                                    rect: {
+                                      left: r.left,
+                                      top: r.top,
+                                      right: r.right,
+                                      bottom: r.bottom,
+                                      width: r.width,
+                                      height: r.height,
+                                    },
+                                    cursorX: e.clientX,
+                                    cursorY: e.clientY,
+                                    fileName: listFileName,
+                                    statusLabel: listStatusLabel,
+                                    statusColorClass: listStatusColorClass,
+                                    fractionLabel: listFractionLabel,
+                                    scorePct: listScorePct,
+                                    dateStr: listDateStr,
+                                    typeStr: listTypeStr,
+                                    zeroCause: listZeroCause,
+                                  });
+                                }}
+                                onMouseMove={(e) => {
+                                  if (typeof window === "undefined" || window.innerWidth < 640) return;
+                                  const cx = e.clientX;
+                                  const cy = e.clientY;
+                                  const r = e.currentTarget.getBoundingClientRect();
+                                  setHoveredAttemptCard((prev) => {
+                                    if (!prev || prev.attemptId !== attempt.id) {
+                                      return {
+                                        attemptId: attempt.id,
+                                        rect: {
+                                          left: r.left,
+                                          top: r.top,
+                                          right: r.right,
+                                          bottom: r.bottom,
+                                          width: r.width,
+                                          height: r.height,
+                                        },
+                                        cursorX: cx,
+                                        cursorY: cy,
+                                        fileName: listFileName,
+                                        statusLabel: listStatusLabel,
+                                        statusColorClass: listStatusColorClass,
+                                        fractionLabel: listFractionLabel,
+                                        scorePct: listScorePct,
+                                        dateStr: listDateStr,
+                                        typeStr: listTypeStr,
+                                        zeroCause: listZeroCause,
+                                      };
+                                    }
+                                    if (Math.abs(prev.cursorX - cx) < 2 && Math.abs(prev.cursorY - cy) < 2) {
+                                      return prev;
+                                    }
+                                    return {
+                                      ...prev,
+                                      cursorX: cx,
+                                      cursorY: cy,
+                                    };
+                                  });
+                                }}
+                                onMouseLeave={() =>
+                                  setHoveredAttemptCard((prev) =>
+                                    prev?.attemptId === attempt.id ? null : prev
+                                  )
+                                }
                                 className="group w-full flex items-center gap-3 rounded-lg bg-transparent hover:bg-slate-200/60 dark:hover:bg-white/[0.06] px-2.5 py-2.5 text-left transition-colors cursor-pointer"
                               >
                                 <PCFileIcon
@@ -1935,7 +2320,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                 <div className="min-w-0 flex-1 space-y-0.5">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <p className="text-xs font-semibold text-foreground dark:text-zinc-100 truncate">
-                                      {getExamResultLanguageName(attempt)}
+                                      {listFileName}
                                     </p>
                                     <span className={cn("text-[11px] font-semibold", listStatusColorClass)}>
                                       · {listStatusLabel}
@@ -1956,12 +2341,12 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                           : "text-amber-600 dark:text-amber-400"
                                       )}
                                     >
-                                      {getZeroAnswerListCause()}
+                                      {listZeroCause}
                                     </p>
                                   )}
 
                                   <div className="flex items-center gap-2 text-[11px] text-muted-foreground dark:text-zinc-400 font-mono flex-wrap tabular-nums">
-                                    <span>{formatDate(attempt.completed_at || attempt.started_at || attempt.created_at)}</span>
+                                    <span>{listDateStr}</span>
                                     {attempt.duration_seconds != null && (
                                       <>
                                         <span aria-hidden="true">·</span>
@@ -1981,9 +2366,7 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
                                     {listScorePct}%
                                   </p>
                                   <p className="text-[11px] font-mono tabular-nums text-muted-foreground dark:text-zinc-400">
-                                    {isAbandoned
-                                      ? `${answeredCount}/${attempt.total_questions || 20}`
-                                      : `${attempt.correct_answers ?? 0}/${attempt.total_questions || 20}`}
+                                    {listFractionLabel}
                                   </p>
                                 </div>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground dark:text-zinc-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all shrink-0" />
@@ -2000,6 +2383,111 @@ export function ExamHistoryView({ navigate }: ExamHistoryViewProps) {
           </div>
         )
       )}
+
+      {/* Dock-aware Windows Explorer-style Hover Details Portal */}
+      {typeof document !== "undefined" &&
+        hoveredAttemptCard &&
+        createPortal(
+          (() => {
+            const {
+              rect,
+              cursorX,
+              cursorY,
+              fileName,
+              statusLabel,
+              statusColorClass,
+              fractionLabel,
+              scorePct,
+              dateStr,
+              typeStr,
+              zeroCause,
+            } = hoveredAttemptCard;
+
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const dockEl = document.querySelector('[data-os-dock="true"]');
+            const dockRect = dockEl ? dockEl.getBoundingClientRect() : null;
+            const dockTop =
+              dockRect && dockRect.height > 0 ? dockRect.top : viewportHeight - 88;
+            const safeBottom = Math.min(viewportHeight - 16, dockTop - 12);
+            const safeTop = 48;
+            const tooltipWidth = 248;
+            const fallbackHeight = zeroCause ? 215 : 175;
+            const tooltipHeight = Math.max(measuredTooltipHeight, fallbackHeight);
+
+            const belowCursorTop = cursorY + 14;
+            const nearBottomOrDock =
+              belowCursorTop + tooltipHeight > safeBottom ||
+              rect.bottom + 8 + tooltipHeight > safeBottom;
+
+            const spaceAboveCursor = Math.min(cursorY - 12, safeBottom) - safeTop;
+            const spaceBelowCursor = safeBottom - belowCursorTop;
+            const openAbove =
+              nearBottomOrDock &&
+              (spaceAboveCursor >= tooltipHeight || spaceAboveCursor >= spaceBelowCursor);
+
+            const clampedLeft = Math.max(
+              12,
+              Math.min(viewportWidth - tooltipWidth - 12, cursorX - tooltipWidth / 2)
+            );
+
+            const posStyle = openAbove
+              ? {
+                  left: clampedLeft,
+                  top: Math.max(12, Math.min(cursorY - 12, safeBottom) - tooltipHeight),
+                }
+              : {
+                  left: clampedLeft,
+                  top: Math.max(12, Math.min(belowCursorTop, safeBottom - tooltipHeight)),
+                };
+
+            return (
+              <div
+                ref={tooltipRef}
+                style={posStyle}
+                className="fixed z-[9999] pointer-events-none w-[248px] rounded-lg border border-border/90 dark:border-zinc-700/80 bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-md p-2.5 text-left shadow-2xl text-[11px] leading-relaxed text-popover-foreground dark:text-zinc-200"
+              >
+                <div className="font-semibold text-foreground dark:text-white truncate mb-1">
+                  {fileName}
+                </div>
+                <div className="space-y-0.5 text-[10px] font-mono text-muted-foreground dark:text-zinc-400">
+                  <div>
+                    {isRw ? "Imiterere:" : isFr ? "Statut :" : "Status:"}{" "}
+                    <span className={cn("font-semibold", statusColorClass)}>
+                      {statusLabel}
+                    </span>
+                  </div>
+                  <div>
+                    {isRw ? "Amanota:" : isFr ? "Points :" : "Marks:"}{" "}
+                    <span className="text-foreground dark:text-zinc-200 tabular-nums">
+                      {fractionLabel}
+                    </span>
+                  </div>
+                  <div>
+                    {isRw ? "Ijanisha:" : isFr ? "Pourcentage :" : "Percentage:"}{" "}
+                    <span className="text-foreground dark:text-zinc-200 tabular-nums">
+                      {scorePct}%
+                    </span>
+                  </div>
+                  <div>
+                    {isRw ? "Itariki:" : isFr ? "Date :" : "Date:"}{" "}
+                    <span className="text-foreground dark:text-zinc-200 tabular-nums">{dateStr}</span>
+                  </div>
+                  <div>
+                    {isRw ? "Ubwoko:" : isFr ? "Type :" : "Type:"}{" "}
+                    <span className="text-foreground dark:text-zinc-200">{typeStr}</span>
+                  </div>
+                  {zeroCause && (
+                    <div className="text-amber-600 dark:text-amber-400 pt-0.5 leading-snug">
+                      {zeroCause}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })(),
+          document.body
+        )}
     </div>
   );
 }

@@ -50,6 +50,7 @@ import {
   type PendingGuestExamPayload,
 } from "@/lib/guest-exam-client";
 import { EXTERNAL_EXAM_CATEGORY_ID } from "@/lib/supabase/external";
+import { inferCanonicalLanguageFromQuestions } from "@/lib/exam-settings";
 import type {
   ExamAttempt,
   ExamCategory,
@@ -799,7 +800,13 @@ export function GuestExamClient() {
     const normalizedCurrent = normalizeExamLanguage(
       selectedExamLanguage || language
     );
-    if (targetLang === normalizedCurrent) {
+    const detectedLang = inferCanonicalLanguageFromQuestions(
+      (exam?.questions || []) as any[]
+    );
+    const needsTranslation =
+      Boolean(exam?.questions?.length) && detectedLang !== targetLang;
+
+    if (targetLang === normalizedCurrent && !needsTranslation) {
       setPostExamLangConfirmed(true);
       return;
     }
@@ -813,7 +820,7 @@ export function GuestExamClient() {
           deviceId,
           questions: exam.questions,
           language: targetLang,
-          sourceLanguage: normalizedCurrent,
+          sourceLanguage: "auto",
         });
         if (ok && Array.isArray(data?.questions)) {
           const translatedById = new Map<string, any>();
@@ -844,6 +851,15 @@ export function GuestExamClient() {
         }
       }
       setSelectedExamLanguage(targetLang);
+      setExamResult((prev) =>
+        prev
+          ? {
+              ...prev,
+              category_name: targetLang,
+              exam_language: targetLang,
+            }
+          : prev
+      );
       setPostExamLangConfirmed(true);
     } catch (err) {
       console.error("[GuestExam] Post-exam translation error:", err);
@@ -876,12 +892,15 @@ export function GuestExamClient() {
         ) : showResults && examResult ? (
           !postExamLangConfirmed ? (
             <PostExamLanguageGate
-              currentLanguage={selectedExamLanguage || language}
+              currentLanguage={normalizeExamLanguage(
+                examResult.exam_language || selectedExamLanguage || language
+              )}
               translatingLanguage={translatingPostExamLang}
               onContinueCurrent={() => {
-                const norm = normalizeExamLanguage(selectedExamLanguage || language);
-                setSelectedExamLanguage(norm);
-                setPostExamLangConfirmed(true);
+                const norm = normalizeExamLanguage(
+                  examResult.exam_language || selectedExamLanguage || language
+                );
+                void handlePostExamLanguageSwitch(norm);
               }}
               onSelectLanguage={(targetLang) => {
                 void handlePostExamLanguageSwitch(targetLang);

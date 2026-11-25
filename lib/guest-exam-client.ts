@@ -1,7 +1,7 @@
 "use client";
 
 import { secureApiPost } from "@/lib/e2e-crypto";
-import { getBrowserExamSavingConfig, saveBrowserExamAttempt } from "@/lib/browser-exam-history";
+import { saveBrowserExamAttempt } from "@/lib/browser-exam-history";
 import { createClient } from "@/lib/supabase/client";
 
 const DEVICE_STORAGE_KEY = "navo_device_fp";
@@ -137,16 +137,13 @@ export async function claimPendingGuestExamIfAny(): Promise<{
 
   isClaimingInFlight = true;
   try {
-    const localCfg = getBrowserExamSavingConfig();
     const { ok, data } = await secureApiPost("/api/guest-exam", {
       action: "claim",
       attemptData: pending,
     });
     if (ok && data?.success) {
       clearPendingGuestExam();
-      const shouldSave =
-        localCfg.saveIndividualExams && data?.should_save !== false;
-      if (shouldSave && data?.attempt) {
+      if (data?.attempt) {
         let userId: string | null = data.attempt.user_id || null;
         if (!userId || userId === "guest") {
           try {

@@ -19,6 +19,11 @@ import { decryptPayload, encryptPayload, isEncryptedEnvelope } from "@/lib/e2e-c
 import { CACHE_KEYS, getCached } from "@/lib/server-cache";
 import { isWithinAvailabilityWindow, normalizeCanonicalExamLanguage } from "@/lib/exam-settings";
 import {
+  getChallengeLanguage,
+  getChallengeQuestionIds,
+  setChallengeQuestionIds,
+} from "@/lib/group-exam-privacy";
+import {
   getBuiltinFallbackQuestions,
   normalizeExamQuestion,
   sanitizeImageUrl,
@@ -87,14 +92,15 @@ export async function POST(req: NextRequest) {
     if (action === "translate_questions" && Array.isArray(body.questions)) {
       const inputQuestions = body.questions as Array<Record<string, any>>;
       const questionIds = inputQuestions.map((q) => String(q.id || "")).filter(Boolean);
+      const numericIds = questionIds.filter((id) => /^\d+$/.test(id));
       const canonicalById = new Map<string, { item: Record<string, any>; sourceLang: TargetLanguage | "auto" }>();
 
-      if (extSb && questionIds.length > 0) {
+      if (extSb && numericIds.length > 0) {
         try {
           const { data: extRows } = await extSb
             .from("questions")
             .select("*")
-            .in("id", questionIds);
+            .in("id", numericIds);
           for (const row of extRows || []) {
             const choices = parseExternalChoices(row.choice);
             canonicalById.set(String(row.id), {
@@ -131,6 +137,27 @@ export async function POST(req: NextRequest) {
                 explanation: row.explanation,
               },
             });
+          }
+
+          const stillMissingUuid = uuidIds.filter((id) => !canonicalById.has(id));
+          if (stillMissingUuid.length > 0) {
+            const { data: moduleRows } = await adminSb
+              .from("module_exam_questions")
+              .select("id, question, option_a, option_b, option_c, option_d, explanation")
+              .in("id", stillMissingUuid);
+            for (const row of moduleRows || []) {
+              canonicalById.set(String(row.id), {
+                sourceLang: "auto",
+                item: {
+                  question: row.question,
+                  option_a: row.option_a,
+                  option_b: row.option_b,
+                  option_c: row.option_c,
+                  option_d: row.option_d,
+                  explanation: row.explanation,
+                },
+              });
+            }
           }
         }
         const builtinFallback = getBuiltinFallbackQuestions("fallback", 20);
@@ -191,7 +218,7 @@ export async function POST(req: NextRequest) {
               adminSb,
               fallbackSourced,
               language,
-              body.sourceLanguage || "auto"
+              "auto"
             )
           : Promise.resolve([]),
       ]);
@@ -236,6 +263,144 @@ export async function POST(req: NextRequest) {
     };
 
     const configMap = await getCachedSystemConfigMap();
+
+    // ------------------------------------------------------------------------
+    // 0b. FETCH & TRANSLATE QUESTIONS BY IDS (FOR INDIVIDUAL & GROUP EXAM REVIEW)
+    // ------------------------------------------------------------------------
+    if (action === "get_questions_by_ids" && Array.isArray(body?.questionIds)) {
+      const requestedIds: string[] = Array.from(
+        new Set(
+          (body.questionIds as unknown[])
+            .map((id) => String(id || "").trim())
+            .filter(Boolean)
+        )
+      ).slice(0, 100);
+
+      if (requestedIds.length === 0) {
+        return secureJsonResponse({ questions: [] });
+      }
+
+      const targetLang = normalizeCanonicalExamLanguage(language || "Kinyarwanda");
+      const rawById = new Map<
+        string,
+        { question: any; sourceLang: TargetLanguage | "auto" }
+      >();
+
+      const allExt = await getCachedExternalQuestions();
+      const requestedSet = new Set(requestedIds);
+      for (const q of allExt) {
+        const qId = String(q?.id || "");
+        if (!qId || !requestedSet.has(qId)) continue;
+        const choices = parseExternalChoices(q.choice);
+        const ansIdx =
+          typeof q.choice_answer === "number"
+            ? q.choice_answer
+            : Number(q.choice_answer) || 0;
+        rawById.set(qId, {
+          sourceLang: "Kinyarwanda",
+          question: normalizeExamQuestion(
+            {
+              id: qId,
+              category_id: EXTERNAL_EXAM_CATEGORY_ID,
+              question: String(q.title || ""),
+              question_image: sanitizeImageUrl(q.image),
+              option_a: choices[0] || "Option A",
+              option_a_image: null,
+              option_b: choices[1] || "Option B",
+              option_b_image: null,
+              option_c: choices[2] || "Option C",
+              option_c_image: null,
+              option_d: choices[3] || "Option D",
+              option_d_image: null,
+              correct_answer: mapExternalChoiceToLetter(ansIdx),
+              explanation: null,
+              created_at: q.created_at || new Date().toISOString(),
+            },
+            0,
+            EXTERNAL_EXAM_CATEGORY_ID
+          ),
+        });
+      }
+
+      const missingUuidIds = requestedIds.filter(
+        (id) => !rawById.has(id) && isUUID(id)
+      );
+      if (missingUuidIds.length > 0) {
+        const { data: primaryRows } = await adminSb
+          .from("exam_questions")
+          .select("*")
+          .in("id", missingUuidIds);
+        for (const row of primaryRows || []) {
+          const rId = String(row.id);
+          rawById.set(rId, {
+            sourceLang: "auto",
+            question: normalizeExamQuestion(row, 0, row.category_id),
+          });
+        }
+
+        const stillMissingUuid = missingUuidIds.filter((id) => !rawById.has(id));
+        if (stillMissingUuid.length > 0) {
+          const { data: moduleRows } = await adminSb
+            .from("module_exam_questions")
+            .select("*")
+            .in("id", stillMissingUuid);
+          for (const row of moduleRows || []) {
+            const rId = String(row.id);
+            rawById.set(rId, {
+              sourceLang: "auto",
+              question: normalizeExamQuestion(row, 0, row.module_id),
+            });
+          }
+        }
+      }
+
+      const builtinFallback = getBuiltinFallbackQuestions("fallback", 20);
+      for (const fb of builtinFallback) {
+        const fbId = String(fb.id);
+        if (requestedSet.has(fbId) && !rawById.has(fbId)) {
+          rawById.set(fbId, {
+            sourceLang: "English",
+            question: normalizeExamQuestion(fb, 0),
+          });
+        }
+      }
+
+      const extGroup: any[] = [];
+      const autoGroup: any[] = [];
+      const enGroup: any[] = [];
+      const orderIndex = new Map<string, number>();
+
+      requestedIds.forEach((id, idx) => {
+        orderIndex.set(id, idx);
+        const entry = rawById.get(id);
+        if (!entry) return;
+        if (entry.sourceLang === "Kinyarwanda") extGroup.push(entry.question);
+        else if (entry.sourceLang === "English") enGroup.push(entry.question);
+        else autoGroup.push(entry.question);
+      });
+
+      const [tExt, tAuto, tEn] = await Promise.all([
+        extGroup.length > 0
+          ? translateQuestionBatch(adminSb, extGroup, targetLang, "Kinyarwanda")
+          : Promise.resolve([]),
+        autoGroup.length > 0
+          ? translateQuestionBatch(adminSb, autoGroup, targetLang, "auto")
+          : Promise.resolve([]),
+        enGroup.length > 0
+          ? translateQuestionBatch(adminSb, enGroup, targetLang, "English")
+          : Promise.resolve([]),
+      ]);
+
+      const mergedQuestions = [...tExt, ...tAuto, ...tEn]
+        .map((q, idx) => normalizeExamQuestion(q, idx, q.category_id))
+        .sort(
+          (a, b) =>
+            (orderIndex.get(String(a.id)) ?? 0) -
+            (orderIndex.get(String(b.id)) ?? 0)
+        );
+
+      return secureJsonResponse({ questions: mergedQuestions });
+    }
 
     let quizSettings: {
       globalDurationMinutes: number;
@@ -523,32 +688,41 @@ export async function POST(req: NextRequest) {
           challengeData = cWithLang;
         }
 
-        if (challengeData?.language) {
-          effectiveLanguage = challengeData.language;
+        const [storedChallengeLang, storedChallengeQIds] = await Promise.all([
+          challengeData?.language ? Promise.resolve(null) : getChallengeLanguage(adminSb, challengeId),
+          Array.isArray(challengeData?.question_ids) && challengeData.question_ids.length > 0
+            ? Promise.resolve([])
+            : getChallengeQuestionIds(adminSb, challengeId),
+        ]);
+
+        if (challengeData?.language || storedChallengeLang) {
+          effectiveLanguage = challengeData?.language || storedChallengeLang;
         }
 
-        if (
-          challengeData?.question_ids &&
-          Array.isArray(challengeData.question_ids) &&
-          challengeData.question_ids.length > 0
-        ) {
-          const byId = new Map(formattedPool.map((q) => [q.id, q]));
-          const ordered = challengeData.question_ids
+        const existingQIds: string[] =
+          Array.isArray(challengeData?.question_ids) && challengeData.question_ids.length > 0
+            ? challengeData.question_ids.map(String)
+            : storedChallengeQIds;
+
+        if (existingQIds.length > 0) {
+          const byId = new Map(formattedPool.map((q) => [String(q.id), q]));
+          const ordered = existingQIds
             .map((id: string) => byId.get(id))
             .filter(Boolean) as typeof formattedPool;
           if (ordered.length > 0) {
             selectedQuestions = ordered;
           }
-        } else if (canPersistQuestionIds) {
-          const selectedIds = selectedQuestions.map((q) => q.id);
-          await adminSb
-            .from("exam_challenges")
-            .update({ question_ids: selectedIds })
-            .eq("id", challengeId)
-            .then(() => {}, () => {});
         } else {
-          // Deterministic seeded selection so all participants receive identical questions
           selectedQuestions = seededShuffleArray(formattedPool, challengeId).slice(0, questionCount);
+          const selectedIds = selectedQuestions.map((q) => String(q.id));
+          await setChallengeQuestionIds(adminSb, challengeId, selectedIds);
+          if (canPersistQuestionIds) {
+            await adminSb
+              .from("exam_challenges")
+              .update({ question_ids: selectedIds })
+              .eq("id", challengeId)
+              .then(() => {}, () => {});
+          }
         }
       }
 
@@ -687,27 +861,11 @@ export async function POST(req: NextRequest) {
       );
 
       const now = new Date().toISOString();
+      const startedAtIso = new Date(
+        Date.now() - Math.max(0, Number(attemptData.duration_seconds) || 0) * 1000
+      ).toISOString();
       const userId = user?.id;
       const isValidUser = Boolean(userId && isUUID(userId));
-
-      const browserAttempt = {
-        id: `browser-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        user_id: isValidUser ? userId : "guest",
-        category_id: catId,
-        category_name: examLanguage,
-        exam_language: examLanguage,
-        started_at: new Date(Date.now() - (Number(attemptData.duration_seconds) || 0) * 1000).toISOString(),
-        completed_at: attemptData.status === "abandoned" ? null : now,
-        duration_seconds: Number(attemptData.duration_seconds) || 0,
-        total_questions: totalQuestions,
-        correct_answers: correctAnswers,
-        score_percentage: scorePercentage,
-        answers: gradedAnswers,
-        status: attemptData.status || "completed",
-        submission_reason: attemptData.submission_reason || "manual",
-        violation_summary: attemptData.violation_summary || null,
-        created_at: now,
-      };
 
       // Query fresh persistence toggle directly (bypassing 60s cache)
       let saveIndividual = configMap.get("save_individual_exams_enabled") !== "false";
@@ -727,6 +885,100 @@ export async function POST(req: NextRequest) {
       } catch {}
 
       const shouldSave = attemptData?.is_group_challenge ? saveGroup : saveIndividual;
+
+      if (shouldSave && isValidUser && userId) {
+        let validDbCategoryId = isUUID(String(catId))
+          ? String(catId)
+          : EXTERNAL_EXAM_CATEGORY_ID;
+
+        try {
+          const { data: existingCat } = await adminSb
+            .from("exam_categories")
+            .select("id")
+            .eq("id", validDbCategoryId)
+            .maybeSingle();
+
+          if (!existingCat) {
+            const { error: upsertErr } = await adminSb
+              .from("exam_categories")
+              .upsert(
+                {
+                  id: validDbCategoryId,
+                  name: String(attemptData?.category_name || "Rwanda PVS Exam"),
+                  description: "Official Driving Exam",
+                },
+                { onConflict: "id", ignoreDuplicates: true }
+              );
+            if (upsertErr) {
+              const { data: fallbackCat } = await adminSb
+                .from("exam_categories")
+                .select("id")
+                .limit(1)
+                .maybeSingle();
+              if (fallbackCat?.id) validDbCategoryId = fallbackCat.id;
+            }
+          }
+
+          const { data: inserted, error: insertErr } = await adminSb
+            .from("exam_attempts")
+            .insert({
+              user_id: userId,
+              category_id: validDbCategoryId,
+              category_name: examLanguage,
+              started_at: startedAtIso,
+              completed_at: attemptData.status === "abandoned" ? null : now,
+              duration_seconds: Math.max(0, Number(attemptData.duration_seconds) || 0),
+              total_questions: totalQuestions,
+              correct_answers: correctAnswers,
+              score_percentage: scorePercentage,
+              answers: gradedAnswers,
+              status: attemptData.status || "completed",
+              submission_reason: attemptData.submission_reason || "manual",
+              violation_summary: attemptData.violation_summary || null,
+              soft_deleted: false,
+            })
+            .select()
+            .single();
+
+          if (!insertErr && inserted) {
+            return secureJsonResponse({
+              success: true,
+              attempt: {
+                ...inserted,
+                exam_language: examLanguage,
+              },
+              questionDetails,
+              should_save: true,
+              is_saved: true,
+              storage: "database+browser",
+            });
+          }
+          if (insertErr) {
+            console.error("[ExamAPI submit_exam] DB insert error, falling back to browser:", insertErr.message);
+          }
+        } catch (dbErr) {
+          console.error("[ExamAPI submit_exam] DB persistence error:", dbErr);
+        }
+      }
+
+      const browserAttempt = {
+        id: `browser-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        user_id: isValidUser ? userId : "guest",
+        category_id: catId,
+        category_name: examLanguage,
+        exam_language: examLanguage,
+        started_at: startedAtIso,
+        completed_at: attemptData.status === "abandoned" ? null : now,
+        duration_seconds: Math.max(0, Number(attemptData.duration_seconds) || 0),
+        total_questions: totalQuestions,
+        correct_answers: correctAnswers,
+        score_percentage: scorePercentage,
+        answers: gradedAnswers,
+        status: attemptData.status || "completed",
+        submission_reason: attemptData.submission_reason || "manual",
+        violation_summary: attemptData.violation_summary || null,
+        created_at: now,
+      };
 
       return secureJsonResponse({
         success: true,

@@ -1398,7 +1398,7 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
             {t("examSavingPersistence") || "Exam Saving & History Persistence"}
           </CardTitle>
           <CardDescription>
-            Decide whether completed individual exams and group exams are saved in the user&apos;s browser storage and Exam History (never written to the database).
+            Choose whether completed individual and group exams are saved permanently in the Supabase database. When disabled, exam history is saved only locally on the user&apos;s device.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -1411,11 +1411,11 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
                   {t("saveIndividualExams") || "Save Individual Exams"}
                 </Label>
                 <Badge variant={saveIndividualExamsEnabled ? "default" : "secondary"} className={saveIndividualExamsEnabled ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" : "bg-muted text-muted-foreground"}>
-                  {saveIndividualExamsEnabled ? (t("savingActive") || "Saving Active") : (t("savingDisabled") || "Practice Only (Not Saved)")}
+                  {saveIndividualExamsEnabled ? "Saved to Database & Device" : "Device Only (Local)"}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                When enabled, individual exam attempts, answers, correct answers, duration, and scores are saved in the user&apos;s browser storage and shown in Exam History. When disabled, exams run in practice mode and are not saved.
+                When enabled, individual exam attempts, answers, correct answers, duration, and scores are saved in Supabase and mirrored to the user&apos;s device. When disabled, exam history is saved only on the user&apos;s device.
               </p>
             </div>
             <Switch
@@ -1434,11 +1434,11 @@ export function SystemConfigSettings({ filter }: { filter?: "exam" | "languages"
                   {t("saveGroupExams") || "Save Group Exams & Battle History"}
                 </Label>
                 <Badge variant={saveGroupExamsEnabled ? "default" : "secondary"} className={saveGroupExamsEnabled ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" : "bg-muted text-muted-foreground"}>
-                  {saveGroupExamsEnabled ? (t("savingActive") || "Saving Active") : (t("savingDisabled") || "Practice Only (Not Saved)")}
+                  {saveGroupExamsEnabled ? "Saved to Database & Device" : "Device Only (Local)"}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                When enabled, completed group exam attempts and review answers are stored in the user&apos;s browser storage and Exam History. When disabled, group exam results are temporary.
+                When enabled, multiplayer group challenges, participant scores, battle results, and leaderboards are saved permanently in Supabase. When disabled, group exam review history is saved only on the user&apos;s device.
               </p>
             </div>
             <Switch

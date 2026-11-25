@@ -56,7 +56,12 @@ import {
   getExamForTaking,
   getExamSavingConfig,
 } from "@/lib/supabase/queries";
-import { pickDefaultExamCategory, prioritizeRwandaPvsCategories, normalizeCanonicalExamLanguage } from "@/lib/exam-settings";
+import {
+  pickDefaultExamCategory,
+  prioritizeRwandaPvsCategories,
+  normalizeCanonicalExamLanguage,
+  inferCanonicalLanguageFromQuestions,
+} from "@/lib/exam-settings";
 import { hasBrowserExamHistory, saveBrowserExamAttempt } from "@/lib/browser-exam-history";
 import { collectMissedQuestionsForUser } from "@/lib/missed-questions-practice";
 import type {
@@ -338,6 +343,16 @@ export function ExamView({ navigate, params }: ExamViewProps) {
       if ((data as any)?.language) {
         const normalized = normalizeExamLanguage((data as any).language);
         setSelectedExamLanguage(normalized);
+      } else {
+        try {
+          const chRes = await authFetch(`/api/exam-challenges/${challengeId}`);
+          if (chRes.ok) {
+            const chData = await chRes.json();
+            if (active && chData?.challenge?.language) {
+              setSelectedExamLanguage(normalizeExamLanguage(chData.challenge.language));
+            }
+          }
+        } catch {}
       }
     };
     void ensureJoinedAndFetchDetails();
@@ -1184,13 +1199,10 @@ export function ExamView({ navigate, params }: ExamViewProps) {
           : prev
       );
 
-      // Save to user's browser storage (instead of database) when enabled
+      // Always save to user's device browser storage (when admin DB saving is OFF, this is the sole device-only store;
+      // when ON, it mirrors the DB record with full translated review questions for offline/fast review)
       try {
-        const savingCfg = await getExamSavingConfig();
-        const shouldSaveToBrowser = challengeId
-          ? savingCfg.saveGroupExams
-          : savingCfg.saveIndividualExams;
-        if (shouldSaveToBrowser && user?.id) {
+        if (user?.id) {
           await saveBrowserExamAttempt(
             user.id,
             {
@@ -1618,49 +1630,99 @@ export function ExamView({ navigate, params }: ExamViewProps) {
     const normalizedCurrent = normalizeExamLanguage(
       selectedExamLanguage || language
     );
-    if (targetLang === normalizedCurrent) {
+    const detectedQuestionsLang = inferCanonicalLanguageFromQuestions(
+      (exam?.questions || []) as any[]
+    );
+    const hasPendingOrUntranslated =
+      pendingTranslationIds.length > 0 ||
+      (Boolean(exam?.questions?.length) && detectedQuestionsLang !== targetLang);
+
+    if (targetLang === normalizedCurrent && !hasPendingOrUntranslated) {
       setPostExamLangConfirmed(true);
       return;
     }
 
     setTranslatingPostExamLang(targetLang);
+    let updatedQuestions = exam?.questions || [];
     try {
       if (exam?.questions?.length) {
         const { ok, data } = await secureApiPost("/api/external-courses/exam", {
           action: "translate_questions",
           questions: exam.questions,
           language: targetLang,
-          sourceLanguage: normalizedCurrent,
+          sourceLanguage: "auto",
         });
         if (ok && Array.isArray(data?.questions)) {
           const translatedById = new Map<string, any>();
           for (const tq of data.questions) {
             if (tq?.id) translatedById.set(String(tq.id), tq);
           }
+          updatedQuestions = exam.questions.map((q, idx) => {
+            const matched =
+              translatedById.get(String(q.id)) || data.questions[idx];
+            if (!matched) return q;
+            return {
+              ...q,
+              question: matched.question || q.question,
+              option_a: matched.option_a || q.option_a,
+              option_b: matched.option_b || q.option_b,
+              option_c: matched.option_c || q.option_c,
+              option_d: matched.option_d || q.option_d,
+              explanation: matched.explanation ?? q.explanation,
+            };
+          });
+          setPendingTranslationIds([]);
           setExam((prev) =>
             prev
               ? {
                   ...prev,
-                  questions: prev.questions.map((q, idx) => {
-                    const matched =
-                      translatedById.get(String(q.id)) || data.questions[idx];
-                    if (!matched) return q;
-                    return {
-                      ...q,
-                      question: matched.question || q.question,
-                      option_a: matched.option_a || q.option_a,
-                      option_b: matched.option_b || q.option_b,
-                      option_c: matched.option_c || q.option_c,
-                      option_d: matched.option_d || q.option_d,
-                      explanation: matched.explanation ?? q.explanation,
-                    };
-                  }),
+                  questions: updatedQuestions,
                 }
               : prev
           );
         }
       }
       setSelectedExamLanguage(targetLang);
+      if (examResult) {
+        const updatedResult: ExamAttempt = {
+          ...examResult,
+          category_name: targetLang,
+          exam_language: targetLang,
+        };
+        setExamResult(updatedResult);
+        if (user?.id) {
+          const detailsMap: Record<string, { correct_answer: string; explanation?: string }> = {};
+          for (const uq of updatedQuestions as any[]) {
+            if (uq?.id && uq?.correct_answer) {
+              detailsMap[String(uq.id)] = {
+                correct_answer: uq.correct_answer,
+                explanation: uq.explanation ?? undefined,
+              };
+            }
+          }
+          await saveBrowserExamAttempt(
+            user.id,
+            {
+              ...updatedResult,
+              challenge_id: challengeId || updatedResult.challenge_id || null,
+              exam_language: targetLang,
+            },
+            updatedQuestions as unknown as ExamQuestion[],
+            detailsMap
+          );
+          if (isUUID(updatedResult.id)) {
+            void authFetch("/api/exam-attempts", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                attemptId: updatedResult.id,
+                language: targetLang,
+              }),
+            }).catch(() => {});
+          }
+          void invalidateStudentExamHistoryCache(user.id);
+        }
+      }
       setPostExamLangConfirmed(true);
     } catch (err) {
       console.error("[ExamView] Post-exam translation error:", err);
@@ -1674,14 +1736,15 @@ export function ExamView({ navigate, params }: ExamViewProps) {
   // Post-Submission Results & Group Challenge Leaderboard (gated by language confirmation)
   if (showResults && examResult) {
     if (!postExamLangConfirmed) {
+      const gateCurrentLang = normalizeExamLanguage(
+        examResult.exam_language || selectedExamLanguage || language
+      );
       return (
         <PostExamLanguageGate
-          currentLanguage={selectedExamLanguage || language}
+          currentLanguage={gateCurrentLang}
           translatingLanguage={translatingPostExamLang}
           onContinueCurrent={() => {
-            const norm = normalizeExamLanguage(selectedExamLanguage || language);
-            setSelectedExamLanguage(norm);
-            setPostExamLangConfirmed(true);
+            void handlePostExamLanguageSwitch(gateCurrentLang);
           }}
           onSelectLanguage={(targetLang) => {
             void handlePostExamLanguageSwitch(targetLang);

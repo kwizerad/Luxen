@@ -3195,13 +3195,15 @@ export function ClassmatesView({ navigate, params }: ClassmatesViewProps) {
 
       {/* Profile Picture Viewer */}
       <Dialog open={!!pictureViewer} onOpenChange={(open) => !open && setPictureViewer(null)}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh] p-0 border-0 bg-black/90 shadow-none flex flex-col items-center justify-center gap-3 rounded-2xl overflow-hidden">
-          <img
-            src={pictureViewer?.url}
-            alt={pictureViewer?.name || ""}
-            className="max-h-[88vh] max-w-[93vw] w-auto h-auto object-contain rounded-lg"
-            onClick={() => setPictureViewer(null)}
-          />
+        <DialogContent className="max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh] p-4 sm:p-8 border-0 bg-black/90 shadow-none flex flex-col items-center justify-center gap-3 rounded-2xl overflow-hidden">
+          <div className="w-full max-w-[88vw] h-[80vh] flex items-center justify-center">
+            <img
+              src={pictureViewer?.url}
+              alt={pictureViewer?.name || ""}
+              className="w-full h-full object-contain rounded-xl cursor-pointer"
+              onClick={() => setPictureViewer(null)}
+            />
+          </div>
           {pictureViewer?.name && (
             <p className="text-white text-sm font-medium drop-shadow-lg absolute bottom-4">{pictureViewer.name}</p>
           )}

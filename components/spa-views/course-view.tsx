@@ -849,6 +849,11 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     }
   }, [authUser?.id, loadProgress, selectedModuleId]);
 
+  const paramCourseLangRaw = params.get("language") || params.get("lang") || "";
+  const paramCourseLang: LearningLanguage | null = isLearningLanguage(paramCourseLangRaw)
+    ? paramCourseLangRaw
+    : null;
+
   useEffect(() => {
     if (authLoading) return;
     if (!authUser) {
@@ -868,7 +873,14 @@ export function CourseView({ navigate, params }: CourseViewProps) {
         : null;
 
       let quickLang: LearningLanguage | null = null;
-      if (persistedLangRec?.data && isLearningLanguage(persistedLangRec.data)) {
+      if (paramCourseLang) {
+        quickLang = paramCourseLang;
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("luxen_course_lang", paramCourseLang);
+          } catch {}
+        }
+      } else if (persistedLangRec?.data && isLearningLanguage(persistedLangRec.data)) {
         quickLang = persistedLangRec.data;
       } else if (storedLocal && isLearningLanguage(storedLocal)) {
         quickLang = storedLocal;
@@ -900,7 +912,9 @@ export function CourseView({ navigate, params }: CourseViewProps) {
       const savedLanguage = profile?.learning_language;
 
       let effectiveLang: LearningLanguage | null = null;
-      if (storedLocal && isLearningLanguage(storedLocal)) {
+      if (paramCourseLang) {
+        effectiveLang = paramCourseLang;
+      } else if (storedLocal && isLearningLanguage(storedLocal)) {
         effectiveLang = storedLocal;
       } else if (savedLanguage && isLearningLanguage(savedLanguage)) {
         effectiveLang = savedLanguage;
@@ -929,7 +943,7 @@ export function CourseView({ navigate, params }: CourseViewProps) {
     };
 
     void loadLearningLanguage();
-  }, [authLoading, authUser, loadCourse]);
+  }, [authLoading, authUser, loadCourse, paramCourseLang]);
 
   const handleChooseCourseLanguage = async (chosen: LearningLanguage) => {
     setShowLanguagePicker(false);

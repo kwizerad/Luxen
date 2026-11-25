@@ -946,7 +946,7 @@ export async function createExamAttempt(attemptData: {
     ? savingConfig.saveGroupExams
     : savingConfig.saveIndividualExams;
 
-  // Handle External DB Exam grading via server route (results saved in user's browser storage, not database)
+  // Handle External DB Exam grading via server route
   if (isExternalExamCategoryId(category_id)) {
     const { ok, data: json } = await secureApiPost("/api/external-courses/exam", {
       action: "submit_exam",
@@ -962,13 +962,33 @@ export async function createExamAttempt(attemptData: {
     return {
       attempt: json.attempt,
       questionDetails: json.questionDetails || {},
-      should_save: shouldSave,
-      is_saved: false,
+      should_save: json?.should_save !== undefined ? Boolean(json.should_save) : shouldSave,
+      is_saved: Boolean(json?.is_saved),
     };
   }
 
-  // Never trust client-supplied is_correct — look up the real answer key
-  // server-side so a tampered request can't fake a passing score.
+  // Handle primary category exams via server /api/exam-attempts (DB when enabled, browser-only when toggled off)
+  try {
+    const { ok, data: json } = await secureApiPost("/api/exam-attempts", {
+      language: resolvedExamLang,
+      attemptData: {
+        ...attemptData,
+        exam_language: resolvedExamLang,
+      },
+    });
+    if (ok && json?.attempt) {
+      return {
+        attempt: json.attempt,
+        questionDetails: json.questionDetails || {},
+        should_save: json?.should_save !== undefined ? Boolean(json.should_save) : shouldSave,
+        is_saved: Boolean(json?.is_saved),
+      };
+    }
+  } catch (apiErr) {
+    console.warn("Server /api/exam-attempts fallback to local grading:", apiErr);
+  }
+
+  // Fallback local grading if network call fails
   const questionIds = answers.map((ans) => ans.question_id).filter(Boolean);
   const uuidQuestionIds = questionIds.filter((id) => isUUID(id));
   let answerKeyRows: Array<{ id: string; correct_answer: string; explanation?: string }> = [];
@@ -1048,7 +1068,6 @@ export async function createExamAttempt(attemptData: {
     created_at: nowIso,
   };
 
-  // Exam history is stored in user browser storage (never in exam_attempts database)
   return {
     attempt: browserAttempt,
     questionDetails,

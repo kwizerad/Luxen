@@ -17,7 +17,9 @@ import { ExamCelebration } from "@/components/exam-celebration";
 import { ExamPodium } from "@/components/exam-podium";
 import { ExamReview } from "@/components/exam-review";
 import { SmartImage } from "@/components/smart-image";
-import { cn } from "@/lib/utils";
+import { cn, isUUID } from "@/lib/utils";
+import { secureApiPost } from "@/lib/e2e-crypto";
+import { getBrowserExamAttemptsAsync, getBrowserExamQuestions } from "@/lib/browser-exam-history";
 import { getExamResultLanguageName } from "@/lib/exam-settings";
 import type { ExamChallenge, ExamChallengeParticipant, ExamQuestion, ExamAttempt } from "@/lib/database.types";
 
@@ -66,6 +68,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
   const challengeId = params.get("id") || "";
 
   const [loading, setLoading] = useState(true);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [challenge, setChallenge] = useState<ExamChallenge | null>(null);
   const [isSoloAttempt, setIsSoloAttempt] = useState(false);
   const [participants, setParticipants] = useState<ParticipantWithProfile[]>([]);
@@ -83,44 +86,119 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
       setLoading(true);
     }
     try {
-      const res = await fetch(`/api/exam-challenges/${challengeId}`);
+      const [res, localBrowserAttempts] = await Promise.all([
+        fetch(`/api/exam-challenges/${challengeId}`),
+        user?.id ? getBrowserExamAttemptsAsync(user.id).catch(() => []) : Promise.resolve([]),
+      ]);
       const data = await res.json();
       if (data.challenge) {
         setChallenge(data.challenge);
         setIsSoloAttempt(Boolean(data.is_solo_attempt || data.challenge.is_solo_attempt));
-        const enrichedParticipants = data.participants || [];
+
+        const localChallengeAttempt = (localBrowserAttempts || []).find(
+          (att) => att.challenge_id === challengeId
+        );
+
+        const enrichedParticipants: ParticipantWithProfile[] = (data.participants || []).map(
+          (p: ParticipantWithProfile) => {
+            if (
+              user?.id &&
+              p.user_id === user.id &&
+              localChallengeAttempt &&
+              (!p.exam_attempt ||
+                !Array.isArray(p.exam_attempt.answers) ||
+                p.exam_attempt.answers.length === 0)
+            ) {
+              return {
+                ...p,
+                status: p.status === "completed" ? "completed" : localChallengeAttempt.status || "completed",
+                exam_attempt: localChallengeAttempt,
+              };
+            }
+            return p;
+          }
+        );
+
         setParticipants(enrichedParticipants);
 
         const completedWithAttempts = enrichedParticipants.filter(
           (p: ParticipantWithProfile) => p.status === "completed" && p.exam_attempt
         );
-        if (completedWithAttempts.length > 0) {
-          // Collect attempted question IDs across participant attempts
-          const attemptedQuestionIds = Array.from(
-            new Set(
-              completedWithAttempts.flatMap((p: ParticipantWithProfile) =>
-                (p.exam_attempt?.answers || []).map((a: any) => a.question_id).filter(Boolean)
-              )
-            )
-          );
 
-          if (attemptedQuestionIds.length > 0) {
-            const { data: questionsData } = await supabase
-              .from("exam_questions")
-              .select("*")
-              .in("id", attemptedQuestionIds);
+        const answerQuestionIds = completedWithAttempts.flatMap((p: ParticipantWithProfile) =>
+          (p.exam_attempt?.answers || []).map((a: any) => String(a?.question_id || "")).filter(Boolean)
+        );
+        const challengeQuestionIds: string[] = Array.isArray(data.challenge.question_ids)
+          ? data.challenge.question_ids.map(String).filter(Boolean)
+          : [];
+        const attemptedQuestionIds = Array.from(
+          new Set([...answerQuestionIds, ...challengeQuestionIds])
+        );
 
-            // Keep questions in the exact order of the first participant attempt
-            const firstAttemptAnswers = completedWithAttempts[0].exam_attempt?.answers || [];
-            const orderedQuestions = (questionsData || []).slice().sort((a: any, b: any) => {
-              const idxA = firstAttemptAnswers.findIndex((ans: any) => ans.question_id === a.id);
-              const idxB = firstAttemptAnswers.findIndex((ans: any) => ans.question_id === b.id);
-              if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-              return 0;
+        if (attemptedQuestionIds.length > 0) {
+          setLoadingQuestions(true);
+          try {
+            const questionMap = new Map<string, ExamQuestion>();
+
+            // 1. Check current user's browser-saved questions first (instant & already translated)
+            if (user?.id && localChallengeAttempt?.id) {
+              const browserQs = await getBrowserExamQuestions(user.id, localChallengeAttempt.id).catch(() => null);
+              for (const bq of browserQs || []) {
+                if (bq?.id) questionMap.set(String(bq.id), bq);
+              }
+            }
+
+            // 2. Query Supabase exam_questions strictly for valid UUIDs still missing
+            const missingUuidIds = attemptedQuestionIds.filter(
+              (id) => !questionMap.has(id) && isUUID(id)
+            );
+            if (missingUuidIds.length > 0) {
+              const { data: questionsData } = await supabase
+                .from("exam_questions")
+                .select("*")
+                .in("id", missingUuidIds);
+              for (const sq of questionsData || []) {
+                if (sq?.id) questionMap.set(String(sq.id), sq as ExamQuestion);
+              }
+            }
+
+            // 3. Query server external/fallback question resolver for any remaining IDs (e.g. Rwanda PVS integer IDs)
+            const stillMissingIds = attemptedQuestionIds.filter((id) => !questionMap.has(id));
+            if (stillMissingIds.length > 0) {
+              const resolvedChallengeLang = getExamResultLanguageName({
+                exam_language: (localChallengeAttempt as any)?.exam_language,
+                language: data.challenge.language,
+                category_name: data.challenge.category_name,
+              });
+              const { ok: extOk, data: extData } = await secureApiPost("/api/external-courses/exam", {
+                action: "get_questions_by_ids",
+                questionIds: stillMissingIds,
+                language: resolvedChallengeLang,
+              });
+              if (extOk && Array.isArray(extData?.questions)) {
+                for (const eq of extData.questions) {
+                  if (eq?.id) questionMap.set(String(eq.id), eq as ExamQuestion);
+                }
+              }
+            }
+
+            // Keep questions in the exact order of the first attempt's answers (or challenge question_ids)
+            const orderRef =
+              completedWithAttempts.find((p) => (p.exam_attempt?.answers?.length || 0) > 0)?.exam_attempt?.answers?.map((a: any) => String(a.question_id)) ||
+              attemptedQuestionIds;
+            const orderIndex = new Map<string, number>();
+            orderRef.forEach((id, idx) => {
+              if (!orderIndex.has(id)) orderIndex.set(id, idx);
             });
-            setQuestions(orderedQuestions as ExamQuestion[]);
-          } else {
-            setQuestions([]);
+
+            const orderedQuestions = Array.from(questionMap.values()).sort(
+              (a, b) =>
+                (orderIndex.get(String(a.id)) ?? 9999) -
+                (orderIndex.get(String(b.id)) ?? 9999)
+            );
+            setQuestions(orderedQuestions);
+          } finally {
+            setLoadingQuestions(false);
           }
         } else {
           setQuestions([]);
@@ -139,7 +217,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
       hasLoadedOnceRef.current = true;
       setLoading(false);
     }
-  }, [challengeId, supabase]);
+  }, [challengeId, supabase, user?.id]);
 
   useEffect(() => {
     fetchData();
@@ -404,6 +482,7 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
             exam_language: resolvedSoloLang,
           }}
           questions={questions}
+          loadingQuestions={loadingQuestions}
           onReset={() => navigate("results")}
           onRetake={() => navigate("exam", { category_id: challenge.category_id, mode: "individual" })}
         />
@@ -1190,50 +1269,99 @@ export function GroupExamResultsView({ navigate, params }: GroupExamResultsViewP
                       </div>
 
                       <div className="space-y-2">
-                        {filteredQuestions.map((q, qIdx) => {
-                          const answer = selectedParticipantAttempt.answers?.find((a) => a.question_id === q.id);
-                          const isCorrect = answer?.is_correct;
-                          const selectedOption = answer?.selected_answer;
+                        {loadingQuestions && questions.length === 0 ? (
+                          <div className="p-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            <span>{t("loading") || "Loading exam questions..."}</span>
+                          </div>
+                        ) : filteredQuestions.length > 0 ? (
+                          filteredQuestions.map((q, qIdx) => {
+                            const answer = selectedParticipantAttempt.answers?.find(
+                              (a) => String(a.question_id) === String(q.id)
+                            );
+                            const isCorrect = answer?.is_correct;
+                            const selectedOption = answer?.selected_answer;
 
-                          return (
-                            <div
-                              key={q.id}
-                              className={cn(
-                                "rounded-lg border p-2.5 sm:p-3 transition-colors",
-                                isCorrect === true
-                                  ? "border-emerald-500/40 bg-emerald-500/5"
-                                  : isCorrect === false
-                                  ? "border-rose-500/40 bg-rose-500/5"
-                                  : "border-border bg-card"
-                              )}
-                            >
-                              <div className="flex items-start gap-2">
-                                <span className="text-xs font-bold text-muted-foreground mt-0.5">{qIdx + 1}.</span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs sm:text-sm font-medium leading-snug">{q.question}</p>
-                                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
-                                    {isCorrect === true && (
-                                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                                        <CheckCircle className="h-3.5 w-3.5" />
-                                        <span>{selectedOption ? `${t("answer") || "Answer"}: ${selectedOption}` : t("correct") || "Correct"}</span>
-                                      </span>
+                            return (
+                              <div
+                                key={q.id}
+                                className={cn(
+                                  "rounded-lg border p-2.5 sm:p-3 transition-colors",
+                                  isCorrect === true
+                                    ? "border-emerald-500/40 bg-emerald-500/5"
+                                    : isCorrect === false
+                                    ? "border-rose-500/40 bg-rose-500/5"
+                                    : "border-border bg-card"
+                                )}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <span className="text-xs font-bold text-muted-foreground mt-0.5">{qIdx + 1}.</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs sm:text-sm font-medium leading-snug">{q.question}</p>
+                                    {q.question_image && (
+                                      <div className="my-2 rounded-md overflow-hidden border max-w-md">
+                                        <SmartImage
+                                          src={q.question_image}
+                                          alt=""
+                                          className="w-full h-36 object-contain bg-muted/20"
+                                        />
+                                      </div>
                                     )}
-                                    {isCorrect === false && (
-                                      <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold">
-                                        <XCircle className="h-3.5 w-3.5" />
-                                        <span>{selectedOption ? `${t("yourAnswer") || "Selected"}: ${selectedOption}` : t("unanswered") || "Unanswered"}</span>
+                                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                                      {isCorrect === true && (
+                                        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                                          <CheckCircle className="h-3.5 w-3.5" />
+                                          <span>{selectedOption ? `${t("answer") || "Answer"}: ${selectedOption}` : t("correct") || "Correct"}</span>
+                                        </span>
+                                      )}
+                                      {isCorrect === false && (
+                                        <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold">
+                                          <XCircle className="h-3.5 w-3.5" />
+                                          <span>{selectedOption ? `${t("yourAnswer") || "Selected"}: ${selectedOption}` : t("unanswered") || "Unanswered"}</span>
+                                        </span>
+                                      )}
+                                      <span className="text-muted-foreground">•</span>
+                                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                                        {t("correctAnswer") || "Correct Answer"}: {q.correct_answer}
                                       </span>
-                                    )}
-                                    <span className="text-muted-foreground">•</span>
-                                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                                      {t("correctAnswer") || "Correct Answer"}: {q.correct_answer}
-                                    </span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })
+                        ) : (
+                          (selectedParticipantAttempt.answers || [])
+                            .filter((a) => {
+                              if (questionFilter === "all") return true;
+                              if (questionFilter === "correct") return a.is_correct === true;
+                              if (questionFilter === "incorrect") return !a.is_correct && a.selected_answer !== null;
+                              if (questionFilter === "unanswered") return !a.selected_answer;
+                              return true;
+                            })
+                            .map((ans, qIdx) => (
+                              <div
+                                key={ans.question_id || qIdx}
+                                className={cn(
+                                  "rounded-lg border p-2.5 sm:p-3 transition-colors",
+                                  ans.is_correct
+                                    ? "border-emerald-500/40 bg-emerald-500/5"
+                                    : ans.selected_answer
+                                    ? "border-rose-500/40 bg-rose-500/5"
+                                    : "border-border bg-card"
+                                )}
+                              >
+                                <div className="flex items-center justify-between gap-2 text-xs">
+                                  <span className="font-semibold text-foreground">Question {qIdx + 1}</span>
+                                  <span className="text-muted-foreground">
+                                    {ans.selected_answer
+                                      ? `${t("yourAnswer") || "Selected"}: ${ans.selected_answer}`
+                                      : t("unanswered") || "Unanswered"}
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                        )}
                       </div>
                     </>
                   )}

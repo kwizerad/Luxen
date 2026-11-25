@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { triggerOpportunisticExamCleanup } from "@/lib/exam-cleanup";
-import { getChallengesSharePreferences } from "@/lib/group-exam-privacy";
+import {
+  getChallengeLanguagesMap,
+  getChallengesSharePreferences,
+  setChallengeLanguage,
+} from "@/lib/group-exam-privacy";
 
 export async function GET(request: NextRequest) {
   try {
@@ -136,11 +140,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const sharePrefsMap = await getChallengesSharePreferences(
-      adminClient,
-      (challenges || []).map((c) => c.id),
-      participants || []
-    );
+    const [sharePrefsMap, challengeLangMap] = await Promise.all([
+      getChallengesSharePreferences(
+        adminClient,
+        (challenges || []).map((c) => c.id),
+        participants || []
+      ),
+      getChallengeLanguagesMap(
+        adminClient,
+        (challenges || []).map((c) => c.id)
+      ),
+    ]);
 
     const participantMap: Record<string, any[]> = {};
     for (const p of participants || []) {
@@ -208,6 +218,7 @@ export async function GET(request: NextRequest) {
 
       return {
         ...c,
+        language: c.language || challengeLangMap[c.id] || undefined,
         participants: parts,
         creator_profile: profileMap[c.creator_id] || null,
         attempted_participants_count: attemptedCount,
@@ -346,6 +357,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (challengeError) throw new Error(challengeError.message || "Failed to create challenge");
+
+    await setChallengeLanguage(adminClient, challenge.id, examLanguage);
 
     const participants = [
       { challenge_id: challenge.id, user_id: user.id, status: "ready", ready_at: new Date().toISOString() },

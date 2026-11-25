@@ -1,7 +1,12 @@
 "use client";
 
 import type { ExamAnswer, ExamAttempt, ExamQuestion } from "@/lib/database.types";
-import { getExamResultLanguageName, normalizeCanonicalExamLanguage } from "@/lib/exam-settings";
+import {
+  getExamResultLanguageName,
+  inferCanonicalLanguageFromQuestions,
+  normalizeCanonicalExamLanguage,
+  resolveExplicitExamLanguage,
+} from "@/lib/exam-settings";
 import { invalidateStudentExamHistoryCache, studentCache } from "@/lib/student-cache";
 
 const SAVING_CONFIG_STORAGE_KEY = "exam_saving_config_v1";
@@ -143,6 +148,36 @@ export function getBrowserExamRecords(userId?: string | null): BrowserExamRecord
   return readRecordsFromLocalStorage(userId);
 }
 
+function enrichBrowserRecordsLanguage(
+  records: BrowserExamRecord[]
+): BrowserExamRecord[] {
+  return records.map((rec) => {
+    if (rec.attempt.is_module) return rec;
+    const explicit = resolveExplicitExamLanguage(rec.attempt);
+    const inferred = inferCanonicalLanguageFromQuestions(rec.questions);
+
+    // Trust inferred English/French from saved questions if attempt language was missing or defaulted to Kinyarwanda
+    const resolvedLang =
+      inferred && (!explicit || (explicit === "Kinyarwanda" && (inferred === "English" || inferred === "French")))
+        ? inferred
+        : explicit;
+
+    if (!resolvedLang) return rec;
+    return {
+      ...rec,
+      attempt: {
+        ...rec.attempt,
+        exam_language: resolvedLang,
+        category_name: getExamResultLanguageName({
+          exam_language: resolvedLang,
+          category_name: rec.attempt.category_name,
+          is_module: rec.attempt.is_module,
+        }),
+      },
+    };
+  });
+}
+
 export async function getBrowserExamRecordsAsync(
   userId?: string | null
 ): Promise<BrowserExamRecord[]> {
@@ -156,10 +191,13 @@ export async function getBrowserExamRecordsAsync(
     );
     const idbRecords = Array.isArray(idbRes?.data) ? idbRes.data : [];
 
-    if (idbRecords.length === 0) return localRecords;
+    if (idbRecords.length === 0) {
+      return enrichBrowserRecordsLanguage(localRecords);
+    }
     if (localRecords.length === 0) {
-      writeRecordsToLocalStorage(userId, idbRecords);
-      return idbRecords;
+      const enrichedIdb = enrichBrowserRecordsLanguage(idbRecords);
+      writeRecordsToLocalStorage(userId, enrichedIdb);
+      return enrichedIdb;
     }
 
     const byId = new Map<string, BrowserExamRecord>();
@@ -178,9 +216,9 @@ export async function getBrowserExamRecordsAsync(
       ).getTime();
       return tB - tA;
     });
-    return merged;
+    return enrichBrowserRecordsLanguage(merged);
   } catch {
-    return localRecords;
+    return enrichBrowserRecordsLanguage(localRecords);
   }
 }
 
@@ -204,9 +242,10 @@ export async function saveBrowserExamAttempt(
   questionDetails?: Record<string, { correct_answer: string; explanation?: string }>
 ): Promise<BrowserExamRecord> {
   const now = new Date().toISOString();
+  const inferredLang = inferCanonicalLanguageFromQuestions(questions);
   const resolvedLang = attempt.exam_language
     ? normalizeCanonicalExamLanguage(attempt.exam_language)
-    : undefined;
+    : inferredLang ?? undefined;
   const resolvedCategoryName = attempt.is_module
     ? attempt.category_name || "Module Exam"
     : getExamResultLanguageName({

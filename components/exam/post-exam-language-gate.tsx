@@ -10,7 +10,7 @@ export type ExamLangOption = "Kinyarwanda" | "English" | "French";
 export function normalizeExamLanguage(lang?: string | null): ExamLangOption {
   const l = String(lang || "").trim().toLowerCase();
   if (l === "en" || l === "english") return "English";
-  if (l === "fr" || l === "french" || l === "français") return "French";
+  if (l === "fr" || l === "french" || l === "français" || l === "francais") return "French";
   return "Kinyarwanda";
 }
 
@@ -89,6 +89,7 @@ export function PostExamLanguageGate({
         };
 
   const isBusy = translatingLanguage !== null;
+  const isTranslatingCurrent = translatingLanguage === normalized;
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center min-h-[65vh] p-4 sm:p-6">
@@ -124,11 +125,20 @@ export function PostExamLanguageGate({
           onClick={onContinueCurrent}
           className="w-full rounded-xl h-12 text-sm font-bold gap-2.5 cursor-pointer shadow-xs"
         >
-          <span aria-hidden="true" className="text-base">
-            {currentMeta.flag}
-          </span>
-          <span>{copy.continueBtn}</span>
-          <ArrowRight className="w-4 h-4 shrink-0" />
+          {isTranslatingCurrent ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              <span>{copy.translatingText}</span>
+            </>
+          ) : (
+            <>
+              <span aria-hidden="true" className="text-base">
+                {currentMeta.flag}
+              </span>
+              <span>{copy.continueBtn}</span>
+              <ArrowRight className="w-4 h-4 shrink-0" />
+            </>
+          )}
         </Button>
 
         {/* Secondary choices: switch to another language */}

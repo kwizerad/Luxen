@@ -222,3 +222,110 @@ export async function getChallengeParticipantScores(
   return scores;
 }
 
+const LANG_KEY_PREFIX = "challenge_lang:";
+const QIDS_KEY_PREFIX = "challenge_qids:";
+
+export async function setChallengeLanguage(
+  adminClient: SupabaseClient,
+  challengeId: string,
+  language: string
+): Promise<void> {
+  if (!challengeId || !language) return;
+  try {
+    await adminClient.from("system_config").upsert(
+      {
+        key: `${LANG_KEY_PREFIX}${challengeId}`,
+        value: language,
+        description: "Group challenge canonical exam language",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "key" }
+    );
+  } catch (err) {
+    console.warn("[group-exam-privacy] Failed storing challenge language:", err);
+  }
+}
+
+export async function getChallengeLanguage(
+  adminClient: SupabaseClient,
+  challengeId: string
+): Promise<string | null> {
+  if (!challengeId) return null;
+  try {
+    const { data, error } = await adminClient
+      .from("system_config")
+      .select("value")
+      .eq("key", `${LANG_KEY_PREFIX}${challengeId}`)
+      .maybeSingle();
+    if (!error && data?.value) {
+      return String(data.value);
+    }
+  } catch {}
+  return null;
+}
+
+export async function getChallengeLanguagesMap(
+  adminClient: SupabaseClient,
+  challengeIds: string[]
+): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+  if (!challengeIds.length) return result;
+  const keys = challengeIds.map((id) => `${LANG_KEY_PREFIX}${id}`);
+  try {
+    const { data, error } = await adminClient
+      .from("system_config")
+      .select("key, value")
+      .in("key", keys);
+    if (!error && Array.isArray(data)) {
+      for (const row of data) {
+        if (typeof row.key === "string" && row.key.startsWith(LANG_KEY_PREFIX) && row.value) {
+          const cid = row.key.slice(LANG_KEY_PREFIX.length);
+          result[cid] = String(row.value);
+        }
+      }
+    }
+  } catch {}
+  return result;
+}
+
+export async function setChallengeQuestionIds(
+  adminClient: SupabaseClient,
+  challengeId: string,
+  questionIds: string[]
+): Promise<void> {
+  if (!challengeId || !Array.isArray(questionIds) || questionIds.length === 0) return;
+  try {
+    await adminClient.from("system_config").upsert(
+      {
+        key: `${QIDS_KEY_PREFIX}${challengeId}`,
+        value: JSON.stringify(questionIds),
+        description: "Group challenge question IDs list",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "key" }
+    );
+  } catch (err) {
+    console.warn("[group-exam-privacy] Failed storing challenge question IDs:", err);
+  }
+}
+
+export async function getChallengeQuestionIds(
+  adminClient: SupabaseClient,
+  challengeId: string
+): Promise<string[]> {
+  if (!challengeId) return [];
+  try {
+    const { data, error } = await adminClient
+      .from("system_config")
+      .select("value")
+      .eq("key", `${QIDS_KEY_PREFIX}${challengeId}`)
+      .maybeSingle();
+    if (!error && data?.value) {
+      const parsed = JSON.parse(String(data.value));
+      if (Array.isArray(parsed)) {
+        return parsed.map(String).filter(Boolean);
+      }
+    }
+  } catch {}
+  return [];
+}

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getChallengeSharePreferences } from "@/lib/group-exam-privacy";
+import {
+  getChallengeLanguage,
+  getChallengeParticipantScores,
+  getChallengeQuestionIds,
+  getChallengeSharePreferences,
+} from "@/lib/group-exam-privacy";
 
 export async function GET(
   request: NextRequest,
@@ -52,11 +57,12 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const sharePrefs = await getChallengeSharePreferences(
-      adminClient,
-      params.id,
-      participants
-    );
+    const [sharePrefs, storedChallengeLang, storedQuestionIds, challengeScoreSummaries] = await Promise.all([
+      getChallengeSharePreferences(adminClient, params.id, participants),
+      getChallengeLanguage(adminClient, params.id),
+      getChallengeQuestionIds(adminClient, params.id),
+      getChallengeParticipantScores(adminClient, params.id),
+    ]);
 
     const allUserIds = new Set<string>();
     for (const p of participants || []) allUserIds.add(p.user_id);
@@ -140,7 +146,24 @@ export async function GET(
     }
 
     const enrichedParticipants = (participants || []).map((p) => {
-      const attempt = p.exam_attempt_id ? attemptMap[p.exam_attempt_id] || null : null;
+      const summaryFallback = challengeScoreSummaries[p.user_id] || null;
+      const attempt =
+        (p.exam_attempt_id ? attemptMap[p.exam_attempt_id] || null : null) ||
+        (summaryFallback
+          ? {
+              id: `summary-${params.id}-${p.user_id}`,
+              user_id: p.user_id,
+              category_id: challenge.category_id,
+              category_name: challenge.language || storedChallengeLang || challenge.category_name,
+              correct_answers: summaryFallback.correct_answers,
+              total_questions: summaryFallback.total_questions,
+              score_percentage: summaryFallback.score_percentage,
+              duration_seconds: summaryFallback.duration_seconds,
+              status: summaryFallback.status || "completed",
+              completed_at: summaryFallback.completed_at || p.completed_at || null,
+              answers: [],
+            }
+          : null);
       const profile = profileMap[p.user_id] || null;
       const history = userAttemptsMap[p.user_id] || [];
       const totalAttempts = history.length;
@@ -218,6 +241,11 @@ export async function GET(
     return NextResponse.json({
       challenge: {
         ...challenge,
+        language: challenge.language || storedChallengeLang || undefined,
+        question_ids:
+          Array.isArray(challenge.question_ids) && challenge.question_ids.length > 0
+            ? challenge.question_ids
+            : storedQuestionIds,
         creator_profile: profileMap[challenge.creator_id] || null,
         attempted_participants_count: attemptedCount,
         is_solo_attempt: isSoloAttempt,

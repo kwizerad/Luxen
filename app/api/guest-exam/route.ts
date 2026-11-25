@@ -238,15 +238,16 @@ export async function POST(req: NextRequest) {
     if (action === "translate_questions" && Array.isArray(body?.questions)) {
       const inputQuestions = body.questions as Array<Record<string, any>>;
       const questionIds = inputQuestions.map((q) => String(q.id || "")).filter(Boolean);
+      const numericIds = questionIds.filter((id) => /^\d+$/.test(id));
       const extSb = await getExternalAdminClient();
       const canonicalById = new Map<string, { item: Record<string, any>; sourceLang: TargetLanguage | "auto" }>();
 
-      if (extSb && questionIds.length > 0) {
+      if (extSb && numericIds.length > 0) {
         try {
           const { data: extRows } = await extSb
             .from("questions")
             .select("*")
-            .in("id", questionIds);
+            .in("id", numericIds);
           for (const row of extRows || []) {
             const choices = parseExternalChoices(row.choice);
             canonicalById.set(String(row.id), {
@@ -343,7 +344,7 @@ export async function POST(req: NextRequest) {
               adminSb,
               fallbackSourced,
               language,
-              body?.sourceLanguage || "auto"
+              "auto"
             )
           : Promise.resolve([]),
       ]);

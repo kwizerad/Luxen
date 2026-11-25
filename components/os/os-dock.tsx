@@ -143,7 +143,10 @@ export function OSDock({ activeView, navigate, onOpenSpotlight }: OSDockProps) {
   });
 
   return (
-    <div className="fixed bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 z-[75] max-w-[calc(100vw-0.75rem)] select-none pointer-events-auto">
+    <div
+      data-os-dock="true"
+      className="fixed bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 z-[75] max-w-[calc(100vw-0.75rem)] select-none pointer-events-auto"
+    >
       <motion.nav
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}

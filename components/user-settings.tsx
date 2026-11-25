@@ -1050,16 +1050,16 @@ export default function UserSettings({
 
       {/* View Profile Picture Dialog */}
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl max-w-[94vw] w-full p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>{t("profilePicture")}</DialogTitle>
           </DialogHeader>
-          <div className="flex items-center justify-center">
+          <div className="w-full max-w-[540px] mx-auto aspect-square max-h-[72vh] rounded-xl bg-black/5 dark:bg-black/40 border border-border/50 flex items-center justify-center overflow-hidden p-2">
             {displayAvatarUrl && (
               <img
                 src={displayAvatarUrl}
                 alt={t("userSettings.profile")}
-                className="max-w-full max-h-96 rounded-lg"
+                className="w-full h-full object-contain rounded-lg"
               />
             )}
           </div>

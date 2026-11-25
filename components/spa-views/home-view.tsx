@@ -249,6 +249,7 @@ export function HomeView({ navigate }: HomeViewProps) {
   const pendingFriendRequests = usePendingFriendRequests();
   const [now, setNow] = useState(Date.now());
   const [localLastTopic, setLocalLastTopic] = useState<{
+    language?: string;
     moduleId?: string;
     moduleTitle?: string;
     lessonId?: string;
@@ -259,7 +260,15 @@ export function HomeView({ navigate }: HomeViewProps) {
     topicCount?: number;
   } | null>(null);
 
-  const userCourseLang = typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
+  const storedCourseLang =
+    typeof window !== "undefined" ? localStorage.getItem("luxen_course_lang") : null;
+  const userCourseLang =
+    storedCourseLang && ["English", "French", "Kinyarwanda"].includes(storedCourseLang)
+      ? storedCourseLang
+      : userProfile?.learning_language &&
+        ["English", "French", "Kinyarwanda"].includes(userProfile.learning_language)
+      ? userProfile.learning_language
+      : null;
   const courseBtnLabel = userCourseLang
     ? userCourseLang === "French"
       ? "Continuer en Français"
@@ -276,6 +285,7 @@ export function HomeView({ navigate }: HomeViewProps) {
     const readLocalLastTopic = () => {
       try {
         const raw =
+          (userCourseLang ? localStorage.getItem(`luxen_last_topic_${userCourseLang}`) : null) ||
           localStorage.getItem("luxen_last_topic_global") ||
           (interfaceLanguage ? localStorage.getItem(`luxen_last_topic_${interfaceLanguage}`) : null);
         if (raw) {
@@ -290,7 +300,7 @@ export function HomeView({ navigate }: HomeViewProps) {
     readLocalLastTopic();
     window.addEventListener("focus", readLocalLastTopic);
     return () => window.removeEventListener("focus", readLocalLastTopic);
-  }, [interfaceLanguage]);
+  }, [interfaceLanguage, userCourseLang]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -673,7 +683,7 @@ export function HomeView({ navigate }: HomeViewProps) {
       ] = await Promise.allSettled([
         fetchGroupChallenges(),
         Promise.race([
-          getDashboardData(interfaceLanguage),
+          getDashboardData(userCourseLang || interfaceLanguage),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("Dashboard timeout")), 5000)
           ),
@@ -763,7 +773,7 @@ export function HomeView({ navigate }: HomeViewProps) {
     } finally {
       setLoadingData(false);
     }
-  }, [user, interfaceLanguage, dashCacheKey, fetchGroupChallenges]);
+  }, [user, interfaceLanguage, userCourseLang, dashCacheKey, fetchGroupChallenges]);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -1368,7 +1378,9 @@ export function HomeView({ navigate }: HomeViewProps) {
             </button>
             <button
               type="button"
-              onClick={() => navigate("course")}
+              onClick={() =>
+                navigate("course", userCourseLang ? { language: userCourseLang } : undefined)
+              }
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-muted/60 text-foreground text-xs sm:text-sm font-semibold shadow-xs transition-all"
             >
               <BookOpen className="w-3.5 h-3.5 text-primary" />
@@ -1436,11 +1448,22 @@ export function HomeView({ navigate }: HomeViewProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      const targetLessonId = localLastTopic?.lessonId || continueData?.lessonId;
-                      const targetTopicId = localLastTopic?.topicId || continueData?.topicId;
-                      const targetModuleId = localLastTopic?.moduleId || continueData?.moduleId;
+                      const matchesCourseLang =
+                        !localLastTopic?.language ||
+                        !userCourseLang ||
+                        localLastTopic.language === userCourseLang;
+                      const targetLessonId =
+                        (matchesCourseLang ? localLastTopic?.lessonId : undefined) ||
+                        continueData?.lessonId;
+                      const targetTopicId =
+                        (matchesCourseLang ? localLastTopic?.topicId : undefined) ||
+                        continueData?.topicId;
+                      const targetModuleId =
+                        (matchesCourseLang ? localLastTopic?.moduleId : undefined) ||
+                        continueData?.moduleId;
 
                       const navParams: Record<string, string> = {};
+                      if (userCourseLang) navParams.language = userCourseLang;
                       if (targetLessonId) navParams.lesson = targetLessonId;
                       if (targetTopicId) navParams.topic = targetTopicId;
                       if (targetModuleId) navParams.module = targetModuleId;

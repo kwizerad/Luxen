@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserFromRequest } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getChallengeParticipantScores, getChallengeSharePreferences } from "@/lib/group-exam-privacy";
+import {
+  getChallengeLanguage,
+  getChallengeParticipantScores,
+  getChallengeSharePreferences,
+} from "@/lib/group-exam-privacy";
 
 export async function GET(
   request: NextRequest,
@@ -60,9 +64,10 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const [sharePrefs, challengeScoreSummaries] = await Promise.all([
+    const [sharePrefs, challengeScoreSummaries, storedChallengeLang] = await Promise.all([
       getChallengeSharePreferences(adminClient, params.id, participants),
       getChallengeParticipantScores(adminClient, params.id),
+      getChallengeLanguage(adminClient, params.id),
     ]);
 
     // Get profiles
@@ -267,6 +272,7 @@ export async function GET(
     return NextResponse.json({
       challenge: {
         ...challenge,
+        language: challenge.language || storedChallengeLang || undefined,
         creator_profile: profileMap[challenge.creator_id] || null,
         attempted_participants_count: attemptedCount,
         is_solo_attempt: isSoloAttempt,
